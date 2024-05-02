@@ -13,7 +13,8 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v6::CTCGreedyDecoderSeqLen> {
+class CTCGreedyDecoderSeqLenV6StaticShapeInferenceTest
+    : public OpStaticShapeInferenceTest<op::v6::CTCGreedyDecoderSeqLen> {
     void SetUp() override {
         output_shapes.resize(1);
     }

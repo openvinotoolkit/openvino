@@ -18,15 +18,15 @@ auto AutoBatchConfigs = []() {
                                     ov::auto_batch_timeout(0)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                ::testing::ValuesIn(configs())),
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestPerfCountersTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(configs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestPerfCountersTest,
-                         ::testing::Combine(
-                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(AutoBatchConfigs())),
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
+                         OVInferRequestPerfCountersTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 }  // namespace

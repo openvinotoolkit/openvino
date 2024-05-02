@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/group_normalization.hpp>
-#include "openvino/reference/group_normalization.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
+#include <intel_gpu/primitives/input_layout.hpp>
 
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "openvino/reference/group_normalization.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
 namespace {
 
-typedef std::tuple<
-std::vector<std::int32_t>,  // Input shape
-std::size_t,                // Number of groups
-double,                     // Epsilon
-format                      // First input layout
->
-GroupNormalizationParams;
+typedef std::tuple<std::vector<std::int32_t>,  // Input shape
+                   std::size_t,                // Number of groups
+                   double,                     // Epsilon
+                   format                      // First input layout
+                   >
+    GroupNormalizationParams;
 
 class GroupNormalizationGPUTest : public ::testing::TestWithParam<GroupNormalizationParams> {
 public:
@@ -39,10 +38,10 @@ public:
         const auto planar_format = format::dimension(format_) == 4 ? format::bfyx : format::bfzyx;
 
         topology tp;
-        auto &engine = get_test_engine();
+        auto& engine = get_test_engine();
         data_layout_ = layout{data_types::f32, planar_format, tensor{input_shape}};
-        scale_bias_layout_ = layout{data_types::f32, planar_format, tensor{1,
-            static_cast<std::int32_t>(scale_.size()), 1, 1}};
+        scale_bias_layout_ =
+            layout{data_types::f32, planar_format, tensor{1, static_cast<std::int32_t>(scale_.size()), 1, 1}};
 
         primitive_id reordered_data_primitive = data_primitive_ + "_reordered";
         tp.add(input_layout{data_primitive_, data_layout_});
@@ -50,14 +49,12 @@ public:
         tp.add(input_layout{bias_primitive_, scale_bias_layout_});
         tp.add(reorder{reordered_data_primitive, data_primitive_, format_, data_types::f32});
 
-        auto g = group_normalization{
-            "group_normalization_output",
-            input_info{reordered_data_primitive},
-            input_info{scale_primitive_},
-            input_info{bias_primitive_},
-            static_cast<std::int64_t>(num_groups_),
-            epsilon_
-        };
+        auto g = group_normalization{"group_normalization_output",
+                                     input_info{reordered_data_primitive},
+                                     input_info{scale_primitive_},
+                                     input_info{bias_primitive_},
+                                     static_cast<std::int64_t>(num_groups_),
+                                     epsilon_};
         tp.add(g);
         tp.add(reorder{"output", input_info("group_normalization_output"), planar_format, data_types::f32});
 
@@ -65,7 +62,7 @@ public:
     }
 
     void Test() {
-        auto &engine = get_test_engine();
+        auto& engine = get_test_engine();
         auto data_gpu_mem = engine.allocate_memory(data_layout_);
         auto scale_gpu_mem = engine.allocate_memory(scale_bias_layout_);
         auto bias_gpu_mem = engine.allocate_memory(scale_bias_layout_);
@@ -80,8 +77,13 @@ public:
         cldnn::mem_lock<float> output_gpu_mem(output, get_test_stream());
 
         std::vector<float> reference_output(data_.size());
-        ov::reference::group_normalization(data_.data(), scale_.data(), bias_.data(), reference_output.data(),
-                                           ov::Shape{data_shape_}, num_groups_, epsilon_);
+        ov::reference::group_normalization(data_.data(),
+                                           scale_.data(),
+                                           bias_.data(),
+                                           reference_output.data(),
+                                           ov::Shape{data_shape_},
+                                           num_groups_,
+                                           epsilon_);
 
         ASSERT_EQ(output_gpu_mem.size(), reference_output.size());
         for (std::size_t i = 0; i < reference_output.size(); i++) {
@@ -113,34 +115,32 @@ TEST_P(GroupNormalizationGPUTest, blocked_layouts_support) {
     Test();
 }
 
-const std::vector<cldnn::format> f_blocked_4d_formats {
+const std::vector<cldnn::format> f_blocked_4d_formats{
     format::b_fs_yx_fsv2,
     format::b_fs_yx_fsv4,
     format::b_fs_yx_fsv16,
     format::b_fs_yx_fsv32,
 };
 
-const std::vector<cldnn::format> f_blocked_5d_formats {
+const std::vector<cldnn::format> f_blocked_5d_formats{
     format::b_fs_zyx_fsv2,
     format::b_fs_zyx_fsv4,
     format::b_fs_zyx_fsv16,
     format::b_fs_zyx_fsv32,
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationGPUTest_blocked_layouts_support_4d, GroupNormalizationGPUTest,
-    ::testing::Combine(
-        ::testing::Values(std::vector<int32_t>{3, 64, 32, 64}),
-        ::testing::Values(4),
-        ::testing::Values(0.0025),
-        ::testing::ValuesIn(f_blocked_4d_formats)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationGPUTest_blocked_layouts_support_4d,
+                         GroupNormalizationGPUTest,
+                         ::testing::Combine(::testing::Values(std::vector<int32_t>{3, 64, 32, 64}),
+                                            ::testing::Values(4),
+                                            ::testing::Values(0.0025),
+                                            ::testing::ValuesIn(f_blocked_4d_formats)));
 
-INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationGPUTest_blocked_layouts_support_5d, GroupNormalizationGPUTest,
-    ::testing::Combine(
-        ::testing::Values(std::vector<int32_t>{3, 64, 28, 32, 12}),
-        ::testing::Values(4),
-        ::testing::Values(0.0025),
-        ::testing::ValuesIn(f_blocked_5d_formats)));
+INSTANTIATE_TEST_SUITE_P(GroupNormalizationGPUTest_blocked_layouts_support_5d,
+                         GroupNormalizationGPUTest,
+                         ::testing::Combine(::testing::Values(std::vector<int32_t>{3, 64, 28, 32, 12}),
+                                            ::testing::Values(4),
+                                            ::testing::Values(0.0025),
+                                            ::testing::ValuesIn(f_blocked_5d_formats)));
 
-} // anonymous namespace
+}  // anonymous namespace

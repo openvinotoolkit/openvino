@@ -2,33 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
 #include <random>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ov::test;
 
 namespace GPULayerTestsDefinitions {
 
-typedef std::tuple<
-        InputShape,                // Input shape
-        int,                       // Sequence lengths
-        ov::element::Type,         // Probabilities precision
-        ov::element::Type,         // Indices precision
-        int,                       // Blank index
-        bool,                      // Merge repeated
-        std::string                // Device name
-> ctcGreedyDecoderSeqLenParams;
+typedef std::tuple<InputShape,         // Input shape
+                   int,                // Sequence lengths
+                   ov::element::Type,  // Probabilities precision
+                   ov::element::Type,  // Indices precision
+                   int,                // Blank index
+                   bool,               // Merge repeated
+                   std::string         // Device name
+                   >
+    ctcGreedyDecoderSeqLenParams;
 
-class CTCGreedyDecoderSeqLenLayerGPUTest
-    : public testing::WithParamInterface<ctcGreedyDecoderSeqLenParams>,
-      virtual public SubgraphBaseTest {
+class CTCGreedyDecoderSeqLenLayerGPUTest : public testing::WithParamInterface<ctcGreedyDecoderSeqLenParams>,
+                                           virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderSeqLenParams>& obj) {
         InputShape inputShape;
@@ -69,19 +68,14 @@ protected:
         ov::element::Type model_type, indices_type;
         int blankIndex;
         bool mergeRepeated;
-        std::tie(inputShape,
-                 sequenceLengths,
-                 model_type,
-                 indices_type,
-                 blankIndex,
-                 mergeRepeated,
-                 targetDevice) = GetParam();
+        std::tie(inputShape, sequenceLengths, model_type, indices_type, blankIndex, mergeRepeated, targetDevice) =
+            GetParam();
         inputDynamicShapes = {inputShape.first, {}};
         for (size_t i = 0; i < inputShape.second.size(); ++i) {
             targetStaticShapes.push_back({inputShape.second[i], {}});
         }
 
-        ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
         const auto sequenceLenNode = [&] {
             const size_t B = targetStaticShapes[0][0][0];
@@ -140,24 +134,16 @@ TEST_P(CTCGreedyDecoderSeqLenLayerGPUTest, CompareWithRefs) {
 
 namespace {
 
-std::vector<ov::test::InputShape> inputShapeDynamic = {
-    {
-        {{-1, -1, -1}, {{1, 28, 41}}},
-        {{-1, -1, -1}, {{1, 1, 1}}},
-        {{-1, -1, -1}, {{1, 6, 10}}},
-        {{-1, -1, -1}, {{3, 3, 16}}},
-        {{-1, -1, -1}, {{5, 3, 55}}},
-    }
-};
+std::vector<ov::test::InputShape> inputShapeDynamic = {{
+    {{-1, -1, -1}, {{1, 28, 41}}},
+    {{-1, -1, -1}, {{1, 1, 1}}},
+    {{-1, -1, -1}, {{1, 6, 10}}},
+    {{-1, -1, -1}, {{3, 3, 16}}},
+    {{-1, -1, -1}, {{5, 3, 55}}},
+}};
 
-const std::vector<ov::element::Type> probPrecisions = {
-    ov::element::f32,
-    ov::element::f16
-};
-const std::vector<ov::element::Type> idxPrecisions = {
-    ov::element::i32,
-    ov::element::i64
-};
+const std::vector<ov::element::Type> probPrecisions = {ov::element::f32, ov::element::f16};
+const std::vector<ov::element::Type> idxPrecisions = {ov::element::i32, ov::element::i64};
 
 std::vector<bool> mergeRepeated{true, false};
 
@@ -184,5 +170,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_ctc_greedy_decoder_seq_len_bi_dynamic,
                                             ::testing::ValuesIn(mergeRepeated),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          CTCGreedyDecoderSeqLenLayerGPUTest::getTestCaseName);
-} // namespace
-} // namespace GPULayerTestsDefinitions
+}  // namespace
+}  // namespace GPULayerTestsDefinitions

@@ -3,17 +3,19 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
 #include <vector>
+
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Provides mutable data.
 /// @details This primitive allows to pass data which can be written to during training.
 /// For example, weights and biases for scoring networks.
-/// This primitive can be also set as other primitive's output. In this case the underlying buffer will be the same in mutable_data and preceding primitive.
+/// This primitive can be also set as other primitive's output. In this case the underlying buffer will be the same in
+/// mutable_data and preceding primitive.
 struct mutable_data : public primitive_base<mutable_data> {
     CLDNN_DECLARE_PRIMITIVE(mutable_data)
 
@@ -27,10 +29,10 @@ struct mutable_data : public primitive_base<mutable_data> {
     /// @param mem @ref memory object which contains data.
     /// @param filler_type @ref data filling function, default is zero
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    mutable_data(const primitive_id& id,
-                 memory::ptr mem,
-                 filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, {}, {padding()}), mem(mem), fill_type(fill_type) {}
+    mutable_data(const primitive_id& id, memory::ptr mem, filler_type fill_type = filler_type::no_fill)
+        : primitive_base(id, {}, {padding()}),
+          mem(mem),
+          fill_type(fill_type) {}
 
     /// @brief Constructs mutable_data primitive with inputs.
     /// @param id This primitive id.
@@ -42,7 +44,9 @@ struct mutable_data : public primitive_base<mutable_data> {
                  const std::vector<input_info>& inputs,
                  memory::ptr mem,
                  filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, inputs, {padding()}), mem(std::move(mem)), fill_type(fill_type) {}
+        : primitive_base(id, inputs, {padding()}),
+          mem(std::move(mem)),
+          fill_type(fill_type) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.

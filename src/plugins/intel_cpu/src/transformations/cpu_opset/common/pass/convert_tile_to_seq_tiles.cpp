@@ -7,17 +7,16 @@
 #include <memory>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "openvino/core/rt_info.hpp"
-
-#include "itt.hpp"
-
 ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
     MATCHER_SCOPE(ConvertTileToSeqTiles);
-    auto tile = ov::pass::pattern::wrap_type<ov::opset1::Tile>({ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                                                  ov::pass::pattern::wrap_type<ov::opset1::Constant>()});
+    auto tile = ov::pass::pattern::wrap_type<ov::opset1::Tile>(
+        {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+         ov::pass::pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto tile = std::dynamic_pointer_cast<ov::opset1::Tile>(m.get_match_root());
@@ -26,13 +25,15 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         }
 
         auto tiles_node = std::dynamic_pointer_cast<ov::opset1::Constant>(tile->input_value(1).get_node_shared_ptr());
-        if (!tiles_node) return false;
+        if (!tiles_node)
+            return false;
 
         auto tiles = tiles_node->cast_vector<int64_t>();
         auto input_shape_rank = static_cast<size_t>(tile->get_input_partial_shape(0).rank().get_length());
         int64_t cur_dim_id = tiles.size() - 1;
 
-        if (tiles.size() != input_shape_rank) return false;
+        if (tiles.size() != input_shape_rank)
+            return false;
 
         auto last_node = tile->input_value(0);
         auto friendly_name = tile->get_friendly_name();
@@ -46,7 +47,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
 
         if (num_of_tile_dims == 0) {
             auto outputs = tile->get_output_target_inputs(0);
-            for (const auto &out : outputs) {
+            for (const auto& out : outputs) {
                 if (std::dynamic_pointer_cast<ov::opset1::Result>(out.get_node()->shared_from_this())) {
                     return false;
                 }
@@ -73,7 +74,8 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
             if (tile_dim != 1) {
                 std::vector<int64_t> dims(input_shape_rank, 1);
                 dims[cur_dim_id] = tile_dim;
-                auto const_node = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{input_shape_rank}, dims);
+                auto const_node =
+                    std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{input_shape_rank}, dims);
                 auto new_tile = std::make_shared<ov::opset1::Tile>(last_node, const_node);
                 new_tile->set_friendly_name(friendly_name);
                 friendly_name += "_" + std::to_string(cur_dim_id);

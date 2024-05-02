@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "experimental_detectron_topkrois_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "experimental_detectron_topkrois_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

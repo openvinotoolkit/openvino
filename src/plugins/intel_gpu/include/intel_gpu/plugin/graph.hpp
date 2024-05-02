@@ -5,23 +5,22 @@
 #pragma once
 
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
+
+#include <condition_variable>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-
-#include <vector>
-#include <map>
-#include <set>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include <condition_variable>
+#include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -29,17 +28,19 @@ namespace intel_gpu {
 class Graph final {
 public:
     using Ptr = std::shared_ptr<Graph>;
-    enum class Stage : uint32_t {
-        PREPROC = 1,
-        EXECUTE = 2,
-        POSTPROC = 4
-    };
+    enum class Stage : uint32_t { PREPROC = 1, EXECUTE = 2, POSTPROC = 4 };
 
-    Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
-    Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(std::shared_ptr<ov::Model> model,
+          const RemoteContextImpl::Ptr& context,
+          const ExecutionConfig& config,
+          uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib,
+          const RemoteContextImpl::Ptr& context,
+          const ExecutionConfig& config,
+          uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
 
-    void export_model(cldnn::BinaryOutputBuffer &ob);
+    void export_model(cldnn::BinaryOutputBuffer& ob);
     std::shared_ptr<ov::Model> get_runtime_model();
 
     bool is_loaded() const;
@@ -47,10 +48,16 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
     void update_profiling_info();
 
-    cldnn::engine& get_engine() const { return m_context->get_engine(); }
-    const ExecutionConfig& get_config() const { return m_config; }
+    cldnn::engine& get_engine() const {
+        return m_context->get_engine();
+    }
+    const ExecutionConfig& get_config() const {
+        return m_config;
+    }
 
-    const std::map<size_t, cldnn::layout>& get_input_layouts() const { return m_input_layouts; }
+    const std::map<size_t, cldnn::layout>& get_input_layouts() const {
+        return m_input_layouts;
+    }
     std::shared_ptr<cldnn::network> get_network() const;
 
     std::vector<cldnn::primitive_id> input_port_index_to_internal(size_t input_port_index) const;
@@ -71,7 +78,9 @@ public:
         }
         m_cv.notify_one();
     }
-    std::mutex& get_mutex() { return m_infer_mutex; }
+    std::mutex& get_mutex() {
+        return m_infer_mutex;
+    }
 
     bool use_external_queue() const;
 
@@ -94,7 +103,8 @@ private:
     std::map<size_t, cldnn::layout> m_input_layouts;
 
     void build(std::shared_ptr<cldnn::program> program);
-    std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);
+    std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi,
+                                                 bool filter_const_primitives = true);
 };
 
 }  // namespace intel_gpu

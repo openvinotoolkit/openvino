@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,   // input shapes
-                                             ov::element::Type>;        // input precision
+using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,  // input shapes
+                                      ov::element::Type>;       // input precision
 
-class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>,
-                            virtual public ov::test::SubgraphBaseTest {
+class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SwiGLUFusionParams> obj) {
         std::vector<InputShape> input_shapes;
@@ -89,9 +87,10 @@ TEST_P(SwiGLUFusion, Inference) {
 
 TEST_P(SwiGLUFusion, Inference_cached) {
     std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    ss << "gpu_model_cache_"
+       << std::hash<std::string>{}(
+              std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+              std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
     std::string cacheDirName = ss.str();
     {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
@@ -120,4 +119,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_SwiGLUFusion_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_dyn),
                                             ::testing::ValuesIn(input_precisions)),
                          SwiGLUFusion::getTestCaseName);
-} // namespace
+}  // namespace

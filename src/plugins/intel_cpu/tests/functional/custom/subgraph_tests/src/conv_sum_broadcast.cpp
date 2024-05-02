@@ -28,7 +28,8 @@ typedef std::tuple<InputShape,  // convShape
     convSumBroadcastParamSet;
 
 class ConvSumInPlaceTest : public testing::WithParamInterface<convSumBroadcastParamSet>,
-                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                           virtual public SubgraphBaseTest,
+                           public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convSumBroadcastParamSet>& obj) {
         InputShape convShape;
@@ -40,7 +41,7 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : {convShape, secondShape}) {
             result << "(";
@@ -73,16 +74,24 @@ public:
     }
 
     virtual std::shared_ptr<ov::Node> makeConv(const ov::ParameterVector& inputParams) {
-        auto conv = ov::test::utils::make_convolution(inputParams[0], ov::element::f32, _kernel, _stride, _padBegin,
-                                                     _padEnd, _dilation, ov::op::PadType::EXPLICIT, _convOutChannels);
+        auto conv = ov::test::utils::make_convolution(inputParams[0],
+                                                      ov::element::f32,
+                                                      _kernel,
+                                                      _stride,
+                                                      _padBegin,
+                                                      _padEnd,
+                                                      _dilation,
+                                                      ov::op::PadType::EXPLICIT,
+                                                      _convOutChannels);
 
         return conv;
     }
 
-    virtual std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) {
+    virtual std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode,
+                                             const ov::ParameterVector& inputParams) {
         auto sum = std::make_shared<ov::op::v1::Add>(lastNode, inputParams[1]);
 
-        fusedOps.insert(fusedOps.begin(), "Add"); // as we always fuse the sum first
+        fusedOps.insert(fusedOps.begin(), "Add");  // as we always fuse the sum first
         return sum;
     }
 
@@ -110,7 +119,10 @@ public:
         auto conv = makeConv(inputParams);
 
         if (bias) {
-            auto biasNode = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}), {}, true);
+            auto biasNode = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32,
+                                                                              ov::Shape({1, _convOutChannels, 1, 1}),
+                                                                              {},
+                                                                              true);
             conv = std::make_shared<ov::op::v1::Add>(conv, biasNode);
         }
 
@@ -122,7 +134,8 @@ public:
             runtimeType = ov::element::Type_t::bf16;
         }
 
-        if (inputParams.front()->get_element_type() == ov::element::i8 || inputParams.front()->get_element_type() == ov::element::u8) {
+        if (inputParams.front()->get_element_type() == ov::element::i8 ||
+            inputParams.front()->get_element_type() == ov::element::u8) {
             runtimeType = ov::element::i8;
         }
 
@@ -181,8 +194,9 @@ protected:
         if (isaType == "")
             return primType == "ref";
         else
-            return primType == makeSelectedTypeStr(std::string("jit_") + isaType + std::string("_1x1"), runtimeType)
-                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType+ std::string("_1x1"), runtimeType);
+            return primType == makeSelectedTypeStr(std::string("jit_") + isaType + std::string("_1x1"), runtimeType) ||
+                   primType ==
+                       makeSelectedTypeStr(std::string("brgconv_") + isaType + std::string("_1x1"), runtimeType);
     }
 };
 
@@ -202,7 +216,8 @@ public:
     }
 
     std::shared_ptr<ov::Node> makeConv(const ov::ParameterVector& inputParams) override {
-        auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputParams.front()->get_partial_shape());
+        auto inputParamsFP32 =
+            std::make_shared<ov::op::v0::Parameter>(element::f32, inputParams.front()->get_partial_shape());
 
         auto convolutionNodeRelaxed = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
             *as_type_ptr<ov::op::v1::Convolution>(ov::test::utils::make_convolution(inputParamsFP32,
@@ -219,18 +234,20 @@ public:
         auto inpShape = inputParams.front()->get_partial_shape();
         Shape filterShape = {_convOutChannels, static_cast<size_t>(inpShape[1].get_length())};
         filterShape.insert(filterShape.end(), _kernel.begin(), _kernel.end());
-        auto filterWeightsNode = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, filterShape, {}, true);
+        auto filterWeightsNode =
+            ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, filterShape, {}, true);
 
         auto conv = convolutionNodeRelaxed->copy_with_new_inputs({inputParams.front(), filterWeightsNode});
 
         return conv;
     }
 
-    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) override {
+    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode,
+                                     const ov::ParameterVector& inputParams) override {
         std::vector<std::string> additionalFusedOps;
 
         lastNode = ov::test::utils::make_activation(lastNode, ov::element::f32, ov::test::utils::Relu);
-        //additionalFusedOps.push_back("Relu");
+        // additionalFusedOps.push_back("Relu");
 
         auto fqShape = ov::Shape(lastNode->get_output_partial_shape(0).size(), 1);
         lastNode = ov::test::utils::make_fake_quantize(lastNode, ov::element::f32, 256, fqShape);
@@ -262,7 +279,8 @@ TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs) {
 
 class ConvSumInPlaceTestSeveralConsumers : public ConvSumInPlaceTest {
 public:
-    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) override {
+    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode,
+                                     const ov::ParameterVector& inputParams) override {
         auto sum = std::make_shared<ov::op::v1::Add>(lastNode, inputParams[1]);
         fusedOps.insert(fusedOps.begin(), "Add");
 
@@ -302,7 +320,8 @@ public:
         _kernel = {1, 1};
     }
 
-    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode, const ov::ParameterVector& inputParams) override {
+    std::shared_ptr<ov::Node> addSum(std::shared_ptr<ov::Node> lastNode,
+                                     const ov::ParameterVector& inputParams) override {
         return std::make_shared<ov::op::v1::Add>(lastNode, inputParams[1]);
     }
 
@@ -312,8 +331,9 @@ protected:
         if (isaType == "")
             return primType == "ref";
         else
-            return primType == makeSelectedTypeStr(std::string("jit_") + isaType + std::string("_1x1"), runtimeType)
-                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType+ std::string("_1x1"), runtimeType);
+            return primType == makeSelectedTypeStr(std::string("jit_") + isaType + std::string("_1x1"), runtimeType) ||
+                   primType ==
+                       makeSelectedTypeStr(std::string("brgconv_") + isaType + std::string("_1x1"), runtimeType);
     }
 };
 
@@ -326,134 +346,143 @@ TEST_P(Conv1x1SumUnsupportedBroadcastTest, CompareWithRefs) {
 }
 
 namespace {
-const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+const auto fusingMulAddFQMullAdd = fusingSpecificParams{
+    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
-        }, "Multiply(PerChannel)"},
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             auto constNode =
+                 ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
+         },
+         "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
-        }, "Add(PerChannel)"},
-        {[](postNodeConfig& cfg){
-            auto localPrc = cfg.input->get_element_type();
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
-        }, "FakeQuantize(PerChannel)"},
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             auto constNode =
+                 ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
+         },
+         "Add(PerChannel)"},
         {[](postNodeConfig& cfg) {
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
-        }, "Multiply(PerChannel)"},
+             auto localPrc = cfg.input->get_element_type();
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+         },
+         "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg) {
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
-        }, "Add(PerChannel)"}}), {"Add"} };
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             auto constNode =
+                 ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
+         },
+         "Multiply(PerChannel)"},
+        {[](postNodeConfig& cfg) {
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             auto constNode =
+                 ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
+         },
+         "Add(PerChannel)"}}),
+    {"Add"}};
 
-const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](postNodeConfig& cfg){
-            ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Divide>(cfg.input, secondMultInput);
-        }, "Divide(PerChannel)"},
-        {[](postNodeConfig& cfg){
-            ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
-            return std::make_shared<ov::op::v1::Subtract>(cfg.input, secondMultInput);
-        }, "Subtract(PerChannel)"},
-        {[](postNodeConfig& cfg){
-            auto localPrc = cfg.input->get_element_type();
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
-        }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
+const auto fusingDivSubFQ = fusingSpecificParams{
+    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
+             auto secondMultInput =
+                 ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Divide>(cfg.input, secondMultInput);
+         },
+         "Divide(PerChannel)"},
+        {[](postNodeConfig& cfg) {
+             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
+             auto secondMultInput =
+                 ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+             return std::make_shared<ov::op::v1::Subtract>(cfg.input, secondMultInput);
+         },
+         "Subtract(PerChannel)"},
+        {[](postNodeConfig& cfg) {
+             auto localPrc = cfg.input->get_element_type();
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+         },
+         "FakeQuantize(PerChannel)"}}),
+    {"FakeQuantize"}};
 
-const auto fusingSigmoidFQFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](postNodeConfig& cfg){
-            return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Sigmoid);
-        }, "Sigmoid"},
-        {[](postNodeConfig& cfg){
-            auto localPrc = cfg.input->get_element_type();
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
-        }, "FakeQuantize(PerChannel)"},
-        {[](postNodeConfig& cfg){
-            auto localPrc = cfg.input->get_element_type();
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
-        }, "FakeQuantize(PerChannel)"}}), {"Sigmoid", "FakeQuantize", "FakeQuantize"} };
+const auto fusingSigmoidFQFQ = fusingSpecificParams{
+    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+             return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Sigmoid);
+         },
+         "Sigmoid"},
+        {[](postNodeConfig& cfg) {
+             auto localPrc = cfg.input->get_element_type();
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+         },
+         "FakeQuantize(PerChannel)"},
+        {[](postNodeConfig& cfg) {
+             auto localPrc = cfg.input->get_element_type();
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+         },
+         "FakeQuantize(PerChannel)"}}),
+    {"Sigmoid", "FakeQuantize", "FakeQuantize"}};
 
-const auto fusingClampFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
-        {[](postNodeConfig& cfg){
-            return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Clamp, {}, {3.0f, 6.0f});
-        }, "Clamp"},
-        {[](postNodeConfig& cfg){
-            auto localPrc = cfg.input->get_element_type();
-            ov::Shape newShape = generatePerChannelShape(cfg.input);
-            return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
-        }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"} };
+const auto fusingClampFQ = fusingSpecificParams{
+    std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+             return ov::test::utils::make_activation(cfg.input, cfg.type, ov::test::utils::Clamp, {}, {3.0f, 6.0f});
+         },
+         "Clamp"},
+        {[](postNodeConfig& cfg) {
+             auto localPrc = cfg.input->get_element_type();
+             ov::Shape newShape = generatePerChannelShape(cfg.input);
+             return ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+         },
+         "FakeQuantize(PerChannel)"}}),
+    {"FakeQuantize"}};
 
+const std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec,
+                                                        fusingSigmoid,
+                                                        fusingFakeQuantizePerTensorRelu,
+                                                        fusingFakeQuantizePerChannelRelu,
+                                                        fusingFQPerChannelSigmoidFQPerChannel,
+                                                        fusingReluScaleShift,
+                                                        fusingMulAddFQMullAdd,
+                                                        fusingSigmoidFQFQ,
+                                                        fusingDivSubFQ};
 
-
-const std::vector<fusingSpecificParams> fusingParamsSet{
-        emptyFusingSpec,
-        fusingSigmoid,
-        fusingFakeQuantizePerTensorRelu,
-        fusingFakeQuantizePerChannelRelu,
-        fusingFQPerChannelSigmoidFQPerChannel,
-        fusingReluScaleShift,
-        fusingMulAddFQMullAdd,
-        fusingSigmoidFQFQ,
-        fusingDivSubFQ
-};
-
-const std::vector<fusingSpecificParams> fusingParamsSetBF16{
-        emptyFusingSpec,
-        fusingSigmoid,
-        fusingReluScaleShift
-};
+const std::vector<fusingSpecificParams> fusingParamsSetBF16{emptyFusingSpec, fusingSigmoid, fusingReluScaleShift};
 
 InputShape convInpShape = {
-        //dynamic shapes
-        {-1, 32, -1, -1},
-        { //target static shapes
-            {1, 32, 10, 10},
-            {1, 32, 10, 10},
-            {1, 32, 10, 10},
-            {1, 32, 3, 3},
-            {1, 32, 3, 10}
-        }
-};
+    // dynamic shapes
+    {-1, 32, -1, -1},
+    {// target static shapes
+     {1, 32, 10, 10},
+     {1, 32, 10, 10},
+     {1, 32, 10, 10},
+     {1, 32, 3, 3},
+     {1, 32, 3, 10}}};
 
 const std::vector<InputShape> secondInp = {
-    {
-        //dynamic shapes
-        {-1, -1, -1, -1},
-        { //target static shapes
-            {1, 64, 1, 8},
-            {1, 64, 1, 8},
-            {1, 64, 8, 8},
-            {1, 64, 8, 8},
-            {1, 64, 8, 1}
-        }
-    },
-    {
-        {1, 64, 8, 8},
-        {
-            {1, 64, 8, 8}
-        }
-    },
+    {// dynamic shapes
+     {-1, -1, -1, -1},
+     {// target static shapes
+      {1, 64, 1, 8},
+      {1, 64, 1, 8},
+      {1, 64, 8, 8},
+      {1, 64, 8, 8},
+      {1, 64, 8, 1}}},
+    {{1, 64, 8, 8}, {{1, 64, 8, 8}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConvSumInPlaceTest,
-                         ::testing::Combine(
-                                 ::testing::Values(convInpShape),
-                                 ::testing::ValuesIn(secondInp),
-                                 ::testing::Values(true, false),
-                                 ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32,
+                         ConvSumInPlaceTest,
+                         ::testing::Combine(::testing::Values(convInpShape),
+                                            ::testing::ValuesIn(secondInp),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
@@ -465,101 +494,91 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
-                         ::testing::Combine(
-                                 ::testing::Values(convInpShape),
-                                 ::testing::ValuesIn(secondInp),
-                                 ::testing::Values(true, false),
-                                 ::testing::ValuesIn(fusingParamsSet),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8,
+                         ConvSumInPlaceTestInt8,
+                         ::testing::Combine(::testing::Values(convInpShape),
+                                            ::testing::ValuesIn(secondInp),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Several_Consumers, ConvSumInPlaceTestSeveralConsumers,
-                         ::testing::Combine(
-                                 ::testing::Values(convInpShape),
-                                 ::testing::ValuesIn(secondInp),
-                                 ::testing::Values(true),
-                                 ::testing::Values(emptyFusingSpec),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Several_Consumers,
+                         ConvSumInPlaceTestSeveralConsumers,
+                         ::testing::Combine(::testing::Values(convInpShape),
+                                            ::testing::ValuesIn(secondInp),
+                                            ::testing::Values(true),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
 InputShape convInpShapeStrided = {
-        //dynamic shapes
-        {-1, 64, -1, -1},
-        { //target static shapes
-            {1, 64, 147, 147},
-            {1, 64, 147, 147},
-        }
-};
+    // dynamic shapes
+    {-1, 64, -1, -1},
+    {
+        // target static shapes
+        {1, 64, 147, 147},
+        {1, 64, 147, 147},
+    }};
 
 InputShape secondInpStrided = {
-        //dynamic shapes
-        {-1, 128, -1, -1},
-        { //target static shapes
-            {1, 128, 74, 74},
-            {1, 128, 74, 1}
-        }
-};
+    // dynamic shapes
+    {-1, 128, -1, -1},
+    {// target static shapes
+     {1, 128, 74, 74},
+     {1, 128, 74, 1}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Strided, ConvSumInPlaceStrided,
-                         ::testing::Combine(
-                                 ::testing::Values(convInpShapeStrided),
-                                 ::testing::Values(secondInpStrided),
-                                 ::testing::Values(true),
-                                 ::testing::Values(emptyFusingSpec),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Strided,
+                         ConvSumInPlaceStrided,
+                         ::testing::Combine(::testing::Values(convInpShapeStrided),
+                                            ::testing::Values(secondInpStrided),
+                                            ::testing::Values(true),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
 InputShape convInpShapeStaticShape = {
-        //dynamic shapes
-        {-1, 8, {6, 12}, {6, 12}},
-        { //target static shapes
-            {1, 8, 6, 6}
-        }
-};
+    // dynamic shapes
+    {-1, 8, {6, 12}, {6, 12}},
+    {// target static shapes
+     {1, 8, 6, 6}}};
 
 InputShape secondInpStaticShape = {
-        //dynamic shapes
-        {-1, 8, 1, 1},
-        { //target static shapes
-            {1, 8, 1, 1}
-        }
-};
+    // dynamic shapes
+    {-1, 8, 1, 1},
+    {// target static shapes
+     {1, 8, 1, 1}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_StaticShape, ConvSumBroadcastTest,
-                         ::testing::Combine(
-                                 ::testing::Values(convInpShapeStaticShape),
-                                 ::testing::Values(secondInpStaticShape),
-                                 ::testing::Values(true),
-                                 ::testing::Values(emptyFusingSpec),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_StaticShape,
+                         ConvSumBroadcastTest,
+                         ::testing::Combine(::testing::Values(convInpShapeStaticShape),
+                                            ::testing::Values(secondInpStaticShape),
+                                            ::testing::Values(true),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
 InputShape convSum1x1BcastShape1 = {
     // dynamic shapes
     {-1, 8, 1, 1},
-    { // target static shapes
-        {1, 8, 1, 1}
-    }
-};
+    {// target static shapes
+     {1, 8, 1, 1}}};
 
 InputShape convSum1x1BcastShape2 = {
     // dynamic shapes
     {-1, 8, -1, -1},
-    { // target static shapes
-        {1, 8, 6, 6}
-    }
-};
+    {// target static shapes
+     {1, 8, 6, 6}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_1x1_Broadcast, Conv1x1SumUnsupportedBroadcastTest,
-                         ::testing::Combine(
-                                 ::testing::Values(convSum1x1BcastShape1),
-                                 ::testing::Values(convSum1x1BcastShape2),
-                                 ::testing::Values(false),
-                                 ::testing::Values(emptyFusingSpec),
-                                 ::testing::Values(empty_plugin_config)),
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_1x1_Broadcast,
+                         Conv1x1SumUnsupportedBroadcastTest,
+                         ::testing::Combine(::testing::Values(convSum1x1BcastShape1),
+                                            ::testing::Values(convSum1x1BcastShape2),
+                                            ::testing::Values(false),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(empty_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

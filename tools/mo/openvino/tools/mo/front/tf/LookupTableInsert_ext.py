@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.LookupTableInsert import LookupTableInsert
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.LookupTableInsert import LookupTableInsert
 
 
 class LookupTableInsertFrontExtractor(FrontExtractorOp):
-    op = 'LookupTableInsert'
+    op = "LookupTableInsert"
     enabled = True
 
     @classmethod
@@ -16,7 +16,7 @@ class LookupTableInsertFrontExtractor(FrontExtractorOp):
 
 
 class LookupTableInsertV2FrontExtractor(FrontExtractorOp):
-    op = 'LookupTableInsertV2'
+    op = "LookupTableInsertV2"
     enabled = True
 
     @classmethod

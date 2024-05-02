@@ -2,12 +2,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset10 as ov
 import numpy as np
+import openvino.runtime.opset10 as ov
 import pytest
-
-from openvino.runtime.utils.types import get_element_type_str
-from openvino.runtime.utils.types import get_element_type
+from openvino.runtime.utils.types import get_element_type, get_element_type_str
 
 
 @pytest.mark.parametrize(
@@ -28,18 +26,24 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
     diagonal_index_tensor = ov.constant(diagonal_index_array)
 
     # Create with param names
-    eye_node = ov.eye(num_rows=num_rows_tensor,
-                      num_columns=num_columns_tensor,
-                      diagonal_index=diagonal_index_tensor,
-                      output_type=get_element_type_str(out_type))
+    eye_node = ov.eye(
+        num_rows=num_rows_tensor,
+        num_columns=num_columns_tensor,
+        diagonal_index=diagonal_index_tensor,
+        output_type=get_element_type_str(out_type),
+    )
 
     # Create with default orded
-    eye_node = ov.eye(num_rows_tensor,
-                      num_columns_tensor,
-                      diagonal_index_tensor,
-                      get_element_type_str(out_type))
+    eye_node = ov.eye(
+        num_rows_tensor,
+        num_columns_tensor,
+        diagonal_index_tensor,
+        get_element_type_str(out_type),
+    )
 
-    expected_results = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=np.float32)
+    expected_results = np.eye(
+        num_rows, M=num_columns, k=diagonal_index, dtype=np.float32
+    )
 
     assert eye_node.get_type_name() == "Eye"
     assert eye_node.get_output_size() == 1
@@ -67,18 +71,22 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
     batch_shape_tensor = ov.constant(batch_shape_array)
 
     # Create with param names
-    eye_node = ov.eye(num_rows=num_rows_tensor,
-                      num_columns=num_columns_tensor,
-                      diagonal_index=diagonal_index_tensor,
-                      batch_shape=batch_shape_tensor,
-                      output_type=get_element_type_str(out_type))
+    eye_node = ov.eye(
+        num_rows=num_rows_tensor,
+        num_columns=num_columns_tensor,
+        diagonal_index=diagonal_index_tensor,
+        batch_shape=batch_shape_tensor,
+        output_type=get_element_type_str(out_type),
+    )
 
     # Create with default orded
-    eye_node = ov.eye(num_rows_tensor,
-                      num_columns_tensor,
-                      diagonal_index_tensor,
-                      get_element_type_str(out_type),
-                      batch_shape_tensor)
+    eye_node = ov.eye(
+        num_rows_tensor,
+        num_columns_tensor,
+        diagonal_index_tensor,
+        get_element_type_str(out_type),
+        batch_shape_tensor,
+    )
 
     output_shape = [*batch_shape, 1, 1]
     one_matrix = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=np.float32)

@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "random_uniform_inst.h"
 #include "random_uniform/random_uniform_kernel_ref.h"
 #include "random_uniform/random_uniform_kernel_selector.h"
+#include "random_uniform_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -38,26 +37,28 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
 namespace detail {
 
 attach_random_uniform_impl::attach_random_uniform_impl() {
-    implementation_map<random_uniform>::add(impl_types::ocl, typed_primitive_impl_ocl<random_uniform>::create<random_uniform_impl>, {
-            std::make_tuple(data_types::f16, format::bfyx),
-            std::make_tuple(data_types::f16, format::bfzyx),
-            std::make_tuple(data_types::f16, format::bfwzyx),
-            std::make_tuple(data_types::f32, format::bfyx),
-            std::make_tuple(data_types::f32, format::bfzyx),
-            std::make_tuple(data_types::f32, format::bfwzyx),
-            std::make_tuple(data_types::i32, format::bfyx),
-            std::make_tuple(data_types::i32, format::bfzyx),
-            std::make_tuple(data_types::i32, format::bfwzyx),
-            std::make_tuple(data_types::i64, format::bfyx),
-            std::make_tuple(data_types::i64, format::bfzyx),
-            std::make_tuple(data_types::i64, format::bfwzyx),
-    });
+    implementation_map<random_uniform>::add(impl_types::ocl,
+                                            typed_primitive_impl_ocl<random_uniform>::create<random_uniform_impl>,
+                                            {
+                                                std::make_tuple(data_types::f16, format::bfyx),
+                                                std::make_tuple(data_types::f16, format::bfzyx),
+                                                std::make_tuple(data_types::f16, format::bfwzyx),
+                                                std::make_tuple(data_types::f32, format::bfyx),
+                                                std::make_tuple(data_types::f32, format::bfzyx),
+                                                std::make_tuple(data_types::f32, format::bfwzyx),
+                                                std::make_tuple(data_types::i32, format::bfyx),
+                                                std::make_tuple(data_types::i32, format::bfzyx),
+                                                std::make_tuple(data_types::i32, format::bfwzyx),
+                                                std::make_tuple(data_types::i64, format::bfyx),
+                                                std::make_tuple(data_types::i64, format::bfzyx),
+                                                std::make_tuple(data_types::i64, format::bfwzyx),
+                                            });
 }
 
 }  // namespace detail
 
-} // namespace ocl
-} // namespace cldnn
+}  // namespace ocl
+}  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::random_uniform)

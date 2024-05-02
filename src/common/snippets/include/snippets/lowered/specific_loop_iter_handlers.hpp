@@ -6,7 +6,6 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -23,7 +22,8 @@ public:
     const pass::PassPipeline& get_first_iter_handlers() const;
     const pass::PassPipeline& get_main_iter_handlers() const;
     const pass::PassPipeline& get_last_iter_handlers() const;
-    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
+    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs,
+                                                    const SpecificIterationHandlers& rhs);
 
     template <HandlerType Type,
               typename T,
@@ -55,6 +55,6 @@ private:
     pass::PassPipeline m_last_iter_handlers;
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

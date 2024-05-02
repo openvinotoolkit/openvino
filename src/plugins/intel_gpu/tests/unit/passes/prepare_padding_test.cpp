@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <memory>
 
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "mvn_inst.h"
 #include "convolution_inst.h"
+#include "data_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "mvn_inst.h"
 #include "pass_manager.h"
 #include "program_wrapper.h"
-
-#include <memory>
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,7 +22,7 @@ TEST(prepare_padding, groupconv_with_output) {
     auto& engine = get_test_engine();
     auto in_layout = layout{{1, 18, 76, 135}, data_types::f16, format::bfyx};
     auto weights_data = rg.generate_random_5d<ov::float16>(1, 18, 1, 3, 3, -1, 1);
-    auto weights_mem = engine.allocate_memory({ {18, 1, 1, 3, 3}, data_types::f16, format::bfzyx});
+    auto weights_mem = engine.allocate_memory({{18, 1, 1, 3, 3}, data_types::f16, format::bfzyx});
     set_values(weights_mem, weights_data);
 
     topology topo;
@@ -48,12 +47,12 @@ TEST(prepare_padding, mvn_conv) {
     auto in_layout = layout{{1, 3, 512, 512}, data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(in_layout);
     auto weights_data = rg.generate_random_4d<ov::float16>(3, 3, 3, 3, -1, 1);
-    auto weights_mem = engine.allocate_memory({ {3, 3, 3, 3}, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{3, 3, 3, 3}, data_types::f16, format::bfyx});
     set_values(weights_mem, weights_data);
 
     topology topo;
     topo.add(input_layout("input", in_layout));
-    topo.add(mvn("mvn", input_info("input"), true, 1e-10f, true, { 2 }));
+    topo.add(mvn("mvn", input_info("input"), true, 1e-10f, true, {2}));
     topo.add(data("weight", weights_mem));
     topo.add(convolution("conv", input_info("mvn"), "weight", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
     topo.add(reorder("reorder_output", input_info("conv"), format::bfyx, data_types::f16));

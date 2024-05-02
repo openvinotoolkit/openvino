@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ctc_loss_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
-#include "ctc_loss_shape_inference.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 

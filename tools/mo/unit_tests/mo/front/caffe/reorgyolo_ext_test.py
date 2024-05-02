@@ -4,11 +4,12 @@
 import unittest
 from unittest.mock import patch
 
-from openvino.tools.mo.front.caffe.reorgyolo_ext import ReorgYoloFrontExtractor
-from openvino.tools.mo.ops.reorgyolo import ReorgYoloOp
-from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
+
+from openvino.tools.mo.front.caffe.reorgyolo_ext import ReorgYoloFrontExtractor
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.reorgyolo import ReorgYoloOp
 
 
 class FakeReorgYoloProtoLayer:
@@ -19,19 +20,15 @@ class FakeReorgYoloProtoLayer:
 class TestReorgYoloExt(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['ReorgYolo'] = ReorgYoloOp
+        Op.registered_ops["ReorgYolo"] = ReorgYoloOp
 
     def test_elu_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ReorgYoloFrontExtractor.extract, None)
 
-    @patch('openvino.tools.mo.front.caffe.reorgyolo_ext.merge_attrs')
+    @patch("openvino.tools.mo.front.caffe.reorgyolo_ext.merge_attrs")
     def test_elu_ext_ideal_numbers(self, merge_attrs_mock):
-        params = {
-            'stride': 2
-        }
-        merge_attrs_mock.return_value = {
-            **params
-        }
+        params = {"stride": 2}
+        merge_attrs_mock.return_value = {**params}
 
         fake_pl = FakeReorgYoloProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
@@ -39,9 +36,9 @@ class TestReorgYoloExt(unittest.TestCase):
         ReorgYoloFrontExtractor.extract(fake_node)
 
         exp_res = {
-            'type': "ReorgYolo",
-            'stride': 2,
-            'infer': ReorgYoloOp.reorgyolo_infer
+            "type": "ReorgYolo",
+            "stride": 2,
+            "infer": ReorgYoloOp.reorgyolo_infer,
         }
 
         for key in exp_res.keys():

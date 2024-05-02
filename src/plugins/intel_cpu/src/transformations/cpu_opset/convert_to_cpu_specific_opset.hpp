@@ -2,31 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/pass/manager.hpp"
 #include "common/pass/align_matmul_input_ranks.hpp"
-#include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "common/pass/convert_broadcast_to_tiles.hpp"
-#include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_matmul_to_fc.hpp"
-#include "common/pass/convert_to_power_static.hpp"
+#include "common/pass/convert_tile_to_seq_tiles.hpp"
 #include "common/pass/convert_to_leaky_relu.hpp"
+#include "common/pass/convert_to_power_static.hpp"
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
-#include "common/pass/split_fc.hpp"
-#include "transformations/convert_precision.hpp"
-#include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
-#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "transformations/defs.hpp"
-
+#include "common/pass/split_fc.hpp"
 #include "itt.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/reshape_prelu.hpp"
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/defs.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, int subStreamNum) {
+inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& nGraphFunc, int subStreamNum) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
     ov::pass::Manager manager;
@@ -44,7 +43,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, in
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
-    // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or fused
+    // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or
+    // fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager,
@@ -54,10 +54,10 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, in
                              false,
                              false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert); // Need to clean up after the ConvertPrecision.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);  // Need to clean up after the ConvertPrecision.
 
     manager.run_passes(nGraphFunc);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

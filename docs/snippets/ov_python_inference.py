@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino as ov
 import openvino.runtime.opset12 as ops
+
+import openvino as ov
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 
@@ -39,7 +40,9 @@ _ = request.infer({"input_0": data_0, "input_1": data_1}, share_inputs=True)
 # Data can be shared only on outputs
 _ = request.infer({"input_0": data_0, "input_1": data_1}, share_outputs=True)
 # Or both flags can be combined to achieve desired behavior
-_ = compiled_model({"input_0": data_0, "input_1": data_1}, share_inputs=False, share_outputs=True)
+_ = compiled_model(
+    {"input_0": data_0, "input_1": data_1}, share_inputs=False, share_outputs=True
+)
 #! [shared_memory_inference]
 
 time_in_sec = 2.0
@@ -47,9 +50,11 @@ time_in_sec = 2.0
 #! [hiding_latency]
 import time
 
+
 # Long running function
 def run(time_in_sec):
     time.sleep(time_in_sec)
+
 
 # No latency hiding
 results = request.infer({"input_0": data_0, "input_1": data_1})[0]
@@ -71,4 +76,3 @@ request.start_async({"input_0": data_0, "input_1": data_1})
 request.wait()
 results = request.get_output_tensor(0).data  # Gather data "on demand" from InferRequest
 #! [no_return_inference]
-

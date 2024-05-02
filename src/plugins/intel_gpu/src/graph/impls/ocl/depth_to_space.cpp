@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "depth_to_space_inst.h"
-#include "depth_to_space/depth_to_space_kernel_selector.h"
 #include "depth_to_space/depth_to_space_kernel_ref.h"
+#include "depth_to_space/depth_to_space_kernel_selector.h"
+#include "depth_to_space_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -27,8 +26,9 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
         auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
 
         params.block_size = primitive->block_size;
-        params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
-                                                                           : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
+        params.mode = primitive->mode == depth_to_space_mode::blocks_first
+                          ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+                          : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
         return params;
     }
 };
@@ -51,7 +51,10 @@ attach_depth_to_space_impl::attach_depth_to_space_impl() {
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
     };
-    implementation_map<depth_to_space>::add(impl_types::ocl, typed_primitive_impl_ocl<depth_to_space>::create<depth_to_space_impl>, dt, fmt);
+    implementation_map<depth_to_space>::add(impl_types::ocl,
+                                            typed_primitive_impl_ocl<depth_to_space>::create<depth_to_space_impl>,
+                                            dt,
+                                            fmt);
 }
 
 }  // namespace detail

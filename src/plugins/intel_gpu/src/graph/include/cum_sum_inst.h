@@ -14,9 +14,13 @@ struct typed_program_node<cum_sum> : public typed_program_node_base<cum_sum> {
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using cum_sum_node = typed_program_node<cum_sum>;

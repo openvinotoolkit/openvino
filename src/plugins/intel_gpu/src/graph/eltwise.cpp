@@ -1,33 +1,32 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "eltwise_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
 
+#include "eltwise_inst.h"
 #include "eltwise_shape_inference.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
 #include "openvino/op/add.hpp"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
 
-const std::set<eltwise_mode>
-    eltwise::eltwise_bool_modes = { eltwise_mode::eq,
-                                    eltwise_mode::ne,
-                                    eltwise_mode::lt,
-                                    eltwise_mode::le,
-                                    eltwise_mode::gt,
-                                    eltwise_mode::ge,
-                                    eltwise_mode::logic_and,
-                                    eltwise_mode::logic_or,
-                                    eltwise_mode::logic_xor,
-                                    eltwise_mode::is_finite,
-                                    eltwise_mode::is_inf,
-                                    eltwise_mode::is_nan };
+const std::set<eltwise_mode> eltwise::eltwise_bool_modes = {eltwise_mode::eq,
+                                                            eltwise_mode::ne,
+                                                            eltwise_mode::lt,
+                                                            eltwise_mode::le,
+                                                            eltwise_mode::gt,
+                                                            eltwise_mode::ge,
+                                                            eltwise_mode::logic_and,
+                                                            eltwise_mode::logic_or,
+                                                            eltwise_mode::logic_xor,
+                                                            eltwise_mode::is_finite,
+                                                            eltwise_mode::is_inf,
+                                                            eltwise_mode::is_nan};
 
 layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;
@@ -110,8 +109,9 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     return output_layout;
 }
 
-template<typename ShapeType>
-std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/,
+                                                      kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
     auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
@@ -119,7 +119,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     auto get_output_layout = [&]() {
         cldnn::format out_format = input_layout.format;
 
-        // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
+        // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to
+        // have correct op type
         ov::op::v1::Add op;
         op.set_autob(desc->broadcast_spec);
 
@@ -173,8 +174,9 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor};
 
-        OPENVINO_ASSERT((std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) != eltwise_int_modes.end()),
-                            desc->id + "Requested eltwise mode is not supported for integer types.");
+        OPENVINO_ASSERT(
+            (std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) != eltwise_int_modes.end()),
+            desc->id + "Requested eltwise mode is not supported for integer types.");
     }
 
     // Logic and comparison operations should return i8 for any inputs
@@ -191,8 +193,8 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     if (!desc->stride.empty()) {
         auto input_pshape = input_layout.get<ShapeType>();
         if (input_pshape.is_static()) {
-            // we can safely use only first stride, since we're using first input, and input / stride should give exact same
-            // value for every input
+            // we can safely use only first stride, since we're using first input, and input / stride should give exact
+            // same value for every input
             auto in_shape = input_pshape.get_shape();
             for (size_t i = 0; i < desc->stride[0].spatial.size(); i++) {
                 const size_t idx = in_shape.size() - 1 - i;
@@ -202,12 +204,13 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
             }
             input_layout.set_partial_shape({in_shape});
         }
-        return { input_layout };
+        return {input_layout};
     }
-    return { output_layout };
+    return {output_layout};
 }
 
-template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node,
+                                                                                 const kernel_impl_params& impl_param);
 
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;
@@ -233,75 +236,75 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
     std::string str_mode;
 
     switch (desc->mode) {
-        case eltwise_mode::sum:
-            str_mode = "sum";
-            break;
-        case eltwise_mode::sub:
-            str_mode = "subtract";
-            break;
-        case eltwise_mode::max:
-            str_mode = "max";
-            break;
-        case eltwise_mode::prod:
-            str_mode = "product";
-            break;
-        case eltwise_mode::div:
-            str_mode = "div";
-            break;
-        case eltwise_mode::min:
-            str_mode = "min";
-            break;
-        case eltwise_mode::pow:
-            str_mode = "pow";
-            break;
-        case eltwise_mode::squared_diff:
-            str_mode = "squared_diff";
-            break;
-        case eltwise_mode::mod:
-            str_mode = "mod";
-            break;
-        case eltwise_mode::eq:
-            str_mode = "equal";
-            break;
-        case eltwise_mode::ne:
-            str_mode = "not equal";
-            break;
-        case eltwise_mode::lt:
-            str_mode = "less";
-            break;
-        case eltwise_mode::le:
-            str_mode = "less-or-equal";
-            break;
-        case eltwise_mode::gt:
-            str_mode = "greater";
-            break;
-        case eltwise_mode::ge:
-            str_mode = "greater-or-equal";
-            break;
-        case eltwise_mode::logic_and:
-            str_mode = "and";
-            break;
-        case eltwise_mode::logic_or:
-            str_mode = "or";
-            break;
-        case eltwise_mode::logic_xor:
-            str_mode = "xor";
-            break;
-        case eltwise_mode::floor_mod:
-            str_mode = "floor_mod";
-            break;
-        case eltwise_mode::is_finite:
-            str_mode = "is_finite";
-            break;
-        case eltwise_mode::is_inf:
-            str_mode = "is_inf";
-            break;
-        case eltwise_mode::is_nan:
-            str_mode = "is_nan";
-            break;
-        default:
-            str_mode = "not supported mode";
-            break;
+    case eltwise_mode::sum:
+        str_mode = "sum";
+        break;
+    case eltwise_mode::sub:
+        str_mode = "subtract";
+        break;
+    case eltwise_mode::max:
+        str_mode = "max";
+        break;
+    case eltwise_mode::prod:
+        str_mode = "product";
+        break;
+    case eltwise_mode::div:
+        str_mode = "div";
+        break;
+    case eltwise_mode::min:
+        str_mode = "min";
+        break;
+    case eltwise_mode::pow:
+        str_mode = "pow";
+        break;
+    case eltwise_mode::squared_diff:
+        str_mode = "squared_diff";
+        break;
+    case eltwise_mode::mod:
+        str_mode = "mod";
+        break;
+    case eltwise_mode::eq:
+        str_mode = "equal";
+        break;
+    case eltwise_mode::ne:
+        str_mode = "not equal";
+        break;
+    case eltwise_mode::lt:
+        str_mode = "less";
+        break;
+    case eltwise_mode::le:
+        str_mode = "less-or-equal";
+        break;
+    case eltwise_mode::gt:
+        str_mode = "greater";
+        break;
+    case eltwise_mode::ge:
+        str_mode = "greater-or-equal";
+        break;
+    case eltwise_mode::logic_and:
+        str_mode = "and";
+        break;
+    case eltwise_mode::logic_or:
+        str_mode = "or";
+        break;
+    case eltwise_mode::logic_xor:
+        str_mode = "xor";
+        break;
+    case eltwise_mode::floor_mod:
+        str_mode = "floor_mod";
+        break;
+    case eltwise_mode::is_finite:
+        str_mode = "is_finite";
+        break;
+    case eltwise_mode::is_inf:
+        str_mode = "is_inf";
+        break;
+    case eltwise_mode::is_nan:
+        str_mode = "is_nan";
+        break;
+    default:
+        str_mode = "not supported mode";
+        break;
     }
 
     json_composite eltwise_info;
@@ -377,8 +380,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
             }
 
             auto base_pshape = input0_pshape;
-            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
-                base_pshape.size() < input_pshape.size()) {
+            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY && base_pshape.size() < input_pshape.size()) {
                 base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
             }
 
@@ -400,37 +402,46 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
     const eltwise_mode mode = node.get_primitive()->mode;
 
     switch (mode) {
-        case eltwise_mode::sum:
-        case eltwise_mode::sub:
-        case eltwise_mode::div:
-        case eltwise_mode::prod:
-        case eltwise_mode::max:
-        case eltwise_mode::min:
-        case eltwise_mode::mod:
-        case eltwise_mode::logic_and:
-        case eltwise_mode::logic_or:
-        case eltwise_mode::logic_xor:
-            OPENVINO_ASSERT(inputs_number >= 2,
-                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal at least to 2). Actual: ", inputs_number);
-            break;
-        case eltwise_mode::eq:
-        case eltwise_mode::ne:
-        case eltwise_mode::lt:
-        case eltwise_mode::le:
-        case eltwise_mode::gt:
-        case eltwise_mode::ge:
-        case eltwise_mode::squared_diff:
-        case eltwise_mode::pow:
-        case eltwise_mode::floor_mod:
-            OPENVINO_ASSERT(inputs_number == 2,
-                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 2). Actual: ", inputs_number);
-            break;
-        case eltwise_mode::is_finite:
-        case eltwise_mode::is_inf:
-        case eltwise_mode::is_nan:
-            OPENVINO_ASSERT(inputs_number == 1,
-                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 1). Actual: ", inputs_number);
-            break;
+    case eltwise_mode::sum:
+    case eltwise_mode::sub:
+    case eltwise_mode::div:
+    case eltwise_mode::prod:
+    case eltwise_mode::max:
+    case eltwise_mode::min:
+    case eltwise_mode::mod:
+    case eltwise_mode::logic_and:
+    case eltwise_mode::logic_or:
+    case eltwise_mode::logic_xor:
+        OPENVINO_ASSERT(inputs_number >= 2,
+                        "Node id: ",
+                        node.id(),
+                        ". Invalid eltwise inputs number (should be equal at least to 2). Actual: ",
+                        inputs_number);
+        break;
+    case eltwise_mode::eq:
+    case eltwise_mode::ne:
+    case eltwise_mode::lt:
+    case eltwise_mode::le:
+    case eltwise_mode::gt:
+    case eltwise_mode::ge:
+    case eltwise_mode::squared_diff:
+    case eltwise_mode::pow:
+    case eltwise_mode::floor_mod:
+        OPENVINO_ASSERT(inputs_number == 2,
+                        "Node id: ",
+                        node.id(),
+                        ". Invalid eltwise inputs number (should be equal to 2). Actual: ",
+                        inputs_number);
+        break;
+    case eltwise_mode::is_finite:
+    case eltwise_mode::is_inf:
+    case eltwise_mode::is_nan:
+        OPENVINO_ASSERT(inputs_number == 1,
+                        "Node id: ",
+                        node.id(),
+                        ". Invalid eltwise inputs number (should be equal to 1). Actual: ",
+                        inputs_number);
+        break;
     }
 }
 }  // namespace cldnn

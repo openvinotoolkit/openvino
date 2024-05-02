@@ -2,5 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
 def top1_index(results: list) -> int:
     return results.index(max(results))

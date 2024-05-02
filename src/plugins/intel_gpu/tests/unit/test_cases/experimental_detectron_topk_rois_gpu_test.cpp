@@ -38,18 +38,19 @@ struct experimental_detectron_topk_rois_gpu_test : public testing::Test {
     }
 };
 
-using format_types = testing::Types<experimental_detectron_topk_rois_input_types<format::bfyx, float>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, float>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, float>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, float>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, float>,
-                                    experimental_detectron_topk_rois_input_types<format::bfyx, ov::float16>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, ov::float16>,
-                                    experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, ov::float16>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, ov::float16>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
-                                    experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, ov::float16>>;
+using format_types =
+    testing::Types<experimental_detectron_topk_rois_input_types<format::bfyx, float>,
+                   experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, float>,
+                   experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, float>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, float>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, float>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, float>,
+                   experimental_detectron_topk_rois_input_types<format::bfyx, ov::float16>,
+                   experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv16, ov::float16>,
+                   experimental_detectron_topk_rois_input_types<format::b_fs_yx_fsv32, ov::float16>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv16_fsv16, ov::float16>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv16, ov::float16>,
+                   experimental_detectron_topk_rois_input_types<format::bs_fs_yx_bsv32_fsv32, ov::float16>>;
 
 TYPED_TEST_SUITE(experimental_detectron_topk_rois_gpu_test, format_types);
 
@@ -75,7 +76,7 @@ TYPED_TEST(experimental_detectron_topk_rois_gpu_test, check_set_indices_layer) {
     topology.add(reorder("reordered_input", input_info(input_rois_id), this->format, this->data_type));
     topology.add(reorder("reordered_indices", input_info(input_indices_id), this->format, data_types::i32));
     topology.add(experimental_detectron_topk_rois(experimental_detectron_topk_rois_id,
-                                                  { input_info("reordered_input"), input_info("reordered_indices") },
+                                                  {input_info("reordered_input"), input_info("reordered_indices")},
                                                   rois_num));
     topology.add(reorder("plane_output", experimental_detectron_topk_rois_id, format::bfyx, this->data_type));
 
@@ -113,9 +114,10 @@ TYPED_TEST(experimental_detectron_topk_rois_gpu_test, check_set_indices_layer_mo
     topology.add(reorder("reordered_input", input_info(input_rois_id), this->format, this->data_type));
     topology.add(reorder("reordered_indices", input_info(input_indices_id), this->format, data_types::i32));
     topology.add(experimental_detectron_topk_rois(experimental_detectron_topk_rois_id,
-                                                  { input_info("reordered_input"), input_info("reordered_indices") },
+                                                  {input_info("reordered_input"), input_info("reordered_indices")},
                                                   rois_num));
-    topology.add(reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, this->data_type));
+    topology.add(
+        reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, this->data_type));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -154,11 +156,13 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     topology.add(reorder("reordered_input", input_info(input_rois_id), test_format, test_data_type));
     topology.add(reorder("reordered_indices", input_info(input_indices_id), test_format, data_types::i32));
     topology.add(experimental_detectron_topk_rois(experimental_detectron_topk_rois_id,
-                                                  { input_info("reordered_input"), input_info("reordered_indices") },
+                                                  {input_info("reordered_input"), input_info("reordered_indices")},
                                                   rois_num));
-    topology.add(reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, test_data_type));
+    topology.add(
+        reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, test_data_type));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), true);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), true);
 
     network->set_input_data(input_rois_id, roi_input);
     network->set_input_data(input_indices_id, roi_indices);

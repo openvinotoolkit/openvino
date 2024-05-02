@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.extractor import FrontExtractorOp
-from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
+from openvino.tools.mo.front.tf.extractors.utils import (
+    tf_dtype_extractor,
+    tf_tensor_content,
+    tf_tensor_shape,
+)
 from openvino.tools.mo.ops.const import Const
 
 
 class ConstExtractor(FrontExtractorOp):
-    op = 'Const'
+    op = "Const"
     enabled = True
 
     @classmethod
@@ -15,9 +19,9 @@ class ConstExtractor(FrontExtractorOp):
         pb_tensor = node.pb.attr["value"].tensor
         shape = tf_tensor_shape(pb_tensor.tensor_shape)
         attrs = {
-            'shape': shape,
-            'value': tf_tensor_content(pb_tensor.dtype, shape, pb_tensor),
-            'data_type': tf_dtype_extractor(pb_tensor.dtype),
+            "shape": shape,
+            "value": tf_tensor_content(pb_tensor.dtype, shape, pb_tensor),
+            "data_type": tf_dtype_extractor(pb_tensor.dtype),
         }
         Const.update_node_stat(node, attrs)
         return cls.enabled

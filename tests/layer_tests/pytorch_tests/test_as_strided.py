@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -43,7 +42,13 @@ class TestAsStrided(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_as_strided(self, size, stride, offset, ie_device, precision, ir_version):
-        self._test(*self.create_model(size, stride, offset), ie_device, precision, ir_version, trace_model=True)
+        self._test(
+            *self.create_model(size, stride, offset),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True
+        )
 
 
 class TestAsStridedListConstruct(PytorchLayerTest):
@@ -73,7 +78,9 @@ class TestAsStridedListConstruct(PytorchLayerTest):
             def forward_no_const(self, x, size_shape_tensor, stride_shape_tensor):
                 sz1, sz2, sz3 = size_shape_tensor.shape
                 st1, st2, st3 = stride_shape_tensor.shape
-                return torch.as_strided(x, [sz1, sz2, sz3], [st1, st2, st3], self.offset)
+                return torch.as_strided(
+                    x, [sz1, sz2, sz3], [st1, st2, st3], self.offset
+                )
 
             def forward_stride_const(self, x, size_shape_tensor, stride_shape_tensor):
                 sz1, sz2, sz3 = size_shape_tensor.shape
@@ -85,16 +92,24 @@ class TestAsStridedListConstruct(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_as_strided(size, stride, offset, mode), ref_net, ["aten::as_strided", "prim::ListConstruct"]
+        return (
+            aten_as_strided(size, stride, offset, mode),
+            ref_net,
+            ["aten::as_strided", "prim::ListConstruct"],
+        )
 
-    @pytest.mark.parametrize("size,stride", [([5, 4, 3], [1, 3, 7]), ([5, 5, 5], [5, 0, 5])])
+    @pytest.mark.parametrize(
+        "size,stride", [([5, 4, 3], [1, 3, 7]), ([5, 5, 5], [5, 0, 5])]
+    )
     @pytest.mark.parametrize("offset", [None, 7])
     @pytest.mark.parametrize("mode", ["no_const", "stride_const", "size_const"])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_as_strided_list_construct(self, size, stride, offset, mode, ie_device, precision, ir_version):
+    def test_as_strided_list_construct(
+        self, size, stride, offset, mode, ie_device, precision, ir_version
+    ):
         inp_kwargs = {"size_shape_tensor": size, "stride_shape_tensor": stride}
         self._test(
             *self.create_model(size, stride, offset, mode),
@@ -108,7 +123,9 @@ class TestAsStridedListConstruct(PytorchLayerTest):
 
 class TestAsStridedLongformer(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1, 10, 20, 40).astype(np.float32).transpose([0, 2, 3, 1]),)
+        return (
+            np.random.randn(1, 10, 20, 40).astype(np.float32).transpose([0, 2, 3, 1]),
+        )
 
     def create_model(self):
         class aten_as_strided_lf(torch.nn.Module):
@@ -128,4 +145,11 @@ class TestAsStridedLongformer(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_as_strided_lf(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, freeze_model=False)
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True,
+            freeze_model=False
+        )

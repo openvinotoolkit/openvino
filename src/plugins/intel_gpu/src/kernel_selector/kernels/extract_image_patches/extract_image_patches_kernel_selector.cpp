@@ -3,6 +3,7 @@
 //
 
 #include "extract_image_patches_kernel_selector.h"
+
 #include "extract_image_patches_kernel_ref.h"
 
 namespace kernel_selector {

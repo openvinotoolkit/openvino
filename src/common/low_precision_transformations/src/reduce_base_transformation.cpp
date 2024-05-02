@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/reduce_base_transformation.hpp"
+
 #include <memory>
 
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/util/log.hpp"
-
-#include "low_precision/network_helper.hpp"
-#include "low_precision/reduce_base_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -22,7 +22,8 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     }
 
     const auto reduce = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
+    auto dequantization =
+        NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(reduce, defaultPrecisions));
 
     // prepare dequantization to propagate
     changeDequantizationValues(reduce, dequantization);
@@ -35,7 +36,8 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
     return true;
 }
 
-bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& context,
+                                                std::shared_ptr<Node> reduce) const {
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.empty()) {
         return false;
@@ -61,7 +63,9 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         if (!constShape.empty()) {
             for (size_t i = 0; i < constShape.size(); ++i) {
                 // dequantization by reduced axis is not propagate
-                if ((constShape[i] != 1ul) && std::any_of(axes.cbegin(), axes.cend(), [=](size_t elem) { return elem == i; })) {
+                if ((constShape[i] != 1ul) && std::any_of(axes.cbegin(), axes.cend(), [=](size_t elem) {
+                        return elem == i;
+                    })) {
                     return true;
                 }
             }
@@ -90,9 +94,8 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     return true;
 }
 
-void ReduceBaseTransformation::changeDequantizationValues(
-    const std::shared_ptr<Node>& reduce,
-    FakeQuantizeDequantization& dequantization) const {
+void ReduceBaseTransformation::changeDequantizationValues(const std::shared_ptr<Node>& reduce,
+                                                          FakeQuantizeDequantization& dequantization) const {
     if (dequantization.subtract) {
         const auto newSubConstant = NetworkHelper::foldDequantizationConstant(dequantization.subtractConstant, reduce);
         replace_node(dequantization.subtractConstant, newSubConstant);
@@ -108,6 +111,6 @@ bool ReduceBaseTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -3,11 +3,12 @@
 //
 
 #include "low_precision/multiply_to_group_convolution.hpp"
+
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -15,7 +16,10 @@ namespace low_precision {
 
 MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformation(
     const Params& params,
-    const PrecisionsRestriction::PrecisionsByPorts& restrictions) : CleanupTransformation(params), restrictions(restrictions), groupSize(1ul) {
+    const PrecisionsRestriction::PrecisionsByPorts& restrictions)
+    : CleanupTransformation(params),
+      restrictions(restrictions),
+      groupSize(1ul) {
     MATCHER_SCOPE(MultiplyToGroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
@@ -31,7 +35,8 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
     this->register_matcher(m, callback);
 }
 
-bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context,
+                                                         ov::pass::pattern::Matcher& m) {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -66,10 +71,11 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
 
         // if restrictions are absent precisions attribute is used
         if (weightsPrecision == element::undefined) {
-            const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
-            const auto precisions = precisionsAttribute == nullptr ?
-                defaultPrecisions :
-                precisionsAttribute.as<PrecisionsAttribute>().value();
+            const auto precisionsAttribute =
+                getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
+            const auto precisions = precisionsAttribute == nullptr
+                                        ? defaultPrecisions
+                                        : precisionsAttribute.as<PrecisionsAttribute>().value();
             weightsPrecision = precisions[0];
         }
     } else {
@@ -116,8 +122,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{ element::f32 },
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{element::f32},
         ov::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
         ov::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
         strides,
@@ -134,7 +140,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         lastNode->set_friendly_name(convolution->get_friendly_name() + "/Add");
     }
 
-    lastNode = multiply->clone_with_new_inputs({ lastNode, constant });
+    lastNode = multiply->clone_with_new_inputs({lastNode, constant});
 
     replace_node(multiply, lastNode);
     NetworkHelper::copyInfo(multiply, lastNode);
@@ -142,7 +148,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context,
+                                                                std::shared_ptr<Node> operation) const {
     if (!CleanupTransformation::canBeTransformed(context, operation)) {
         return false;
     }
@@ -173,7 +180,8 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         constShape = constant->get_shape();
         if (ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)) ||
             (ov::is_type<ov::opset1::Subtract>(operation->get_input_node_shared_ptr(0)) &&
-            ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
+             ov::is_type<ov::opset1::Constant>(
+                 operation->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)))) {
             return false;
         }
     } else if (const auto constant = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(0))) {
@@ -197,7 +205,8 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
 
         const auto dequantization = NetworkHelper::getDequantization(operation, defaultPrecisions, inputIndex);
         const element::Type parentPrecision = dequantization.data.get_element_type();
-        if (std::find(availablePreisions.begin(), availablePreisions.end(), parentPrecision) == availablePreisions.end()) {
+        if (std::find(availablePreisions.begin(), availablePreisions.end(), parentPrecision) ==
+            availablePreisions.end()) {
             return false;
         }
     }
@@ -205,12 +214,14 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+bool MultiplyToGroupConvolutionTransformation::isQuantized(
+    const std::shared_ptr<const Node>& layer,
     const std::vector<ov::element::Type>& defaultPrecisions) const {
     return MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(layer);
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(const std::shared_ptr<const Node>& layer) {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(
+    const std::shared_ptr<const Node>& layer) {
     const auto parent0 = layer->get_input_node_shared_ptr(0);
     const auto parent1 = layer->get_input_node_shared_ptr(1);
 
@@ -249,7 +260,9 @@ bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shar
         return true;
     }
 
-    if (std::all_of(shape.begin(), shape.end(), [](const Dimension& dimension) { return dimension == 1ul; })) {
+    if (std::all_of(shape.begin(), shape.end(), [](const Dimension& dimension) {
+            return dimension == 1ul;
+        })) {
         return true;
     }
 
@@ -268,6 +281,6 @@ bool MultiplyToGroupConvolutionTransformation::isPrecisionPreserved(std::shared_
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -6,15 +6,16 @@
 
 #include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/convolution.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<convBackpropDataLayerTestParamsSet>& obj) {
+std::string ConvolutionBackpropDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<convBackpropDataLayerTestParamsSet>& obj) {
     convBackpropDataSpecificParams convBackpropDataParams;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
@@ -25,7 +26,8 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::Tes
     std::vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t convOutChannels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) = convBackpropDataParams;
+    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) =
+        convBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -66,20 +68,40 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     std::vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t convOutChannels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) = convBackpropDataParams;
+    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) =
+        convBackpropDataParams;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     std::shared_ptr<ov::Node> convBackpropData;
     if (!output_shape.empty()) {
         auto outShape = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape);
-        convBackpropData = ov::test::utils::make_convolution_backprop_data(
-            params[0]->output(0), outShape, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, convOutChannels);
+        convBackpropData = ov::test::utils::make_convolution_backprop_data(params[0]->output(0),
+                                                                           outShape,
+                                                                           model_type,
+                                                                           kernel,
+                                                                           stride,
+                                                                           pad_begin,
+                                                                           pad_end,
+                                                                           dilation,
+                                                                           pad_type,
+                                                                           convOutChannels);
     } else {
-        convBackpropData = ov::test::utils::make_convolution_backprop_data(
-            params[0]->output(0), model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, convOutChannels, false, out_padding);
+        convBackpropData = ov::test::utils::make_convolution_backprop_data(params[0]->output(0),
+                                                                           model_type,
+                                                                           kernel,
+                                                                           stride,
+                                                                           pad_begin,
+                                                                           pad_end,
+                                                                           dilation,
+                                                                           pad_type,
+                                                                           convOutChannels,
+                                                                           false,
+                                                                           out_padding);
     }
-    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convBackpropData), params, "convolutionBackpropData");
+    function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convBackpropData),
+                                           params,
+                                           "convolutionBackpropData");
 }
 }  // namespace test
 }  // namespace ov

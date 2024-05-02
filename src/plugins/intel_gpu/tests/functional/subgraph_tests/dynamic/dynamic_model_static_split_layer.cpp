@@ -1,32 +1,31 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<
-        std::vector<InputShape>,           // input shapes
-        ov::element::Type,                 // Model type
-        std::string                       // Device name
-> DynamicModelStaticSplitLayerGPUTestParamsSet;
+typedef std::tuple<std::vector<InputShape>,  // input shapes
+                   ov::element::Type,        // Model type
+                   std::string               // Device name
+                   >
+    DynamicModelStaticSplitLayerGPUTestParamsSet;
 
-const std::vector<ov::element::Type> model_types = {
-    ov::element::f16
-};
+const std::vector<ov::element::Type> model_types = {ov::element::f16};
 
-class DynamicModelStaticSplitLayerGPUTest : public testing::WithParamInterface<DynamicModelStaticSplitLayerGPUTestParamsSet>,
-                                            virtual public ov::test::SubgraphBaseTest {
+class DynamicModelStaticSplitLayerGPUTest
+    : public testing::WithParamInterface<DynamicModelStaticSplitLayerGPUTestParamsSet>,
+      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DynamicModelStaticSplitLayerGPUTestParamsSet>& obj) {
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<DynamicModelStaticSplitLayerGPUTestParamsSet>& obj) {
         DynamicModelStaticSplitLayerGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
         std::vector<InputShape> inputShapes;
@@ -57,7 +56,9 @@ protected:
             in_data.start_from = 0;
             in_data.range = 80;
             in_data.resolution = 8;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -84,7 +85,8 @@ protected:
         auto variadicSplitOp = std::make_shared<ov::op::v1::VariadicSplit>(params[0], axis, split_sizes);
         variadicSplitOp->set_friendly_name("variadicSplit");
 
-        auto addOp = ov::test::utils::make_eltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
+        auto addOp =
+            ov::test::utils::make_eltwise(params[1], variadicSplitOp->output(1), ov::test::utils::EltwiseTypes::ADD);
         addOp->set_friendly_name("add");
 
         ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(addOp)};
@@ -111,11 +113,12 @@ const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
     },
 };
 
-
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
-                                                   ::testing::ValuesIn(model_types), // netprec
-                                                   ::testing::Values(ov::test::utils::DEVICE_GPU));
+                                                 ::testing::ValuesIn(model_types),  // netprec
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU));
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic_model_static_split, DynamicModelStaticSplitLayerGPUTest,
-                         testParams_smoke, DynamicModelStaticSplitLayerGPUTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_model_static_split,
+                         DynamicModelStaticSplitLayerGPUTest,
+                         testParams_smoke,
+                         DynamicModelStaticSplitLayerGPUTest::getTestCaseName);
+}  // namespace

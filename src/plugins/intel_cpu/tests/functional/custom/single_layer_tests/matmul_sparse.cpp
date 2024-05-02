@@ -20,19 +20,20 @@ struct ShapeRelatedParams {
     std::pair<bool, bool> transpose;
 };
 
-typedef std::tuple<
-        ShapeRelatedParams,
-        ElementType,                        // Input precision
-        ElementType,                        // Weights precision
-        ElementType,                        // Output precision
-        fusingSpecificParams,
-        CPUSpecificParams,
-        ov::AnyMap, // Additional config
-        float                               // Weights sparse rate
-> MatMulSparseParamSet;
+typedef std::tuple<ShapeRelatedParams,
+                   ElementType,  // Input precision
+                   ElementType,  // Weights precision
+                   ElementType,  // Output precision
+                   fusingSpecificParams,
+                   CPUSpecificParams,
+                   ov::AnyMap,  // Additional config
+                   float        // Weights sparse rate
+                   >
+    MatMulSparseParamSet;
 
 class MatMulSparseCPUTest : public testing::WithParamInterface<MatMulSparseParamSet>,
-                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                            virtual public SubgraphBaseTest,
+                            public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulSparseParamSet>& obj) {
         ShapeRelatedParams shapeRelatedParams;
@@ -41,8 +42,14 @@ public:
         CPUSpecificParams cpuParams;
         ov::AnyMap additionalConfig;
         float weiSparseRate;
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = obj.param;
+        std::tie(shapeRelatedParams,
+                 inType,
+                 weiType,
+                 outType,
+                 fusingParams,
+                 cpuParams,
+                 additionalConfig,
+                 weiSparseRate) = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -80,19 +87,19 @@ public:
     }
 
 protected:
-     std::string cpuNodeType;
+    std::string cpuNodeType;
 
-    template<typename T>
+    template <typename T>
     void transpose(T& shape) {
         OPENVINO_ASSERT(shape.size() > 1);
         std::swap(*(shape.end() - 1), *(shape.end() - 2));
     }
 
     std::vector<int8_t> inline generateSparseVector(size_t vec_len,
-                float sparseRate = 0.0f,
-                int8_t upTo = 10,
-                int8_t startFrom = 1,
-                int32_t seed = 1) {
+                                                    float sparseRate = 0.0f,
+                                                    int8_t upTo = 10,
+                                                    int8_t startFrom = 1,
+                                                    int32_t seed = 1) {
         std::vector<int8_t> res(vec_len);
         std::mt19937 gen(seed);
         std::uniform_int_distribution<long> dist(static_cast<long>(startFrom), static_cast<long>(upTo));
@@ -149,8 +156,14 @@ protected:
         ov::AnyMap additionalConfig;
         float weiSparseRate;
 
-        std::tie(shapeRelatedParams, inType, weiType, outType, fusingParams, cpuParams, additionalConfig,
-            weiSparseRate) = this->GetParam();
+        std::tie(shapeRelatedParams,
+                 inType,
+                 weiType,
+                 outType,
+                 fusingParams,
+                 cpuParams,
+                 additionalConfig,
+                 weiSparseRate) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
@@ -238,47 +251,41 @@ const std::vector<ShapeRelatedParams> IS2D_sparse_smoke = {
     {static_shapes_to_test_representation({{3, 128}, {128, 64}}), {false, true}},
     {static_shapes_to_test_representation({{71, 64}, {64, 128}}), {false, true}},
 
-    {
-        {
-            {{-1, -1}, {{20, 64}, {20, 64}}},
-            {{64, 128}, {{64, 128}, {64, 128}}}
-        },
-        {false, true}
-    },
+    {{{{-1, -1}, {{20, 64}, {20, 64}}}, {{64, 128}, {{64, 128}, {64, 128}}}}, {false, true}},
 
-    {
-        {
-            {{{0, 100}, {0, 64}}, {{20, 64}, {14, 64}, {20, 64}, {14, 64}}},
-            {{64, 128}, {{64, 128}, {64, 128}, {64, 128}, {64, 128}}}
-        },
-        {false, true}
-    },
+    {{{{{0, 100}, {0, 64}}, {{20, 64}, {14, 64}, {20, 64}, {14, 64}}},
+      {{64, 128}, {{64, 128}, {64, 128}, {64, 128}, {64, 128}}}},
+     {false, true}},
     {static_shapes_to_test_representation({{1, 4096}, {4096, 16384}}), {false, true}},
 };
 
 const auto testParams2D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),
-                                                   ::testing::Values(ElementType::i8, ElementType::u8),
-                                                   ::testing::Values(ElementType::i8),
-                                                   ::testing::Values(ElementType::f32),
-                                                   ::testing::Values(emptyFusingSpec),
-                                                   ::testing::ValuesIn(filterSpecificParams(false)),
-                                                   ::testing::Values(emptyConfig, SparseRate80),
-                                                   ::testing::Values(0.7));
+                                                      ::testing::Values(ElementType::i8, ElementType::u8),
+                                                      ::testing::Values(ElementType::i8),
+                                                      ::testing::Values(ElementType::f32),
+                                                      ::testing::Values(emptyFusingSpec),
+                                                      ::testing::ValuesIn(filterSpecificParams(false)),
+                                                      ::testing::Values(emptyConfig, SparseRate80),
+                                                      ::testing::Values(0.7));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_I8, MatMulSparseCPUTest, testParams2D_i8_smoke,
-    MatMulSparseCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_I8,
+                         MatMulSparseCPUTest,
+                         testParams2D_i8_smoke,
+                         MatMulSparseCPUTest::getTestCaseName);
 
 const auto testParams2D_i8_sparse_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_sparse_smoke),
-                                                   ::testing::Values(ElementType::i8, ElementType::u8),
-                                                   ::testing::Values(ElementType::i8),
-                                                   ::testing::Values(ElementType::f32),
-                                                   ::testing::Values(emptyFusingSpec),
-                                                   ::testing::ValuesIn(filterSpecificParams(true)),
-                                                   ::testing::Values(SparseRate50),
-                                                   ::testing::Values(0.7));
+                                                             ::testing::Values(ElementType::i8, ElementType::u8),
+                                                             ::testing::Values(ElementType::i8),
+                                                             ::testing::Values(ElementType::f32),
+                                                             ::testing::Values(emptyFusingSpec),
+                                                             ::testing::ValuesIn(filterSpecificParams(true)),
+                                                             ::testing::Values(SparseRate50),
+                                                             ::testing::Values(0.7));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_I8_sparse, MatMulSparseCPUTest, testParams2D_i8_sparse_smoke,
-    MatMulSparseCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_I8_sparse,
+                         MatMulSparseCPUTest,
+                         testParams2D_i8_sparse_smoke,
+                         MatMulSparseCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS3D_sparse_smoke = {
     {static_shapes_to_test_representation({{1, 64, 64}, {64, 64}}), {false, true}},
@@ -286,13 +293,8 @@ const std::vector<ShapeRelatedParams> IS3D_sparse_smoke = {
     {static_shapes_to_test_representation({{3, 5, 128}, {128, 64}}), {false, true}},
     {static_shapes_to_test_representation({{1, 71, 64}, {64, 128}}), {false, true}},
 
-    {
-        {
-            {{-1, -1, 64}, {{1, 5, 64}, {1, 10, 64}, {1, 5, 64}, {1, 10, 64}}},
-            {{64, 128}, {{64, 128}, {64, 128}}}
-        },
-        {false, true}
-    },
+    {{{{-1, -1, 64}, {{1, 5, 64}, {1, 10, 64}, {1, 5, 64}, {1, 10, 64}}}, {{64, 128}, {{64, 128}, {64, 128}}}},
+     {false, true}},
 
     // todo: [av] investigate "Primitive descriptor was not found" error for this case
     // {
@@ -305,32 +307,36 @@ const std::vector<ShapeRelatedParams> IS3D_sparse_smoke = {
 };
 
 const auto testParams3D_i8_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_sparse_smoke),
-                                                   ::testing::Values(ElementType::i8, ElementType::u8),
-                                                   ::testing::Values(ElementType::i8),
-                                                   ::testing::Values(ElementType::f32),
-                                                   ::testing::Values(emptyFusingSpec),
-                                                   ::testing::ValuesIn(filterSpecificParams(false)),
-                                                   ::testing::Values(emptyConfig, SparseRate80),
-                                                   ::testing::Values(0.7));
+                                                      ::testing::Values(ElementType::i8, ElementType::u8),
+                                                      ::testing::Values(ElementType::i8),
+                                                      ::testing::Values(ElementType::f32),
+                                                      ::testing::Values(emptyFusingSpec),
+                                                      ::testing::ValuesIn(filterSpecificParams(false)),
+                                                      ::testing::Values(emptyConfig, SparseRate80),
+                                                      ::testing::Values(0.7));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8, MatMulSparseCPUTest, testParams3D_i8_smoke,
-    MatMulSparseCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8,
+                         MatMulSparseCPUTest,
+                         testParams3D_i8_smoke,
+                         MatMulSparseCPUTest::getTestCaseName);
 
 const auto testParams3D_i8_sparse_smoke = ::testing::Combine(::testing::ValuesIn(IS3D_sparse_smoke),
-                                                   ::testing::Values(ElementType::i8, ElementType::u8),
-                                                   ::testing::Values(ElementType::i8),
-                                                   ::testing::Values(ElementType::f32),
-                                                   ::testing::Values(emptyFusingSpec),
-                                                   ::testing::ValuesIn(filterSpecificParams(true)),
-                                                   ::testing::Values(SparseRate50),
-                                                   ::testing::Values(0.7));
+                                                             ::testing::Values(ElementType::i8, ElementType::u8),
+                                                             ::testing::Values(ElementType::i8),
+                                                             ::testing::Values(ElementType::f32),
+                                                             ::testing::Values(emptyFusingSpec),
+                                                             ::testing::ValuesIn(filterSpecificParams(true)),
+                                                             ::testing::Values(SparseRate50),
+                                                             ::testing::Values(0.7));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8_sparse, MatMulSparseCPUTest, testParams3D_i8_sparse_smoke,
-    MatMulSparseCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_I8_sparse,
+                         MatMulSparseCPUTest,
+                         testParams3D_i8_sparse_smoke,
+                         MatMulSparseCPUTest::getTestCaseName);
 
-} // namespace fullyConnected
+}  // namespace fullyConnected
 
-} // namespace
+}  // namespace
 
 }  // namespace test
 }  // namespace ov

@@ -8,12 +8,9 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-
-from openvino.runtime import Core
-
+from openvino.runtime import Core, Model, Node, Tensor, Type
 from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Model, Node, Tensor, Type
-from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
+from openvino.runtime.utils.types import NumericData, get_dtype, get_shape
 
 import tests
 
@@ -40,13 +37,17 @@ class Runtime(object):
         self.backend_name = backend_name
         log.debug(f"Creating runtime for {backend_name}")
         self.backend = Core()
-        assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
+        assert backend_name in self.backend.available_devices, (
+            'The requested device "' + backend_name + '" is not supported!'
+        )
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the runtime configuration."""
         self.backend.set_property(device_name=self.backend_name, properties=config)
 
-    def computation(self, node_or_model: Union[Node, Model], *inputs: Node) -> "Computation":
+    def computation(
+        self, node_or_model: Union[Node, Model], *inputs: Node
+    ) -> "Computation":
         """Return a callable Computation object."""
         if isinstance(node_or_model, Node):
             model = Model(node_or_model, inputs, node_or_model.name)
@@ -82,7 +83,9 @@ class Computation(object):
             target_dtype = target_dtypes[i]
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
-                converted_buffers.append((source_buffers[key].view(target_dtype)).astype(target_dtype))
+                converted_buffers.append(
+                    (source_buffers[key].view(target_dtype)).astype(target_dtype)
+                )
             else:
                 converted_buffers.append(source_buffers[key].astype(target_dtype))
         return converted_buffers
@@ -121,8 +124,13 @@ class Computation(object):
         else:
             model = self.network_cache[str(input_shapes)]
 
-        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
-        is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
+        compiled_model = self.runtime.backend.compile_model(
+            model, self.runtime.backend_name
+        )
+        is_bfloat16 = any(
+            parameter.get_output_element_type(0) == Type.bf16
+            for parameter in self.parameters
+        )
         if is_bfloat16:
             input_values = self.convert_to_tensors(input_values)
         request = compiled_model.create_infer_request()
@@ -136,6 +144,8 @@ class Computation(object):
             result_buffers = [t.data for t in request.output_tensors]
         """
         # # Since OV overwrite result data type we have to convert results to the original one.
-        original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
+        original_dtypes = [
+            get_dtype(result.get_output_element_type(0)) for result in self.results
+        ]
         converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers

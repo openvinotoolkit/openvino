@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+
 from .provider import ClassProvider
 
 
 class FilterByLabels(ClassProvider):
-    __action_name__ = 'classes_filter'
+    __action_name__ = "classes_filter"
 
     def __init__(self, config):
         self.classes = config.get("classes", [])
@@ -26,7 +27,7 @@ class FilterByLabels(ClassProvider):
 
 
 class FilterByMinProbability(ClassProvider):
-    __action_name__ = 'prob_filter'
+    __action_name__ = "prob_filter"
 
     def __init__(self, config):
         self.threshold = config.get("threshold", 0.1)
@@ -80,8 +81,13 @@ class NMS(ClassProvider):
                     h = np.maximum(0.0, yy2 - yy1 + 1)
                     intersection = w * h
 
-                    union = (areas[i] + areas[order[1:]] - intersection)
-                    overlap = np.divide(intersection, union, out=np.zeros_like(intersection, dtype=float), where=union != 0)
+                    union = areas[i] + areas[order[1:]] - intersection
+                    overlap = np.divide(
+                        intersection,
+                        union,
+                        out=np.zeros_like(intersection, dtype=float),
+                        where=union != 0,
+                    )
 
                     order = order[np.where(overlap <= self.overlap_threshold)[0] + 1]
                 filtered[layer].append([batch_data[i] for i in keep])

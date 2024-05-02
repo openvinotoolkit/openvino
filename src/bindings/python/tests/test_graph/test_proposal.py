@@ -4,6 +4,7 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
+
 from openvino import Shape, Type
 
 
@@ -11,8 +12,12 @@ def test_proposal_props():
     float_dtype = np.float32
     batch_size = 1
     post_nms_topn = 20
-    probs = ov.parameter(Shape([batch_size, 8, 255, 255]), dtype=float_dtype, name="probs")
-    deltas = ov.parameter(Shape([batch_size, 16, 255, 255]), dtype=float_dtype, name="bbox_deltas")
+    probs = ov.parameter(
+        Shape([batch_size, 8, 255, 255]), dtype=float_dtype, name="probs"
+    )
+    deltas = ov.parameter(
+        Shape([batch_size, 16, 255, 255]), dtype=float_dtype, name="bbox_deltas"
+    )
     im_info = ov.parameter(Shape([4]), dtype=float_dtype, name="im_info")
 
     attrs = {

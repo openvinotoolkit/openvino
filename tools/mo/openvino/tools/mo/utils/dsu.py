@@ -6,8 +6,9 @@ class DSUElem:
     """
     An object that represents one DSU element.
     """
-    name = ''
-    parent = ''
+
+    name = ""
+    parent = ""
     rank = 1
 
     def __init__(self, name):
@@ -20,6 +21,7 @@ class DSU:
     """
     Naive implementation of the "disjoint set union" data structure.
     """
+
     map = dict()
 
     def __init__(self, elems: list):

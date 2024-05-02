@@ -4,42 +4,49 @@
 
 import numpy as np
 import pytest
-
-from openvino import Tensor, Type
 from openvino.runtime.op import Constant
-
 from tests.utils.helpers import generate_image
 
+from openvino import Tensor, Type
 
-@pytest.mark.parametrize(("cls", "cls_str"), [
-    (Tensor, "TENSOR"),
-    (Constant, "CONSTANT"),
-])
+
+@pytest.mark.parametrize(
+    ("cls", "cls_str"),
+    [
+        (Tensor, "TENSOR"),
+        (Constant, "CONSTANT"),
+    ],
+)
 def test_init_with_numpy_fail(cls, cls_str):
     arr = np.asfortranarray(generate_image())  # F-style array
 
     with pytest.raises(RuntimeError) as e:
         _ = cls(array=arr, shared_memory=True)
 
-    assert "SHARED MEMORY MODE FOR THIS " + cls_str + " IS NOT APPLICABLE!" in str(e.value)
+    assert "SHARED MEMORY MODE FOR THIS " + cls_str + " IS NOT APPLICABLE!" in str(
+        e.value
+    )
 
 
 @pytest.mark.parametrize("cls", [Tensor, Constant])
 @pytest.mark.parametrize("shared_flag", [True, False])
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.u32, np.uint32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-    (Type.u64, np.uint64),
-    (Type.boolean, bool),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.u32, np.uint32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+        (Type.u64, np.uint64),
+        (Type.boolean, bool),
+    ],
+)
 def test_with_numpy_memory(cls, shared_flag, ov_type, numpy_dtype):
     arr = np.ascontiguousarray(generate_image().astype(numpy_dtype))
     ov_object = cls(array=arr, shared_memory=shared_flag)
@@ -93,21 +100,26 @@ def test_with_external_memory(cls, shared_flag):
 @pytest.mark.parametrize("cls", [Constant])
 @pytest.mark.parametrize("shared_flag_one", [True, False])
 @pytest.mark.parametrize("shared_flag_two", [True, False])
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.u32, np.uint32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-    (Type.u64, np.uint64),
-    (Type.boolean, bool),
-])
-def test_with_tensor_memory(cls, shared_flag_one, shared_flag_two, ov_type, numpy_dtype):
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.u32, np.uint32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+        (Type.u64, np.uint64),
+        (Type.boolean, bool),
+    ],
+)
+def test_with_tensor_memory(
+    cls, shared_flag_one, shared_flag_two, ov_type, numpy_dtype
+):
     arr = np.ascontiguousarray(generate_image().astype(numpy_dtype))
     ov_tensor = Tensor(arr, shared_memory=shared_flag_one)
     ov_object = cls(tensor=ov_tensor, shared_memory=shared_flag_two)
@@ -128,14 +140,17 @@ def test_with_tensor_memory(cls, shared_flag_one, shared_flag_two, ov_type, nump
 
 @pytest.mark.parametrize("cls", [Tensor, Constant])
 @pytest.mark.parametrize("shared_flag", [True, False])
-@pytest.mark.parametrize("scalar", [
-    np.array(2),
-    np.array(1.0),
-    np.float32(3.0),
-    np.int64(7.0),
-    4,
-    5.0,
-])
+@pytest.mark.parametrize(
+    "scalar",
+    [
+        np.array(2),
+        np.array(1.0),
+        np.float32(3.0),
+        np.int64(7.0),
+        4,
+        5.0,
+    ],
+)
 def test_with_scalars(cls, shared_flag, scalar):
     # If scalar is 0-dim np.array, create a copy for convinience. Otherwise, it will be
     # shared by all tests.

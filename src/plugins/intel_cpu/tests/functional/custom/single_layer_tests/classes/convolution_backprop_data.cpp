@@ -123,14 +123,14 @@ void DeconvolutionLayerCPUTest::configure_model() {
     function = p.build();
 }
 
-std::shared_ptr<ov::Model> DeconvolutionLayerCPUTest::createGraph(const std::vector<ov::PartialShape>& inShapes, ov::test::utils::InputLayerType outShapeType) {
+std::shared_ptr<ov::Model> DeconvolutionLayerCPUTest::createGraph(const std::vector<ov::PartialShape>& inShapes,
+                                                                  ov::test::utils::InputLayerType outShapeType) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prec, inShapes.front())};
     std::shared_ptr<ov::Node> outShapeNode;
     if (!outShapeData.empty()) {
         if (outShapeType == ov::test::utils::InputLayerType::PARAMETER) {
             OPENVINO_ASSERT(inputDynamicShapes.size() == 2);
-            auto outShapeParam =
-                    std::make_shared<ov::op::v0::Parameter>(ov::element::i32, inputDynamicShapes.back());
+            auto outShapeParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, inputDynamicShapes.back());
             params.push_back(outShapeParam);
             outShapeNode = outShapeParam;
         } else {
@@ -210,7 +210,7 @@ void DeconvolutionLayerCPUTest::SetUp() {
     if (!outShapeData.empty() && outShapeType == ov::test::utils::InputLayerType::PARAMETER) {
         const auto outShapeDims = ov::Shape{outShapeData.front().size()};
         paramsShapes.push_back(
-                InputShape{outShapeDims, std::vector<ov::Shape>(inputShape.second.size(), outShapeDims)});
+            InputShape{outShapeDims, std::vector<ov::Shape>(inputShape.second.size(), outShapeDims)});
     }
 
     init_input_shapes(paramsShapes);

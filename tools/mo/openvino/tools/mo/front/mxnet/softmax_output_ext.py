@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxOutputExtractor(FrontExtractorOp):
-    op = 'SoftmaxOutput'
+    op = "SoftmaxOutput"
     enabled = True
 
     @classmethod
@@ -15,17 +15,17 @@ class SoftmaxOutputExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         axis = 1
-        preserve_shape = attrs.str('preserve_shape', 'False')
-        multi_output = attrs.str('multi_output', 'False')
+        preserve_shape = attrs.str("preserve_shape", "False")
+        multi_output = attrs.str("multi_output", "False")
 
-        if preserve_shape == 'True':
+        if preserve_shape == "True":
             axis = -1
 
-        if multi_output == 'True':
+        if multi_output == "True":
             axis = 1
 
         update_attrs = {
-            'axis': axis,
+            "axis": axis,
         }
 
         # update the attributes of the node

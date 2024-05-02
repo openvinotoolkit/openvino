@@ -2,7 +2,7 @@ const core = require('@actions/core');
 const tar = require('tar');
 const fs = require('fs/promises');
 const path = require('path');
-const { humanReadableFileSize, checkFileExists } = require('./utils');
+const {humanReadableFileSize, checkFileExists} = require('./utils');
 
 /**
  * The main function for the action.
@@ -10,9 +10,9 @@ const { humanReadableFileSize, checkFileExists } = require('./utils');
  */
 async function save() {
   try {
-    const cacheRemotePath = core.getInput('cache-path', { required: true });
-    const toCachePath = core.getInput('path', { required: true });
-    const key = core.getInput('key', { required: true });
+    const cacheRemotePath = core.getInput('cache-path', {required : true});
+    const toCachePath = core.getInput('path', {required : true});
+    const key = core.getInput('key', {required : true});
 
     core.debug(`cache-path: ${cacheRemotePath}`);
     core.debug(`path: ${toCachePath}`);
@@ -35,18 +35,10 @@ async function save() {
 
     core.info(`Preparing cache archive ${tarName}`);
     tar.c(
-      {
-        gzip: true,
-        file: tarName,
-        cwd: toCachePath,
-        sync: true
-      },
-      ['.']
-    );
+        {gzip : true, file : tarName, cwd : toCachePath, sync : true}, [ '.' ]);
     const tarStat = await fs.stat(tarName);
-    core.info(
-      `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarStat.size)}`
-    );
+    core.info(`Created cache tarball: ${tarName}, size: ${
+        humanReadableFileSize(tarStat.size)}`);
 
     // remote cache directory may not be created yet
     if (!(await checkFileExists(cacheRemotePath))) {
@@ -66,6 +58,4 @@ async function save() {
   }
 }
 
-module.exports = {
-  save
-};
+module.exports = {save};

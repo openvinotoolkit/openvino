@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_base.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -32,11 +33,16 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
         return input_dt;
     } else {
         switch (input_dt) {
-            case Datatype::F32: return Datatype::F32;
-            case Datatype::F16: return Datatype::F32;
-            case Datatype::INT8: return Datatype::INT32;
-            case Datatype::UINT8: return Datatype::INT32;
-            default: return Datatype::F32;
+        case Datatype::F32:
+            return Datatype::F32;
+        case Datatype::F16:
+            return Datatype::F32;
+        case Datatype::INT8:
+            return Datatype::INT32;
+        case Datatype::UINT8:
+            return Datatype::INT32;
+        default:
+            return Datatype::F32;
         }
     }
 }
@@ -48,8 +54,8 @@ Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) cons
         return Datatype::F32;
 }
 
-
-JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, PoolingKernelBase::DispatchData dispatchData) const {
+JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp,
+                                                PoolingKernelBase::DispatchData dispatchData) const {
     JitConstants mem_consts = MakeBaseParamsJitConstants(pp);
 
     mem_consts.AddConstants({
@@ -142,9 +148,8 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
     DispatchData dispatchData;
 
     if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
-        output.GetLayout() == DataLayout::byxf ||
-        output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        output.GetLayout() == DataLayout::byxf || output.GetLayout() == DataLayout::bfzyx ||
+        output.GetLayout() == DataLayout::b_fs_zyx_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
         output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
         output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         // Determine global work sizes.
@@ -199,7 +204,16 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params) const 
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT, false, false, 1,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
                      GetFusedPrimitiveInputsCount(params));
     uint32_t param_idx = 1;
 

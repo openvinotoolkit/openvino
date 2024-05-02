@@ -3,11 +3,11 @@
 //
 
 #pragma once
-#include "intel_gpu/primitives/convolution.hpp"
-#include "primitive_inst.h"
-
 #include <memory>
 #include <string>
+
+#include "intel_gpu/primitives/convolution.hpp"
+#include "primitive_inst.h"
 
 namespace cldnn {
 
@@ -17,23 +17,36 @@ struct typed_program_node<deformable_conv> : public typed_program_node_base<defo
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-            : parent(prim, prog),
-              transposed(false),
-              groups(this->get_primitive()->groups) {
+        : parent(prim, prog),
+          transposed(false),
+          groups(this->get_primitive()->groups) {
         support_padding_all(true);
     }
 
-    bool get_transposed() const { return transposed; }
+    bool get_transposed() const {
+        return transposed;
+    }
 
-    uint32_t get_groups() const { return groups; }
+    uint32_t get_groups() const {
+        return groups;
+    }
 
-    program_node& input() const { return get_dependency(0); }
-    program_node& weights() const { return get_dependency(1);}
-    program_node& bias() const { return get_dependency(2); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
+    program_node& weights() const {
+        return get_dependency(1);
+    }
+    program_node& bias() const {
+        return get_dependency(2);
+    }
 
-    bool bias_term() const { return get_primitive()->bias.size() > 0; }
+    bool bias_term() const {
+        return get_primitive()->bias.size() > 0;
+    }
 
-    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
+    std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts,
+                                                               const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
@@ -41,7 +54,9 @@ public:
         return params;
     }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 
 private:
     bool transposed;
@@ -61,9 +76,15 @@ public:
 
     typed_primitive_inst(network& network, deformable_conv_node const& node);
 
-    memory::ptr weights_memory() const { return dep_memory_ptr(1); }
-    memory::ptr bias_memory() const { return dep_memory_ptr(2);}
-    bool bias_term() const { return node->bias_term(); }
+    memory::ptr weights_memory() const {
+        return dep_memory_ptr(1);
+    }
+    memory::ptr bias_memory() const {
+        return dep_memory_ptr(2);
+    }
+    bool bias_term() const {
+        return node->bias_term();
+    }
 };
 
 using deformable_conv_inst = typed_primitive_inst<deformable_conv>;
@@ -75,20 +96,28 @@ struct typed_program_node<deformable_interp> : public typed_program_node_base<de
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-            : parent(prim, prog),
-              transposed(false),
-              groups(this->get_primitive()->groups),
-              deformable_groups(this->get_primitive()->deformable_groups) {
+        : parent(prim, prog),
+          transposed(false),
+          groups(this->get_primitive()->groups),
+          deformable_groups(this->get_primitive()->deformable_groups) {
         support_padding_all(true);
     }
 
-    bool get_transposed() const { return transposed; }
+    bool get_transposed() const {
+        return transposed;
+    }
 
-    uint32_t get_groups() const { return groups; }
+    uint32_t get_groups() const {
+        return groups;
+    }
 
-    uint32_t get_deformable_groups() const { return deformable_groups; }
+    uint32_t get_deformable_groups() const {
+        return deformable_groups;
+    }
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
 private:
     bool transposed;

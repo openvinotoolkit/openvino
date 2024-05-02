@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "shape_of_inst.h"
-#include "shape_of/shape_of_kernel_selector.h"
 #include "shape_of/shape_of_kernel_ref.h"
+#include "shape_of/shape_of_kernel_selector.h"
+#include "shape_of_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -36,8 +35,10 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         auto params = get_default_params<kernel_selector::shape_of_params>(impl_param, is_shape_agnostic);
 
         auto input_layout = impl_param.get_input_layout(0);
-        params.input_rank = input_layout.is_dynamic() ? input_layout.get_partial_shape().size() : input_layout.get_rank();
-        params.input_dims = input_layout.is_dynamic() ? std::vector<cldnn::tensor::value_type>{} : input_layout.get_dims();
+        params.input_rank =
+            input_layout.is_dynamic() ? input_layout.get_partial_shape().size() : input_layout.get_rank();
+        params.input_dims =
+            input_layout.is_dynamic() ? std::vector<cldnn::tensor::value_type>{} : input_layout.get_dims();
 
         return params;
     }
@@ -46,10 +47,12 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
         auto& input_layout = updated_impl_params.input_layouts[0];
-        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape(), layout::max_rank()));
+        input_layout.set_partial_shape(
+            extend_shape_to_rank_from_end(input_layout.get_partial_shape(), layout::max_rank()));
 
         auto& output_layout = updated_impl_params.output_layouts[0];
-        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape(), layout::max_rank()));
+        output_layout.set_partial_shape(
+            extend_shape_to_rank_from_end(output_layout.get_partial_shape(), layout::max_rank()));
 
         return updated_impl_params;
     }
@@ -67,21 +70,14 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
 namespace detail {
 
 attach_shape_of_impl::attach_shape_of_impl() {
-    implementation_map<shape_of>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
+    implementation_map<shape_of>::add(impl_types::ocl,
+                                      shape_types::static_shape,
+                                      typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>,
+                                      {});
 
-    auto dyn_types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32
-    };
+    auto dyn_types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32};
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<shape_of>::add(impl_types::ocl,
                                       shape_types::dynamic_shape,

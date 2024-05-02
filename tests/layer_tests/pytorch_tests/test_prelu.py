@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestPRelu(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
     def create_model(self, alpha):

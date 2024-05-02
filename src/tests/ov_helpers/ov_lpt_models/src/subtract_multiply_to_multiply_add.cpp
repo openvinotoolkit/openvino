@@ -23,8 +23,8 @@ std::shared_ptr<ov::Model> SubtractMultiplyToMultiplyAddFunction::getOriginal(
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     dequantizationOp->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(dequantizationOp) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(dequantizationOp)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "SubtractMultiplyToMultiplyAddFunction");
 }
 
 std::shared_ptr<ov::Model> SubtractMultiplyToMultiplyAddFunction::getOriginal(
@@ -38,17 +38,17 @@ std::shared_ptr<ov::Model> SubtractMultiplyToMultiplyAddFunction::getOriginal(
         fq,
         std::make_shared<ov::opset1::Constant>(
             ov::element::i64,
-            Shape({ 3 }),
-            std::vector<int64_t>({ inputShape[0].get_length(), inputShape[1].get_length(), -1 })),
+            Shape({3}),
+            std::vector<int64_t>({inputShape[0].get_length(), inputShape[1].get_length(), -1})),
         false);
 
     const std::shared_ptr<ov::opset1::Reshape> reshape2 = std::make_shared<ov::opset1::Reshape>(
         reshape1,
-        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape({ 4 }), inputShape.to_shape()),
+        std::make_shared<ov::opset1::Constant>(ov::element::i64, Shape({4}), inputShape.to_shape()),
         false);
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(reshape2) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(reshape2)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "SubtractMultiplyToMultiplyAddFunction");
 }
 
 std::shared_ptr<ov::Model> SubtractMultiplyToMultiplyAddFunction::getReference(
@@ -72,8 +72,8 @@ std::shared_ptr<ov::Model> SubtractMultiplyToMultiplyAddFunction::getReference(
     }
     parent->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(parent) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(parent)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "SubtractMultiplyToMultiplyAddFunction");
 }
 
 }  // namespace subgraph

@@ -4,17 +4,15 @@
 
 #include "low_precision/move_fake_quantize.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
-
 #include <memory>
+
+#include "itt.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-
-#include "low_precision/concat.hpp"
-#include "low_precision/network_helper.hpp"
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -23,21 +21,15 @@ namespace low_precision {
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MoveFakeQuantize);
     const auto concat = ov::pass::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
-    const auto operation = ov::pass::pattern::wrap_type<opset1::Relu>({ concat });
+    const auto operation = ov::pass::pattern::wrap_type<opset1::Relu>({concat});
     const auto input_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto input_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto output_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto output_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto fq_with_operation = ov::pass::pattern::wrap_type<opset1::FakeQuantize>({ operation,
-        input_low,
-        input_high,
-        output_low,
-        output_high});
-    const auto fq = ov::pass::pattern::wrap_type<opset1::FakeQuantize>({ concat,
-        input_low,
-        input_high,
-        output_low,
-        output_high });
+    const auto fq_with_operation =
+        ov::pass::pattern::wrap_type<opset1::FakeQuantize>({operation, input_low, input_high, output_low, output_high});
+    const auto fq =
+        ov::pass::pattern::wrap_type<opset1::FakeQuantize>({concat, input_low, input_high, output_low, output_high});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -86,8 +78,9 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
     const auto concat_axis = concat_node->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && concat_axis >= 0 && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
-            && curr_constants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && concat_axis >= 0 &&
+            curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis) &&
+            curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
     }
@@ -120,17 +113,17 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ov::pass::patte
             parent_output = fq_input->output(0);
         }
 
-        const std::shared_ptr<ov::Node> new_fq = multi_chanels ?
-            fq->clone_with_new_inputs({parent_output,
-                new_constants[0][new_constants[0].size() == 1 ? 0 : i],
-                new_constants[1][new_constants[1].size() == 1 ? 0 : i],
-                new_constants[2][new_constants[2].size() == 1 ? 0 : i],
-                new_constants[3][new_constants[3].size() == 1 ? 0 : i] }) :
-            fq->clone_with_new_inputs({parent_output,
-                fq->get_input_node_ptr(1)->clone_with_new_inputs({}),
-                fq->get_input_node_ptr(2)->clone_with_new_inputs({}),
-                fq->get_input_node_ptr(3)->clone_with_new_inputs({}),
-                fq->get_input_node_ptr(4)->clone_with_new_inputs({}) });
+        const std::shared_ptr<ov::Node> new_fq =
+            multi_chanels ? fq->clone_with_new_inputs({parent_output,
+                                                       new_constants[0][new_constants[0].size() == 1 ? 0 : i],
+                                                       new_constants[1][new_constants[1].size() == 1 ? 0 : i],
+                                                       new_constants[2][new_constants[2].size() == 1 ? 0 : i],
+                                                       new_constants[3][new_constants[3].size() == 1 ? 0 : i]})
+                          : fq->clone_with_new_inputs({parent_output,
+                                                       fq->get_input_node_ptr(1)->clone_with_new_inputs({}),
+                                                       fq->get_input_node_ptr(2)->clone_with_new_inputs({}),
+                                                       fq->get_input_node_ptr(3)->clone_with_new_inputs({}),
+                                                       fq->get_input_node_ptr(4)->clone_with_new_inputs({})});
 
         ov::copy_runtime_info(fq, new_fq);
         new_fq->set_friendly_name(fq_original_name + "_" + std::to_string(i + 1));
@@ -196,6 +189,6 @@ bool MoveFakeQuantize::isPrecisionPreserved(std::shared_ptr<Node>) const noexcep
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

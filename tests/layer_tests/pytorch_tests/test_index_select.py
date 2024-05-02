@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestIndexSelect(PytorchLayerTest):
     def _prepare_input(self, index, out=False, dim=0):
         import numpy as np
+
         index = np.array(index).astype(np.int32)
         input_data = np.random.randn(2, 3, 10, 10).astype(np.float32)
         if not out:
@@ -43,5 +43,10 @@ class TestIndexSelect(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_index_select(self, dim, out, indices, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim, out), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"index": indices, "out": out, "dim": dim})
+        self._test(
+            *self.create_model(dim, out),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"index": indices, "out": out, "dim": dim}
+        )

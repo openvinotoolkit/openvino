@@ -3,7 +3,6 @@
 //
 
 #include "openvino/op/eye.hpp"
-#include "openvino/op/constant.hpp"
 
 #include <memory>
 
@@ -11,6 +10,7 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -30,7 +30,12 @@ static void CreateEyeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9::Eye
         dims[i - 1] = output_shapes[j - 1];
     }
     const ov::op::v0::Constant* constant = dynamic_cast<ov::op::v0::Constant*>(op->get_input_node_ptr(2));
-    OPENVINO_ASSERT(constant != nullptr, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    OPENVINO_ASSERT(constant != nullptr,
+                    "Unsupported parameter nodes type in ",
+                    op->get_friendly_name(),
+                    " (",
+                    op->get_type_name(),
+                    ")");
 
     int32_t shift{};
     switch (constant->get_element_type()) {

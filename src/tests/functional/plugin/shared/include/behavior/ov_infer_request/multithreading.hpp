@@ -19,9 +19,15 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3SyncRequestsConsistentlyFromThr
     OV_ASSERT_NO_THROW(req2 = execNet.create_infer_request());
     OV_ASSERT_NO_THROW(req3 = execNet.create_infer_request());
 
-    auto f1 = std::async(std::launch::async, [&] { req1.infer(); });
-    auto f2 = std::async(std::launch::async, [&] { req2.infer(); });
-    auto f3 = std::async(std::launch::async, [&] { req3.infer(); });
+    auto f1 = std::async(std::launch::async, [&] {
+        req1.infer();
+    });
+    auto f2 = std::async(std::launch::async, [&] {
+        req2.infer();
+    });
+    auto f3 = std::async(std::launch::async, [&] {
+        req3.infer();
+    });
 
     f1.wait();
     f2.wait();
@@ -42,9 +48,15 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsConsistentlyFromTh
     OV_ASSERT_NO_THROW(req2.infer());
     OV_ASSERT_NO_THROW(req3.infer());
 
-    auto f1 = std::async(std::launch::async, [&] { req1.start_async(); });
-    auto f2 = std::async(std::launch::async, [&] { req2.start_async(); });
-    auto f3 = std::async(std::launch::async, [&] { req3.start_async(); });
+    auto f1 = std::async(std::launch::async, [&] {
+        req1.start_async();
+    });
+    auto f2 = std::async(std::launch::async, [&] {
+        req2.start_async();
+    });
+    auto f3 = std::async(std::launch::async, [&] {
+        req3.start_async();
+    });
 
     f1.wait();
     f2.wait();
@@ -85,6 +97,6 @@ TEST_P(OVInferRequestMultithreadingTests, canRun3AsyncRequestsParallelWithWait) 
     OV_ASSERT_NO_THROW(req1.wait());
     OV_ASSERT_NO_THROW(req3.wait());
 }
-} // namespace behavior
-} // namespace test
-} // namespace ov
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

@@ -58,7 +58,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_auto_1 = {
     0,          // param[in]: the current socket id of the running thread in this simulation
     "LATENCY",  // param[in]: the performance hint in this simulation
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},  // param[in]: the hint of max threads per stream in this
-                                                        // simulation
+                                                           // simulation
     {{208, 104, 0, 104, -1, -1},
      {104, 52, 0, 52, 0, 0},
      {104, 52, 0, 52, 1, 1}},  // param[in]: the proc_type_table in this simulation
@@ -2530,9 +2530,7 @@ StreamsCalculationTestCase _1sockets_mock_latency_1 = {
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
     {{14, 6, 8, 0, 0, 0}},
-    {{1, ALL_PROC, 14, 0, 0},
-     {0, MAIN_CORE_PROC, 6, 0, 0},
-     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_2 = {
     1,
@@ -2556,9 +2554,7 @@ StreamsCalculationTestCase _1sockets_mock_latency_3 = {
     "LATENCY",
     {},
     {{14, 6, 8, 0, 0, 0}},
-    {{1, ALL_PROC, 14, 0, 0},
-     {0, MAIN_CORE_PROC, 6, 0, 0},
-     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_4 = {
     1,
@@ -2582,9 +2578,7 @@ StreamsCalculationTestCase _1sockets_mock_latency_5 = {
     "LATENCY",
     {},
     {{14, 6, 8, 0, 0, 0}},
-    {{1, ALL_PROC, 14, 0, 0},
-     {0, MAIN_CORE_PROC, 6, 0, 0},
-     {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_latency_6 = {
     1,
@@ -2628,9 +2622,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_36 = {
      {60, 30, 0, 30, 1, 1},
      {40, 20, 0, 20, 2, 2},
      {20, 10, 0, 10, 3, 3}},
-    {{1, ALL_PROC, 20, 3, 3},
-     {0, MAIN_CORE_PROC, 10, 3, 3},
-     {0, HYPER_THREADING_PROC, 10, 3, 3}},
+    {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_37 = {
     1,

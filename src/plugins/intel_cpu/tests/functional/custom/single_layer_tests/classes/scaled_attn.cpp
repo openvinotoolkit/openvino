@@ -6,9 +6,9 @@
 
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset13.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -139,8 +139,6 @@ TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "ScaledAttn");
 }
 
-namespace ScaledAttn {
-
-}  // namespace ScaledAttn
+namespace ScaledAttn {}  // namespace ScaledAttn
 }  // namespace test
 }  // namespace ov

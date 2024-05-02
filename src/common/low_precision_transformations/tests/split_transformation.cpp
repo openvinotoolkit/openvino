@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/split.hpp"
 #include <memory>
-
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/split.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/split.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 using namespace testing;
@@ -54,11 +53,11 @@ public:
 
         actualFunction =
             ov::builder::subgraph::SplitFunction::getOriginal(precision,
-                                                                  testValues.inputShape,
-                                                                  testValues.actual.precisionBeforeDequantization,
-                                                                  testValues.actual.dequantization,
-                                                                  testValues.splitedAxis,
-                                                                  testValues.numSplits);
+                                                              testValues.inputShape,
+                                                              testValues.actual.precisionBeforeDequantization,
+                                                              testValues.actual.dequantization,
+                                                              testValues.splitedAxis,
+                                                              testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
@@ -66,13 +65,13 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::SplitFunction::getReference(precision,
-                                                                   testValues.inputShape,
-                                                                   testValues.expected.inputPrecision,
-                                                                   testValues.expected.dequantizationBefore,
-                                                                   testValues.expected.precisionAfterOperation,
-                                                                   testValues.expected.dequantizationAfter,
-                                                                   testValues.splitedAxis,
-                                                                   testValues.numSplits);
+                                                               testValues.inputShape,
+                                                               testValues.expected.inputPrecision,
+                                                               testValues.expected.dequantizationBefore,
+                                                               testValues.expected.precisionAfterOperation,
+                                                               testValues.expected.dequantizationAfter,
+                                                               testValues.splitedAxis,
+                                                               testValues.numSplits);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
@@ -122,8 +121,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::u8, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
@@ -138,8 +136,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
      size_t{2},
      LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, element::undefined, {}, false, 1ul, element::f16, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {},
@@ -336,9 +333,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
      {ov::element::i8,
       {},
       ov::element::i8,
-      {{{ov::element::f32}, {1.f}, {11.f}},
-       {{ov::element::f32}, {1.f}, {11.f}},
-       {{ov::element::f32}, {1.f}, {11.f}}}}},
+      {{{ov::element::f32}, {1.f}, {11.f}}, {{ov::element::f32}, {1.f}, {11.f}}, {{ov::element::f32}, {1.f}, {11.f}}}}},
     // U8 split second dimension
     {{1, 3, 16, 16},
      std::int64_t{-1},

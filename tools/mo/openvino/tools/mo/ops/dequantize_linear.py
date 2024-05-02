@@ -7,20 +7,20 @@ from openvino.tools.mo.ops.op import Op
 
 
 class DequantizeLinear(Op):
-    op = 'DequantizeLinear'
+    op = "DequantizeLinear"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'op': self.op,
-            'axis': None,
-            'version': None,
-            'infer': copy_shape_infer,
-            'out_ports_count': 1,
-            'in_ports_count': 3,
+            "type": None,
+            "op": self.op,
+            "axis": None,
+            "version": None,
+            "infer": copy_shape_infer,
+            "out_ports_count": 1,
+            "in_ports_count": 3,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        return ['axis']
+        return ["axis"]

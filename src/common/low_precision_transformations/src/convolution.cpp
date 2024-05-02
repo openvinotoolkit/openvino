@@ -5,18 +5,17 @@
 #include "low_precision/convolution.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <memory>
 #include <string>
 #include <vector>
-#include <cassert>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
 namespace ov {
@@ -25,14 +24,10 @@ namespace low_precision {
 
 ConvolutionTransformation::ConvolutionTransformation(const Params& params) : WeightableLayerTransformation(params) {
     MATCHER_SCOPE(ConvolutionTransformation);
-    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Convolution>({
-        ov::pass::pattern::wrap_type<ov::opset1::Multiply>(),
-        std::make_shared<pass::pattern::op::Or>(OutputVector {
-            pattern::wrap_type<ov::opset1::Multiply>(),
-            pattern::wrap_type<ov::opset1::FakeQuantize>()
-        })
-    });
-
+    auto matcher = ov::pass::pattern::wrap_type<ov::opset1::Convolution>(
+        {ov::pass::pattern::wrap_type<ov::opset1::Multiply>(),
+         std::make_shared<pass::pattern::op::Or>(OutputVector{pattern::wrap_type<ov::opset1::Multiply>(),
+                                                              pattern::wrap_type<ov::opset1::FakeQuantize>()})});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -47,12 +42,12 @@ ConvolutionTransformation::ConvolutionTransformation(const Params& params) : Wei
 }
 
 bool ConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) const {
+                                            const std::vector<ov::element::Type>& defaultPrecisions) const {
     return ConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
 bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) {
+                                                  const std::vector<ov::element::Type>& defaultPrecisions) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false, defaultPrecisions);
 }
 
@@ -62,23 +57,21 @@ size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Nod
     return channels.get_length();
 }
 
-bool ConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool ConvolutionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     auto convolution = m.get_match_root();
 
     if (!canConvolutionBeTransformed(context, convolution, defaultPrecisions)) {
         const auto weightInput = convolution->get_input_node_shared_ptr(1);
         const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(weightInput);
-        FakeQuantizeDequantization dequantization = reshapeFromWeights == nullptr ?
-                                                    NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul) :
-                                                    NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
+        FakeQuantizeDequantization dequantization =
+            reshapeFromWeights == nullptr ? NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul)
+                                          : NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
         if (dequantization.empty()) {
             const auto fqOnWeights = getFakeQuantizeOnWeights(convolution);
             std::shared_ptr<ov::Node> resultConstant = NetworkHelper::fold_fake_quantize(fqOnWeights);
             if (reshapeFromWeights != nullptr) {
-                resultConstant = fold_reshape<ov::opset1::Reshape>(
-                        resultConstant,
-                        reshapeFromWeights->input_value(1),
-                        false);
+                resultConstant =
+                    fold_reshape<ov::opset1::Reshape>(resultConstant, reshapeFromWeights->input_value(1), false);
             }
             if (ov::is_type<ov::opset1::Constant>(resultConstant)) {
                 replace_node(weightInput, resultConstant);
@@ -126,18 +119,16 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
             std::shared_ptr<Node> newShift = fold<ov::opset1::Broadcast>(
                 subtract->input_value(1),
-                std::make_shared<ov::opset1::Constant>(
-                    element::i64,
-                    Shape{ length },
-                    broadcastShape));
+                std::make_shared<ov::opset1::Constant>(element::i64, Shape{length}, broadcastShape));
 
-            const auto newSubtract = ov::as_type_ptr<ov::opset1::Subtract>(subtract->clone_with_new_inputs({
-                subtract->input_value(0),
-                newShift }));
+            const auto newSubtract = ov::as_type_ptr<ov::opset1::Subtract>(
+                subtract->clone_with_new_inputs({subtract->input_value(0), newShift}));
             NetworkHelper::copyInfo(subtract, newSubtract);
             replace_node(subtract, newSubtract);
 
-            newSubtract->set_output_type(0, subtract->get_output_element_type(0), newSubtract->get_output_partial_shape(0));
+            newSubtract->set_output_type(0,
+                                         subtract->get_output_element_type(0),
+                                         newSubtract->get_output_partial_shape(0));
             subtract = newSubtract;
         }
 
@@ -165,38 +156,39 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
                 Shape newMulShape(outputPShape.size(), 1);
                 newMulShape[1] = outputScales.size();
-                newMultiplyAfterConst = std::make_shared<ov::opset1::Constant>(
-                    dequantization.multiplyConstant->get_element_type(),
-                    newMulShape,
-                    outputScales);
+                newMultiplyAfterConst =
+                    std::make_shared<ov::opset1::Constant>(dequantization.multiplyConstant->get_element_type(),
+                                                           newMulShape,
+                                                           outputScales);
             }
         } else {
-            newMultiplyAfterConst = std::make_shared<ov::opset1::Constant>(
-                dequantization.multiplyConstant->get_element_type(),
-                Shape{ 1 },
-                dequantization.multiplyConstant->cast_vector<float>()[0]);
+            newMultiplyAfterConst =
+                std::make_shared<ov::opset1::Constant>(dequantization.multiplyConstant->get_element_type(),
+                                                       Shape{1},
+                                                       dequantization.multiplyConstant->cast_vector<float>()[0]);
         }
 
-        const auto copyNode = convolution->clone_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) });
+        const auto copyNode =
+            convolution->clone_with_new_inputs({dequantization.multiply->input_value(0), convolution->input_value(1)});
         auto conv = ov::as_type_ptr<ov::opset1::Convolution>(copyNode);
         std::shared_ptr<Node> relaxedNewConvolution;
         if (conv) {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                    *conv,
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
+                *conv,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
         } else {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-                    *ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode),
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
+                *ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode),
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
         newMultiplyAfterConst = foldConvert(newMultiplyAfterConst, deqPrecision);
         newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<element::Type>{ deqPrecision, deqPrecision },
-            std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
+            std::vector<element::Type>{deqPrecision, deqPrecision},
+            std::vector<element::Type>{dequantization.multiply->get_output_element_type(0)},
             ov::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
             ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
@@ -204,9 +196,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
         if (ov::is_type<ov::opset1::Convert>(convolution->get_input_node_ptr(0))) {
-            auto newConvolution = convolution->clone_with_new_inputs({
-                convolution->get_input_node_ptr(0)->input_value(0),
-                convolution->input_value(1)});
+            auto newConvolution = convolution->clone_with_new_inputs(
+                {convolution->get_input_node_ptr(0)->input_value(0), convolution->input_value(1)});
             replace_node(convolution, newConvolution);
             NetworkHelper::copyInfo(convolution, newConvolution);
             convolution = newConvolution;
@@ -219,11 +210,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
             return false;
         }
 
-        std::shared_ptr<ov::opset1::Reshape> reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
+        std::shared_ptr<ov::opset1::Reshape> reshapeFromWeights =
+            ov::as_type_ptr<ov::opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
 
-        dequantization = reshapeFromWeights == nullptr ?
-            NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul) :
-            NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
+        dequantization = reshapeFromWeights == nullptr
+                             ? NetworkHelper::getDequantization(convolution, defaultPrecisions, 1ul)
+                             : NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
         OPENVINO_ASSERT(!dequantization.empty());
         if (const auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
             const auto newFQ = NetworkHelper::fold_fake_quantize(fq, true);
@@ -232,24 +224,20 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         }
 
         std::shared_ptr<ov::opset1::Multiply> multiplyFromWeights = ov::as_type_ptr<ov::opset1::Multiply>(
-            reshapeFromWeights == nullptr ?
-            convolution->get_input_node_shared_ptr(1) :
-            convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
-        std::shared_ptr<ov::opset1::Subtract> subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
+            reshapeFromWeights == nullptr ? convolution->get_input_node_shared_ptr(1)
+                                          : convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+        std::shared_ptr<ov::opset1::Subtract> subtractFromWeights =
+            ov::as_type_ptr<ov::opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
 
         {
             if (reshapeFromWeights != nullptr) {
-                reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(reshapeFromWeights->clone_with_new_inputs({
-                    multiplyFromWeights->input_value(0),
-                    reshapeFromWeights->input_value(1) }));
+                reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(reshapeFromWeights->clone_with_new_inputs(
+                    {multiplyFromWeights->input_value(0), reshapeFromWeights->input_value(1)}));
             }
 
-            auto newConvolution = convolution->clone_with_new_inputs({
-                convolution->input_value(0),
-                reshapeFromWeights != nullptr ?
-                    reshapeFromWeights :
-                    multiplyFromWeights->input_value(0)
-            });
+            auto newConvolution = convolution->clone_with_new_inputs(
+                {convolution->input_value(0),
+                 reshapeFromWeights != nullptr ? reshapeFromWeights : multiplyFromWeights->input_value(0)});
             NetworkHelper::copyInfo(convolution, newConvolution);
 
             const auto newScaleShape = [&]() {
@@ -301,24 +289,25 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
 
                 auto zeroPointConstant = fold<ov::opset1::Broadcast>(
                     subtractFromWeights->input_value(1),
-                    std::make_shared<ov::opset1::Constant>(element::i32, Shape{ zeroPointShape.size() }, zeroPointShape));
+                    std::make_shared<ov::opset1::Constant>(element::i32, Shape{zeroPointShape.size()}, zeroPointShape));
                 NetworkHelper::copyInfo(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
                 replace_node(subtractFromWeights->get_input_node_shared_ptr(1), zeroPointConstant);
             }
         }
 
-        std::shared_ptr<ov::opset1::Convert> convertFromWeights = ov::as_type_ptr<ov::opset1::Convert>(subtractFromWeights == nullptr ?
-            multiplyFromWeights->get_input_node_shared_ptr(0) :
-            subtractFromWeights->get_input_node_shared_ptr(0));
+        std::shared_ptr<ov::opset1::Convert> convertFromWeights = ov::as_type_ptr<ov::opset1::Convert>(
+            subtractFromWeights == nullptr ? multiplyFromWeights->get_input_node_shared_ptr(0)
+                                           : subtractFromWeights->get_input_node_shared_ptr(0));
         if (convertFromWeights != nullptr) {
             // remove Convert on weights
             std::shared_ptr<Node> childNode = reshapeFromWeights == nullptr ? convolution : reshapeFromWeights;
 
-            auto newConvolution = convolution->clone_with_new_inputs({
-                convolution->input_value(0),
-                childNode.get() == convolution.get() ?
-                    convolution->get_input_node_ptr(1)->input_value(0) :
-                    childNode->clone_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
+            auto newConvolution = convolution->clone_with_new_inputs(
+                {convolution->input_value(0),
+                 childNode.get() == convolution.get()
+                     ? convolution->get_input_node_ptr(1)->input_value(0)
+                     : childNode->clone_with_new_inputs(
+                           {convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             NetworkHelper::copyInfo(convolution, newConvolution);
             convolution = newConvolution;
@@ -327,17 +316,17 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
         if (reshapeFromWeights != nullptr) {
             // remove Reshape on weights
-            const std::shared_ptr<Node> newWeights = fold_reshape<ov::opset1::Reshape>(
-                reshapeFromWeights->input_value(0),
-                reshapeFromWeights->input_value(1),
-                false);
+            const std::shared_ptr<Node> newWeights =
+                fold_reshape<ov::opset1::Reshape>(reshapeFromWeights->input_value(0),
+                                                  reshapeFromWeights->input_value(1),
+                                                  false);
 
             replace_node(reshapeFromWeights, newWeights);
         }
     }
 
     const auto finalDequantization = NetworkHelper::optimizeMultipliesAfter(newMultiplyAfter);
-    ov::copy_runtime_info({ convolution, finalDequantization }, finalDequantization);
+    ov::copy_runtime_info({convolution, finalDequantization}, finalDequantization);
     updateOutput(context, finalDequantization, convolution);
 
     const auto onActiviation = convolution->get_input_node_shared_ptr(0);
@@ -357,6 +346,6 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
     OPENVINO_DEBUG << "LPT: done: " << convolution;
     return true;
 }
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

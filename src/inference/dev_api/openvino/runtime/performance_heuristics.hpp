@@ -12,8 +12,8 @@
 #include <cfloat>
 #include <memory>
 
-#include "openvino/runtime/common.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/common.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -31,9 +31,9 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-OPENVINO_RUNTIME_API MemBandwidthPressure mem_bandwidth_pressure_tolerance(
-    const std::shared_ptr<ov::Model> model,
-    const float cache_size,
-    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
+OPENVINO_RUNTIME_API MemBandwidthPressure
+mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
+                                 const float cache_size,
+                                 const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
 
 }  // namespace ov

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "ctc_loss_inst.hpp"
 #include "ctc_loss/ctc_loss_kernel_ref.hpp"
 #include "ctc_loss/ctc_loss_kernel_selector.hpp"
+#include "ctc_loss_inst.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -49,7 +48,10 @@ attach_ctc_loss_impl::attach_ctc_loss_impl() {
                     format::bs_fs_yx_bsv32_fsv32,
                     format::bs_fs_yx_bsv32_fsv16};
 
-    implementation_map<ctc_loss>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_loss>::create<ctc_loss_impl>, types, formats);
+    implementation_map<ctc_loss>::add(impl_types::ocl,
+                                      typed_primitive_impl_ocl<ctc_loss>::create<ctc_loss_impl>,
+                                      types,
+                                      formats);
 }
 
 }  // namespace detail

@@ -8,19 +8,19 @@ namespace ov {
 namespace test {
 
 void core_configuration(ov::test::SubgraphBaseTest* test) {
-        //force fp32 inference precision if it is not configured specially
-        if (!test->configuration.count(ov::hint::inference_precision.name())) {
-            test->configuration.insert({ov::hint::inference_precision.name(), ov::element::f32.to_string()});
-        }
+    // force fp32 inference precision if it is not configured specially
+    if (!test->configuration.count(ov::hint::inference_precision.name())) {
+        test->configuration.insert({ov::hint::inference_precision.name(), ov::element::f32.to_string()});
+    }
 
-        // todo: issue: 123320
-        test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
-        test->convert_precisions.insert({ov::element::f16, ov::element::f32});
+    // todo: issue: 123320
+    test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
+    test->convert_precisions.insert({ov::element::f16, ov::element::f32});
 
-        // Enable CPU pinning in CPU funtional tests to save validation time of Intel CPU plugin func tests (parallel)
-        // on Windows
-        test->configuration.insert({ov::hint::enable_cpu_pinning.name(), true});
+    // Enable CPU pinning in CPU funtional tests to save validation time of Intel CPU plugin func tests (parallel)
+    // on Windows
+    test->configuration.insert({ov::hint::enable_cpu_pinning.name(), true});
 }
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

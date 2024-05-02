@@ -4,10 +4,10 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "openvino/op/op.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
+#    include "openvino/op/op.hpp"
+#    include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace snippets {
@@ -90,7 +90,7 @@ private:
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
 #endif  // SNIPPETS_DEBUG_CAPS

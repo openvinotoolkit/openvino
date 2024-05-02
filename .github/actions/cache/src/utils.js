@@ -10,26 +10,26 @@ async function getSortedCacheFiles(cachePath, key = '') {
 
   const cachePattern = new RegExp(`^((${key}).*[.]cache)$`);
 
-  const filesSorted = (await fs.promises.readdir(cachePath))
-    .filter(fileName => cachePattern.test(fileName))
-    .map(fileName => ({
-      name: fileName,
-      time: fs.statSync(path.join(cachePath, fileName)).atimeMs
-    }))
-    .sort((a, b) => b.time - a.time)
-    .map(file => file.name);
+  const filesSorted =
+      (await fs.promises.readdir(cachePath))
+          .filter(fileName => cachePattern.test(fileName))
+          .map(fileName => ({
+                 name : fileName,
+                 time : fs.statSync(path.join(cachePath, fileName)).atimeMs
+               }))
+          .sort((a, b) => b.time - a.time)
+          .map(file => file.name);
 
-  core.debug(
-    filesSorted.map(fileName => ({
-      name: fileName,
-      atime: fs.statSync(path.join(cachePath, fileName)).atimeMs
-    }))
-  );
+  core.debug(filesSorted.map(
+      fileName => ({
+        name : fileName,
+        atime : fs.statSync(path.join(cachePath, fileName)).atimeMs
+      })));
   return filesSorted;
 }
 
 function humanReadableFileSize(sizeInBytes) {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const units = [ 'B', 'KB', 'MB', 'GB', 'TB' ];
   let id = 0;
 
   while (sizeInBytes >= 1024 && id < units.length - 1) {

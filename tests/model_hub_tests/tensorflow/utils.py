@@ -35,7 +35,9 @@ def unpack_tf_result(tensor):
         for out_name, out_value in tensor.items():
             res[out_name] = unpack_tf_result(out_value)
         return res
-    raise Exception("Unknown output type of original FW inference result: {}".format(type(tensor)))
+    raise Exception(
+        "Unknown output type of original FW inference result: {}".format(type(tensor))
+    )
 
 
 def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
@@ -43,9 +45,12 @@ def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
         return ov_out
 
     from tensorflow.python.framework.tensor import TensorSpec
+
     if isinstance(signature, (tf.Tensor, TensorSpec)):
         out_name = signature.name
-        assert out_name in ov_out or outer_name in ov_out, "Could not match OV output and FW signature."
+        assert (
+            out_name in ov_out or outer_name in ov_out
+        ), "Could not match OV output and FW signature."
         # Case when ov result has inner tensor name
         if out_name in ov_out:
             return ov_out[out_name]
@@ -64,7 +69,9 @@ def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
     elif isinstance(signature, dict):
         res = {}
         for out_name, out_value in signature.items():
-            res[out_name] = repack_ov_result_to_tf_format(ov_out, signature[out_name], out_name)
+            res[out_name] = repack_ov_result_to_tf_format(
+                ov_out, signature[out_name], out_name
+            )
         return res
     raise Exception("Unknown type in FW signature: {}".format(type(signature)))
 
@@ -72,6 +79,7 @@ def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
 def get_output_signature_from_keras_layer(model):
     try:
         from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed
+
         traced_model = trace_tf_model_if_needed(model, None, None, None)
         return traced_model.structured_outputs
     except:
@@ -89,7 +97,9 @@ def get_input_info(input_tensor, input_name):
     except ValueError:
         # unknown rank case
         pass
-    assert input_tensor.dtype in type_map, "Unsupported input type: {}".format(input_tensor.dtype)
+    assert input_tensor.dtype in type_map, "Unsupported input type: {}".format(
+        input_tensor.dtype
+    )
     return input_name, input_shape, type_map[input_tensor.dtype]
 
 
@@ -106,9 +116,9 @@ def get_input_signature(graph: tf_v1.Graph):
     input_signature = []
     for op in graph.get_operations():
         if op.type == "Placeholder":
-            op_name = op.name + ':0'
-            op_shape = tf.TensorShape(op.node_def.attr['shape'].shape)
-            op_type = tf.dtypes.DType(op.node_def.attr['dtype'].type)
+            op_name = op.name + ":0"
+            op_shape = tf.TensorShape(op.node_def.attr["shape"].shape)
+            op_type = tf.dtypes.DType(op.node_def.attr["dtype"].type)
             input_signature.append((op_name, tf.TensorSpec(op_shape, op_type)))
     return input_signature
 
@@ -131,26 +141,44 @@ def collect_control_dependencies(graph):
 
 def get_output_signature(graph: tf_v1.Graph):
     outputs = []
-    unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert',
-                             'switch_t', 'switch_f', 'TensorArrayCloseV3']
+    unlikely_output_types = [
+        "Const",
+        "Assign",
+        "NoOp",
+        "Placeholder",
+        "Assert",
+        "switch_t",
+        "switch_f",
+        "TensorArrayCloseV3",
+    ]
     control_dependents_map = collect_control_dependencies(graph)
     for op in graph.get_operations():
         if len(children(op.name, graph)) == 0 and op.name not in control_dependents_map:
             if op.type not in unlikely_output_types:
-                outputs.append(op.name + ':0')
+                outputs.append(op.name + ":0")
     return outputs
 
 
 def retrieve_inputs_info_for_signature(input_signature):
     inputs_info = []
-    for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
+    for input_name, input_info in (
+        input_signature.items()
+        if isinstance(input_signature, dict)
+        else input_signature
+    ):
         input_shape = []
         try:
-            if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+            if (
+                input_info.shape.as_list() == [None, None, None, 3]
+                and input_info.dtype == tf.float32
+            ):
                 # image classification case, let us imitate an image
                 # that helps to avoid compute output size issue
                 input_shape = [1, 200, 200, 3]
-            elif input_info.shape.as_list() == [None, None, None, None, 3] and input_info.dtype == tf.float32:
+            elif (
+                input_info.shape.as_list() == [None, None, None, None, 3]
+                and input_info.dtype == tf.float32
+            ):
                 input_shape = [1, 2, 100, 100, 3]
             else:
                 for dim in input_info.shape.as_list():
@@ -166,7 +194,9 @@ def retrieve_inputs_info_for_signature(input_signature):
         if input_info.dtype == tf.resource:
             # skip inputs corresponding to variables
             continue
-        assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
+        assert input_info.dtype in type_map, "Unsupported input type: {}".format(
+            input_info.dtype
+        )
         inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
     return inputs_info

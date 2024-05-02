@@ -3,10 +3,11 @@
 //
 
 #include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 
 #include <thread>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -28,8 +29,7 @@ public:
     bool is_valid(const ov::Any& v) const override {
         auto mode = v.as<ov::hint::PerformanceMode>();
         return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::LATENCY;
+               mode == ov::hint::PerformanceMode::THROUGHPUT || mode == ov::hint::PerformanceMode::LATENCY;
     }
 };
 
@@ -39,7 +39,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::enable_profiling, false),
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::num_streams, 1),
-        std::make_tuple(ov::compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
+        std::make_tuple(ov::compilation_num_threads,
+                        std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
         std::make_tuple(ov::hint::inference_precision, ov::element::f16, InferencePrecisionValidator()),
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
@@ -77,7 +78,9 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
 }
 
-void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
+void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property,
+                                             PropertyVisibility visibility,
+                                             BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
     supported_properties[property.first] = visibility;
     internal_properties[property.first] = property.second;
@@ -87,8 +90,17 @@ void ExecutionConfig::set_property(const AnyMap& config) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
-        OPENVINO_ASSERT(is_supported(kv.first), "[GPU] Attempt to set property ", name, " (", val.as<std::string>(), ") which was not registered!\n");
-        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": ", val.as<std::string>());
+        OPENVINO_ASSERT(is_supported(kv.first),
+                        "[GPU] Attempt to set property ",
+                        name,
+                        " (",
+                        val.as<std::string>(),
+                        ") which was not registered!\n");
+        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
+                        "[GPU] Invalid value for property ",
+                        name,
+                        ": ",
+                        val.as<std::string>());
         internal_properties[name] = val;
     }
 }
@@ -109,8 +121,18 @@ void ExecutionConfig::set_user_property(const AnyMap& config) {
         auto& name = kv.first;
         auto& val = kv.second;
         bool supported = is_supported(name) && supported_properties.at(name) == PropertyVisibility::PUBLIC;
-        OPENVINO_ASSERT(supported, "[GPU] Attempt to set user property ", name, " (", val.as<std::string>(), ") which was not registered or internal!\n");
-        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": `", val.as<std::string>(), "`");
+        OPENVINO_ASSERT(supported,
+                        "[GPU] Attempt to set user property ",
+                        name,
+                        " (",
+                        val.as<std::string>(),
+                        ") which was not registered or internal!\n");
+        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
+                        "[GPU] Invalid value for property ",
+                        name,
+                        ": `",
+                        val.as<std::string>(),
+                        "`");
 
         user_properties[kv.first] = kv.second;
     }
@@ -121,7 +143,9 @@ Any ExecutionConfig::get_property(const std::string& name) const {
         return user_properties.at(name);
     }
 
-    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(), "[GPU] Can't get internal property with name ", name);
+    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(),
+                    "[GPU] Can't get internal property with name ",
+                    name);
     return internal_properties.at(name);
 }
 
@@ -183,7 +207,8 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     }
 
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-        GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
+        GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled "
+                          "OV_GPU_DumpProfilingData debug option\n";
         set_property(ov::enable_profiling(true));
     }
 

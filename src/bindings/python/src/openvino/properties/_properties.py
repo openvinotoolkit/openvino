@@ -4,11 +4,12 @@
 
 import sys
 from types import BuiltinFunctionType, ModuleType
-from typing import Callable, Any, Union
+from typing import Any, Callable, Union
 
 
 class Property(str):
     """This class allows to make a string object callable. Call returns underlying string's data."""
+
     def __new__(cls, prop: Callable[..., Any]):  # type: ignore
         instance = super().__new__(cls, prop())
         instance.prop = prop
@@ -20,7 +21,9 @@ class Property(str):
         return self.prop()
 
 
-def __append_property_to_module(func: Callable[..., Any], target_module_name: str) -> None:
+def __append_property_to_module(
+    func: Callable[..., Any], target_module_name: str
+) -> None:
     """Modifies the target module's __getattr__ method to expose a python property wrapper by the function's name.
 
     :param func: the function which will be transformed to behave as python property.
@@ -30,7 +33,8 @@ def __append_property_to_module(func: Callable[..., Any], target_module_name: st
 
     def base_getattr(name: str) -> None:
         raise AttributeError(
-            f"Module '{module.__name__}' doesn't have the attribute with name '{name}'.")
+            f"Module '{module.__name__}' doesn't have the attribute with name '{name}'."
+        )
 
     getattr_old = getattr(module, "__getattr__", base_getattr)
 
@@ -43,7 +47,9 @@ def __append_property_to_module(func: Callable[..., Any], target_module_name: st
     module.__getattr__ = getattr_new  # type: ignore
 
 
-def __make_properties(source_module_of_properties: ModuleType, target_module_name: str) -> None:
+def __make_properties(
+    source_module_of_properties: ModuleType, target_module_name: str
+) -> None:
     """Makes python properties in target module from functions found in the source module.
 
     :param source_module_of_properties: the source module from which functions should be taken.

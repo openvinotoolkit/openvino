@@ -4,28 +4,24 @@
 
 #include <signal.h>
 #ifdef _WIN32
-#include <process.h>
+#    include <process.h>
 #endif
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/postgres_link.hpp"
-
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
-
-#include "op_conformance_utils/utils/dynamism.hpp"
-#include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "conformance.hpp"
-
+#include "op_conformance_utils/meta_info/meta_info.hpp"
+#include "op_conformance_utils/utils/dynamism.hpp"
+#include "read_ir_test/read_ir.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "utils/models.hpp"
 #include "utils/types.hpp"
-
-#include "read_ir_test/read_ir.hpp"
 
 namespace ov {
 namespace test {
 namespace op_conformance {
 
-std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
+std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams>& obj) {
     using namespace ov::test::utils;
     std::pair<std::string, std::string> model_pair;
     std::string path_to_model, path_to_ref_tensor, deviceName = ov::test::utils::target_device;
@@ -34,25 +30,20 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
 
     std::ostringstream result;
 
-    enum class IR_TYPE {
-        OP,
-        SUBGRAPH,
-        OTHER
-    };
+    enum class IR_TYPE { OP, SUBGRAPH, OTHER };
 
     auto ir_type = IR_TYPE::OTHER;
     std::map<std::string, std::string> filled_info = {
-        { "hash", "" },
-        { "element_type", "" },
-        { "shape_type", "" },
-        { "extractor_name", ""},
-        { "op_name", "" },
+        {"hash", ""},
+        {"element_type", ""},
+        {"shape_type", ""},
+        {"extractor_name", ""},
+        {"op_name", ""},
     };
 
     {
         auto splitted_filename = ov::test::utils::splitStringByDelimiter(path_to_model, ov::test::utils::FileSeparator);
-        std::set<std::string> shape_type = {"static", "dynamic"},
-                              graph_extractors = {"fused_names", "repeat_pattern"};
+        std::set<std::string> shape_type = {"static", "dynamic"}, graph_extractors = {"fused_names", "repeat_pattern"};
         std::map<std::string, IR_TYPE> graph_type = {{"operation", IR_TYPE::OP}, {"subgraph", IR_TYPE::SUBGRAPH}};
         for (const auto& item : splitted_filename) {
             if (graph_type.find(item) != graph_type.end()) {
@@ -61,9 +52,8 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                 filled_info["shape_type"] = item;
             } else if (graph_extractors.find(item) != graph_extractors.end()) {
                 filled_info["extractor_name"] = item;
-            } else if (std::find(element_type_names.begin(),
-                                 element_type_names.end(),
-                                 item) != element_type_names.end()) {
+            } else if (std::find(element_type_names.begin(), element_type_names.end(), item) !=
+                       element_type_names.end()) {
                 filled_info["element_type"] = item;
             } else {
                 auto pos = item.find('-');
@@ -143,7 +133,10 @@ void ReadIRTest::SetUp() {
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto tensor = it->second(next_node,
+                                     function->get_parameter_index(param),
+                                     param->get_element_type(),
+                                     param->get_shape());
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
@@ -162,7 +155,7 @@ void ReadIRTest::SetUp() {
     auto pgLink = this->GetPGLink();
     if (pgLink) {
         auto devNameProperty = core->get_property(this->targetDevice, "FULL_DEVICE_NAME");
-        auto devName = devNameProperty.is<std::string>() ?  devNameProperty.as<std::string>() : "";
+        auto devName = devNameProperty.is<std::string>() ? devNameProperty.as<std::string>() : "";
         pgLink->set_custom_field("targetDeviceName", devName, true);
         if (this->targetDevice == "CPU") {
             pgLink->set_custom_field("targetDevice", this->targetDevice, true);
@@ -197,9 +190,8 @@ void ReadIRTest::SetUp() {
                 op_name = splittedFilename[2].substr(0, pos);
                 op_version = splittedFilename[2].substr(pos + 1);
                 if (unique_ops.find(op_name) != unique_ops.end() &&
-                    std::find(unique_ops[op_name].begin(),
-                              unique_ops[op_name].end(),
-                              op_version) != unique_ops[op_name].end()) {
+                    std::find(unique_ops[op_name].begin(), unique_ops[op_name].end(), op_version) !=
+                        unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
@@ -234,20 +226,24 @@ void ReadIRTest::SetUp() {
     }
 
     std::vector<InputShape> inputShapes;
-    for (const auto& param : function -> get_parameters()) {
+    for (const auto& param : function->get_parameters()) {
         if (param->get_partial_shape().is_static()) {
             inputShapes.push_back(InputShape{{}, {param->get_shape()}});
         } else {
-            std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
-                                                    param->get_partial_shape().get_min_shape(),
-                                                    param->get_partial_shape().get_max_shape() };
+            std::vector<ov::Shape> staticShapes = {param->get_partial_shape().get_min_shape(),
+                                                   param->get_partial_shape().get_min_shape(),
+                                                   param->get_partial_shape().get_max_shape()};
             ov::Shape midShape;
             for (const auto s : param->get_partial_shape()) {
                 int dimValue = 1;
                 if (s.is_dynamic()) {
                     size_t range = s.get_max_length() - s.get_min_length();
                     if (range > std::numeric_limits<char>::max()) {
-                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+                        ov::test::utils::fill_data_random(&range,
+                                                          1,
+                                                          std::numeric_limits<char>::max(),
+                                                          s.get_min_length(),
+                                                          1);
                     }
                     ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
                 } else {
@@ -282,7 +278,7 @@ void ReadIRTest::SetUp() {
 std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
     auto start_time = std::chrono::system_clock::now();
     if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started" << std::endl;
     }
     ov::TensorVector output_tensors;
     if (!ov::test::utils::fileExists(path_to_ref_tensor)) {
@@ -319,7 +315,8 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is "
+                  << duration.count() << "s" << std::endl;
     }
     return output_tensors;
 }
@@ -338,23 +335,23 @@ TEST_P(ReadIRTest, ImportExport) {
 
 namespace {
 
-#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
-    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
-                             ReadIRTest,                                                                   \
-                             ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),      \
-                             ReadIRTest::getTestCaseName); \
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                             \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                      \
+                             ReadIRTest,                                                              \
+                             ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)), \
+                             ReadIRTest::getTestCaseName);
 
 // It should point on latest opset which contains biggest list of operations
 #include "openvino/opsets/opset14_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
 INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
-                        ReadIRTest,
-                        ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
-                        ReadIRTest::getTestCaseName);
+                         ReadIRTest,
+                         ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
+                         ReadIRTest::getTestCaseName);
 
 }  // namespace
 
-} // namespace op_conformance
-} // namespace test
-} // namespace ov
+}  // namespace op_conformance
+}  // namespace test
+}  // namespace ov

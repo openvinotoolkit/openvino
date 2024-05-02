@@ -3,6 +3,7 @@
 //
 
 #include "adaptive_pooling_kernel_selector.h"
+
 #include "adaptive_pooling_kernel_ref.h"
 
 namespace kernel_selector {

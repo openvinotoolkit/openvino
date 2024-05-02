@@ -4,15 +4,16 @@
 
 #pragma once
 
+#include <data_inst.h>
+
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/layout.hpp>
+#include <intel_gpu/runtime/memory.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <intel_gpu/runtime/layout.hpp>
-#include <intel_gpu/runtime/engine.hpp>
-#include <intel_gpu/runtime/memory.hpp>
-#include <intel_gpu/primitives/activation.hpp>
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/format.hpp"
-#include <data_inst.h>
 
 namespace cldnn {
 namespace onednn {
@@ -32,13 +33,17 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt);
 dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, bool flatten = false);
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
+                                         dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef,
+                                         bool flatten = false);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
 cldnn::format find_data_format(dnnl::memory::desc desc);
 dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
-cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
+cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc,
+                                                   bool is_weights = false,
+                                                   bool is_grouped = false);
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
 
@@ -51,10 +56,11 @@ struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
                                const layout& out_layout,
                                const dnnl::memory::desc& in_desc,
                                const dnnl::memory::desc& out_desc,
-                               bool transposed, bool grouped = false)
-        : WeightsReorderParams(in_layout, out_layout, transposed, grouped)
-        , _in_desc(in_desc)
-        , _out_desc(out_desc) {}
+                               bool transposed,
+                               bool grouped = false)
+        : WeightsReorderParams(in_layout, out_layout, transposed, grouped),
+          _in_desc(in_desc),
+          _out_desc(out_desc) {}
 
     dnnl::memory::desc _in_desc;
     dnnl::memory::desc _out_desc;

@@ -8,20 +8,20 @@ from openvino.tools.mo.ops.pad import AttributedPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
-    op = 'Pad'
+    op = "Pad"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        pads = mo_array(list(attrs.tuple('pad_width', int, None)))
+        pads = mo_array(list(attrs.tuple("pad_width", int, None)))
         pads = pads.reshape([-1, 2])
-        value = attrs.float('constant_value', 0.0)
+        value = attrs.float("constant_value", 0.0)
 
         node_attrs = {
-            'pads': pads,
-            'mode': attrs.str('mode', None),
-            'fill_value': value,
+            "pads": pads,
+            "mode": attrs.str("mode", None),
+            "fill_value": value,
         }
 
         AttributedPad.update_node_stat(node, node_attrs)

@@ -10,23 +10,22 @@
 namespace ov {
 namespace test {
 std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
+    const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
     std::vector<ov::test::InputShape> shapes;
     ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes attributes;
     ElementType model_type;
     std::string target_device;
-    std::tie(
-        shapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        model_type,
-        target_device) = obj.param;
+    std::tie(shapes,
+             attributes.score_threshold,
+             attributes.nms_threshold,
+             attributes.max_delta_log_wh,
+             attributes.num_classes,
+             attributes.post_nms_count,
+             attributes.max_detections_per_image,
+             attributes.class_agnostic_box_regression,
+             attributes.deltas_weights,
+             model_type,
+             target_device) = obj.param;
 
     std::ostringstream result;
 
@@ -58,18 +57,17 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
 
     ElementType model_type;
     std::string targetName;
-    std::tie(
-        shapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        model_type,
-        targetName) = this->GetParam();
+    std::tie(shapes,
+             attributes.score_threshold,
+             attributes.nms_threshold,
+             attributes.max_delta_log_wh,
+             attributes.num_classes,
+             attributes.post_nms_count,
+             attributes.max_detections_per_image,
+             attributes.class_agnostic_box_regression,
+             attributes.deltas_weights,
+             model_type,
+             targetName) = this->GetParam();
 
     if (model_type == element::f16)
         abs_threshold = 0.01;
@@ -84,15 +82,15 @@ void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
     }
 
-    auto experimentalDetectron = std::make_shared<ov::op::v6::ExperimentalDetectronDetectionOutput>(
-        params[0], // input_rois
-        params[1], // input_deltas
-        params[2], // input_scores
-        params[3], // input_im_info
-        attributes);
+    auto experimentalDetectron =
+        std::make_shared<ov::op::v6::ExperimentalDetectronDetectionOutput>(params[0],  // input_rois
+                                                                           params[1],  // input_deltas
+                                                                           params[2],  // input_scores
+                                                                           params[3],  // input_im_info
+                                                                           attributes);
     function = std::make_shared<ov::Model>(
         ov::OutputVector{experimentalDetectron->output(0), experimentalDetectron->output(1)},
         "ExperimentalDetectronDetectionOutput");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

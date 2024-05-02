@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_fs_byx_fsv32.h"
+
 #include <vector>
 
 namespace kernel_selector {
@@ -165,10 +166,14 @@ JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_p
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
                                                {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                               "tmp_write[out_f]", activation_type, 1 };
+                                               "tmp_write[out_f]",
+                                               activation_type,
+                                               1};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                             "res", activation_type, 1 };
+                                             "res",
+                                             activation_type,
+                                             1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
     }
 

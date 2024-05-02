@@ -4,17 +4,19 @@
 
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir,
+                                           lowered::LinearIR::constExprIt begin,
+                                           lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
     bool modified = false;
 
@@ -46,15 +48,17 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
                 continue;
 
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
-            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), *outshape.rbegin(), load->get_offset());
-            expr_it = linear_ir.replace_with_node({ parent_expr, expr }, broadcastload);
+            const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0),
+                                                                                     *outshape.rbegin(),
+                                                                                     load->get_offset());
+            expr_it = linear_ir.replace_with_node({parent_expr, expr}, broadcastload);
             modified |= true;
         }
     }
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

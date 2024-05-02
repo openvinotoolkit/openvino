@@ -3,7 +3,9 @@
 //
 
 #include "low_precision/rt_info/quantization_mode_attribute.hpp"
+
 #include <assert.h>
+
 #include <sstream>
 
 using namespace ov;
@@ -14,18 +16,18 @@ std::string QuantizationModeAttribute::to_string() const {
 
     std::stringstream ss;
     switch (mode) {
-        case Mode::Asymmetric: {
-            ss << "Asymmetric";
-            break;
-        }
-        case Mode::Symmetric: {
-            ss << "Symmetric";
-            break;
-        }
-        default: {
-            ss << "UNKNOWN";
-            break;
-        }
+    case Mode::Asymmetric: {
+        ss << "Asymmetric";
+        break;
+    }
+    case Mode::Symmetric: {
+        ss << "Symmetric";
+        break;
+    }
+    default: {
+        ss << "UNKNOWN";
+        break;
+    }
     }
     return ss.str();
 }

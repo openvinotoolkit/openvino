@@ -5,8 +5,9 @@
 #pragma once
 
 #include <memory>
-#include "openvino/pass/pattern/matcher.hpp"
+
 #include "low_precision/layer_transformation.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,10 +26,10 @@ public:
     OPENVINO_RTTI("BatchToSpaceTransformation", "0");
     BatchToSpaceTransformation(const Params& params = Params());
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

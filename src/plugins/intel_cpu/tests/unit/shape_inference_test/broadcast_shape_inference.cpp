@@ -29,7 +29,8 @@ TEST(StaticShapeInferenceTest, BroadcastBidirectionalTest) {
 
 TEST(StaticShapeInferenceTest, BroadcastBidirectionalConstantTest) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto target_shape = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{16, 1, 40});
+    auto target_shape =
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{16, 1, 40});
     auto broadcast_v3 = std::make_shared<op::v3::Broadcast>(input, target_shape, op::BroadcastType::BIDIRECTIONAL);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 16, 50, 1}, StaticShape{3}};
@@ -59,7 +60,8 @@ TEST(StaticShapeInferenceTest, BroadcastPDPDTest) {
 
 TEST(StaticShapeInferenceTest, BroadcastPDPDConstantTest) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
-    auto target_shape = std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 6});
+    auto target_shape =
+        std::make_shared<ov::op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 6});
     auto broadcast_v3 =
         std::make_shared<op::v3::Broadcast>(input, target_shape, op::BroadcastModeSpec(op::BroadcastType::PDPD, 1));
 

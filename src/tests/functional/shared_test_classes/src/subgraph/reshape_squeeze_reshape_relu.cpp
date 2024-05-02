@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
-
 namespace ov {
 namespace test {
 
@@ -37,7 +36,9 @@ void ReshapeSqueezeReshapeRelu::SetUp() {
                                                                    squeezeShape.first);
     auto reshape1 = std::make_shared<ov::op::v1::Reshape>(input[0], reshape1_pattern, false);
 
-    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{squeezeShape.second.size()}, squeezeShape.second);
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                           ov::Shape{squeezeShape.second.size()},
+                                                           squeezeShape.second);
     std::shared_ptr<ov::Node> squeeze;
     switch (opType) {
     case ov::test::utils::SqueezeOpType::SQUEEZE:

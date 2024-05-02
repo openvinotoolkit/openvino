@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <map>
+#include <string>
 #include <unordered_set>
 
 #include "op_conformance_utils/meta_info/input_info.hpp"
@@ -25,11 +25,11 @@ public:
     MetaInfo(std::map<std::string, InputInfo> _in_info,
              std::map<std::string, ModelInfo> _model_info,
              std::unordered_set<std::string> _extractors,
-             double _graph_priority = 0) :
-             model_info(_model_info),
-             input_info(_in_info),
-             extractors(_extractors),
-             graph_priority(_graph_priority) {};
+             double _graph_priority = 0)
+        : model_info(_model_info),
+          input_info(_in_info),
+          extractors(_extractors),
+          graph_priority(_graph_priority){};
     void serialize(const std::string& serialization_path);
     void update(const std::string& model_path,
                 const std::map<std::string, InputInfo>& _input_info,
@@ -38,12 +38,14 @@ public:
                 const std::string& extractor = "",
                 const std::vector<std::string>& ignored_inputs = {});
     std::map<std::string, InputInfo> get_input_info() const;
-    void set_input_info(const std::map<std::string, InputInfo>& new_in_info) { 
+    void set_input_info(const std::map<std::string, InputInfo>& new_in_info) {
         input_info.clear();
         input_info = new_in_info;
     };
     std::map<std::string, ModelInfo> get_model_info() const;
-    std::string get_any_extractor() const { return *extractors.begin(); }
+    std::string get_any_extractor() const {
+        return *extractors.begin();
+    }
     double get_graph_priority();
 
     static MetaInfo read_meta_from_file(const std::string& meta_path, bool read_priority = false);

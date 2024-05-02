@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include "intel_gpu/runtime/engine.hpp"
-
-#include "intel_gpu/primitives/convolution.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "convolution_inst.h"
-#include "intel_gpu/graph/network.hpp"
-#include "pass_manager.h"
-#include "to_string_utils.h"
-
-#include "program_wrapper.h"
-
 #include <memory>
+
+#include "convolution_inst.h"
+#include "data_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "pass_manager.h"
+#include "program_wrapper.h"
+#include "test_utils.h"
+#include "to_string_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -24,8 +21,8 @@ using namespace testing;
 
 TEST(test_select_preferred_formats, setting_target_conv_format) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 3, 3 } });
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 32, 64, 64}});
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {32, 32, 3, 3}});
 
     topology topology;
     topology.add(data("weights", weights));
@@ -35,8 +32,8 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv1", impl} }));
+    ov::intel_gpu::ImplementationDesc impl = {format::b_fs_yx_fsv16, std::string(""), impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv1", impl}}));
 
     layout_optimizer lo(true);
     auto prog = program::build_program(engine, topology, config, false, true);

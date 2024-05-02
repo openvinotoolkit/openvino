@@ -10,18 +10,18 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-typedef std::tuple<ElementType,                      // netPrecision
-                   std::vector<InputShape>,          // shape
-                   bool,                             // is_causal
-                   bool,                             // has_attn
-                   bool,                             // has_scale
-                   std::string,                      // targetDevice
+typedef std::tuple<ElementType,              // netPrecision
+                   std::vector<InputShape>,  // shape
+                   bool,                     // is_causal
+                   bool,                     // has_attn
+                   bool,                     // has_scale
+                   std::string,              // targetDevice
                    CPUSpecificParams>
     ScaledAttnCPUTestParams;
 
 class ScaledAttnLayerCPUTest : public testing::WithParamInterface<ScaledAttnCPUTestParams>,
-                            virtual public SubgraphBaseTest,
-                            public CPUTestsBase {
+                               virtual public SubgraphBaseTest,
+                               public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScaledAttnCPUTestParams>& obj);
 

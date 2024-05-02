@@ -6,15 +6,14 @@
 
 #include <vector>
 
-#include "dnnl_types.h"
-#include "dnnl_extension_utils.h"
-#include "cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
-
-#include "cpu/x64/jit_generator.hpp"
 #include "common/primitive_hashing_utils.hpp"
-#include "nodes/executors/transpose.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "utils/bfloat16.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -33,7 +32,9 @@ template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator(jit_name()) {}
+    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_)
+        : jit_uni_permute_kernel(jcp_),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -51,23 +52,43 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         this->postamble();
     }
 
-    void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
+    void load(const Xbyak::Xmm& xmm, const Xbyak::Address& addr) {
         switch (jcp.data_size) {
-            case 16: uni_vmovups(xmm, addr); break;
-            case 8: uni_vmovsd(xmm, addr); break;
-            case 4: uni_vmovss(xmm, addr); break;
-            case 2: uni_vpinsrw(xmm, xmm, addr, 0x0); break;
-            case 1: uni_vpinsrb(xmm, xmm, addr, 0x0); break;
+        case 16:
+            uni_vmovups(xmm, addr);
+            break;
+        case 8:
+            uni_vmovsd(xmm, addr);
+            break;
+        case 4:
+            uni_vmovss(xmm, addr);
+            break;
+        case 2:
+            uni_vpinsrw(xmm, xmm, addr, 0x0);
+            break;
+        case 1:
+            uni_vpinsrb(xmm, xmm, addr, 0x0);
+            break;
         }
     }
 
-    void store(const Xbyak::Address &addr, const Xbyak::Xmm &xmm) {
+    void store(const Xbyak::Address& addr, const Xbyak::Xmm& xmm) {
         switch (jcp.data_size) {
-            case 16: uni_vmovups(addr, xmm); break;
-            case 8: uni_vmovsd(addr, xmm); break;
-            case 4: uni_vmovss(addr, xmm); break;
-            case 2: uni_vpextrw(addr, xmm, 0x0); break;
-            case 1: uni_vpextrb(addr, xmm, 0x0); break;
+        case 16:
+            uni_vmovups(addr, xmm);
+            break;
+        case 8:
+            uni_vmovsd(addr, xmm);
+            break;
+        case 4:
+            uni_vmovss(addr, xmm);
+            break;
+        case 2:
+            uni_vpextrw(addr, xmm, 0x0);
+            break;
+        case 1:
+            uni_vpextrb(addr, xmm, 0x0);
+            break;
         }
     }
 
@@ -99,7 +120,8 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
             }
         }
 
-        L(tail_loop_label); {
+        L(tail_loop_label);
+        {
             cmp(reg_work_amount, 0);
             je(exit_label, T_NEAR);
 
@@ -129,7 +151,8 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -144,7 +167,7 @@ private:
     Xbyak::Xmm xmm = Xbyak::Xmm(1);
 };
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
 PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     jcp = TransposeExecutor::prepareParams(params);
@@ -156,7 +179,7 @@ PermuteKernel::PermuteKernel(const PermuteParams& params) : params(params) {
     } else if (mayiuse(cpu::x64::sse41)) {
         permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
     }
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
     if (permute_kernel)
         permute_kernel->create_ker();
@@ -178,7 +201,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
         return;
     }
 
-    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp,  dst_dims[0]);
+    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
@@ -190,42 +213,42 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
         dst_dims[0] = mb;
 
     switch (jcp.n) {
-        case 1:
-            parallel_for(dst_dims[0], [&](int i0) {
-                auto arg = jit_args_permute();
+    case 1:
+        parallel_for(dst_dims[0], [&](int i0) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0];
-                size_t src_off = i0 * src_strides[0];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0];
+            size_t src_off = i0 * src_strides[0];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
-        case 2:
-            parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
-                auto arg = jit_args_permute();
+            (*permute_kernel)(&arg);
+        });
+        break;
+    case 2:
+        parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
+            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
-        case 3:
-            parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
-                auto arg = jit_args_permute();
+            (*permute_kernel)(&arg);
+        });
+        break;
+    case 3:
+        parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
+            auto arg = jit_args_permute();
 
-                size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
-                size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
-                arg.src = &src_data[src_off * jcp.data_size];
-                arg.dst = &dst_data[dst_off * jcp.data_size];
+            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
+            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
+            arg.src = &src_data[src_off * jcp.data_size];
+            arg.dst = &dst_data[dst_off * jcp.data_size];
 
-                (*permute_kernel)(&arg);
-            });
-            break;
+            (*permute_kernel)(&arg);
+        });
+        break;
     }
     return;
 }
@@ -245,12 +268,10 @@ size_t PermuteParams::hash() const {
 }
 
 bool PermuteParams::operator==(const PermuteParams& rhs) const {
-    return (src_block_dims == rhs.src_block_dims) &&
-           (dst_block_dims == rhs.dst_block_dims) &&
-           (src_block_order == rhs.src_block_order) &&
-           (dst_block_order == rhs.dst_block_order) && (order == rhs.order) &&
-           (data_size == rhs.data_size);
+    return (src_block_dims == rhs.src_block_dims) && (dst_block_dims == rhs.dst_block_dims) &&
+           (src_block_order == rhs.src_block_order) && (dst_block_order == rhs.dst_block_order) &&
+           (order == rhs.order) && (data_size == rhs.data_size);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

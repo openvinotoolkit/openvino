@@ -7,11 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/pass.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
@@ -36,21 +35,22 @@ class UpdateSharedPrecisionPreserved;
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ov::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
 public:
-    UpdateSharedPrecisionPreserved(const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
+    UpdateSharedPrecisionPreserved(
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
         ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
             auto node = m.get_match_root();
 
             const bool needToCheckExpectedAttributeType = !std::is_same<ExpectedAttributeType, AttributeType>::value;
             if (!needToCheckExpectedAttributeType) {
                 // expected attribute is ignored, set attributes for node inputs except Result & FakeQuantize operations
-                if (ov::is_type<ov::opset1::Result>(node) ||
-                    ov::is_type<ov::opset1::FakeQuantize>(node) ||
+                if (ov::is_type<ov::opset1::Result>(node) || ov::is_type<ov::opset1::FakeQuantize>(node) ||
                     transformation_callback(node)) {
                     return false;
                 }
             }
 
-            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) || ov::is_type<ov::opset1::FakeQuantize>(node)) {
+            if (ov::pass::low_precision::NetworkHelper::isPrecisionPreserved(node) ||
+                ov::is_type<ov::opset1::FakeQuantize>(node)) {
                 return false;
             }
 
@@ -90,15 +90,18 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::any_input(), "UpdateSharedPrecisionPreserved");
+        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::any_input(),
+                                                                    "UpdateSharedPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
 private:
-    Input<Node> getDequantizationInput(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
-        const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
-        if (!dequantization.empty() &&
-            (ov::is_type<ov::opset1::Convert>(dequantization.data.get_node())) &&
+    Input<Node> getDequantizationInput(const Input<Node>& input,
+                                       const std::vector<ov::element::Type>& defaultPrecisions) {
+        const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(),
+                                                                     defaultPrecisions,
+                                                                     input.get_index());
+        if (!dequantization.empty() && (ov::is_type<ov::opset1::Convert>(dequantization.data.get_node())) &&
             ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             assert(dequantization.data.get_target_inputs().size() == 1ul);
             return *dequantization.data.get_target_inputs().begin();

@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import pytest
 
 import numpy as np
+import openvino.runtime.opset13 as ops
+import pytest
+from tests.utils.helpers import (
+    generate_image,
+    generate_model_with_memory,
+    get_relu_model,
+)
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
-
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 
 
 @pytest.mark.skipif(
@@ -71,7 +74,11 @@ def test_create_device_tensor_gpu():
     tensor_params = tensor.get_params()
 
     assert isinstance(tensor_params, dict)
-    assert list(tensor_params.keys()) == ["MEM_HANDLE", "OCL_CONTEXT", "SHARED_MEM_TYPE"]
+    assert list(tensor_params.keys()) == [
+        "MEM_HANDLE",
+        "OCL_CONTEXT",
+        "SHARED_MEM_TYPE",
+    ]
 
     assert isinstance(tensor, ov.Tensor)
     assert isinstance(tensor, ov.RemoteTensor)

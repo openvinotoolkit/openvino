@@ -13,14 +13,13 @@
 
 namespace ov {
 namespace test {
-using ResultTestParamSet = std::tuple<
-    std::vector<size_t>,           // Input shapes
-    ov::element::Type,             // Model type
-    ov::test::TargetDevice         // Device name
->;
+using ResultTestParamSet = std::tuple<std::vector<size_t>,    // Input shapes
+                                      ov::element::Type,      // Model type
+                                      ov::test::TargetDevice  // Device name
+                                      >;
 
 class ResultLayerTest : public testing::WithParamInterface<ResultTestParamSet>,
-                         virtual public ov::test::SubgraphBaseStaticTest {
+                        virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ResultTestParamSet>& obj);
 

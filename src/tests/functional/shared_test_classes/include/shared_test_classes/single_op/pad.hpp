@@ -4,24 +4,24 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<int64_t>,      // padsBegin
-        std::vector<int64_t>,      // padsEnd
-        float,                     // argPadValue
-        ov::op::PadMode,           // padMode
-        ov::element::Type,         // Net precision
-        std::vector<InputShape>,   // Input shapes
-        std::string                // Target device name
-> padLayerTestParamsSet;
+typedef std::tuple<std::vector<int64_t>,     // padsBegin
+                   std::vector<int64_t>,     // padsEnd
+                   float,                    // argPadValue
+                   ov::op::PadMode,          // padMode
+                   ov::element::Type,        // Net precision
+                   std::vector<InputShape>,  // Input shapes
+                   std::string               // Target device name
+                   >
+    padLayerTestParamsSet;
 
 class PadLayerTest : public testing::WithParamInterface<padLayerTestParamsSet>,
                      virtual public ov::test::SubgraphBaseTest {

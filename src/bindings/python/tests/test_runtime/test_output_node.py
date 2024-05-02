@@ -5,6 +5,7 @@
 import os
 
 import openvino.runtime.opset13 as ops
+
 from openvino import Type
 
 

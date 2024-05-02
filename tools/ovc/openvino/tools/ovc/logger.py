@@ -9,8 +9,8 @@ from copy import copy
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
-if importlib.util.find_spec('absl') is not None:
-    import absl.logging # pylint: disable=import-error
+if importlib.util.find_spec("absl") is not None:
+    import absl.logging  # pylint: disable=import-error
 
     log.root.removeHandler(absl.logging._absl_handler)
 
@@ -24,8 +24,8 @@ class LvlFormatter(log.Formatter):
         log.WARNING: "[ WARNING ]  %(msg)s",
         log.ERROR: "[ %(levelname)s ]  %(msg)s",
         log.CRITICAL: "[ %(levelname)s ]  %(msg)s",
-        'framework_error': "[ FRAMEWORK ERROR ]  %(msg)s",
-        'analysis_info': "[ ANALYSIS INFO ]  %(msg)s"
+        "framework_error": "[ FRAMEWORK ERROR ]  %(msg)s",
+        "analysis_info": "[ ANALYSIS INFO ]  %(msg)s",
     }
 
     def __init__(self, lvl, fmt=None):
@@ -33,16 +33,16 @@ class LvlFormatter(log.Formatter):
         self.lvl = lvl
 
     def format(self, record: log.LogRecord):
-        if self.lvl == 'DEBUG':
+        if self.lvl == "DEBUG":
             self._style._fmt = self.format_dict[log.DEBUG]
         else:
             self._style._fmt = self.format_dict[record.levelno]
-        if 'is_warning' in record.__dict__.keys():
+        if "is_warning" in record.__dict__.keys():
             self._style._fmt = self.format_dict[log.WARNING]
-        if 'framework_error' in record.__dict__.keys():
-            self._style._fmt = self.format_dict['framework_error']
-        if 'analysis_info' in record.__dict__.keys():
-            self._style._fmt = self.format_dict['analysis_info']
+        if "framework_error" in record.__dict__.keys():
+            self._style._fmt = self.format_dict["framework_error"]
+        if "analysis_info" in record.__dict__.keys():
+            self._style._fmt = self.format_dict["analysis_info"]
         return log.Formatter.format(self, record)
 
 
@@ -51,11 +51,13 @@ class TagFilter(log.Filter):
         self.regex = regex
 
     def filter(self, record: log.LogRecord):
-        if record.__dict__['funcName'] == 'load_grammar':  # for nx not to log into our logs
+        if (
+            record.__dict__["funcName"] == "load_grammar"
+        ):  # for nx not to log into our logs
             return False
         if self.regex:
-            if 'tag' in record.__dict__.keys():
-                tag = record.__dict__['tag']
+            if "tag" in record.__dict__.keys():
+                tag = record.__dict__["tag"]
                 return re.findall(self.regex, tag)
             else:
                 return False
@@ -64,9 +66,9 @@ class TagFilter(log.Filter):
 
 def init_logger(lvl: str, verbose: bool):
     global handler_num
-    log_exp = os.environ.get('MO_LOG_PATTERN')
+    log_exp = os.environ.get("MO_LOG_PATTERN")
     if not verbose:
-        lvl = 'ERROR'
+        lvl = "ERROR"
     fmt = LvlFormatter(lvl=lvl)
     handler = log.StreamHandler()
     handler.setFormatter(fmt)

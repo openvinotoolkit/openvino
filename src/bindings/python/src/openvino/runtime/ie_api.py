@@ -2,23 +2,20 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Iterable, Union, Optional, Dict
-from pathlib import Path
 import warnings
+from pathlib import Path
+from typing import Any, Dict, Iterable, Optional, Union
 
 import numpy as np
-
-from openvino._pyopenvino import Model as ModelBase
-from openvino._pyopenvino import Core as CoreBase
-from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import Node
-
+from openvino._pyopenvino import CompiledModel as CompiledModelBase
+from openvino._pyopenvino import Core as CoreBase
+from openvino._pyopenvino import Model as ModelBase
+from openvino._pyopenvino import Node, Tensor
 from openvino.runtime.utils.data_helpers import (
     OVDict,
-    _InferRequestWrapper,
     _data_dispatch,
+    _InferRequestWrapper,
     tensor_from_file,
 )
 
@@ -129,11 +126,17 @@ class InferRequest(_InferRequestWrapper):
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
-        return OVDict(super().infer(_data_dispatch(
-            self,
-            inputs,
-            is_shared=share_inputs,
-        ), share_outputs=share_outputs, decode_strings=decode_strings))
+        return OVDict(
+            super().infer(
+                _data_dispatch(
+                    self,
+                    inputs,
+                    is_shared=share_inputs,
+                ),
+                share_outputs=share_outputs,
+                decode_strings=decode_strings,
+            )
+        )
 
     def start_async(
         self,
@@ -223,7 +226,9 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    def __init__(self, other: CompiledModelBase, weights: Optional[bytes] = None) -> None:
+    def __init__(
+        self, other: CompiledModelBase, weights: Optional[bytes] = None
+    ) -> None:
         # Private memeber to store already created InferRequest
         self._infer_request: Optional[InferRequest] = None
         self._weights = weights
@@ -473,7 +478,12 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
+
+    def read_model(
+        self,
+        model: Union[str, bytes, object],
+        weights: Union[object, str, bytes, Tensor] = None,
+    ) -> Model:
         if weights is not None:
             return Model(super().read_model(model, weights))
         else:
@@ -485,7 +495,7 @@ class Core(CoreBase):
         device_name: Optional[str] = None,
         config: Optional[dict] = None,
         *,
-        weights: Optional[bytes] = None
+        weights: Optional[bytes] = None,
     ) -> CompiledModel:
         """Creates a compiled model.
 
@@ -518,16 +528,22 @@ class Core(CoreBase):
                     super().compile_model(model, {} if config is None else config),
                 )
             return CompiledModel(
-                super().compile_model(model, device_name, {} if config is None else config),
+                super().compile_model(
+                    model, device_name, {} if config is None else config
+                ),
             )
         else:
             if device_name is None:
                 return CompiledModel(
-                    super().compile_model(model, weights, {} if config is None else config),
+                    super().compile_model(
+                        model, weights, {} if config is None else config
+                    ),
                     weights=weights,
                 )
             return CompiledModel(
-                super().compile_model(model, weights, device_name, {} if config is None else config),
+                super().compile_model(
+                    model, weights, device_name, {} if config is None else config
+                ),
                 weights=weights,
             )
 

@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/mat_mul.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -64,9 +64,8 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
                << values.actual << "_" << values.expected;
 }
 
-typedef std::
-    tuple<ov::element::Type, std::pair<ov::PartialShape, ov::PartialShape>, MatMullTransformationTestValues>
-        MatMulTransformationParams;
+typedef std::tuple<ov::element::Type, std::pair<ov::PartialShape, ov::PartialShape>, MatMullTransformationTestValues>
+    MatMulTransformationParams;
 
 class MatMulTransformation : public LayerTransformation,
                              public testing::WithParamInterface<MatMulTransformationParams> {
@@ -78,12 +77,12 @@ public:
 
         actualFunction =
             ov::builder::subgraph::MatMulFunction::getOriginal(precision,
-                                                                   shapes.first,
-                                                                   testValues.actual.precisionBeforeDequantization1,
-                                                                   testValues.actual.dequantization1,
-                                                                   shapes.second,
-                                                                   testValues.actual.precisionBeforeDequantization2,
-                                                                   testValues.actual.dequantization2);
+                                                               shapes.first,
+                                                               testValues.actual.precisionBeforeDequantization1,
+                                                               testValues.actual.dequantization1,
+                                                               shapes.second,
+                                                               testValues.actual.precisionBeforeDequantization2,
+                                                               testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
@@ -91,14 +90,13 @@ public:
 
         referenceFunction =
             (testValues.expected.precisionBeforeOperation1 == ov::element::f32) && testValues.expected.result.empty()
-                ? ov::builder::subgraph::MatMulFunction::getOriginal(
-                      precision,
-                      shapes.first,
-                      testValues.actual.precisionBeforeDequantization1,
-                      testValues.actual.dequantization1,
-                      shapes.second,
-                      testValues.actual.precisionBeforeDequantization2,
-                      testValues.actual.dequantization2)
+                ? ov::builder::subgraph::MatMulFunction::getOriginal(precision,
+                                                                     shapes.first,
+                                                                     testValues.actual.precisionBeforeDequantization1,
+                                                                     testValues.actual.dequantization1,
+                                                                     shapes.second,
+                                                                     testValues.actual.precisionBeforeDequantization2,
+                                                                     testValues.actual.dequantization2)
                 : ov::builder::subgraph::MatMulFunction::getReference(
                       precision,
                       shapes.first,

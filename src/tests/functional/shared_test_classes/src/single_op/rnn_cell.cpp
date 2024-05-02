@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/single_op/rnn_cell.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
-#include "shared_test_classes/single_op/rnn_cell.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
 
 using utils::InputLayerType;
 
-std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellParams> &obj) {
+std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellParams>& obj) {
     bool should_decompose;
     size_t batch;
     size_t hidden_size;
@@ -24,10 +25,22 @@ std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellPar
     InputLayerType BType;
     ov::element::Type model_type;
     std::string target_device;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-             model_type, target_device) = obj.param;
-    std::vector<std::vector<size_t>> input_shapes = {{batch, input_size}, {batch, hidden_size},
-                                     {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
+    std::tie(should_decompose,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             WType,
+             RType,
+             BType,
+             model_type,
+             target_device) = obj.param;
+    std::vector<std::vector<size_t>> input_shapes = {{batch, input_size},
+                                                     {batch, hidden_size},
+                                                     {hidden_size, input_size},
+                                                     {hidden_size, hidden_size},
+                                                     {hidden_size}};
     std::ostringstream result;
     result << "decomposition" << should_decompose << "_";
     result << "batch=" << batch << "_";
@@ -57,11 +70,23 @@ void RNNCellTest::SetUp() {
     InputLayerType RType;
     InputLayerType BType;
     ov::element::Type model_type;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-            model_type, targetDevice) = this->GetParam();
+    std::tie(should_decompose,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             WType,
+             RType,
+             BType,
+             model_type,
+             targetDevice) = this->GetParam();
 
-    std::vector<std::vector<size_t>> input_shapes = {{batch, input_size}, {batch, hidden_size},
-                                                    {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
+    std::vector<std::vector<size_t>> input_shapes = {{batch, input_size},
+                                                     {batch, hidden_size},
+                                                     {hidden_size, input_size},
+                                                     {hidden_size, hidden_size},
+                                                     {hidden_size}};
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shapes[0])),
                                std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shapes[1]))};
     std::vector<ov::Shape> WRB = {input_shapes[2], input_shapes[3], input_shapes[4]};
@@ -96,8 +121,16 @@ void RNNCellTest::SetUp() {
         B = std::make_shared<ov::op::v0::Constant>(tensor);
     }
 
-    auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0], params[1], W, R, B, hidden_size, activations,
-                                                          activations_alpha, activations_beta, clip);
+    auto rnn_cell = std::make_shared<ov::op::v0::RNNCell>(params[0],
+                                                          params[1],
+                                                          W,
+                                                          R,
+                                                          B,
+                                                          hidden_size,
+                                                          activations,
+                                                          activations_alpha,
+                                                          activations_beta,
+                                                          clip);
     function = std::make_shared<ov::Model>(rnn_cell->outputs(), params, "rnn_cell");
     if (should_decompose) {
         ov::pass::Manager m;

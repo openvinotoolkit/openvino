@@ -3,6 +3,7 @@
 //
 
 #include "low_precision_transformations/reduce_min_transformation.hpp"
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -16,12 +17,13 @@ std::string ReduceMinTransformation::getTestCaseName(const testing::TestParamInf
     ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMinTransformationParam param;;
+    ReduceMinTransformationParam param;
+    ;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
-           param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << param.fakeQuantize
+           << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
     for (const auto& elem : param.constantValues) {
         result << elem << "_";
     }
@@ -33,7 +35,8 @@ void ReduceMinTransformation::SetUp() {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMinTransformationParam param;;
+    ReduceMinTransformationParam param;
+    ;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
     init_input_shapes(inputShape);
@@ -42,15 +45,14 @@ void ReduceMinTransformation::SetUp() {
     ov::builder::subgraph::DequantizationOperations dequantizationBefore;
     ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMin>(
-        netPrecision,
-        inputShape,
-        param.fakeQuantize,
-        convert,
-        dequantizationBefore,
-        param.constantValues,
-        param.keepDims,
-        dequantizationAfter);
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMin>(netPrecision,
+                                                                                 inputShape,
+                                                                                 param.fakeQuantize,
+                                                                                 convert,
+                                                                                 dequantizationBefore,
+                                                                                 param.constantValues,
+                                                                                 param.keepDims,
+                                                                                 dequantizationAfter);
 }
 
 void ReduceMinTransformation::run() {
@@ -66,4 +68,4 @@ TEST_P(ReduceMinTransformation, CompareWithRefImpl) {
     run();
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

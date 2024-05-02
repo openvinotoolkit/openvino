@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# ! [ov:caching:part0]
-from utils import get_path_to_model, get_temp_dir
-import openvino as ov
-
 import openvino.properties as props
 
-device_name = 'CPU'
+# ! [ov:caching:part0]
+from utils import get_path_to_model, get_temp_dir
+
+import openvino as ov
+
+device_name = "CPU"
 model_path = get_path_to_model()
 path_to_cache_dir = get_temp_dir()
 
@@ -39,5 +40,7 @@ assert compiled_model
 import openvino.properties.device as device
 
 # Find 'EXPORT_IMPORT' capability in supported capabilities
-caching_supported = 'EXPORT_IMPORT' in core.get_property(device_name, device.capabilities)
+caching_supported = "EXPORT_IMPORT" in core.get_property(
+    device_name, device.capabilities
+)
 # ! [ov:caching:part3]

@@ -5,8 +5,9 @@
 #pragma once
 
 #include <memory>
-#include "low_precision/lpt_visibility.hpp"
+
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -21,8 +22,8 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief AlignQuantizationIntervals transformation marks precision preserved operations subgraph by `IntervalsAlignmentAttribute`
- * after FakeQuantize operations.
+ * @brief AlignQuantizationIntervals transformation marks precision preserved operations subgraph by
+ * `IntervalsAlignmentAttribute` after FakeQuantize operations.
  *
  * For more details about the transformation, refer to
  * [AlignQuantizationIntervals](@ref openvino_docs_OV_UG_lpt_AlignQuantizationIntervals) page
@@ -31,8 +32,10 @@ class LP_TRANSFORMATIONS_API AlignQuantizationIntervals;
 class ov::pass::low_precision::AlignQuantizationIntervals : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignQuantizationIntervals", "0");
-    AlignQuantizationIntervals(const std::vector<ov::element::Type>& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
+    AlignQuantizationIntervals(const std::vector<ov::element::Type>& defaultPrecisions =
+                                   ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
 private:
     const std::vector<ov::element::Type> defaultPrecisions;
 };

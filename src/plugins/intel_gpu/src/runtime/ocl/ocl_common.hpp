@@ -3,11 +3,10 @@
 //
 #pragma once
 
-#include "ocl_wrapper.hpp"
-
-#include "openvino/core/except.hpp"
-
 #include <vector>
+
+#include "ocl_wrapper.hpp"
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -20,7 +19,8 @@ public:
     explicit ocl_error(cl::Error const& err);
 };
 
-#define OCL_ERR_MSG_FMT(err) ("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err()))
+#define OCL_ERR_MSG_FMT(err) \
+    ("[GPU] " + std::string(err.what()) + std::string(", error code: ") + std::to_string(err.err()))
 
 }  // namespace ocl
 }  // namespace cldnn

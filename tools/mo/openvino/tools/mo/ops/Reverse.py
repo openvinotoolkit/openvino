@@ -9,17 +9,17 @@ from openvino.tools.mo.ops.op import Op
 
 
 class Reverse(Op):
-    op = 'Reverse'
+    op = "Reverse"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'axis': None,
-            'op': self.op,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
-            'infer': self.infer,
-            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
+            "type": None,
+            "axis": None,
+            "op": self.op,
+            "in_ports_count": 2,
+            "out_ports_count": 1,
+            "infer": self.infer,
+            "reverse_infer": lambda node: reverse_bypass_infer(node, in_ports=[0]),
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -28,15 +28,15 @@ class Reverse(Op):
         input_shape = node.in_port(0).data.get_shape()
         input_value = node.in_port(0).data.get_value()
         assert input_shape is not None
-        if not node.has_valid('axis'):
+        if not node.has_valid("axis"):
             assert 1 in node.in_nodes()
-            assert node.in_node(1).has_valid('value')
+            assert node.in_node(1).has_valid("value")
             assert node.in_node(1).value.size == 1
 
-            node['axis'] = node.in_node(1).value.item()
+            node["axis"] = node.in_node(1).value.item()
             node.in_port(1).disconnect()
 
-        assert node.has_valid('axis')
+        assert node.has_valid("axis")
 
         assert len(node.out_nodes()) == 1
         if input_value is not None:

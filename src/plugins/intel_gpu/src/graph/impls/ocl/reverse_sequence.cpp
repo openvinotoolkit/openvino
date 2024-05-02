@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "reverse_sequence_inst.h"
-#include "reverse_sequence/reverse_sequence_kernel_selector.h"
 #include "reverse_sequence/reverse_sequence_kernel_ref.h"
+#include "reverse_sequence/reverse_sequence_kernel_selector.h"
+#include "reverse_sequence_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -38,13 +37,15 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
 namespace detail {
 
 attach_reverse_sequence_impl::attach_reverse_sequence_impl() {
-    implementation_map<reverse_sequence>::add(impl_types::ocl, typed_primitive_impl_ocl<reverse_sequence>::create<reverse_sequence_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-    });
+    implementation_map<reverse_sequence>::add(impl_types::ocl,
+                                              typed_primitive_impl_ocl<reverse_sequence>::create<reverse_sequence_impl>,
+                                              {
+                                                  std::make_tuple(data_types::f32, format::bfyx),
+                                                  std::make_tuple(data_types::f16, format::bfyx),
+                                                  std::make_tuple(data_types::i32, format::bfyx),
+                                                  std::make_tuple(data_types::u8, format::bfyx),
+                                                  std::make_tuple(data_types::i8, format::bfyx),
+                                              });
 }
 
 }  // namespace detail

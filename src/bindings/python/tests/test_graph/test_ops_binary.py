@@ -5,10 +5,10 @@
 import operator
 
 import numpy as np
+import openvino.runtime.opset13 as ov
 import pytest
 
 from openvino import Type
-import openvino.runtime.opset13 as ov
 
 
 @pytest.mark.parametrize(
@@ -203,7 +203,9 @@ def test_power_v1():
         ([2, 3, 4, 5], [2, 3, 1, 5], "PDPD", [2, 3, 4, 5]),
     ],
 )
-def test_binary_bitwise_op(graph_api_helper, dtype, shape_a, shape_b, broadcast, shape_out):
+def test_binary_bitwise_op(
+    graph_api_helper, dtype, shape_a, shape_b, broadcast, shape_out
+):
     parameter_a = ov.parameter(shape_a, name="A", dtype=dtype)
     parameter_b = ov.parameter(shape_b, name="B", dtype=dtype)
 

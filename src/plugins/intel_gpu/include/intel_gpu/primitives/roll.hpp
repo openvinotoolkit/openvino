@@ -19,10 +19,7 @@ struct roll : primitive_base<roll> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param shift Tensor which specifies the number of places by which the elements are shifted.
-    roll(const primitive_id& id,
-         const input_info& input,
-         const tensor& shift,
-         const padding& output_padding = {})
+    roll(const primitive_id& id, const input_info& input, const tensor& shift, const padding& output_padding = {})
         : primitive_base(id, {input}, {output_padding}),
           shift(shift) {}
 
@@ -37,7 +34,8 @@ struct roll : primitive_base<roll> {
          const std::vector<int32_t>& raw_axes,
          const padding& output_padding = {})
         : primitive_base(id, {input}, {output_padding}),
-          raw_shift(raw_shift), raw_axes(raw_axes) {}
+          raw_shift(raw_shift),
+          raw_axes(raw_axes) {}
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
@@ -60,9 +58,7 @@ struct roll : primitive_base<roll> {
 
         auto rhs_casted = downcast<const roll>(rhs);
 
-        return shift == rhs_casted.shift &&
-               raw_shift == rhs_casted.raw_shift &&
-               raw_axes == rhs_casted.raw_axes;
+        return shift == rhs_casted.shift && raw_shift == rhs_casted.raw_shift && raw_axes == rhs_casted.raw_axes;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

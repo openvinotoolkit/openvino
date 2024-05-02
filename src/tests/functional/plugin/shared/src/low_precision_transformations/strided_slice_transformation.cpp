@@ -3,6 +3,7 @@
 //
 
 #include "low_precision_transformations/strided_slice_transformation.hpp"
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -23,19 +24,20 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
     return os;
 }
 
-std::string StridedSliceTransformation::getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
+std::string StridedSliceTransformation::getTestCaseName(
+    const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    StridedSliceTransformationParam param;;
+    StridedSliceTransformationParam param;
+    ;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
-           param.fakeQuantize << "_" << param.begin << "_" << param.beginMask << "_" <<
-        param.end << "_" << param.endMask << "_" << param.strides << "_" << param.newAxisMask <<
-        param.shrinkAxisMask << "_" << param.elipsisMask;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << param.fakeQuantize
+           << "_" << param.begin << "_" << param.beginMask << "_" << param.end << "_" << param.endMask << "_"
+           << param.strides << "_" << param.newAxisMask << param.shrinkAxisMask << "_" << param.elipsisMask;
     return result.str();
 }
 
@@ -48,22 +50,21 @@ void StridedSliceTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
-        netPrecision,
-        inputShape,
-        param.fakeQuantize,
-        param.begin,
-        param.end,
-        param.strides,
-        param.beginMask,
-        param.endMask,
-        param.newAxisMask,
-        param.shrinkAxisMask,
-        param.elipsisMask);
+    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(netPrecision,
+                                                                        inputShape,
+                                                                        param.fakeQuantize,
+                                                                        param.begin,
+                                                                        param.end,
+                                                                        param.strides,
+                                                                        param.beginMask,
+                                                                        param.endMask,
+                                                                        param.newAxisMask,
+                                                                        param.shrinkAxisMask,
+                                                                        param.elipsisMask);
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {
     run();
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_op_tests/conversion.hpp"
+
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "single_op_tests/conversion.hpp"
 
 namespace {
 using ov::test::ConversionLayerTest;

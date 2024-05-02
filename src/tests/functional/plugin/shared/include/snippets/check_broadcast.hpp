@@ -18,14 +18,14 @@ public:
     size_t num_subgraphs;
 };
 
-typedef std::tuple <
-    ov::element::Type,            // input types
-    CheckBroadcastTestCaseParams, // test case details
-    std::string                   // target device
-> CheckBroadcastParams;
+typedef std::tuple<ov::element::Type,             // input types
+                   CheckBroadcastTestCaseParams,  // test case details
+                   std::string                    // target device
+                   >
+    CheckBroadcastParams;
 
 class CheckBroadcast : public testing::WithParamInterface<CheckBroadcastParams>,
-                virtual public ov::test::SnippetsTestsCommon {
+                       virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CheckBroadcastParams> obj);
 
@@ -33,6 +33,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

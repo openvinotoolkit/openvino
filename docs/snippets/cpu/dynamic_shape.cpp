@@ -1,6 +1,5 @@
 #include <openvino/runtime/core.hpp>
 
-
 int main() {
     {
         //! [static_shape]

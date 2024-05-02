@@ -9,8 +9,8 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/parallel.hpp"
 #include "dnnl_types.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
@@ -28,7 +28,7 @@ float clip_less(float x, float threshold) {
     return x > threshold ? x : threshold;
 }
 
-}   // namespace
+}  // namespace
 
 bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -129,10 +129,9 @@ void PriorBox::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    addSupportedPrimDesc(
-        {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
-        {{LayoutType::ncsp, ov::element::f32}},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
+                         impl_desc_type::ref_any);
 }
 
 void PriorBox::createPrimitive() {
@@ -183,20 +182,20 @@ void PriorBox::execute(dnnl::stream strm) {
     }
 
     auto calculate_data =
-            [&dst_data, &IWI, &IHI, &idx](float center_x, float center_y, float box_width, float box_height, bool clip) {
-        if (clip) {
-            // order: xmin, ymin, xmax, ymax
-            dst_data[idx++] = clip_less((center_x - box_width) * IWI, 0);
-            dst_data[idx++] = clip_less((center_y - box_height) * IHI, 0);
-            dst_data[idx++] = clip_great((center_x + box_width) * IWI, 1);
-            dst_data[idx++] = clip_great((center_y + box_height) * IHI, 1);
-        } else {
-            dst_data[idx++] = (center_x - box_width) * IWI;
-            dst_data[idx++] = (center_y - box_height) * IHI;
-            dst_data[idx++] = (center_x + box_width) * IWI;
-            dst_data[idx++] = (center_y + box_height) * IHI;
-        }
-    };
+        [&dst_data, &IWI, &IHI, &idx](float center_x, float center_y, float box_width, float box_height, bool clip) {
+            if (clip) {
+                // order: xmin, ymin, xmax, ymax
+                dst_data[idx++] = clip_less((center_x - box_width) * IWI, 0);
+                dst_data[idx++] = clip_less((center_y - box_height) * IHI, 0);
+                dst_data[idx++] = clip_great((center_x + box_width) * IWI, 1);
+                dst_data[idx++] = clip_great((center_y + box_height) * IHI, 1);
+            } else {
+                dst_data[idx++] = (center_x - box_width) * IWI;
+                dst_data[idx++] = (center_y - box_height) * IHI;
+                dst_data[idx++] = (center_x + box_width) * IWI;
+                dst_data[idx++] = (center_y + box_height) * IHI;
+            }
+        };
 
     for (int64_t h = 0; h < H; ++h) {
         for (int64_t w = 0; w < W; ++w) {
@@ -312,6 +311,6 @@ bool PriorBox::created() const {
     return getType() == Type::PriorBox;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

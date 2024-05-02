@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-
 from openvino.runtime import Node, Shape
 from openvino.runtime.op import Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
@@ -63,7 +62,9 @@ def ctc_loss(
     :return: The new node which performs CTCLoss
     """
     if blank_index is not None:
-        inputs = as_nodes(logits, logit_length, labels, label_length, blank_index, name=name)
+        inputs = as_nodes(
+            logits, logit_length, labels, label_length, blank_index, name=name
+        )
     else:
         inputs = as_nodes(logits, logit_length, labels, label_length, name=name)
 
@@ -109,7 +110,14 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold,
+        score_threshold,
+        name=name,
+    )
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -162,7 +170,9 @@ def swish(
     """
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
-    return _get_node_factory_opset4().create("Swish", as_nodes(data, beta, name=name), {})
+    return _get_node_factory_opset4().create(
+        "Swish", as_nodes(data, beta, name=name), {}
+    )
 
 
 @nameable_op
@@ -406,7 +416,9 @@ def lstm_cell(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B, name=name)
+    node_inputs = as_nodes(
+        X, initial_hidden_state, initial_cell_state, W, R, B, name=name
+    )
 
     attributes = {
         "hidden_size": hidden_size,

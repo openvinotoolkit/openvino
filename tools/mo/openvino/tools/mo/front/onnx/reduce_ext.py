@@ -1,23 +1,31 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.ReduceOps import ReduceL1, ReduceL2, ReduceMax, ReduceMean, ReduceMin, ReduceProd, ReduceSum
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.ReduceOps import (
+    ReduceL1,
+    ReduceL2,
+    ReduceMax,
+    ReduceMean,
+    ReduceMin,
+    ReduceProd,
+    ReduceSum,
+)
 
 
 def update_reduce_node_attrs_with(node: Node, c: callable):
-    axis = onnx_attr(node, 'axes', 'ints', default=None)
+    axis = onnx_attr(node, "axes", "ints", default=None)
     if axis is not None:
         axis = int64_array(axis)
-    keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
-    c.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims})
+    keep_dims = onnx_attr(node, "keepdims", "i", default=True)
+    c.update_node_stat(node, {"axis": axis, "keep_dims": keep_dims})
 
 
 class ReduceL1Extractor(FrontExtractorOp):
-    op = 'ReduceL1'
+    op = "ReduceL1"
     enabled = True
 
     @classmethod
@@ -27,7 +35,7 @@ class ReduceL1Extractor(FrontExtractorOp):
 
 
 class ReduceL2Extractor(FrontExtractorOp):
-    op = 'ReduceL2'
+    op = "ReduceL2"
     enabled = True
 
     @classmethod
@@ -37,7 +45,7 @@ class ReduceL2Extractor(FrontExtractorOp):
 
 
 class ReduceMaxFrontExtractor(FrontExtractorOp):
-    op = 'ReduceMax'
+    op = "ReduceMax"
     enabled = True
 
     @classmethod
@@ -47,7 +55,7 @@ class ReduceMaxFrontExtractor(FrontExtractorOp):
 
 
 class ReduceMeanFrontExtractor(FrontExtractorOp):
-    op = 'ReduceMean'
+    op = "ReduceMean"
     enabled = True
 
     @classmethod
@@ -57,7 +65,7 @@ class ReduceMeanFrontExtractor(FrontExtractorOp):
 
 
 class ReduceMinFrontExtractor(FrontExtractorOp):
-    op = 'ReduceMin'
+    op = "ReduceMin"
     enabled = True
 
     @classmethod
@@ -67,7 +75,7 @@ class ReduceMinFrontExtractor(FrontExtractorOp):
 
 
 class ReduceProdFrontExtractor(FrontExtractorOp):
-    op = 'ReduceProd'
+    op = "ReduceProd"
     enabled = True
 
     @classmethod
@@ -77,7 +85,7 @@ class ReduceProdFrontExtractor(FrontExtractorOp):
 
 
 class ReduceSumFrontExtractor(FrontExtractorOp):
-    op = 'ReduceSum'
+    op = "ReduceSum"
     enabled = True
 
     @classmethod

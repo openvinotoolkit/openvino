@@ -51,8 +51,7 @@ public:
         if (!std::get<0>(flatOrAxis)) {
             result << "axis=" << std::get<1>(flatOrAxis) << "_";
         } else {
-            result << "flattened"
-                   << "_";
+            result << "flattened" << "_";
         }
         result << "sorted=" << (sorted ? "True" : "False") << "_";
         result << "dataPrc=" << dataPrecision;
@@ -123,11 +122,15 @@ protected:
             ov::Tensor tensor;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
-                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1, std::multiplies<size_t>());
+                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(),
+                                                targetInputStaticShapes[0].end(),
+                                                1,
+                                                std::multiplies<size_t>());
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -range / 2;
                 in_data.range = range;
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+                tensor =
+                    utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

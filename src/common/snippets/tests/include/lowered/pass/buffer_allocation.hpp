@@ -6,19 +6,19 @@
 
 #include <common_test_utils/ov_test_utils.hpp>
 
-#include "snippets/op/brgemm.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/brgemm.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-    bool,   // Optimized pipeline
-    bool,   // With SplitLoops opt
-    size_t, // Expected Buffer size in bytes
-    size_t  // Expected unique Buffer IDs count
-> BufferAllocationParams;
+typedef std::tuple<bool,    // Optimized pipeline
+                   bool,    // With SplitLoops opt
+                   size_t,  // Expected Buffer size in bytes
+                   size_t   // Expected unique Buffer IDs count
+                   >
+    BufferAllocationParams;
 
 class BufferAllocationTest : public testing::TestWithParam<BufferAllocationParams> {
 public:

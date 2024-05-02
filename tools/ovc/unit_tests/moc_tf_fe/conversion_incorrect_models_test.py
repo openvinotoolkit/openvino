@@ -5,8 +5,7 @@ import os
 import tempfile
 import unittest
 
-from generator import generator, generate
-
+from generator import generate, generator
 from openvino.tools.ovc.convert import convert_model
 
 

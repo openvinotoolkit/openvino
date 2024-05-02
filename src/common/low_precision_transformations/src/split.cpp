@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/split.hpp"
+
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
-#include "low_precision/split.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -17,7 +17,8 @@ namespace low_precision {
 
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(SplitTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::Split>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::Split>(
+        {pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -46,7 +47,8 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     newSplit->set_friendly_name(split->get_friendly_name());
     ov::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis =
+        ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis =
         ov::util::normalize_axis(split->get_friendly_name(), axis, split->get_input_partial_shape(0).rank());
     const size_t outputSize = newSplit->get_output_size();
@@ -58,7 +60,9 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
 
         OutputVector results(outputSize);
         if ((shape_size(constantShape) == 1ul) || (constantShape[normalizedAxis] == 1ul)) {
-            std::for_each(results.begin(), results.end(), [&](Output<Node>& elem) { elem = normalizedConstant->clone_with_new_inputs({}); });
+            std::for_each(results.begin(), results.end(), [&](Output<Node>& elem) {
+                elem = normalizedConstant->clone_with_new_inputs({});
+            });
         } else {
             // prepare new inputs for constant folding
             OutputVector inputs = newSplit->input_values();
@@ -86,20 +90,20 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
         Output<Node> parent = newSplit->output(i);
 
         if (dequantization.convert) {
-            const auto convert = dequantization.convert->clone_with_new_inputs({ newSplit->output(i) });
-            copy_runtime_info({ newSplit, convert }, convert);
+            const auto convert = dequantization.convert->clone_with_new_inputs({newSplit->output(i)});
+            copy_runtime_info({newSplit, convert}, convert);
             parent = convert;
         }
 
         if (dequantization.subtract) {
             const auto subtract = NetworkHelper::makeDequantizationSubtract(parent, splitedSub[i]);
-            copy_runtime_info({ newSplit, subtract }, subtract);
+            copy_runtime_info({newSplit, subtract}, subtract);
             parent = subtract;
         }
 
         const auto multiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
-        copy_runtime_info({ newSplit, multiply }, multiply);
+        copy_runtime_info({newSplit, multiply}, multiply);
 
         lastNodes.push_back(multiply);
         replacement.push_back(multiply);
@@ -115,7 +119,7 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     for (size_t i = 0; i < replacement.size(); ++i) {
         for (const auto& input : replacement[i].get_target_inputs()) {
             if (const auto shapeOf = as_type_ptr<ov::opset1::ShapeOf>(input.get_node()->shared_from_this())) {
-                const auto newShapeOf = shapeOf->clone_with_new_inputs({ newSplit->output(i) });
+                const auto newShapeOf = shapeOf->clone_with_new_inputs({newSplit->output(i)});
                 replace_node_update_name(shapeOf, newShapeOf);
             }
         }
@@ -127,12 +131,10 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
     return true;
 }
 
-
-void SplitTransformation::updateOutputs(
-    TransformationContext& context,
-    std::vector<std::shared_ptr<ov::Node>> lastNodes,
-    std::shared_ptr<ov::Node> originalNode) const {
-    //TODO: LPT: during refactoring update is not tested
+void SplitTransformation::updateOutputs(TransformationContext& context,
+                                        std::vector<std::shared_ptr<ov::Node>> lastNodes,
+                                        std::shared_ptr<ov::Node> originalNode) const {
+    // TODO: LPT: during refactoring update is not tested
     if (lastNodes.size() == 1ul) {
         updateOutput(context, lastNodes[0], originalNode);
     } else {
@@ -157,9 +159,10 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
+    return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() &&
+           layer->get_input_partial_shape(0).rank().is_static();
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

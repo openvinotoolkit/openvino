@@ -12,31 +12,22 @@ const std::vector<ov::element::Type> precisions = {
     // ov::element::f16 // TODO: temporarily commented due to failing in GPU Plugin on constant folding stage
 };
 
-const std::vector<ov::PartialShape>inputAndQuantizationShapes = {
-        { 1, 4, 16, 16 },
+const std::vector<ov::PartialShape> inputAndQuantizationShapes = {
+    {1, 4, 16, 16},
 };
 
 const std::vector<ov::builder::subgraph::DequantizationOperations> deqOperations = {
-        {
-                { ov::element::f32 },
-                {1.f},
-                {0.45f}
-        },
-        {
-                { ov::element::f32 },
-                {},
-                {0.45f}
-        }
-};
+    {{ov::element::f32}, {1.f}, {0.45f}},
+    {{ov::element::f32}, {}, {0.45f}}};
 
-const std::vector<bool> constInput = { true, false };
+const std::vector<bool> constInput = {true, false};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseConvertTransformation,
-    ::testing::Combine(
-            ::testing::ValuesIn(precisions),
-            ::testing::ValuesIn(inputAndQuantizationShapes),
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(deqOperations),
-            ::testing::ValuesIn(constInput)),
-    FuseConvertTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FuseConvertTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(inputAndQuantizationShapes),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(deqOperations),
+                                            ::testing::ValuesIn(constInput)),
+                         FuseConvertTransformation::getTestCaseName);
 }  // namespace

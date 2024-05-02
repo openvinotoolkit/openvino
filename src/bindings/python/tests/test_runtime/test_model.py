@@ -2,32 +2,36 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import numpy as np
-import pytest
 import math
+import os
 from contextlib import nullcontext as does_not_raise
 from copy import copy
 
+import numpy as np
 import openvino.runtime.opset13 as ops
+import pytest
+from openvino.runtime import Output
+from openvino.runtime.op.util import Variable, VariableInfo
+from tests.utils.helpers import (
+    create_filename_for_test,
+    generate_add_model,
+    generate_model_with_memory,
+)
+
 from openvino import (
     Core,
-    Model,
-    Tensor,
     Dimension,
     Layout,
-    Type,
+    Model,
     PartialShape,
     Shape,
-    set_batch,
+    Tensor,
+    Type,
     get_batch,
-    serialize,
     save_model,
+    serialize,
+    set_batch,
 )
-from openvino.runtime import Output
-from openvino.runtime.op.util import VariableInfo, Variable
-
-from tests.utils.helpers import generate_add_model, generate_model_with_memory, create_filename_for_test
 
 
 def test_descriptor_tensor():
@@ -44,15 +48,22 @@ def test_descriptor_tensor():
     assert td.any_name == "relu_t1"
 
 
-@pytest.mark.parametrize(("output", "expectation", "raise_msg"), [
-    ("relu_t1", does_not_raise(), ""),
-    (("relu1", 0), does_not_raise(), ""),
-    ("relu_t", pytest.raises(RuntimeError), "relu_t"),
-    (("relu1", 1234), pytest.raises(RuntimeError), "1234"),
-    (("relu_1", 0), pytest.raises(RuntimeError), "relu_1"),
-    (0, pytest.raises(TypeError), "Incorrect type of a value to add as output."),
-    ([0, 0], pytest.raises(TypeError), "Incorrect type of a value to add as output at index 0"),
-])
+@pytest.mark.parametrize(
+    ("output", "expectation", "raise_msg"),
+    [
+        ("relu_t1", does_not_raise(), ""),
+        (("relu1", 0), does_not_raise(), ""),
+        ("relu_t", pytest.raises(RuntimeError), "relu_t"),
+        (("relu1", 1234), pytest.raises(RuntimeError), "1234"),
+        (("relu_1", 0), pytest.raises(RuntimeError), "relu_1"),
+        (0, pytest.raises(TypeError), "Incorrect type of a value to add as output."),
+        (
+            [0, 0],
+            pytest.raises(TypeError),
+            "Incorrect type of a value to add as output at index 0",
+        ),
+    ],
+)
 def test_add_outputs(output, expectation, raise_msg):
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
@@ -178,14 +189,26 @@ def test_replace_parameter():
     assert model.get_parameter_index(param1) == -1
 
 
-@pytest.mark.parametrize(("args1", "args2", "expectation", "raise_msg"), [
-    (Tensor("float32", Shape([2, 1])),
-     [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
-      Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1))], does_not_raise(), ""),
-    (Tensor("float32", Shape([2, 1])),
-     [Tensor("float32", Shape([3, 1])),
-      Tensor("float32", Shape([3, 1]))], pytest.raises(RuntimeError), "Cannot evaluate model!"),
-])
+@pytest.mark.parametrize(
+    ("args1", "args2", "expectation", "raise_msg"),
+    [
+        (
+            Tensor("float32", Shape([2, 1])),
+            [
+                Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
+                Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1)),
+            ],
+            does_not_raise(),
+            "",
+        ),
+        (
+            Tensor("float32", Shape([2, 1])),
+            [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
+            pytest.raises(RuntimeError),
+            "Cannot evaluate model!",
+        ),
+    ],
+)
 def test_evaluate(args1, args2, expectation, raise_msg):
     model = generate_add_model()
     with expectation as e:
@@ -342,11 +365,19 @@ def test_reshape_with_python_types(device):
 
     shape9 = [-1, 3, (28, 56), (28, 56)]
     model.reshape(shape9)
-    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
+    check_shape(
+        PartialShape(
+            [Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]
+        )
+    )
 
     shape10 = "[?,3,..224,..224]"
     model.reshape(shape10)
-    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
+    check_shape(
+        PartialShape(
+            [Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]
+        )
+    )
 
     # check exceptions
     shape10 = [1, 1, 1, 1]
@@ -439,25 +470,94 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.has_rt_info(["config", "model_parameters", "threshold"]) is True
         assert model.has_rt_info(["config", "model_parameters", "min"]) is True
         assert model.has_rt_info(["config", "model_parameters", "max"]) is True
-        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) is True
-        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) is True
-        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) is True
-        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) is True
-        assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
+        assert (
+            model.has_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "type"]
+            )
+            is True
+        )
+        assert (
+            model.has_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "directed"]
+            )
+            is True
+        )
+        assert (
+            model.has_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "float_empty"]
+            )
+            is True
+        )
+        assert (
+            model.has_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "nodes"]
+            )
+            is True
+        )
+        assert (
+            model.has_rt_info(
+                ["config", "model_parameters", "labels", "label_groups", "ids"]
+            )
+            is True
+        )
         assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
 
-        assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
-        assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "threshold"]).astype(float), 13.23, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001)
-        assert math.isclose(model.get_rt_info(["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001)
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]).astype(str) == "tree"
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
+        assert (
+            model.get_rt_info(["config", "type_of_model"]).astype(str)
+            == "classification"
+        )
+        assert (
+            model.get_rt_info(["config", "converter_type"]).astype(str)
+            == "classification"
+        )
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "threshold"]).astype(
+                float
+            ),
+            13.23,
+            rel_tol=0.0001,
+        )
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "min"]).astype(float),
+            -3.24543,
+            rel_tol=0.0001,
+        )
+        assert math.isclose(
+            model.get_rt_info(["config", "model_parameters", "max"]).astype(float),
+            3.234223,
+            rel_tol=0.0001,
+        )
+        assert (
+            model.get_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "type"]
+            ).astype(str)
+            == "tree"
+        )
+        assert (
+            model.get_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "directed"]
+            ).astype(bool)
+            is True
+        )
 
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]).aslist() == []
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
-        assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
+        assert (
+            model.get_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "float_empty"]
+            ).aslist()
+            == []
+        )
+        assert (
+            model.get_rt_info(
+                ["config", "model_parameters", "labels", "label_tree", "nodes"]
+            ).aslist()
+            == []
+        )
+        assert model.get_rt_info(
+            ["config", "model_parameters", "labels", "label_groups", "ids"]
+        ).aslist(str) == ["sasd", "fdfdfsdf"]
+        assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(
+            float
+        ) == [22.3, 33.11, 44.0]
 
         rt_info = model.get_rt_info()
         assert isinstance(rt_info["config"], dict)
@@ -465,9 +565,15 @@ def test_serialize_complex_rt_info(request, tmp_path):
         for key, value in rt_info.items():
             if key == "config":
                 for config_value in value:
-                    assert config_value in ["type_of_model", "converter_type", "model_parameters"]
+                    assert config_value in [
+                        "type_of_model",
+                        "converter_type",
+                        "model_parameters",
+                    ]
 
-        for rt_info_val in model.get_rt_info(["config", "model_parameters", "labels", "label_tree"]).astype(dict):
+        for rt_info_val in model.get_rt_info(
+            ["config", "model_parameters", "labels", "label_tree"]
+        ).astype(dict):
             assert rt_info_val in ["float_empty", "nodes", "type", "directed"]
 
     core = Core()
@@ -487,12 +593,25 @@ def test_serialize_complex_rt_info(request, tmp_path):
     model.set_rt_info(13.23, ["config", "model_parameters", "threshold"])
     model.set_rt_info(-3.24543, ["config", "model_parameters", "min"])
     model.set_rt_info(3.234223, ["config", "model_parameters", "max"])
-    model.set_rt_info("tree", ["config", "model_parameters", "labels", "label_tree", "type"])
-    model.set_rt_info(True, ["config", "model_parameters", "labels", "label_tree", "directed"])
-    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "float_empty"])
-    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "nodes"])
-    model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
-    model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
+    model.set_rt_info(
+        "tree", ["config", "model_parameters", "labels", "label_tree", "type"]
+    )
+    model.set_rt_info(
+        True, ["config", "model_parameters", "labels", "label_tree", "directed"]
+    )
+    model.set_rt_info(
+        [], ["config", "model_parameters", "labels", "label_tree", "float_empty"]
+    )
+    model.set_rt_info(
+        [], ["config", "model_parameters", "labels", "label_tree", "nodes"]
+    )
+    model.set_rt_info(
+        ["sasd", "fdfdfsdf"],
+        ["config", "model_parameters", "labels", "label_groups", "ids"],
+    )
+    model.set_rt_info(
+        [22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"]
+    )
 
     check_rt_info(model)
 
@@ -580,4 +699,6 @@ def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
+    assert "cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(
+        e.value
+    )

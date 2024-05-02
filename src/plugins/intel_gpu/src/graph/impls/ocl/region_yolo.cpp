@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "region_yolo_inst.h"
-#include "region_yolo/region_yolo_kernel_selector.h"
 #include "region_yolo/region_yolo_kernel_ref.h"
+#include "region_yolo/region_yolo_kernel_selector.h"
+#include "region_yolo_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -40,16 +39,18 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
 namespace detail {
 
 attach_region_yolo_impl::attach_region_yolo_impl() {
-    implementation_map<region_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<region_yolo>::create<region_yolo_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-    });
+    implementation_map<region_yolo>::add(impl_types::ocl,
+                                         typed_primitive_impl_ocl<region_yolo>::create<region_yolo_impl>,
+                                         {
+                                             std::make_tuple(data_types::f32, format::bfyx),
+                                             std::make_tuple(data_types::f16, format::bfyx),
+                                             std::make_tuple(data_types::f32, format::byxf),
+                                             std::make_tuple(data_types::f16, format::byxf),
+                                             std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                             std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                             std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                             std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                         });
 }
 
 }  // namespace detail

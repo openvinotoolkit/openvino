@@ -18,26 +18,32 @@ class RemoveUselessConcatSplitPattern(MiddleReplacementPattern):
        br1  br2   ..  br(n-1)br(n)
 
     """
+
     enabled = True
     force_clean_up = True
 
     def run_after(self):
-        from openvino.tools.mo.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
+        from openvino.tools.mo.middle.ReplaceSpliceNodePattern import (
+            ReplaceSpliceNodePattern,
+        )
+
         return [ReplaceSpliceNodePattern]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('concat', dict(op='Concat')),
-                   ('data', dict(kind='data')),
-                   ('split', dict(op='Split'))],
-            edges=[('concat', 'data'),
-                   ('data', 'split')])
+            nodes=[
+                ("concat", dict(op="Concat")),
+                ("data", dict(kind="data")),
+                ("split", dict(op="Split")),
+            ],
+            edges=[("concat", "data"), ("data", "split")],
+        )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        concat_node = match['concat']
-        split_node = match['split']
+        concat_node = match["concat"]
+        split_node = match["split"]
 
         # don't apply pass if concat have another outputs except split
         if len(concat_node.out_port(0).get_destinations()) != 1:

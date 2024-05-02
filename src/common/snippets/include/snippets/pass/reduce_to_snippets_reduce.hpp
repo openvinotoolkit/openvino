@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
 namespace snippets {
@@ -17,12 +17,11 @@ namespace pass {
  * Also checks that reduction operation is supported by snippets.
  * @ingroup snippets
  */
-class ReduceToSnippetsReduce: public ov::pass::MatcherPass {
+class ReduceToSnippetsReduce : public ov::pass::MatcherPass {
 public:
     ReduceToSnippetsReduce();
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

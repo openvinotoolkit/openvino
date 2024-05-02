@@ -1,22 +1,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # logical_xor paddle model generator
 #
 import numpy as np
 from save_model import saveModel
-import sys
 
 
-def equal_logical_xor(name : str, x, y, z):
+def equal_logical_xor(name: str, x, y, z):
     import paddle
+
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
-        node_y = paddle.static.data(name='y', shape=y.shape, dtype='float32')
-        node_z = paddle.static.data(name='z', shape=z.shape, dtype='float32')
+        node_x = paddle.static.data(name="x", shape=x.shape, dtype="float32")
+        node_y = paddle.static.data(name="y", shape=y.shape, dtype="float32")
+        node_z = paddle.static.data(name="z", shape=z.shape, dtype="float32")
 
         bool_x = paddle.equal(node_x, node_y)
         bool_y = paddle.equal(node_x, node_z)
@@ -28,13 +30,18 @@ def equal_logical_xor(name : str, x, y, z):
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
-            
-        outs = exe.run(
-            feed={'x': x, 'y': y, 'z': z},
-            fetch_list=[out])
-            
-        saveModel(name, exe, feedkeys=['x', 'y', 'z'], fetchlist=[out], 
-            inputs=[x, y, z], outputs=[outs[0]], target_dir=sys.argv[1])
+
+        outs = exe.run(feed={"x": x, "y": y, "z": z}, fetch_list=[out])
+
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x", "y", "z"],
+            fetchlist=[out],
+            inputs=[x, y, z],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 
@@ -45,7 +52,6 @@ def main():
     data_z = np.array([[[[1, 0, 5]], [[2, 1, 0]]]]).astype(np.float32)
 
     equal_logical_xor("logical_xor", data_x, data_y, data_z)
-
 
 
 if __name__ == "__main__":

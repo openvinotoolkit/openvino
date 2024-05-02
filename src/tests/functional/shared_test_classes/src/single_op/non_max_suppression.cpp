@@ -128,7 +128,8 @@ void Nms9LayerTest::SetUp() {
     ov::element::Type params_type, max_box_type, thr_type;
     std::tie(params_type, max_box_type, thr_type) = input_types;
 
-    const std::vector<size_t> boxes_shape{m_num_batches, m_num_boxes, 4}, scores_shape{m_num_batches, num_classes, m_num_boxes};
+    const std::vector<size_t> boxes_shape{m_num_batches, m_num_boxes, 4},
+        scores_shape{m_num_batches, num_classes, m_num_boxes};
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(boxes_shape)),
                                std::make_shared<ov::op::v0::Parameter>(params_type, ov::Shape(scores_shape))};
@@ -190,10 +191,10 @@ void convert(fromT* src, toT* dst, size_t size) {
 //    [batch_index, class_index, box_score].
 // 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
 void compare_b_boxes(const std::vector<ov::Tensor>& expected,
-                   const std::vector<ov::Tensor>& actual,
-                   const ov::Tensor& input,
-                   size_t num_batches,
-                   size_t num_boxes) {
+                     const std::vector<ov::Tensor>& actual,
+                     const ov::Tensor& input,
+                     size_t num_batches,
+                     size_t num_boxes) {
     auto iou_func = [](const Box& box_i, const Box& box_j) {
         const Rect& rect_i = box_i.rect;
         const Rect& rect_j = box_j.rect;

@@ -11,8 +11,7 @@ import subprocess
 
 
 def cmd_exec(args, timeout=None, env=None, log=None, verbose=True, shell=False):
-    """ Run cmd using subprocess with logging and other improvements
-    """
+    """Run cmd using subprocess with logging and other improvements"""
     if log is None:
         log = logging.getLogger()
     log_out = log.info if verbose else log.debug

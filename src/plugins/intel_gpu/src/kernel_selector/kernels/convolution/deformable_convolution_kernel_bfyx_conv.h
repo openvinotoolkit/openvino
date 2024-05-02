@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 

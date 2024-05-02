@@ -11,6 +11,7 @@ class ExtractImagePatchesKernelRef : public ExtractImagePatchesKernelBase {
 public:
     ExtractImagePatchesKernelRef() : ExtractImagePatchesKernelBase("extract_image_patches_ref") {}
     virtual ~ExtractImagePatchesKernelRef() = default;
+
 protected:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -7,10 +7,14 @@ import onnx
 import onnx.mapping
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
-
 from openvino.runtime.exceptions import OVTypeError
 from tests.runtime import get_runtime
-from tests.tests_python.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests.tests_python.utils import (
+    get_node_model,
+    import_onnx_model,
+    run_model,
+    run_node,
+)
 
 
 @pytest.mark.parametrize(
@@ -125,12 +129,20 @@ def test_ceil(input_data):
 
 @pytest.mark.parametrize(
     ("min_value", "max_value"),
-    [(np.finfo(np.float32).min, np.finfo(np.float32).max), (-0.5, 0.5), (0.0, np.finfo(np.float32).max)],
+    [
+        (np.finfo(np.float32).min, np.finfo(np.float32).max),
+        (-0.5, 0.5),
+        (0.0, np.finfo(np.float32).max),
+    ],
 )
 def test_clip(min_value, max_value):
     np.random.seed(133391)
-    input_data = np.float32(-100.0) + np.random.randn(3, 4, 5).astype(np.float32) * np.float32(200.0)
-    model = get_node_model("Clip", input_data, opset=10, min=float(min_value), max=float(max_value))
+    input_data = np.float32(-100.0) + np.random.randn(3, 4, 5).astype(
+        np.float32
+    ) * np.float32(200.0)
+    model = get_node_model(
+        "Clip", input_data, opset=10, min=float(min_value), max=float(max_value)
+    )
     result = run_model(model, [input_data])
     expected = np.clip(input_data, min_value, max_value)
     assert np.allclose(result, [expected])
@@ -221,7 +233,9 @@ def test_hardsigmoid():
     data = np.random.rand(3, 4, 5).astype(np.float32)
 
     expected = hardsigmoid(data, alpha, beta)
-    node = onnx.helper.make_node("HardSigmoid", inputs=["x"], outputs=["y"], alpha=alpha, beta=beta)
+    node = onnx.helper.make_node(
+        "HardSigmoid", inputs=["x"], outputs=["y"], alpha=alpha, beta=beta
+    )
     graph_results = run_node(node, [data])
     assert np.allclose(graph_results, [expected])
 
@@ -301,7 +315,9 @@ def test_identity():
     assert np.array_equal(graph_results, [input_data])
 
     node1 = make_node("Add", inputs=["A", "B"], outputs=["add1"], name="add_node1")
-    node2 = make_node("Identity", inputs=["add1"], outputs=["identity1"], name="identity_node1")
+    node2 = make_node(
+        "Identity", inputs=["add1"], outputs=["identity1"], name="identity_node1"
+    )
     node3 = make_node("Abs", inputs=["identity1"], outputs=["Y"], name="abs_node1")
 
     graph = make_graph(
@@ -323,11 +339,15 @@ def test_identity():
     assert np.array_equal(graph_results[0], expected_result)
 
 
-@pytest.mark.parametrize(("val_type", "input_data"), [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
+@pytest.mark.parametrize(
+    ("val_type", "input_data"), [(np.dtype(bool), np.zeros((2, 2), dtype=int))]
+)
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
+    model = get_node_model(
+        "Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type)
+    )
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -344,16 +364,16 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
     input_data = np.random.randint(range_start, range_end, size=(2, 2), dtype=in_dtype)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
+    model = get_node_model(
+        "Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type)
+    )
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
 
 @pytest.mark.parametrize(
-    "val_type", [np.dtype(np.int8),
-                 np.dtype(np.int16),
-                 np.dtype(np.int32),
-                 np.dtype(np.int64)],
+    "val_type",
+    [np.dtype(np.int8), np.dtype(np.int16), np.dtype(np.int32), np.dtype(np.int64)],
 )
 def test_cast_to_int(val_type):
     np.random.seed(133391)
@@ -361,20 +381,25 @@ def test_cast_to_int(val_type):
     input_data = np.ceil(-8 + random_data).astype(val_type)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
+    model = get_node_model(
+        "Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type)
+    )
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
 
 @pytest.mark.parametrize(
-    "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)],
+    "val_type",
+    [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)],
 )
 def test_cast_to_uint(val_type):
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(val_type)
     expected = np.array(input_data, dtype=val_type)
 
-    model = get_node_model("Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type))
+    model = get_node_model(
+        "Cast", input_data, opset=6, to=onnx.helper.np_dtype_to_tensor_dtype(val_type)
+    )
     result = run_model(model, [input_data])
     assert np.allclose(result, expected)
 
@@ -412,7 +437,9 @@ def test_cast_errors():
         import_onnx_model(model)
 
     # unsupported input tensor data type:
-    node = onnx.helper.make_node("Cast", inputs=["A"], outputs=["B"], to=onnx.TensorProto.INT32)
+    node = onnx.helper.make_node(
+        "Cast", inputs=["A"], outputs=["B"], to=onnx.TensorProto.INT32
+    )
     input_tensors = [
         make_tensor_value_info(name, onnx.TensorProto.COMPLEX64, value.shape)
         for name, value in zip(node.input, [input_data])
@@ -425,7 +452,9 @@ def test_cast_errors():
         import_onnx_model(model)
 
     # unsupported output tensor data type:
-    node = onnx.helper.make_node("Cast", inputs=["A"], outputs=["B"], to=onnx.TensorProto.COMPLEX128)
+    node = onnx.helper.make_node(
+        "Cast", inputs=["A"], outputs=["B"], to=onnx.TensorProto.COMPLEX128
+    )
     input_tensors = [
         make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
         for name, value in zip(node.input, [input_data])
@@ -438,9 +467,9 @@ def test_cast_errors():
         import_onnx_model(model)
 
 
-@pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float64),
-                          pytest.param(np.float32)])
+@pytest.mark.parametrize(
+    "value_type", [pytest.param(np.float64), pytest.param(np.float32)]
+)
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

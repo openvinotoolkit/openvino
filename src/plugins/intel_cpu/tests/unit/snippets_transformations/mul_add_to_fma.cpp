@@ -3,14 +3,15 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <subgraph_simple.hpp>
+#include <transformations/snippets/x64/op/fused_mul_add.hpp>
 #include <transformations/snippets/x64/pass/mul_add_to_fma.hpp>
 #include <transformations/snippets/x64/shape_inference.hpp>
-#include <transformations/snippets/x64/op/fused_mul_add.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
-#include "snippets/op/scalar.hpp"
-#include "lowering_utils.hpp"
+
 #include "common_test_utils/common_utils.hpp"
+#include "lowering_utils.hpp"
+#include "snippets/op/scalar.hpp"
 #include "snippets/pass/manager.hpp"
 
 namespace ov {
@@ -71,7 +72,6 @@ protected:
             data2 = parameter;
         }
 
-
         auto a = scalar_input || add_input_idx == 0 ? data0 : data1;
         auto b = scalar_input || add_input_idx == 0 ? data1 : data2;
         auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
@@ -80,9 +80,9 @@ protected:
         return std::make_shared<ov::Model>(NodeVector{fma}, parameters);
     }
 
-    void validate_function(const std::shared_ptr<Model> &m) const override {
+    void validate_function(const std::shared_ptr<Model>& m) const override {
         OPENVINO_ASSERT(m != nullptr, "The test requires Model to be defined");
-        const auto &params = m->get_parameters();
+        const auto& params = m->get_parameters();
         OPENVINO_ASSERT(params.size() == (scalar_input ? input_shapes.size() - 1 : input_shapes.size()),
                         "Passed input shapes and produced function are inconsistent.");
         for (size_t i = 0; i < params.size(); i++)
@@ -95,12 +95,12 @@ private:
     bool scalar_input;
 };
 
-typedef std::tuple<
-        PartialShape,  // Input shape 0
-        PartialShape,  // Input shape 1
-        PartialShape,  // Input shape 2
-        size_t         // Add input index
-> MulAddToFMAParams;
+typedef std::tuple<PartialShape,  // Input shape 0
+                   PartialShape,  // Input shape 1
+                   PartialShape,  // Input shape 2
+                   size_t         // Add input index
+                   >
+    MulAddToFMAParams;
 
 class MulAddToFMATests : public LoweringTests, public testing::WithParamInterface<MulAddToFMAParams> {
 public:
@@ -111,7 +111,7 @@ public:
 
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
-            result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
+            result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
         result << "add_input_idx=" << add_input_idx;
         return result.str();
     }
@@ -146,7 +146,8 @@ TEST_P(MulAddToFMATests, MulAddToFMATests) {
                                        std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                        {},
                                        generator,
-                                       8, 256,
+                                       8,
+                                       256,
                                        std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
     model = subgraph->body_ptr();
     model_ref = snippets_model->getLowered();
@@ -158,14 +159,14 @@ std::vector<PartialShape> in_shapes_1 = {{1, 3, 16, 16}};
 std::vector<PartialShape> in_shapes_2 = {{1, 3, 16, 16}, {}};
 std::vector<size_t> in_idxes_for_add = {0, 1};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets, MulAddToFMATests,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(in_shapes_0),
-                                ::testing::ValuesIn(in_shapes_1),
-                                ::testing::ValuesIn(in_shapes_2),
-                                ::testing::ValuesIn(in_idxes_for_add)),
-                        MulAddToFMATests::getTestCaseName);
-} // namespace MulAddToFMATestsInstantiation
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets,
+                         MulAddToFMATests,
+                         ::testing::Combine(::testing::ValuesIn(in_shapes_0),
+                                            ::testing::ValuesIn(in_shapes_1),
+                                            ::testing::ValuesIn(in_shapes_2),
+                                            ::testing::ValuesIn(in_idxes_for_add)),
+                         MulAddToFMATests::getTestCaseName);
+}  // namespace MulAddToFMATestsInstantiation
 
 TEST_F(TransformationTestsF, smoke_Snippets_MulAddToFMATestsNegative) {
     auto data0 = std::make_shared<op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});

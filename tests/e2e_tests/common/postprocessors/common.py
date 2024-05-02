@@ -3,9 +3,15 @@
 
 """Common postprocessors."""
 import numpy as np
+from e2e_tests.common.preprocessors.preprocessors import (
+    CustomPreproc,
+    Normalize,
+    RemoveLayersFromInputData,
+    RenameInputs,
+    SliceData,
+    Squeeze,
+)
 
-from e2e_tests.common.preprocessors.preprocessors import SliceData, Normalize, CustomPreproc, RemoveLayersFromInputData, \
-    RenameInputs, Squeeze
 from .provider import ClassProvider
 
 
@@ -14,6 +20,7 @@ class Squeeze(ClassProvider, Squeeze):
 
     Implementation duplicates Squeeze preprocessor.
     """
+
     __action_name__ = "squeeze"
     pass
 
@@ -23,14 +30,15 @@ class AlignWithBatch(ClassProvider):
 
     Duplicates 1-batch data BATCH number of times.
     """
+
     __action_name__ = "align_with_batch"
 
     def __init__(self, config):
-        self.batch = config['batch']
-        self.batch_dim = config.get('batch_dim', 0)
-        self.expand_dims = config.get('expand_dims', False)
-        self.target_layers = config.get('target_layers', None)
-        self.axis = config.get('axis', [self.batch_dim])
+        self.batch = config["batch"]
+        self.batch_dim = config.get("batch_dim", 0)
+        self.expand_dims = config.get("expand_dims", False)
+        self.target_layers = config.get("target_layers", None)
+        self.axis = config.get("axis", [self.batch_dim])
 
     def apply(self, data):
         """Apply batch alignment (duplication) to data."""
@@ -48,10 +56,11 @@ class FilterTorchData(ClassProvider):
 
     Filters torch outputs and converts them to numpy format.
     """
+
     __action_name__ = "filter_torch_data"
 
     def __init__(self, config):
-        self.target_layers = config.get('target_layers', None)
+        self.target_layers = config.get("target_layers", None)
 
     def apply(self, data):
         apply_to = self.target_layers if self.target_layers else data.keys()
@@ -66,11 +75,12 @@ class PermuteShape(ClassProvider):
 
     Permutes data shape using ORDER value.
     """
+
     __action_name__ = "permute_shape"
 
     def __init__(self, config):
         self.order = config["order"]
-        self.target_layers = config.get('target_layers', None)
+        self.target_layers = config.get("target_layers", None)
 
     def apply(self, data):
         """Apply np.transpose to data."""
@@ -85,10 +95,11 @@ class RemoveLayer(ClassProvider):
 
     Removes layer from data dictionary by name.
     """
+
     __action_name__ = "remove_layer"
 
     def __init__(self, config):
-        self.target_layers = config.get('layers_to_remove', None)
+        self.target_layers = config.get("layers_to_remove", None)
 
     def apply(self, data):
         if self.target_layers:
@@ -111,6 +122,7 @@ class Normalize(ClassProvider, Normalize):
 
     Implementation duplicates Normalize preprocessor
     """
+
     pass
 
 
@@ -119,11 +131,12 @@ class ExpandDims(ClassProvider):
 
     Expands dimension by axis.
     """
+
     __action_name__ = "expand_dims"
 
     def __init__(self, config):
-        self.target_layers = config.get('target_layers')
-        self.axis = config.get('axis')
+        self.target_layers = config.get("target_layers")
+        self.axis = config.get("axis")
 
     def apply(self, data):
         self.target_layers = self.target_layers if self.target_layers else data.keys()
@@ -137,11 +150,12 @@ class RemoveZeros(ClassProvider):
 
     Removes all-zero elements by axis.
     """
+
     __action_name__ = "remove_zeros"
 
     def __init__(self, config):
-        self.target_layers = config.get('target_layers')
-        self.axis = config.get('axis')
+        self.target_layers = config.get("target_layers")
+        self.axis = config.get("axis")
 
     def apply(self, data):
         self.target_layers = self.target_layers if self.target_layers else data.keys()
@@ -155,12 +169,13 @@ class Clip(ClassProvider):
 
     Removes all-zero elements by axis.
     """
+
     __action_name__ = "clip"
 
     def __init__(self, config):
-        self.target_layers = config.get('target_layers')
-        self.min = config.get('min')
-        self.max = config.get('max')
+        self.target_layers = config.get("target_layers")
+        self.min = config.get("min")
+        self.max = config.get("max")
 
     def apply(self, data):
         self.target_layers = self.target_layers if self.target_layers else data.keys()
@@ -174,6 +189,7 @@ class CustomPostproc(ClassProvider, CustomPreproc):
 
     Implementation duplicates CustomPreproc preprocessor
     """
+
     __action_name__ = "custom_postprocessor"
 
     pass
@@ -186,6 +202,7 @@ class RemoveLayersFromData(ClassProvider, RemoveLayersFromInputData):
     Use case: if reference results contain extra outputs for comparison,
     it can be removed from data through this postprocessor
     """
+
     __action_name__ = "remove_layers_from_data"
 
     pass
@@ -193,15 +210,16 @@ class RemoveLayersFromData(ClassProvider, RemoveLayersFromInputData):
 
 class RenameOutputs(ClassProvider, RenameInputs):
     __action_name__ = "rename_outputs"
-    pass 
+    pass
 
 
 class ConvertNamesToIndices(ClassProvider):
     """Converts input names to indices"""
+
     __action_name__ = "names_to_indices"
 
     def __init__(self, config):
-        self.target_layers = config.get('target_layers', None)
+        self.target_layers = config.get("target_layers", None)
 
     def apply(self, data):
         converted = {}
@@ -213,6 +231,7 @@ class ConvertNamesToIndices(ClassProvider):
 
 class AssignIndices(ClassProvider):
     """Assigns indices for tensors"""
+
     __action_name__ = "assign_indices"
 
     def __init__(self, config):
@@ -221,6 +240,7 @@ class AssignIndices(ClassProvider):
     @staticmethod
     def apply(data):
         import torch
+
         if isinstance(data, torch.Tensor):
             data = [data]
         converted = {}

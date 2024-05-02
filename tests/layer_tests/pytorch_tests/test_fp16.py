@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -28,8 +27,15 @@ class TestBF16(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("to_trace", [True, False])
     def test_bf16(self, ie_device, precision, ir_version, to_trace):
-        self._test(*self.create_model(), ie_device, precision,
-                   ir_version, trace_model=to_trace, freeze_model=False, use_convert_model=True)
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=to_trace,
+            freeze_model=False,
+            use_convert_model=True
+        )
 
 
 class TestFP16(PytorchLayerTest):
@@ -52,5 +58,12 @@ class TestFP16(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("to_trace", [True, False])
     def test_fp16(self, ie_device, precision, ir_version, to_trace):
-        self._test(*self.create_model(), ie_device, precision,
-                   ir_version, trace_model=to_trace, freeze_model=False, use_convert_model=True)
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=to_trace,
+            freeze_model=False,
+            use_convert_model=True
+        )

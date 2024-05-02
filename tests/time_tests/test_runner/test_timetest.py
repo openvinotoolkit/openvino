@@ -14,14 +14,17 @@ Options[*]:
 [*] For more information see conftest.py
 """
 
-from pathlib import Path
 import logging
 import os
 import shutil
 import sys
+from pathlib import Path
 
 # add utils folder to imports
-UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+UTILS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "utils",
+)
 sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import expand_env_vars
@@ -31,11 +34,21 @@ sys.path.append(TIME_TESTS_DIR)
 
 from scripts.run_timetest import run_timetest
 
-REFS_FACTOR = 1.2      # 120%
+REFS_FACTOR = 1.2  # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_cache_dir,
-                  test_info, temp_dir, validate_test_case, prepare_db_info):
+def test_timetest(
+    instance,
+    executable,
+    niter,
+    cl_cache_dir,
+    model_cache,
+    model_cache_dir,
+    test_info,
+    temp_dir,
+    validate_test_case,
+    prepare_db_info,
+):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run

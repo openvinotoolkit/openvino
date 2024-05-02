@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/device.hpp"
-
 #include <list>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
-#include <map>
+
+#include "intel_gpu/runtime/device.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -19,7 +19,10 @@ class ocl_device_detector {
 public:
     ocl_device_detector() = default;
 
-    std::map<std::string, device::ptr> get_available_devices(void *user_context, void *user_device, int ctx_device_id = 0, int target_tile_id = -1) const;
+    std::map<std::string, device::ptr> get_available_devices(void* user_context,
+                                                             void* user_device,
+                                                             int ctx_device_id = 0,
+                                                             int target_tile_id = -1) const;
 
     static std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list);
 

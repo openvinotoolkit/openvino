@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
+
 #include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -84,9 +85,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("HETERO"));
+INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("CPU"));
 
@@ -114,8 +113,7 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
-                                            ::testing::ValuesIn(multiConfigs)));
+                         ::testing::Combine(::testing::Values("HETERO"), ::testing::ValuesIn(multiConfigs)));
 
 const std::vector<ov::AnyMap> configsDeviceProperties = {
     {ov::device::properties("CPU", ov::num_streams(2))},
@@ -131,12 +129,6 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})},
     {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(1)}}}),
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
-
-
-
-
-
-
 
 // OV Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,

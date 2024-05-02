@@ -3,14 +3,16 @@
 //
 
 #include "reorder_kernel_bfyx_to_blocked_format.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <string>
-#include <functional>
+
 #include <cmath>
+#include <functional>
+#include <string>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 // Tile size : 4x4 or 8x8
-#define MIN_TILE_SIZE 4
+#define MIN_TILE_SIZE     4
 #define DEFAULT_TILE_SIZE 8
 
 namespace kernel_selector {
@@ -53,7 +55,8 @@ static inline std::string GetTiledInputOrder(size_t size) {
     case 5:
         order_str = "b, f + lh, z, y, x";
         break;
-    default: throw std::runtime_error("Unsupported combination\n");
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return order_str;
 }
@@ -131,22 +134,26 @@ static inline std::vector<size_t> GetGWS(const reorder_params& params) {
     const size_t tile_size = GetTileSize(params);
     const size_t fsv_alignment = GetFsvAlignment(params);
 
-    std::vector<size_t> gws = { (fsv_alignment / tile_size),
-        CeilDiv(in.X().v, tile_size) * in.Y().v * in.Z().v,
-        in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment) };
+    std::vector<size_t> gws = {(fsv_alignment / tile_size),
+                               CeilDiv(in.X().v, tile_size) * in.Y().v * in.Z().v,
+                               in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
 
     return gws;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const reorder_params& params, const std::vector<size_t>& gws, const size_t tile_width, const size_t tile_size) {
-    std::vector<size_t> lws{ 1, 1, 1 };
-    std::vector<size_t> dims{ 0, 1, 2 };
+static std::vector<size_t> GetBestLwsFromGws(const reorder_params& params,
+                                             const std::vector<size_t>& gws,
+                                             const size_t tile_width,
+                                             const size_t tile_size) {
+    std::vector<size_t> lws{1, 1, 1};
+    std::vector<size_t> dims{0, 1, 2};
 
     // SLM size: elemsize * tile_width * tile_width * work_items <= 64K
     const size_t elem_size = params.inputs[0].ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
-    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
+    size_t max_num_work_items =
+        std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];
@@ -216,14 +223,16 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
     } else {
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION",
+                                        "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
     }
 
     // whether x is tile_size-aligned
     if (x % tile_size != 0) {
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % tile_size));
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION",
+                                        "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
         jit.AddConstant(MakeJitConstant("X_NO_REMAINDER_CONDITION", "(x < (INPUT0_SIZE_X - X_REMAINDER_SIZE))"));
     }
 
@@ -252,21 +261,17 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
     }
 
     // padding is not supported
-    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
-        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
-        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
-        input.W().pad.before != 0 || input.W().pad.after != 0 ||
-        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
-        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
+    if (input.X().pad.before != 0 || input.X().pad.after != 0 || input.Y().pad.before != 0 ||
+        input.Y().pad.after != 0 || input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
+        input.W().pad.before != 0 || input.W().pad.after != 0 || input.Feature().pad.before != 0 ||
+        input.Feature().pad.after != 0 || input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
         return false;
     }
 
-    if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
-        output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
-        output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
-        output.W().pad.before != 0 || output.W().pad.after != 0 ||
-        output.Feature().pad.before != 0 || output.Feature().pad.after != 0 ||
-        output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
+    if (output.X().pad.before != 0 || output.X().pad.after != 0 || output.Y().pad.before != 0 ||
+        output.Y().pad.after != 0 || output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
+        output.W().pad.before != 0 || output.W().pad.after != 0 || output.Feature().pad.before != 0 ||
+        output.Feature().pad.after != 0 || output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
         return false;
     }
 

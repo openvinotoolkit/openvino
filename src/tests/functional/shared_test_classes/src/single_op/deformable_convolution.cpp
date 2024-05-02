@@ -4,15 +4,15 @@
 #include "shared_test_classes/single_op/deformable_convolution.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/deformable_convolution.hpp"
-
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj) {
+std::string DeformableConvolutionLayerTest::getTestCaseName(
+    const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj) {
     deformableConvSpecificParams convParams;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
@@ -24,7 +24,15 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t groups, deformable_groups, conv_out_channels;
     bool with_bilinear_interpolation_pad;
-    std::tie(stride, pad_begin, pad_end, dilation, groups, deformable_groups, conv_out_channels, padType, with_bilinear_interpolation_pad) = convParams;
+    std::tie(stride,
+             pad_begin,
+             pad_end,
+             dilation,
+             groups,
+             deformable_groups,
+             conv_out_channels,
+             padType,
+             with_bilinear_interpolation_pad) = convParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -67,7 +75,15 @@ void DeformableConvolutionLayerTest::SetUp() {
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t groups, deformable_groups, conv_out_channels;
     bool with_bilinear_interpolation_pad;
-    std::tie(stride, pad_begin, pad_end, dilation, groups, deformable_groups, conv_out_channels, padType, with_bilinear_interpolation_pad) = convParams;
+    std::tie(stride,
+             pad_begin,
+             pad_end,
+             dilation,
+             groups,
+             deformable_groups,
+             conv_out_channels,
+             padType,
+             with_bilinear_interpolation_pad) = convParams;
 
     auto data = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]);
     data->set_friendly_name("a_data");
@@ -82,13 +98,31 @@ void DeformableConvolutionLayerTest::SetUp() {
         auto modulation_scalars = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[3]);
         modulation_scalars->set_friendly_name("c_modulation_scalars");
 
-        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, modulation_scalars, stride, pad_begin,
-                                                                                  pad_end, dilation, padType, groups, deformable_groups,
-                                                                                  with_bilinear_interpolation_pad);
+        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data,
+                                                                              offset_vals,
+                                                                              filter_vals,
+                                                                              modulation_scalars,
+                                                                              stride,
+                                                                              pad_begin,
+                                                                              pad_end,
+                                                                              dilation,
+                                                                              padType,
+                                                                              groups,
+                                                                              deformable_groups,
+                                                                              with_bilinear_interpolation_pad);
         parameters.push_back(modulation_scalars);
     } else {
-        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data, offset_vals, filter_vals, stride, pad_begin, pad_end, dilation,
-                                                                                  padType, groups, deformable_groups, with_bilinear_interpolation_pad);
+        deformable_conv = std::make_shared<ov::op::v8::DeformableConvolution>(data,
+                                                                              offset_vals,
+                                                                              filter_vals,
+                                                                              stride,
+                                                                              pad_begin,
+                                                                              pad_end,
+                                                                              dilation,
+                                                                              padType,
+                                                                              groups,
+                                                                              deformable_groups,
+                                                                              with_bilinear_interpolation_pad);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(deformable_conv);

@@ -15,10 +15,7 @@ namespace cldnn {
 struct random_uniform : public primitive_base<random_uniform> {
     CLDNN_DECLARE_PRIMITIVE(random_uniform)
 
-    random_uniform() : primitive_base("", {}),
-                       global_seed(0),
-                       op_seed(0),
-                       output_shape{} {}
+    random_uniform() : primitive_base("", {}), global_seed(0), op_seed(0), output_shape{} {}
 
     /**
      * Construct Random Uniform privitive.
@@ -29,24 +26,28 @@ struct random_uniform : public primitive_base<random_uniform> {
      * @param output_shape output data shape
      * @param output_format output data shape format
      */
-    random_uniform(const primitive_id &id, const std::vector<input_info> &inputs,
-                   const data_types &data_type, const uint64_t global_seed,
-                   const uint64_t op_seed, const ov::Shape output_shape,
-                   const padding &output_padding = padding())
-            : primitive_base(id, inputs, {output_padding},
-                             {optional_data_type{data_type}}),
-              global_seed(global_seed),
-              op_seed(op_seed),
-              output_shape(output_shape) {}
+    random_uniform(const primitive_id& id,
+                   const std::vector<input_info>& inputs,
+                   const data_types& data_type,
+                   const uint64_t global_seed,
+                   const uint64_t op_seed,
+                   const ov::Shape output_shape,
+                   const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
+          global_seed(global_seed),
+          op_seed(op_seed),
+          output_shape(output_shape) {}
 
-        random_uniform(const primitive_id &id, const std::vector<input_info> &inputs,
-                       const data_types &data_type, const uint64_t global_seed,
-                       const uint64_t op_seed, const padding &output_padding = padding())
-            : primitive_base(id, inputs, {output_padding},
-                             {optional_data_type{data_type}}),
-              global_seed(global_seed),
-              op_seed(op_seed),
-              output_shape() {}
+    random_uniform(const primitive_id& id,
+                   const std::vector<input_info>& inputs,
+                   const data_types& data_type,
+                   const uint64_t global_seed,
+                   const uint64_t op_seed,
+                   const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
+          global_seed(global_seed),
+          op_seed(op_seed),
+          output_shape() {}
 
     const uint64_t global_seed;
     const uint64_t op_seed;
@@ -65,8 +66,7 @@ struct random_uniform : public primitive_base<random_uniform> {
 
         auto rhs_casted = downcast<const random_uniform>(rhs);
 
-        return global_seed == rhs_casted.global_seed &&
-               op_seed == rhs_casted.op_seed;
+        return global_seed == rhs_casted.global_seed && op_seed == rhs_casted.op_seed;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

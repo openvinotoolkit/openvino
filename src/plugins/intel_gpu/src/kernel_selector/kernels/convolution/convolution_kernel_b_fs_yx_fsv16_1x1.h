@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -23,13 +24,11 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

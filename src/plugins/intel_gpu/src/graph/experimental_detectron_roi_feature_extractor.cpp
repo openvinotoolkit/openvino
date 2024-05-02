@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_roi_feature_extractor)
@@ -27,7 +28,8 @@ void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_secon
 }
 
 layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
-    experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param) {
+    experimental_detectron_roi_feature_extractor_node const& node,
+    kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
     layout rois_layout = impl_param.get_input_layout(0);
@@ -39,7 +41,8 @@ layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
     return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});
 }
 
-std::string experimental_detectron_roi_feature_extractor_inst::to_string(experimental_detectron_roi_feature_extractor_node const& node) {
+std::string experimental_detectron_roi_feature_extractor_inst::to_string(
+    experimental_detectron_roi_feature_extractor_node const& node) {
     auto desc = node.get_primitive();
 
     std::stringstream primitive_description;

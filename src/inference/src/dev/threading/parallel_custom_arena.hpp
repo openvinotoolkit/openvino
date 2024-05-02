@@ -138,4 +138,3 @@ int default_concurrency(task_arena::constraints c);
 }  // namespace info
 }  // namespace custom
 #endif /*(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)*/
-

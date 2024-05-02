@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "mvn_kernel_base.h"
-
 #include <vector>
+
+#include "mvn_kernel_base.h"
 
 namespace kernel_selector {
 class MVNKernelBfyxOpt : public MVNKernelBase {
@@ -21,12 +21,7 @@ public:
 
 private:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE,
-            FusedOpType::REORDER
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::REORDER};
     }
     DispatchData SetDefault(const mvn_params& params) const override;
     JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const override;

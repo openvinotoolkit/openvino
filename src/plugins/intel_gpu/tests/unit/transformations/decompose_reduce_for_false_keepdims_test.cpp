@@ -15,8 +15,8 @@
 #include <tuple>
 
 #include "intel_gpu/primitives/reduce.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "test_utils.h"
 
 using namespace testing;
@@ -51,9 +51,9 @@ public:
     }
 
     static std::shared_ptr<ov::Model> get_transformed_function(const ov::PartialShape& input_shape,
-                                                                      const std::vector<int64_t>& axes,
-                                                                      const ReduceType& reduce_type,
-                                                                      const bool keep_dim) {
+                                                               const std::vector<int64_t>& axes,
+                                                               const ReduceType& reduce_type,
+                                                               const bool keep_dim) {
         auto param = std::make_shared<ov::opset10::Parameter>(ov::element::f32, input_shape);
         if (reduce_type == reduce_mode::logical_or || reduce_type == reduce_mode::logical_and)
             param = std::make_shared<ov::opset10::Parameter>(ov::element::boolean, input_shape);
@@ -79,8 +79,7 @@ public:
         else
             throw std::runtime_error("Invalid reduce type for this test-case.");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{input.get_node_shared_ptr()},
-                                                  ov::ParameterVector{param});
+        return std::make_shared<ov::Model>(ov::NodeVector{input.get_node_shared_ptr()}, ov::ParameterVector{param});
     }
 };
 
@@ -98,8 +97,7 @@ TEST_P(ReduceDecomposeTests, CompareFunctions) {
 
         if (type_name.find("Reshape") != std::string::npos) {
             success = true;
-        }
-        else if (type_name.find("Result") != std::string::npos) {
+        } else if (type_name.find("Result") != std::string::npos) {
             output_shape = ops->get_shape();
         }
     }
@@ -207,8 +205,7 @@ INSTANTIATE_TEST_SUITE_P(ReduceDecomposeForTrueKeepdims,
                                                          ReshapeShape{1, 32, 1, 32})));
 
 TEST(DecomposeReduceForFalseKeepDims, Negative) {
-    auto f =
-        ReduceDecomposeTests::get_transformed_function(ov::PartialShape::dynamic(), {3}, reduce_mode::max, true);
+    auto f = ReduceDecomposeTests::get_transformed_function(ov::PartialShape::dynamic(), {3}, reduce_mode::max, true);
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::DecomposeReduceForFalseKeepDims>();
     ASSERT_NO_THROW(manager.run_passes(f));

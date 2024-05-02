@@ -12,9 +12,11 @@ using namespace ov::test;
 
 static std::shared_ptr<ov::op::v0::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
     auto input_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto input_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
+    auto input_high =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto output_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
+    auto output_high =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
 }
 
@@ -43,7 +45,8 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
         inputsParams.push_back(sparse_input);
     }
     auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(dense_feature);
-    auto gather_batch_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+    auto gather_batch_indices =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
     auto gather_batch_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
     auto gather_batch = std::make_shared<ov::op::v8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
 
@@ -52,8 +55,10 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
     auto gather_feature_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
     auto gather_feature = std::make_shared<ov::op::v8::Gather>(shapeof, gather_feature_indices, gather_feature_axis);
 
-    auto reshape_dim2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto reshape_shape = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{gather_batch, reshape_dim2, gather_feature}, 0);
+    auto reshape_dim2 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto reshape_shape =
+        std::make_shared<ov::op::v0::Concat>(ov::NodeVector{gather_batch, reshape_dim2, gather_feature}, 0);
 
     auto concat1 = std::make_shared<ov::op::v0::Concat>(features, 1);
     auto reshape = std::make_shared<ov::op::v1::Reshape>(concat1, reshape_shape, true);
@@ -80,10 +85,12 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
             gather_indices_value.push_back(i * 27 + j);
         }
     }
-    auto gather_indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{351}, gather_indices_value);
+    auto gather_indices =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{351}, gather_indices_value);
     auto gather_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
     auto gather = std::make_shared<ov::op::v8::Gather>(reshape2, gather_indices, gather_axis);
-    auto reshape3_dim1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto reshape3_dim1 =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
     auto reshape3_shape = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reshape3_dim1, gather_batch}, 0);
     auto reshape3 = std::make_shared<ov::op::v1::Reshape>(gather, reshape3_shape, true);
 
@@ -138,7 +145,9 @@ public:
             in_data.start_from = 0;
             in_data.range = 15;
             in_data.resolution = 32768;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

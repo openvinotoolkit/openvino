@@ -3,16 +3,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset13 as ov
 
 from openvino import Type
-import openvino.runtime.opset13 as ov
 
 
 def test_lrn():
     input_image_shape = (2, 3, 2, 1)
-    input_image = np.arange(int(np.prod(input_image_shape))).reshape(input_image_shape).astype("f")
+    input_image = (
+        np.arange(int(np.prod(input_image_shape)))
+        .reshape(input_image_shape)
+        .astype("f")
+    )
     axes = np.array([1], dtype=np.int64)
-    model = ov.lrn(ov.constant(input_image), ov.constant(axes), alpha=1.0, beta=2.0, bias=1.0, size=3)
+    model = ov.lrn(
+        ov.constant(input_image),
+        ov.constant(axes),
+        alpha=1.0,
+        beta=2.0,
+        bias=1.0,
+        size=3,
+    )
     assert model.get_type_name() == "LRN"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 3, 2, 1]

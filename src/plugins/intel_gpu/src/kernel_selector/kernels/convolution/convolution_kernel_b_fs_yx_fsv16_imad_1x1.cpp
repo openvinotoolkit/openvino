@@ -3,12 +3,14 @@
 //
 
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
-#include <iostream>
+
 #include <algorithm>
+#include <iostream>
 #include <string>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 //
 // Kernel specific constants
@@ -30,7 +32,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Convolution_kernel_b_fs_yx_fsv16_imad
                 if (bf > split)
                     continue;
                 for (auto exe : ConvolutionKernelBase::autoTuneOptions) {
-                    all_tune_params.push_back(AutoTuneParams{ bs, bf, split, exe });
+                    all_tune_params.push_back(AutoTuneParams{bs, bf, split, exe});
                 }
             }
         }
@@ -67,7 +69,8 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device_features_key(
+    const Params& params) const {
     auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
@@ -85,26 +88,27 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const co
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = { "out_b",
-                                               "(out_f + ofb * SIMD)",
-                                               "_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
-                                               "_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)" };
+        std::vector<std::string> idx_order = {"out_b",
+                                              "(out_f + ofb * SIMD)",
+                                              "_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
+                                              "_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)"};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              idx_order,
                                              "dequantized[ofb][os]",
                                              input_dt,
                                              1,
                                              LoadType::LT_UNALIGNED,
-                                             BoundaryCheck::DISABLED };
-        conf_scalar.SetLoopAxes({ Tensor::DataChannelName::X, Tensor::DataChannelName::Y }, true);
+                                             BoundaryCheck::DISABLED};
+        conf_scalar.SetLoopAxes({Tensor::DataChannelName::X, Tensor::DataChannelName::Y}, true);
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::SetDefault(const convolution_params& params,
-                                                                                          int index) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::SetDefault(
+    const convolution_params& params,
+    int index) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
     auto tune_params = GetAutoTuneParams(params, index);
@@ -146,10 +150,8 @@ KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(co
     bool general_is_faster = false;
 
     // This kernel cannot split for large x, but general could
-    general_is_faster |= CeilDiv(in_f, fsv) % 4 == 0
-                         && (out_x % 15 == 0 || out_x % 16 == 0)
-                         && tune_params.feature_slm_split == 1
-                         && tune_params.out_block_spatial <= 8;
+    general_is_faster |= CeilDiv(in_f, fsv) % 4 == 0 && (out_x % 15 == 0 || out_x % 16 == 0) &&
+                         tune_params.feature_slm_split == 1 && tune_params.out_block_spatial <= 8;
 
     // List of known cases where general kernel is better
     general_is_faster |= in_f == 24 && out_f == 144 && out_x == 75 && out_y == 75 && batch == 1;
@@ -184,8 +186,7 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
 
-    if ((conv_params.filterSize.x != conv_params.filterSize.y) ||
-        conv_params.filterSize.x != 1) {
+    if ((conv_params.filterSize.x != conv_params.filterSize.y) || conv_params.filterSize.x != 1) {
         // Fitler size needs to be 1x1
         return false;
     }
@@ -198,15 +199,13 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
             (conv_params.compensation.empty()))
             return false;
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+        if ((conv_params.activations_zero_points.empty()) && (conv_params.compensation.empty()))
             return false;
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
             return false;
     } else {
-        if (!conv_params.activations_zero_points.empty() ||
-            !conv_params.weights_zero_points.empty() ||
+        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty() ||
             !conv_params.compensation.empty())
             return false;
     }
@@ -214,7 +213,8 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
     return true;
 }
 
-WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayout(const convolution_params& params) const {
+WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayout(
+    const convolution_params& params) const {
     // TODO Auto tune index is needed in GetPreferredWeightsLayout to select correct weights layout
     auto tparams = GetAutoTuneParams(params, -1);
     if (tparams.out_block_features == 2)
@@ -225,8 +225,9 @@ WeightsLayout Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetPreferredWeightsLayo
     return WeightsLayout::os_is_yx_osv16_isv16;
 }
 
-Convolution_kernel_b_fs_yx_fsv16_imad_1x1::AutoTuneParams
-Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_params& params, int index) const {
+Convolution_kernel_b_fs_yx_fsv16_imad_1x1::AutoTuneParams Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(
+    const convolution_params& params,
+    int index) const {
     if (index >= 0 && index < static_cast<int>(all_tune_params.size())) {
         return all_tune_params[index];
     }
@@ -252,7 +253,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
         if (max_spatial <= min_efficient_spatial) {
             block_spatial = max_spatial;
         } else {
-            auto minimum_params = AutoTuneParams{ min_efficient_spatial, block_features, 1, exe_mode };
+            auto minimum_params = AutoTuneParams{min_efficient_spatial, block_features, 1, exe_mode};
             bool preserve_occupancy = EstimateOccupancy(params, minimum_params) >= 1.f;
 
             size_t min_overhang = max_spatial;
@@ -261,7 +262,7 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
             bool output_pad = params.outputs[0].X().pad.Total() != 0;
 
             for (size_t block = min_efficient_spatial; block <= max_spatial; ++block) {
-                bool c_occupancy = EstimateOccupancy(params, { block, block_features, 1, exe_mode }) >= 1.f;
+                bool c_occupancy = EstimateOccupancy(params, {block, block_features, 1, exe_mode}) >= 1.f;
                 auto overhang = Align(total_spatial, block) - total_spatial;
                 bool c_block_write = (overhang == 0 && !output_pad) || params.outputs[0].X().v % block == 0;
 
@@ -285,16 +286,16 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
 
     // Try to split features using slm to increase occupancy
     {
-        auto dummy_params = AutoTuneParams{ block_spatial, block_features, 1, exe_mode };
+        auto dummy_params = AutoTuneParams{block_spatial, block_features, 1, exe_mode};
         bool enough_occupancy = EstimateOccupancy(params, dummy_params) >= 1.f;
         if (!enough_occupancy && can_split) {
-            std::vector<size_t> check_split = { 4 };
+            std::vector<size_t> check_split = {4};
             size_t ifm_blocks = CeilDiv(params.weights.IFM().v, fsv);
             for (auto split : check_split) {
                 if (split > ifm_blocks)
                     break;
 
-                auto tmp_tune = AutoTuneParams{ block_spatial, block_features, split, exe_mode };
+                auto tmp_tune = AutoTuneParams{block_spatial, block_features, split, exe_mode};
 
                 bool c_lws = split * simd <= params.engineInfo.maxWorkGroupSize;
                 bool c_slm = EstimateSLMUsage(params, tmp_tune) <= 1.f;
@@ -314,14 +315,14 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
 
     // Occupancy is still extremely low, try to decrease spatials
     {
-        auto dummy_params = AutoTuneParams{ block_spatial, block_features, feature_slm_split, exe_mode };
+        auto dummy_params = AutoTuneParams{block_spatial, block_features, feature_slm_split, exe_mode};
         constexpr float default_threshold = 5.f / 7.f;
         constexpr float split_threshold = 4.f / 7.f;
         float threshold_occupancy = feature_slm_split == 1 ? default_threshold : split_threshold;
 
         if (EstimateOccupancy(params, dummy_params) < threshold_occupancy && block_spatial != 1) {
             for (size_t block = block_spatial - 1; block >= 4; --block) {
-                auto tmp_params = AutoTuneParams{ block, block_features, feature_slm_split, exe_mode };
+                auto tmp_params = AutoTuneParams{block, block_features, feature_slm_split, exe_mode};
                 bool c_mul = total_spatial % block == 0;
                 bool c_occupancy = EstimateOccupancy(params, tmp_params) >= threshold_occupancy;
 
@@ -334,12 +335,14 @@ Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetAutoTuneParams(const convolution_p
         }
     }
 
-    return AutoTuneParams{ block_spatial, block_features, feature_slm_split, exe_mode };
+    return AutoTuneParams{block_spatial, block_features, feature_slm_split, exe_mode};
 }
 
-float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolution_params& params, const AutoTuneParams& tparams) const {
+float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolution_params& params,
+                                                                   const AutoTuneParams& tparams) const {
     size_t blocks_s = CeilDiv(params.outputs[0].X().v * params.outputs[0].Y().v, tparams.out_block_spatial);
-    size_t blocks_f = CeilDiv(params.outputs[0].Feature().v, tparams.out_block_features * simd) * tparams.feature_slm_split;
+    size_t blocks_f =
+        CeilDiv(params.outputs[0].Feature().v, tparams.out_block_features * simd) * tparams.feature_slm_split;
     size_t block_b = params.outputs[0].Batch().v;
 
     auto threads = blocks_s * blocks_f * block_b;
@@ -347,8 +350,10 @@ float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateOccupancy(const convolu
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateSLMUsage(const convolution_params& params, const AutoTuneParams& tparams) const {
-    size_t slm_elements = tparams.out_block_spatial * tparams.out_block_features * fsv * (tparams.feature_slm_split - 1);
+float Convolution_kernel_b_fs_yx_fsv16_imad_1x1::EstimateSLMUsage(const convolution_params& params,
+                                                                  const AutoTuneParams& tparams) const {
+    size_t slm_elements =
+        tparams.out_block_spatial * tparams.out_block_features * fsv * (tparams.feature_slm_split - 1);
     size_t slm_bytes = slm_elements * BytesPerElement(GetAccumulatorType(params));
 
     // TODO Actual maximum slm should also depend on number of work-groups, but this is device specific
@@ -374,7 +379,7 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsData(const Para
     return GetTunedKernelsDataByIndex(params);
 }
 
-KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetTunedKernelsDataByIndex(const Params & params,
+KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetTunedKernelsDataByIndex(const Params& params,
                                                                                   int autoTuneIndex) const {
     auto conv_params = static_cast<const convolution_params&>(params);
     auto tune_params = GetAutoTuneParams(conv_params, autoTuneIndex);
@@ -383,7 +388,7 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetTunedKernelsDataByInde
     return GetCommonKernelsData(params, tune_params.exe_mode, autoTuneIndex);
 }
 
-KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune(const Params & params) const {
+KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }

@@ -2,81 +2,79 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/system_conf.hpp"
-#include "openvino/runtime/threading/cpu_streams_info.hpp"
-
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "auto_tuner.h"
-#include "layout_optimizer.h"
-#include "pass_manager.h"
-#include "primitive_type.h"
-#include "program_dump_graph.h"
-#include "sliding_window_utils.hpp"
-#include "program_helpers.h"
-
-#include "matrix_nms_inst.h"
-#include "roi_pooling_inst.h"
-#include "reorg_yolo_inst.h"
-#include "eltwise_inst.h"
-#include "non_zero_inst.h"
-#include "softmax_inst.h"
-#include "permute_inst.h"
-#include "custom_gpu_primitive_inst.h"
-#include "resample_inst.h"
-#include "reshape_inst.h"
-#include "quantize_inst.h"
 #include "activation_inst.h"
-#include "depth_to_space_inst.h"
-#include "convolution_inst.h"
+#include "adaptive_pooling_inst.h"
+#include "arg_max_min_inst.h"
+#include "auto_tuner.h"
+#include "border_inst.h"
 #include "concatenation_inst.h"
+#include "condition_inst.h"
+#include "convolution_inst.h"
 #include "crop_inst.h"
+#include "custom_gpu_primitive_inst.h"
 #include "data_inst.h"
 #include "deconvolution_inst.h"
+#include "depth_to_space_inst.h"
 #include "detection_output_inst.h"
-#include "generate_proposals_inst.h"
-#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
-#include "input_layout_inst.h"
-#include "shuffle_channels_inst.h"
-#include "arg_max_min_inst.h"
 #include "dft_inst.h"
+#include "eltwise_inst.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
+#include "gemm_inst.h"
+#include "generate_proposals_inst.h"
+#include "input_layout_inst.h"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "layout_optimizer.h"
+#include "loop_inst.h"
+#include "matrix_nms_inst.h"
 #include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
-#include "pooling_inst.h"
-#include "border_inst.h"
-#include "primitive_inst.h"
-#include "prior_box_inst.h"
-#include "proposal_inst.h"
-#include "reorder_inst.h"
 #include "mvn_inst.h"
-#include "gemm_inst.h"
-#include "adaptive_pooling_inst.h"
+#include "non_zero_inst.h"
+#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "pooling_inst.h"
+#include "primitive_inst.h"
+#include "primitive_type.h"
+#include "prior_box_inst.h"
+#include "program_dump_graph.h"
+#include "program_helpers.h"
+#include "proposal_inst.h"
+#include "quantize_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
-#include "strided_slice_inst.h"
-#include "loop_inst.h"
+#include "reorder_inst.h"
+#include "reorg_yolo_inst.h"
+#include "resample_inst.h"
+#include "reshape_inst.h"
 #include "reverse_inst.h"
-#include "unique_inst.hpp"
-#include "condition_inst.h"
+#include "roi_pooling_inst.h"
+#include "shuffle_channels_inst.h"
+#include "sliding_window_utils.hpp"
+#include "softmax_inst.h"
+#include "strided_slice_inst.h"
 #include "to_string_utils.h"
+#include "unique_inst.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "runtime/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
-#include "impls/ocl/register.hpp"
-#include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
+#include "impls/cpu/register.hpp"
+#include "impls/ocl/register.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "impls/onednn/register.hpp"
+#    include "impls/onednn/register.hpp"
 #endif
 
-#include "kernel_base.h"
+#include <stdio.h>
 
 #include <algorithm>
 #include <fstream>
@@ -86,50 +84,59 @@
 #include <memory>
 #include <set>
 #include <sstream>
-#include <stdio.h>
+#include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <stdexcept>
-#include <unordered_set>
+
+#include "kernel_base.h"
 
 #ifdef __unix__
-#include <sys/resource.h>
+#    include <sys/resource.h>
 #endif
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
+static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config,
+                                                                         std::string tags,
+                                                                         int num_streams = 0) {
     int streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     auto core_type = ov::hint::SchedulingCoreType::ANY_CORE;
     switch (priority) {
-        case ov::hint::Priority::LOW: core_type = ov::hint::SchedulingCoreType::ECORE_ONLY; break;
-        case ov::hint::Priority::MEDIUM: core_type = ov::hint::SchedulingCoreType::ANY_CORE; break;
-        case ov::hint::Priority::HIGH: core_type = ov::hint::SchedulingCoreType::PCORE_ONLY; break;
-        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+    case ov::hint::Priority::LOW:
+        core_type = ov::hint::SchedulingCoreType::ECORE_ONLY;
+        break;
+    case ov::hint::Priority::MEDIUM:
+        core_type = ov::hint::SchedulingCoreType::ANY_CORE;
+        break;
+    case ov::hint::Priority::HIGH:
+        core_type = ov::hint::SchedulingCoreType::PCORE_ONLY;
+        break;
+    default:
+        OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
-    ov::threading::IStreamsExecutor::Config task_executor_config(tags,
-                                                                 streams,
-                                                                 1,
-                                                                 core_type,
-                                                                 enable_cpu_pinning);
+    ov::threading::IStreamsExecutor::Config task_executor_config(tags, streams, 1, core_type, enable_cpu_pinning);
 
     return task_executor_config;
 }
 
 std::shared_ptr<ov::threading::IStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) {
-    ov::threading::IStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    ov::threading::IStreamsExecutor::Config task_executor_config =
+        make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
     return std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
 }
 
 std::shared_ptr<ICompilationContext> program::make_compilation_context(const ExecutionConfig& config) {
     const int _num_async_build_threads = 1;
-    return ICompilationContext::create(make_task_executor_config(config,
-                                                                 "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
+    return ICompilationContext::create(
+        make_task_executor_config(config,
+                                  "Task executor config for CompilationContext in GPU plugin",
+                                  _num_async_build_threads));
 }
 
 program::program(engine& engine_ref,
@@ -168,9 +175,10 @@ program::program(engine& engine_ref,
                 } else if (node->is_type<data>()) {
                     continue;
                 } else if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
-                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
-                      node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
-                      node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
+                           node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
+                           node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
+                           node->get_input_layout(0).get_partial_shape().size() ==
+                               node->get_output_layouts(false)[0].get_partial_shape().size()) {
                     continue;
                 }
                 can_be_optimized = false;
@@ -199,8 +207,7 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine,
-        const ExecutionConfig& config)
+program::program(engine& engine, const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(config),
@@ -209,8 +216,7 @@ program::program(engine& engine,
     _config.apply_user_properties(_engine.get_device_info());
 }
 
-program::~program() {
-}
+program::~program() {}
 
 void program::init_program() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -220,12 +226,15 @@ void program::init_program() {
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+    _kernels_cache =
+        std::unique_ptr<kernels_cache>(new kernels_cache(_engine,
+                                                         _config,
+                                                         prog_id,
+                                                         _task_executor,
+                                                         kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
-
 
     size_t impls_cache_capacity = _impls_cache_capacity;
     GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
@@ -268,7 +277,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     topology,
+                                     config,
+                                     task_executor,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -279,7 +295,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     topology,
+                                     config,
+                                     task_executor,
+                                     compilation_context,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -288,7 +311,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, nullptr, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     topology,
+                                     config,
+                                     nullptr,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -520,7 +550,9 @@ void program::init_graph() {
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
 
-void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
+void program::run_graph_compilation() {
+    apply_opt_pass<compile_graph>();
+}
 
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::pre_optimize_graph");
@@ -528,7 +560,8 @@ void program::pre_optimize_graph(bool is_internal) {
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
 
-    processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
+    processing_order
+        .calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
@@ -635,7 +668,11 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (optimize_data)
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(
+            lo,
+            false,
+            true,
+            true);  // pass to remove output reorders while all others graph optimizations were done
 
     // update inner program input/output primitive mappings
     apply_opt_pass<update_inner_program_io_map>();
@@ -648,7 +685,8 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() || node.is_type<gather_nonzero>()) {
+    if (node.get_dependencies().empty() || node.is_type<assign>() || node.is_type<read_value>() ||
+        node.is_type<gather_nonzero>()) {
         return;
     }
     node.constant = true;
@@ -695,15 +733,16 @@ void program::transfer_memory_to_device() {
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
             if (!mem_layout.compatible(data_node_layout)) {
-                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
+                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() +
+                                    " node");
                 throw std::invalid_argument(err_str);
             }
-
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
+                auto device_mem =
+                    mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
@@ -715,9 +754,13 @@ void program::transfer_memory_to_device() {
     }
 }
 
-program::nodes_ordering& program::get_processing_order() { return processing_order; }
+program::nodes_ordering& program::get_processing_order() {
+    return processing_order;
+}
 
-const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
+const program::nodes_ordering& program::get_processing_order() const {
+    return processing_order;
+}
 
 const std::vector<primitive_id>& program::get_allocating_order(bool forced_update) {
     if (!forced_update && allocating_order.size() > 0)
@@ -730,28 +773,29 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
     }
 
     std::sort(nodes_to_allocate.begin(),
-            nodes_to_allocate.end(),
-            [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    auto lhs_layout = lhs->get_output_layout();
-                    auto rhs_layout = rhs->get_output_layout();
-                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
-                        lhs_layout.set_tensor(lhs_layout.get_tensor());
-                    }
-                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
-                        rhs_layout.set_tensor(rhs_layout.get_tensor());
-                    }
+              nodes_to_allocate.end(),
+              [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                  auto lhs_layout = lhs->get_output_layout();
+                  auto rhs_layout = rhs->get_output_layout();
+                  if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
+                      lhs_layout.set_tensor(lhs_layout.get_tensor());
+                  }
+                  if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
+                      rhs_layout.set_tensor(rhs_layout.get_tensor());
+                  }
 
-                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
-                        return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    }
+                  if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() &&
+                      !lhs_layout.has_upper_bound()) {
+                      return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
+                  }
 
-                    if (rhs_layout.is_dynamic())
-                        return true;
-                    if (lhs_layout.is_dynamic())
-                        return false;
+                  if (rhs_layout.is_dynamic())
+                      return true;
+                  if (lhs_layout.is_dynamic())
+                      return false;
 
-                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
-            });
+                  return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
+              });
 
     for (auto const& node : nodes_to_allocate) {
         allocating_order.emplace_back(node->id());
@@ -778,10 +822,10 @@ std::string program::get_memory_dependencies_string() const {
         auto& node = *itr;
         itr++;
         mem_dep = mem_dep.append("primitive: ")
-                         .append(node->id())
-                         .append("(unique_id:")
-                         .append(std::to_string(node->get_unique_id()))
-                         .append(") restricted list: ");
+                      .append(node->id())
+                      .append("(unique_id:")
+                      .append(std::to_string(node->get_unique_id()))
+                      .append(") restricted list: ");
         for (auto it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
@@ -869,7 +913,11 @@ void program::add_intermediate(std::shared_ptr<primitive> prim,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    add_intermediate(get_or_create(std::move(prim)), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
+    add_intermediate(get_or_create(std::move(prim)),
+                     next,
+                     prev_idx,
+                     connect_int_node_with_old_dep,
+                     move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
@@ -888,8 +936,8 @@ void program::add_intermediate(program_node& node,
         }
     }
     if (!node_found) {
-        throw std::runtime_error("Trying to add intermediate node in between " + next.id() + " and dependecy " + prev.id() +
-                        " but they are not connected in this way.");
+        throw std::runtime_error("Trying to add intermediate node in between " + next.id() + " and dependecy " +
+                                 prev.id() + " but they are not connected in this way.");
     }
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
@@ -902,19 +950,23 @@ void program::add_connection(program_node& prev, program_node& next) {
 
 void program::remove_connection(program_node& prev, program_node& next) {
     prev.users.remove(&next);
-    next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
-    [&](const std::pair<program_node*, int32_t>& dep) {
-        return &prev == dep.first;
-    }), next.dependencies.end());
+    next.dependencies.erase(std::remove_if(next.dependencies.begin(),
+                                           next.dependencies.end(),
+                                           [&](const std::pair<program_node*, int32_t>& dep) {
+                                               return &prev == dep.first;
+                                           }),
+                            next.dependencies.end());
 }
 
 void program::remove_all_connections(program_node& node) {
     // since the graph is not topological sorted, we need to remove the node from both dependencies and users
     for (auto& e : node.users) {
-        e->dependencies.erase(std::remove_if(e->dependencies.begin(), e->dependencies.end(),
-        [&](const std::pair<program_node*, int32_t>& dep) {
-            return &node == dep.first;
-        }), e->dependencies.end());
+        e->dependencies.erase(std::remove_if(e->dependencies.begin(),
+                                             e->dependencies.end(),
+                                             [&](const std::pair<program_node*, int32_t>& dep) {
+                                                 return &node == dep.first;
+                                             }),
+                              e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
         e.first->users.remove(&node);
@@ -931,7 +983,8 @@ void program::rename(program_node& node, primitive_id const& new_id) {
             "Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
 
     auto node_itr = nodes_map.find(node.id());
-    if (node_itr == nodes_map.end()) return;
+    if (node_itr == nodes_map.end())
+        return;
 
     auto node_ptr = node_itr->second;
     nodes_map.emplace(new_id, node_ptr);
@@ -953,7 +1006,9 @@ void program::replace_all_usages(program_node& old_node, program_node& new_node,
     return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
 }
 
-void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
+void program::replace_all_usages(program_node& old_node,
+                                 std::pair<program_node*, int32_t> new_node,
+                                 bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
@@ -1110,9 +1165,7 @@ bool program::extract_and_remove(program_node& node) {
     return false;
 }
 
-bool program::move_node(program_node& node,
-                        program_node& new_prev,
-                        program_node& new_next) {
+bool program::move_node(program_node& node, program_node& new_prev, program_node& new_next) {
     if (extract(node)) {
         add_intermediate(node, new_next, new_prev);
         return true;
@@ -1121,8 +1174,8 @@ bool program::move_node(program_node& node,
     return false;
 }
 
-void program::fuse_nodes(program_node &fused_node,
-                         program_node &peer_node,
+void program::fuse_nodes(program_node& fused_node,
+                         program_node& peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc(peer_node.get_primitive());
@@ -1137,8 +1190,7 @@ void program::fuse_nodes(program_node &fused_node,
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fusedPadding = fused_node.get_output_layout().data_padding;
-    cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fusedPadding);
+    cldnn::padding needed_padding = padding::max(peer_layout.data_padding, fusedPadding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1159,10 +1211,12 @@ void program::fuse_nodes(program_node &fused_node,
             quantize_node& q_node = peer_node.as<quantize>();
             if (q_node.get_scale_shift_opt()) {
                 bool can_drop_input = false;
-                bool out_range_usage = q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
+                bool out_range_usage =
+                    q_node.get_per_tensor_output_range() && q_node.get_output_lo_val() < q_node.get_output_hi_val();
 
                 // Drop input range if we use output per-tensor range or if clamp is used for input range
-                can_drop_input |= (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
+                can_drop_input |=
+                    (i == 1 || i == 2) && (out_range_usage || (!out_range_usage && !q_node.get_need_clamp()));
                 // Drop output range - it's not used in scale-shift-opt quantize kernel
                 can_drop_input |= i == 3 || i == 4;
                 // Drop tensor with input scale when we have per-tensor parameter
@@ -1195,7 +1249,7 @@ void program::fuse_nodes(program_node &fused_node,
     if (peer_node.has_fused_primitives()) {
         fused_node.add_fused_primitives(peer_node.get_fused_primitives());
     }
-    add_optimized_primitive_info(peer_node.id(), { fused_node.id() });
+    add_optimized_primitive_info(peer_node.id(), {fused_node.id()});
 
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
@@ -1230,10 +1284,12 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
             }
         }
         for (auto& user : node->users) {
-            user->dependencies.erase(std::remove_if(user->dependencies.begin(), user->dependencies.end(),
-            [&](const std::pair<program_node*, int32_t>& dep) {
-                return node == dep.first;
-            }), user->dependencies.end());
+            user->dependencies.erase(std::remove_if(user->dependencies.begin(),
+                                                    user->dependencies.end(),
+                                                    [&](const std::pair<program_node*, int32_t>& dep) {
+                                                        return node == dep.first;
+                                                    }),
+                                     user->dependencies.end());
         }
         get_processing_order().erase(node);
         optimized_out.push_back(node->id());
@@ -1292,9 +1348,11 @@ data_types program::get_inference_precision(const program_node& node) const {
             max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
         }
         return max_dt;
-    } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+    } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() ||
+               node.is_type<gemm>()) {
         if (input_dts.size() < 2) {
-            throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
+            throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() +
+                                     " during stage info collection. Expected >= 2 inputs");
         }
         if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
             return input_dts[0];
@@ -1312,7 +1370,8 @@ std::string program::get_implementation_info(const primitive_id& id) const {
         auto impl = node.get_selected_impl();
         auto kernel_name = impl ? impl->get_kernel_name() : "";
         return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
-    } catch (...) { }
+    } catch (...) {
+    }
 
     return "undef";
 }
@@ -1342,7 +1401,7 @@ program::primitives_info program::get_current_stage_info() const {
         }
 
         // Initialize output_layout with dummy values and use them if layout is invalid
-        layout output_layout{ cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1} };
+        layout output_layout{cldnn::data_types::f32, cldnn::format::any, {1, 1, 1, 1}};
 
         if (p->is_valid_output_layout())
             output_layout = p->get_output_layout();
@@ -1355,8 +1414,7 @@ program::primitives_info program::get_current_stage_info() const {
                           output_layout,
                           fmt_to_str(output_layout.format),
                           get_implementation_info(p->id()),
-                          p->is_valid_output_layout() ?
-                            get_inference_precision(*p) : cldnn::data_types::f32,
+                          p->is_valid_output_layout() ? get_inference_precision(*p) : cldnn::data_types::f32,
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 
@@ -1376,7 +1434,7 @@ void program::add_optimized_primitive_info(primitive_id optimized_primitive_id,
                                            std::vector<primitive_id> replaced_with_ids) {
     for (auto& e : optimized) {
         auto it = std::find_if(e.second.begin(), e.second.end(), [&optimized_primitive_id](const primitive_id& id) {
-           return optimized_primitive_id == id;
+            return optimized_primitive_id == id;
         });
 
         if (it != e.second.end()) {
@@ -1391,13 +1449,16 @@ const program::graph_optimizer_info& program::get_optimizer_passes_info() const 
     return optimizer_passes_info;
 }
 
-const program::primitives_info& program::get_primitives_info() const { return prim_info; }
+const program::primitives_info& program::get_primitives_info() const {
+    return prim_info;
+}
 
-void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
+void program::apply_opt_pass(base_pass& pass) {
+    pm->run(*this, pass);
+}
 
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(_config.get_property(ov::intel_gpu::force_implementations));
-
 
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
@@ -1413,14 +1474,15 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
-        auto &prim = *node;
+        auto& prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
-            auto &conv = prim.as<convolution>();
+            auto& conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
             if (conv.get_primitive()->deformable_mode)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
+                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution,
+                                              1);
 
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
@@ -1455,73 +1517,46 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() == cldnn::resample::type_id() || prim.type() == cldnn::reorg_yolo::type_id())
             lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bfyx_only_layer, 1);
 
-        if (prim.is_in_data_flow() &&
-            prim.type() != cldnn::convolution::type_id() &&
-            prim.type() != cldnn::deconvolution::type_id() &&
-            prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::pooling::type_id() &&
-            prim.type() != cldnn::eltwise::type_id() &&
-            prim.type() != cldnn::permute::type_id() &&
-            prim.type() != cldnn::reshape::type_id() &&
-            prim.type() != cldnn::detection_output::type_id() &&
-            prim.type() != cldnn::quantize::type_id() &&
-            prim.type() != cldnn::custom_gpu_primitive::type_id() &&
-            prim.type() != cldnn::concatenation::type_id() &&
-            prim.type() != cldnn::fully_connected::type_id() &&
-            prim.type() != cldnn::reorder::type_id() &&
-            prim.type() != cldnn::input_layout::type_id() &&
-            prim.type() != cldnn::softmax::type_id() &&
-            prim.type() != cldnn::prior_box::type_id() &&
-            prim.type() != cldnn::border::type_id() &&
-            prim.type() != cldnn::resample::type_id() &&
-            prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::depth_to_space::type_id() &&
-            prim.type() != cldnn::shuffle_channels::type_id() &&
-            (prim.type() != cldnn::mvn::type_id()
-             || (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
-                 prim.as<mvn>().get_input_layout().data_type != data_types::i8)
-             || prim.as<mvn>().get_primitive()->across_channels()) &&
-            prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::dft::type_id() &&
-            prim.type() != cldnn::grid_sample::type_id() &&
-            prim.type() != cldnn::mutable_data::type_id() &&
-            prim.type() != cldnn::reduce::type_id() &&
-            prim.type() != cldnn::strided_slice::type_id() &&
-            prim.type() != cldnn::region_yolo::type_id() &&
-            prim.type() != cldnn::normalize::type_id() &&
-            prim.type() != cldnn::mvn::type_id() &&
-            prim.type() != cldnn::gather::type_id() &&
-            prim.type() != cldnn::scatter_nd_update::type_id() &&
-            prim.type() != cldnn::broadcast::type_id() &&
-            prim.type() != cldnn::ctc_loss::type_id() &&
-            prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id() &&
-            prim.type() != cldnn::matrix_nms::type_id() &&
-            prim.type() != cldnn::adaptive_pooling::type_id() &&
-            prim.type() != cldnn::bucketize::type_id() &&
-            prim.type() != cldnn::roll::type_id() &&
-            prim.type() != cldnn::multiclass_nms::type_id() &&
-            prim.type() != cldnn::prior_box::type_id() &&
-            prim.type() != cldnn::roi_pooling::type_id() &&
-            prim.type() != cldnn::resample::type_id() &&
-            prim.type() != cldnn::eye::type_id() &&
-            prim.type() != cldnn::generate_proposals::type_id() &&
-            prim.type() != cldnn::reverse::type_id() &&
-            prim.type() != cldnn::reorg_yolo::type_id() &&
-            prim.type() != cldnn::gemm::type_id() &&
-            prim.type() != cldnn::tile::type_id() &&
-            prim.type() != cldnn::scatter_elements_update::type_id() &&
+        if (prim.is_in_data_flow() && prim.type() != cldnn::convolution::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() && prim.type() != cldnn::activation::type_id() &&
+            prim.type() != cldnn::pooling::type_id() && prim.type() != cldnn::eltwise::type_id() &&
+            prim.type() != cldnn::permute::type_id() && prim.type() != cldnn::reshape::type_id() &&
+            prim.type() != cldnn::detection_output::type_id() && prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::custom_gpu_primitive::type_id() && prim.type() != cldnn::concatenation::type_id() &&
+            prim.type() != cldnn::fully_connected::type_id() && prim.type() != cldnn::reorder::type_id() &&
+            prim.type() != cldnn::input_layout::type_id() && prim.type() != cldnn::softmax::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() && prim.type() != cldnn::border::type_id() &&
+            prim.type() != cldnn::resample::type_id() && prim.type() != cldnn::crop::type_id() &&
+            prim.type() != cldnn::depth_to_space::type_id() && prim.type() != cldnn::shuffle_channels::type_id() &&
+            (prim.type() != cldnn::mvn::type_id() ||
+             (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
+              prim.as<mvn>().get_input_layout().data_type != data_types::i8) ||
+             prim.as<mvn>().get_primitive()->across_channels()) &&
+            prim.type() != cldnn::arg_max_min::type_id() && prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() && prim.type() != cldnn::mutable_data::type_id() &&
+            prim.type() != cldnn::reduce::type_id() && prim.type() != cldnn::strided_slice::type_id() &&
+            prim.type() != cldnn::region_yolo::type_id() && prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::mvn::type_id() && prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id() && prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() && prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() && prim.type() != cldnn::matrix_nms::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() && prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() && prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() && prim.type() != cldnn::roi_pooling::type_id() &&
+            prim.type() != cldnn::resample::type_id() && prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id() && prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id() && prim.type() != cldnn::gemm::type_id() &&
+            prim.type() != cldnn::tile::type_id() && prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
-            prim.type() != cldnn::convert_color::type_id() &&
-            prim.type() != cldnn::unique_count::type_id() &&
+            prim.type() != cldnn::convert_color::type_id() && prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
 
-        if (prim.type() == cldnn::quantize::type_id() &&
-            (prim.get_output_layout().data_type == data_types::i8 || prim.get_output_layout().data_type == data_types::u8)) {
+        if (prim.type() == cldnn::quantize::type_id() && (prim.get_output_layout().data_type == data_types::i8 ||
+                                                          prim.get_output_layout().data_type == data_types::u8)) {
             is_quantized_int8_model = true;
         }
 
@@ -1529,47 +1564,27 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             total_crop_layers++;
         }
 
-        if (prim.is_in_data_flow() &&
-            prim.type() != cldnn::convolution::type_id() &&
-            prim.type() != cldnn::pooling::type_id() &&
-            prim.type() != cldnn::eltwise::type_id() &&
-            prim.type() != cldnn::reorder::type_id() &&
-            prim.type() != cldnn::permute::type_id() &&
-            prim.type() != cldnn::reshape::type_id() &&
-            prim.type() != cldnn::input_layout::type_id() &&
-            prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::dft::type_id() &&
-            prim.type() != cldnn::grid_sample::type_id() &&
-            prim.type() != cldnn::softmax::type_id() &&
-            prim.type() != cldnn::fully_connected::type_id() &&
-            prim.type() != cldnn::scatter_nd_update::type_id() &&
-            prim.type() != cldnn::broadcast::type_id() &&
-            prim.type() != cldnn::quantize::type_id() &&
-            prim.type() != cldnn::ctc_loss::type_id() &&
-            prim.type() != cldnn::non_max_suppression::type_id() &&
-            prim.type() != cldnn::roi_align::type_id() &&
-            prim.type() != cldnn::matrix_nms::type_id() &&
-            prim.type() != cldnn::adaptive_pooling::type_id() &&
-            prim.type() != cldnn::bucketize::type_id() &&
-            prim.type() != cldnn::roll::type_id() &&
-            prim.type() != cldnn::resample::type_id() &&
-            prim.type() != cldnn::prior_box::type_id() &&
-            prim.type() != cldnn::roi_pooling::type_id() &&
-            prim.type() != cldnn::eye::type_id() &&
-            prim.type() != cldnn::generate_proposals::type_id() &&
-            prim.type() != cldnn::reverse::type_id() &&
-            prim.type() != cldnn::reorg_yolo::type_id() &&
-            prim.type() != cldnn::gemm::type_id() &&
-            prim.type() != cldnn::tile::type_id() &&
-            prim.type() != cldnn::scatter_elements_update::type_id() &&
-            prim.type() != cldnn::gather_tree::type_id() &&
+        if (prim.is_in_data_flow() && prim.type() != cldnn::convolution::type_id() &&
+            prim.type() != cldnn::pooling::type_id() && prim.type() != cldnn::eltwise::type_id() &&
+            prim.type() != cldnn::reorder::type_id() && prim.type() != cldnn::permute::type_id() &&
+            prim.type() != cldnn::reshape::type_id() && prim.type() != cldnn::input_layout::type_id() &&
+            prim.type() != cldnn::activation::type_id() && prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() && prim.type() != cldnn::softmax::type_id() &&
+            prim.type() != cldnn::fully_connected::type_id() && prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() && prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() && prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() && prim.type() != cldnn::matrix_nms::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() && prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() && prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() && prim.type() != cldnn::roi_pooling::type_id() &&
+            prim.type() != cldnn::eye::type_id() && prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() && prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() && prim.type() != cldnn::tile::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id() && prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
-            prim.type() != cldnn::deconvolution::type_id() &&
-            prim.type() != cldnn::multiclass_nms::type_id() &&
-            prim.type() != cldnn::normalize::type_id() &&
-            prim.type() != cldnn::deconvolution::type_id() &&
-            prim.type() != cldnn::unique_count::type_id() &&
-            prim.type() != cldnn::unique_gather::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() && prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::normalize::type_id() && prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::unique_count::type_id() && prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
@@ -1586,24 +1601,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
     size_t num_of_conv_b_fs_yx_fsv16 = lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false});
 
-    bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
-                                         (can_use_fsv16 &&
-                                          total_conv_layers > 11 &&
-                                          (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
-                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
+    bool should_use_b_fs_yx_fsv16_conv =
+        is_quantized_int8_model ||
+        (can_use_fsv16 && total_conv_layers > 11 &&
+         (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
+         num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
-    bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
-                                         total_grouped_conv_layers == 0 &&
-                                         total_1x1_fm_conv_layers * cond_denom < 0.8f;
+    bool should_use_fs_b_yx_fsv32_conv =
+        total_conv_layers > 11 && total_grouped_conv_layers == 0 && total_1x1_fm_conv_layers * cond_denom < 0.8f;
 
     bool should_use_b_fs_zyx_fsv32_conv = total_asym_quantized_conv_layers > 1;
 
-    bool should_use_bs_fs_yx_bsv16_fsv16 = can_use_bs_fs_yx_bsv16_fsv16 &&
-                                  total_conv_layers > 11 &&
-                                  total_conv_layers == lo.get_optimized_conv_count({format::bs_fs_yx_bsv16_fsv16, false}) &&
-                                  total_grouped_conv_layers == 0 &&
-                                  total_dw_splitted_conv_layers == 0 &&
-                                  total_dw_conv_layers == 0;
+    bool should_use_bs_fs_yx_bsv16_fsv16 =
+        can_use_bs_fs_yx_bsv16_fsv16 && total_conv_layers > 11 &&
+        total_conv_layers == lo.get_optimized_conv_count({format::bs_fs_yx_bsv16_fsv16, false}) &&
+        total_grouped_conv_layers == 0 && total_dw_splitted_conv_layers == 0 && total_dw_conv_layers == 0;
 
     if (should_use_fs_b_yx_fsv32_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::fs_b_yx_fsv32_network, 1);
@@ -1622,8 +1634,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad &&
-        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+    if (engine.get_device_info().supports_immad && engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
@@ -1662,27 +1673,31 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
             host_alloc += out_size;
             continue;
         }
-        #ifdef __unix__
+#ifdef __unix__
         // Check whether the host mem allocation might exceed avialalbe system VRAM or physical memory
         // Temporal solution for linux OoO memory killer
         // TODO: Ultimate solution will be the "estimation without actual allocation" mechanism for this issue,
         // which is also expected for better estimation performance
         int64_t max_global_mem_size = engine.get_device_info().max_global_mem_size;
-        int64_t total_host_alloc_size = out_size + host_alloc + engine.get_used_device_memory(allocation_type::usm_host);
+        int64_t total_host_alloc_size =
+            out_size + host_alloc + engine.get_used_device_memory(allocation_type::usm_host);
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
-        if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                           << cur_vmem << ")" << std::endl;
+        if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) ||
+            (total_host_alloc_size >= max_global_mem_size)) {
+            GPU_DEBUG_INFO
+                << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
-        #endif
+#endif
 
         if (node->can_be_optimized())
             continue;
         if (node->is_type<data>()) {
             const_sum += out_size;
-        } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+        } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 &&
+                   node->get_users().front()->can_be_optimized()) {
             continue;
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
@@ -1950,8 +1965,17 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         ib >> make_data(&runtime_precision, sizeof(data_types));
         ib >> is_cpu;
         ib >> exec_id;
-        primitive_info p_info(original_id, type_id, c_dependencies, c_users, c_fused_ids,
-                              output_layout, layout_str, kernel_id, runtime_precision, is_cpu, exec_id);
+        primitive_info p_info(original_id,
+                              type_id,
+                              c_dependencies,
+                              c_users,
+                              c_fused_ids,
+                              output_layout,
+                              layout_str,
+                              kernel_id,
+                              runtime_precision,
+                              is_cpu,
+                              exec_id);
         prim_info.emplace_back(p_info);
     }
 

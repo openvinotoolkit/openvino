@@ -2,23 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "openvino/op/random_uniform.hpp"
-#include "intel_gpu/primitives/random_uniform.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/random_uniform.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 namespace {
 
-void CreateRandomUniformOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v8::RandomUniform> &op) {
+void CreateRandomUniformOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::RandomUniform>& op) {
     auto inputs = p.GetInputInfo(op);
     auto input_pshape = op->get_input_partial_shape(0);
     auto output_pshape = op->get_output_partial_shape(0);
 
-    OPENVINO_ASSERT(input_pshape.is_static(), "[GPU] Dynamic input of RandomUniform leads to dynamic output rank, but GPU doesn't support it yet");
+    OPENVINO_ASSERT(
+        input_pshape.is_static(),
+        "[GPU] Dynamic input of RandomUniform leads to dynamic output rank, but GPU doesn't support it yet");
 
     if (output_pshape.is_static() && !p.use_new_shape_infer()) {
         auto output_shape = output_pshape.get_shape();
@@ -44,7 +46,7 @@ void CreateRandomUniformOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v8::
     }
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_FACTORY_IMPL(v8, RandomUniform);
 

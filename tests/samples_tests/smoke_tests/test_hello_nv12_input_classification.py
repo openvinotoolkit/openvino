@@ -10,24 +10,32 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import pytest
+
+import logging as log
 import re
 import sys
-import logging as log
-from common.samples_common_test_class import get_tests
-from common.samples_common_test_class import SamplesCommonTestClass
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+import pytest
+from common.samples_common_test_class import SamplesCommonTestClass, get_tests
 
-test_data_fp32 = get_tests({
-    'i': ['samples_smoke_tests_data_2021.4/validation_set/224x224/dog6.yuv'],
-    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
-    'size': ['224x224'],
-    'sample_type': ['C++', 'C'],
-})
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
+
+test_data_fp32 = get_tests(
+    {
+        "i": ["samples_smoke_tests_data_2021.4/validation_set/224x224/dog6.yuv"],
+        "m": [
+            "bvlcalexnet-12.onnx"
+        ],  # Remove the model forom .md and .rst if removed from here
+        "size": ["224x224"],
+        "sample_type": ["C++", "C"],
+    }
+)
+
 
 class TestHelloNV12Input(SamplesCommonTestClass):
-    sample_name = 'hello_nv12_input_classification'
+    sample_name = "hello_nv12_input_classification"
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_hello_nv12_input_classification_fp32(self, param, cache):
@@ -41,20 +49,25 @@ def _check_output(self, param, cache):
     """
 
     # Run _test function, that returns stdout or 0.
-    stdout = self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_nv12_cmd_line)
+    stdout = self._test(
+        param, cache, use_preffix=False, get_cmd_func=self.get_hello_nv12_cmd_line
+    )
     if not stdout:
         return 0
 
-    stdout = stdout.split('\n')
+    stdout = stdout.split("\n")
 
     is_ok = True
     for line in range(len(stdout)):
-        if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
-            top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
-            top1 = re.sub('\\D', '', top1)
-            if '215' not in top1:
+        if (
+            re.match("\\d+ +\\d+.\\d+$", stdout[line].replace("[ INFO ]", "").strip())
+            is not None
+        ):
+            top1 = stdout[line].replace("[ INFO ]", "").strip().split(" ")[0]
+            top1 = re.sub("\\D", "", top1)
+            if "215" not in top1:
                 is_ok = False
-                log.error('Expected class 215, Detected class {}'.format(top1))
+                log.error("Expected class 215, Detected class {}".format(top1))
             break
-    assert is_ok, 'Wrong top1 class'
-    log.info('Accuracy passed')
+    assert is_ok, "Wrong top1 class"
+    log.info("Accuracy passed")

@@ -1,26 +1,29 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import importlib
-import shutil
-import os
-import sys
-import subprocess
-from enum import Enum
-import re
 import json
 import logging as log
+import os
+import re
+import shutil
+import subprocess
+import sys
 from argparse import ArgumentParser
+from enum import Enum
+
 from utils.cfg_manager import CfgManager
-import copy
 
 
 def getMeaningfullCommitTail(commit):
     return commit[:7]
 
+
 def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
+
 
 def getParams():
     parser = ArgumentParser()
@@ -124,9 +127,7 @@ def absolutizePaths(cfg):
         cfg["workPath"] = wp
         cfg["os"] = "win"
     else:
-        raise CfgError(
-            "No support for current OS: {pl}".format(pl=pl)
-            )
+        raise CfgError("No support for current OS: {pl}".format(pl=pl))
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
@@ -220,28 +221,27 @@ def runCommandList(commit, cfgData):
         if pathExists:
             # todo - and {} in cmd
             strCommand = cmd["cmd"].format(
-                cashedPath=cashedPath,
-                commit=commit, makeCmd=makeCmd)
+                cashedPath=cashedPath, commit=commit, makeCmd=makeCmd
+            )
         else:
-            strCommand = cmd["cmd"].format(
-                commit=commit, makeCmd=makeCmd)
+            strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
         formattedCmd = strCommand.split()
         # define command launch destination
         cwd = defRepo
         if "path" in cmd:
             # todo - cashedpath
             cwd = cmd["path"].format(
-                buildPath=buildPath,
-                gitPath=gitPath,
-                cashedPath=cashedPath)
+                buildPath=buildPath, gitPath=gitPath, cashedPath=cashedPath
+            )
         # run and check
-        commitLogger.info("Run command: {command}".format(
-            command=formattedCmd)
-        )
+        commitLogger.info("Run command: {command}".format(command=formattedCmd))
         proc = subprocess.Popen(
-            formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
+            formattedCmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            encoding="utf-8", errors="replace"
+            encoding="utf-8",
+            errors="replace",
         )
         for line in proc.stdout:
             if cfgData["verboseOutput"]:
@@ -252,9 +252,9 @@ def runCommandList(commit, cfgData):
                 if isErrFound:
                     raise BuildError(
                         errType=BuildError.BuildErrType.UNDEFINED,
-                        message="error while executing: {}".
-                            format(cmd["cmd"]), commit=commit
-                        )
+                        message="error while executing: {}".format(cmd["cmd"]),
+                        commit=commit,
+                    )
         proc.wait()
         checkOut, err = proc.communicate()
 
@@ -268,7 +268,8 @@ def fetchAppOutput(cfg, commit):
         if pathExists and cfg["cachedPathConfig"]["changeAppPath"]:
             commitLogger.info(
                 "App path, corresponding commit {c} is cashed, "
-                "value:{p}".format(c=commit, p=suggestedAppPath))
+                "value:{p}".format(c=commit, p=suggestedAppPath)
+            )
             appPath = suggestedAppPath
     newEnv = os.environ.copy()
     if "envVars" in cfg:
@@ -277,9 +278,7 @@ def fetchAppOutput(cfg, commit):
             envVal = env["val"]
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
-    commitLogger.info("Run command: {command}".format(
-        command=appCmd)
-    )
+    commitLogger.info("Run command: {command}".format(command=appCmd))
     shellFlag = True
     if cfg["os"] == "linux":
         shellFlag = False
@@ -288,43 +287,37 @@ def fetchAppOutput(cfg, commit):
     if cfg["venvCfg"]["venvEnabled"]:
         # todo - move to substitution rules
         for item in [
-                {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
-                {"src": cfg["appPath"], "dst": "appPath"},
-                {"src": sys.executable, "dst": "py"},
-                # for AC case
-                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
-                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
-                ]:
-            appCmd = multistepStrFormat(
-                appCmd,
-                item["dst"],
-                item["src"]
-            )
+            {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
+            {"src": cfg["appPath"], "dst": "appPath"},
+            {"src": sys.executable, "dst": "py"},
+            # for AC case
+            {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
+            {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"},
+        ]:
+            appCmd = multistepStrFormat(appCmd, item["dst"], item["src"])
         commitLogger.info("App command: {}".format(appCmd))
         # initialize venv
-        p = subprocess.Popen('rm -rf {}'.format(
-                cfg["venvCfg"]["venvDir"]
-            ),
+        p = subprocess.Popen(
+            "rm -rf {}".format(cfg["venvCfg"]["venvDir"]),
             shell=True,
-            executable="/bin/bash"
+            executable="/bin/bash",
         )
         p.wait()
         p.communicate()
-        p = subprocess.Popen('mkdir {}'.format(
-                cfg["venvCfg"]["venvDir"]
-            ),
+        p = subprocess.Popen(
+            "mkdir {}".format(cfg["venvCfg"]["venvDir"]),
             shell=True,
-            executable="/bin/bash"
+            executable="/bin/bash",
         )
         p.wait()
         p.communicate()
-        p = subprocess.Popen('{py} -m venv {venvName}'.format(
-                py=sys.executable,
-                venvName=cfg["venvCfg"]["venvName"]
+        p = subprocess.Popen(
+            "{py} -m venv {venvName}".format(
+                py=sys.executable, venvName=cfg["venvCfg"]["venvName"]
             ),
             executable="/bin/bash",
             cwd=cfg["venvCfg"]["venvDir"],
-            shell=True
+            shell=True,
         )
         p.wait()
         p.communicate()
@@ -336,7 +329,8 @@ def fetchAppOutput(cfg, commit):
             stderr=subprocess.STDOUT,
             env=newEnv,
             shell=True,
-            encoding="utf-8", errors="replace"
+            encoding="utf-8",
+            errors="replace",
         )
         for line in p.stdout:
             if cfg["verboseOutput"]:
@@ -344,11 +338,10 @@ def fetchAppOutput(cfg, commit):
             commitLogger.info(line)
             output = "{}\n{}".format(output, line)
         p.wait()
-        p = subprocess.Popen('rm -rf {}'.format(
-                cfg["venvCfg"]["venvDir"]
-            ),
+        p = subprocess.Popen(
+            "rm -rf {}".format(cfg["venvCfg"]["venvDir"]),
             shell=True,
-            executable="/bin/bash"
+            executable="/bin/bash",
         )
         p.wait()
         p.communicate()
@@ -359,7 +352,7 @@ def fetchAppOutput(cfg, commit):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=newEnv,
-            shell=shellFlag
+            shell=shellFlag,
         )
         output, err = p.communicate()
         output = output.decode("utf-8")
@@ -374,7 +367,9 @@ def handleCommit(commit, cfgData):
         if pathExists:
             commitLogger.info(
                 "Path, corresponding commit {c} is cashed, value:{p}".format(
-                c=commit, p=cashedPath))
+                    c=commit, p=cashedPath
+                )
+            )
             if cfgData["cachedPathConfig"]["passCmdList"]:
                 return
         else:
@@ -384,8 +379,8 @@ def handleCommit(commit, cfgData):
                 raise BuildError(
                     errType=BuildError.BuildErrType.TO_IGNORE,
                     message="build error handled by skip",
-                    commit=commit
-                    )
+                    commit=commit,
+                )
 
     try:
         runCommandList(commit, cfgData)
@@ -398,8 +393,8 @@ def handleCommit(commit, cfgData):
             raise BuildError(
                 errType=BuildError.BuildErrType.TO_SKIP,
                 message="build error handled by skip",
-                commit=commit
-                ) from be
+                commit=commit,
+            ) from be
         elif cfgData["skipMode"]["flagSet"]["enableRebuild"]:
             if cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"]:
                 cfgData["skipMode"]["flagSet"]["switchOnSimpleBuild"] = False
@@ -408,26 +403,26 @@ def handleCommit(commit, cfgData):
                 raise BuildError(
                     errType=BuildError.BuildErrType.TO_REBUILD,
                     message="build error handled by rebuilding",
-                    commit=commit
-                    ) from be
+                    commit=commit,
+                ) from be
             elif cfgData["skipMode"]["flagSet"]["switchOnExtendedBuild"]:
                 raise BuildError(
                     errType=BuildError.BuildErrType.TO_STOP,
                     message="cannot rebuild commit",
-                    commit=commit
-                    ) from be
+                    commit=commit,
+                ) from be
             else:
                 raise BuildError(
                     errType=BuildError.BuildErrType.WRONG_STATE,
                     message="incorrect case with commit",
-                    commit=commit
-                    ) from be
+                    commit=commit,
+                ) from be
         else:
             raise BuildError(
-                        message = "error occured during handling",
-                        errType = BuildError.BuildErrType.WRONG_STATE,
-                        commit=commit
-                        )
+                message="error occured during handling",
+                errType=BuildError.BuildErrType.WRONG_STATE,
+                commit=commit,
+            )
 
 
 def getCashedPath(commit, cfgData):
@@ -527,10 +522,7 @@ def safeClearDir(path, cfg):
     else:
         # WA, because of unstability of rmtree()
         # in linux environment
-        p = subprocess.Popen(
-            "rm -rf *", cwd=path,
-            stdout=subprocess.PIPE, shell=True
-        )
+        p = subprocess.Popen("rm -rf *", cwd=path, stdout=subprocess.PIPE, shell=True)
         p.wait()
     return
 
@@ -538,8 +530,7 @@ def safeClearDir(path, cfg):
 def runUtility(cfg, args):
     modName = args.utility
     try:
-        mod = importlib.import_module(
-            "utils.{un}".format(un=modName))
+        mod = importlib.import_module("utils.{un}".format(un=modName))
         utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
         utility(args)
@@ -585,10 +576,12 @@ class BuildError(Exception):
         TO_IGNORE = 4
         # throwed in unexpected case
         WRONG_STATE = 5
+
     def __init__(self, commit, message, errType):
         self.message = message
         self.errType = errType
         self.commit = commit
+
     def __str__(self):
         return self.message
 
@@ -609,9 +602,7 @@ def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
 def checkAndGetUtilityByName(cfg, utilName):
     if not (utilName in cfg["utilMap"]):
         raise CfgError(
-            "{utilName} is not registered in config".format(
-                utilName=utilName
-            )
+            "{utilName} is not registered in config".format(utilName=utilName)
         )
     else:
         return cfg["utilMap"][utilName]
@@ -631,6 +622,7 @@ class DictHolder:
             for k, v in dict.items():
                 setattr(self, k, v)
 
+
 def formatJSON(content, formatLambda):
     if isinstance(content, dict):
         for k, value in content.items():
@@ -645,20 +637,20 @@ def formatJSON(content, formatLambda):
         pass
     return content
 
-def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
+
+def applySubstitutionRules(cfg: map, rules: list, commit: str = None):
     # if commit is None, the rule is considered as static,
     # substitution proceeds as simple string replacing
 
     serviceCfg = cfg["serviceConfig"]
-    if ("substRulesData" not in serviceCfg)\
-        or ("dataChanged" not in serviceCfg["substRulesData"])\
-        or (not serviceCfg["substRulesData"]["dataChanged"]):
+    if (
+        ("substRulesData" not in serviceCfg)
+        or ("dataChanged" not in serviceCfg["substRulesData"])
+        or (not serviceCfg["substRulesData"]["dataChanged"])
+    ):
         # create config copy for the first application of rules
         savedCfg = copy.deepcopy(cfg)
-        serviceCfg["substRulesData"] = {
-            "dataChanged": True,
-            "savedCfg": savedCfg
-        }
+        serviceCfg["substRulesData"] = {"dataChanged": True, "savedCfg": savedCfg}
     else:
         # apply rules to the saved copy of config
         savedServiceCfg = copy.deepcopy(serviceCfg)
@@ -684,31 +676,29 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             dstPos = dstPos[item]
         dstPos = formatJSON(
             dstPos,
-            lambda content:
-            multistepStrFormat(
+            lambda content: multistepStrFormat(
                 content,
                 rule["placeholder"],
-                getMapValueByShortHash(srcPos, commit)\
-                    if commit is not None\
+                (
+                    getMapValueByShortHash(srcPos, commit)
+                    if commit is not None
                     else srcPos
-            )
+                ),
+            ),
         )
         cfg = deepMapUpdate(cfg, pathToDst, dstPos)
 
+
 def getMapValueByShortHash(map: dict, commit: str):
     for k in map:
-        if getMeaningfullCommitTail(k) ==\
-            getMeaningfullCommitTail(commit):
+        if getMeaningfullCommitTail(k) == getMeaningfullCommitTail(commit):
             return map[k]
-    raise Exception("No {} in {}".format(
-        commit, map.keys()
-    ))
+    raise Exception("No {} in {}".format(commit, map.keys()))
+
 
 def multistepStrFormat(input: str, placeholder: str, substitution: str):
-    return input.replace(
-        '{}{}{}'.format('{', placeholder, '}'),
-        substitution
-    )
+    return input.replace("{}{}{}".format("{", placeholder, "}"), substitution)
+
 
 def deepMapUpdate(content: map, path: list, substitution):
     if not path:

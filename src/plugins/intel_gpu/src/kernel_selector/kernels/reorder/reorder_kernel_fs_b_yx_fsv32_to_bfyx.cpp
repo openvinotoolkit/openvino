@@ -3,15 +3,17 @@
 //
 
 #include "reorder_kernel_fs_b_yx_fsv32_to_bfyx.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
 static const size_t fsv = 32;
 static const size_t x_block_align = 8;
-static const std::vector<size_t> optimal_x_sizes = { 16, 8, 4, 2, 1 };
-static const std::vector<size_t> optimal_feature_sizes = { 16, 8, 1 };
+static const std::vector<size_t> optimal_x_sizes = {16, 8, 4, 2, 1};
+static const std::vector<size_t> optimal_feature_sizes = {16, 8, 1};
 
 static size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_sizes) {
     for (auto& s : optimal_sizes)

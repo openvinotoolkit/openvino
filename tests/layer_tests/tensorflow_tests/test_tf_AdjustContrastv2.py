@@ -11,11 +11,11 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestAdjustContrastv2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'images:0' in inputs_info
-        images_shape = inputs_info['images:0']
+        assert "images:0" in inputs_info
+        images_shape = inputs_info["images:0"]
         inputs_data = {}
-        inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-        inputs_data['contrast_factor:0'] = np.random.rand()
+        inputs_data["images:0"] = np.random.rand(*images_shape).astype(self.input_type)
+        inputs_data["contrast_factor:0"] = np.random.rand()
         return inputs_data
 
     def create_adjust_contrast_net(self, input_shape, input_type):
@@ -23,8 +23,10 @@ class TestAdjustContrastv2(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            images = tf.compat.v1.placeholder(input_type, input_shape, 'images')
-            contrast_factor = tf.compat.v1.placeholder(input_type, [], 'contrast_factor')
+            images = tf.compat.v1.placeholder(input_type, input_shape, "images")
+            contrast_factor = tf.compat.v1.placeholder(
+                input_type, [], "contrast_factor"
+            )
             tf.raw_ops.AdjustContrastv2(images=images, contrast_factor=contrast_factor)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -40,10 +42,18 @@ class TestAdjustContrastv2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_adjust_contrast_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_legacy_frontend):
-        self._test(*self.create_adjust_contrast_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_adjust_contrast_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_adjust_contrast_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

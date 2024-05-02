@@ -5,7 +5,8 @@ import subprocess
 import sys
 
 from common.utils.multiprocessing_utils import multiprocessing_run
-from openvino.runtime import Core, get_version as ie2_get_version
+from openvino.runtime import Core
+from openvino.runtime import get_version as ie2_get_version
 
 # Not all layer tests use openvino_tokenizers
 try:
@@ -15,12 +16,15 @@ except:
     # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
     pass
 
+
 def shell(cmd, env=None, cwd=None):
-    if sys.platform.startswith('linux') or sys.platform == 'darwin':
-        cmd = ['/bin/bash', '-c', "".join(cmd)]
+    if sys.platform.startswith("linux") or sys.platform == "darwin":
+        cmd = ["/bin/bash", "-c", "".join(cmd)]
     else:
         cmd = "".join(cmd)
-    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(
+        cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     (stdout, stderr) = p.communicate()
     return p.returncode, stdout, stderr
 
@@ -31,19 +35,25 @@ class BaseInfer:
         self.res = None
 
     def fw_infer(self, input_data, config=None):
-        raise RuntimeError("This is base class, please implement infer function for the specific framework")
+        raise RuntimeError(
+            "This is base class, please implement infer function for the specific framework"
+        )
 
     def get_inputs_info(self, precision) -> dict:
-        raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
+        raise RuntimeError(
+            "This is base class, please implement get_inputs_info function for the specific framework"
+        )
 
     def infer(self, input_data, config=None, infer_timeout=10):
-        self.res = multiprocessing_run(self.fw_infer, [input_data, config], self.name, infer_timeout)
+        self.res = multiprocessing_run(
+            self.fw_infer, [input_data, config], self.name, infer_timeout
+        )
         return self.res
 
 
 class InferAPI(BaseInfer):
     def __init__(self, model, weights, device, use_legacy_frontend):
-        super().__init__('OpenVINO')
+        super().__init__("OpenVINO")
         self.device = device
         self.model = model
         self.weights = weights
@@ -75,7 +85,7 @@ class InferAPI(BaseInfer):
             else:
                 for tensor_name in out_obj.get_names():
                     result[tensor_name] = out_tensor
-                    tensor_name = tensor_name.split(':')[0]
+                    tensor_name = tensor_name.split(":")[0]
                     result[tensor_name] = out_tensor
 
         if "exec_net" in locals():

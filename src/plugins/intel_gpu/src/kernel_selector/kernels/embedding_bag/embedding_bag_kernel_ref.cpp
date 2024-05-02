@@ -3,9 +3,11 @@
 //
 
 #include "embedding_bag_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 JitConstants EmbeddingBagKernelRef::GetJitConstants(const embedding_bag_params& params) const {
@@ -34,14 +36,16 @@ CommonDispatchData EmbeddingBagKernelRef::SetDefault(const embedding_bag_params&
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::BATCH},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
 
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v,
-                         params.outputs[0].Y().v * params.outputs[0].X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].Y().v * params.outputs[0].X().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -62,17 +66,17 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params) const {
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel,
-            dispatchData,
-            params.engineInfo,
-            kernelName,
-            jit,
-            entry_point,
-            "",
-            false,
-            false,
-            (uint32_t)newParams.inputs.size());
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     (uint32_t)newParams.inputs.size());
 
-    return { kd };
+    return {kd};
 }
 
 KernelsPriority EmbeddingBagKernelRef::GetKernelsPriority(const Params& /*params*/) const {

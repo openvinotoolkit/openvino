@@ -52,15 +52,9 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
 namespace detail {
 
 attach_swiglu_impl::attach_swiglu_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16
-    };
+    auto types = {data_types::f32, data_types::f16};
 
-    auto formats = {
-        format::bfyx,
-        format::bfzyx
-    };
+    auto formats = {format::bfyx, format::bfzyx};
 
     implementation_map<swiglu>::add(impl_types::ocl,
                                     shape_types::any,

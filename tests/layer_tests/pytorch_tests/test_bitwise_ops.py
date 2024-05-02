@@ -16,7 +16,11 @@ class TestBitwiseOp(PytorchLayerTest):
         y = np.random.choice(choices, rhs_shape).astype(rhs_dtype)
         if not out:
             return x, y
-        return x, y, np.zeros_like(x).astype(lhs_dtype) + np.zeros_like(y).astype(rhs_dtype)
+        return (
+            x,
+            y,
+            np.zeros_like(x).astype(lhs_dtype) + np.zeros_like(y).astype(rhs_dtype),
+        )
 
     def create_model(self, op_name, out):
         ops = {
@@ -34,7 +38,11 @@ class TestBitwiseOp(PytorchLayerTest):
                 if op == torch.bitwise_not:
                     self.forward = self.forward_not
                 if out:
-                    self.forward = self.forward_out if not op == torch.bitwise_not else self.forward_not_out
+                    self.forward = (
+                        self.forward_out
+                        if not op == torch.bitwise_not
+                        else self.forward_not_out
+                    )
 
             def forward(self, tensor_a, tensor_b):
                 return self.op(tensor_a, tensor_b)
@@ -69,7 +77,16 @@ class TestBitwiseOp(PytorchLayerTest):
     )
     @pytest.mark.parametrize("out", [False, skip_if_export(True)])
     def test_bitwise_mixed_dtypes(
-        self, op_type, out, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version
+        self,
+        op_type,
+        out,
+        lhs_dtype,
+        rhs_dtype,
+        lhs_shape,
+        rhs_shape,
+        ie_device,
+        precision,
+        ir_version,
     ):
         if ie_device == "GPU" and (lhs_dtype != "bool" or rhs_dtype != "bool"):
             pytest.xfail(reason="bitwise ops are not supported on GPU")
@@ -105,7 +122,11 @@ class TestBitwiseOperators(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_bitwise(), ref_net, ("aten::__and__", "aten::bitwise_not", "aten::__or__", "aten::__xor__")
+        return (
+            aten_bitwise(),
+            ref_net,
+            ("aten::__and__", "aten::bitwise_not", "aten::__or__", "aten::__xor__"),
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -121,7 +142,16 @@ class TestBitwiseOperators(PytorchLayerTest):
             ([], [2, 3]),
         ],
     )
-    def test_bitwise_operators(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
+    def test_bitwise_operators(
+        self,
+        lhs_dtype,
+        rhs_dtype,
+        lhs_shape,
+        rhs_shape,
+        ie_device,
+        precision,
+        ir_version,
+    ):
         if ie_device == "GPU" and (lhs_dtype != "bool" or rhs_dtype != "bool"):
             pytest.xfail(reason="bitwise ops are not supported on GPU")
         self._test(

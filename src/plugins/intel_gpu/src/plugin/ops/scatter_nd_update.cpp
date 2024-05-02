@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/constant.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -19,11 +18,7 @@ static void CreateScatterNDUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov:
     std::string layerName = layer_type_name_ID(op);
     auto indices_rank = op->get_input_partial_shape(1).size();
 
-    auto primitive = cldnn::scatter_nd_update(layerName,
-                                              inputs[0],
-                                              inputs[1],
-                                              inputs[2],
-                                              indices_rank);
+    auto primitive = cldnn::scatter_nd_update(layerName, inputs[0], inputs[1], inputs[2], indices_rank);
 
     p.add_primitive(*op, primitive);
 }

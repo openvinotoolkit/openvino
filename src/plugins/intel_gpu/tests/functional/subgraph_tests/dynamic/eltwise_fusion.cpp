@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 
 using ov::test::InputShape;
 
-using StaticEltwiseDynamicFusionsParams = std::tuple<std::vector<InputShape>,   // input shapes
-                                                     ov::element::Type>;        // input precision
+using StaticEltwiseDynamicFusionsParams = std::tuple<std::vector<InputShape>,  // input shapes
+                                                     ov::element::Type>;       // input precision
 
 class StaticEltwiseDynamicFusions : public testing::WithParamInterface<StaticEltwiseDynamicFusionsParams>,
-                     virtual public ov::test::SubgraphBaseTest {
+                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<StaticEltwiseDynamicFusionsParams> obj) {
         std::vector<InputShape> input_shapes;
@@ -62,7 +61,9 @@ protected:
         mul->set_friendly_name("Mul1");
         mul2->set_friendly_name("Mul2");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input0, input1}, "StaticEltwiseDynamicFusions");
+        return std::make_shared<ov::Model>(ov::NodeVector{mul2},
+                                           ov::ParameterVector{input0, input1},
+                                           "StaticEltwiseDynamicFusions");
     }
 
     void SetUp() override {
@@ -95,4 +96,4 @@ INSTANTIATE_TEST_SUITE_P(StaticEltwiseDynamicFusions_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_dyn2),
                                             ::testing::ValuesIn(input_precisions2)),
                          StaticEltwiseDynamicFusions::getTestCaseName);
-} // namespace
+}  // namespace

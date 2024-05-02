@@ -3,11 +3,12 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "activation.hpp"
-#include <vector>
 #include <algorithm>
+#include <vector>
+
+#include "activation.hpp"
 #include "intel_gpu/graph/serialization/activation_serializer.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -18,17 +19,17 @@ namespace cldnn {
 /// Caffe order: ifoz
 /// pyTorch order: izof
 /// OV order: fizo
-enum class lstm_weights_order {
-    iofz,
-    ifoz,
-    izof,
-    fizo
-};
+enum class lstm_weights_order { iofz, ifoz, izof, fizo };
 
 struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
 
-    lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
+    lstm_elt()
+        : primitive_base("", {}),
+          clip(0),
+          input_forget(0),
+          offset_order(lstm_weights_order::iofz),
+          direction(0) {}
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
@@ -39,7 +40,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     /// @param input cell Primitive id containing cell data. Provide empty string if using lstm without cell values.
     /// @param clip Clip threshold. Provide 0 if using lstm without activations clip threshold.
     /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
-    /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
+    /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input,
+    /// output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_elt(const primitive_id& id,
              const input_info& input,
@@ -64,13 +66,15 @@ struct lstm_elt : public primitive_base<lstm_elt> {
 
     /// @brief Primitive id containing the initial value of the cell state data.
     primitive_id cell;
-    /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
+    /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not
+    /// specified.
     float clip;
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
     bool input_forget;
     /// @brief A list of 3 activation functions for the input, output, forget, cell, and hidden.
     std::vector<activation_func> activations;
-    /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of activation functions.
+    /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of
+    /// activation functions.
     std::vector<activation_additional_params> activation_params;
     /// @brief Weights, recurrent weights, and biases order. [iofz] : ONNX, [ifoz] : Caffe
     lstm_weights_order offset_order;
@@ -104,15 +108,10 @@ struct lstm_elt : public primitive_base<lstm_elt> {
                              activation_params[i].b == rhs_casted.activation_params[i].b;
         }
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return act_params_eq &&
-               cmp_fields(clip) &&
-               cmp_fields(input_forget) &&
-               cmp_fields(activations) &&
-               cmp_fields(offset_order) &&
-               cmp_fields(direction) &&
-               cmp_fields(cell.empty());
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq && cmp_fields(clip) && cmp_fields(input_forget) && cmp_fields(activations) &&
+               cmp_fields(offset_order) && cmp_fields(direction) && cmp_fields(cell.empty());
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

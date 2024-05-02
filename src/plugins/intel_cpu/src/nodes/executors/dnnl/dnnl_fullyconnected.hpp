@@ -8,11 +8,11 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
-#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_aliases.hpp"
-#include "nodes/executors/executor.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/dnnl/dnnl_aliases.hpp"
+#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 
 namespace ov {
@@ -144,9 +144,7 @@ private:
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
-    void updateMemory(const PrimitivePtr currentPrimitive,
-                      const PrimitivePtr newPrimitive,
-                      const MemoryArgs& memory) {
+    void updateMemory(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive, const MemoryArgs& memory) {
         const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
         const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
         const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());

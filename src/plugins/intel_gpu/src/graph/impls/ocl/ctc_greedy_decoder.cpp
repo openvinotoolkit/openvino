@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "ctc_greedy_decoder_inst.h"
-#include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_selector.h"
 #include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_base.h"
+#include "ctc_greedy_decoder/ctc_greedy_decoder_kernel_selector.h"
+#include "ctc_greedy_decoder_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -31,7 +30,8 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.merge_repeated = primitive->ctc_merge_repeated;
 
-        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool allow_new_shape_infer =
+            impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         if (allow_new_shape_infer && primitive->num_outputs == 2) {
             if (primitive->blank_index == UINT32_MAX) {
                 params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
@@ -61,12 +61,15 @@ struct ctc_greedy_decoder_impl : typed_primitive_impl_ocl<ctc_greedy_decoder> {
 namespace detail {
 
 attach_ctc_greedy_decoder_impl::attach_ctc_greedy_decoder_impl() {
-    implementation_map<ctc_greedy_decoder>::add(impl_types::ocl, typed_primitive_impl_ocl<ctc_greedy_decoder>::create<ctc_greedy_decoder_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-    });
+    implementation_map<ctc_greedy_decoder>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<ctc_greedy_decoder>::create<ctc_greedy_decoder_impl>,
+        {
+            std::make_tuple(data_types::f32, format::bfyx),
+            std::make_tuple(data_types::f16, format::bfyx),
+            std::make_tuple(data_types::i32, format::bfyx),
+            std::make_tuple(data_types::i64, format::bfyx),
+        });
 }
 
 }  // namespace detail

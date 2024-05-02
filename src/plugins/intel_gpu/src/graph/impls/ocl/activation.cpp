@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "activation_inst.h"
 #include "activation/activation_kernel_base.h"
 #include "activation/activation_kernel_selector.h"
+#include "activation_inst.h"
+#include "primitive_base.hpp"
 
 namespace {
-inline void convert_new_activation_func(const cldnn::activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
-    params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
-                                   prim.additional_params.a,
-                                   prim.additional_params.b});
+inline void convert_new_activation_func(const cldnn::activation& prim,
+                                        std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(),
+                  {get_kernel_selector_activation_param(prim.activation_function),
+                   prim.additional_params.a,
+                   prim.additional_params.b});
 }
 }  // namespace
 
@@ -62,9 +63,11 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
             const auto& output_layout = impl_param.get_output_layout();
 
             if (!impl_param.is_dynamic()) {
-                const auto params_num = kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
+                const auto params_num =
+                    kernel_selector::GetActivationAdditionalParamsNumber(params.activations[0].function);
                 OPENVINO_ASSERT(slope_layout.count() >= static_cast<size_t>(output_layout.feature() * params_num),
-                                "[GPU] Invalid slope size in ", primitive->id);
+                                "[GPU] Invalid slope size in ",
+                                primitive->id);
             }
             params.inputActivationParams.push_back(convert_data_tensor(slope_layout));
         }
@@ -81,13 +84,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 namespace detail {
 
 attach_activation_impl::attach_activation_impl() {
-     auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32};
 
     auto dyn_formats = {
         format::bfyx,

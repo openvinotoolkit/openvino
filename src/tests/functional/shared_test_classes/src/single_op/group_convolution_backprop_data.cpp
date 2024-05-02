@@ -5,14 +5,15 @@
 #include "shared_test_classes/single_op/group_convolution_backprop_data.hpp"
 
 #include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
+std::string GroupConvBackpropLayerTest::getTestCaseName(
+    testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
     groupConvBackpropSpecificParams group_conv_backprop_data_params;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
@@ -23,7 +24,8 @@ std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<g
     std::vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t conv_out_channels, num_groups;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) = group_conv_backprop_data_params;
+    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) =
+        group_conv_backprop_data_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -63,7 +65,8 @@ void GroupConvBackpropLayerTest::SetUp() {
     std::vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
     size_t conv_out_channels, num_groups;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) = group_conv_backprop_data_params;
+    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding) =
+        group_conv_backprop_data_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -71,11 +74,32 @@ void GroupConvBackpropLayerTest::SetUp() {
     std::shared_ptr<ov::Node> group_conv;
     if (!output_shape.empty()) {
         auto outShape = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape);
-        group_conv = ov::test::utils::make_group_convolution_backprop_data(
-            param, outShape, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
+        group_conv = ov::test::utils::make_group_convolution_backprop_data(param,
+                                                                           outShape,
+                                                                           model_type,
+                                                                           kernel,
+                                                                           stride,
+                                                                           pad_begin,
+                                                                           pad_end,
+                                                                           dilation,
+                                                                           pad_type,
+                                                                           conv_out_channels,
+                                                                           num_groups,
+                                                                           false,
+                                                                           out_padding);
     } else {
-        group_conv = ov::test::utils::make_group_convolution_backprop_data(
-            param, model_type, kernel, stride, pad_begin, pad_end, dilation, pad_type, conv_out_channels, num_groups, false, out_padding);
+        group_conv = ov::test::utils::make_group_convolution_backprop_data(param,
+                                                                           model_type,
+                                                                           kernel,
+                                                                           stride,
+                                                                           pad_begin,
+                                                                           pad_end,
+                                                                           dilation,
+                                                                           pad_type,
+                                                                           conv_out_channels,
+                                                                           num_groups,
+                                                                           false,
+                                                                           out_padding);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(group_conv);

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "program_helpers.h"
-#include "pass_manager.h"
+#include <vector>
 
 #include "eltwise_inst.h"
+#include "pass_manager.h"
+#include "program_helpers.h"
 #include "quantize_inst.h"
-
-#include <vector>
 
 using namespace cldnn;
 
 static bool eltwise_supports_fusings(eltwise_node& node) {
     auto out_layout = node.get_output_layout();
     // This condition refers to optimizied kernel EltwiseKernel_fs_b_yx_fsv32
-    if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 && out_layout.format == format::fs_b_yx_fsv32) {
+    if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+        out_layout.format == format::fs_b_yx_fsv32) {
         return false;
     }
 
@@ -44,8 +44,8 @@ void fuse_primitives_with_layout::run(program& p) {
 
             auto& input_node = node.get_dependency(0);
             auto in_layout = input_node.get_output_layout();
-            if (input_node.get_users().size() != 1 || input_node.get_dependencies().empty() ||
-                in_layout.is_dynamic() || input_node.is_in_shape_of_subgraph() || in_layout.format != out_layout.format)
+            if (input_node.get_users().size() != 1 || input_node.get_dependencies().empty() || in_layout.is_dynamic() ||
+                input_node.is_in_shape_of_subgraph() || in_layout.format != out_layout.format)
                 return;
 
             should_fuse |= input_node.is_type<eltwise>() && eltwise_supports_fusings(input_node.as<eltwise>());

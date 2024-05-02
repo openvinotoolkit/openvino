@@ -1,32 +1,32 @@
-import xml.etree.ElementTree as ET
 import queue
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from sphinx_sitemap import setup as base_setup, get_locales, hreflang_formatter, add_html_link, record_builder_type
+
 from sphinx.util.logging import getLogger
+from sphinx_sitemap import (
+    add_html_link,
+    get_locales,
+    hreflang_formatter,
+    record_builder_type,
+)
+from sphinx_sitemap import setup as base_setup
 
 logger = getLogger(__name__)
 
+
 def setup(app):
-    app.add_config_value(
-        'ov_sitemap_urlset',
-        default=None,
-        rebuild=''
-    )
-    
-    app.add_config_value(
-        'ov_sitemap_meta',
-        default=None,
-        rebuild=''
-    )
+    app.add_config_value("ov_sitemap_urlset", default=None, rebuild="")
+
+    app.add_config_value("ov_sitemap_meta", default=None, rebuild="")
 
     setup = base_setup(app)
-    for listener in app.events.listeners['build-finished']:
-        if listener.handler.__name__ == 'create_sitemap':
+    for listener in app.events.listeners["build-finished"]:
+        if listener.handler.__name__ == "create_sitemap":
             app.disconnect(listener.id)
-        
+
     app.connect("builder-inited", record_builder_type)
     app.connect("html-page-context", add_html_link)
-    app.connect('build-finished', create_sitemap)
+    app.connect("build-finished", create_sitemap)
     return setup
 
 
@@ -46,12 +46,14 @@ def create_sitemap(app, exception):
             subtype="configuration",
         )
         return
-    if (not app.sitemap_links):
-        print("sphinx-sitemap warning: No pages generated for %s" %
-              app.config.sitemap_filename)
+    if not app.sitemap_links:
+        print(
+            "sphinx-sitemap warning: No pages generated for %s"
+            % app.config.sitemap_filename
+        )
         return
 
-    ET.register_namespace('xhtml', "http://www.w3.org/1999/xhtml")
+    ET.register_namespace("xhtml", "http://www.w3.org/1999/xhtml")
 
     root = ET.Element("urlset")
 
@@ -64,7 +66,7 @@ def create_sitemap(app, exception):
     locales = get_locales(app, exception)
 
     if app.builder.config.version:
-        version = app.builder.config.version + '/'
+        version = app.builder.config.version + "/"
     else:
         version = ""
 
@@ -72,7 +74,7 @@ def create_sitemap(app, exception):
         url = ET.SubElement(root, "url")
         scheme = app.config.sitemap_url_scheme
         if app.builder.config.language:
-            lang = app.builder.config.language + '/'
+            lang = app.builder.config.language + "/"
         else:
             lang = ""
 
@@ -89,21 +91,20 @@ def create_sitemap(app, exception):
 
         if len(app.locales) > 0:
             for lang in locales:
-                lang = lang + '/'
-                linktag = ET.SubElement(
-                    url,
-                    "{http://www.w3.org/1999/xhtml}link"
-                )
+                lang = lang + "/"
+                linktag = ET.SubElement(url, "{http://www.w3.org/1999/xhtml}link")
                 linktag.set("rel", "alternate")
-                linktag.set("hreflang",  hreflang_formatter(lang.rstrip('/')))
-                linktag.set("href", site_url + scheme.format(
-                    lang=lang, version=version, link=link
-                ))
+                linktag.set("hreflang", hreflang_formatter(lang.rstrip("/")))
+                linktag.set(
+                    "href",
+                    site_url + scheme.format(lang=lang, version=version, link=link),
+                )
 
     filename = Path(app.outdir) / app.config.sitemap_filename
-    ET.ElementTree(root).write(filename,
-                               xml_declaration=True,
-                               encoding='utf-8',
-                               method="xml")
-    print("%s was generated for URL %s in %s" % (app.config.sitemap_filename,
-          site_url, filename))
+    ET.ElementTree(root).write(
+        filename, xml_declaration=True, encoding="utf-8", method="xml"
+    )
+    print(
+        "%s was generated for URL %s in %s"
+        % (app.config.sitemap_filename, site_url, filename)
+    )

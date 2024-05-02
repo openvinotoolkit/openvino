@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "low_precision/convert_subtract_constant.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/convert_subtract_constant.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -39,11 +37,12 @@ public:
     Values expected;
 };
 
-typedef std::tuple<
-    ov::Shape,
-    ConvertSubtractConstantTransformationTestValues> ConvertSubtractConstantTransformationParams;
+typedef std::tuple<ov::Shape, ConvertSubtractConstantTransformationTestValues>
+    ConvertSubtractConstantTransformationParams;
 
-class ConvertSubtractConstantTransformation : public LayerTransformation, public testing::WithParamInterface<ConvertSubtractConstantTransformationParams> {
+class ConvertSubtractConstantTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<ConvertSubtractConstantTransformationParams> {
 public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
@@ -78,20 +77,16 @@ public:
             testValues.expected.dequantizationAfter);
     }
 
-
     static std::string getTestCaseName(testing::TestParamInfo<ConvertSubtractConstantTransformationParams> obj) {
         auto inputShape = std::get<0>(obj.param);
         ConvertSubtractConstantTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << toString(testValues.params) << "_" <<
-            inputShape << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
-            testValues.actual.weights.outPrecision << "_" << "{ " <<
-            testValues.actual.weights.values[0] << " }_" <<
-            testValues.actual.fakeQuantizeOnWeights << "_" <<
-            testValues.actual.dequantizationOnWeights;
+        result << toString(testValues.params) << "_" << inputShape << "_"
+               << testValues.actual.precisionBeforeDequantization << "_"
+               << testValues.actual.dequantizationOnActivations << "_" << "_weights_"
+               << testValues.actual.weights.outPrecision << "_" << "{ " << testValues.actual.weights.values[0] << " }_"
+               << testValues.actual.fakeQuantizeOnWeights << "_" << testValues.actual.dequantizationOnWeights;
         return result.str();
     }
 };
@@ -102,10 +97,7 @@ TEST_P(ConvertSubtractConstantTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ov::Shape> shapes = {
-    ov::Shape({ 1, 3, 72, 48 }),
-    ov::Shape({ 4, 3, 72, 48 })
-};
+const std::vector<ov::Shape> shapes = {ov::Shape({1, 3, 72, 48}), ov::Shape({4, 3, 72, 48})};
 
 const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = {
     // Actual:
@@ -139,46 +131,37 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
     //         \FP32         /FP32
     //          \           /
     //           Convolution
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {},
-                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{127.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false},
+       {{127.f},
+        element::f32,
+        {},
+        false,
+        1ul,
+        element::i8,
+        true,
+        {},
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}}},
 
     // Constant Subtract values are outside INT8 range
     // Actual:
@@ -212,45 +195,27 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
     //         \FP32         /FP32
     //          \           /
     //           Convolution
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {128.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {128.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{128.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{128.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}}},
 
     // Constant Subtract values are close to zero
     // Actual:
@@ -284,51 +249,30 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
     //         \FP32         /FP32
     //          \           /
     //           Convolution
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {0.000001f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{0.000001f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConvertSubtractConstantTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    ConvertSubtractConstantTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConvertSubtractConstantTransformation,
+                         ::testing::Combine(::testing::ValuesIn(shapes), ::testing::ValuesIn(testValues)),
+                         ConvertSubtractConstantTransformation::getTestCaseName);

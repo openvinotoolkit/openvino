@@ -10,32 +10,29 @@ from openvino.tools.mo.ops.const import Const
 
 
 class ConstExtractor(FrontExtractorOp):
-    op = 'Const'
+    op = "Const"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         value = to_array(node.pb_init)
-        attrs = {
-            'data_type': value.dtype,
-            'value': value
-        }
+        attrs = {"data_type": value.dtype, "value": value}
         Const.update_node_stat(node, attrs)
         return cls.enabled
 
 
 class ConstantExtractor(FrontExtractorOp):
-    op = 'Constant'
+    op = "Constant"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        pb_value = onnx_attr(node, 'value', 't')
+        pb_value = onnx_attr(node, "value", "t")
         value = numpy_helper.to_array(pb_value)
 
         attrs = {
-            'data_type': value.dtype,
-            'value': value,
+            "data_type": value.dtype,
+            "value": value,
         }
         Const.update_node_stat(node, attrs)
         return cls.enabled

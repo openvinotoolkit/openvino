@@ -81,7 +81,9 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, ov::test::utils::InputGenerateData(0, 10, 1000));
+                    tensor = ov::test::utils::create_and_fill_tensor(inputPrecision,
+                                                                     targetShape,
+                                                                     ov::test::utils::InputGenerateData(0, 10, 1000));
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape);
                 }

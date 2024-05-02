@@ -10,14 +10,19 @@ class Fill(Op):
 
     This operation is converted to Broadcast layer.
     """
-    op = 'Fill'
+
+    op = "Fill"
     enabled = False
 
     def __init__(self, graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': __class__.op,
-            'infer': None,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": __class__.op,
+                "infer": None,
+                "in_ports_count": 2,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )

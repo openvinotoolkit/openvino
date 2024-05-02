@@ -2,15 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from utils.helpers import fetchAppOutput, getActualPath
-from utils.helpers import getMeaningfullCommitTail, extractModelPath
-from utils.helpers import handleCommit, getBlobDiff
-from utils.helpers import getCommitLogger, CashError, CfgError,\
-CmdError, PreliminaryAnalysisError
-from utils.break_validator import checkStability
 import re
 import shutil
+
+from utils.break_validator import checkStability
 from utils.common_mode import Mode
+from utils.helpers import (
+    CashError,
+    CfgError,
+    CmdError,
+    PreliminaryAnalysisError,
+    extractModelPath,
+    fetchAppOutput,
+    getActualPath,
+    getBlobDiff,
+    getCommitLogger,
+    getMeaningfullCommitTail,
+    handleCommit,
+)
 
 
 class NopMode(Mode):
@@ -24,9 +33,7 @@ class NopMode(Mode):
     def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         commitLogger = getCommitLogger(cfg, commit)
-        self.commonLogger.info("New commit: {commit}".format(
-            commit=commit)
-        )
+        self.commonLogger.info("New commit: {commit}".format(commit=commit))
         handleCommit(commit, cfg)
         checkOut = fetchAppOutput(cfg, commit)
         commitLogger.info(checkOut)
@@ -50,8 +57,8 @@ class CheckOutputMode(Mode):
         commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
             "Commit {c} is {status}".format(
-                status=("good" if isRightBorderGood else "bad"),
-                c=rCommit)
+                status=("good" if isRightBorderGood else "bad"), c=rCommit
+            )
         )
         return isLeftBorderFailed == isRightBorderGood
 
@@ -60,10 +67,7 @@ class CheckOutputMode(Mode):
         checkOut = ""
         commitLogger = getCommitLogger(cfg, commit)
         isCommitCashed, cashedOutput = self.getCommitIfCashed(commit)
-        pc = Mode.CommitPath.PathCommit(
-            commit,
-            Mode.CommitPath.CommitState.DEFAULT
-        )
+        pc = Mode.CommitPath.PathCommit(commit, Mode.CommitPath.CommitState.DEFAULT)
         self.setOutputInfo(pc)
         self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
@@ -72,9 +76,7 @@ class CheckOutputMode(Mode):
             commitLogger.info(logMsg)
             checkOut = cashedOutput
         else:
-            self.commonLogger.info("New commit: {commit}".format(
-                commit=commit)
-            )
+            self.commonLogger.info("New commit: {commit}".format(commit=commit))
             handleCommit(commit, cfg)
             checkOut = fetchAppOutput(cfg, commit)
             commitLogger.info(checkOut)
@@ -134,10 +136,8 @@ class BenchmarkAppPerformanceMode(Mode):
         if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
             cmdStr = cfg["appCmd"]
             matcher = re.search(
-                "benchmark.*-m[\s*]([^\S]*)",
-                cmdStr,
-                flags=re.MULTILINE
-                )
+                "benchmark.*-m[\s*]([^\S]*)", cmdStr, flags=re.MULTILINE
+            )
             if matcher is not None:
                 # pass if app is not openvino benchmark_app
                 try:
@@ -147,34 +147,36 @@ class BenchmarkAppPerformanceMode(Mode):
                             "path {modelPath} does not exist, check config".format(
                                 modelPath=modelPath
                             ),
-                            PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
+                            PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE,
                         )
                 except (IndexError, ValueError):
                     raise PreliminaryAnalysisError(
                         "commandline '{cmdStr}' is not correct, check config".format(
                             cmdStr=cmdStr
                         ),
-                        PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
+                        PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE,
                     )
 
         # common if-degradation-exists check
         super().preliminaryCheck(list, cfg)
 
         # performance - specific check if results for borders are stable,
-        isLeftStable = not cfg["preliminaryCheckCfg"]["leftCheck"] or\
-            self.preliminaryStabilityCheck(list[0], cfg)
-        isRightStable = not cfg["preliminaryCheckCfg"]["rightCheck"] or\
-            self.preliminaryStabilityCheck(list[-1], cfg)
-        if (not isLeftStable or not isRightStable):
+        isLeftStable = not cfg["preliminaryCheckCfg"][
+            "leftCheck"
+        ] or self.preliminaryStabilityCheck(list[0], cfg)
+        isRightStable = not cfg["preliminaryCheckCfg"][
+            "rightCheck"
+        ] or self.preliminaryStabilityCheck(list[-1], cfg)
+        if not isLeftStable or not isRightStable:
             raise PreliminaryAnalysisError(
                 "{lCommit} is {lStable}, {rCommit} is {rStable}".format(
                     lCommit=list[0],
                     rCommit=list[-1],
                     lStable="stable" if isLeftStable else "unstable",
-                    rStable="stable" if isRightStable else "unstable"
+                    rStable="stable" if isRightStable else "unstable",
                 ),
-                PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION
-                )
+                PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION,
+            )
 
     def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
         leftThroughput = self.getPseudoMetric(lCommit, cfg)
@@ -197,10 +199,7 @@ class BenchmarkAppPerformanceMode(Mode):
         curThroughput = 0
         commitLogger = getCommitLogger(cfg, commit)
         isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
-        pc = Mode.CommitPath.PathCommit(
-            commit,
-            Mode.CommitPath.CommitState.DEFAULT
-        )
+        pc = Mode.CommitPath.PathCommit(commit, Mode.CommitPath.CommitState.DEFAULT)
         self.setOutputInfo(pc)
         self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
@@ -209,9 +208,7 @@ class BenchmarkAppPerformanceMode(Mode):
             commitLogger.info(logMsg)
             curThroughput = cashedThroughput
         else:
-            self.commonLogger.info("New commit: {commit}".format(
-                commit=commit)
-            )
+            self.commonLogger.info("New commit: {commit}".format(commit=commit))
             handleCommit(commit, cfg)
             output = fetchAppOutput(cfg, commit)
             commitLogger.info(output)
@@ -227,8 +224,7 @@ class BenchmarkAppPerformanceMode(Mode):
         curThroughput = 0
 
         self.commonLogger.info(
-            "Preliminary check of commit: {commit}".format(
-                commit=commit)
+            "Preliminary check of commit: {commit}".format(commit=commit)
         )
         handleCommit(commit, cfg)
         throughputList = []
@@ -250,8 +246,8 @@ class BenchmarkAppPerformanceMode(Mode):
 
     def getCommitInfo(self, commit):
         return "{ci}, perf. ratio = {d}".format(
-                ci=super().getCommitInfo(commit),
-                d=commit.perfRel)
+            ci=super().getCommitInfo(commit), d=commit.perfRel
+        )
 
 
 class CompareBlobsMode(Mode):
@@ -272,12 +268,9 @@ class CompareBlobsMode(Mode):
     def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
         commitLogger = getCommitLogger(cfg, commit)
-        filename = ''
+        filename = ""
         isCommitCashed, cachedfileName = self.getCommitIfCashed(commit)
-        pc = Mode.CommitPath.PathCommit(
-            commit,
-            Mode.CommitPath.CommitState.DEFAULT
-        )
+        pc = Mode.CommitPath.PathCommit(commit, Mode.CommitPath.CommitState.DEFAULT)
         self.setOutputInfo(pc)
         self.commitPath.accept(self.traversal, pc)
         if isCommitCashed:
@@ -286,9 +279,7 @@ class CompareBlobsMode(Mode):
             commitLogger.info(logMsg)
             filename = cachedfileName
         else:
-            self.commonLogger.info("New commit: {commit}".format(
-                commit=commit)
-            )
+            self.commonLogger.info("New commit: {commit}".format(commit=commit))
             handleCommit(commit, cfg)
             output = fetchAppOutput(cfg, commit)
             commitLogger.info(output)
@@ -307,8 +298,8 @@ class CompareBlobsMode(Mode):
         commitLogger = getCommitLogger(cfg, curCommit)
         commitLogger.info(
             "Commit {status} from {c}".format(
-                status=("differs" if isDiff else "don't differ"),
-                c=rCommit)
+                status=("differs" if isDiff else "don't differ"), c=rCommit
+            )
         )
         if isDiff:
             self.maxDiff = curMaxDiff
@@ -345,7 +336,7 @@ class CompareBlobsMode(Mode):
                     )
                     shutil.move(
                         os.path.join(self.outDir, filename),
-                        os.path.join(self.cachePath, newFileName)
+                        os.path.join(self.cachePath, newFileName),
                     )
                     break
             if filename == "":
@@ -372,5 +363,5 @@ class CompareBlobsMode(Mode):
 
     def getCommitInfo(self, commit):
         return "{ci}, diff = {d}".format(
-                ci=super().getCommitInfo(commit),
-                d=commit.diff)
+            ci=super().getCommitInfo(commit), d=commit.diff
+        )

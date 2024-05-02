@@ -4,11 +4,10 @@
 
 #pragma once
 
+#include "layout.hpp"
+#include "memory.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "tensor_data_accessor.hpp"
-
-#include "memory.hpp"
-#include "layout.hpp"
 
 namespace cldnn {
 
@@ -21,8 +20,8 @@ struct TensorsContainer final {
     using TensorsMap = std::unordered_map<size_t, ov::Tensor>;
 
     TensorsContainer(const cldnn::stream* stream, const std::map<size_t, cldnn::memory::ptr>& deps_map = {})
-        : m_stream(stream)
-        , m_memories(deps_map.begin(), deps_map.end()) { }
+        : m_stream(stream),
+          m_memories(deps_map.begin(), deps_map.end()) {}
 
     ~TensorsContainer() {
         for (auto& port : m_locked_memories) {
@@ -39,14 +38,16 @@ struct TensorsContainer final {
         OPENVINO_ASSERT(res.first != m_tensors.end());
     }
 
-    template<typename ElementType>
+    template <typename ElementType>
     void emplace(size_t port, std::vector<ElementType>& vector, data_types dt = data_types::i64) {
         ov::Shape shape{vector.size()};
         auto tensor = make_tensor({shape, dt, format::bfyx}, static_cast<void*>(vector.data()));
         m_tensors.emplace(port, tensor);
     }
 
-    size_t size() const { return m_tensors.size(); }
+    size_t size() const {
+        return m_tensors.size();
+    }
     ov::Tensor operator[](std::size_t port) const {
         if (m_memories.count(port) > 0) {
             m_locked_memories.insert(port);
@@ -70,7 +71,7 @@ private:
 
 class TensorAccessor final : public ov::ITensorAccessor {
 public:
-    explicit TensorAccessor(const TensorsContainer& container) : m_container(container) { }
+    explicit TensorAccessor(const TensorsContainer& container) : m_container(container) {}
 
     ov::Tensor operator()(size_t port) const override {
         return m_container[port];

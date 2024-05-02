@@ -82,7 +82,8 @@ KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& pa
     return pooling_p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
 }
 
-JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params,
+                                                          DispatchData dispatchData) const {
     const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto input = params.inputs[0];
@@ -119,23 +120,23 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = {"_VEC",
-                                         {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "x"},
-                                         "pool_result",
-                                         input_dt,
-                                         x_block_size,
-                                         LoadType::LT_ALIGNED_READ,
-                                         BoundaryCheck::ENABLED,
-                                         IndexType::TENSOR_COORD,
-                                         Tensor::DataChannelName::X};
+                                          {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "x"},
+                                          "pool_result",
+                                          input_dt,
+                                          x_block_size,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
-                                            {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "(x+i)"},
-                                            "pool_result[i]",
-                                            input_dt,
-                                            1,
-                                            LoadType::LT_ALIGNED_READ,
-                                            BoundaryCheck::ENABLED,
-                                            IndexType::TENSOR_COORD,
-                                            Tensor::DataChannelName::X};
+                                             {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "(x+i)"},
+                                             "pool_result[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_ALIGNED_READ,
+                                             BoundaryCheck::ENABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 
@@ -151,7 +152,8 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 ||
+        params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;

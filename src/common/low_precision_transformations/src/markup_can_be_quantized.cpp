@@ -6,18 +6,19 @@
 
 #include <memory>
 
-#include "openvino/opsets/opset1.hpp"
+#include "itt.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "itt.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace ov;
 
-ov::pass::low_precision::MarkupCanBeQuantized::MarkupCanBeQuantized(const std::vector<ov::element::Type> defaultPrecisions)
+ov::pass::low_precision::MarkupCanBeQuantized::MarkupCanBeQuantized(
+    const std::vector<ov::element::Type> defaultPrecisions)
     : defaultPrecisions(defaultPrecisions) {}
 
 bool ov::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -25,9 +26,7 @@ bool ov::pass::low_precision::MarkupCanBeQuantized::run_on_model(const std::shar
     auto setEmptyPrecisions = [](const std::shared_ptr<ov::Node>& node) {
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-            rt.emplace(
-                    PrecisionsAttribute::get_type_info_static(),
-                    PrecisionsAttribute(std::vector<element::Type>()));
+            rt.emplace(PrecisionsAttribute::get_type_info_static(), PrecisionsAttribute(std::vector<element::Type>()));
         }
     };
 

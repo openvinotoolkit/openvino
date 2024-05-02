@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "behavior/ov_infer_request/multithreading.hpp"
+
+#include <vector>
 
 using namespace ov::test::behavior;
 
@@ -24,15 +24,15 @@ auto AutoBatchConfigs = []() {
                                     ov::auto_batch_timeout(0)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                ::testing::ValuesIn(configs())),
-                            OVInferRequestMultithreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestMultithreadingTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(configs())),
+                         OVInferRequestMultithreadingTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestMultithreadingTests,
-                         ::testing::Combine(
-                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(AutoBatchConfigs())),
-                            OVInferRequestMultithreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
+                         OVInferRequestMultithreadingTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(AutoBatchConfigs())),
+                         OVInferRequestMultithreadingTests::getTestCaseName);
 }  // namespace

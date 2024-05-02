@@ -216,9 +216,9 @@ JitConstants DFTKernelRef::GetJitConstants(const dft_params& params) const {
         if (axis < 0) {
             // RDFT has converted by r + a, others r -1 + a by op specification
             if (params.mode == dft_params::Mode::real && params.direction == dft_params::Direction::forward)
-                axis = out_rank -1 + axis; // (out_rank-1) is in_rank
+                axis = out_rank - 1 + axis;  // (out_rank-1) is in_rank
             else
-                axis = in_rank -1 + axis;
+                axis = in_rank - 1 + axis;
         }
 
         auto inverted_axis = dims_size - axis;

@@ -51,10 +51,10 @@ public:
         const TransformationTestValues testValues = GetParam();
 
         actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
-                                                                                  testValues.actual.precisionBefore,
-                                                                                  testValues.actual.fakeQuantizeOnData1,
-                                                                                  testValues.actual.fakeQuantizeOnData2,
-                                                                                  {});
+                                                                              testValues.actual.precisionBefore,
+                                                                              testValues.actual.fakeQuantizeOnData1,
+                                                                              testValues.actual.fakeQuantizeOnData2,
+                                                                              {});
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
@@ -67,10 +67,10 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
-                                                                     testValues.expected.precisionBefore,
-                                                                     testValues.expected.fakeQuantizeOnData1,
-                                                                     testValues.expected.fakeQuantizeOnData2,
-                                                                     testValues.expected.dequantizationOperations2);
+                                                                 testValues.expected.precisionBefore,
+                                                                 testValues.expected.fakeQuantizeOnData1,
+                                                                 testValues.expected.fakeQuantizeOnData2,
+                                                                 testValues.expected.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<TransformationTestValues> obj) {

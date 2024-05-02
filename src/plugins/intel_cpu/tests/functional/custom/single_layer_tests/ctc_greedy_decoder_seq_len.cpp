@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random>
 #include <gtest/gtest.h>
+
+#include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -46,8 +47,7 @@ public:
             size_t T;
             size_t C;
             std::tie(N, T, C) = shape;
-            results << "{" << N << "," << T << "," << C << "}"
-                    << "_";
+            results << "{" << N << "," << T << "," << C << "}" << "_";
         }
         for (const auto& type : inType) {
             results << "Prc=" << type << "_";
@@ -121,9 +121,12 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i],
+                                                                     in_data);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i]);
                 }
             } else if (i == 1) {
                 const auto seqLen = dataShape[1];
@@ -150,7 +153,9 @@ protected:
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = 0;
                 in_data.range = dataShape[2];
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

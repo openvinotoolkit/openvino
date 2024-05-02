@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.slice import CaffeSlice
 
 
 class SliceFrontExtractor(FrontExtractorOp):
-    op = 'slice'
+    op = "slice"
     enabled = True
 
     @classmethod
@@ -23,10 +23,10 @@ class SliceFrontExtractor(FrontExtractorOp):
             axis = param.axis
 
         update_attrs = {
-            'axis': axis,
-            'slice_point': int64_array(param.slice_point),
-            'in_ports_count': 1,
-            'out_ports_count': len(param.slice_point) + 1,
+            "axis": axis,
+            "slice_point": int64_array(param.slice_point),
+            "in_ports_count": 1,
+            "out_ports_count": len(param.slice_point) + 1,
         }
 
         CaffeSlice.update_node_stat(node, update_attrs)

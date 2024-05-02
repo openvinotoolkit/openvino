@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "slice_shape_inference.hpp"
+
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
-#include "slice_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

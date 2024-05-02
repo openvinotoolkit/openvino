@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "ocl_device.hpp"
-
 #include <memory>
 #include <set>
-#include <vector>
-#include <utility>
 #include <string>
+#include <utility>
+#include <vector>
+
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "ocl_device.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -21,8 +21,12 @@ namespace ocl {
 class ocl_engine : public engine {
 public:
     ocl_engine(const device::ptr dev, runtime_types runtime_type);
-    engine_types type() const override { return engine_types::ocl; };
-    runtime_types runtime_type() const override { return runtime_types::ocl; };
+    engine_types type() const override {
+        return engine_types::ocl;
+    };
+    runtime_types runtime_type() const override {
+        return runtime_types::ocl;
+    };
 
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
@@ -32,7 +36,9 @@ public:
 
     void* get_user_context() const override;
 
-    allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
+    allocation_type get_default_allocation_type() const override {
+        return allocation_type::cl_mem;
+    }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
 
     const cl::Context& get_cl_context() const;
@@ -42,7 +48,7 @@ public:
     bool extension_supported(std::string extension) const;
 
     stream_ptr create_stream(const ExecutionConfig& config) const override;
-    stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
+    stream_ptr create_stream(const ExecutionConfig& config, void* handle) const override;
     stream& get_service_stream() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

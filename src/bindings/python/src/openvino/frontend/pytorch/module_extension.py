@@ -4,6 +4,7 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+
 class ModuleExtension:
     def __init__(self, module, target_op, evaluate=None, convert=None):
         """
@@ -36,4 +37,6 @@ class ModuleExtension:
             self.evaluate = lambda module, *args, **kwargs: module(*args, **kwargs)
         self.convert = convert
         if self.convert is None:
-            self.convert = lambda module, target_op, *args, **kwargs: target_op(*args, **kwargs)
+            self.convert = lambda module, target_op, *args, **kwargs: target_op(
+                *args, **kwargs
+            )

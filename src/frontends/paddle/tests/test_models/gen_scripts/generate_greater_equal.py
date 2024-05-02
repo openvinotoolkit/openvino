@@ -1,25 +1,28 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # greater_equal paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import sys
+from save_model import saveModel
 
 
-def greater_equal(name : str, x, y, data_type, cast_to_fp32=False):
+def greater_equal(name: str, x, y, data_type, cast_to_fp32=False):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='input_x', shape=x.shape, dtype=data_type)
-        node_y = paddle.static.data(name='input_y', shape=y.shape, dtype=data_type)
-        if paddle.__version__ >= '2.0.0':
-            out = paddle.greater_equal(x=node_x, y=node_y, name='greater_equal')
+        node_x = paddle.static.data(name="input_x", shape=x.shape, dtype=data_type)
+        node_y = paddle.static.data(name="input_y", shape=y.shape, dtype=data_type)
+        if paddle.__version__ >= "2.0.0":
+            out = paddle.greater_equal(x=node_x, y=node_y, name="greater_equal")
         else:
-            out = paddle.fluid.layers.greater_equal(x=node_x, y=node_y, name='greater_equal')
+            out = paddle.fluid.layers.greater_equal(
+                x=node_x, y=node_y, name="greater_equal"
+            )
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:
@@ -31,23 +34,24 @@ def greater_equal(name : str, x, y, data_type, cast_to_fp32=False):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'input_x': x, 'input_y': y},
-            fetch_list=[out])
+        outs = exe.run(feed={"input_x": x, "input_y": y}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x', 'input_y'], fetchlist=[out],
-                  inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["input_x", "input_y"],
+            fetchlist=[out],
+            inputs=[x, y],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 
 
 def main():
 
-    test_cases = [
-        "float32",
-        "int32",
-        "int64"
-    ]
+    test_cases = ["float32", "int32", "int64"]
 
     for test in test_cases:
         x = np.array([0, 1, 2, 3]).astype(test)

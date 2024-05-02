@@ -3,11 +3,11 @@
 //
 
 #include "low_precision/base_matcher_pass.hpp"
-#include "openvino/core/node.hpp"
+
 #include "low_precision/rt_info/attribute_parameters.hpp"
+#include "openvino/core/node.hpp"
 
 using namespace ov;
 using namespace ov::pass::low_precision;
 
-ov::pass::low_precision::BaseMatcherPass::BaseMatcherPass(const AttributeParameters& params) : params(params) {
-}
+ov::pass::low_precision::BaseMatcherPass::BaseMatcherPass(const AttributeParameters& params) : params(params) {}

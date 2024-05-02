@@ -5,8 +5,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
-#include "transpose_shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"
+#include "transpose_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

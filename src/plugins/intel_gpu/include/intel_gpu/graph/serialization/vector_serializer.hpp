@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <vector>
 #include <type_traits>
+#include <vector>
+
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "openvino/core/coordinate_diff.hpp"
@@ -14,20 +15,22 @@
 
 namespace cldnn {
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value &&
-                                                                     std::is_arithmetic<T>::value &&
-                                                                    !std::is_same<bool, T>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<T>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value &&
+                                         std::is_arithmetic<T>::value && !std::is_same<bool, T>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::vector<T>& vector) {
-        buffer << vector.size(); //static_cast<uint64_t>()
+        buffer << vector.size();  // static_cast<uint64_t>()
         buffer << make_data(vector.data(), static_cast<uint64_t>(vector.size() * sizeof(T)));
     }
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
-                                                                     std::is_arithmetic<T>::value &&
-                                                                     !std::is_same<bool, T>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<T>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
+                                         std::is_arithmetic<T>::value && !std::is_same<bool, T>::value>::type> {
 public:
     static void load(BufferType& buffer, std::vector<T>& vector) {
         typename std::vector<T>::size_type vector_size = 0UL;
@@ -38,7 +41,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<bool>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::vector<bool>& vector) {
         buffer << vector.size();
@@ -49,7 +54,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, std::vector<bool>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<bool>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, std::vector<bool>& vector) {
         typename std::vector<bool>::size_type vector_size = 0UL;
@@ -64,8 +71,10 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value &&
-                                                                    !std::is_arithmetic<T>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<T>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value &&
+                                         !std::is_arithmetic<T>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::vector<T>& vector) {
         buffer << vector.size();
@@ -76,8 +85,10 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::vector<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
-                                                                    !std::is_arithmetic<T>::value>::type> {
+class Serializer<BufferType,
+                 std::vector<T>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value &&
+                                         !std::is_arithmetic<T>::value>::type> {
 public:
     static void load(BufferType& buffer, std::vector<T>& vector) {
         typename std::vector<T>::size_type vector_size = 0UL;
@@ -90,7 +101,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::CoordinateDiff, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::CoordinateDiff,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const ov::CoordinateDiff& vector) {
         buffer << vector.size();
@@ -101,7 +114,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::CoordinateDiff, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::CoordinateDiff,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, ov::CoordinateDiff& vector) {
         typename ov::CoordinateDiff::size_type vector_size = 0UL;
@@ -114,7 +129,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::Strides, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::Strides,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const ov::Strides& vector) {
         buffer << vector.size();
@@ -125,7 +142,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::Strides, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::Strides,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, ov::Strides& vector) {
         typename ov::Strides::size_type vector_size = 0UL;
@@ -138,7 +157,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::Shape, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::Shape,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const ov::Shape& vector) {
         buffer << vector.size();
@@ -149,7 +170,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::Shape, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::Shape,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, ov::Shape& vector) {
         typename ov::Shape::size_type vector_size = 0UL;

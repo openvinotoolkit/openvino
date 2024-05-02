@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "gather_elements_inst.h"
 #include "gather_elements_shape_inference.hpp"
-
-#include "primitive_type_base.h"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_elements)
 
-layout gather_elements_inst::calc_output_layout(gather_elements_node const& node, kernel_impl_params const& impl_param) {
+layout gather_elements_inst::calc_output_layout(gather_elements_node const& node,
+                                                kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_elements>();
 
     auto input_layout_origin = impl_param.get_input_layout(0);
@@ -21,16 +22,17 @@ layout gather_elements_inst::calc_output_layout(gather_elements_node const& node
     auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);
 
-    auto output_type = (impl_param.has_fused_primitives()) ? impl_param.get_output_element_type() :
-                       input_layout_origin.data_type;
+    auto output_type =
+        (impl_param.has_fused_primitives()) ? impl_param.get_output_element_type() : input_layout_origin.data_type;
     auto output_shape = op->output_shape;
     auto output_format = op->output_format;
     // calculate initial output shape
     return layout(output_type, output_format, output_shape);
 }
 
-template<typename ShapeType>
-std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_node const& /*node*/,
+                                                              const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<gather_elements>();
     auto input_layout = impl_param.get_input_layout(0);
 
@@ -42,19 +44,18 @@ std::vector<layout> gather_elements_inst::calc_output_layouts(gather_elements_no
     ov::op::v6::GatherElements op;
     op.set_axis(desc->axis);
 
-    std::vector<ShapeType> input_shapes = {
-        impl_param.get_input_layout(0).get<ShapeType>(),
-        impl_param.get_input_layout(1).get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
+                                           impl_param.get_input_layout(1).get<ShapeType>()};
     std::vector<ShapeType> output_shapes = ov::op::v6::shape_infer(&op, input_shapes);
 
     format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> gather_elements_inst::calc_output_layouts<ov::PartialShape>(gather_elements_node const& node,
-                                                                                         const kernel_impl_params& impl_param);
+template std::vector<layout> gather_elements_inst::calc_output_layouts<ov::PartialShape>(
+    gather_elements_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string gather_elements_inst::to_string(gather_elements_node const& node) {
     auto desc = node.get_primitive();
@@ -74,6 +75,7 @@ std::string gather_elements_inst::to_string(gather_elements_node const& node) {
     return primitive_description.str();
 }
 
-gather_elements_inst::typed_primitive_inst(network& network, gather_elements_node const& node) : parent(network, node) {}
+gather_elements_inst::typed_primitive_inst(network& network, gather_elements_node const& node)
+    : parent(network, node) {}
 
 }  // namespace cldnn

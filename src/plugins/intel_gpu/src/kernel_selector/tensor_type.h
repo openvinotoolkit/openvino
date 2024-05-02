@@ -4,18 +4,20 @@
 
 #pragma once
 
-#include "openvino/core/except.hpp"
-#include "common_types.h"
-#include "common_tools.h"
-#include <vector>
 #include <assert.h>
-#include <numeric>
-#include <cstddef>
+
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <numeric>
+#include <stdexcept>
 #include <string>
 #include <utility>
-#include <stdexcept>
+#include <vector>
+
+#include "common_tools.h"
+#include "common_types.h"
+#include "openvino/core/except.hpp"
 
 namespace kernel_selector {
 #define KERNEL_SELECTOR_TENSOR_DIM_MAX 9
@@ -25,20 +27,20 @@ namespace Tensor {
 // DataLayout
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum DataLayout {
-    f = 0,                  // 1D
-    bf,                     // 1D+batch
-    fb,                     // 1D+batch
-    bfyx,                   // 3D+batch
-    yxfb,                   // 3D+batch
-    byxf,                   // 3D+batch
-    fyxb,                   // 3D+batch
-    fbyx,                   // 3D+batch
-    bfxy,                   // 3D+batch
+    f = 0,  // 1D
+    bf,     // 1D+batch
+    fb,     // 1D+batch
+    bfyx,   // 3D+batch
+    yxfb,   // 3D+batch
+    byxf,   // 3D+batch
+    fyxb,   // 3D+batch
+    fbyx,   // 3D+batch
+    bfxy,   // 3D+batch
     byfx,
     bxfy,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
-    b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
+    b_fs_yx_fsv4,  // reordering format for swizzled input for convolution using IMAD
     b_fs_zyx_fsv4,
     b_fs_yx_fsv8,
     b_fs_zyx_fsv8,
@@ -71,13 +73,13 @@ enum DataLayout {
     winograd_2x3_s1_data,   // winograd convolution input, F(2,3) -- filter 3x3 with stride 1
     bfzyx,                  // batch+feature+3D spatial
     bzyxf,
-    fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
-    bfwzyx,                 // batch, feature, 4D spatial
-    bfuwzyx,                // batch, feature, 5D spatial
-    bfvuwzyx,               // batch, feature, 6D spatial
-    nv12,                   // media nv12 layout
-    image_2d_rgba,          // image2d RGBA
-    DataLayoutCount         // NUMBER OF ELEMENTS IN ENUM
+    fs_b_yx_fsv32,   // for FP16 kernels, 32 features to avoid partial writes
+    bfwzyx,          // batch, feature, 4D spatial
+    bfuwzyx,         // batch, feature, 5D spatial
+    bfvuwzyx,        // batch, feature, 6D spatial
+    nv12,            // media nv12 layout
+    image_2d_rgba,   // image2d RGBA
+    DataLayoutCount  // NUMBER OF ELEMENTS IN ENUM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,8 +113,8 @@ enum WeightsLayout {
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
-    os_is_yx_osv16_isv16,           // weights for int8 blocked conv
-    os_is_yx_osv32_isv2,            // weights for fully connected kernels with int4 compressed data type
+    os_is_yx_osv16_isv16,  // weights for int8 blocked conv
+    os_is_yx_osv32_isv2,   // weights for fully connected kernels with int4 compressed data type
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
@@ -136,13 +138,14 @@ enum WeightsLayout {
     os_is_zyx_osa4_isa8_osv8_isv4,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                                  // 1,5...
-    os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
-                                                  // 1,5...
-    os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
-    os_is_yx_osv8_isv4,                      // weights for int8 blocked conv
-    os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm (0, 2, 4..), (1, 3, 5...)
-    os_is_yx_osv32_isv4,                 //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
-    os_is_zyx_osv32_isv4,                //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
+    os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to
+                                                  // 0,4,8,12,16,20,24,28, 1,5...
+    os_is_yx_osv16_isv4,                          // swizzled weights for convolution using IMAD
+    os_is_yx_osv8_isv4,                           // weights for int8 blocked conv
+    os_is_yx_osv32_isv4_swizzled_by_2,  //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzled ofm
+                                        //  (0, 2, 4..), (1, 3, 5...)
+    os_is_yx_osv32_isv4,                //  weights for bfyx -> b_fs_yx_fsv{32,16} convolution using IMAD
+    os_is_zyx_osv32_isv4,               //  weights for bfzyx -> b_fs_zyx_fsv16 convolution using IMAD
     oizyx,
     iozyx,
     goiyx,
@@ -167,9 +170,9 @@ enum WeightsLayout {
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
     g_os_is_yx_isv16_osv16,
-    gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
-    gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
-    gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
+    gs_oi_yxs_gsv4_yxsv4,   // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
+    gs_oi_yxs_gsv16_yxsv4,  // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
+    gs_oi_yxs_gsv32_yxsv4,  // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
     g_os_is_yx_osv16_isv4,
 
     g_os_zyx_is_osv16_isv4,
@@ -179,7 +182,7 @@ enum WeightsLayout {
     g_os_zyx_is_osv32_isv16,
     g_os_zyx_is_osv32_isv32,
 
-    WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
+    WeightsLayoutCount  // NUMBER OF ELEMENTS IN ENUM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,11 +191,13 @@ enum WeightsLayout {
 struct Pad {
     size_t before;
     size_t after;
-    bool is_dynamic = false; // Currently cannot set pad_before and pad_after as dynamic separately
+    bool is_dynamic = false;  // Currently cannot set pad_before and pad_after as dynamic separately
 
     Pad(size_t before, size_t after, bool is_dynamic = false) : before(before), after(after), is_dynamic(is_dynamic) {}
 
-    static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
+    static size_t NumPadOffsetsPerDim() {
+        return 2; /*pad_before/pad_after*/
+    }
     size_t Total() const {
         OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
         return before + after;
@@ -231,69 +236,69 @@ enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, G = 5, CO
 
 inline bool SimpleLayout(WeightsLayout l) {
     switch (l) {
-        case WeightsLayout::oi:
-        case WeightsLayout::io:
-        case WeightsLayout::oiyx:
-        case WeightsLayout::ioyx:
-        case WeightsLayout::oyxi:
-        case WeightsLayout::oyix:
-        case WeightsLayout::oxiy:
-        case WeightsLayout::iyxo:
-        case WeightsLayout::yxio:
-        case WeightsLayout::oizyx:
-        case WeightsLayout::iozyx:
-            return true;
-        default:
-            return false;
+    case WeightsLayout::oi:
+    case WeightsLayout::io:
+    case WeightsLayout::oiyx:
+    case WeightsLayout::ioyx:
+    case WeightsLayout::oyxi:
+    case WeightsLayout::oyix:
+    case WeightsLayout::oxiy:
+    case WeightsLayout::iyxo:
+    case WeightsLayout::yxio:
+    case WeightsLayout::oizyx:
+    case WeightsLayout::iozyx:
+        return true;
+    default:
+        return false;
     }
 }
 
 inline bool SimpleLayout(DataLayout l) {
     switch (l) {
-        case DataLayout::bf:
-        case DataLayout::fb:
-        case DataLayout::bfyx:
-        case DataLayout::yxfb:
-        case DataLayout::byxf:
-        case DataLayout::byfx:
-        case DataLayout::bxfy:
-        case DataLayout::fbyx:
-        case DataLayout::fyxb:
-        case DataLayout::bfxy:
-        case DataLayout::bfzyx:
-        case DataLayout::bzyxf:
-        case DataLayout::bfwzyx:
-        case DataLayout::bfuwzyx:
-        case DataLayout::bfvuwzyx:
-            return true;
-        default:
-            return false;
+    case DataLayout::bf:
+    case DataLayout::fb:
+    case DataLayout::bfyx:
+    case DataLayout::yxfb:
+    case DataLayout::byxf:
+    case DataLayout::byfx:
+    case DataLayout::bxfy:
+    case DataLayout::fbyx:
+    case DataLayout::fyxb:
+    case DataLayout::bfxy:
+    case DataLayout::bfzyx:
+    case DataLayout::bzyxf:
+    case DataLayout::bfwzyx:
+    case DataLayout::bfuwzyx:
+    case DataLayout::bfvuwzyx:
+        return true;
+    default:
+        return false;
     }
 }
 
 inline bool DoubleBlockedLayout(DataLayout l) {
     switch (l) {
-        case DataLayout::bs_fs_yx_bsv16_fsv32:
-        case DataLayout::bs_fs_yx_bsv16_fsv16:
-        case DataLayout::bs_fs_zyx_bsv16_fsv32:
-        case DataLayout::bs_fs_zyx_bsv16_fsv16:
-        case DataLayout::bs_fs_yx_bsv4_fsv4:
-        case DataLayout::bs_fs_yx_bsv8_fsv4:
-        case DataLayout::bs_fs_yx_bsv8_fsv2:
-        case DataLayout::bs_fs_zyx_bsv8_fsv4:
-        case DataLayout::bs_fs_zyx_bsv8_fsv2:
-        case DataLayout::bs_fs_yx_bsv16_fsv4:
-        case DataLayout::bs_fs_zyx_bsv16_fsv4:
-        case DataLayout::bs_fs_yx_bsv16_fsv2:
-        case DataLayout::bs_fs_zyx_bsv16_fsv2:
-        case DataLayout::bs_fs_yx_bsv4_fsv2:
-        case DataLayout::bs_fs_yx_bsv32_fsv32:
-        case DataLayout::bs_fs_yx_bsv32_fsv16:
-        case DataLayout::bs_fs_zyx_bsv32_fsv32:
-        case DataLayout::bs_fs_zyx_bsv32_fsv16:
-            return true;
-        default:
-            return false;
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+    case DataLayout::bs_fs_yx_bsv4_fsv4:
+    case DataLayout::bs_fs_yx_bsv8_fsv4:
+    case DataLayout::bs_fs_yx_bsv8_fsv2:
+    case DataLayout::bs_fs_zyx_bsv8_fsv4:
+    case DataLayout::bs_fs_zyx_bsv8_fsv2:
+    case DataLayout::bs_fs_yx_bsv16_fsv4:
+    case DataLayout::bs_fs_zyx_bsv16_fsv4:
+    case DataLayout::bs_fs_yx_bsv16_fsv2:
+    case DataLayout::bs_fs_zyx_bsv16_fsv2:
+    case DataLayout::bs_fs_yx_bsv4_fsv2:
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -305,13 +310,13 @@ inline bool GroupedLayout(DataLayout) {
 
 inline bool IsImageType(WeightsLayout l) {
     switch (l) {
-        case WeightsLayout::image_2d_weights_c4_fyx_b:
-        case WeightsLayout::image_2d_weights_c1_b_fyx:
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb:
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:
-            return true;
-        default:
-            return false;
+    case WeightsLayout::image_2d_weights_c4_fyx_b:
+    case WeightsLayout::image_2d_weights_c1_b_fyx:
+    case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb:
+    case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -388,7 +393,9 @@ public:
           firstElementOffset(std::accumulate(nd.cbegin(),
                                              nd.cend(),
                                              viewOf,
-                                             [](size_t val, const Dim& d) { return val + d.pitch * d.pad.before; })),
+                                             [](size_t val, const Dim& d) {
+                                                 return val + d.pitch * d.pad.before;
+                                             })),
           totalSize(sz),
           paddedVal(pv) {
         if (!std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
@@ -418,10 +425,18 @@ public:
         }
     }
 
-    float GetPaddedVal() const { return paddedVal; }
-    size_t GetFirstElementOffset() const { return firstElementOffset; }
-    size_t GetViewOffset() const { return viewOffset; }
-    const NDims& GetDims() const { return dims; }
+    float GetPaddedVal() const {
+        return paddedVal;
+    }
+    size_t GetFirstElementOffset() const {
+        return firstElementOffset;
+    }
+    size_t GetViewOffset() const {
+        return viewOffset;
+    }
+    const NDims& GetDims() const {
+        return dims;
+    }
 
     virtual uint32_t ElementSize() const = 0;
 
@@ -435,15 +450,21 @@ public:
     // Dimensions of the actual data (without padded part)
     std::vector<size_t> LogicalDims() const {
         std::vector<size_t> res(dims.size());
-        std::transform(dims.begin(), dims.end(), res.begin(), [](const Dim& d) { return d.v; });
+        std::transform(dims.begin(), dims.end(), res.begin(), [](const Dim& d) {
+            return d.v;
+        });
         return res;
     }
 
     // Whole buffer size (in elements)
-    size_t PhysicalSize() const { return totalSize; }
+    size_t PhysicalSize() const {
+        return totalSize;
+    }
 
     // Whole buffer size (in bytes)
-    size_t PhysicalSizeInBytes() const { return totalSize * ElementSize(); }
+    size_t PhysicalSizeInBytes() const {
+        return totalSize * ElementSize();
+    }
 
     // if padded/view exists between logical dimensions.
     // in other words, if we can consider the data as a 1Dim resource.
@@ -460,11 +481,15 @@ public:
     }
 
     bool is_dynamic() const {
-        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.is_dynamic; });
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
+            return d.is_dynamic;
+        });
     }
 
     bool has_dynamic_pad() const {
-        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.pad.is_dynamic; });
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
+            return d.pad.is_dynamic;
+        });
     }
 
     virtual ~TensorBase() = default;
@@ -499,10 +524,11 @@ protected:
 
     template <typename ArrayT>
     static inline uint32_t ChannelsCount(const ArrayT& channelArr, Layout l) {
-        const auto& entry =
-            std::find_if(std::begin(channelArr),
-                         std::end(channelArr),
-                         [&](typename std::tuple_element<0, ArrayT>::type entry) { return entry.first == l; });
+        const auto& entry = std::find_if(std::begin(channelArr),
+                                         std::end(channelArr),
+                                         [&](typename std::tuple_element<0, ArrayT>::type entry) {
+                                             return entry.first == l;
+                                         });
 
         if (entry == channelArr.end())
             throw std::invalid_argument("Failed to get channels count for layout " +
@@ -519,15 +545,31 @@ public:
     TensorBaseT& operator=(const TensorBaseT&) = default;
 
     TensorBaseT(const NDims& nd, DType dt, Layout l, size_t of = 0, size_t sz = 0, float pv = 0.f)
-        : TensorBase(nd, of, sz, pv), dtype(dt), layout(l) {}
+        : TensorBase(nd, of, sz, pv),
+          dtype(dt),
+          layout(l) {}
 
-    DType GetDType() const { return dtype; }
-    Layout GetLayout() const { return layout; }
-    uint32_t ElementSize() const override { return BytesPerElement(dtype); }
-    size_t Dimentions() const { return dims.size(); }
-    bool SimpleLayout() const { return Tensor::SimpleLayout(layout); }
-    bool DoubleBlockedLayout() const { return Tensor::DoubleBlockedLayout(layout); }
-    bool GroupedLayout() const { return Tensor::GroupedLayout(layout); }
+    DType GetDType() const {
+        return dtype;
+    }
+    Layout GetLayout() const {
+        return layout;
+    }
+    uint32_t ElementSize() const override {
+        return BytesPerElement(dtype);
+    }
+    size_t Dimentions() const {
+        return dims.size();
+    }
+    bool SimpleLayout() const {
+        return Tensor::SimpleLayout(layout);
+    }
+    bool DoubleBlockedLayout() const {
+        return Tensor::DoubleBlockedLayout(layout);
+    }
+    bool GroupedLayout() const {
+        return Tensor::GroupedLayout(layout);
+    }
 
     bool operator==(const TensorBaseT& t) const {
         bool same = dtype == t.dtype && layout == t.layout && paddedVal == t.paddedVal && viewOffset == t.viewOffset &&
@@ -584,14 +626,30 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor(const std::vector<size_t>& d, Datatype dt, DataLayout l)
         : TensorBaseT<Datatype, DataLayout>(GetSimpleDims(d, l), dt, l) {}
 
-    Dim X() const { return Extract(layout, DataChannelName::X, dims); }
-    Dim Y() const { return Extract(layout, DataChannelName::Y, dims); }
-    Dim Z() const { return Extract(layout, DataChannelName::Z, dims); }
-    Dim W() const { return Extract(layout, DataChannelName::W, dims); }
-    Dim U() const { return Extract(layout, DataChannelName::U, dims); }
-    Dim V() const { return Extract(layout, DataChannelName::V, dims); }
-    Dim Feature() const { return Extract(layout, DataChannelName::FEATURE, dims); }
-    Dim Batch() const { return Extract(layout, DataChannelName::BATCH, dims); }
+    Dim X() const {
+        return Extract(layout, DataChannelName::X, dims);
+    }
+    Dim Y() const {
+        return Extract(layout, DataChannelName::Y, dims);
+    }
+    Dim Z() const {
+        return Extract(layout, DataChannelName::Z, dims);
+    }
+    Dim W() const {
+        return Extract(layout, DataChannelName::W, dims);
+    }
+    Dim U() const {
+        return Extract(layout, DataChannelName::U, dims);
+    }
+    Dim V() const {
+        return Extract(layout, DataChannelName::V, dims);
+    }
+    Dim Feature() const {
+        return Extract(layout, DataChannelName::FEATURE, dims);
+    }
+    Dim Batch() const {
+        return Extract(layout, DataChannelName::BATCH, dims);
+    }
 
     DataTensor TransformIgnorePadding(DataLayout l) const;
     DataTensor FlattenFeatureAndSpatials() const;
@@ -613,9 +671,13 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
         return TensorBaseT::ChannelIndex(dataChannelArray, l, channel);
     }
 
-    static inline uint32_t ChannelsCount(DataLayout l) { return TensorBaseT::ChannelsCount(dataChannelArray, l); }
+    static inline uint32_t ChannelsCount(DataLayout l) {
+        return TensorBaseT::ChannelsCount(dataChannelArray, l);
+    }
 
-    static size_t max_rank() { return static_cast<size_t>(DataChannelName::COUNT); }
+    static size_t max_rank() {
+        return static_cast<size_t>(DataChannelName::COUNT);
+    }
 
 private:
     using DataChannelDesc = std::pair<DataLayout, std::array<int, static_cast<size_t>(DataChannelName::COUNT)>>;
@@ -639,15 +701,29 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
     WeightsTensor(const std::vector<size_t>& d, WeightsType dt, WeightsLayout l)
         : TensorBaseT<WeightsType, WeightsLayout>(GetSimpleDims(d, l), dt, l) {}
 
-    WeightsTensor TransformIgnorePadding(WeightsLayout l) const { return TransformIgnorePadding(l, dtype); }
+    WeightsTensor TransformIgnorePadding(WeightsLayout l) const {
+        return TransformIgnorePadding(l, dtype);
+    }
     WeightsTensor TransformIgnorePadding(WeightsLayout l, WeightsType t, size_t g = 1, bool should_split = true) const;
 
-    Dim X() const { return Extract(layout, WeightsChannelName::X, dims); }
-    Dim Y() const { return Extract(layout, WeightsChannelName::Y, dims); }
-    Dim Z() const { return Extract(layout, WeightsChannelName::Z, dims); }
-    Dim IFM() const { return Extract(layout, WeightsChannelName::IFM, dims); }
-    Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
-    Dim G() const { return Extract(layout, WeightsChannelName::G, dims); }
+    Dim X() const {
+        return Extract(layout, WeightsChannelName::X, dims);
+    }
+    Dim Y() const {
+        return Extract(layout, WeightsChannelName::Y, dims);
+    }
+    Dim Z() const {
+        return Extract(layout, WeightsChannelName::Z, dims);
+    }
+    Dim IFM() const {
+        return Extract(layout, WeightsChannelName::IFM, dims);
+    }
+    Dim OFM() const {
+        return Extract(layout, WeightsChannelName::OFM, dims);
+    }
+    Dim G() const {
+        return Extract(layout, WeightsChannelName::G, dims);
+    }
 
     void SwapXY();
 
@@ -663,7 +739,9 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
         return TensorBaseT::ChannelIndex(weightsChannelArray, l, WeightsChannelName::G) != -1;
     }
 
-    static inline uint32_t ChannelsCount(WeightsLayout l) { return TensorBaseT::ChannelsCount(weightsChannelArray, l); }
+    static inline uint32_t ChannelsCount(WeightsLayout l) {
+        return TensorBaseT::ChannelsCount(weightsChannelArray, l);
+    }
 
 private:
     using WeightsChannelDesc =

@@ -36,18 +36,16 @@ namespace test {
 //   │ Output │
 //   └────────┘
 
-typedef std::tuple<
-        InputShape,
-        ElementType                // Net precision
-> ShapeOfAnyLayoutParams;
+typedef std::tuple<InputShape,
+                   ElementType  // Net precision
+                   >
+    ShapeOfAnyLayoutParams;
 
-typedef std::tuple<
-        ShapeOfAnyLayoutParams,
-        CPUSpecificParams
-> ShapeOfAnyLayoutCPUTestParamsSet;
+typedef std::tuple<ShapeOfAnyLayoutParams, CPUSpecificParams> ShapeOfAnyLayoutCPUTestParamsSet;
 
 class ShapeOfAnyLayoutCPUTest : public testing::WithParamInterface<ShapeOfAnyLayoutCPUTestParamsSet>,
-                            virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+                                virtual public ov::test::SubgraphBaseTest,
+                                public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet> obj) {
         ShapeOfAnyLayoutParams basicParamsSet;
@@ -71,6 +69,7 @@ public:
         result << ")";
         return result.str();
     }
+
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -94,7 +93,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        //make a stub eltwise node to enforce layout, since ShapeOf just mimic any input layout
+        // make a stub eltwise node to enforce layout, since ShapeOf just mimic any input layout
         auto eltwise = utils::make_activation(params[0], inType, ov::test::utils::ActivationTypes::Relu);
         eltwise->get_rt_info() = makeCPUInfo(eltwiseInFmts, eltwiseOutFmts, {});
 
@@ -134,67 +133,41 @@ std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3
     return resCPUParams;
 }
 
-const std::vector<ElementType> netPrecisions = {
-        ElementType::f32
-};
+const std::vector<ElementType> netPrecisions = {ElementType::f32};
 
-std::vector<ov::test::InputShape> inShapesDynamic3d = {
-        {
-            {-1, 16, -1},
-            {
-                { 8, 16, 4 },
-                { 8, 16, 3 },
-                { 8, 16, 2 }
-            }
-        }
-};
+std::vector<ov::test::InputShape> inShapesDynamic3d = {{{-1, 16, -1}, {{8, 16, 4}, {8, 16, 3}, {8, 16, 2}}}};
 
 std::vector<ov::test::InputShape> inShapesDynamic4d = {
-        {
-            {-1, 16, -1, -1},
-            {
-                { 8, 16, 3, 4 },
-                { 8, 16, 3, 3 },
-                { 8, 16, 3, 2 }
-            }
-        },
+    {{-1, 16, -1, -1}, {{8, 16, 3, 4}, {8, 16, 3, 3}, {8, 16, 3, 2}}},
 };
 
 std::vector<ov::test::InputShape> inShapesDynamic5d = {
-        {
-            { -1, 16, -1, -1, -1 },
-            {
-                { 8, 16, 3, 2, 4 },
-                { 8, 16, 3, 2, 3 },
-                { 8, 16, 3, 2, 2 }
-            }
-        }
-};
-const auto params5dDynamic = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapesDynamic5d),
-                ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(getCpuInfoForDimsCount(5)));
+    {{-1, 16, -1, -1, -1}, {{8, 16, 3, 2, 4}, {8, 16, 3, 2, 3}, {8, 16, 3, 2, 2}}}};
+const auto params5dDynamic =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(inShapesDynamic5d), ::testing::ValuesIn(netPrecisions)),
+                       ::testing::ValuesIn(getCpuInfoForDimsCount(5)));
 
-const auto params4dDynamic = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapesDynamic4d),
-                ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(getCpuInfoForDimsCount(4)));
+const auto params4dDynamic =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(inShapesDynamic4d), ::testing::ValuesIn(netPrecisions)),
+                       ::testing::ValuesIn(getCpuInfoForDimsCount(4)));
 
-const auto params3dDynamic = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapesDynamic3d),
-                ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(getCpuInfoForDimsCount(3)));
+const auto params3dDynamic =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(inShapesDynamic3d), ::testing::ValuesIn(netPrecisions)),
+                       ::testing::ValuesIn(getCpuInfoForDimsCount(3)));
 
 // We don't check static case, because of constant folding
-INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf3dAnyLayoutTest, ShapeOfAnyLayoutCPUTest,
-                         params3dDynamic, ShapeOfAnyLayoutCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf4dAnyLayoutTest, ShapeOfAnyLayoutCPUTest,
-                         params4dDynamic, ShapeOfAnyLayoutCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf5dAnyLayoutTest, ShapeOfAnyLayoutCPUTest,
-                         params5dDynamic, ShapeOfAnyLayoutCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf3dAnyLayoutTest,
+                         ShapeOfAnyLayoutCPUTest,
+                         params3dDynamic,
+                         ShapeOfAnyLayoutCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf4dAnyLayoutTest,
+                         ShapeOfAnyLayoutCPUTest,
+                         params4dDynamic,
+                         ShapeOfAnyLayoutCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf5dAnyLayoutTest,
+                         ShapeOfAnyLayoutCPUTest,
+                         params5dDynamic,
+                         ShapeOfAnyLayoutCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

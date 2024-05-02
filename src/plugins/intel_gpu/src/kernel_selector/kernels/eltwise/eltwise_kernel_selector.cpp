@@ -3,12 +3,12 @@
 //
 
 #include "eltwise_kernel_selector.h"
+
+#include "eltwise_kernel_blocked_opt.h"
+#include "eltwise_kernel_fs_b_yx_fsv32.h"
+#include "eltwise_kernel_mixed_byxf_and_fs_b_yx_fsv32.h"
 #include "eltwise_kernel_ref.h"
 #include "eltwise_kernel_vload8.h"
-#include "eltwise_kernel_mixed_byxf_and_fs_b_yx_fsv32.h"
-#include "eltwise_kernel_fs_b_yx_fsv32.h"
-#include "eltwise_kernel_blocked_opt.h"
-
 
 namespace kernel_selector {
 eltwise_kernel_selector::eltwise_kernel_selector() {

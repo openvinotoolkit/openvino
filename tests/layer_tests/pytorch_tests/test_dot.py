@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
+
 
 class TestDot(PytorchLayerTest):
     def _prepare_input(self, inputs, dtype, out=False):
         import numpy as np
+
         x = np.array(inputs[0]).astype(dtype)
         y = np.array(inputs[1]).astype(dtype)
         if not out:
@@ -30,7 +31,7 @@ class TestDot(PytorchLayerTest):
             def __init__(self, mode, dtype):
                 super().__init__()
                 self.dtype = dtype
-                if mode =="out":
+                if mode == "out":
                     self.forward = self.forward_out
                 else:
                     self.forward = self.forward_default
@@ -39,7 +40,10 @@ class TestDot(PytorchLayerTest):
                 return torch.dot(tensor1.to(self.dtype), tensor2.to(self.dtype))
 
             def forward_out(self, tensor1, tensor2, y):
-                return torch.dot(tensor1.to(self.dtype), tensor2.to(self.dtype), out=y), y
+                return (
+                    torch.dot(tensor1.to(self.dtype), tensor2.to(self.dtype), out=y),
+                    y,
+                )
 
         dtype = dtype_map.get(dtype)
 
@@ -49,11 +53,28 @@ class TestDot(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("mode, dtype", [
-        ("", "float32"), ("", "float64"), ("", "int32"), ("", "int64"), ("", "int8"),
-        ("out", "float32"), ("out", "float64"), ("out", "int32"), ("out", "int64"), ("out", "int8")])
     @pytest.mark.parametrize(
-        "inputs", [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9]), ([1, 2, 3], [4, 5, 6]), ([1, 1, 1], [1, 1, 1])]
+        "mode, dtype",
+        [
+            ("", "float32"),
+            ("", "float64"),
+            ("", "int32"),
+            ("", "int64"),
+            ("", "int8"),
+            ("out", "float32"),
+            ("out", "float64"),
+            ("out", "int32"),
+            ("out", "int64"),
+            ("out", "int8"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "inputs",
+        [
+            ([0, 1, 2, 3, 4], [5, 6, 7, 8, 9]),
+            ([1, 2, 3], [4, 5, 6]),
+            ([1, 1, 1], [1, 1, 1]),
+        ],
     )
     def test_dot(self, mode, dtype, inputs, ie_device, precision, ir_version):
         self._test(
@@ -61,5 +82,9 @@ class TestDot(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"inputs": inputs, "dtype": dtype, "out": mode == "out"}
+            kwargs_to_prepare_input={
+                "inputs": inputs,
+                "dtype": dtype,
+                "out": mode == "out",
+            }
         )

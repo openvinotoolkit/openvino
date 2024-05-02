@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
-#include "cpu_shape.h"
 
-#include <string>
 #include <sstream>
+#include <string>
+
+#include "cpu_shape.h"
 
 namespace ov {
 namespace intel_cpu {

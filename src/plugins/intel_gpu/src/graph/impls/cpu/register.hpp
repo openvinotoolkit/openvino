@@ -4,31 +4,30 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/assign.hpp"
-#include "intel_gpu/primitives/detection_output.hpp"
-#include "intel_gpu/primitives/proposal.hpp"
-#include "intel_gpu/primitives/read_value.hpp"
-#include "intel_gpu/primitives/non_max_suppression.hpp"
-#include "intel_gpu/primitives/shape_of.hpp"
-#include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/primitives/gather.hpp"
-#include "intel_gpu/primitives/strided_slice.hpp"
-#include "intel_gpu/primitives/range.hpp"
-#include "intel_gpu/primitives/scatter_update.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
-#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/non_max_suppression.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/primitives/range.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/scatter_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/shape_of.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/tile.hpp"
 
 namespace cldnn {
 namespace cpu {
 void register_implementations();
 
 namespace detail {
-
 
 #define REGISTER_CPU(prim)        \
     struct attach_##prim##_impl { \

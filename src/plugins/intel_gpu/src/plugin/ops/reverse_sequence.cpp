@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/reverse_sequence.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 
 namespace ov {
@@ -19,11 +18,7 @@ static void CreateReverseSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
     auto batch_axis = static_cast<uint32_t>(op->get_batch_axis());
     auto seq_axis = static_cast<uint32_t>(op->get_sequence_axis());
-    auto reverseSequencePrim = cldnn::reverse_sequence(layerName,
-                                                       inputs[0],
-                                                       inputs[1],
-                                                       seq_axis,
-                                                       batch_axis);
+    auto reverseSequencePrim = cldnn::reverse_sequence(layerName, inputs[0], inputs[1], seq_axis, batch_axis);
 
     p.add_primitive(*op, reverseSequencePrim);
 }

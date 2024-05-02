@@ -3,18 +3,18 @@
 //
 
 #include "test_utils.h"
-#include <iostream>
 
+#include <iostream>
 
 using namespace cldnn;
 
 namespace tests {
 
 generic_test::generic_test()
-    : generic_params(std::get<0>(GetParam()))
-    , layer_params(std::get<1>(GetParam()))
-    , max_ulps_diff_allowed(4)
-    , random_values(true) { }
+    : generic_params(std::get<0>(GetParam())),
+      layer_params(std::get<1>(GetParam())),
+      max_ulps_diff_allowed(4),
+      random_values(true) {}
 
 void generic_test::run_single_test(bool is_caching_test) {
     assert((generic_params->data_type == data_types::f32) || (generic_params->data_type == data_types::f16));
@@ -25,8 +25,8 @@ void generic_test::run_single_test(bool is_caching_test) {
     std::vector<std::string> input_layouts_names = {};
 
     size_t multipler = 0;
-    for (size_t i = 0 ; i < generic_params->input_layouts.size() ; i++) {
-        input_mems.push_back( engine.allocate_memory(generic_params->input_layouts[i]) );
+    for (size_t i = 0; i < generic_params->input_layouts.size(); i++) {
+        input_mems.push_back(engine.allocate_memory(generic_params->input_layouts[i]));
 
         if (random_values) {
             if (generic_params->data_type == data_types::f32) {
@@ -81,14 +81,17 @@ void generic_test::run_single_test(bool is_caching_test) {
 
     if (layer_params->input[0].pid == "reorder0") {
         // Add reorder layer with output padding as input to the tested layer.
-        topology.add(reorder("reorder0", input_info("input0"), input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+        topology.add(reorder("reorder0",
+                             input_info("input0"),
+                             input_mems[0]->get_layout().with_padding(padding{{0, 0, 1, 3}, {0, 0, 5, 2}})));
     }
 
     prepare_input_for_test(input_mems);
 
-    cldnn::network::ptr network = get_network(engine, topology, generic_params->network_config, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, generic_params->network_config, get_test_stream_ptr(), is_caching_test);
 
-    for (size_t i = 0 ; i < input_layouts_names.size() ; i++) {
+    for (size_t i = 0; i < input_layouts_names.size(); i++) {
         network->set_input_data(input_layouts_names[i], input_mems[i]);
     }
 
@@ -106,7 +109,7 @@ void generic_test::run_single_test(bool is_caching_test) {
     }
 }
 
-template<typename Type>
+template <typename Type>
 void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref) {
     auto out_layout = out->get_layout();
     auto ref_layout = ref->get_layout();
@@ -138,7 +141,8 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
                     ASSERT_TRUE(floating_point_equal(res_data[res_index], ref_data[ref_index], max_ulps_diff_allowed))
                         << "Expected " << (float)res_data[res_index] << " to be almost equal (within "
                         << max_ulps_diff_allowed << " ULP's) to " << (float)ref_data[ref_index]
-                        << " (ref index = " << ref_index << ", B " << b << ", F "<< f << ", Y " << y << ", X " << x << ")!";
+                        << " (ref index = " << ref_index << ", B " << b << ", F " << f << ", Y " << y << ", X " << x
+                        << ")!";
 
                     if (HasFailure()) {
                         return;
@@ -149,129 +153,111 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
     }
 }
 
-static size_t calc_offfset(const layout & layout, const pitches& p) {
+static size_t calc_offfset(const layout& layout, const pitches& p) {
     auto lower_padding = layout.data_padding.lower_size();
     if (layout.format == format::bfzyx) {
-        return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.z * lower_padding.spatial[2] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+        return p.b * lower_padding.batch[0] + p.f * lower_padding.feature[0] + p.z * lower_padding.spatial[2] +
+               p.y * lower_padding.spatial[1] + p.x * lower_padding.spatial[0];
     } else {
-        return
-            p.b * lower_padding.batch[0] +
-            p.f * lower_padding.feature[0] +
-            p.y * lower_padding.spatial[1] +
-            p.x * lower_padding.spatial[0];
+        return p.b * lower_padding.batch[0] + p.f * lower_padding.feature[0] + p.y * lower_padding.spatial[1] +
+               p.x * lower_padding.spatial[0];
     }
 }
 
-memory_desc generic_test::get_linear_memory_desc(const layout & layout) {
+memory_desc generic_test::get_linear_memory_desc(const layout& layout) {
     pitches p;
 
     switch (layout.format) {
-        case format::bfyx: {
-            p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfyx)[3] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::bfyx)[2] * p.y;
-            p.b = layout.get_buffer_size().sizes(format::bfyx)[1] * p.f;
-            break;
-        }
-        case format::yxfb: {
-            p.b = 1;
-            p.f = layout.get_buffer_size().sizes(format::yxfb)[3] * p.b;
-            p.x = layout.get_buffer_size().sizes(format::yxfb)[2] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::yxfb)[1] * p.x;
-            break;
-        }
-        case format::fyxb: {
-            p.b = 1;
-            p.x = layout.get_buffer_size().sizes(format::fyxb)[3] * p.b;
-            p.y = layout.get_buffer_size().sizes(format::fyxb)[2] * p.x;
-            p.f = layout.get_buffer_size().sizes(format::fyxb)[1] * p.y;
-            break;
-        }
-        case format::byxf: {
-            p.f = 1;
-            p.x = layout.get_buffer_size().sizes(format::byxf)[3] * p.f;
-            p.y = layout.get_buffer_size().sizes(format::byxf)[2] * p.x;
-            p.b = layout.get_buffer_size().sizes(format::byxf)[1] * p.y;
-            break;
-        }
-        case format::bfzyx: {
-            p.x = 1;
-            p.y = layout.get_buffer_size().sizes(format::bfzyx)[4] * p.x;
-            p.z = layout.get_buffer_size().sizes(format::bfzyx)[3] * p.y;
-            p.f = layout.get_buffer_size().sizes(format::bfzyx)[2] * p.z;
-            p.b = layout.get_buffer_size().sizes(format::bfzyx)[1] * p.f;
-            break;
-        }
-        default: {
-            throw std::runtime_error("Format not supported yet.");
-        }
+    case format::bfyx: {
+        p.x = 1;
+        p.y = layout.get_buffer_size().sizes(format::bfyx)[3] * p.x;
+        p.f = layout.get_buffer_size().sizes(format::bfyx)[2] * p.y;
+        p.b = layout.get_buffer_size().sizes(format::bfyx)[1] * p.f;
+        break;
+    }
+    case format::yxfb: {
+        p.b = 1;
+        p.f = layout.get_buffer_size().sizes(format::yxfb)[3] * p.b;
+        p.x = layout.get_buffer_size().sizes(format::yxfb)[2] * p.f;
+        p.y = layout.get_buffer_size().sizes(format::yxfb)[1] * p.x;
+        break;
+    }
+    case format::fyxb: {
+        p.b = 1;
+        p.x = layout.get_buffer_size().sizes(format::fyxb)[3] * p.b;
+        p.y = layout.get_buffer_size().sizes(format::fyxb)[2] * p.x;
+        p.f = layout.get_buffer_size().sizes(format::fyxb)[1] * p.y;
+        break;
+    }
+    case format::byxf: {
+        p.f = 1;
+        p.x = layout.get_buffer_size().sizes(format::byxf)[3] * p.f;
+        p.y = layout.get_buffer_size().sizes(format::byxf)[2] * p.x;
+        p.b = layout.get_buffer_size().sizes(format::byxf)[1] * p.y;
+        break;
+    }
+    case format::bfzyx: {
+        p.x = 1;
+        p.y = layout.get_buffer_size().sizes(format::bfzyx)[4] * p.x;
+        p.z = layout.get_buffer_size().sizes(format::bfzyx)[3] * p.y;
+        p.f = layout.get_buffer_size().sizes(format::bfzyx)[2] * p.z;
+        p.b = layout.get_buffer_size().sizes(format::bfzyx)[1] * p.f;
+        break;
+    }
+    default: {
+        throw std::runtime_error("Format not supported yet.");
+    }
     }
 
     return {p, calc_offfset(layout, p)};
 }
 
-size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
-{
-    return
-        desc.offset +
-        b*desc.pitch.b +
-        f*desc.pitch.f +
-        y*desc.pitch.y +
-        x*desc.pitch.x;
+size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc) {
+    return desc.offset + b * desc.pitch.b + f * desc.pitch.f + y * desc.pitch.y + x * desc.pitch.x;
 }
 
-size_t generic_test::get_linear_index(const layout&, size_t b, size_t f, size_t z, size_t y, size_t x, const memory_desc& desc)
-{
-    return
-        desc.offset +
-        b*desc.pitch.b +
-        f*desc.pitch.f +
-        z*desc.pitch.z +
-        y*desc.pitch.y +
-        x*desc.pitch.x;
+size_t generic_test::get_linear_index(const layout&,
+                                      size_t b,
+                                      size_t f,
+                                      size_t z,
+                                      size_t y,
+                                      size_t x,
+                                      const memory_desc& desc) {
+    return desc.offset + b * desc.pitch.b + f * desc.pitch.f + z * desc.pitch.z + y * desc.pitch.y + x * desc.pitch.x;
 }
 
-size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, size_t b, size_t f, size_t y, size_t x, const memory_desc& desc)
-{
-    return
-        desc.offset +
-        (b % in_layout.batch()) * desc.pitch.b +
-        (f % in_layout.feature()) * desc.pitch.f +
-        (y % in_layout.spatial(1)) * desc.pitch.y +
-        (x % in_layout.spatial(0)) * desc.pitch.x;
+size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout,
+                                                     size_t b,
+                                                     size_t f,
+                                                     size_t y,
+                                                     size_t x,
+                                                     const memory_desc& desc) {
+    return desc.offset + (b % in_layout.batch()) * desc.pitch.b + (f % in_layout.feature()) * desc.pitch.f +
+           (y % in_layout.spatial(1)) * desc.pitch.y + (x % in_layout.spatial(0)) * desc.pitch.x;
 }
 
-//Default implementation. Should be overridden in derived class otherwise.
-cldnn::tensor generic_test::get_expected_output_tensor()
-{
+// Default implementation. Should be overridden in derived class otherwise.
+cldnn::tensor generic_test::get_expected_output_tensor() {
     return generic_params->input_layouts[0].get_tensor();
 }
 
-std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
-{
+std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(
+    std::vector<std::shared_ptr<test_params>>& all_generic_params) {
     // , { format::yx,{ 531,777 } } , { format::yx,{ 4096,1980 } } ,
-    //{ format::bfyx,{ 1,1,1,1 } } , { format::bfyx,{ 1,1,2,2 } } , { format::yx,{ 3,3 } } , { format::yx,{ 4,4 } } , { format::bfyx,{ 1,1,5,5 } } , { format::yx,{ 6,6 } } , { format::yx,{ 7,7 } } ,
-    //{ format::yx,{ 8,8 } } , { format::yx,{ 9,9 } } , { format::yx,{ 10,10 } } , { format::yx,{ 11,11 } } , { format::yx,{ 12,12 } } , { format::yx,{ 13,13 } } ,
-    //{ format::yx,{ 14,14 } } , { format::yx,{ 15,15 } } , { format::yx,{ 16,16 } } };
+    //{ format::bfyx,{ 1,1,1,1 } } , { format::bfyx,{ 1,1,2,2 } } , { format::yx,{ 3,3 } } , { format::yx,{ 4,4 } } , {
+    // format::bfyx,{ 1,1,5,5 } } , { format::yx,{ 6,6 } } , { format::yx,{ 7,7 } } , { format::yx,{ 8,8 } } , {
+    // format::yx,{ 9,9 } } , { format::yx,{ 10,10 } } , { format::yx,{ 11,11 } } , { format::yx,{ 12,12 } } , {
+    // format::yx,{ 13,13 } } , { format::yx,{ 14,14 } } , { format::yx,{ 15,15 } } , { format::yx,{ 16,16 } } };
 
     auto data_types = test_data_types();
 
-    for (cldnn::data_types data_type : data_types)
-    {
-        for (cldnn::format fmt : test_input_formats)
-        {
-            for (int batch_size : test_batch_sizes)
-            {
-                for (int feature_size : test_feature_sizes)
-                {
-                    for (tensor input_size : test_input_sizes)
-                    {
-                        all_generic_params.emplace_back(new test_params(data_type, fmt, batch_size, feature_size, input_size));
+    for (cldnn::data_types data_type : data_types) {
+        for (cldnn::format fmt : test_input_formats) {
+            for (int batch_size : test_batch_sizes) {
+                for (int feature_size : test_feature_sizes) {
+                    for (tensor input_size : test_input_sizes) {
+                        all_generic_params.emplace_back(
+                            new test_params(data_type, fmt, batch_size, feature_size, input_size));
                     }
                 }
             }
@@ -290,7 +276,7 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine, ov::
 }
 
 cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
-                                                std::initializer_list<ov::AnyMap::value_type> values) {
+                                               std::initializer_list<ov::AnyMap::value_type> values) {
     ExecutionConfig config(values);
 
     // Onednn engine currently does NOT support out_of_order
@@ -319,7 +305,8 @@ cldnn::engine& get_test_engine() {
 }
 
 cldnn::stream_ptr get_test_stream_ptr() {
-    // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
+    // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there
+    // explicitly
     auto cfg = get_test_default_config(get_test_engine());
 
     return get_test_stream_ptr(cfg);
@@ -366,7 +353,7 @@ std::string test_params::print() {
     std::stringstream str;
     str << "Data type: " << ov::element::Type(data_type) << std::endl;
 
-    for (int j = 0 ; j < (int)input_layouts.size(); j++) {
+    for (int j = 0; j < (int)input_layouts.size(); j++) {
         const cldnn::tensor& t = input_layouts[j].get_tensor();
 
         str << "Input " << j << ": " << print_tensor(t) << std::endl;
@@ -430,14 +417,16 @@ cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {
     return fmt;
 }
 
-std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };
-std::vector<int32_t> generic_test::test_batch_sizes = { 1, 2 };// 4, 8, 16};
-std::vector<int32_t> generic_test::test_feature_sizes = { 1, 2 };// , 3, 15};
-std::vector<tensor> generic_test::test_input_sizes = { { 1, 1, 100, 100 } ,{ 1, 1, 277, 277 } ,{ 1, 1, 400, 600 } };
+std::vector<cldnn::format> generic_test::test_input_formats = {cldnn::format::bfyx,
+                                                               cldnn::format::yxfb,
+                                                               cldnn::format::fyxb,
+                                                               cldnn::format::byxf};
+std::vector<int32_t> generic_test::test_batch_sizes = {1, 2};    // 4, 8, 16};
+std::vector<int32_t> generic_test::test_feature_sizes = {1, 2};  // , 3, 15};
+std::vector<tensor> generic_test::test_input_sizes = {{1, 1, 100, 100}, {1, 1, 277, 277}, {1, 1, 400, 600}};
 
 namespace {
-double get_exectime_from_profiling_info(const std::vector<instrumentation::profiling_interval>& intervals)
-{
+double get_exectime_from_profiling_info(const std::vector<instrumentation::profiling_interval>& intervals) {
     using namespace std::chrono;
     double time = 0.0;
     for (const auto& i : intervals) {
@@ -452,16 +441,14 @@ double get_exectime_from_profiling_info(const std::vector<instrumentation::profi
 }  // namespace
 
 double get_profiling_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
-                    const std::string& primitive_id)
-{
+                              const std::string& primitive_id) {
     const auto event = outputs.at(primitive_id).get_event();
-    event->wait(); // should ensure execution completion, if not segfault will occur
+    event->wait();  // should ensure execution completion, if not segfault will occur
     const auto intervals = event->get_profiling_info();
     return get_exectime_from_profiling_info(intervals);
 }
 
-void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs)
-{
+void print_profiling_all_exectimes(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs) {
     std::cout << "Print last run time" << std::endl;
     for (const auto& o : outputs) {
         const auto event = o.second.get_event();

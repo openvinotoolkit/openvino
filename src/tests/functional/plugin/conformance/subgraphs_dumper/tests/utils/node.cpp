@@ -3,8 +3,9 @@
 //
 
 #include "utils/node.hpp"
-#include "openvino/op/ops.hpp"
+
 #include "base_test.hpp"
+#include "openvino/op/ops.hpp"
 
 namespace {
 
@@ -27,8 +28,8 @@ TEST_F(NodeUtilsTest, get_input_info_by_node) {
     auto add_node = std::make_shared<ov::op::v1::Add>(param, const_node);
 
     std::map<std::string, ov::conformance::InputInfo> ref_test_info = {
-        { "const_0", ov::conformance::InputInfo({2, 3}, -3.65, 7, true) },
-        { "param_0", ov::conformance::InputInfo({2, 3}) },
+        {"const_0", ov::conformance::InputInfo({2, 3}, -3.65, 7, true)},
+        {"param_0", ov::conformance::InputInfo({2, 3})},
     };
     std::map<std::string, ov::conformance::InputInfo> orig_test_info = ov::util::get_input_info_by_node(add_node);
     ASSERT_EQ(ref_test_info, orig_test_info);
@@ -75,7 +76,7 @@ TEST_F(NodeUtilsTest, generate_model_by_node) {
     auto add_node_1 = std::make_shared<ov::op::v1::Add>(erf_node_0, erf_node_1);
 
     auto model = ov::util::generate_model_by_node(add_node_1);
-    auto param_0 = model->inputs().begin() ->get_node_shared_ptr();
+    auto param_0 = model->inputs().begin()->get_node_shared_ptr();
     ASSERT_TRUE(ov::op::util::is_parameter(param_0));
     ASSERT_EQ(param_0->get_shape(), ov::Shape({2, 3}));
     ASSERT_EQ(param_0->get_element_type(), ov::element::Type_t::f32);

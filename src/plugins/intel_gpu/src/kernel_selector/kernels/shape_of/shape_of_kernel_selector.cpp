@@ -3,6 +3,7 @@
 //
 
 #include "shape_of_kernel_selector.h"
+
 #include "shape_of_kernel_ref.h"
 
 namespace kernel_selector {

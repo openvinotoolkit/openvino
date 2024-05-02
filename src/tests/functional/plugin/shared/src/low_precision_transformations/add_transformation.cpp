@@ -5,16 +5,16 @@
 #include "low_precision_transformations/add_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/add.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< AddTransformationParams>& obj) {
+std::string AddTransformation::getTestCaseName(const testing::TestParamInfo<AddTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     std::string targetDevice;
@@ -23,8 +23,8 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
     std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
-           (param.broadcast ? "_broadcast" : "");
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params)
+           << (param.broadcast ? "_broadcast" : "");
     for (const auto& elem : param.precisionOnActivations) {
         result << "_" << elem << "_";
     }
@@ -34,18 +34,14 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
     }
 
     if (!param.fakeQuantize1.empty()) {
-        result << "_on_branch1_" <<
-            param.fakeQuantize1.inputLowValues[0] << "_" <<
-            param.fakeQuantize1.inputHighValues[0] << "_" <<
-            param.fakeQuantize1.outputLowValues[0] << "_" <<
-            param.fakeQuantize1.outputHighValues[0];
+        result << "_on_branch1_" << param.fakeQuantize1.inputLowValues[0] << "_"
+               << param.fakeQuantize1.inputHighValues[0] << "_" << param.fakeQuantize1.outputLowValues[0] << "_"
+               << param.fakeQuantize1.outputHighValues[0];
     }
     if (!param.fakeQuantize2.empty()) {
-        result << "_on_branch2_" <<
-            param.fakeQuantize2.inputLowValues[0] << "_" <<
-            param.fakeQuantize2.inputHighValues[0] << "_" <<
-            param.fakeQuantize2.outputLowValues[0] << "_" <<
-            param.fakeQuantize2.outputHighValues[0];
+        result << "_on_branch2_" << param.fakeQuantize2.inputLowValues[0] << "_"
+               << param.fakeQuantize2.inputHighValues[0] << "_" << param.fakeQuantize2.outputLowValues[0] << "_"
+               << param.fakeQuantize2.outputHighValues[0];
     }
     return result.str();
 }
@@ -61,11 +57,13 @@ void AddTransformation::SetUp() {
         inputShape2[2] = 1;
         inputShape2[3] = 1;
     }
-    init_input_shapes({ inputShape, inputShape2 });
+    init_input_shapes({inputShape, inputShape2});
 
-    function = ov::builder::subgraph::AddFunction::getOriginal(
-        precision, inputShape, param.broadcast,
-        param.fakeQuantize1, param.fakeQuantize2);
+    function = ov::builder::subgraph::AddFunction::getOriginal(precision,
+                                                               inputShape,
+                                                               param.broadcast,
+                                                               param.fakeQuantize1,
+                                                               param.fakeQuantize2);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

@@ -4,16 +4,13 @@
 
 #include "jit_brgemm_copy_b_emitter.hpp"
 
-#include "jit_brgemm_emitter.hpp"
-
-#include "snippets/utils.hpp"
-#include "snippets/lowered/expression.hpp"
-
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 
+#include "jit_brgemm_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -22,8 +19,9 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-
-jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t isa, const  ov::snippets::lowered::ExpressionPtr& expr)
+jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
+                                                     cpu_isa_t isa,
+                                                     const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
@@ -54,7 +52,8 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_inner_N_block = brgemm_repack->get_n_inner_block_size();
     m_inner_N_tail = m_N_blk % m_inner_N_block;
 
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_descriptor(0)->get_subtensor() == in_subtensor, "output and input subtensors must be equal");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_descriptor(0)->get_subtensor() == in_subtensor,
+                              "output and input subtensors must be equal");
     if (m_with_comp) {
         const auto& compensations_subtensor = expr->get_output_port_descriptor(1)->get_subtensor();
         OV_CPU_JIT_EMITTER_ASSERT(
@@ -62,7 +61,9 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
             "compensations subtensor must be {1, m_N_blk}");
     }
 
-    OV_CPU_JIT_EMITTER_ASSERT(!one_of(m_brg_weight_etype, element::bf16, element::i8), "doesn't support precision ", m_brg_weight_etype);
+    OV_CPU_JIT_EMITTER_ASSERT(!one_of(m_brg_weight_etype, element::bf16, element::i8),
+                              "doesn't support precision ",
+                              m_brg_weight_etype);
     const auto repacking_buffer_shape = brgemm_repack->get_repacking_buffer_shape();
     OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
     const auto& LDB = repacking_buffer_shape.back();
@@ -77,12 +78,26 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg_src_etype));
     const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brg_weight_etype));
 
-    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, src_dt, wei_dt);
+    init_brgemm_copy(m_kernel,
+                     leading_dimension,
+                     m_inner_N_block,
+                     m_inner_N_tail,
+                     LDB,
+                     m_K_blk,
+                     use_amx,
+                     src_dt,
+                     wei_dt);
 }
 
 void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
-                                                 size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                                                 bool is_with_amx, dnnl_data_type_t src_dt, dnnl_data_type_t wei_dt) const {
+                                                 size_t N,
+                                                 size_t N_blk,
+                                                 size_t N_tail,
+                                                 size_t LDB,
+                                                 size_t K,
+                                                 bool is_with_amx,
+                                                 dnnl_data_type_t src_dt,
+                                                 dnnl_data_type_t wei_dt) const {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = src_dt;
     brgCopyKernelConf.wei_dt = wei_dt;
@@ -90,14 +105,16 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
     brgCopyKernelConf.copy_B_wei_stride = 0;
     brgCopyKernelConf.LDB = static_cast<dim_t>(LDB);
-    brgCopyKernelConf.N =  static_cast<dim_t>(N);
+    brgCopyKernelConf.N = static_cast<dim_t>(N);
     brgCopyKernelConf.N_tail = static_cast<dim_t>(N_tail);
-    brgCopyKernelConf.N_blk =  static_cast<dim_t>(N_blk);
-    brgCopyKernelConf.K =  static_cast<dim_t>(K);
-    brgCopyKernelConf.K_blk =  static_cast<dim_t>(K);
+    brgCopyKernelConf.N_blk = static_cast<dim_t>(N_blk);
+    brgCopyKernelConf.K = static_cast<dim_t>(K);
+    brgCopyKernelConf.K_blk = static_cast<dim_t>(K);
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
-    brgCopyKernelConf.b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
-    brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.b_dt_sz =
+        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.tr_b_dt_sz =
+        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
@@ -116,7 +133,8 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "cannot create kernel due to invalid params");
 }
 
-void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in,
+                                                   const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "expects 1 input");
     OV_CPU_JIT_EMITTER_ASSERT((m_with_comp && out.size() == 2) || (!m_with_comp && out.size() == 1),
                               "expects 2 outputs if there are compensations");
@@ -143,21 +161,25 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     }
 }
 
-void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, Reg64 src, Reg64 dst, Reg64 comp,
-                                                 size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) const {
+void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel,
+                                                 Reg64 src,
+                                                 Reg64 dst,
+                                                 Reg64 comp,
+                                                 size_t N,
+                                                 size_t K,
+                                                 size_t offset_in,
+                                                 size_t offset_out,
+                                                 size_t offset_comp) const {
     const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
-        if (bytes_offset) h->add(reg, bytes_offset);
+        if (bytes_offset)
+            h->add(reg, bytes_offset);
     };
 
     internal_call_preamble();
     // save function address in gpr to pass in call instruction
-    const auto &kernel_overload = static_cast<void (*)(matmul::jit_brgemm_matmul_copy_b_t*,
-                                                       const void*,
-                                                       const void*,
-                                                       const void*,
-                                                       size_t,
-                                                       size_t)>(execute);
+    const auto& kernel_overload = static_cast<
+        void (*)(matmul::jit_brgemm_matmul_copy_b_t*, const void*, const void*, const void*, size_t, size_t)>(execute);
     h->mov(h->rbp, reinterpret_cast<uintptr_t>(kernel_overload));
     // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
     //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
@@ -178,7 +200,8 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
     }
 
 #ifdef _WIN32
-    // Note: ABI requires that the remaining parameters (except the first for) are pushed to the stack in right-to-left order
+    // Note: ABI requires that the remaining parameters (except the first for) are pushed to the stack in right-to-left
+    // order
     //  Shadow space will be allocated inside internal_call_rsp_align()
     h->push(K);
     h->push(N);
@@ -192,7 +215,7 @@ void jit_brgemm_copy_b_emitter::emit_kernel_call(const matmul::jit_brgemm_matmul
     internal_call_rsp_restore();
 
 #ifdef _WIN32
-        h->add(h->rsp, gpr_size * 2);
+    h->add(h->rsp, gpr_size * 2);
 #endif
     internal_call_postamble();
 }
@@ -217,5 +240,5 @@ void jit_brgemm_copy_b_emitter::execute(matmul::jit_brgemm_matmul_copy_b_t* kern
     (*kernel)(&ctx);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

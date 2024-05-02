@@ -3,9 +3,10 @@
 //
 
 #include "detection_output_kernel_ref.h"
-#include "kernel_selector_utils.h"
 
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -24,8 +25,10 @@ static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const Eng
     const size_t globalClassNum = gws[1];
     const auto rest_lws = info.maxWorkGroupSize / splitNum;
     size_t lws_idx = 0;
-    while (rest_lws < optimal_values[lws_idx]) lws_idx++;
-    while (globalClassNum % optimal_values[lws_idx]) lws_idx++;
+    while (rest_lws < optimal_values[lws_idx])
+        lws_idx++;
+    while (globalClassNum % optimal_values[lws_idx])
+        lws_idx++;
 
     return optimal_values[lws_idx];
 }
@@ -151,7 +154,9 @@ bool DetectionOutputKernelRef::Validate(const Params& p) const {
     return true;
 }
 
-void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
+void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params,
+                                                  clKernelData& kernel,
+                                                  size_t idx) const {
     if (params.detectOutParams.decrease_label_id) {
         if (idx == 0) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -246,9 +251,10 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
                                        MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
 
                 std::string kernel_name_suffix = "_CAFFE";
-                if (detectOutParams.detectOutParams.conf_padding_x == 0 && detectOutParams.detectOutParams.conf_padding_y == 0) {
-                    size_t req_local_mem_size = num_bit_mask * 4 * BytesPerElement(kernel_selector::Datatype::INT8)
-                                            + num_score_block * 4 * BytesPerElement(kernel_selector::Datatype::INT32);
+                if (detectOutParams.detectOutParams.conf_padding_x == 0 &&
+                    detectOutParams.detectOutParams.conf_padding_y == 0) {
+                    size_t req_local_mem_size = num_bit_mask * 4 * BytesPerElement(kernel_selector::Datatype::INT8) +
+                                                num_score_block * 4 * BytesPerElement(kernel_selector::Datatype::INT32);
                     // Check local mem size used in DO_STAGE_0_CAFFE_OPT.
                     if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize) {
                         kernel_name_suffix = "_CAFFE_OPT";
@@ -258,11 +264,13 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
             }
         } else if (i == 1) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
-                // Always use local memory since LWS size is 1x1x16 (16 WI * 100 (stack size) * 4 (int size) = 6.25 KB of SLM memory)
+                // Always use local memory since LWS size is 1x1x16 (16 WI * 100 (stack size) * 4 (int size) = 6.25 KB
+                // of SLM memory)
                 cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
-                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
-                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
+                cldnnJit.AddConstants(
+                    {MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
+                     MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                     MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             } else {
                 // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
                 //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
@@ -270,10 +278,11 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
                                           dispatchData.lws[1] * dispatchData.lws[2] * stack_size * 4;
                 if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
                     cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
-                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
-                                       MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
-                                       MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
+                cldnnJit.AddConstants(
+                    {MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
+                     MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
+                     MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                     MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             }
         } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
@@ -288,7 +297,8 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
                         const size_t max_reg_bytes = reg_num * bytes_per_reg;
 
                         size_t bytes_used = 0;
-                        const auto num_prior_boxes = detectOutParams.inputs[1].Feature().v / detectOutParams.detectOutParams.num_classes;
+                        const auto num_prior_boxes =
+                            detectOutParams.inputs[1].Feature().v / detectOutParams.detectOutParams.num_classes;
                         const auto top_k = std::min(detectOutParams.detectOutParams.top_k, (int32_t)num_prior_boxes);
 
                         // Memory buffer for decoded_bboxes array
@@ -333,7 +343,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
         auto& kernel = kd.kernels[i];
         KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
         kernel.params.workGroups.global = dispatchData.gws;
-        kernel.params.workGroups.local  = dispatchData.lws;
+        kernel.params.workGroups.local = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         SetKernelArguments(detectOutParams, kernel, i);
     }

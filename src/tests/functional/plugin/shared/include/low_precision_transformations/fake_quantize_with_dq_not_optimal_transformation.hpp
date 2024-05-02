@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-#include "ov_lpt_models/fake_quantize.hpp"
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include <string>
 
-#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -33,31 +33,24 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOptimalTransformationTestValues& data) {
-    return out <<  "_" <<
-        data.fqOnData << "_" <<
-        data.convertOnData << "_" <<
-        data.dequantizationOnData << "_" <<
+    return out << "_" << data.fqOnData << "_" << data.convertOnData << "_" << data.dequantizationOnData << "_" <<
 
-        data.constantOnWeights << "_" <<
-        data.fqOnWeights << "_" <<
-        data.convertOnWeights << "_" <<
-        data.dequantizationOnWeights <<
+           data.constantOnWeights << "_" << data.fqOnWeights << "_" << data.convertOnWeights << "_"
+               << data.dequantizationOnWeights <<
 
-        data.dequantizationAfter << "_" <<
-        data.expectedPrecision;
+           data.dequantizationAfter << "_" << data.expectedPrecision;
 }
 
 // ov::builder::subgraph::FakeQuantizeOnData
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   FakeQuantizeWithNotOptimalTransformationTestValues>
+    FakeQuantizeTransformationParams;
 
-class FakeQuantizeWithNotOptimalTransformation :
-    public testing::WithParamInterface<FakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FakeQuantizeWithNotOptimalTransformation : public testing::WithParamInterface<FakeQuantizeTransformationParams>,
+                                                 public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 

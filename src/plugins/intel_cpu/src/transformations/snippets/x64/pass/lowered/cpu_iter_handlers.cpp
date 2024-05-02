@@ -25,7 +25,8 @@ bool SetBrgemmBeta::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linear
     return true;
 }
 
-std::shared_ptr<snippets::lowered::pass::PassBase> SetBrgemmBeta::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+std::shared_ptr<snippets::lowered::pass::PassBase> SetBrgemmBeta::merge(
+    const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
     const auto merged_pass = std::make_shared<SetBrgemmBeta>(m_beta);
     if (other == nullptr)
         return merged_pass;

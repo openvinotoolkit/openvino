@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
 
+#include <kernel_selector_utils.h>
+
 #include <algorithm>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 
@@ -41,8 +42,9 @@ KernelsData ResampleKernelRef::GetKernelsData(const Params& params) const {
 
 static size_t packing_factor(const resample_params& params) {
     // TODO Add support for only input packing
-    bool in_out_8bit = (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
-                       (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8);
+    bool in_out_8bit =
+        (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
+        (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8);
 
     if (!in_out_8bit)
         return 1;
@@ -79,8 +81,8 @@ static bool use_packing(const resample_params& params) {
     if (params.inputs[0].Feature().pad.before % pack != 0 || params.outputs[0].Feature().pad.before % pack != 0)
         return false;
 
-    auto packed_work_items = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v
-        * CeilDiv(params.outputs[0].Feature().v, pack) * params.outputs[0].Batch().v;
+    auto packed_work_items = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v *
+                             CeilDiv(params.outputs[0].Feature().v, pack) * params.outputs[0].Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
     size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
@@ -118,15 +120,18 @@ ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_pa
     auto dispatchData = Parent::SetDefault(arg);
     auto in_layout = arg.inputs[0].GetLayout();
     auto out_layout = arg.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X},
+        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
-        dispatchData.gws = { arg.outputs[0].X().v, arg.outputs[0].Y().v * arg.outputs[0].Z().v,
-                             CeilDiv(arg.outputs[0].Feature().v, pack) * arg.outputs[0].Batch().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.gws = {arg.outputs[0].X().v,
+                            arg.outputs[0].Y().v * arg.outputs[0].Z().v,
+                            CeilDiv(arg.outputs[0].Feature().v, pack) * arg.outputs[0].Batch().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;

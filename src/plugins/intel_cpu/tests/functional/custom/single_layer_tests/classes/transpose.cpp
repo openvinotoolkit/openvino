@@ -81,42 +81,43 @@ const std::vector<ov::element::Type>& netPrecisionsPerChannels() {
 }
 
 const std::vector<InputShape>& dynamicInputShapes4DC16() {
-    static const std::vector<InputShape> dynamicInputShapes4DC16 = {InputShape{// dynamic
-                                                                    {-1, 16, -1, -1},
-                                                                    // target
-                                                                    {{2, 16, 21, 10}, {3, 16, 11, 12}, {2, 16, 21, 10}}}};
+    static const std::vector<InputShape> dynamicInputShapes4DC16 = {InputShape{
+        // dynamic
+        {-1, 16, -1, -1},
+        // target
+        {{2, 16, 21, 10}, {3, 16, 11, 12}, {2, 16, 21, 10}}}};
     return dynamicInputShapes4DC16;
 }
 
 const std::vector<InputShape>& dynamicInputShapes4DC32() {
-    static const std::vector<InputShape> dynamicInputShapes4DC32 = {InputShape{// dynamic
-                                                                    {-1, 32, -1, -1},
-                                                                    // target
-                                                                    {{4, 32, 16, 14}, {16, 32, 5, 16}, {4, 32, 16, 14}}}};
+    static const std::vector<InputShape> dynamicInputShapes4DC32 = {InputShape{
+        // dynamic
+        {-1, 32, -1, -1},
+        // target
+        {{4, 32, 16, 14}, {16, 32, 5, 16}, {4, 32, 16, 14}}}};
     return dynamicInputShapes4DC32;
 }
 
 const std::vector<InputShape>& dynamicInputShapes4D() {
     static const std::vector<InputShape> dynamicInputShapes4D = {
         InputShape{// dynamic
-                {ov::Dimension(1, 20), ov::Dimension(10, 40), ov::Dimension(10, 40), ov::Dimension(10, 40)},
-                // target
-                {{1, 32, 21, 10}, {2, 25, 11, 12}, {4, 15, 16, 14}, {7, 10, 20, 16}, {1, 32, 21, 10}}},
+                   {ov::Dimension(1, 20), ov::Dimension(10, 40), ov::Dimension(10, 40), ov::Dimension(10, 40)},
+                   // target
+                   {{1, 32, 21, 10}, {2, 25, 11, 12}, {4, 15, 16, 14}, {7, 10, 20, 16}, {1, 32, 21, 10}}},
         InputShape{// dynamic
-                {-1, -1, -1, -1},
-                // target
-                {{1, 24, 21, 8}, {2, 16, 11, 6}, {1, 24, 21, 8}}}
-    };
+                   {-1, -1, -1, -1},
+                   // target
+                   {{1, 24, 21, 8}, {2, 16, 11, 6}, {1, 24, 21, 8}}}};
     return dynamicInputShapes4D;
 }
 
 const std::vector<std::vector<size_t>>& inputOrder4D() {
     static const std::vector<std::vector<size_t>> inputOrder4D = {
-            std::vector<size_t>{0, 1, 2, 3},
-            std::vector<size_t>{0, 2, 3, 1},
-            std::vector<size_t>{0, 2, 1, 3},
-            std::vector<size_t>{1, 0, 2, 3},
-            std::vector<size_t>{},
+        std::vector<size_t>{0, 1, 2, 3},
+        std::vector<size_t>{0, 2, 3, 1},
+        std::vector<size_t>{0, 2, 1, 3},
+        std::vector<size_t>{1, 0, 2, 3},
+        std::vector<size_t>{},
     };
     return inputOrder4D;
 }

@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "prior_box_inst.h"
 #include "prior_box/prior_box_kernel_ref.h"
 #include "prior_box/prior_box_kernel_selector.h"
+#include "prior_box_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -96,7 +95,10 @@ attach_prior_box_impl::attach_prior_box_impl() {
                     format::bs_fs_yx_bsv16_fsv16,
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
-    implementation_map<prior_box>::add(impl_types::ocl, typed_primitive_impl_ocl<prior_box>::create<prior_box_impl>, types, formats);
+    implementation_map<prior_box>::add(impl_types::ocl,
+                                       typed_primitive_impl_ocl<prior_box>::create<prior_box_impl>,
+                                       types,
+                                       formats);
 }
 }  // namespace detail
 

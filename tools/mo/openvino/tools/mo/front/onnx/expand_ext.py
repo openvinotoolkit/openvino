@@ -6,10 +6,10 @@ from openvino.tools.mo.ops.broadcast import Broadcast
 
 
 class ExpandExtractor(FrontExtractorOp):
-    op = 'Expand'
+    op = "Expand"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Broadcast.update_node_stat(node, {'mode': 'bidirectional'})
+        Broadcast.update_node_stat(node, {"mode": "bidirectional"})
         return cls.enabled

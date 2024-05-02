@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/strided_slice.hpp"
-#include "primitive_inst.h"
-
 #include <string>
 #include <vector>
+
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "primitive_inst.h"
 
 namespace cldnn {
 
@@ -22,8 +22,12 @@ struct typed_program_node<strided_slice> : public typed_program_node_base<stride
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2, 3}; }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {1, 2, 3};
+    }
 };
 
 using strided_slice_node = typed_program_node<strided_slice>;
@@ -34,8 +38,9 @@ class typed_primitive_inst<strided_slice> : public typed_primitive_inst_base<str
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(strided_slice_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(strided_slice_node const& node);
 

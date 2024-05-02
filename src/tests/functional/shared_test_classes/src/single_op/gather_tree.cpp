@@ -5,16 +5,16 @@
 #include "shared_test_classes/single_op/gather_tree.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/gather_tree.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 
-std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
+std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple>& obj) {
     ov::Shape input_shape;
     ov::element::Type model_type;
     InputLayerType secondary_input_type;
@@ -37,7 +37,7 @@ void GatherTreeLayerTest::SetUp() {
 
     std::tie(input_shape, secondary_input_type, model_type, targetDevice) = GetParam();
 
-    std::vector<ov::Shape> input_shapes_static {input_shape};
+    std::vector<ov::Shape> input_shapes_static{input_shape};
     std::vector<ov::Shape> constant_shapes_static;
     if (InputLayerType::PARAMETER == secondary_input_type) {
         input_shapes_static.push_back(input_shape);
@@ -73,5 +73,5 @@ void GatherTreeLayerTest::SetUp() {
 
     function = std::make_shared<ov::Model>(result, params, "GatherTree");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

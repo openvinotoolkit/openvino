@@ -1,3 +1,3 @@
-const { cleanUp } = require('./cleanupImpl');
+const {cleanUp} = require('./cleanupImpl');
 
 cleanUp();

@@ -1,11 +1,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.elementwise import Add
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
+from openvino.tools.mo.ops.elementwise import Add
 
 
 class FakeOutputResolver(BackReplacementPattern):
@@ -13,19 +13,22 @@ class FakeOutputResolver(BackReplacementPattern):
     This transformation removes FakeOutput nodes. If producer of FakeOutput have only one consumer (FakeOutput itself)
      the name of FakeOutput is inherited by its producer, otherwise FakeOutput is replaced with op which does nothing.
     """
+
     enabled = True
     force_clean_up = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for fake_output in graph.get_op_nodes(op='FakeOutput'):
-            name = fake_output.soft_get('name', fake_output.id)
+        for fake_output in graph.get_op_nodes(op="FakeOutput"):
+            name = fake_output.soft_get("name", fake_output.id)
 
             producer = fake_output.in_port(0).get_source().node
 
             # At this stage we don't know the type of output, so we rely on MO transformation which updates the
             # Const type for elementwise operations in case of input data types mismatch
-            add = create_op_with_const_inputs(graph, Add, {1: int64_array(0)}, {'can_be_fused': False})
-            rename_nodes([(fake_output, name + '/TBD'), (add, name)])
+            add = create_op_with_const_inputs(
+                graph, Add, {1: int64_array(0)}, {"can_be_fused": False}
+            )
+            rename_nodes([(fake_output, name + "/TBD"), (add, name)])
 
             prev_op_in_port = fake_output.in_port(0).get_connection().get_source()
             # Get tensor names incoming to FakeOutput

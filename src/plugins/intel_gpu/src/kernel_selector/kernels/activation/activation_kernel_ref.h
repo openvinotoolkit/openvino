@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "activation_kernel_base.h"
-
 #include <vector>
+
+#include "activation_kernel_base.h"
 
 namespace kernel_selector {
 class ActivationKernelRef : public ActivationKernelBase {
@@ -22,8 +22,7 @@ public:
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {FusedOpType::QUANTIZE,
-                FusedOpType::ACTIVATION};
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
     bool Validate(const Params& p) const override;

@@ -23,12 +23,12 @@ public:
 
 protected:
     bool Validate(const Params& params) const override;
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
+    DispatchData SetDefault(const fully_connected_params& params,
+                            int autoTuneIndex = -1,
+                            int kernel_number = 0) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
 
     struct FullyConnectedTuningData {
@@ -43,6 +43,9 @@ protected:
     };
 
     FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;
-    float EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor = 1) const;
+    float EstimateOccupancy(const fully_connected_params& params,
+                            size_t tile_ofm,
+                            size_t tile_batch,
+                            size_t slm_div_factor = 1) const;
 };
 }  // namespace kernel_selector

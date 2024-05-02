@@ -9,42 +9,42 @@
 
 #ifdef _MSC_VER
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
 
-#include <windows.h>
-
-#include <delayimp.h>
-#include <string.h>
+#    include <delayimp.h>
+#    include <string.h>
+#    include <windows.h>
 
 static HMODULE node_dll = NULL;
 static HMODULE nw_dll = NULL;
 
 static FARPROC WINAPI load_exe_hook(unsigned int event, DelayLoadInfo* info) {
-  if (event == dliNotePreGetProcAddress) {
-    FARPROC ret = NULL;
-    ret = GetProcAddress(node_dll, info->dlp.szProcName);
-    if (ret)
-      return ret;
-    ret = GetProcAddress(nw_dll, info->dlp.szProcName);
-    return ret;
-  }
-  if (event == dliStartProcessing) {
-    node_dll = GetModuleHandleA("node.dll");
-    nw_dll = GetModuleHandleA("nw.dll");
-    return NULL;
-  }
-  if (event != dliNotePreLoadLibrary)
-    return NULL;
+    if (event == dliNotePreGetProcAddress) {
+        FARPROC ret = NULL;
+        ret = GetProcAddress(node_dll, info->dlp.szProcName);
+        if (ret)
+            return ret;
+        ret = GetProcAddress(nw_dll, info->dlp.szProcName);
+        return ret;
+    }
+    if (event == dliStartProcessing) {
+        node_dll = GetModuleHandleA("node.dll");
+        nw_dll = GetModuleHandleA("nw.dll");
+        return NULL;
+    }
+    if (event != dliNotePreLoadLibrary)
+        return NULL;
 
-  if (_stricmp(info->szDll, "node.exe") != 0)
-    return NULL;
-  
-  // Fall back to the current process
-  if(!node_dll) node_dll = GetModuleHandleA(NULL);
+    if (_stricmp(info->szDll, "node.exe") != 0)
+        return NULL;
 
-  return (FARPROC) node_dll;
+    // Fall back to the current process
+    if (!node_dll)
+        node_dll = GetModuleHandleA(NULL);
+
+    return (FARPROC)node_dll;
 }
 
 decltype(__pfnDliNotifyHook2) __pfnDliNotifyHook2 = load_exe_hook;

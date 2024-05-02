@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "embedding_bag_inst.h"
-#include "embedding_bag/embedding_bag_kernel_selector.h"
 #include "embedding_bag/embedding_bag_kernel_ref.h"
+#include "embedding_bag/embedding_bag_kernel_selector.h"
+#include "embedding_bag_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -38,7 +37,8 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
         case embedding_bag::segments_sum:
             params.type = kernel_selector::EmbeddingBagType::SEGMENTS_SUM;
             break;
-        default: OPENVINO_ASSERT(false, "[GPU] Unknown embedding_bag type in primitive ", primitive->id);
+        default:
+            OPENVINO_ASSERT(false, "[GPU] Unknown embedding_bag type in primitive ", primitive->id);
         }
 
         for (size_t i = 1; i < inputs_count; i++) {
@@ -53,10 +53,12 @@ struct embedding_bag_impl : typed_primitive_impl_ocl<embedding_bag> {
 namespace detail {
 
 attach_embedding_bag_impl::attach_embedding_bag_impl() {
-    implementation_map<embedding_bag>::add(impl_types::ocl, typed_primitive_impl_ocl<embedding_bag>::create<embedding_bag_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    implementation_map<embedding_bag>::add(impl_types::ocl,
+                                           typed_primitive_impl_ocl<embedding_bag>::create<embedding_bag_impl>,
+                                           {
+                                               std::make_tuple(data_types::f32, format::bfyx),
+                                               std::make_tuple(data_types::f16, format::bfyx),
+                                           });
 }
 
 }  // namespace detail

@@ -3,9 +3,10 @@
 //
 
 #include "arg_max_min_kernel_selector.h"
+
+#include "arg_max_min_kernel_axis.h"
 #include "arg_max_min_kernel_gpu_ref.h"
 #include "arg_max_min_kernel_opt.h"
-#include "arg_max_min_kernel_axis.h"
 
 namespace kernel_selector {
 

@@ -9,14 +9,14 @@ from openvino.tools.mo.ops.const import Const
 
 
 class ZerosFrontExtractor(FrontExtractorOp):
-    op = '_zeros'
+    op = "_zeros"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        shape = list(attrs.tuple('shape', int, None))
-        dtype = attrs.tuple('dtype', str, None)
+        shape = list(attrs.tuple("shape", int, None))
+        dtype = attrs.tuple("dtype", str, None)
         if dtype and len(dtype) == 1:
             dtype = dtype[0]
         else:
@@ -28,9 +28,9 @@ class ZerosFrontExtractor(FrontExtractorOp):
                 zero_shapes.append(i)
 
         update_attrs = {
-            'shape': np.ndarray(shape),
-            'value': np.zeros(shape, dtype=dtype),
-            'zero_shapes': zero_shapes
+            "shape": np.ndarray(shape),
+            "value": np.zeros(shape, dtype=dtype),
+            "zero_shapes": zero_shapes,
         }
 
         # update the attributes of the node

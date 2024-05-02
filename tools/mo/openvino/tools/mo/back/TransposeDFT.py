@@ -23,12 +23,16 @@ class TransposeDFT(BackReplacementPattern):
     This transformation inserts such Transpose nodes, when the source model was the TF model, (I)DFT node has the
     attribute 'need_insert_transposes_for_dft', and this attribute is True.
     """
+
     enabled = True
     force_shape_inference = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'tf']
+    graph_condition = [lambda graph: graph.graph["fw"] == "tf"]
 
     def find_and_replace_pattern(self, graph: Graph):
         import openvino.tools.mo.middle.InsertLayoutPropagationTransposes as InsertTransposes
+
         for dft in graph.get_op_nodes(need_insert_transposes_for_dft=True):
             InsertTransposes.insert_transpose(graph, dft.in_port(0), before_input=True)
-            InsertTransposes.insert_transpose(graph, dft.out_port(0), before_input=False)
+            InsertTransposes.insert_transpose(
+                graph, dft.out_port(0), before_input=False
+            )

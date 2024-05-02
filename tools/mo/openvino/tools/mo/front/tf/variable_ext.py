@@ -6,20 +6,20 @@ from openvino.tools.mo.ops.op import Op
 
 
 class VariableExtractor(FrontExtractorOp):
-    op = 'Variable'
+    op = "Variable"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Op.update_node_stat(node, {'op': 'FakeConst'})
+        Op.update_node_stat(node, {"op": "FakeConst"})
         return cls.enabled
 
 
 class VariableV2Extractor(FrontExtractorOp):
-    op = 'VariableV2'
+    op = "VariableV2"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Op.update_node_stat(node, {'op': 'FakeConst'})
+        Op.update_node_stat(node, {"op": "FakeConst"})
         return cls.enabled

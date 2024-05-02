@@ -4,10 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "cumulative_compiled_model.hpp"
-#include "common.hpp"
+
 #include <memory>
 
 #include "async_infer_request.hpp"
+#include "common.hpp"
 #include "itt.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -21,7 +22,7 @@ AutoCumuCompiledModel::AutoCumuCompiledModel(const std::shared_ptr<ov::Model>& m
                                              ScheduleContext::Ptr& schedule_context,
                                              Schedule::Ptr& scheduler)
     : CompiledModel(model, plugin, remote_context, schedule_context, scheduler) {
-      m_scheduler = std::dynamic_pointer_cast<CumuSchedule>(scheduler);
+    m_scheduler = std::dynamic_pointer_cast<CumuSchedule>(scheduler);
 }
 
 void AutoCumuCompiledModel::set_property(const ov::AnyMap& properties) {
@@ -92,22 +93,24 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
             try {
                 if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
                     res += (m_scheduler->m_p_ctput_loadcontext[i])
-                                .m_compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
-                                .as<unsigned int>();
+                               .m_compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
+                               .as<unsigned int>();
                 }
             } catch (const ov::Exception& err) {
-                OPENVINO_THROW("Every device used in cumulative mode should support OPTIMAL_NUMBER_OF_INFER_REQUESTS property from compiled model",
-                        "Failed to query the property with error:", err.what());
+                OPENVINO_THROW("Every device used in cumulative mode should support OPTIMAL_NUMBER_OF_INFER_REQUESTS "
+                               "property from compiled model",
+                               "Failed to query the property with error:",
+                               err.what());
             }
         }
-        return decltype(ov::optimal_number_of_infer_requests)::value_type {res};
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{res};
     } else if (name == ov::execution_devices) {
         std::vector<std::string> exeDevices = {};
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        for (auto const & n : m_context->m_device_priorities) {
+        for (auto const& n : m_context->m_device_priorities) {
             exeDevices.push_back(n.device_name);
         }
-        return decltype(ov::execution_devices)::value_type {exeDevices};
+        return decltype(ov::execution_devices)::value_type{exeDevices};
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
@@ -133,11 +136,12 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
         }
         return loaded_from_cache;
     }
-    OPENVINO_THROW(get_log_tag(), ": not supported property ", name);;
+    OPENVINO_THROW(get_log_tag(), ": not supported property ", name);
+    ;
 }
 
 void AutoCumuCompiledModel::export_model(std::ostream& model_stream) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

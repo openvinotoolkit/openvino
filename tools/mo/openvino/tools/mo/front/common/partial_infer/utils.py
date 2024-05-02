@@ -19,8 +19,13 @@ def shape_array(value, dtype=np.int64):
     # if the input tensor has masked values then they should be explicitly converted to dynamic_dimension_value and
     # a masked array should be created from scratch, otherwise, method "masked_equal" will convert masked elements to
     # "nan" values
-    if isinstance(value, Iterable) and (not isinstance(value, np.ndarray) or value.ndim != 0):
-        value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+    if isinstance(value, Iterable) and (
+        not isinstance(value, np.ndarray) or value.ndim != 0
+    ):
+        value = [
+            item if item is not dynamic_dimension else dynamic_dimension_value
+            for item in value
+        ]
     return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
 
 
@@ -116,14 +121,18 @@ def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
         result = shape.copy()
         obj = [item if item >= 0 else len(shape) + item for item in obj]
         for index in sorted(obj, reverse=True):
-            assert 0 <= index < len(result), 'Incorrect element index {} to remove from {}'.format(index, result)
-            result = np.ma.concatenate((result[:index], result[index + 1:]))
+            assert (
+                0 <= index < len(result)
+            ), "Incorrect element index {} to remove from {}".format(index, result)
+            result = np.ma.concatenate((result[:index], result[index + 1 :]))
         return result
     else:
         raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
 
 
-def shape_insert(shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarray, dynamic_dimension]):
+def shape_insert(
+    shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarray, dynamic_dimension]
+):
     """
     Insert element(s) in the input tensor shape (presumably the numpy masked array) specified by position pos.
     The function is implemented to avoid usage of np.insert which corrupts information about the masked elements.
@@ -136,7 +145,9 @@ def shape_insert(shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarra
     if isinstance(obj, (int, np.int64, np.int32)) or obj is dynamic_dimension_value:
         return shape_insert(shape, pos, [obj])
     elif isinstance(obj, (np.ndarray, list)):
-        return np.ma.concatenate((shape_array(shape[:pos]), shape_array(obj), shape_array(shape[pos:])))
+        return np.ma.concatenate(
+            (shape_array(shape[:pos]), shape_array(obj), shape_array(shape[pos:]))
+        )
     else:
         raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
 
@@ -191,36 +202,44 @@ def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.nda
     return float32_array(value)
 
 
-def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+def mo_array(
+    value: Union[Iterable[Union[float, int]], float, int], dtype=None
+) -> np.ndarray:
     """
     This function acts in a same way as np.array except for the case when dtype is not provided
     and np.array return fp64 array this function returns fp32 array
     """
     x = np.array(value, dtype=dtype)
-    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
+    if (
+        not isinstance(value, np.ndarray)
+        and x.dtype == np.float64
+        and dtype != np.float64
+    ):
         x = x.astype(np.float32)
     return x
 
 
-def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
+def mark_input_bins(node, names=("weights", "biases"), start_port: int = 1):
     """
     Preparing necessary attributes for edges at input ports starting from start_port.
     It is applicable for convolution and other operations that have constant inputs which
     are intended to be dumped as OV IR bin file.
     """
     for port, name in enumerate(names, start=start_port):
-        if port in node.in_nodes() and node.in_node(port).has_valid('value'):
-            node.in_edge(port)['bin'] = name
+        if port in node.in_nodes() and node.in_node(port).has_valid("value"):
+            node.in_edge(port)["bin"] = name
 
 
-def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, dims_number=None):
+def assign_dims_to_weights(
+    node, spatial, input_channel, output_channel=None, dims_number=None
+):
     if spatial is not None:
-        node['spatial_dims'] = int64_array(spatial)
-    node['input_channel_dim'] = int64_array(input_channel)
-    node['output_channel_dim'] = int64_array(output_channel)
-    if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
-        node['dim_attrs'].append('input_channel_dim')
-    node['dims_number'] = dims_number
+        node["spatial_dims"] = int64_array(spatial)
+    node["input_channel_dim"] = int64_array(input_channel)
+    node["output_channel_dim"] = int64_array(output_channel)
+    if "dim_attrs" in node and "input_channel_dim" not in node["dim_attrs"]:
+        node["dim_attrs"].append("input_channel_dim")
+    node["dims_number"] = dims_number
 
 
 def copy_or_none(x):
@@ -228,7 +247,7 @@ def copy_or_none(x):
 
 
 def convert_tf_padding_to_str(padding):
-    mapping = {'SAME': 'same_upper', 'VALID': 'valid'}
+    mapping = {"SAME": "same_upper", "VALID": "valid"}
     return mapping[padding]
 
 
@@ -236,12 +255,14 @@ def convert_deconv_tf_padding_to_str(padding):
     # according to the formulas for calculating "auto_pad" values of the
     # ConvBackpropData layer in the Operation Specification,
     # the "same_lower" value matches to the "same" value for conv_transpose layer in TensorFlow
-    mapping = {'SAME': 'same_lower', 'VALID': 'valid'}
+    mapping = {"SAME": "same_lower", "VALID": "valid"}
     return mapping[padding]
 
 
 # TODO eliminate this dependency and pass necessary function as an argument
-def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False, dilation=None):
+def tf_window_op_pad_infer(
+    input, window, stride, auto_pad, is_deconv=False, dilation=None
+):
     if input is None or window is None or stride is None or auto_pad is None:
         return None, None
 
@@ -252,7 +273,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False, dil
     if is_deconv:
         normalized_stride = 1 / stride
 
-    if auto_pad in ['same_lower', 'same_upper']:
+    if auto_pad in ["same_lower", "same_upper"]:
         output = np.ma.ceil(input / normalized_stride)
         residual = input % stride
         mask = residual == 0
@@ -260,12 +281,16 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False, dil
         full_pad[mask] -= stride[mask]
         mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
         full_pad[mask] -= input[mask] % stride[mask]
-        full_pad = np.ma.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
+        full_pad = np.ma.maximum(
+            full_pad, 0
+        )  # pylint: disable=assignment-from-no-return
         low_pad = np.int64(full_pad / 2)
         high_pad = full_pad - low_pad
         pad = shape_array([low_pad, high_pad]).transpose()
-    elif auto_pad == 'valid':
-        output = np.int64(np.ceil((input - ((window - 1) * dilation + 1) + 1) / normalized_stride))
+    elif auto_pad == "valid":
+        output = np.int64(
+            np.ceil((input - ((window - 1) * dilation + 1) + 1) / normalized_stride)
+        )
         pad = np.zeros((len(output), 2), dtype=np.int64)
     else:
         log.error("Unsupported padding scheme: {}".format(auto_pad))
@@ -303,7 +328,9 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
                 output_shape.append(input_shape[in_idx])
                 in_idx += 1
         else:
-            raise Exception('Element type of a slice list is unacceptable: "{}"'.format(type(s)))
+            raise Exception(
+                'Element type of a slice list is unacceptable: "{}"'.format(type(s))
+            )
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
     return shape_array(output_shape)
@@ -315,9 +342,11 @@ def is_dynamic_slice(s: [slice, int, None]):
     :param s: slice object
     :return: the result of the check
     """
-    return isinstance(s, slice) and (s.start is dynamic_dimension or
-                                     s.stop is dynamic_dimension or
-                                     s.step is dynamic_dimension)
+    return isinstance(s, slice) and (
+        s.start is dynamic_dimension
+        or s.stop is dynamic_dimension
+        or s.step is dynamic_dimension
+    )
 
 
 def reverse_bypass_infer(node, in_ports: List[int]):
@@ -353,8 +382,11 @@ def clarify_partial_shape(shapes: List):
     assert len(shapes) > 0
     out_shape = shapes[0]
     for shape in shapes:
-        assert compatible_shapes(shape, out_shape), "shapes {} and {} are not compatible".format(
-            unmask_shape(shape), unmask_shape(out_shape))
+        assert compatible_shapes(
+            shape, out_shape
+        ), "shapes {} and {} are not compatible".format(
+            unmask_shape(shape), unmask_shape(out_shape)
+        )
         shape_unmasked = shape.data.copy()
         for i, dim in enumerate(shape_unmasked):
             if dim != dynamic_dimension_value:
@@ -364,7 +396,7 @@ def clarify_partial_shape(shapes: List):
 
 def set_input_shapes(node, *shapes: List):
     assert len(shapes) <= len(node.in_ports())
-    
+
     for i, shape in enumerate(shapes):
         if node.is_in_port_connected(i) and node.in_port(i).data.get_shape() is None:
             node.in_port(i).data.set_shape(shape)

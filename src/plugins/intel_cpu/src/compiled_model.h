@@ -75,5 +75,5 @@ private:
     GraphGuard::Lock get_graph() const;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

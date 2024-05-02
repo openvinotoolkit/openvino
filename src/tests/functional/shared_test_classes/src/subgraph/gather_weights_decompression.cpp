@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
+
 #include "ov_ops/gather_compressed.hpp"
 
 namespace ov {

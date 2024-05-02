@@ -11,10 +11,12 @@ class MiddleReplacementPattern(ReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleFinish
+
         return [MiddleFinish]
 
     @classmethod

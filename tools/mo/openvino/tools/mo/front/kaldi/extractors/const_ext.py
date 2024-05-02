@@ -6,14 +6,14 @@ from openvino.tools.mo.ops.const import Const
 
 
 class ConstantExtractor(FrontExtractorOp):
-    op = 'Const'
+    op = "Const"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = {
-            'data_type': node.value.dtype,
-            'value': node.value,
+            "data_type": node.value.dtype,
+            "value": node.value,
         }
         Const.update_node_stat(node, attrs)
         return cls.enabled

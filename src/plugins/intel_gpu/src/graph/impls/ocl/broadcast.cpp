@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "broadcast_inst.h"
-#include "broadcast/broadcast_kernel_selector.h"
 #include "broadcast/broadcast_kernel_base.h"
+#include "broadcast/broadcast_kernel_selector.h"
+#include "broadcast_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -70,7 +69,8 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         auto output_rank = output_pshape.size();
 
         if (primitive->axes_mapping.empty()) {
-            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool use_new_shape_infer =
+                impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
             if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
                 input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
             } else {
@@ -90,7 +90,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 
                     int ones_count = std::max(next_axis - prev_axis - 1, 0);
                     tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
-                    tmp_shape.push_back(input_pshape[axe_idx].get_length()); // Consider the Broadcast kernel 'broadcast' input to output shape
+                    tmp_shape.push_back(
+                        input_pshape[axe_idx]
+                            .get_length());  // Consider the Broadcast kernel 'broadcast' input to output shape
 
                     currentRank += ones_count + 1;
                     axe_idx += 1;
@@ -137,20 +139,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 namespace detail {
 
 attach_broadcast_impl::attach_broadcast_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32,
-        data_types::i64
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<broadcast>::add(impl_types::ocl,
                                        shape_types::dynamic_shape,
@@ -158,25 +149,23 @@ attach_broadcast_impl::attach_broadcast_impl() {
                                        types,
                                        dyn_formats);
 
-    auto static_formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv4,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv4_fsv2,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
+    auto static_formats = {format::bfyx,
+                           format::b_fs_yx_fsv4,
+                           format::b_fs_yx_fsv16,
+                           format::b_fs_yx_fsv32,
+                           format::bs_fs_yx_bsv4_fsv2,
+                           format::bs_fs_yx_bsv4_fsv4,
+                           format::bs_fs_yx_bsv8_fsv2,
+                           format::bs_fs_yx_bsv8_fsv4,
+                           format::bs_fs_yx_bsv16_fsv16,
+                           format::bs_fs_yx_bsv32_fsv16,
+                           format::bs_fs_yx_bsv32_fsv32,
 
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
+                           format::bfzyx,
+                           format::b_fs_zyx_fsv16,
+                           format::b_fs_zyx_fsv32,
 
-        format::bfwzyx
-    };
+                           format::bfwzyx};
 
     implementation_map<broadcast>::add(impl_types::ocl,
                                        shape_types::static_shape,

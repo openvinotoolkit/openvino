@@ -10,7 +10,7 @@ from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class AddShiftFrontExtractor(FrontExtractorOp):
-    op = 'addshift'
+    op = "addshift"
     enabled = True
 
     @classmethod
@@ -19,8 +19,8 @@ class AddShiftFrontExtractor(FrontExtractorOp):
         read_learning_info(pb)
         biases = read_binary_vector(pb)
         bias_term = True
-        mapping_rule = {'bias_term': bias_term}
-        embed_input(mapping_rule, 1, 'weights', np.ones(biases.shape, dtype=np.float32))
-        embed_input(mapping_rule, 2, 'biases', biases)
+        mapping_rule = {"bias_term": bias_term}
+        embed_input(mapping_rule, 1, "weights", np.ones(biases.shape, dtype=np.float32))
+        embed_input(mapping_rule, 2, "biases", biases)
         ScaleShiftOp.update_node_stat(node, mapping_rule)
         return cls.enabled

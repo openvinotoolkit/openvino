@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "grn_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "grn_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(grn)

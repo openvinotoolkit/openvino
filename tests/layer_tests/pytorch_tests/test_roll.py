@@ -3,7 +3,6 @@
 
 import numpy as np
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -29,16 +28,24 @@ class TestRoll(PytorchLayerTest):
 
         return aten_roll(shifts, dim), ref_net, "aten::roll"
 
-    @pytest.mark.parametrize(("shifts", "dim"), [
-        [(2, 1), (0, 1)],
-        [1, 0],
-        [-1, 0],
-        [1, None],
-    ])
+    @pytest.mark.parametrize(
+        ("shifts", "dim"),
+        [
+            [(2, 1), (0, 1)],
+            [1, 0],
+            [-1, 0],
+            [1, None],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_roll(self, shifts, dim, ie_device, precision, ir_version):
-        self._test(*self.create_model(shifts, dim), ie_device, precision, ir_version,
-                   dynamic_shapes=ie_device != "GPU")
+        self._test(
+            *self.create_model(shifts, dim),
+            ie_device,
+            precision,
+            ir_version,
+            dynamic_shapes=ie_device != "GPU"
+        )

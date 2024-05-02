@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include "kernel_base_opencl.h"
 #include "permute_params.h"
-#include <vector>
 
 namespace kernel_selector {
 class PermuteKernelBase : public KernelBaseOpenCL {
@@ -16,6 +17,7 @@ public:
 
     bool Validate(const Params& p) const override;
     KernelsData GetKernelsData(const Params& params) const override;
+
 protected:
     virtual JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const permute_params& params) const = 0;

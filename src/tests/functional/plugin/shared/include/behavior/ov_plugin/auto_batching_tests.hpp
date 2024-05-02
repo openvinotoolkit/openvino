@@ -2,38 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
-using AutoBatchTwoNetsParams = std::tuple<
-        std::string,  // device name
-        bool,         // get or set tensor
-        size_t,       // number of streams
-        size_t,       // number of requests
-        size_t>;      // batch size>
+using AutoBatchTwoNetsParams = std::tuple<std::string,  // device name
+                                          bool,         // get or set tensor
+                                          size_t,       // number of streams
+                                          size_t,       // number of requests
+                                          size_t>;      // batch size>
 
-class AutoBatching_Test : public OVPluginTestBase,
-                          public testing::WithParamInterface<AutoBatchTwoNetsParams> {
+class AutoBatching_Test : public OVPluginTestBase, public testing::WithParamInterface<AutoBatchTwoNetsParams> {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams>& obj) {
         size_t streams, requests, batch;
         bool use_get_tensor;
         std::string target_device;
         std::tie(target_device, use_get_tensor, streams, requests, batch) = obj.param;
         return target_device + std::string(use_get_tensor ? "_get_tensor" : "_set_blob") + "_batch_size_" +
-               std::to_string(batch) +
-               "_num_streams_" + std::to_string(streams) + "_num_req_" + std::to_string(requests);
+               std::to_string(batch) + "_num_streams_" + std::to_string(streams) + "_num_req_" +
+               std::to_string(requests);
     }
 
 protected:
@@ -45,8 +43,7 @@ protected:
 
     void SetUp() override {
         std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = this->GetParam();
-        fn_ptrs = {ov::test::utils::make_single_conv(),
-                   ov::test::utils::make_multi_single_conv()};
+        fn_ptrs = {ov::test::utils::make_single_conv(), ov::test::utils::make_multi_single_conv()};
     };
 
     void TestAutoBatch() {
@@ -60,7 +57,7 @@ protected:
         for (size_t i = 0; i < fn_ptrs.size(); ++i) {
             auto model = fn_ptrs[i];
             auto inputs = model->inputs();
-            for (auto const & n : inputs) {
+            for (auto const& n : inputs) {
                 n.get_node()->set_output_type(0, ov::element::f32, n.get_shape());
             }
             ov::AnyMap config;
@@ -76,18 +73,20 @@ protected:
             // minimize timeout to reduce test time
             config.insert(ov::auto_batch_timeout(1));
 
-            auto compiled_model = core->compile_model(model, std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                      target_device + "(" + std::to_string(num_batch) + ")",
+            auto compiled_model = core->compile_model(model,
+                                                      std::string(ov::test::utils::DEVICE_BATCH) + ":" + target_device +
+                                                          "(" + std::to_string(num_batch) + ")",
                                                       config);
 
             auto network_outputs = model->outputs();
             ASSERT_EQ(network_outputs.size(), 1) << " Auto-Batching tests use networks with single output";
-            auto const & output = network_outputs[0];
+            auto const& output = network_outputs[0];
             for (size_t j = 0; j < num_requests; j++) {
                 outputs.push_back(output);
-                outElementsCount.push_back(
-                        std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), size_t(1),
-                                        std::multiplies<size_t>()));
+                outElementsCount.push_back(std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)),
+                                                           end(fn_ptrs[i]->get_output_shape(0)),
+                                                           size_t(1),
+                                                           std::multiplies<size_t>()));
 
                 auto inf_req = compiled_model.create_infer_request();
                 irs.push_back({model, inf_req});
@@ -97,7 +96,7 @@ protected:
                 irs_ref.push_back(inf_req_ref);
 
                 std::vector<ov::Tensor> inData;
-                for (auto const & input : inputs) {
+                for (auto const& input : inputs) {
                     auto tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
                     if (use_get_tensor)
                         memcpy(inf_req.get_tensor(input).data(), tensor.data(), tensor.get_byte_size());
@@ -108,7 +107,8 @@ protected:
                 }
 
                 if (!use_get_tensor) {
-                    auto tensor = ov::test::utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
+                    auto tensor =
+                        ov::test::utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
                     inf_req.set_tensor(output, tensor);
                 }
 
@@ -139,11 +139,10 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(target_device, use_get_tensor, num_streams, num_requests, num_batch) = GetParam();
-        fn_ptrs = {ov::test::utils::make_detection_output(),
-                   ov::test::utils::make_detection_output()};
+        fn_ptrs = {ov::test::utils::make_detection_output(), ov::test::utils::make_detection_output()};
     };
 
-    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchTwoNetsParams>& obj) {
         return AutoBatching_Test::getTestCaseName(obj);
     }
 };

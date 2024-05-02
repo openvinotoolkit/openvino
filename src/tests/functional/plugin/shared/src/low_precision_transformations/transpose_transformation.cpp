@@ -5,12 +5,12 @@
 #include "low_precision_transformations/transpose_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/transpose.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,10 +21,7 @@ std::string TransposeTransformation::getTestCaseName(const testing::TestParamInf
     std::tie(precision, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result <<
-        precision << "_" <<
-        targetDevice << "_" <<
-        testValues.inputShape;
+    result << precision << "_" << targetDevice << "_" << testValues.inputShape;
 
     return result.str();
 }
@@ -36,11 +33,10 @@ void TransposeTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ov::builder::subgraph::TransposeFunction::getOriginal(
-        testValues.inputShape,
-        testValues.transposeConstValues,
-        testValues.precisionBeforeFq,
-        testValues.fqOnData);
+    function = ov::builder::subgraph::TransposeFunction::getOriginal(testValues.inputShape,
+                                                                     testValues.transposeConstValues,
+                                                                     testValues.precisionBeforeFq,
+                                                                     testValues.fqOnData);
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {

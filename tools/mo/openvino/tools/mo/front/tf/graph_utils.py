@@ -5,37 +5,50 @@ from typing import Dict
 
 import numpy as np
 
-from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
-    mark_output_as_in_correct_layout
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import (
+    mark_input_as_in_correct_layout,
+    mark_output_as_in_correct_layout,
+)
 from openvino.tools.mo.ops.activation_ops import Sigmoid
-from openvino.tools.mo.ops.elementwise import Add, Less, Mul
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.concat import Concat
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.convolution import Convolution
 from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.ops.elementwise import Add, Less, Mul
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.softmax import Softmax
 from openvino.tools.mo.utils.error import Error
 
 
-def create_op_node_with_second_input(graph: Graph, op: callable, second_input_value: np.array, op_attrs=None,
-                                     input_node=None):
+def create_op_node_with_second_input(
+    graph: Graph,
+    op: callable,
+    second_input_value: np.array,
+    op_attrs=None,
+    input_node=None,
+):
     operation = op(graph, op_attrs)
     node = operation.create_node()
     if input_node is not None:
         input_node.out_port(0).connect(node.in_port(0))
-    second_input_node = Const(graph, {'name': node.name + '/value', 'value': second_input_value}).create_node()
+    second_input_node = Const(
+        graph, {"name": node.name + "/value", "value": second_input_value}
+    ).create_node()
     second_input_node.out_port(0).connect(node.in_port(1))
-    if graph.stage != 'front':
+    if graph.stage != "front":
         second_input_node.infer(second_input_node)
     return node
 
 
-def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dict[int, np.array],
-                                op_attrs=None, input_node=None):
+def create_op_with_const_inputs(
+    graph: Graph,
+    op: callable,
+    port_value_dict: Dict[int, np.array],
+    op_attrs=None,
+    input_node=None,
+):
     operation = op(graph, op_attrs)
     node = operation.create_node()
     if input_node is not None:
@@ -43,15 +56,19 @@ def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dic
 
     for idx, value in port_value_dict.items():
         node.add_input_port(idx, skip_if_exist=True)
-        value_input_node = Const(graph, {'name': node.name + '_input_port_' + str(idx) + '/value',
-                                         'value': value}).create_node()
+        value_input_node = Const(
+            graph,
+            {"name": node.name + "_input_port_" + str(idx) + "/value", "value": value},
+        ).create_node()
         value_input_node.out_port(0).connect(node.in_port(idx))
-        if graph.stage != 'front':
+        if graph.stage != "front":
             value_input_node.infer(value_input_node)
     return node
 
 
-def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coordinates_size: int):
+def add_convolution_to_swap_xy_coordinates(
+    graph: Graph, input_node: Node, coordinates_size: int
+):
     """
     The function add convolution node after the node 'input_node' to swap xy coordinates of the boxes produced
     by the node 'input_node'. It is expected that box coordinates are located in the fastest changing dimension of the
@@ -65,44 +82,68 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
     :return convolution node that swaps coordinates.
     """
     # swap of input tensor with 4 or 5 numbers describing boxes are supported
-    assert (coordinates_size in [4, 5])
+    assert coordinates_size in [4, 5]
 
-    input_reshape_4d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, 1, coordinates_size]),
-                                                             dict(name=input_node.name + '/reshape_4d'), input_node)
+    input_reshape_4d_node = create_op_node_with_second_input(
+        graph,
+        Reshape,
+        int64_array([-1, 1, 1, coordinates_size]),
+        dict(name=input_node.name + "/reshape_4d"),
+        input_node,
+    )
     mark_input_as_in_correct_layout(input_reshape_4d_node, 0)
     # do not mark second input because the reshape works in initial model layout and needs to be transformed to NCHW
     mark_output_as_in_correct_layout(input_reshape_4d_node, 0)
 
     if coordinates_size == 5:
         # zero indexed element is not box coordinate ("batch id" in case of Proposal)
-        conv_filter_data = mo_array(mo_array([[[[1, 0, 0, 0, 0],
-                                                [0, 0, 1, 0, 0],
-                                                [0, 1, 0, 0, 0],
-                                                [0, 0, 0, 0, 1],
-                                                [0, 0, 0, 1, 0]]]],
-                                             dtype=np.float32))
+        conv_filter_data = mo_array(
+            mo_array(
+                [
+                    [
+                        [
+                            [1, 0, 0, 0, 0],
+                            [0, 0, 1, 0, 0],
+                            [0, 1, 0, 0, 0],
+                            [0, 0, 0, 0, 1],
+                            [0, 0, 0, 1, 0],
+                        ]
+                    ]
+                ],
+                dtype=np.float32,
+            )
+        )
     else:
-        conv_filter_data = mo_array(mo_array([[[[0, 1, 0, 0],
-                                                [1, 0, 0, 0],
-                                                [0, 0, 0, 1],
-                                                [0, 0, 1, 0]]]],
-                                             dtype=np.float32))
+        conv_filter_data = mo_array(
+            mo_array(
+                [[[[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]]],
+                dtype=np.float32,
+            )
+        )
 
     conv_filter_data = np.transpose(conv_filter_data, [2, 3, 0, 1])
 
     conv_filter_const_op = Const(graph, dict(value=conv_filter_data))
-    conv_filter_const_node = conv_filter_const_op.create_node([], dict(name=input_node.name + '/weights'))
+    conv_filter_const_node = conv_filter_const_op.create_node(
+        [], dict(name=input_node.name + "/weights")
+    )
 
-    conv_op = Convolution(graph, {
-        'bias_addable': True,
-        'channel_dims': mo_array([3]),
-        'batch_dims': mo_array([0]),
-        'input_feature_channel': 0,
-        'output_feature_channel': 1,
-        'group': 1,
-        'layout': 'NHWC',
-    })
-    return conv_op.create_node([input_reshape_4d_node, conv_filter_const_node], dict(name=input_node.name + "/conv"))
+    conv_op = Convolution(
+        graph,
+        {
+            "bias_addable": True,
+            "channel_dims": mo_array([3]),
+            "batch_dims": mo_array([0]),
+            "input_feature_channel": 0,
+            "output_feature_channel": 1,
+            "group": 1,
+            "layout": "NHWC",
+        },
+    )
+    return conv_op.create_node(
+        [input_reshape_4d_node, conv_filter_const_node],
+        dict(name=input_node.name + "/conv"),
+    )
 
 
 def add_fake_background_loc(graph: Graph, input_node: Node):
@@ -117,14 +158,26 @@ def add_fake_background_loc(graph: Graph, input_node: Node):
     :param input_node: node producing the boxes coordinates.
     :return convolution node that adds slice of data for the "background" class.
     """
-    crop_op = Crop(graph, dict(axis=mo_array([1]), offset=mo_array([0]), dim=mo_array([1]), nchw_layout=True))
-    crop_node = crop_op.create_node([input_node], dict(name='crop_locs'))
+    crop_op = Crop(
+        graph,
+        dict(
+            axis=mo_array([1]),
+            offset=mo_array([0]),
+            dim=mo_array([1]),
+            nchw_layout=True,
+        ),
+    )
+    crop_node = crop_op.create_node([input_node], dict(name="crop_locs"))
 
     concat_op = Concat(graph, dict(axis=1, in_ports_count=2, nchw_layout=True))
-    return concat_op.create_node([crop_node, input_node], dict(name=input_node.id + '/locs_with_fake_background'))
+    return concat_op.create_node(
+        [crop_node, input_node], dict(name=input_node.id + "/locs_with_fake_background")
+    )
 
 
-def add_activation_function_after_node(graph: Graph, node: Node, activation_function: str):
+def add_activation_function_after_node(
+    graph: Graph, node: Node, activation_function: str
+):
     """
     The function adds node with activation function defined by string 'activation_function' which gets input from the
     node 'node'.
@@ -134,19 +187,27 @@ def add_activation_function_after_node(graph: Graph, node: Node, activation_func
     detection API pipeline configuration file
     :return: activation function node.
     """
-    if activation_function == 'SOFTMAX':
+    if activation_function == "SOFTMAX":
         # softmax to be applied to the confidence
         softmax_conf_op = Softmax(graph, dict(axis=-1, nchw_layout=True))
-        activation_node = softmax_conf_op.create_node([node], dict(name=node.name + '/softmax'))
-    elif activation_function == 'SIGMOID':
+        activation_node = softmax_conf_op.create_node(
+            [node], dict(name=node.name + "/softmax")
+        )
+    elif activation_function == "SIGMOID":
         # sigmoid activation function to be applied to the confidence
         sigmoid_conf_op = Sigmoid(graph, dict(nchw_layout=True))
-        activation_node = sigmoid_conf_op.create_node([node], dict(name=node.name + '/sigmoid'))
-    elif activation_function == 'IDENTITY':
+        activation_node = sigmoid_conf_op.create_node(
+            [node], dict(name=node.name + "/sigmoid")
+        )
+    elif activation_function == "IDENTITY":
         # in case of Identity do nothing and just use result from the input node
         activation_node = node
     else:
-        raise Error('Unknown post-processing activation function "{}".'.format(activation_function))
+        raise Error(
+            'Unknown post-processing activation function "{}".'.format(
+                activation_function
+            )
+        )
     return activation_node
 
 
@@ -160,14 +221,21 @@ def add_constant_to_negative_values(node: Node, port_idx: int, added_value: np.a
     """
     negative_values_source = node.in_port(port_idx).get_source()
     negative_values_node = node.in_port(port_idx).get_source().node
-    negative_values_node_name = negative_values_node.soft_get('name', negative_values_node.id)
+    negative_values_node_name = negative_values_node.soft_get(
+        "name", negative_values_node.id
+    )
 
     graph = node.graph
 
-    less_node = create_op_with_const_inputs(graph, Less,
-                                            {1: mo_array(0, dtype=added_value.dtype)},
-                                            {'name': negative_values_node_name + '/Less'})
-    mul_node = create_op_with_const_inputs(graph, Mul, {1: added_value}, {'name': negative_values_node_name + '/Mul'})
+    less_node = create_op_with_const_inputs(
+        graph,
+        Less,
+        {1: mo_array(0, dtype=added_value.dtype)},
+        {"name": negative_values_node_name + "/Less"},
+    )
+    mul_node = create_op_with_const_inputs(
+        graph, Mul, {1: added_value}, {"name": negative_values_node_name + "/Mul"}
+    )
 
     node.in_port(port_idx).get_connection().set_destination(less_node.in_port(0))
     less_node.out_port(0).connect(mul_node.in_port(0))

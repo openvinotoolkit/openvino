@@ -45,13 +45,23 @@ public:
         return m_variable->get_info().variable_id;
     }
 
-    int64_t get_concat_axis() const { return m_concat_axis; }
-    int64_t get_gather_axis() const { return m_gather_axis; }
+    int64_t get_concat_axis() const {
+        return m_concat_axis;
+    }
+    int64_t get_gather_axis() const {
+        return m_gather_axis;
+    }
 
-    void set_concat_axis(int64_t axis) { m_concat_axis = axis; }
-    void set_gather_axis(int64_t axis) { m_gather_axis = axis; }
+    void set_concat_axis(int64_t axis) {
+        m_concat_axis = axis;
+    }
+    void set_gather_axis(int64_t axis) {
+        m_gather_axis = axis;
+    }
 
-    bool get_indirect() const { return m_indirect; }
+    bool get_indirect() const {
+        return m_indirect;
+    }
 
 private:
     int64_t m_concat_axis = 0;
@@ -62,6 +72,6 @@ private:
 
 std::vector<ov::PartialShape> shape_infer(const KVCache* op, std::vector<ov::PartialShape> input_shapes);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

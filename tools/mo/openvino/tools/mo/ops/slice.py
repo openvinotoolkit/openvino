@@ -3,10 +3,14 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import get_shape_from_slice, shape_array, \
-    dynamic_dimension_value, \
-    dynamic_dimension, is_dynamic_slice
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension,
+    dynamic_dimension_value,
+    get_shape_from_slice,
+    is_dynamic_slice,
+    shape_array,
+)
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.error import Error
 
@@ -25,17 +29,22 @@ class AttributedSlice(Op):
     AttributedSlice is used in old versions of ONNX models (opset version < 10).
     Is replaced with internal Slice on the front phase.
     """
-    op = 'AttributedSlice'
+
+    op = "AttributedSlice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+                "infer": None,
+            },
+            attrs,
+        )
 
 
 class CaffeSlice(Op):
@@ -44,17 +53,22 @@ class CaffeSlice(Op):
     https://caffe.berkeleyvision.org/tutorial/layers/slice.html
     Is replaced with Split from opset on the front phase.
     """
-    op = 'CaffeSlice'
+
+    op = "CaffeSlice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+                "infer": None,
+            },
+            attrs,
+        )
 
 
 class TFSlice(Op):
@@ -64,17 +78,22 @@ class TFSlice(Op):
     https://www.tensorflow.org/api_docs/python/tf/slice
     Is replaced with internal Slice op on the front phase.
     """
-    op = 'TFSlice'
+
+    op = "TFSlice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 3,
-            'out_ports_count': 1,
-            'infer': None,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 3,
+                "out_ports_count": 1,
+                "infer": None,
+            },
+            attrs,
+        )
 
 
 class MXSlice(Op):
@@ -83,18 +102,23 @@ class MXSlice(Op):
     https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
     Is replaced with the StridedSlice from opset on the front phase.
     """
-    op = 'MXSlice'
+
+    op = "MXSlice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'kind': 'op',
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "kind": "op",
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+                "infer": None,
+            },
+            attrs,
+        )
 
 
 def slice_infer(node: Node, steps_idx: int, axes_idx: int):
@@ -114,7 +138,9 @@ def slice_infer(node: Node, steps_idx: int, axes_idx: int):
         axes = [x for x in range(len(starts))]
 
     if starts is None or ends is None or steps is None or axes is None:
-        node.out_port(0).data.set_shape(shape_array([dynamic_dimension_value] * len(input_shape)))
+        node.out_port(0).data.set_shape(
+            shape_array([dynamic_dimension_value] * len(input_shape))
+        )
         return
 
     slice_idx = [slice(0, in_shape, 1) for in_shape in input_shape]
@@ -134,17 +160,22 @@ class Slice(Op):
     It has 'starts', 'ends', 'steps', and 'axes' inputs.
     SliceConverter replaces it with StridedSlice from opset.
     """
-    op = 'Slice'
+
+    op = "Slice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict = None):
-        super().__init__(graph, {
-            'type': None,
-            'op': 'Slice',
-            'in_ports_count': 5,
-            'out_ports_count': 1,
-            'infer': self.infer
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": "Slice",
+                "in_ports_count": 5,
+                "out_ports_count": 1,
+                "infer": self.infer,
+            },
+            attrs,
+        )
 
     @staticmethod
     def infer(node: Node):
@@ -156,17 +187,22 @@ class OvSlice(Op):
     Semantic of OvSlice is identical to Slice in Openvino opset8.
     It is introduced for usage in MO IR Reader.
     """
-    op = 'OvSlice'
+
+    op = "OvSlice"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict = None):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 5,
-            'out_ports_count': 1,
-            'infer': self.infer
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 5,
+                "out_ports_count": 1,
+                "infer": self.infer,
+            },
+            attrs,
+        )
 
     @staticmethod
     def infer(node: Node):

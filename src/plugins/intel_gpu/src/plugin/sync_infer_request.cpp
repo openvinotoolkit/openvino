@@ -2,32 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/make_tensor.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/validation_util.hpp"
-
-#include "intel_gpu/primitives/kv_cache.hpp"
-#include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/variable_state.hpp"
-#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
-#include <functional>
 #include <utility>
+
+#include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/plugin/usm_host_tensor.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace {
 
@@ -49,8 +49,9 @@ bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
-    const uint8_t* device_ptr = memory->get_allocation_type() == cldnn::allocation_type::usm_host ?
-                                static_cast<uint8_t*>(memory->get_internal_params().mem) : nullptr;
+    const uint8_t* device_ptr = memory->get_allocation_type() == cldnn::allocation_type::usm_host
+                                    ? static_cast<uint8_t*>(memory->get_internal_params().mem)
+                                    : nullptr;
     return device_ptr == host_ptr;
 }
 
@@ -88,21 +89,22 @@ namespace intel_gpu {
 // ----------------------------------------------------------------------------------------------- //
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& compiled_model)
-    : ov::ISyncInferRequest(compiled_model)
-    , m_graph(compiled_model->get_graph(0))
-    , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
-    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
-    , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
-    , m_use_external_queue(m_graph->use_external_queue()) {
+    : ov::ISyncInferRequest(compiled_model),
+      m_graph(compiled_model->get_graph(0)),
+      m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl())),
+      m_shape_predictor(
+          new cldnn::ShapePredictor(&m_graph->get_engine(),
+                                    m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio))),
+      m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling)),
+      m_use_external_queue(m_graph->use_external_queue()) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
         auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        m_shape_predictor.reset(
-            new cldnn::ShapePredictor(&m_graph->get_engine(),
-                                      mem_preallocation_params.next_iters_preallocation_count,
-                                      mem_preallocation_params.max_per_iter_size,
-                                      mem_preallocation_params.max_per_dim_diff,
-                                      mem_preallocation_params.buffers_preallocation_ratio));
+        m_shape_predictor.reset(new cldnn::ShapePredictor(&m_graph->get_engine(),
+                                                          mem_preallocation_params.next_iters_preallocation_count,
+                                                          mem_preallocation_params.max_per_iter_size,
+                                                          mem_preallocation_params.max_per_dim_diff,
+                                                          mem_preallocation_params.buffers_preallocation_ratio));
     }
 
     init_mappings();
@@ -120,7 +122,9 @@ void SyncInferRequest::infer() {
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
-    OPENVINO_ASSERT(m_enable_profiling, "[GPU] Profiling data was not collected: please check that ov::enable_profiling property was set to true");
+    OPENVINO_ASSERT(
+        m_enable_profiling,
+        "[GPU] Profiling data was not collected: please check that ov::enable_profiling property was set to true");
     return m_graph->get_profiling_info();
 }
 
@@ -140,8 +144,12 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     OPENVINO_ASSERT(tensor != nullptr, "[GPU] Failed to set empty tensor to port with index: \'", port_index, "\'");
     OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
-                    "[GPU] Mismatch tensor and port type: ", port.get_element_type(), " vs ", tensor->get_element_type());
-    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape {0} || port.get_partial_shape().is_dynamic(),
+                    "[GPU] Mismatch tensor and port type: ",
+                    port.get_element_type(),
+                    " vs ",
+                    tensor->get_element_type());
+    OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_shape() == ov::Shape{0} ||
+                        port.get_partial_shape().is_dynamic(),
                     "[GPU] The tensor size is not equal to model, can't set input tensor with index: ",
                     port_index,
                     ", because model input (shape=",
@@ -157,16 +165,18 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         auto current_tensor_owner = user_tensors[port_index].owner;
         auto is_same_tensor = user_tensors[port_index].ptr == tensor._ptr;
 
-        // Keep PLUGIN as a tensor owner if current user's tensor owner is PLUGIN and underlying tensor pointer is not changed
-        auto new_tensor_owner = current_tensor_owner == TensorOwner::PLUGIN && is_same_tensor ? TensorOwner::PLUGIN
-                                                                                              : TensorOwner::USER;
+        // Keep PLUGIN as a tensor owner if current user's tensor owner is PLUGIN and underlying tensor pointer is not
+        // changed
+        auto new_tensor_owner =
+            current_tensor_owner == TensorOwner::PLUGIN && is_same_tensor ? TensorOwner::PLUGIN : TensorOwner::USER;
 
-        user_tensors[port_index] = { tensor._ptr, new_tensor_owner };
+        user_tensors[port_index] = {tensor._ptr, new_tensor_owner};
 
-        // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
-        // so remove plugin's tensor to reallocate it in prepare_input() mehtod
+        // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer
+        // sharing, so remove plugin's tensor to reallocate it in prepare_input() mehtod
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
+            if (plugin_tensors.count(port_index) &&
+                std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
         }
     };
@@ -181,7 +191,8 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
-void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                        const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     if (tensors.size() == 1) {
         return set_tensor(port, tensors[0]);
     }
@@ -195,7 +206,11 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
     OPENVINO_ASSERT(is_host || is_remote, "[GPU] Incorrect input blobs. All blobs must be of the same type");
 
     size_t port_index = port_info.idx;
-    OPENVINO_ASSERT(m_input_ports_map.count(port_index) != 0, "[GPU] Cannot find input tensors for port ", port, " with index ", port_index);
+    OPENVINO_ASSERT(m_input_ports_map.count(port_index) != 0,
+                    "[GPU] Cannot find input tensors for port ",
+                    port,
+                    " with index ",
+                    port_index);
     const auto& tensor = m_input_ports_map.at(port_index).get_tensor_ptr();
     m_batched_tensors[tensor] = tensors;
 }
@@ -205,11 +220,17 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
     size_t port_index = port_info.idx;
     if (is_input) {
-        OPENVINO_ASSERT(m_user_inputs.count(port_index) == 1, "[GPU] Input tensor with index ", port_index, " is not found");
-        return { m_user_inputs.at(port_index).ptr, nullptr };
+        OPENVINO_ASSERT(m_user_inputs.count(port_index) == 1,
+                        "[GPU] Input tensor with index ",
+                        port_index,
+                        " is not found");
+        return {m_user_inputs.at(port_index).ptr, nullptr};
     } else {
-        OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1, "[GPU] Output tensor with index ", port_index, " is not found");
-        return { m_user_outputs.at(port_index).ptr, nullptr };
+        OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1,
+                        "[GPU] Output tensor with index ",
+                        port_index,
+                        " is not found");
+        return {m_user_outputs.at(port_index).ptr, nullptr};
     }
 }
 
@@ -314,10 +335,14 @@ void SyncInferRequest::wait() {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::reinterpret_memory");
             OPENVINO_ASSERT(!output_memory->get_layout().data_padding, "[GPU] Unexpected padding in output buffer");
             output_memory = m_graph->get_engine().reinterpret_buffer(*output_memory, output_layout);
-            GPU_DEBUG_TRACE_DETAIL << internal_name << " model output with index " << port_idx << ": " << output_memory->buffer_ptr() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << internal_name << " model output with index " << port_idx << ": "
+                                   << output_memory->buffer_ptr() << std::endl;
         }
 
-        OPENVINO_ASSERT(m_user_outputs.count(port_idx) > 0, "[GPU] Output index ", port_idx, " is not found in output tensors map");
+        OPENVINO_ASSERT(m_user_outputs.count(port_idx) > 0,
+                        "[GPU] Output index ",
+                        port_idx,
+                        " is not found in output tensors map");
         auto output_tensor_wrapper = m_user_outputs.at(port_idx);
         auto output_tensor = output_tensor_wrapper.ptr;
         auto remote_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(output_tensor);
@@ -332,11 +357,17 @@ void SyncInferRequest::wait() {
                                    << output_tensor->data() << std::endl;
         }
 
-        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic || output_tensor_wrapper.actual_size >= output_memory->size(),
-                        "[GPU] Output port is static and output tensor set by user has smaller size (", output_tensor->get_byte_size(), ") ",
-                        "than required (", output_memory->size(), ")");
+        OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic ||
+                            output_tensor_wrapper.actual_size >= output_memory->size(),
+                        "[GPU] Output port is static and output tensor set by user has smaller size (",
+                        output_tensor->get_byte_size(),
+                        ") ",
+                        "than required (",
+                        output_memory->size(),
+                        ")");
 
-        bool need_output_update = output_layout.bytes_count() == 0 || (output_memory && output_tensor->get_byte_size() != output_memory->size());
+        bool need_output_update = output_layout.bytes_count() == 0 ||
+                                  (output_memory && output_tensor->get_byte_size() != output_memory->size());
 
         // Check shape is changed when size between output_tensor and output_memory are same.
         if (!need_output_update) {
@@ -352,27 +383,33 @@ void SyncInferRequest::wait() {
         if (need_output_update) {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::update_output");
             auto mem_shape = output_layout.get_shape();
-            // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
-            // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
+            // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur
+            // due to rank extension For new shape infer this shouldn't happen, thus remove that WA once we migrate to
+            // ngraph-based shape infer for all cases
             if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
-                OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
-                OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
+                OPENVINO_ASSERT(port.get_partial_shape().is_static(),
+                                "[GPU] Unexpected dynamic shape for legacy shape inference");
+                OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape),
+                                "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
             }
             if (is_dynamic) {
                 bool need_reallocate = true;
                 auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
                 if (usm_host_tensor && output_memory)
-                    need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
+                    need_reallocate =
+                        usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
                 else if (!is_remote && output_memory)
                     need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
-                    auto actual_memory_shape = predict_shape(internal_name, cldnn::layout(mem_shape,
-                                                                                          output_tensor->get_element_type(),
-                                                                                          cldnn::format::get_default_format(mem_shape.size())),
-                                                             *m_shape_predictor);
+                    auto actual_memory_shape =
+                        predict_shape(internal_name,
+                                      cldnn::layout(mem_shape,
+                                                    output_tensor->get_element_type(),
+                                                    cldnn::format::get_default_format(mem_shape.size())),
+                                      *m_shape_predictor);
                     output_tensor->set_shape(actual_memory_shape);
                 }
             }
@@ -386,8 +423,11 @@ void SyncInferRequest::wait() {
             auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
             bool same_mem = same_host_mem(output_memory, dst_ptr);
             if (!same_mem && output_memory->size()) {
-                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
-                                       << (!is_remote ? output_tensor->data() : remote_ptr->get_original_memory()->buffer_ptr()) << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx
+                                       << " copy from: " << output_memory->buffer_ptr() << " to "
+                                       << (!is_remote ? output_tensor->data()
+                                                      : remote_ptr->get_original_memory()->buffer_ptr())
+                                       << std::endl;
                 if (auto ev = copy_output_data(output_memory, *output_tensor)) {
                     copy_events.push_back(ev);
                 }
@@ -395,7 +435,8 @@ void SyncInferRequest::wait() {
         } else if (is_remote && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
+            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem &&
+                output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
                 // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
                 // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
                 cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock_dst(user_mem, stream);
@@ -437,12 +478,14 @@ void SyncInferRequest::setup_stream_graph() {
     m_graph = stream_graphs[stream_id];
 }
 
-std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const {
+std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::PartialShape& port_shape,
+                                                                  const ov::element::Type& port_element_type) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::create_host_tensor");
     return m_context->create_host_tensor(port_element_type, get_tensor_shape(port_shape))._ptr;
 }
 
-std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::PartialShape& port_shape, ov::element::Type element_type,
+std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::PartialShape& port_shape,
+                                                                    ov::element::Type element_type,
                                                                     bool need_lockable_memory) const {
     TensorType tensor_type = TensorType::BT_EMPTY;
     if (m_graph->get_engine().use_unified_shared_memory()) {
@@ -470,7 +513,8 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto user_tensor = user_tensor_wrapper.ptr;
     auto tensor_shape = user_tensor->get_shape();
     bool is_dynamic = port_pshape.is_dynamic();
-    OPENVINO_ASSERT(std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor) == nullptr, "[GPU] Unexpected remote tensor");
+    OPENVINO_ASSERT(std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor) == nullptr,
+                    "[GPU] Unexpected remote tensor");
     auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
 
     // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
@@ -482,32 +526,37 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine);
 
     if (usm_host_tensor && can_share) {
-        return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
+        return {usm_host_tensor->get_impl(), user_tensor_wrapper.owner};
     } else if (usm_host_raw_ptr && can_share) {
-        return { std::make_shared<RemoteTensorImpl>(m_context,
-                                                    user_tensor->get_shape(),
-                                                    cldnn::element_type_to_data_type(element_type),
-                                                    TensorType::BT_USM_SHARED,
-                                                    user_tensor->data()), TensorOwner::USER };
+        return {std::make_shared<RemoteTensorImpl>(m_context,
+                                                   user_tensor->get_shape(),
+                                                   cldnn::element_type_to_data_type(element_type),
+                                                   TensorType::BT_USM_SHARED,
+                                                   user_tensor->data()),
+                TensorOwner::USER};
     }
 
     auto actual_memory_shape = tensor_shape;
     if (is_dynamic) {
-        actual_memory_shape = predict_shape(name, cldnn::layout(tensor_shape,
-                                                                element_type,
-                                                                cldnn::format::get_default_format(tensor_shape.size())),
-                                            *m_shape_predictor);
+        actual_memory_shape = predict_shape(
+            name,
+            cldnn::layout(tensor_shape, element_type, cldnn::format::get_default_format(tensor_shape.size())),
+            *m_shape_predictor);
     }
 
-    return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
+    return {create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN};
 }
 
 cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::copy_output_data");
     OPENVINO_ASSERT(src->count() <= dst.get_size(),
                     "[GPU] Unexpected elements count of dst tensor: ",
-                    "expected at least ", src->count(), ", but ",
-                    "only ", dst.get_size(), " got");
+                    "expected at least ",
+                    src->count(),
+                    ", but ",
+                    "only ",
+                    dst.get_size(),
+                    " got");
 
     const auto& layout = src->get_layout();
     auto& stream = m_graph->get_network()->get_stream();
@@ -524,7 +573,7 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
 
-    m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    m_user_inputs[input_idx] = {create_host_tensor(shape, element_type), TensorOwner::PLUGIN};
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
 }
 
@@ -532,7 +581,7 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
 
-    m_user_outputs[output_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    m_user_outputs[output_idx] = {create_host_tensor(shape, element_type), TensorOwner::PLUGIN};
     ov::ISyncInferRequest::set_tensor(port, m_user_outputs.at(output_idx).ptr);
 }
 
@@ -546,8 +595,10 @@ void SyncInferRequest::allocate_inputs() {
 
         bool is_nv12_input = false;
         if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
-            std::string mem_type = port.get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
-                                                     .as<ov::preprocess::TensorInfoMemoryType>().value;
+            std::string mem_type = port.get_rt_info()
+                                       .at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                                       .as<ov::preprocess::TensorInfoMemoryType>()
+                                       .value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
                 is_nv12_input = true;
             }
@@ -590,7 +641,12 @@ void SyncInferRequest::allocate_states() {
         }
 
         if (indirect_kv_cache) {
-            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
+            m_variables.emplace(vi.first,
+                                std::make_shared<VariableStateIndirectKVCache>(vi.second,
+                                                                               m_context,
+                                                                               m_shape_predictor,
+                                                                               beam_axis,
+                                                                               concat_axis));
         } else {
             m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
         }
@@ -601,9 +657,10 @@ void SyncInferRequest::prepare_state(const std::string& name, const std::shared_
     m_graph->get_network()->set_variable(name, variable);
 }
 
-std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t input_idx,
-                                                                       const ov::Output<const ov::Node>& port,
-                                                                       const std::vector<ov::SoPtr<ov::ITensor>>& user_tensors) {
+std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(
+    size_t input_idx,
+    const ov::Output<const ov::Node>& port,
+    const std::vector<ov::SoPtr<ov::ITensor>>& user_tensors) {
     std::vector<cldnn::event::ptr> ret_events;
     bool is_host = all_host_tensors(user_tensors);
     bool is_remote_buffer = all_remote_buffers(user_tensors);
@@ -619,7 +676,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             auto ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);
-                std::memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
+                std::memcpy(ptr + i * tensor->get_byte_size(),
+                            static_cast<uint8_t*>(tensor->data()),
+                            tensor->get_byte_size());
             });
         } else {
             const auto& stream = m_graph->get_network()->get_stream();
@@ -629,14 +688,17 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             for (size_t i = 0; i < user_tensors.size(); i++) {
                 auto input_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensors[i]._ptr);
                 cldnn::mem_lock<uint8_t> src_lock(input_tensor->get_memory(), stream);
-                std::memcpy(dst_lock.data() + i * input_tensor->get_byte_size(), src_lock.data(), input_tensor->get_byte_size());
+                std::memcpy(dst_lock.data() + i * input_tensor->get_byte_size(),
+                            src_lock.data(),
+                            input_tensor->get_byte_size());
             }
         }
 
         auto events = prepare_input(internal_names[0], input_idx, port, {merged_tensor, TensorOwner::PLUGIN});
         std::move(events.begin(), events.end(), std::back_inserter(ret_events));
     } else {
-        OPENVINO_ASSERT(user_tensors.size() == internal_names.size(), "[GPU] Internal names and user tensors size mismatch");
+        OPENVINO_ASSERT(user_tensors.size() == internal_names.size(),
+                        "[GPU] Internal names and user tensors size mismatch");
         for (size_t i = 0; i < user_tensors.size(); i++) {
             auto events = prepare_input(internal_names[i], input_idx, port, {user_tensors[i]._ptr, TensorOwner::USER});
             std::move(events.begin(), events.end(), std::back_inserter(ret_events));
@@ -650,7 +712,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin,
+                       openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
@@ -661,7 +724,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_remote = remote_ptr != nullptr;
     bool is_usm_host_tensor = usm_host_ptr != nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name << " ( is_remote ? " << is_remote << ")" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name << " ( is_remote ? " << is_remote << ")"
+                           << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
@@ -669,35 +733,38 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto& engine = m_graph->get_engine();
     auto& stream = network->get_stream();
 
-    OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port),
-                    "[GPU] The input tensor size is not equal to model port shape, can't handle input tensor with name: ",
-                    internal_name,
-                    ", because model input (shape=",
-                    pshape,
-                    ") and tensor (shape=",
-                    user_tensor->get_shape(),
-                    ") are incompatible");
+    OPENVINO_ASSERT(
+        pshape.compatible(ov::PartialShape(user_tensor->get_shape())) || is_batched_input(port),
+        "[GPU] The input tensor size is not equal to model port shape, can't handle input tensor with name: ",
+        internal_name,
+        ", because model input (shape=",
+        pshape,
+        ") and tensor (shape=",
+        user_tensor->get_shape(),
+        ") are incompatible");
 
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
     if (is_remote) {
         if (convert_needed) {
-            m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
-                                                                cldnn::element_type_to_data_type(element_type),
-                                                                false), TensorOwner::PLUGIN };
+            m_plugin_inputs[input_idx] = {
+                create_device_tensor(pshape, cldnn::element_type_to_data_type(element_type), false),
+                TensorOwner::PLUGIN};
         } else {
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
         if (element_type != cldnn::element_type_to_data_type(element_type)) {
-            m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
-                                                                              user_tensor->get_shape(),
-                                                                              cldnn::element_type_to_data_type(element_type),
-                                                                              TensorType::BT_USM_SHARED,
-                                                                              user_tensor->data()), TensorOwner::USER };
+            m_plugin_inputs[input_idx] = {
+                std::make_shared<RemoteTensorImpl>(m_context,
+                                                   user_tensor->get_shape(),
+                                                   cldnn::element_type_to_data_type(element_type),
+                                                   TensorType::BT_USM_SHARED,
+                                                   user_tensor->data()),
+                TensorOwner::USER};
         } else {
-            m_plugin_inputs[input_idx] = { usm_host_ptr->get_impl(), user_tensor_wrapper.owner };
+            m_plugin_inputs[input_idx] = {usm_host_ptr->get_impl(), user_tensor_wrapper.owner};
         }
         is_remote = true;
     }
@@ -709,7 +776,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto plugin_tensor_mem_type = cldnn::allocation_type::unknown;
     if (m_plugin_inputs.count(input_idx)) {
-        plugin_tensor_mem_type = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_inputs[input_idx].ptr)->get_original_memory()->get_allocation_type();
+        plugin_tensor_mem_type = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_inputs[input_idx].ptr)
+                                     ->get_original_memory()
+                                     ->get_allocation_type();
     }
 
     // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
@@ -722,22 +791,26 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                 (plugin_tensor_mem_type != cldnn::allocation_type::usm_host && usm_host_raw_ptr);
 
     if (update_device_tensor) {
-        // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device buffer
-        m_plugin_inputs[input_idx] = create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed);
+        // If device input hasn't been created, then try to use user memory if it's usm_host, or allocate new device
+        // buffer
+        m_plugin_inputs[input_idx] =
+            create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, convert_needed);
     } else if (!is_remote) {
         // Device memory has been created on previous iterations. Try to reuse whenever it's possible
         auto device_tensor_wrapper = m_plugin_inputs.at(input_idx);
         auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(device_tensor_wrapper.ptr);
         if (is_dynamic) {
             if (device_tensor->get_original_memory()->size() < user_tensor->get_byte_size()) {
-                auto actual_shape = predict_shape(internal_name, cldnn::layout(user_tensor->get_shape(),
-                                                                               element_type,
-                                                                               cldnn::format::get_default_format(user_tensor->get_shape().size())),
-                                                  *m_shape_predictor);
+                auto actual_shape =
+                    predict_shape(internal_name,
+                                  cldnn::layout(user_tensor->get_shape(),
+                                                element_type,
+                                                cldnn::format::get_default_format(user_tensor->get_shape().size())),
+                                  *m_shape_predictor);
                 GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, false);
                 new_tensor->set_shape(user_tensor->get_shape());
-                m_plugin_inputs[input_idx] = { new_tensor, TensorOwner::PLUGIN };
+                m_plugin_inputs[input_idx] = {new_tensor, TensorOwner::PLUGIN};
             }
         }
     }
@@ -749,7 +822,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                         device_tensor->get_original_memory()->size(),
                         ") is expected to be greater or equal to user tensor (=",
                         user_tensor->get_size(),
-                        ") in dynamic case for ", internal_name);
+                        ") in dynamic case for ",
+                        internal_name);
         // tensor reshape below is expected to work w/o reallocation
         device_tensor->set_shape(user_tensor->get_shape());
     } else {
@@ -758,7 +832,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                         user_tensor->get_size(),
                         ") and device tensor (=",
                         device_tensor->get_size(),
-                        ") don't match for ", internal_name,
+                        ") don't match for ",
+                        internal_name,
                         ". Those are expected to be equal in case of static shape of the port");
     }
 
@@ -790,7 +865,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     network->set_input_data(internal_name, memory);
 
     if (ret_event && !ret_event->is_set())
-        return { ret_event };
+        return {ret_event};
     else
         return {};
 }
@@ -812,14 +887,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     if (user_tensor->get_size() > 0) {
-        OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())),
-                        "[GPU] The output tensor size is not equal to model port shape, can't handle output tensor with name: ",
-                        internal_name,
-                        ", because model output (shape=",
-                        pshape,
-                        ") and tensor (shape=",
-                        user_tensor->get_shape(),
-                        ") are incompatible");
+        OPENVINO_ASSERT(
+            pshape.compatible(ov::PartialShape(user_tensor->get_shape())),
+            "[GPU] The output tensor size is not equal to model port shape, can't handle output tensor with name: ",
+            internal_name,
+            ", because model output (shape=",
+            pshape,
+            ") and tensor (shape=",
+            user_tensor->get_shape(),
+            ") are incompatible");
     }
 
     auto network = m_graph->get_network();
@@ -833,11 +909,14 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     if (!is_dynamic) {
         auto is_cpu_impl = network->is_cpu_impl(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
-        bool update_device_tensor = !has_device_buffer ||
-                                    (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote);
+        bool update_device_tensor =
+            !has_device_buffer || (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote);
         if (update_device_tensor) {
-            m_plugin_outputs[output_idx] =
-                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, is_cpu_impl || convert_needed);
+            m_plugin_outputs[output_idx] = create_or_share_device_tensor(user_tensor_wrapper,
+                                                                         internal_name,
+                                                                         pshape,
+                                                                         device_tensor_et,
+                                                                         is_cpu_impl || convert_needed);
         }
     }
 
@@ -847,7 +926,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
 
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
-    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx
+                           << " prepare output: " << output_memory->buffer_ptr() << std::endl;
     return network->set_output_memory(internal_name, output_memory);
 }
 

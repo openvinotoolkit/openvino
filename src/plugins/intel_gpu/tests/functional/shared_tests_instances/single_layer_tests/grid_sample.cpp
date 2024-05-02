@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "single_op_tests/grid_sample.hpp"
+
+#include <vector>
 
 namespace {
 using ov::op::v9::GridSample;

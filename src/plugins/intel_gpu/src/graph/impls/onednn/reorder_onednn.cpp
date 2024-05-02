@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/onednn/utils.hpp"
-#include "reorder_inst.h"
-#include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
-
-#include <oneapi/dnnl/dnnl.hpp>
-
 #include <algorithm>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+
+#include "implementation_map.hpp"
+#include "impls/onednn/utils.hpp"
+#include "kernel_selector_common.h"
+#include "primitive_onednn_base.h"
+#include "reorder_inst.h"
 namespace cldnn {
 namespace onednn {
 
@@ -35,7 +33,9 @@ protected:
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
                                              _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset)});
+            args.insert(
+                {input_idx++,
+                 input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset)});
         }
 
         {
@@ -47,8 +47,9 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                           const dnnl::primitive_attr& attr) {
+    static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_primitive_descriptor(
+        const kernel_impl_params& impl_params,
+        const dnnl::primitive_attr& attr) {
         auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<reorder>();
 
@@ -63,12 +64,11 @@ protected:
         OPENVINO_ASSERT(output_md.get_format_kind() != dnnl::memory::format_kind::any,
                         "[GPU] The format kind of the output memory descriptor of onednn reorder cannot be 'any'.");
 
-        return std::make_shared<dnnl::reorder::primitive_desc>(
-            engine.get_onednn_engine(),
-            input_md,
-            engine.get_onednn_engine(),
-            output_md,
-            attr);
+        return std::make_shared<dnnl::reorder::primitive_desc>(engine.get_onednn_engine(),
+                                                               input_md,
+                                                               engine.get_onednn_engine(),
+                                                               output_md,
+                                                               attr);
     }
 
 public:
@@ -91,12 +91,11 @@ public:
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
         auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
 
-        auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
-            ib.get_engine().get_onednn_engine(),
-            input_md,
-            ib.get_engine().get_onednn_engine(),
-            output_md,
-            *_attrs.get());
+        auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                         input_md,
+                                                                         ib.get_engine().get_onednn_engine(),
+                                                                         output_md,
+                                                                         *_attrs.get());
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
@@ -132,16 +131,17 @@ public:
         OPENVINO_ASSERT(impl_param.get_input_layout().bytes_count() == weights_params->get_input_layout().bytes_count(),
                         "[GPU] Input layout doesn't match required reorder weights layout");
 
-        auto input_md = onednn_weights_params ? onednn_weights_params->_in_desc : onednn::layout_to_memory_desc(weights_params->get_input_layout());
-        auto output_md = onednn_weights_params ? onednn_weights_params->_out_desc : onednn::layout_to_memory_desc(weights_params->get_output_layout());
+        auto input_md = onednn_weights_params ? onednn_weights_params->_in_desc
+                                              : onednn::layout_to_memory_desc(weights_params->get_input_layout());
+        auto output_md = onednn_weights_params ? onednn_weights_params->_out_desc
+                                               : onednn::layout_to_memory_desc(weights_params->get_output_layout());
 
         auto attr = std::make_shared<dnnl::primitive_attr>();
-        auto reorder_prim = std::make_shared<dnnl::reorder::primitive_desc>(
-            engine.get_onednn_engine(),
-            input_md,
-            engine.get_onednn_engine(),
-            output_md,
-            *attr);
+        auto reorder_prim = std::make_shared<dnnl::reorder::primitive_desc>(engine.get_onednn_engine(),
+                                                                            input_md,
+                                                                            engine.get_onednn_engine(),
+                                                                            output_md,
+                                                                            *attr);
 
         return cldnn::make_unique<reorder_onednn>(engine, impl_param.prog->get_config(), attr, *reorder_prim);
     }
@@ -151,7 +151,9 @@ namespace detail {
 
 attach_reorder_onednn::attach_reorder_onednn() {
     implementation_map<reorder>::add(impl_types::onednn, reorder_onednn::create, {});
-    WeightsReordersFactory::add(cldnn::impl_types::onednn, shape_types::static_shape, reorder_onednn::create_reorder_weights);
+    WeightsReordersFactory::add(cldnn::impl_types::onednn,
+                                shape_types::static_shape,
+                                reorder_onednn::create_reorder_weights);
 }
 
 }  // namespace detail

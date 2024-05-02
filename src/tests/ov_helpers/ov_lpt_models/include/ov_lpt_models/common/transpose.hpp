@@ -18,6 +18,7 @@ public:
     bool empty() const noexcept;
 
     std::vector<size_t> values;
+
 private:
     bool isEmpty;
 };

@@ -17,6 +17,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 private:
     bool Validate(const Params&) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

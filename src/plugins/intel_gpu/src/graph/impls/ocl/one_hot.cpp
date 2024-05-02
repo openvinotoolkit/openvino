@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "one_hot_inst.h"
-#include "one_hot/one_hot_kernel_selector.h"
 #include "one_hot/one_hot_kernel_base.h"
+#include "one_hot/one_hot_kernel_selector.h"
+#include "one_hot_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -41,20 +40,22 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
 namespace detail {
 
 attach_one_hot_impl::attach_one_hot_impl() {
-    implementation_map<one_hot>::add(impl_types::ocl, typed_primitive_impl_ocl<one_hot>::create<one_hot_impl>, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-    });
+    implementation_map<one_hot>::add(impl_types::ocl,
+                                     typed_primitive_impl_ocl<one_hot>::create<one_hot_impl>,
+                                     {
+                                         std::make_tuple(data_types::i8, format::bfyx),
+                                         std::make_tuple(data_types::u8, format::bfyx),
+                                         std::make_tuple(data_types::i32, format::bfyx),
+                                         std::make_tuple(data_types::i64, format::bfyx),
+                                         std::make_tuple(data_types::f32, format::bfyx),
+                                         std::make_tuple(data_types::f16, format::bfyx),
+                                         std::make_tuple(data_types::i8, format::bfzyx),
+                                         std::make_tuple(data_types::u8, format::bfzyx),
+                                         std::make_tuple(data_types::i32, format::bfzyx),
+                                         std::make_tuple(data_types::i64, format::bfzyx),
+                                         std::make_tuple(data_types::f32, format::bfzyx),
+                                         std::make_tuple(data_types::f16, format::bfzyx),
+                                     });
 }
 
 }  // namespace detail

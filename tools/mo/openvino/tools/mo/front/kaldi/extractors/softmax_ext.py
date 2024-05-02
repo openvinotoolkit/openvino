@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxComponentFrontExtractor(FrontExtractorOp):
-    op = 'softmaxcomponent'
+    op = "softmaxcomponent"
     enabled = True
 
     @classmethod
@@ -16,10 +16,10 @@ class SoftmaxComponentFrontExtractor(FrontExtractorOp):
 
 
 class SoftmaxFrontExtractor(FrontExtractorOp):
-    op = 'softmax'
+    op = "softmax"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Softmax.update_node_stat(node, {'infer': copy_shape_infer})
+        Softmax.update_node_stat(node, {"infer": copy_shape_infer})
         return cls.enabled

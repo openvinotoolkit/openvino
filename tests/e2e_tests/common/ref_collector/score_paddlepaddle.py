@@ -8,7 +8,6 @@ from pathlib import Path
 
 from e2e_tests.common.common.base_provider.ref_collector.provider import ClassProvider
 
-
 os.environ["GLOG_minloglevel"] = "3"
 
 
@@ -16,7 +15,9 @@ class ScorePaddlePaddle(ClassProvider):
     """Reference collector for PaddlePaddle models."""
 
     __action_name__ = "score_paddlepaddle"
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(
+        format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+    )
 
     def __init__(self, config):
         """
@@ -50,9 +51,14 @@ class ScorePaddlePaddle(ClassProvider):
             executor=executor,
             dirname=self.model.parent,
             model_filename=self.model.name,
-            params_filename=self.params_filename
+            params_filename=self.params_filename,
         )
-        out = executor.run(inference_program, feed=self.inputs, fetch_list=output_layers, return_numpy=False)
+        out = executor.run(
+            inference_program,
+            feed=self.inputs,
+            fetch_list=output_layers,
+            return_numpy=False,
+        )
         self.res = dict(zip(map(lambda layer: layer.name, output_layers), out))
 
         log.info("PaddlePaddle reference collected successfully")

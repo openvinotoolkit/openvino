@@ -4,11 +4,12 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (np.array([0.]), np.array([1.5]), np.array([False]), np.array([3])))
+@pytest.mark.parametrize(
+    "input_tensor", (np.array([0.0]), np.array([1.5]), np.array([False]), np.array([3]))
+)
 class TestIsNonZero(PytorchLayerTest):
 
     def _prepare_input(self):

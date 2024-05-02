@@ -14,7 +14,8 @@ using namespace ov::intel_cpu;
 using namespace ov::opset10;
 using namespace testing;
 
-class DeformablePSROIPoolingV1StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v1::DeformablePSROIPooling> {
+class DeformablePSROIPoolingV1StaticShapeInferenceTest
+    : public OpStaticShapeInferenceTest<op::v1::DeformablePSROIPooling> {
 protected:
     void SetUp() override {
         output_shapes.resize(1);
@@ -42,7 +43,9 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, default_ctor) {
     }
     // 3 inputs
     {
-        input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}, StaticShape{rois_dim, 20, group_size, group_size}};
+        input_shapes = {StaticShape{2, 4, 8, 6},
+                        StaticShape{rois_dim, 5},
+                        StaticShape{rois_dim, 20, group_size, group_size}};
         output_shapes = shape_inference(op.get(), input_shapes);
         EXPECT_EQ(output_shapes[0], expected_output);
     }
@@ -81,7 +84,9 @@ TEST_F(DeformablePSROIPoolingV1StaticShapeInferenceTest, offsets_input) {
     auto op = make_op(input_data, input_coords, input_offsets, output_dim, spatial_scale, group_size);
 
     StaticShape expected_output{rois_dim, output_dim, group_size, group_size};
-    input_shapes = {StaticShape{2, 4, 8, 6}, StaticShape{rois_dim, 5}, StaticShape{rois_dim, 20, group_size, group_size}};
+    input_shapes = {StaticShape{2, 4, 8, 6},
+                    StaticShape{rois_dim, 5},
+                    StaticShape{rois_dim, 20, group_size, group_size}};
 
     output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes[0], expected_output);

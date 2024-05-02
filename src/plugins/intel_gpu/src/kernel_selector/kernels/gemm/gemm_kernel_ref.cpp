@@ -3,6 +3,7 @@
 //
 
 #include "gemm_kernel_ref.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -43,10 +44,11 @@ GemmKernelBase::DispatchData GemmKernelRef::SetDefault(const gemm_params& params
     DispatchData dispatchData;
 
     if (!output.is_dynamic()) {
-        auto total_batches = output.LogicalSize() /
-                            (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
-        dispatchData.gws = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
-                             total_batches };
+        auto total_batches = output.LogicalSize() / (GetOuputSize(params.output_order, output, 'X') *
+                                                     GetOuputSize(params.output_order, output, 'Y'));
+        dispatchData.gws = {GetOuputSize(params.output_order, output, 'X'),
+                            GetOuputSize(params.output_order, output, 'Y'),
+                            total_batches};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
@@ -97,8 +99,8 @@ JitConstants GemmKernelRef::GetJitConstants(const gemm_params& params) const {
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "dequantized", input_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "dequantized", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
@@ -130,14 +132,14 @@ bool GemmKernelRef::Validate(const Params& params) const {
         return true;
 
     bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
-        (input2_type == Datatype::INT8 || input2_type == Datatype::UINT8) &&
-        (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
-            output_type == Datatype::F32 || output_type == Datatype::F16);
+                           (input2_type == Datatype::INT8 || input2_type == Datatype::UINT8) &&
+                           (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
+                            output_type == Datatype::F32 || output_type == Datatype::F16);
 
     bool has_fused_op = (input_type == Datatype::F32 || input_type == Datatype::F16) &&
-        (input2_type == Datatype::F32 || input2_type == Datatype::F16) &&
-        !gmm_params.fused_ops.empty() &&
-        (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
+                        (input2_type == Datatype::F32 || input2_type == Datatype::F16) &&
+                        !gmm_params.fused_ops.empty() &&
+                        (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
     if (!is_quantization && !has_fused_op)
         return false;

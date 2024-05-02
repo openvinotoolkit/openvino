@@ -7,11 +7,10 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
+#include "low_precision/network_helper.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -33,7 +32,8 @@ BatchToSpaceTransformation::BatchToSpaceTransformation(const Params& params) : L
     this->register_matcher(m, callback);
 }
 
-bool BatchToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool BatchToSpaceTransformation::canBeTransformed(const TransformationContext& context,
+                                                  std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformed(context, op)) {
         return false;
     }
@@ -52,7 +52,8 @@ bool BatchToSpaceTransformation::transform(TransformationContext& context, ov::p
     }
 
     const std::shared_ptr<Node> op = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
+    const auto newOperation =
+        moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
@@ -62,6 +63,6 @@ bool BatchToSpaceTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -12,12 +12,18 @@ namespace intel_cpu {
 /**
  * This is a memory manager that represents a view on a partition inside a continuous memory block controlled by
  * another memory manager.
- * 
+ *
  */
 class PartitionedMemoryMngr : public IMemoryMngrObserver {
 public:
-    PartitionedMemoryMngr(MemoryMngrPtr pMngr, size_t total_blocks = 1, ptrdiff_t offset_blocks = 0, size_t size_blocks = 1)
-        : m_pMngr(pMngr), m_total_blocks(total_blocks), m_offset_blocks(offset_blocks), m_size_blocks(size_blocks) {
+    PartitionedMemoryMngr(MemoryMngrPtr pMngr,
+                          size_t total_blocks = 1,
+                          ptrdiff_t offset_blocks = 0,
+                          size_t size_blocks = 1)
+        : m_pMngr(pMngr),
+          m_total_blocks(total_blocks),
+          m_offset_blocks(offset_blocks),
+          m_size_blocks(size_blocks) {
         OPENVINO_ASSERT(m_pMngr, "Memory manager is uninitialized");
     }
 
@@ -30,11 +36,11 @@ public:
 
 private:
     MemoryMngrPtr m_pMngr;
-    size_t m_total_blocks = 1; // size of the parent memory in abstract blocks
-    ptrdiff_t m_offset_blocks = 0; // offset from the beginning of the external memory in abstract blocks
-    size_t m_size_blocks = 1; // size of the viewed partition in abstract blocks
-    size_t m_size = 0; // size of the viewed partition in bytes
+    size_t m_total_blocks = 1;      // size of the parent memory in abstract blocks
+    ptrdiff_t m_offset_blocks = 0;  // offset from the beginning of the external memory in abstract blocks
+    size_t m_size_blocks = 1;       // size of the viewed partition in abstract blocks
+    size_t m_size = 0;              // size of the viewed partition in bytes
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

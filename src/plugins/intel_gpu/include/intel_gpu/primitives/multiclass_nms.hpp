@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "openvino/op/multiclass_nms.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "primitive.hpp"
-
 #include <utility>
 #include <vector>
+
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/multiclass_nms.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -111,14 +111,14 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     private:
         static sort_result_type from(const ov::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
             switch (sort_result_type) {
-                case ov::op::util::MulticlassNmsBase::SortResultType::CLASSID:
-                    return sort_result_type::classid;
-                case ov::op::util::MulticlassNmsBase::SortResultType::SCORE:
-                    return sort_result_type::score;
-                case ov::op::util::MulticlassNmsBase::SortResultType::NONE:
-                    return sort_result_type::none;
-                default:
-                    return sort_result_type::none;
+            case ov::op::util::MulticlassNmsBase::SortResultType::CLASSID:
+                return sort_result_type::classid;
+            case ov::op::util::MulticlassNmsBase::SortResultType::SCORE:
+                return sort_result_type::score;
+            case ov::op::util::MulticlassNmsBase::SortResultType::NONE:
+                return sort_result_type::none;
+            default:
+                return sort_result_type::none;
             }
         }
     };
@@ -176,19 +176,12 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
 
         auto rhs_casted = downcast<const multiclass_nms>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(has_roisnum) &&
-               cmp_fields(attrs.background_class) &&
-               cmp_fields(attrs.indices_output_type) &&
-               cmp_fields(attrs.iou_threshold) &&
-               cmp_fields(attrs.keep_top_k) &&
-               cmp_fields(attrs.nms_eta) &&
-               cmp_fields(attrs.nms_top_k) &&
-               cmp_fields(attrs.normalized) &&
-               cmp_fields(attrs.score_threshold) &&
-               cmp_fields(attrs.sort_result) &&
-               cmp_fields(attrs.sort_result_across_batch);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(has_roisnum) && cmp_fields(attrs.background_class) && cmp_fields(attrs.indices_output_type) &&
+               cmp_fields(attrs.iou_threshold) && cmp_fields(attrs.keep_top_k) && cmp_fields(attrs.nms_eta) &&
+               cmp_fields(attrs.nms_top_k) && cmp_fields(attrs.normalized) && cmp_fields(attrs.score_threshold) &&
+               cmp_fields(attrs.sort_result) && cmp_fields(attrs.sort_result_across_batch);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -3,7 +3,12 @@
 //
 
 #include "compiled_model.h"
+
+#include <cstring>
+#include <utility>
+
 #include "async_infer_request.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "infer_request.h"
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
@@ -11,20 +16,16 @@
 #include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "serialize.h"
-#include "openvino/runtime/threading/executor_manager.hpp"
-#include "transformations/transformation_pipeline.h"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/common_util.hpp"
+#include "serialize.h"
+#include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include <cstring>
-#include <utility>
-
 #if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_ie_scheduler.hpp"
+#    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
 using namespace ov::threading;
@@ -132,10 +133,10 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
-                    auto isQuantizedFlag =
-                        (m_cfg.lpTransformsMode == Config::On) &&
-                        ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+                    auto weightsCache =
+                        m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
+                    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+                                           ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
                     ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
                 }
@@ -296,8 +297,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
             config.fcSparseWeiDecompressionRate);
     } else if (name == ov::hint::dynamic_quantization_group_size) {
-        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(
-            config.fcDynamicQuantizationGroupSize);
+        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
     }

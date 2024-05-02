@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -64,8 +63,7 @@ class TestSplit(PytorchLayerTest):
     def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self.getitem = getitem
-        self._test(*self.create_model_split_getitem(),
-                   ie_device, precision, ir_version)
+        self._test(*self.create_model_split_getitem(), ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.nightly
@@ -80,25 +78,34 @@ class TestSplit(PytorchLayerTest):
 class TestSplitWithSizes(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(20).astype(np.float32),np.random.randn(20).astype(np.float32))
+
+        return (
+            np.random.randn(20).astype(np.float32),
+            np.random.randn(20).astype(np.float32),
+        )
 
     def create_model(self):
         import torch
 
         class aten_split_with_sizes(torch.nn.Module):
             def __init__(self):
-                super(aten_split_with_sizes, self).__init__()                
-                #self.sizes = 20
+                super(aten_split_with_sizes, self).__init__()
+                # self.sizes = 20
 
             def forward(self, x, y):
                 return x.split([y.shape[0]], dim=0)
 
         ref_net = None
 
-        return aten_split_with_sizes(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
+        return (
+            aten_split_with_sizes(),
+            ref_net,
+            ["aten::split_with_sizes", "prim::ListConstruct"],
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_split_with_sizes(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(),
-                   ie_device, precision, ir_version, trace_model=True)
+        self._test(
+            *self.create_model(), ie_device, precision, ir_version, trace_model=True
+        )

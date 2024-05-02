@@ -26,7 +26,7 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getOriginal(
     const auto dequantizationOp = makeDequantization(parent, dequantization);
     dequantizationOp->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(dequantizationOp) };
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(dequantizationOp)};
     ov::ParameterVector params{input};
     if (haveMultiplyWithNoConstBeforeDequantization) {
         params.push_back(secondInput);
@@ -34,34 +34,32 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getOriginal(
     return std::make_shared<ov::Model>(results, params, "MultiplyToGroupConvolutionFunction");
 }
 
-std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getOriginal(
-    const ov::element::Type precision,
-    const ov::PartialShape& inputShape,
-    const FakeQuantizeOnData& fqOnData,
-    const Constant& constant,
-    const bool parentHasOneConsumer) {
+std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getOriginal(const ov::element::Type precision,
+                                                                           const ov::PartialShape& inputShape,
+                                                                           const FakeQuantizeOnData& fqOnData,
+                                                                           const Constant& constant,
+                                                                           const bool parentHasOneConsumer) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantize = makeFakeQuantize(input, precision, fqOnData);
 
     const auto rank = inputShape.rank();
     assert(rank.is_static());
     const size_t size = rank.get_length() - 2;
-    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        fakeQuantize,
-        Strides(size, 1),
-        Shape(size, 1),
-        Shape(size, 0),
-        Shape(size, 2));
+    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(fakeQuantize,
+                                                               Strides(size, 1),
+                                                               Shape(size, 1),
+                                                               Shape(size, 0),
+                                                               Shape(size, 2));
 
     const auto multiply = std::make_shared<ov::opset1::Multiply>(
         maxPool,
         std::make_shared<ov::opset1::Constant>(constant.outPrecision, constant.shape, constant.values));
     multiply->set_friendly_name("output");
 
-    ov::ResultVector results = parentHasOneConsumer ?
-        ov::ResultVector{std::make_shared<ov::opset1::Result>(multiply)} :
-        ov::ResultVector{std::make_shared<ov::opset1::Result>(maxPool), std::make_shared<ov::opset1::Result>(multiply)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
+    ov::ResultVector results = parentHasOneConsumer ? ov::ResultVector{std::make_shared<ov::opset1::Result>(multiply)}
+                                                    : ov::ResultVector{std::make_shared<ov::opset1::Result>(maxPool),
+                                                                       std::make_shared<ov::opset1::Result>(multiply)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "MultiplyToGroupConvolutionFunction");
 }
 
 std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
@@ -93,8 +91,8 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
     const auto dequantizationOp = makeDequantization(lastNode, dequantization);
     dequantizationOp->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(dequantizationOp) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(dequantizationOp)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "MultiplyToGroupConvolutionFunction");
 }
 
 }  // namespace subgraph

@@ -3,29 +3,36 @@
 //
 
 #include "activation.hpp"
-#include "gtest/gtest.h"
-#include "utils/cpu_test_utils.hpp"
+
 #include "common_test_utils/node_builders/activation.hpp"
+#include "gtest/gtest.h"
 #include "shared_test_classes/single_op/activation.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
 
 namespace ov {
 namespace test {
-std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
+std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet>& obj) {
     std::vector<ov::test::InputShape> inputShapes;
     std::vector<size_t> activationShapes;
     std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     ov::element::Type netPrecision, inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
+    std::tie(inputShapes,
+             activationShapes,
+             activationTypeAndConstValue,
+             netPrecision,
+             inPrecision,
+             outPrecision,
+             cpuParams) = obj.param;
 
     std::ostringstream result;
     result << activationNames[activationTypeAndConstValue.first] << "_";
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
-        for (const auto &shape : inputShapes) {
+        for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
@@ -65,8 +72,7 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = 2;
         range = 2;
         resolution = 128;
-    } else if (activationType == utils::ActivationTypes::Acos ||
-               activationType == utils::ActivationTypes::Asin ||
+    } else if (activationType == utils::ActivationTypes::Acos || activationType == utils::ActivationTypes::Asin ||
                activationType == utils::ActivationTypes::Atanh) {
         // range [-1. 1] is required
         startFrom = -1;
@@ -87,7 +93,9 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             in_data.start_from = startFrom;
             in_data.range = range;
             in_data.resolution = resolution;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && funcInput.get_element_type() == ov::element::f32) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
@@ -107,27 +115,40 @@ void ActivationLayerCPUTest::SetUp() {
     std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     ov::element::Type inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
+    std::tie(inputShapes,
+             activationShapes,
+             activationTypeAndConstValue,
+             netPrecision,
+             inPrecision,
+             outPrecision,
+             cpuParams) = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
 
-    inType  = inPrecision;
+    inType = inPrecision;
     outType = outPrecision;
     const auto primitiveType = getPrimitiveType(activationType, inType, inputShapes);
-    selectedType = primitiveType.empty() ? "" : getPrimitiveType(activationType, inType, inputShapes) + "_" + netPrecision.to_string();
+    selectedType = primitiveType.empty()
+                       ? ""
+                       : getPrimitiveType(activationType, inType, inputShapes) + "_" + netPrecision.to_string();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(OPENVINO_ARCH_ARM)
-    if (activationType == utils::ActivationTypes::GeluErf) // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
+    if (activationType ==
+        utils::ActivationTypes::GeluErf)  // @todo tmp fallback to ref, gelu erf is disabled for 32bit ARM
         selectedType = std::string("ref_") + netPrecision.to_string();
 #    endif
-    if (activationType == utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
-        activationType == utils::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with transformation
-        inputShapes.front().first.rank().get_length() > 5)               // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
+    if (activationType ==
+            utils::ActivationTypes::GeluTanh ||  // @todo not supported by ACL, can be decomposed with transformation
+        activationType ==
+            utils::ActivationTypes::SoftSign ||  // @todo not supported by ACL, can be decomposed with transformation
+        inputShapes.front().first.rank().get_length() >
+            5)  // @todo tmp fallback to ref, remove after 6D+ ranks are properly supported
         selectedType = std::string("ref_") + netPrecision.to_string();
 #else
-    if (activationType == utils::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
+    if (activationType ==
+        utils::ActivationTypes::Log)  // @todo tmp fallback to ref, remove after Log is supported in emitters
         selectedType = std::string("ref_") + netPrecision.to_string();
 #endif
 
@@ -147,18 +168,16 @@ void ActivationLayerCPUTest::SetUp() {
     }
 }
 
-std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationTypes& activation_type,
-                                                     const ov::element::Type_t& element_type,
-                                                     const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+std::string ActivationLayerCPUTest::getPrimitiveType(
+    const utils::ActivationTypes& activation_type,
+    const ov::element::Type_t& element_type,
+    const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
-#if defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
     if ((element_type == ov::element::f32) &&
-        ((activation_type == utils::ActivationTypes::Clamp) ||
-        (activation_type == utils::ActivationTypes::Exp) ||
-        (activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::Sigmoid) ||
-        (activation_type == utils::ActivationTypes::Swish) ||
-        (activation_type == utils::ActivationTypes::Tanh))) {
+        ((activation_type == utils::ActivationTypes::Clamp) || (activation_type == utils::ActivationTypes::Exp) ||
+         (activation_type == utils::ActivationTypes::Relu) || (activation_type == utils::ActivationTypes::Sigmoid) ||
+         (activation_type == utils::ActivationTypes::Swish) || (activation_type == utils::ActivationTypes::Tanh))) {
         return "jit";
     }
 
@@ -166,7 +185,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         // operation is decomposed and executed by different kernels
         return "";
     }
-#endif
+#    endif
     return "acl";
 #else
     return CPUTestsBase::getPrimitiveType();
@@ -185,21 +204,21 @@ const std::vector<size_t> activationShapes() {
 }
 
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypes() {
-    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
-        {Sqrt,        {{}}},
-        {Sigmoid,     {{}}},
-        {Tanh,        {{}}},
-        {Relu,        {{}}},
-        {Exp,         {{}}},
-        {Clamp,       {{-2.0f, 2.0f}}},
-        {Elu,         {{0.1f}}},
-        {Swish,       {{0.1f}}},
-        {HSwish,      {{}}},
-        {PReLu,       {{-0.01f}}},
-        {GeluErf,     {{}}},
-        {GeluTanh,    {{}}},
-        {SoftSign,    {{}}},
-        {SoftPlus,    {{}}},
+    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes{
+        {Sqrt, {{}}},
+        {Sigmoid, {{}}},
+        {Tanh, {{}}},
+        {Relu, {{}}},
+        {Exp, {{}}},
+        {Clamp, {{-2.0f, 2.0f}}},
+        {Elu, {{0.1f}}},
+        {Swish, {{0.1f}}},
+        {HSwish, {{}}},
+        {PReLu, {{-0.01f}}},
+        {GeluErf, {{}}},
+        {GeluTanh, {{}}},
+        {SoftSign, {{}}},
+        {SoftPlus, {{}}},
     };
 
     return activationTypes;
@@ -213,7 +232,7 @@ const std::vector<ov::element::Type>& netPrc() {
 
 /* ============= Activation (1D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams3D() {
-    static const std::vector<CPUSpecificParams> cpuParams3D {
+    static const std::vector<CPUSpecificParams> cpuParams3D{
         CPUSpecificParams({nwc}, {nwc}, {}, {}),
         CPUSpecificParams({ncw}, {ncw}, {}, {}),
     };
@@ -222,7 +241,7 @@ const std::vector<CPUSpecificParams>& cpuParams3D() {
 }
 
 const std::vector<std::vector<ov::Shape>>& basic3D() {
-    static const std::vector<std::vector<ov::Shape>> basic3D {
+    static const std::vector<std::vector<ov::Shape>> basic3D{
         {{2, 4, 4}},
         {{2, 17, 5}},
     };
@@ -232,16 +251,14 @@ const std::vector<std::vector<ov::Shape>>& basic3D() {
 
 /* ============= Activation (2D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams4D() {
-    static const std::vector<CPUSpecificParams> cpuParams4D {
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nchw}, {nchw}, {}, {})
-    };
+    static const std::vector<CPUSpecificParams> cpuParams4D{CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+                                                            CPUSpecificParams({nchw}, {nchw}, {}, {})};
 
     return cpuParams4D;
 }
 
 const std::vector<std::vector<ov::Shape>>& basic4D() {
-    static const std::vector<std::vector<ov::Shape>> basic4D {
+    static const std::vector<std::vector<ov::Shape>> basic4D{
         {{2, 4, 4, 1}},
         {{2, 17, 5, 4}},
     };
@@ -251,7 +268,7 @@ const std::vector<std::vector<ov::Shape>>& basic4D() {
 
 /* ============= Activation (3D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams5D() {
-    static const std::vector<CPUSpecificParams> cpuParams5D {
+    static const std::vector<CPUSpecificParams> cpuParams5D{
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
     };
@@ -260,7 +277,7 @@ const std::vector<CPUSpecificParams>& cpuParams5D() {
 }
 
 const std::vector<std::vector<ov::Shape>>& basic5D() {
-    static const std::vector<std::vector<ov::Shape>> basic5D {
+    static const std::vector<std::vector<ov::Shape>> basic5D{
         {{2, 4, 3, 4, 1}},
         {{2, 17, 7, 5, 4}},
     };
@@ -269,31 +286,29 @@ const std::vector<std::vector<ov::Shape>>& basic5D() {
 }
 
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesDynamicMath() {
-    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypesDynamicMath {
-        {Log,         {{}}},
-        {Sign,        {{}}},
-        {Acos,        {{}}},
-        {Acosh,       {{}}},
-        {Asin,        {{}}},
-        {Asinh,       {{}}},
-        {Atan,        {{}}},
-        {Atanh,       {{}}},
-        {Cos,         {{}}},
-        {Cosh,        {{}}},
-        {Tan,         {{}}},
+    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypesDynamicMath{
+        {Log, {{}}},
+        {Sign, {{}}},
+        {Acos, {{}}},
+        {Acosh, {{}}},
+        {Asin, {{}}},
+        {Asinh, {{}}},
+        {Atan, {{}}},
+        {Atanh, {{}}},
+        {Cos, {{}}},
+        {Cosh, {{}}},
+        {Tan, {{}}},
         {HardSigmoid, {{0.2f, 0.5f}}},
-        {Selu,        {{1.6732f, 1.0507f}}},
-        {Ceiling,     {{}}},
-        {SoftSign,    {{}}},
+        {Selu, {{1.6732f, 1.0507f}}},
+        {Ceiling, {{}}},
+        {SoftSign, {{}}},
     };
 
     return activationTypesDynamicMath;
 }
 
 const std::vector<ov::element::Type>& netPrecisions() {
-    static const std::vector<ov::element::Type> netPrecisions {
-        ov::element::f32
-    };
+    static const std::vector<ov::element::Type> netPrecisions{ov::element::f32};
 
     return netPrecisions;
 }
@@ -305,9 +320,10 @@ const std::vector<CPUSpecificParams>& cpuParamsDynamicMath() {
 }
 
 const std::vector<std::vector<InputShape>>& dynamicMathBasic() {
-    static const std::vector<std::vector<InputShape>> dynamicMathBasic {
+    static const std::vector<std::vector<InputShape>> dynamicMathBasic{
         {{{-1, -1}, {{1, 50}, {5, 128}, {3, 64}}}},
-        {{{-1, -1, -1, -1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 3, 2, 3, 2, 3, 2, 3}, {3, 3, 3, 3, 3, 3, 3, 3}}}},
+        {{{-1, -1, -1, -1, -1, -1, -1, -1},
+          {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 3, 2, 3, 2, 3, 2, 3}, {3, 3, 3, 3, 3, 3, 3, 3}}}},
         {{{{1, 5}, 128}, {{1, 128}, {3, 128}, {5, 128}}}},
     };
 

@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "pooling_kernel_base.h"
 #include <vector>
+
+#include "pooling_kernel_base.h"
 
 namespace kernel_selector {
 class Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16 : public PoolingKernelBase {
@@ -20,9 +21,7 @@ public:
     DispatchData SetDefault(const pooling_params& params) const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION};
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
 protected:

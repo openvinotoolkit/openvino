@@ -3,12 +3,11 @@
 
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
 def fn_1(x):
-    return (x[0] * x[1] + x[2])
+    return x[0] * x[1] + x[2]
 
 
 def fn_2(x):
@@ -16,11 +15,11 @@ def fn_2(x):
 
 
 def fn_3(x):
-    return (x[0] * x[1])
+    return x[0] * x[1]
 
 
 def fn_4(x):
-    return (x[0] * x[1] + 2 * x[2])
+    return x[0] * x[1] + 2 * x[2]
 
 
 def fn_5(x):
@@ -32,7 +31,7 @@ def fn_6(x):
 
 
 def fn_7(x):
-    return (x[0] * x[1] + x[2])
+    return x[0] * x[1] + x[2]
 
 
 def fn_8(x):
@@ -51,21 +50,38 @@ class MapFNLayer(tf.keras.layers.Layer):
         self.back_prop = back_prop
 
     def call(self, x):
-        return tf.map_fn(self.fn, x, dtype=self.input_type,
-                         fn_output_signature=self.fn_output_signature,
-                         back_prop=self.back_prop)
+        return tf.map_fn(
+            self.fn,
+            x,
+            dtype=self.input_type,
+            fn_output_signature=self.fn_output_signature,
+            back_prop=self.back_prop,
+        )
 
 
 class TestMapFN(CommonTF2LayerTest):
-    def create_map_fn_net(self, fn, input_type, fn_output_signature, back_prop,
-                          input_names, input_shapes, ir_version):
+    def create_map_fn_net(
+        self,
+        fn,
+        input_type,
+        fn_output_signature,
+        back_prop,
+        input_names,
+        input_shapes,
+        ir_version,
+    ):
         # create TensorFlow 2 model using MapFN construction
         tf.keras.backend.clear_session()
         inputs = []
         for ind in range(len(input_names)):
-            inputs.append(tf.keras.Input(shape=input_shapes[ind][1:], name=input_names[ind],
-                                         dtype=input_type))
-        map_fn_layer = MapFNLayer(fn, input_type, fn_output_signature, back_prop)(inputs)
+            inputs.append(
+                tf.keras.Input(
+                    shape=input_shapes[ind][1:], name=input_names[ind], dtype=input_type
+                )
+            )
+        map_fn_layer = MapFNLayer(fn, input_type, fn_output_signature, back_prop)(
+            inputs
+        )
         tf2_net = tf.keras.Model(inputs=inputs, outputs=[map_fn_layer])
 
         # TODO: add reference IR net. Now it is omitted and tests only inference result that is more important
@@ -74,80 +90,145 @@ class TestMapFN(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_basic = [
-        dict(fn=1, input_type=tf.float32,
-             fn_output_signature=tf.float32, back_prop=False,
-             input_names=["x1", "x2", "x3"], input_shapes=[[2, 3, 4], [2, 3, 4], [2, 3, 4]]),
-        dict(fn=2,
-             input_type=tf.float32,
-             fn_output_signature=(tf.float32, tf.float32, tf.float32), back_prop=True,
-             input_names=["x1", "x2", "x3"],
-             input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
+        dict(
+            fn=1,
+            input_type=tf.float32,
+            fn_output_signature=tf.float32,
+            back_prop=False,
+            input_names=["x1", "x2", "x3"],
+            input_shapes=[[2, 3, 4], [2, 3, 4], [2, 3, 4]],
+        ),
+        dict(
+            fn=2,
+            input_type=tf.float32,
+            fn_output_signature=(tf.float32, tf.float32, tf.float32),
+            back_prop=True,
+            input_names=["x1", "x2", "x3"],
+            input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]],
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
-                   **params)
+    def test_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_map_fn_net(**params, ir_version=ir_version),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            **params
+        )
 
     test_multiple_inputs = [
-        dict(fn=3, input_type=tf.float32,
-             fn_output_signature=tf.float32, back_prop=True,
-             input_names=["x1", "x2"], input_shapes=[[2, 4], [2, 4]]),
-        dict(fn=4, input_type=tf.float32,
-             fn_output_signature=tf.float32, back_prop=False,
-             input_names=["x1", "x2", "x3"], input_shapes=[[2, 1, 3, 4],
-                                                           [2, 1, 3, 4],
-                                                           [2, 1, 3, 4]])
+        dict(
+            fn=3,
+            input_type=tf.float32,
+            fn_output_signature=tf.float32,
+            back_prop=True,
+            input_names=["x1", "x2"],
+            input_shapes=[[2, 4], [2, 4]],
+        ),
+        dict(
+            fn=4,
+            input_type=tf.float32,
+            fn_output_signature=tf.float32,
+            back_prop=False,
+            input_names=["x1", "x2", "x3"],
+            input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]],
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_multiple_inputs)
     @pytest.mark.nightly
-    def test_multiple_inputs(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
-                   **params)
+    def test_multiple_inputs(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_map_fn_net(**params, ir_version=ir_version),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            **params
+        )
 
     test_multiple_outputs = [
-        pytest.param(dict(fn=5, input_type=tf.float32,
-                          fn_output_signature=(tf.float32, tf.float32), back_prop=True,
-                          input_names=["x1", "x2"], input_shapes=[[2, 4], [2, 4]]),
-                     marks=pytest.mark.xfail(reason="61587")),
-        pytest.param(dict(fn=6,
-                          input_type=tf.float32,
-                          fn_output_signature=(tf.float32, tf.float32, tf.float32), back_prop=True,
-                          input_names=["x1", "x2", "x3"],
-                          input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]]),
-                     marks=pytest.mark.xfail(reason="61587"))
+        pytest.param(
+            dict(
+                fn=5,
+                input_type=tf.float32,
+                fn_output_signature=(tf.float32, tf.float32),
+                back_prop=True,
+                input_names=["x1", "x2"],
+                input_shapes=[[2, 4], [2, 4]],
+            ),
+            marks=pytest.mark.xfail(reason="61587"),
+        ),
+        pytest.param(
+            dict(
+                fn=6,
+                input_type=tf.float32,
+                fn_output_signature=(tf.float32, tf.float32, tf.float32),
+                back_prop=True,
+                input_names=["x1", "x2", "x3"],
+                input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]],
+            ),
+            marks=pytest.mark.xfail(reason="61587"),
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_multiple_outputs)
     @pytest.mark.nightly
-    def test_multiple_outputs(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
-                   **params)
+    def test_multiple_outputs(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_map_fn_net(**params, ir_version=ir_version),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            **params
+        )
 
     test_multiple_inputs_outputs_int32 = [
-        dict(fn=7,
-             input_type=tf.int32,
-             fn_output_signature=tf.int32, back_prop=True,
-             input_names=["x1", "x2", "x3"],
-             input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]]),
-        dict(fn=8,
-             input_type=tf.int32,
-             fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
-             input_names=["x1", "x2", "x3"],
-             input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
+        dict(
+            fn=7,
+            input_type=tf.int32,
+            fn_output_signature=tf.int32,
+            back_prop=True,
+            input_names=["x1", "x2", "x3"],
+            input_shapes=[[2, 1, 3], [2, 1, 3], [2, 1, 3]],
+        ),
+        dict(
+            fn=8,
+            input_type=tf.int32,
+            fn_output_signature=(tf.int32, tf.int32, tf.int32),
+            back_prop=True,
+            input_names=["x1", "x2", "x3"],
+            input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]],
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_multiple_inputs_outputs_int32(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_legacy_frontend):
-        self._test(*self.create_map_fn_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
-                   **params)
+    def test_multiple_inputs_outputs_int32(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_map_fn_net(**params, ir_version=ir_version),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            **params
+        )

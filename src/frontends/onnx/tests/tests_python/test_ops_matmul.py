@@ -4,9 +4,8 @@
 
 import numpy as np
 import onnx
-from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 import pytest
-
+from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from tests.runtime import get_runtime
 from tests.tests_python.utils import import_onnx_model
 
@@ -37,7 +36,16 @@ def import_and_compute_matmul(input_left, input_right):
     return computation(input_data_left, input_data_right)[0]
 
 
-def numpy_gemm(input_a, input_b, input_c, alpha=1, beta=1, trans_a=False, trans_b=False, broadcast=False):
+def numpy_gemm(
+    input_a,
+    input_b,
+    input_c,
+    alpha=1,
+    beta=1,
+    trans_a=False,
+    trans_b=False,
+    broadcast=False,
+):
     input_a = np.array(input_a).astype(np.float32)
     input_b = np.array(input_b).astype(np.float32)
     input_c = np.array(input_c).astype(np.float32)
@@ -126,36 +134,59 @@ def test_op_matmul_3d():
         pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors"),
         pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar"),
         pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector"),
-        pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7.0, "beta": 9.0},
-                     "vectors with alpha and beta"),
-        pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7.0, "beta": 9.0},
-                     "longer vectors with alpha and beta"),
+        pytest.param(
+            ([1, 2], [1, 3], [1, 4]),
+            {"alpha": 7.0, "beta": 9.0},
+            "vectors with alpha and beta",
+        ),
+        pytest.param(
+            ([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]),
+            {"alpha": 7.0, "beta": 9.0},
+            "longer vectors with alpha and beta",
+        ),
     ],
 )
 def test_gemm(data, kwargs, description):
-    assert np.allclose(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
+    assert np.allclose(
+        import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs)
+    )
 
 
 @pytest.mark.parametrize(
     ("data", "kwargs", "description"),
     [
-        pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
-                     "vectors with trans_a/trans_b"),
-        pytest.param(([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1]),
-                     {"trans_a": True, "trans_b": True, "alpha": 7.0, "beta": 9.0},
-                     "matrices and vector with trans_b and alpha/beta"),
-        pytest.param(([[1, 2]], [[1, 3]], 1), {"trans_b": True, "alpha": 7.0, "beta": 9.0},
-                     "matrices and scalar with trans_b and alpha/beta"),
-        pytest.param(([[1], [2]], [[1], [3]], 1), {"trans_a": True, "alpha": 7.0, "beta": 9.0},
-                     "matrices and scalar with trans_a and alpha/beta"),
+        pytest.param(
+            ([1, 2], [1, 3], [1, 4]),
+            {"trans_a": True, "trans_b": True},
+            "vectors with trans_a/trans_b",
+        ),
+        pytest.param(
+            ([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1]),
+            {"trans_a": True, "trans_b": True, "alpha": 7.0, "beta": 9.0},
+            "matrices and vector with trans_b and alpha/beta",
+        ),
+        pytest.param(
+            ([[1, 2]], [[1, 3]], 1),
+            {"trans_b": True, "alpha": 7.0, "beta": 9.0},
+            "matrices and scalar with trans_b and alpha/beta",
+        ),
+        pytest.param(
+            ([[1], [2]], [[1], [3]], 1),
+            {"trans_a": True, "alpha": 7.0, "beta": 9.0},
+            "matrices and scalar with trans_a and alpha/beta",
+        ),
     ],
 )
 def test_gemm_transpositions(data, kwargs, description):
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
+    assert np.array_equal(
+        import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs)
+    )
 
 
 def test_gemm_flatten():
     # input_a has a shape of (4, 1)
     data = ([[1], [2], [3], [4]], [1, 3, 5, 7], [1, 4])
     kwargs = {"alpha": 7.0, "beta": 9.0, "trans_a": True}
-    assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
+    assert np.array_equal(
+        import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs)
+    )

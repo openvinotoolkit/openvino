@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/shape_of.hpp"
+
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
 #include "shape_of_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/shape_of.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -40,7 +39,8 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
@@ -57,7 +57,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             for (size_t i = 0; i < shape.size(); i++)
                 output_lock[i] = static_cast<int64_t>(shape[i]);
         } else {
-            OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
+            OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt, ")");
         }
 
         if (pass_through_events) {
@@ -71,7 +71,7 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -80,7 +80,6 @@ public:
         return make_unique<shape_of_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -100,8 +99,16 @@ attach_shape_of_impl::attach_shape_of_impl() {
         data_types::i64,
     };
 
-    implementation_map<shape_of>::add(impl_types::cpu, shape_types::static_shape, shape_of_impl::create, types, formats);
-    implementation_map<shape_of>::add(impl_types::cpu, shape_types::dynamic_shape, shape_of_impl::create, types, formats);
+    implementation_map<shape_of>::add(impl_types::cpu,
+                                      shape_types::static_shape,
+                                      shape_of_impl::create,
+                                      types,
+                                      formats);
+    implementation_map<shape_of>::add(impl_types::cpu,
+                                      shape_types::dynamic_shape,
+                                      shape_of_impl::create,
+                                      types,
+                                      formats);
 }
 
 }  // namespace detail

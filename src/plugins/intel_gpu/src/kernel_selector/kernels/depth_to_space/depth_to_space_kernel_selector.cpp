@@ -3,8 +3,9 @@
 //
 
 #include "depth_to_space_kernel_selector.h"
-#include "depth_to_space_kernel_ref.h"
+
 #include "depth_to_space_kernel_block2_opt.h"
+#include "depth_to_space_kernel_ref.h"
 
 namespace kernel_selector {
 

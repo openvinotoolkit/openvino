@@ -4,12 +4,11 @@
 
 #include "snippets/pass/matmul_to_brgemm.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -18,21 +17,26 @@ namespace pass {
 
 void MatMulToBrgemm::init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const {
     auto get_subtensor = [](const ov::Shape& shape) {
-        return std::vector<size_t>{ lowered::PortDescriptor::ServiceDimensions::FULL_DIM, lowered::PortDescriptor::ServiceDimensions::FULL_DIM };
+        return std::vector<size_t>{lowered::PortDescriptor::ServiceDimensions::FULL_DIM,
+                                   lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
     };
     for (const auto& input : brgemm->inputs()) {
         const auto tensor = input.get_shape();
         const auto subtensor = get_subtensor(tensor);
-        lowered::PortDescriptorUtils::set_port_descriptor_ptr(input, std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+        lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+            input,
+            std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
     }
     const auto tensor = brgemm->get_output_shape(0);
     const auto subtensor = get_subtensor(tensor);
-    lowered::PortDescriptorUtils::set_port_descriptor_ptr(brgemm->output(0), std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
+    lowered::PortDescriptorUtils::set_port_descriptor_ptr(brgemm->output(0),
+                                                          std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
 }
 
 MatMulToBrgemm::MatMulToBrgemm() {
     MATCHER_SCOPE(MatMulToBrgemm);
-    auto matmul_pattern = ov::pass::pattern::wrap_type<ov::opset1::MatMul>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto matmul_pattern = ov::pass::pattern::wrap_type<ov::opset1::MatMul>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
     auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MatMulToBrgemm")
@@ -42,8 +46,9 @@ MatMulToBrgemm::MatMulToBrgemm() {
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
 
-        auto brgemm = std::make_shared<op::Brgemm>(matmul->get_input_source_output(0), matmul->get_input_source_output(1));
-        ov::NodeVector nodes = { brgemm };
+        auto brgemm =
+            std::make_shared<op::Brgemm>(matmul->get_input_source_output(0), matmul->get_input_source_output(1));
+        ov::NodeVector nodes = {brgemm};
         if (brgemm->get_output_element_type(0) != matmul->get_output_element_type(0)) {
             nodes.emplace_back(std::make_shared<op::ConvertSaturation>(brgemm, matmul->get_output_element_type(0)));
         }

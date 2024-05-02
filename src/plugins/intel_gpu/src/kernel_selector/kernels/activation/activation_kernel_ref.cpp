@@ -59,7 +59,8 @@ KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/
 }
 
 bool ActivationKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p))
+        return false;
     const auto& params = static_cast<const activation_params&>(p);
     if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
         return false;

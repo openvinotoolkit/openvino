@@ -23,8 +23,10 @@ struct cum_sum : public primitive_base<cum_sum> {
             const bool exclusive = false,
             const bool reverse = false,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), axis(axis), exclusive(exclusive), reverse(reverse)
-    {}
+        : primitive_base(id, {input}, {output_padding}),
+          axis(axis),
+          exclusive(exclusive),
+          reverse(reverse) {}
 
     /// @brief Scalar axis.
     int64_t axis = 0;
@@ -47,9 +49,7 @@ struct cum_sum : public primitive_base<cum_sum> {
 
         auto rhs_casted = downcast<const cum_sum>(rhs);
 
-        return axis == rhs_casted.axis &&
-               exclusive == rhs_casted.exclusive &&
-               reverse == rhs_casted.reverse;
+        return axis == rhs_casted.axis && exclusive == rhs_casted.exclusive && reverse == rhs_casted.reverse;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

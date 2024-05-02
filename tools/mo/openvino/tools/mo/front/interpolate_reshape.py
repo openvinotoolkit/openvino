@@ -3,13 +3,12 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.gather import Gather
-from openvino.tools.mo.ops.interpolate import Interpolate
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.gather import Gather
+from openvino.tools.mo.ops.interpolate import Interpolate
 from openvino.tools.mo.ops.shape import Shape
 
 
@@ -60,22 +59,24 @@ class InterpolateWithConcat(FrontReplacementPattern):
     We perform this transformation of the FRONT phase for MO to be able to reshape this Interpolate layer too.
     There is a similar transformation with less restrictions on the BACK phase.
     """
+
     enabled = True
 
     def run_after(self):
         from openvino.tools.mo.front.InterpolateNormalizer import InterpolateNormalizer
+
         return [InterpolateNormalizer]
 
     @staticmethod
     def get_concat_axis(concat: Node):
         # Concat axis may be stored as an attribute and as an input (TF) and this is not resolved yet
         # TODO: should be removed after Concat operation normalization
-        assert concat.soft_get('type') == 'Concat'
-        if concat.has_valid('axis'):
+        assert concat.soft_get("type") == "Concat"
+        if concat.has_valid("axis"):
             return concat.axis
-        if concat.has_valid('N'):
+        if concat.has_valid("N"):
             axis_node = concat.in_port(concat.N).get_source().node
-            if axis_node.has_valid('value'):
+            if axis_node.has_valid("value"):
                 return axis_node.value.item(0)
         return None
 
@@ -85,7 +86,9 @@ class InterpolateWithConcat(FrontReplacementPattern):
         Checks if node has exactly one used output port and this output port is only used by one consumer
         If the checks passed, function returns consumer_node, otherwise None
         """
-        connected_out_ports = [port for port in node.out_ports().values() if not port.disconnected()]
+        connected_out_ports = [
+            port for port in node.out_ports().values() if not port.disconnected()
+        ]
         if len(connected_out_ports) == 1 and connected_out_ports[0].idx == idx:
             dsts = node.out_port(idx).get_destinations()
             if len(dsts) == 1:
@@ -98,7 +101,9 @@ class InterpolateWithConcat(FrontReplacementPattern):
         Checks if node has exactly one used input port
         If the check passed, function returns input_node otherwise None
         """
-        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        connected_in_ports = [
+            port for port in node.in_ports().values() if not port.disconnected()
+        ]
         if len(connected_in_ports) == 1 and connected_in_ports[0].idx == idx:
             return node.in_port(idx).get_source().node
         return None
@@ -108,9 +113,9 @@ class InterpolateWithConcat(FrontReplacementPattern):
         Traverses Concat input ports up to find which of them are not connected to Interpolate operations directly
         or through identity operation sequence. Returns the list of Concat sources that satisfy the condition.
         """
-        assert concat.soft_get('type') == 'Concat'
+        assert concat.soft_get("type") == "Concat"
         sources, ports_to_omit = [], []
-        if concat.has_valid('N'):
+        if concat.has_valid("N"):
             # TODO: should be removed after Concat operation normalization
             ports_to_omit.append(concat.N)
 
@@ -118,25 +123,31 @@ class InterpolateWithConcat(FrontReplacementPattern):
             if in_port.disconnected() or in_port.idx in ports_to_omit:
                 continue
             next_node = in_port.get_source().node
-            while next_node.soft_get('type') != 'Interpolate' and next_node.has_and_set('identity'):
+            while next_node.soft_get("type") != "Interpolate" and next_node.has_and_set(
+                "identity"
+            ):
                 node = self.get_single_input_source_safely(next_node)
                 if node is not None:
                     next_node = node
                 else:
                     break
-            if next_node.soft_get('type') != 'Interpolate':
+            if next_node.soft_get("type") != "Interpolate":
                 sources.append(in_port.get_connection().get_source())
         return sources
 
     def make_interpolate_reshape_able(self, interpolate: Node, concat: Node):
-        assert interpolate.soft_get('type') == 'Interpolate'
-        assert concat.soft_get('type') == 'Concat'
+        assert interpolate.soft_get("type") == "Interpolate"
+        assert concat.soft_get("type") == "Concat"
         interp_axes = Interpolate.get_axes(interpolate)
         concat_axis = self.get_concat_axis(concat)
 
-        if concat_axis is None or interp_axes is None \
-                or np.any(interp_axes < 0) or concat_axis < 0 \
-                or concat_axis in interp_axes:
+        if (
+            concat_axis is None
+            or interp_axes is None
+            or np.any(interp_axes < 0)
+            or concat_axis < 0
+            or concat_axis in interp_axes
+        ):
             # checks that interpolate axes and concat axis are valid and do not intersect
             return
 
@@ -148,26 +159,34 @@ class InterpolateWithConcat(FrontReplacementPattern):
         graph = interpolate.graph
         src = non_interp_concat_srcs[0]
 
-        shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
+        shape = Shape(
+            graph, {"name": src.node.soft_get("name", src.node.id) + "/Shape"}
+        ).create_node()
         shape.in_port(0).connect(src)
-        gather = create_op_with_const_inputs(graph, Gather,
-                                             {1: mo_array(interp_axes, dtype=np.int32), 2: int64_array(0)},
-                                             {'name': shape.name + '/Gathered'}, input_node=shape)
+        gather = create_op_with_const_inputs(
+            graph,
+            Gather,
+            {1: mo_array(interp_axes, dtype=np.int32), 2: int64_array(0)},
+            {"name": shape.name + "/Gathered"},
+            input_node=shape,
+        )
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
-            if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
+        for interpolate in graph.get_op_nodes(type="Interpolate", version="opset1"):
+            if interpolate.in_port(1).get_source().node.soft_get("type") != "Const":
                 continue
 
             # Interpolate could be connected to Concat through identity operations, skipping them
             next_node = self.get_single_output_destination_safely(interpolate)
             if next_node is not None:
-                while next_node.soft_get('type') != 'Concat' and next_node.has_and_set('identity'):
+                while next_node.soft_get("type") != "Concat" and next_node.has_and_set(
+                    "identity"
+                ):
                     node = self.get_single_output_destination_safely(next_node)
                     if node is not None:
                         next_node = node
                     else:
                         break
-                if next_node.soft_get('type') == 'Concat':
+                if next_node.soft_get("type") == "Concat":
                     self.make_interpolate_reshape_able(interpolate, next_node)

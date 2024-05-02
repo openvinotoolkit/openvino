@@ -7,8 +7,7 @@
 namespace cldnn {
 namespace cpu {
 
-#define REGISTER_CPU(prim)                                \
-    static detail::attach_##prim##_impl attach_##prim
+#define REGISTER_CPU(prim) static detail::attach_##prim##_impl attach_##prim
 
 void register_implementations() {
     REGISTER_CPU(assign);

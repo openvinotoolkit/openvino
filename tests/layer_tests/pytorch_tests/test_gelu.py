@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestGelu(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(2, 3).astype(np.float32),)
 
     def create_model(self, approximate):
@@ -16,7 +16,7 @@ class TestGelu(PytorchLayerTest):
         import torch.nn.functional as F
 
         class aten_gelu(torch.nn.Module):
-            def __init__(self, approximate='none'):
+            def __init__(self, approximate="none"):
                 super(aten_gelu, self).__init__()
                 self.approximate = approximate
 

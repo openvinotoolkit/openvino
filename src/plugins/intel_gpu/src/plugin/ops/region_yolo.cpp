@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/region_yolo.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/region_yolo.hpp"
 
 namespace ov {
@@ -26,16 +25,8 @@ static void CreateRegionYoloOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     int32_t axis = op->get_axis();
     int32_t end_axis = op->get_end_axis();
 
-    auto regionPrim = cldnn::region_yolo(layerName,
-                                         inputs[0],
-                                         coords,
-                                         classes,
-                                         num,
-                                         mask,
-                                         mask_size,
-                                         axis,
-                                         end_axis,
-                                         do_softmax);
+    auto regionPrim =
+        cldnn::region_yolo(layerName, inputs[0], coords, classes, num, mask, mask_size, axis, end_axis, do_softmax);
 
     p.add_primitive(*op, regionPrim);
 }

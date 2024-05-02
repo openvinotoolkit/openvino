@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-
 import openvino.runtime.opset8 as ov
 
 
@@ -21,7 +20,9 @@ def test_split():
 
 
 def test_variadic_split():
-    input_tensor = ov.constant(np.array([[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]], dtype=np.int32))
+    input_tensor = ov.constant(
+        np.array([[0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11]], dtype=np.int32)
+    )
     axis = ov.constant(1, dtype=np.int64)
     splits = ov.constant(np.array([2, 4], dtype=np.int64))
 

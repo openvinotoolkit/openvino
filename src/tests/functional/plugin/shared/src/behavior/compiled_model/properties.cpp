@@ -4,12 +4,12 @@
 
 #include "behavior/compiled_model/properties.hpp"
 
+#include <locale.h>
+
 #include <cstdint>
 
-#include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
-#include <locale.h>
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {

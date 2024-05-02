@@ -1,11 +1,12 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "strided_slice_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
-#include "strided_slice_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

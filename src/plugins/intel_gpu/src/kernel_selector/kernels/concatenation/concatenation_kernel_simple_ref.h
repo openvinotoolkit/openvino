@@ -22,12 +22,7 @@ public:
 protected:
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::REORDER,
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::REORDER, FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

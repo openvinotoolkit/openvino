@@ -6,10 +6,9 @@
 
 #include <memory>
 
-
 #include "common/add.hpp"
-#include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
+#include "common/fake_quantize_on_data.hpp"
 
 namespace ov {
 namespace builder {
@@ -24,38 +23,34 @@ public:
         ov::element::Type precisionAfterDequantization;
     };
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::PartialShape& inputShape,
-        const ov::element::Type precisionBeforeAdd,
-        const Add& add,
-        const ov::element::Type precisionBeforeDequantization,
-        const DequantizationOperations& dequantization,
-        const ov::element::Type precisionAfterDequantization,
-        const ov::element::Type precisionFqOnData,
-        const FakeQuantizeOnDataWithConstant& fqOnData);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::PartialShape& inputShape,
+                                                  const ov::element::Type precisionBeforeAdd,
+                                                  const Add& add,
+                                                  const ov::element::Type precisionBeforeDequantization,
+                                                  const DequantizationOperations& dequantization,
+                                                  const ov::element::Type precisionAfterDequantization,
+                                                  const ov::element::Type precisionFqOnData,
+                                                  const FakeQuantizeOnDataWithConstant& fqOnData);
 
-    static std::shared_ptr<ov::Model> getReference(
-        const ov::PartialShape& inputShape,
-        const ov::element::Type precisionBeforeAdd,
-        const Add& add,
-        const ov::element::Type precisionBeforeDequantization,
-        const DequantizationOperations& dequantization,
-        const ov::element::Type precisionAfterDequantization,
-        const ov::element::Type precisionFqOnData,
-        const FakeQuantizeOnDataWithConstant& fqOnData);
+    static std::shared_ptr<ov::Model> getReference(const ov::PartialShape& inputShape,
+                                                   const ov::element::Type precisionBeforeAdd,
+                                                   const Add& add,
+                                                   const ov::element::Type precisionBeforeDequantization,
+                                                   const DequantizationOperations& dequantization,
+                                                   const ov::element::Type precisionAfterDequantization,
+                                                   const ov::element::Type precisionFqOnData,
+                                                   const FakeQuantizeOnDataWithConstant& fqOnData);
 
-    static std::shared_ptr<ov::Model> get(
-        const ov::PartialShape& inputShape,
-        const ov::element::Type precisionBefore,
-        const FakeQuantizeOnData& fqOnData1,
-        const FakeQuantizeOnData& fqOnData2,
-        const DequantizationOperations& dequantizationOperations2);
+    static std::shared_ptr<ov::Model> get(const ov::PartialShape& inputShape,
+                                          const ov::element::Type precisionBefore,
+                                          const FakeQuantizeOnData& fqOnData1,
+                                          const FakeQuantizeOnData& fqOnData2,
+                                          const DequantizationOperations& dequantizationOperations2);
 
-    static std::shared_ptr<ov::Model> get(
-        const ov::PartialShape& inputShape,
-        const std::vector<Branch>& branches,
-        const ov::element::Type precisionFqOnData,
-        const FakeQuantizeOnData& fqOnData);
+    static std::shared_ptr<ov::Model> get(const ov::PartialShape& inputShape,
+                                          const std::vector<Branch>& branches,
+                                          const ov::element::Type precisionFqOnData,
+                                          const FakeQuantizeOnData& fqOnData);
 };
 
 }  // namespace subgraph

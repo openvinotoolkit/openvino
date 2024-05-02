@@ -26,7 +26,8 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     auto data_type = input_layout.data_type;
-    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) && !impl_param.has_fused_primitives()) {
+    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+        !impl_param.has_fused_primitives()) {
         data_type = data_types::f32;
     }
 
@@ -81,26 +82,26 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                              3,
                              "As for now, deconvolutions with more than 3 dimensions are not supported");
 
-    int32_t x = static_cast<int32_t>(
-        off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0));
+    int32_t x = static_cast<int32_t>(off_factor * pad[pad.size() - 1] +
+                                     (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0));
     int32_t y = 1;
     if (spatial_dims > 1) {
-        y = static_cast<int32_t>(
-            off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1));
+        y = static_cast<int32_t>(off_factor * pad[pad.size() - 2] +
+                                 (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1));
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
-        z = static_cast<int32_t>(
-            off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
+        z = static_cast<int32_t>(off_factor * pad[pad.size() - 3] +
+                                 (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
     }
 
-    tensor output_size(input_layout.batch(),
-                       number_of_features, x, y, z);
+    tensor output_size(input_layout.batch(), number_of_features, x, y, z);
     return {data_type, out_fmt, output_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node const& node, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node const& node,
+                                                            const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<deconvolution>();
 
     auto input_layout = impl_param.get_input_layout(0);
@@ -108,7 +109,9 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     weights_layout = weights_layout.convert_to_weights_layout(desc->grouped_weights_shape);
 
     if (input_layout.is_dynamic())
-        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), input_layout.data_type, input_layout.format}};
+        return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()),
+                       input_layout.data_type,
+                       input_layout.format}};
 
     auto input_type = input_layout.data_type;
     auto output_type = input_type;
@@ -162,9 +165,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         return {layout{output_type, out_fmt, output_size}};
     }
 
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>()};
     std::vector<ShapeType> output_shapes;
     auto& memory_deps = impl_param.memory_deps;
     // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
@@ -224,8 +225,9 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     return {layout{output_shapes[0], output_type, out_fmt.value}};
 }
 
-template std::vector<layout> deconvolution_inst::calc_output_layouts<ov::PartialShape>(deconvolution_node const& node,
-                                                                                       const kernel_impl_params& impl_param);
+template std::vector<layout> deconvolution_inst::calc_output_layouts<ov::PartialShape>(
+    deconvolution_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     auto desc = node.get_primitive();
@@ -259,8 +261,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     return primitive_description.str();
 }
 
-deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
-    : parent(network, node) {
+deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node) : parent(network, node) {
     if (node.is_dynamic())
         return;
     auto stride = argument->stride;
@@ -294,49 +295,49 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
     if (argument->bias.size() != 0) {
         auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias batch[0]",
-                                bias_inst.batch(),
-                                "dimension size",
-                                1,
-                                "Batch[0] of bias should be 1. Bias isn't 1D vector.");
+                              "Bias batch[0]",
+                              bias_inst.batch(),
+                              "dimension size",
+                              1,
+                              "Batch[0] of bias should be 1. Bias isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias feature[0]",
-                                bias_inst.feature(),
-                                "output feature size",
-                                output_layout.feature(),
-                                "Biases/output feature maps number does not match.");
+                              "Bias feature[0]",
+                              bias_inst.feature(),
+                              "output feature size",
+                              output_layout.feature(),
+                              "Biases/output feature maps number does not match.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[2]",
-                                bias_inst.spatial(2),
-                                "dimension size",
-                                1,
-                                "Spatial[2] of bias should be 1. Bias isn't 1D vector.");
+                              "Bias spatial[2]",
+                              bias_inst.spatial(2),
+                              "dimension size",
+                              1,
+                              "Spatial[2] of bias should be 1. Bias isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[1]",
-                                bias_inst.spatial(1),
-                                "dimension size",
-                                1,
-                                "Spatial[1] of bias should be 1. Bias isn't 1D vector.");
+                              "Bias spatial[1]",
+                              bias_inst.spatial(1),
+                              "dimension size",
+                              1,
+                              "Spatial[1] of bias should be 1. Bias isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[0]",
-                                bias_inst.spatial(0),
-                                "dimension size",
-                                1,
-                                "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
+                              "Bias spatial[0]",
+                              bias_inst.spatial(0),
+                              "dimension size",
+                              1,
+                              "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
     }
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "deconvolution padding filling value",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding mode",
-                            0.0f,
-                            "Unknown padding mode in deconvolution.");
+                          "deconvolution padding filling value",
+                          node.get_output_layout().data_padding.filling_value(),
+                          "padding mode",
+                          0.0f,
+                          "Unknown padding mode in deconvolution.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Weights feature maps number",
-                            filter_inst.ifm() * filter_inst.group(),
-                            "input feature maps number",
-                            input_layout.feature(),
-                            "Weights/ifm mismatch");
+                          "Weights feature maps number",
+                          filter_inst.ifm() * filter_inst.group(),
+                          "input feature maps number",
+                          input_layout.feature(),
+                          "Weights/ifm mismatch");
 }
 
 }  // namespace cldnn

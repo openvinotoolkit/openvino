@@ -10,8 +10,11 @@ import sys
 from pprint import pformat
 
 import numpy as np
-from e2e_tests.utils.test_utils import align_input_names, get_shapes_with_frame_size
-from e2e_tests.utils.test_utils import get_infer_result
+from e2e_tests.utils.test_utils import (
+    align_input_names,
+    get_infer_result,
+    get_shapes_with_frame_size,
+)
 
 try:
     import resource
@@ -20,25 +23,27 @@ try:
 except ImportError:
     mem_info_available = False
 
-from openvino.runtime import Core
-from openvino.inference_engine import get_version as ie_get_version
 from e2e_tests.common.multiprocessing_utils import multiprocessing_run
+from openvino.inference_engine import get_version as ie_get_version
+from openvino.runtime import Core
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
 
-from e2e_tests.common.infer.provider import ClassProvider
 from e2e_tests.common.infer.network_modifiers import Container
+from e2e_tests.common.infer.provider import ClassProvider
 
 
 def resolve_library_name(libname):
     """Return platform-specific library name given basic libname."""
     if not libname:
         return libname
-    if os.name == 'nt':
-        return libname + '.dll'
-    if platform.system() == 'Darwin':
-        return 'lib' + libname + '.dylib'
-    return 'lib' + libname + '.so'
+    if os.name == "nt":
+        return libname + ".dll"
+    if platform.system() == "Darwin":
+        return "lib" + libname + ".dylib"
+    return "lib" + libname + ".so"
 
 
 def parse_device_name(device_name):
@@ -59,6 +64,7 @@ def parse_device_name(device_name):
 
 class Infer(ClassProvider):
     """Basic inference engine runner."""
+
     __action_name__ = "ie_sync"
 
     def __init__(self, config):
@@ -67,9 +73,11 @@ class Infer(ClassProvider):
         self.res = None
         self.network_modifiers = Container(config=config.get("network_modifiers", {}))
         self.plugin_cfg = config.get("plugin_config", {})
-        self.plugin_cfg_target_device = config.get("plugin_cfg_target_device", self.device)
+        self.plugin_cfg_target_device = config.get(
+            "plugin_cfg_target_device", self.device
+        )
         self.consecutive_infer = config.get("consecutive_infer", False)
-        self.index_infer = config.get('index_infer')
+        self.index_infer = config.get("index_infer")
         self.xml = None
         self.bin = None
         self.model_path = None
@@ -80,8 +88,12 @@ class Infer(ClassProvider):
             if "DEVICE_THERMAL" in supported_metrics:
                 return round(exec_net.get_property("DEVICE_THERMAL"), 3)
             else:
-                log.warning("Expected metric 'DEVICE_THERMAL' doesn't present in "
-                            "supported metrics list {} for MYRIAD plugin".format(supported_metrics))
+                log.warning(
+                    "Expected metric 'DEVICE_THERMAL' doesn't present in "
+                    "supported metrics list {} for MYRIAD plugin".format(
+                        supported_metrics
+                    )
+                )
                 return None
         elif "HDDL" in self.device:
             # TODO: Uncomment when HDDL plugin will support 'SUPPORTED_METRICS' metric and remove try/except block
@@ -93,9 +105,14 @@ class Infer(ClassProvider):
             #                 "supported metrics list {} for HDDL plugin".format(supported_metrics))
             #     return None
             try:
-                return [round(t, 3) for t in ie.get_property("HDDL", "VPU_HDDL_DEVICE_THERMAL")]
+                return [
+                    round(t, 3)
+                    for t in ie.get_property("HDDL", "VPU_HDDL_DEVICE_THERMAL")
+                ]
             except RuntimeError:
-                log.warning("Failed to query metric 'VPU_HDDL_DEVICE_THERMAL' for HDDL plugin")
+                log.warning(
+                    "Failed to query metric 'VPU_HDDL_DEVICE_THERMAL' for HDDL plugin"
+                )
                 return None
 
         else:
@@ -103,14 +120,20 @@ class Infer(ClassProvider):
 
     def _configure_plugin(self, ie):
         if self.plugin_cfg:
-            supported_props = ie.get_property(self.plugin_cfg_target_device, 'SUPPORTED_PROPERTIES')
-            if 'INFERENCE_PRECISION_HINT' not in supported_props:
+            supported_props = ie.get_property(
+                self.plugin_cfg_target_device, "SUPPORTED_PROPERTIES"
+            )
+            if "INFERENCE_PRECISION_HINT" not in supported_props:
                 log.warning(
-                    f'inference precision hint is not supported for device {self.plugin_cfg_target_device},'
-                    f' option will be ignored')
+                    f"inference precision hint is not supported for device {self.plugin_cfg_target_device},"
+                    f" option will be ignored"
+                )
                 return
-            log.info("Setting config to the {} plugin. \nConfig:\n{}".format(self.plugin_cfg_target_device,
-                                                                             pformat(self.plugin_cfg)))
+            log.info(
+                "Setting config to the {} plugin. \nConfig:\n{}".format(
+                    self.plugin_cfg_target_device, pformat(self.plugin_cfg)
+                )
+            )
             ie.set_property(self.plugin_cfg_target_device, self.plugin_cfg)
 
     def _infer(self, input_data):
@@ -118,7 +141,9 @@ class Infer(ClassProvider):
         log.info("Using API v2.0")
         result, load_net_to_plug_time = None, None
         if mem_info_available:
-            mem_usage_in_kbytes_before_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            mem_usage_in_kbytes_before_run = resource.getrusage(
+                resource.RUSAGE_SELF
+            ).ru_maxrss
 
         log.info("Creating Core Engine...")
         ie = Core()
@@ -137,24 +162,37 @@ class Infer(ClassProvider):
 
         for input_tensor in self.ov_model.inputs:
             # all input and output tensors have to be named
-            assert input_tensor.names, "Input tensor {} has no names".format(input_tensor)
+            assert input_tensor.names, "Input tensor {} has no names".format(
+                input_tensor
+            )
 
         result = []
         if self.consecutive_infer:
             for infer_run_counter in range(2):
-                helper = get_infer_result(input_data[infer_run_counter], compiled_model, self.ov_model,
-                                          infer_run_counter, self.index_infer)
+                helper = get_infer_result(
+                    input_data[infer_run_counter],
+                    compiled_model,
+                    self.ov_model,
+                    infer_run_counter,
+                    self.index_infer,
+                )
                 result.append(helper)
         else:
-            infer_result = get_infer_result(input_data, compiled_model, self.ov_model, index_infer=self.index_infer)
+            infer_result = get_infer_result(
+                input_data, compiled_model, self.ov_model, index_infer=self.index_infer
+            )
             result.append(infer_result)
 
         if not self.consecutive_infer:
             result = result[0]
 
         if mem_info_available:
-            mem_usage_in_kbytes_after_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            mem_usage_ie = round((mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024)
+            mem_usage_in_kbytes_after_run = resource.getrusage(
+                resource.RUSAGE_SELF
+            ).ru_maxrss
+            mem_usage_ie = round(
+                (mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024
+            )
         else:
             mem_usage_ie = -1
 
@@ -166,26 +204,30 @@ class Infer(ClassProvider):
         return result, load_net_to_plug_time, mem_usage_ie
 
     def infer(self, input_data):
-        self.res, self.load_net_to_plug_time, self.mem_usage_ie = \
-            multiprocessing_run(self._infer, [input_data], "Inference Engine Python API", self.timeout)
+        self.res, self.load_net_to_plug_time, self.mem_usage_ie = multiprocessing_run(
+            self._infer, [input_data], "Inference Engine Python API", self.timeout
+        )
 
         return self.res
 
 
 class SequenceInference(Infer):
     """Sequence inference engine runner."""
+
     __action_name__ = "ie_sequence"
 
     def __init__(self, config):
         super().__init__(config=config)
-        self.default_shapes = config.get('default_shapes')
+        self.default_shapes = config.get("default_shapes")
 
     def _infer(self, input_data):
         log.info("Inference Engine version: {}".format(ie_get_version()))
         log.info("Using API v2.0")
         result, load_net_to_plug_time = None, None
         if mem_info_available:
-            mem_usage_in_kbytes_before_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            mem_usage_in_kbytes_before_run = resource.getrusage(
+                resource.RUSAGE_SELF
+            ).ru_maxrss
 
         log.info("Creating Core Engine...")
         ie = Core()
@@ -203,32 +245,56 @@ class SequenceInference(Infer):
 
         for input_tensor in ov_model.inputs:
             # all input and output tensors have to be named
-            assert input_tensor.names, "Input tensor {} has no names".format(input_tensor)
+            assert input_tensor.names, "Input tensor {} has no names".format(
+                input_tensor
+            )
 
         result = []
         input_data = align_input_names(input_data, ov_model)
         # make input_data (dict) a list of frame feed dicts
-        input_data = get_shapes_with_frame_size(self.default_shapes, ov_model, input_data)
+        input_data = get_shapes_with_frame_size(
+            self.default_shapes, ov_model, input_data
+        )
 
         new_input = []
         num_frames = max([input_data[key].shape[0] for key in input_data])
-        input_data = {key: value if value.shape[0] == num_frames else np.tile(value, num_frames).reshape(num_frames, *(
-            list(value.shape)[1:])) for key, value in input_data.items()}
+        input_data = {
+            key: (
+                value
+                if value.shape[0] == num_frames
+                else np.tile(value, num_frames).reshape(
+                    num_frames, *(list(value.shape)[1:])
+                )
+            )
+            for key, value in input_data.items()
+        }
         log.info("Total number of input frames: {}".format(num_frames))
 
         for current_frame_index in range(0, num_frames):
-            cur_frame_data = {key: value[current_frame_index] for key, value in input_data.items()}
-            infer_result = get_infer_result(cur_frame_data, compiled_model, ov_model, current_frame_index)
+            cur_frame_data = {
+                key: value[current_frame_index] for key, value in input_data.items()
+            }
+            infer_result = get_infer_result(
+                cur_frame_data, compiled_model, ov_model, current_frame_index
+            )
             result.append(infer_result)
 
         # make result (list of infer result for each frame) a dict (each layer contains infer result for all frames)
         result = {key: [value[key] for value in result] for key in result[0]}
-        result = {key: np.stack(values, axis=0).reshape(num_frames, *(list(values[0].shape[1:]))) for key, values in
-                  result.items()}
+        result = {
+            key: np.stack(values, axis=0).reshape(
+                num_frames, *(list(values[0].shape[1:]))
+            )
+            for key, values in result.items()
+        }
 
         if mem_info_available:
-            mem_usage_in_kbytes_after_run = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            mem_usage_ie = round((mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024)
+            mem_usage_in_kbytes_after_run = resource.getrusage(
+                resource.RUSAGE_SELF
+            ).ru_maxrss
+            mem_usage_ie = round(
+                (mem_usage_in_kbytes_after_run - mem_usage_in_kbytes_before_run) / 1024
+            )
         else:
             mem_usage_ie = -1
 
@@ -240,7 +306,8 @@ class SequenceInference(Infer):
         return result, load_net_to_plug_time, mem_usage_ie
 
     def infer(self, model):
-        self.res, self.load_net_to_plug_time, self.mem_usage_ie = \
-            multiprocessing_run(self._infer, [model], "Inference Engine Python API", self.timeout)
+        self.res, self.load_net_to_plug_time, self.mem_usage_ie = multiprocessing_run(
+            self._infer, [model], "Inference Engine Python API", self.timeout
+        )
 
         return self.res

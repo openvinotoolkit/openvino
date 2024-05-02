@@ -1,26 +1,25 @@
 #
 # greater_than paddle model generator
 #
-import numpy as np
-from save_model import saveModel
-import paddle as pdpd
 import sys
+
+import numpy as np
+import paddle as pdpd
+from save_model import saveModel
 
 
 def greater_than(name: str, x, y, data_type, cast_to_fp32=False):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
-        node_x = pdpd.static.data(
-            name='input_x', shape=x.shape, dtype=data_type)
-        node_y = pdpd.static.data(
-            name='input_y', shape=y.shape, dtype=data_type)
-        if pdpd.__version__ >= '2.0.0':
-            out = pdpd.greater_than(
-                x=node_x, y=node_y, name='greater_than')
+        node_x = pdpd.static.data(name="input_x", shape=x.shape, dtype=data_type)
+        node_y = pdpd.static.data(name="input_y", shape=y.shape, dtype=data_type)
+        if pdpd.__version__ >= "2.0.0":
+            out = pdpd.greater_than(x=node_x, y=node_y, name="greater_than")
         else:
             out = pdpd.fluid.layers.greater_than(
-                x=node_x, y=node_y, name='greater_than')
+                x=node_x, y=node_y, name="greater_than"
+            )
         # FuzzyTest framework doesn't support boolean so cast to fp32/int32
 
         if cast_to_fp32:
@@ -32,28 +31,29 @@ def greater_than(name: str, x, y, data_type, cast_to_fp32=False):
         # startup program will call initializer to initialize the parameters.
         exe.run(pdpd.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'input_x': x, 'input_y': y},
-            fetch_list=[out])
+        outs = exe.run(feed={"input_x": x, "input_y": y}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x', 'input_y'], fetchlist=[out],
-                  inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["input_x", "input_y"],
+            fetchlist=[out],
+            inputs=[x, y],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 
 
 def main():
 
-    test_cases = [
-        "float32",
-        "int32",
-        "int64"
-    ]
+    test_cases = ["float32", "int32", "int64"]
 
     for test in test_cases:
         x = np.array([0, 1, 2, 3]).astype(test)
         y = np.array([1, 0, 2, 4]).astype(test)
-        if ((test == "float64") or (test == "int64")):
+        if (test == "float64") or (test == "int64"):
             greater_than("greater_than_" + test, x, y, test, True)
         else:
             greater_than("greater_than_" + test, x, y, test, False)

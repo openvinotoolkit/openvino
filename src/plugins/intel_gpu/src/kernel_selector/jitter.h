@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "kernel_selector_common.h"
-
-#include <sstream>
-#include <cmath>
 #include <algorithm>
-#include <string>
-#include <vector>
-#include <memory>
-#include <utility>
+#include <cmath>
 #include <locale>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "kernel_selector_common.h"
 
 namespace kernel_selector {
 
@@ -96,15 +96,25 @@ std::string toCodeString(T val) {
     return ss.str();
 }
 
-inline std::string toCodeString(const std::string& val) { return val; }
-inline std::string toCodeString(const char* val) { return val; }
-inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
+inline std::string toCodeString(const std::string& val) {
+    return val;
+}
+inline std::string toCodeString(const char* val) {
+    return val;
+}
+inline std::string toCodeString(bool val) {
+    return val ? "1" : "0";
+}
 std::string toCodeString(float val);
 std::string toCodeString(double val);
 std::string toCodeString(size_t val);
 std::string toCodeString(uint8_t val);
 std::string toCodeString(int8_t val);
-std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = false, bool pad_is_dynamic = false, size_t dynamic_pad_offset = 0);
+std::string toCodeString(const Tensor::Dim& dim,
+                         size_t offset,
+                         bool padded = false,
+                         bool pad_is_dynamic = false,
+                         size_t dynamic_pad_offset = 0);
 std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output = false, size_t num_of_inputs = 0);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +158,9 @@ protected:
     explicit JitConstant(const std::string& name) : _name(name) {}
 
 public:
-    std::string GetJitName() { return _name; }
+    std::string GetJitName() {
+        return _name;
+    }
     virtual JitDefinitions GetDefinitions() const = 0;
     virtual ~JitConstant() {}
 };
@@ -159,7 +171,9 @@ class simple_jit_constant : public JitConstant {
 public:
     simple_jit_constant(const std::string& name, const std::string& value) : JitConstant(name), _value(value) {}
 
-    JitDefinitions GetDefinitions() const override { return JitDefinitions{{_name, _value}}; }
+    JitDefinitions GetDefinitions() const override {
+        return JitDefinitions{{_name, _value}};
+    }
 };
 
 template <typename T>
@@ -183,8 +197,22 @@ public:
     JitDefinitions GetDefinitions() const override {
         JitDefinitions result{
             {_name + "_SIZE", toCodeString(_data.size())},
-            {_name + "_INIT", toVectorInitString(_data, GetTypeName<T>(), _data.size(), 1, [](const T& v) { return v; })},
-            {_name, toVectorString(_data, GetTypeName<T>(), _data.size(), 1, [](const T& v) { return v; })},
+            {_name + "_INIT",
+             toVectorInitString(_data,
+                                GetTypeName<T>(),
+                                _data.size(),
+                                1,
+                                [](const T& v) {
+                                    return v;
+                                })},
+            {_name,
+             toVectorString(_data,
+                            GetTypeName<T>(),
+                            _data.size(),
+                            1,
+                            [](const T& v) {
+                                return v;
+                            })},
         };
         return result;
     }
@@ -257,7 +285,9 @@ class JitConstants {
 public:
     JitConstants(std::initializer_list<std::shared_ptr<JitConstant>> constants) : _constants(constants) {}
 
-    inline void AddConstant(std::shared_ptr<JitConstant> constant) { _constants.push_back(constant); }
+    inline void AddConstant(std::shared_ptr<JitConstant> constant) {
+        _constants.push_back(constant);
+    }
 
     inline void AddConstants(const std::vector<std::shared_ptr<JitConstant>>& constants) {
         for (const auto& c : constants) {
@@ -265,14 +295,17 @@ public:
         }
     }
 
-    inline void Merge(const JitConstants& jit) { AddConstants(jit._constants); }
+    inline void Merge(const JitConstants& jit) {
+        AddConstants(jit._constants);
+    }
 
     inline void RemoveConstant(std::string name) {
-        _constants.erase(
-            std::remove_if(_constants.begin(),
-                           _constants.end(),
-                           [=](std::shared_ptr<JitConstant> x) -> bool { return x->GetJitName() == name; }),
-            _constants.end());
+        _constants.erase(std::remove_if(_constants.begin(),
+                                        _constants.end(),
+                                        [=](std::shared_ptr<JitConstant> x) -> bool {
+                                            return x->GetJitName() == name;
+                                        }),
+                         _constants.end());
     }
 
     JitDefinitions GetDefinitions() const;
@@ -322,7 +355,9 @@ JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount);
 
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
-inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
+inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) {
+    return MakeTypeJitConstants(dataType, "UNIT");
+}
 JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size);
 
 class FusedOpsCodeGenerator {
@@ -340,18 +375,71 @@ public:
         std::string x;
         size_t dims;
         explicit idx_desc(std::vector<std::string> idx, DataTensor t)
-            : b("0"), f("0"), v("0"), u("0"), w("0"), z("0"), y("0"), x("0"), dims(0) {
+            : b("0"),
+              f("0"),
+              v("0"),
+              u("0"),
+              w("0"),
+              z("0"),
+              y("0"),
+              x("0"),
+              dims(0) {
             dims = idx.size();
             switch (dims) {
-                case 1: f = idx[0]; break;
-                case 2: b = idx[0]; f = idx[1]; break;
-                case 3: b = idx[0]; f = idx[1]; y = idx[2]; break;
-                case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
-                case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
-                case 6: b = idx[0]; f = idx[1]; w = idx[2]; z = idx[3]; y = idx[4]; x = idx[5]; break;
-                case 7: b = idx[0]; f = idx[1]; u = idx[2]; w = idx[3]; z = idx[4]; y = idx[5]; x = idx[6]; break;
-                case 8: b = idx[0]; f = idx[1]; v = idx[2]; u = idx[3]; w = idx[4]; z = idx[5]; y = idx[6]; x = idx[7]; break;
-                default: throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
+            case 1:
+                f = idx[0];
+                break;
+            case 2:
+                b = idx[0];
+                f = idx[1];
+                break;
+            case 3:
+                b = idx[0];
+                f = idx[1];
+                y = idx[2];
+                break;
+            case 4:
+                b = idx[0];
+                f = idx[1];
+                y = idx[2];
+                x = idx[3];
+                break;
+            case 5:
+                b = idx[0];
+                f = idx[1];
+                z = idx[2];
+                y = idx[3];
+                x = idx[4];
+                break;
+            case 6:
+                b = idx[0];
+                f = idx[1];
+                w = idx[2];
+                z = idx[3];
+                y = idx[4];
+                x = idx[5];
+                break;
+            case 7:
+                b = idx[0];
+                f = idx[1];
+                u = idx[2];
+                w = idx[3];
+                z = idx[4];
+                y = idx[5];
+                x = idx[6];
+                break;
+            case 8:
+                b = idx[0];
+                f = idx[1];
+                v = idx[2];
+                u = idx[3];
+                w = idx[4];
+                z = idx[5];
+                y = idx[6];
+                x = idx[7];
+                break;
+            default:
+                throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
             }
 
             if (t.Batch().v == 1) {
@@ -385,7 +473,8 @@ public:
     JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
     JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
     JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
-                                    const std::string in_var, const Datatype in_type,
+                                    const std::string in_var,
+                                    const Datatype in_type,
                                     std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
@@ -394,8 +483,11 @@ public:
     std::string GetInputTensorName(size_t input_id) const;
     std::string GetOutputTensorName() const;
     std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
-    std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
-                           bool reuse_index = false, std::string reused_idx = "") const;
+    std::string GetJitLoad(const FusedOpsConfiguration& conf,
+                           size_t input_id,
+                           const DataTensor prim_output,
+                           bool reuse_index = false,
+                           std::string reused_idx = "") const;
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
@@ -403,7 +495,7 @@ public:
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
-    std::string Broadcast(std::string var,  Datatype dt, size_t vec_size = 1) const;
+    std::string Broadcast(std::string var, Datatype dt, size_t vec_size = 1) const;
     std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1) const;
     std::string GetOutputType(size_t vec_size = 1) const;
     std::string GetType(Datatype dt, size_t vec_size = 1) const;

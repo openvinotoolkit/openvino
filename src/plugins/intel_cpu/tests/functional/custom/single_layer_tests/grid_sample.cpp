@@ -11,14 +11,14 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-typedef std::tuple<std::vector<InputShape>,        // Input shapes
+typedef std::tuple<std::vector<InputShape>,                    // Input shapes
                    ov::op::v9::GridSample::InterpolationMode,  // Interpolation mode
                    ov::op::v9::GridSample::PaddingMode,        // Padding mode
-                   bool,                           // Align corners
-                   ElementType,                    // Data precision
-                   ElementType,                    // Grid precision
-                   CPUSpecificParams,              // CPU specific params
-                   ov::AnyMap                      // Additional config
+                   bool,                                       // Align corners
+                   ElementType,                                // Data precision
+                   ElementType,                                // Grid precision
+                   CPUSpecificParams,                          // CPU specific params
+                   ov::AnyMap                                  // Additional config
                    >
     GridSampleLayerTestCPUParams;
 
@@ -63,12 +63,12 @@ public:
         result << "interpMode="
                << (interpolateMode == ov::op::v9::GridSample::InterpolationMode::BILINEAR  ? "BILINEAR"
                    : interpolateMode == ov::op::v9::GridSample::InterpolationMode::BICUBIC ? "BICUBIC"
-                                                                               : "NEAREST")
+                                                                                           : "NEAREST")
                << "_";
         result << "padMode="
                << (paddingMode == ov::op::v9::GridSample::PaddingMode::ZEROS    ? "ZEROS"
                    : paddingMode == ov::op::v9::GridSample::PaddingMode::BORDER ? "BORDER"
-                                                                    : "REFLECTION")
+                                                                                : "REFLECTION")
                << "_";
         result << "alignCorners=" << (alignCorners ? "True" : "False") << "_";
         result << "dataPrc=" << dataPrecision << "_";
@@ -140,16 +140,21 @@ protected:
             ov::test::utils::InputGenerateData in_data;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {
-                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(), targetInputStaticShapes[0].end(), 1u, std::multiplies<uint32_t>());
+                int32_t range = std::accumulate(targetInputStaticShapes[0].begin(),
+                                                targetInputStaticShapes[0].end(),
+                                                1u,
+                                                std::multiplies<uint32_t>());
                 in_data.start_from = -range / 2;
                 in_data.range = range;
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+                tensor =
+                    utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "grid") {
                 int32_t range = std::max(targetInputStaticShapes[0][2], targetInputStaticShapes[0][3]) + 2;
                 in_data.start_from = -1;
                 in_data.range = range;
                 in_data.resolution = range / 2;
-                tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
+                tensor =
+                    utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -166,13 +171,14 @@ namespace {
 std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
                                             {{ov::hint::inference_precision(ov::element::bf16)}}};
 
-std::vector<ov::op::v9::GridSample::InterpolationMode> interpolateMode{ov::op::v9::GridSample::InterpolationMode::BILINEAR,
-                                                           ov::op::v9::GridSample::InterpolationMode::BICUBIC,
-                                                           ov::op::v9::GridSample::InterpolationMode::NEAREST};
+std::vector<ov::op::v9::GridSample::InterpolationMode> interpolateMode{
+    ov::op::v9::GridSample::InterpolationMode::BILINEAR,
+    ov::op::v9::GridSample::InterpolationMode::BICUBIC,
+    ov::op::v9::GridSample::InterpolationMode::NEAREST};
 
 std::vector<ov::op::v9::GridSample::PaddingMode> paddingMode{ov::op::v9::GridSample::PaddingMode::ZEROS,
-                                                 ov::op::v9::GridSample::PaddingMode::BORDER,
-                                                 ov::op::v9::GridSample::PaddingMode::REFLECTION};
+                                                             ov::op::v9::GridSample::PaddingMode::BORDER,
+                                                             ov::op::v9::GridSample::PaddingMode::REFLECTION};
 
 std::vector<bool> alignCorners{true, false};
 

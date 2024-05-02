@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "generate_proposals_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "generate_proposals_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(generate_proposals)
 
-layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node, kernel_impl_params const& impl_param) {
+layout generate_proposals_inst::calc_output_layout(const generate_proposals_node& node,
+                                                   kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();
     const auto num_batches = data_layout.batch();
     const auto desc = impl_param.typed_desc<generate_proposals>();
-    return layout(data_layout.data_type, data_layout.format, {static_cast<int>(num_batches * desc->post_nms_count), 4, 1, 1});
+    return layout(data_layout.data_type,
+                  data_layout.format,
+                  {static_cast<int>(num_batches * desc->post_nms_count), 4, 1, 1});
 }
 
 std::string generate_proposals_inst::to_string(const generate_proposals_node& node) {

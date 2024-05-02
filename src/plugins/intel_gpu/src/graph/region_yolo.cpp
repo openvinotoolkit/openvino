@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
 #include "region_yolo_inst.h"
 #include "region_yolo_shape_inference.hpp"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
-#include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(region_yolo)
@@ -20,24 +20,23 @@ layout region_yolo_inst::calc_output_layout(region_yolo_node const& node, kernel
     auto desc = impl_param.typed_desc<region_yolo>();
 
     if (desc->do_softmax) {
-        return cldnn::layout(
-            input_layout.data_type,
-            input_layout.format,
-            tensor(input_layout.batch(),
-                   input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1),
-                   1,
-                   1));
+        return cldnn::layout(input_layout.data_type,
+                             input_layout.format,
+                             tensor(input_layout.batch(),
+                                    input_layout.feature() * input_layout.spatial(0) * input_layout.spatial(1),
+                                    1,
+                                    1));
     } else {
         tensor::value_type features = (desc->classes + desc->coords + 1) * desc->mask_size;
-        return cldnn::layout(
-            input_layout.data_type,
-            input_layout.format,
-            tensor(input_layout.batch(), features, input_layout.spatial(0), input_layout.spatial(1)));
+        return cldnn::layout(input_layout.data_type,
+                             input_layout.format,
+                             tensor(input_layout.batch(), features, input_layout.spatial(0), input_layout.spatial(1)));
     }
 }
 
-template<typename ShapeType>
-std::vector<layout> region_yolo_inst::calc_output_layouts(region_yolo_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> region_yolo_inst::calc_output_layouts(region_yolo_node const& node,
+                                                          kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<region_yolo>();
     auto input_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
@@ -52,15 +51,15 @@ std::vector<layout> region_yolo_inst::calc_output_layouts(region_yolo_node const
     op.set_axis(desc->axis);
     op.set_end_axis(desc->end_axis);
 
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>()};
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> region_yolo_inst::calc_output_layouts<ov::PartialShape>(region_yolo_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> region_yolo_inst::calc_output_layouts<ov::PartialShape>(
+    region_yolo_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string region_yolo_inst::to_string(region_yolo_node const& node) {
     auto desc = node.get_primitive();
@@ -85,7 +84,6 @@ std::string region_yolo_inst::to_string(region_yolo_node const& node) {
     region_yolo_info.add("mask_size", mask_size);
     region_yolo_info.add("axis", axis);
     region_yolo_info.add("end_axis", end_axis);
-
 
     node_info->add("region yolo info", region_yolo_info);
     node_info->dump(primitive_description);

@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-import numpy as np
 
 
 class TestMultinomial(CommonTFLayerTest):

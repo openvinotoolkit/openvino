@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
@@ -14,17 +21,10 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
 
-#include <algorithm>
-#include <string>
-#include <vector>
-#include <iostream>
-#include <memory>
-#include <utility>
-
 namespace cldnn {
 
 /// @brief Globally unique primitive's type id
-using primitive_type_id = struct primitive_type *;
+using primitive_type_id = struct primitive_type*;
 
 /// @brief Unique @p id of a primitive within a topology.
 using primitive_id = std::string;
@@ -55,7 +55,7 @@ struct input_info {
     primitive_id pid;
     int32_t idx;
     struct cmp {
-        bool operator() (const input_info a, const input_info b) {
+        bool operator()(const input_info a, const input_info b) {
             if (a.pid < b.pid) {
                 return true;
             } else if (a.pid == b.pid) {
@@ -87,7 +87,7 @@ struct input_info {
     }
 };
 
-static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+static inline std::ostream& operator<<(std::ostream& os, input_info& info) {
     os << info.to_string();
     return os;
 }
@@ -138,7 +138,8 @@ public:
     std::vector<input_info> dependencies() const {
         auto result = input;
         auto deps = get_dependencies();
-        for (auto& dep : deps) result.push_back(dep);
+        for (auto& dep : deps)
+            result.push_back(dep);
         return result;
     }
 
@@ -175,7 +176,8 @@ public:
             return false;
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
-            if (output_data_types[i].value_or(data_types::undefined) != rhs.output_data_types[i].value_or(data_types::undefined))
+            if (output_data_types[i].value_or(data_types::undefined) !=
+                rhs.output_data_types[i].value_or(data_types::undefined))
                 return false;
         }
 
@@ -190,12 +192,18 @@ public:
         return true;
     }
 
-    virtual bool operator==(const primitive& rhs) const { return false; }
+    virtual bool operator==(const primitive& rhs) const {
+        return false;
+    }
 
-    bool operator!=(const primitive& rhs) const { return !(*this == rhs); }
+    bool operator!=(const primitive& rhs) const {
+        return !(*this == rhs);
+    }
 
     /// @brief Implicit conversion to primitive id.
-    operator primitive_id() const { return id; }
+    operator primitive_id() const {
+        return id;
+    }
 
     /// @brief Primitive's type id.
     const primitive_type_id type;
@@ -215,9 +223,13 @@ public:
     /// @brief Requested output precision, if any.
     std::vector<optional_data_type> output_data_types;
 
-    size_t input_size() const { return input.size(); }
+    size_t input_size() const {
+        return input.size();
+    }
 
-    size_t output_size() const { return num_outputs; }
+    size_t output_size() const {
+        return num_outputs;
+    }
 
     using primitive_id_arr = std::vector<primitive_id>;
 
@@ -291,7 +303,9 @@ public:
     }
 
 protected:
-    virtual std::vector<input_info> get_dependencies() const { return {}; }
+    virtual std::vector<input_info> get_dependencies() const {
+        return {};
+    }
     class condition;
     friend struct primitive_info;
 };
@@ -345,8 +359,7 @@ struct primitive_info {
     int exec_id;
 };
 
-#define CLDNN_DEFINE_TYPE_ID(PType)     \
-    static primitive_type_id type_id();
+#define CLDNN_DEFINE_TYPE_ID(PType) static primitive_type_id type_id();
 
 #define CLDNN_DEFINE_TYPE_STRING(PType)                 \
     primitive_id type_string() const override {         \
@@ -359,10 +372,10 @@ struct primitive_info {
     CLDNN_DEFINE_TYPE_ID(PType)              \
     CLDNN_DEFINE_TYPE_STRING(PType)
 
-#define GPU_DEFINE_PRIMITIVE_TYPE_ID(PType)             \
-    primitive_type_id PType::type_id() {                \
-        static primitive_type_base<PType> instance;     \
-        return &instance;                               \
-    }                                                   \
+#define GPU_DEFINE_PRIMITIVE_TYPE_ID(PType)         \
+    primitive_type_id PType::type_id() {            \
+        static primitive_type_base<PType> instance; \
+        return &instance;                           \
+    }                                               \
     bool _##PType##_added_ = prim_map_storage::instance().set_type_id(#PType, PType::type_id());
 }  // namespace cldnn

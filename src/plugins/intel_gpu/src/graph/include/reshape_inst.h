@@ -3,17 +3,20 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
 
-#include <string>
-#include <memory>
-
 namespace cldnn {
 
-padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_shape, reshape::reshape_mode mode, const ov::ITensorAccessor& ta);
+padding propagate_padding(const layout& in_layout,
+                          const ov::PartialShape& out_shape,
+                          reshape::reshape_mode mode,
+                          const ov::ITensorAccessor& ta);
 
 template <>
 struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
@@ -26,10 +29,13 @@ struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
     bool has_padding() const {
-        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
+        return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding ||
+                input().get_output_layout(false).has_dynamic_pad());
     }
 
     bool has_outer_padding_offset() const {
@@ -38,7 +44,7 @@ public:
 
         auto input_layout = input().get_output_layout(false);
         auto input_pad = input_layout.data_padding;
-        for (size_t i = 0 ; i < input_layout.get_spatial_rank() ; i++) {
+        for (size_t i = 0; i < input_layout.get_spatial_rank(); i++) {
             if (input_pad.lower_size().spatial[i] != 0)
                 return false;
             if (input_pad.upper_size().spatial[i] != 0)
@@ -46,8 +52,7 @@ public:
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
-        if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad.lower_size().feature[0] != 0)
+        if (input_layout.format.dims_order()[0] != 0 || input_pad.lower_size().feature[0] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
@@ -80,16 +85,18 @@ public:
         if (input_layout.has_dynamic_pad()) {
             auto prim = typed_desc();
 
-            ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
+            ov::PartialShape pattern_shape = {static_cast<int64_t>(prim->output_pattern.size())};
             if (pattern_shape.size() == 0)
                 pattern_shape = {};
 
             auto pattern_data = prim->output_pattern;
-            auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
-            std::unordered_map<size_t, ov::Tensor> const_data {{1, pattern_tensor}};
+            auto pattern_tensor =
+                make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
+            std::unordered_map<size_t, ov::Tensor> const_data{{1, pattern_tensor}};
             const auto ta = ov::make_tensor_accessor(const_data);
 
-            this->set_output_padding(propagate_padding(input_layout, output_layout.get_partial_shape(), prim->mode, ta));
+            this->set_output_padding(
+                propagate_padding(input_layout, output_layout.get_partial_shape(), prim->mode, ta));
             return;
         }
 
@@ -102,7 +109,7 @@ public:
             first_element_offset *= input_pitches.batch[0];
 
             size_t inner_size = 1;
-            for (size_t i = 0 ; i < output_layout.get_spatial_rank() ; i++) {
+            for (size_t i = 0; i < output_layout.get_spatial_rank(); i++) {
                 inner_size *= output_layout.spatial(i);
             }
             inner_size *= output_layout.feature();
@@ -114,7 +121,9 @@ public:
         return;
     }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {1};
+    }
 };
 
 using reshape_node = typed_program_node<reshape>;
@@ -125,7 +134,7 @@ class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> 
     using parent::parent;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reshape_node const& node);

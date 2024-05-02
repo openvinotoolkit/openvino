@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
+#include "gather_inst.h"
 #include "gather_shape_inference.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
@@ -68,8 +67,9 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
                   tensor(format::get_default_format(dims_converted.size()), dims_converted)};
 }
 
-template<typename ShapeType>
-std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/,
+                                                     const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<gather>();
 
     auto input0_layout = impl_param.get_input_layout(0);
@@ -89,7 +89,7 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>(),
-        ShapeType{1} // axis input is removed on gather primitive creation, so we can't use get_dependency(2)
+        ShapeType{1}  // axis input is removed on gather primitive creation, so we can't use get_dependency(2)
     };
 
     int64_t axis = desc->axis;
@@ -100,10 +100,11 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> gather_inst::calc_output_layouts<ov::PartialShape>(gather_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> gather_inst::calc_output_layouts<ov::PartialShape>(gather_node const& node,
+                                                                                const kernel_impl_params& impl_param);
 
 std::string gather_inst::to_string(gather_node const& node) {
     auto desc = node.get_primitive();

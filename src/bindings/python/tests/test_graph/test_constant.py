@@ -2,15 +2,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-import openvino.runtime.opset13 as ops
-from openvino import Type, PartialShape, Model, compile_model
-from openvino.runtime.op import Constant
-from openvino.helpers import pack_data, unpack_data
-
-import pytest
 from enum import Enum
+
+import numpy as np
+import openvino.runtime.opset13 as ops
+import pytest
+from openvino.helpers import pack_data, unpack_data
+from openvino.runtime.op import Constant
+
+from openvino import Model, PartialShape, Type, compile_model
 
 
 class DataGetter(Enum):
@@ -272,7 +272,9 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     data = np.random.rand(4) + 1.5
     data = data.astype(numpy_dtype)
 
-    bf16_const = ops.constant(data, dtype=Type.bf16, shared_memory=shared_flag, name="bf16_constant")
+    bf16_const = ops.constant(
+        data, dtype=Type.bf16, shared_memory=shared_flag, name="bf16_constant"
+    )
     convert = ops.convert(bf16_const, data.dtype)
     parameter = ops.parameter(PartialShape([-1]), ov_type)
     add_op = ops.add(parameter, convert)
@@ -315,22 +317,30 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
         (DataGetter.VIEW),
     ],
 )
-def test_constant_helper_packing(shape, low, high, ov_type, src_dtype, shared_flag, data_getter):
+def test_constant_helper_packing(
+    shape, low, high, ov_type, src_dtype, shared_flag, data_getter
+):
     data = np.random.uniform(low, high, shape).astype(src_dtype)
 
     # Allocate memory first:
-    ov_const = ops.constant(np.zeros(shape=data.shape, dtype=src_dtype),
-                            dtype=ov_type,
-                            shared_memory=shared_flag)
+    ov_const = ops.constant(
+        np.zeros(shape=data.shape, dtype=src_dtype),
+        dtype=ov_type,
+        shared_memory=shared_flag,
+    )
     # Fill data with packed values
     packed_data = pack_data(data, ov_const.get_element_type())
     ov_const.data[:] = packed_data
 
     # Always unpack the data!
     if data_getter == DataGetter.COPY:
-        unpacked = unpack_data(ov_const.get_data(), ov_const.get_element_type(), ov_const.shape)
+        unpacked = unpack_data(
+            ov_const.get_data(), ov_const.get_element_type(), ov_const.shape
+        )
     elif data_getter == DataGetter.VIEW:
-        unpacked = unpack_data(ov_const.data, ov_const.get_element_type(), ov_const.shape)
+        unpacked = unpack_data(
+            ov_const.data, ov_const.get_element_type(), ov_const.shape
+        )
     else:
         raise AttributeError("Unknown DataGetter passed!")
 
@@ -367,10 +377,14 @@ def test_constant_direct_packing(ov_type, src_dtype, shared_flag, data_getter):
 
     # Always unpack the data!
     if data_getter == DataGetter.COPY:
-        unpacked = unpack_data(ov_const.get_data(), ov_const.get_element_type(), ov_const.shape)
+        unpacked = unpack_data(
+            ov_const.get_data(), ov_const.get_element_type(), ov_const.shape
+        )
         assert np.array_equal(unpacked, data)
     elif data_getter == DataGetter.VIEW:
-        unpacked = unpack_data(ov_const.data, ov_const.get_element_type(), ov_const.shape)
+        unpacked = unpack_data(
+            ov_const.data, ov_const.get_element_type(), ov_const.shape
+        )
         assert np.array_equal(unpacked, data)
     else:
         raise AttributeError("Unknown DataGetter passed!")
@@ -413,18 +427,57 @@ def test_memory_sharing(shared_flag):
         assert not np.shares_memory(arr, ov_const.data)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
     from openvino.runtime import opset12 as opset
-    import openvino as ov
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
 
-    compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
+    import openvino as ov
+
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1.0,
+            0.0000152587890625,
+            448,
+            500,
+            512,
+            57344,
+        ],
+        dtype=numpy_dtype,
+    )
+
+    compressed_const = opset.constant(
+        data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant"
+    )
     convert = opset.convert(compressed_const, data.dtype)
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     add_op = opset.add(parameter, convert)
@@ -434,27 +487,91 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
-              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344]
+    target = [
+        5.0,
+        4.0,
+        -5.0,
+        0.0,
+        0.09375,
+        0.1875,
+        0.3125,
+        0.375,
+        0.5,
+        0.625,
+        0.75,
+        0.75,
+        0.875,
+        1.0,
+        -0.0,
+        -0.09375,
+        -0.1875,
+        -0.3125,
+        -0.375,
+        -0.5,
+        -0.625,
+        -0.75,
+        -0.75,
+        -0.875,
+        -1.0,
+        0.0000152587890625,
+        448,
+        512,
+        512,
+        57344,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
 def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
     from openvino.runtime import opset12 as opset
-    import openvino as ov
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
 
-    compressed_const = opset.constant(data, dtype=ov.Type.f8e4m3, name="f8e4m3_constant")
+    import openvino as ov
+
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1,
+            448,
+            512,
+        ],
+        dtype=numpy_dtype,
+    )
+
+    compressed_const = opset.constant(
+        data, dtype=ov.Type.f8e4m3, name="f8e4m3_constant"
+    )
     convert = opset.convert(compressed_const, data.dtype)
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     add_op = opset.add(parameter, convert)
@@ -464,25 +581,87 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
-              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
-              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
+    target = [
+        5.0,
+        4.5,
+        -5.0,
+        0.0,
+        0.1015625,
+        0.203125,
+        0.3125,
+        0.40625,
+        0.5,
+        0.625,
+        0.6875,
+        0.8125,
+        0.875,
+        1,
+        -0,
+        -0.1015625,
+        -0.203125,
+        -0.3125,
+        -0.40625,
+        -0.5,
+        -0.625,
+        -0.6875,
+        -0.8125,
+        -0.875,
+        -1,
+        448,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
 def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
     from openvino.runtime import opset12 as opset
+
     import openvino as ov
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
+
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1.0,
+            0.0000152587890625,
+            448,
+            500,
+            512,
+            57344,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)
@@ -495,25 +674,87 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
-              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344]
+    target = [
+        5.0,
+        4.0,
+        -5.0,
+        0.0,
+        0.09375,
+        0.1875,
+        0.3125,
+        0.375,
+        0.5,
+        0.625,
+        0.75,
+        0.75,
+        0.875,
+        1.0,
+        -0.0,
+        -0.09375,
+        -0.1875,
+        -0.3125,
+        -0.375,
+        -0.5,
+        -0.625,
+        -0.75,
+        -0.75,
+        -0.875,
+        -1.0,
+        0.0000152587890625,
+        448,
+        512,
+        512,
+        57344,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
 def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     from openvino.runtime import opset12 as opset
+
     import openvino as ov
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
+
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1,
+            448,
+            512,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e4m3)
@@ -526,10 +767,35 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
-              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
-              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
+    target = [
+        5.0,
+        4.5,
+        -5.0,
+        0.0,
+        0.1015625,
+        0.203125,
+        0.3125,
+        0.40625,
+        0.5,
+        0.625,
+        0.6875,
+        0.8125,
+        0.875,
+        1,
+        -0,
+        -0.1015625,
+        -0.203125,
+        -0.3125,
+        -0.40625,
+        -0.5,
+        -0.625,
+        -0.6875,
+        -0.8125,
+        -0.875,
+        -1,
+        448,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
@@ -576,7 +842,9 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     ],
 )
 def test_get_data_casting(src_dtype, dst_dtype, copy_flag):
-    data = np.random.rand(2, 4, 16) + 0.01  # do not allow 0s -- extra edge-case for bool type
+    data = (
+        np.random.rand(2, 4, 16) + 0.01
+    )  # do not allow 0s -- extra edge-case for bool type
     data = data.astype(src_dtype)
 
     ov_const = ops.constant(data, dtype=src_dtype)
@@ -669,7 +937,9 @@ def test_get_data_casting_bf16(src_dtype, dst_dtype, copy_flag):
     else:  # copy_flag is True
         assert arr.flags["OWNDATA"] is True
         if dst_dtype in [None, np.float16]:
-            assert np.array_equal(arr.view(np.int16), expected_result.view(np.int16)[1::2])
+            assert np.array_equal(
+                arr.view(np.int16), expected_result.view(np.int16)[1::2]
+            )
         else:  # up-casting to np.float32 or np.float64
             assert np.array_equal(arr, expected_result)
 
@@ -701,7 +971,9 @@ def test_get_data_casting_bf16(src_dtype, dst_dtype, copy_flag):
     ],
 )
 def test_get_data_casting_packed(src_dtype, ov_type, dst_dtype, copy_flag):
-    data = np.array([[0, 0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1]], dtype=src_dtype)
+    data = np.array(
+        [[0, 0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1]], dtype=src_dtype
+    )
     ov_const = ops.constant(data, dtype=ov_type)
     arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
 

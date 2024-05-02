@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "intel_gpu/plugin/sync_infer_request.hpp"
-#include <string>
 #include <map>
+#include <string>
+
+#include "intel_gpu/plugin/sync_infer_request.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace ov {
 namespace intel_gpu {

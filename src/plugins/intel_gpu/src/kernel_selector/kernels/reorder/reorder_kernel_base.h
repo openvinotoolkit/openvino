@@ -4,17 +4,21 @@
 
 #pragma once
 
+#include <vector>
+
 #include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
-#include <vector>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // reorder_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_params : public base_params {
-    reorder_params() : base_params(KernelType::REORDER),
-    winograd_input_offset_x(0), winograd_input_offset_y(0), winograd_nr_tiles_x(0) {}
+    reorder_params()
+        : base_params(KernelType::REORDER),
+          winograd_input_offset_x(0),
+          winograd_input_offset_y(0),
+          winograd_nr_tiles_x(0) {}
 
     MeanSubtractMode mode = MeanSubtractMode::NONE;
     MeanOp mean_op = MeanOp::SUB;
@@ -49,8 +53,10 @@ struct reorder_fuse_params : fuse_params {
     DataLayout input_layout;
     DataLayout output_layout;
 
-    reorder_fuse_params(DataLayout input_layout, DataLayout output_layout) :
-        fuse_params(KernelType::REORDER), input_layout(input_layout), output_layout(output_layout) {}
+    reorder_fuse_params(DataLayout input_layout, DataLayout output_layout)
+        : fuse_params(KernelType::REORDER),
+          input_layout(input_layout),
+          output_layout(output_layout) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +111,9 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    bool Validate(const Params&) const override { return true; }
+    bool Validate(const Params&) const override {
+        return true;
+    }
     KernelsData GetCommonKernelsData(const reorder_weights_params& params) const;
     KernelsData GetCommonKernelsData(const reorder_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

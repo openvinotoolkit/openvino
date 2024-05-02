@@ -3,6 +3,7 @@
 //
 
 #include "low_precision_transformations/pad_transformation.hpp"
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,9 +22,8 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
     std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params)
-           << "_" << param.fakeQuantize << "_"
-           << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << param.fakeQuantize
+           << "_" << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
            << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
     return result.str();
 }
@@ -38,14 +38,13 @@ void PadTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::PadFunction::get(
-        inputShape,
-        netPrecision,
-        param.fakeQuantize,
-        param.padsBegin,
-        param.padsEnd,
-        mode,
-        param.padValue);
+    function = ov::builder::subgraph::PadFunction::get(inputShape,
+                                                       netPrecision,
+                                                       param.fakeQuantize,
+                                                       param.padsBegin,
+                                                       param.padsEnd,
+                                                       mode,
+                                                       param.padValue);
 }
 
 void PadTransformation::run() {
@@ -63,4 +62,4 @@ TEST_P(PadTransformation, CompareWithRefImpl) {
     run();
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

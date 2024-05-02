@@ -16,12 +16,12 @@ bool operator!=(const Reg& lhs, const Reg& rhs) {
 
 std::string regTypeToStr(const RegType& type) {
     switch (type) {
-        case RegType::vec:
-            return "vec";
-        case RegType::gpr:
-            return "gpr";
-        default:
-            OPENVINO_THROW("Unexpected RegType");
+    case RegType::vec:
+        return "vec";
+    case RegType::gpr:
+        return "gpr";
+    default:
+        OPENVINO_THROW("Unexpected RegType");
     }
 }
 

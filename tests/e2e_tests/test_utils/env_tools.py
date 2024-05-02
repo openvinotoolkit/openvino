@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 class EnvironmentConfigException(Exception):
-    """ Environment configuration exception """
+    """Environment configuration exception"""
 
 
 class Environment:

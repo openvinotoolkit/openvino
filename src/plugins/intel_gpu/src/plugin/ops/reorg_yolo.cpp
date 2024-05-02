@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/reorg_yolo.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorg_yolo.hpp"
 
 namespace ov {
@@ -19,9 +18,7 @@ static void CreateReorgYoloOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 
     uint32_t stride = static_cast<uint32_t>(op->get_strides()[0]);
 
-    auto reorgPrim = cldnn::reorg_yolo(layerName,
-                                       inputs[0],
-                                       stride);
+    auto reorgPrim = cldnn::reorg_yolo(layerName, inputs[0], stride);
 
     p.add_primitive(*op, reorgPrim);
 }

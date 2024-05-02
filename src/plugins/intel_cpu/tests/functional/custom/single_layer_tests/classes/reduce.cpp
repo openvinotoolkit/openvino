@@ -5,10 +5,10 @@
 #include "reduce.hpp"
 
 #include "common_test_utils/node_builders/reduce.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 
@@ -90,7 +90,9 @@ void ReduceCPULayerTest::SetUp() {
     }
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
+    updateSelectedType(getPrimitiveType(),
+                       netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision,
+                       configuration);
 
     init_input_shapes(inputShapes);
 
@@ -157,14 +159,16 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 5;
             in_data.range = 10;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             if (netPrecision == ElementType::f32) {
                 auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
             } else if (netPrecision == ElementType::f16) {
-                auto *rawBlobDataPtr = static_cast<ov::float16 *>(tensor.data());
+                auto* rawBlobDataPtr = static_cast<ov::float16*>(tensor.data());
                 for (size_t i = 0; i < tensor.get_size(); ++i) {
                     rawBlobDataPtr[i] /= 10.f;
                 }
@@ -191,56 +195,40 @@ namespace Reduce {
 
 const std::vector<bool>& keepDims() {
     static const std::vector<bool> keepDims = {
-            true,
-            false,
+        true,
+        false,
     };
     return keepDims;
 }
 
 const std::vector<std::vector<int>>& axes() {
-    static const std::vector<std::vector<int>> axes = {
-            {0},
-            {1},
-            {2},
-            {3}
-    };
+    static const std::vector<std::vector<int>> axes = {{0}, {1}, {2}, {3}};
     return axes;
 }
 
 const std::vector<std::vector<int>>& axesND() {
-    static const std::vector<std::vector<int>> axesND = {
-            {0, 1},
-            {0, 2},
-            {0, 3},
-            {1, 2},
-            {1, 3},
-            {2, 3},
-            {0, 1, 2},
-            {0, 1, 3},
-            {0, 2, 3},
-            {1, 2, 3},
-            {0, 1, 2, 3}
-    };
+    static const std::vector<std::vector<int>> axesND =
+        {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}, {0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3}, {0, 1, 2, 3}};
     return axesND;
 }
 
 const std::vector<ov::test::utils::OpType>& opTypes() {
     static const std::vector<ov::test::utils::OpType> opTypes = {
-            ov::test::utils::OpType::SCALAR,
-            ov::test::utils::OpType::VECTOR,
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
     };
     return opTypes;
 }
 
 const std::vector<ov::test::utils::ReductionType>& reductionTypes() {
     static const std::vector<ov::test::utils::ReductionType> reductionTypes = {
-            ov::test::utils::ReductionType::Mean,
-            ov::test::utils::ReductionType::Max,
-            ov::test::utils::ReductionType::Sum,
-            ov::test::utils::ReductionType::Min,
-            ov::test::utils::ReductionType::Prod,
-            ov::test::utils::ReductionType::L1,
-            ov::test::utils::ReductionType::L2,
+        ov::test::utils::ReductionType::Mean,
+        ov::test::utils::ReductionType::Max,
+        ov::test::utils::ReductionType::Sum,
+        ov::test::utils::ReductionType::Min,
+        ov::test::utils::ReductionType::Prod,
+        ov::test::utils::ReductionType::L1,
+        ov::test::utils::ReductionType::L2,
     };
     return reductionTypes;
 }
@@ -264,17 +252,16 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
 
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32() {
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
-        {{ov::hint::inference_precision.name(), ov::element::f32}}
-    };
+        {{ov::hint::inference_precision.name(), ov::element::f32}}};
     return additionalConfig;
 }
 
 const std::vector<ov::test::utils::ReductionType>& reductionTypesInt32() {
     static const std::vector<ov::test::utils::ReductionType> reductionTypesInt32 = {
-            ov::test::utils::ReductionType::Sum,
-            ov::test::utils::ReductionType::Min,
-            ov::test::utils::ReductionType::Max,
-            ov::test::utils::ReductionType::L1,
+        ov::test::utils::ReductionType::Sum,
+        ov::test::utils::ReductionType::Min,
+        ov::test::utils::ReductionType::Max,
+        ov::test::utils::ReductionType::L1,
     };
     return reductionTypesInt32;
 }

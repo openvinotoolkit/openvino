@@ -8,18 +8,15 @@
 namespace cldnn {
 
 /// @brief Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
-/// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag.
+/// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values
+/// belonging to each bag.
 struct embedding_bag : public primitive_base<embedding_bag> {
     CLDNN_DECLARE_PRIMITIVE(embedding_bag)
 
     embedding_bag() : primitive_base("", {}) {}
 
     /// @brief Select type of embedding_bag operation
-    enum embedding_bag_type {
-        packed_sum,
-        offsets_sum,
-        segments_sum
-    };
+    enum embedding_bag_type { packed_sum, offsets_sum, segments_sum };
 
     /// @brief Constructs embedding_bag primitive.
     /// @param id This primitive id.
@@ -32,7 +29,10 @@ struct embedding_bag : public primitive_base<embedding_bag> {
                   const tensor& output_shape,
                   const int32_t default_index = -1,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}), type(type), output_shape(output_shape), default_index(default_index) {}
+        : primitive_base(id, inputs, {output_padding}),
+          type(type),
+          output_shape(output_shape),
+          default_index(default_index) {}
 
     /// @brief Type of EmbeddingBag operation
     embedding_bag_type type;
@@ -54,8 +54,7 @@ struct embedding_bag : public primitive_base<embedding_bag> {
 
         auto rhs_casted = downcast<const embedding_bag>(rhs);
 
-        return type == rhs_casted.type &&
-               default_index == rhs_casted.default_index;
+        return type == rhs_casted.type && default_index == rhs_casted.default_index;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

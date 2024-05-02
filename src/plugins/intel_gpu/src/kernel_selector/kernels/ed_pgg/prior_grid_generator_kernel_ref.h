@@ -31,15 +31,15 @@ public:
         : KernelBaseOpenCL{"experimental_detectron_prior_grid_generator_ref"} {}
 
 private:
-    KernelsData GetKernelsData(const Params &params) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params &params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
     ParamsKey GetSupportedKey() const override;
 
-    bool Validate(const Params &p) const override;
+    bool Validate(const Params& p) const override;
 
-    JitConstants GetJitConstants(const experimental_detectron_prior_grid_generator_params &params) const;
+    JitConstants GetJitConstants(const experimental_detectron_prior_grid_generator_params& params) const;
 };
 
 }  // namespace kernel_selector

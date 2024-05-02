@@ -3,9 +3,11 @@
 //
 
 #include "lstm_elt_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
+
 #include <string>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -45,15 +47,15 @@ JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) c
 
     static const std::vector<std::string> asuffixes = {"_F", "_G", "_H", "_CLIP"};
     for (size_t i = 0; i < params.activations.size(); i++) {
-        std::vector<base_activation_params> aparams = { params.activations[i] };
+        std::vector<base_activation_params> aparams = {params.activations[i]};
         jit.Merge(MakeActivationJitConstants(aparams, ftype, asuffixes[i]));
     }
 
     if (params.clip <= 0) {
         jit.AddConstants({
-                MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
-                MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),
-            });
+            MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
+            MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),
+        });
     }
 
     return jit;

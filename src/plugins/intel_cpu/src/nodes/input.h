@@ -5,6 +5,7 @@
 #pragma once
 
 #include <node.h>
+
 #include <openvino/op/constant.hpp>
 
 namespace ov {
@@ -35,8 +36,12 @@ public:
         return false;
     }
 
-    bool needShapeInfer() const override { return false; }
-    bool needPrepareParams() const override { return false; }
+    bool needShapeInfer() const override {
+        return false;
+    }
+    bool needPrepareParams() const override {
+        return false;
+    }
 
 private:
     void cloneBlobIfRequired();
@@ -50,6 +55,6 @@ private:
     bool isMeanImage = false;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

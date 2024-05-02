@@ -15,27 +15,28 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
     - shift_const value addition to biases
     - extra inputs deletion
     """
+
     enabled = True
 
     def run_after(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def run_before(self):
-        from openvino.tools.mo.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
-        return [TransposeTensorIteratorLSTM]
-
-
-    def pattern(self):
-        return dict(
-            nodes=[('lstm', dict(op='LSTMCell', tf=True))],
-            edges=[]
+        from openvino.tools.mo.middle.permute_tensor_iterator import (
+            TransposeTensorIteratorLSTM,
         )
 
+        return [TransposeTensorIteratorLSTM]
+
+    def pattern(self):
+        return dict(nodes=[("lstm", dict(op="LSTMCell", tf=True))], edges=[])
+
     def replace_pattern(self, graph: Graph, match: dict):
-        weights_node = match['lstm'].in_node(3)
-        biases_node = match['lstm'].in_node(4)
-        node = match['lstm']
+        weights_node = match["lstm"].in_node(3)
+        biases_node = match["lstm"].in_node(4)
+        node = match["lstm"]
         shift_const = node.shift_const
 
         # make sure that the node is the only consumer or weights and biases
@@ -49,21 +50,20 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         hidden_size = node.in_node(1).shape[1]
         weights = weights_node.value
         biases = biases_node.value
-        assert weights.shape[0] == input_size + hidden_size, \
-            "weights.shape={} input_size={} hidden_size={}".format(weights.shape, input_size, hidden_size)
-        assert weights.shape[1] == biases.shape[0] == 4 * hidden_size, \
-            "weights.shape={} biases.shape={} hidden_size={}".format(weights.shape, biases.shape, hidden_size)
+        assert (
+            weights.shape[0] == input_size + hidden_size
+        ), "weights.shape={} input_size={} hidden_size={}".format(
+            weights.shape, input_size, hidden_size
+        )
+        assert (
+            weights.shape[1] == biases.shape[0] == 4 * hidden_size
+        ), "weights.shape={} biases.shape={} hidden_size={}".format(
+            weights.shape, biases.shape, hidden_size
+        )
 
-        weights = weights.reshape([
-            weights.shape[0],
-            4,  # gates
-            hidden_size
-        ])
+        weights = weights.reshape([weights.shape[0], 4, hidden_size])  # gates
 
-        biases = biases.reshape([
-            4,  # gates
-            hidden_size
-        ])
+        biases = biases.reshape([4, hidden_size])  # gates
 
         # Reorder gates icfo --> fico for both weights and biases
         gate_reorder = [2, 0, 1, 3]

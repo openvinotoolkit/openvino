@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/constant_folding.hpp"
+#include "split_fc.hpp"
+
 #include <transformations/utils/utils.hpp>
+
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -14,11 +16,9 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
-
-#include "split_fc.hpp"
-
-#include "itt.hpp"
 
 ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
     MATCHER_SCOPE(SplitFC);
@@ -84,7 +84,8 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             if (!ov::is_type<ov::op::v0::Convert>(convert_node1)) {
                 return false;
             }
-            auto convert_node1_const = ov::as_type_ptr<ov::op::v0::Constant>(convert_node1->get_input_node_shared_ptr(0));
+            auto convert_node1_const =
+                ov::as_type_ptr<ov::op::v0::Constant>(convert_node1->get_input_node_shared_ptr(0));
             if (!convert_node1_const) {
                 return false;
             }
@@ -104,10 +105,14 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             // We should use VariadicSplit to split the input for FC.
             std::vector<std::vector<int32_t>> split_reshape_pattern_vec(split_num);
             auto fc_dim_vec = split_parts(split_dim_range, split_num);
-            auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{static_cast<size_t>(split_num)}, fc_dim_vec);
+            auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32,
+                                                                      ov::Shape{static_cast<size_t>(split_num)},
+                                                                      fc_dim_vec);
 
             auto split_constants = [&](const std::shared_ptr<ov::Node>& constant) {
-                static const std::set<ov::element::Type> unsupported_by_split_element_types{ov::element::u4, ov::element::i4, ov::element::nf4};
+                static const std::set<ov::element::Type> unsupported_by_split_element_types{ov::element::u4,
+                                                                                            ov::element::i4,
+                                                                                            ov::element::nf4};
                 const auto& constant_precision = constant->get_output_element_type(0);
                 if (unsupported_by_split_element_types.count(constant_precision) == 0) {
                     auto split = std::make_shared<ov::op::v1::VariadicSplit>(constant, split_dim_node, split_length);
@@ -144,7 +149,8 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             std::vector<ov::Output<ov::Node>> zp_const_vec(split_num);
             for (int i = 0; i < split_num; ++i) {
-                zp_const_vec[i] = need_to_split_convert ? split_cvts[i] : convert_node1_const->clone_with_new_inputs({});
+                zp_const_vec[i] =
+                    need_to_split_convert ? split_cvts[i] : convert_node1_const->clone_with_new_inputs({});
             }
 
             for (int i = 0; i < split_num; ++i) {
@@ -156,8 +162,12 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
                 auto mul_node = std::make_shared<ov::op::v1::Multiply>(sub_node, split_muls[i]);
                 if (reshape_node) {
-                    auto reshape_pattern = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{2}, split_reshape_pattern_vec[i]);
-                    wgt_node_vec[i] = std::make_shared<ov::op::v1::Reshape>(mul_node, reshape_pattern, reshape_node->get_special_zero());
+                    auto reshape_pattern = ov::op::v0::Constant::create<int32_t>(ov::element::i32,
+                                                                                 ov::Shape{2},
+                                                                                 split_reshape_pattern_vec[i]);
+                    wgt_node_vec[i] = std::make_shared<ov::op::v1::Reshape>(mul_node,
+                                                                            reshape_pattern,
+                                                                            reshape_node->get_special_zero());
                 } else {
                     wgt_node_vec[i] = mul_node;
                 }
@@ -171,10 +181,10 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             // We should use VariadicSplit to split input for FC.
             auto fc_dim_vec = split_parts(split_dim_range, split_num);
-            auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{static_cast<size_t>(split_num)}, fc_dim_vec);
-            auto split_wgts = std::make_shared<ov::op::v1::VariadicSplit>(wgt_item,
-                                                                          split_dim_node,
-                                                                          split_length);
+            auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32,
+                                                                      ov::Shape{static_cast<size_t>(split_num)},
+                                                                      fc_dim_vec);
+            auto split_wgts = std::make_shared<ov::op::v1::VariadicSplit>(wgt_item, split_dim_node, split_length);
 
             wgt_node_vec = split_wgts->outputs();
         }

@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "set_brgemm_cpu_blocking_params.hpp"
 
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_shape.h"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-
-#include "cpu/x64/cpu_isa_traits.hpp"
-
-#include "cpu_shape.h"
 #include "utils/general_utils.h"
 
 namespace ov {
@@ -82,5 +78,5 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

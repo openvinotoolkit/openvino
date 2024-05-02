@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 
 namespace ov {
 namespace test {

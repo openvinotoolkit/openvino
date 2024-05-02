@@ -2,19 +2,23 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Any, Union
 import logging
+from typing import Any, Callable, Union
 
 import openvino.runtime as ov
 
 
-class PreprocessConverter():
+class PreprocessConverter:
     def __init__(self, model: ov.Model):
         self._model = model
 
     @staticmethod
-    def from_torchvision(model: ov.Model, transform: Callable, input_example: Any,
-                         input_name: Union[str, None] = None) -> ov.Model:
+    def from_torchvision(
+        model: ov.Model,
+        transform: Callable,
+        input_example: Any,
+        input_name: Union[str, None] = None,
+    ) -> ov.Model:
         """Embed torchvision preprocessing in an OpenVINO model.
 
         Arguments:
@@ -38,10 +42,14 @@ class PreprocessConverter():
             import PIL
             import torch
             from torchvision import transforms
+
             from .torchvision_preprocessing import _from_torchvision
+
             return _from_torchvision(model, transform, input_example, input_name)
         except ImportError as e:
-            raise ImportError(f"Please install torch, torchvision and pillow packages:\n{e}")
+            raise ImportError(
+                f"Please install torch, torchvision and pillow packages:\n{e}"
+            )
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             raise e

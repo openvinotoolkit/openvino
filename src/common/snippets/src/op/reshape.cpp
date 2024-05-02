@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/op/reshape.hpp"
-#include "snippets/utils.hpp"
 
+#include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace op {
 Reshape::Reshape(const Output<Node>& arg, ov::PartialShape target_shape)
-    : Op({arg}), m_target_shape(std::move(target_shape)) {
+    : Op({arg}),
+      m_target_shape(std::move(target_shape)) {
     constructor_validate_and_infer_types();
 }
 
@@ -38,6 +38,6 @@ const ov::PartialShape& Reshape::get_target_shape() const {
 void Reshape::set_target_shape(ov::PartialShape shape) {
     m_target_shape = std::move(shape);
 }
-}// namespace op
-}// namespace snippets
-}// namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

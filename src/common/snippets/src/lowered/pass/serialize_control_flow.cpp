@@ -35,7 +35,9 @@ bool SerializeControlFlow::run(LinearIR& linear_ir) {
                             "Serialization can't find LoopBegin that corresponds to LoopEnd with friendly name ",
                             loop_end->get_friendly_name());
             auto loop_begin_serialization_node = loops_map.at(loop_end->get_loop_begin());
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
+            serialization_node = std::make_shared<op::SerializationNode>(
+                ov::OutputVector{serialization_node, loop_begin_serialization_node},
+                expr);
         } else {
             serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
             if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {
@@ -45,11 +47,12 @@ bool SerializeControlFlow::run(LinearIR& linear_ir) {
     }
     auto last_node = std::make_shared<ov::op::v0::Result>(serialization_node);
     last_node->set_friendly_name("End");
-    const auto model = std::make_shared<ov::Model>(ResultVector{last_node}, ParameterVector{first_node}, "Lowered_IR_Control_Flow");
+    const auto model =
+        std::make_shared<ov::Model>(ResultVector{last_node}, ParameterVector{first_node}, "Lowered_IR_Control_Flow");
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

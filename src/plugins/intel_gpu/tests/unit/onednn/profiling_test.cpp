@@ -1,9 +1,9 @@
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -14,8 +14,8 @@ TEST(onednn_tests, profiling) {
     if (!engine.get_device_info().supports_immad)
         return;
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 3, 3 } });
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 32, 64, 64}});
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {32, 32, 3, 3}});
 
     topology topology;
     topology.add(data("weights", weights));
@@ -24,8 +24,8 @@ TEST(onednn_tests, profiling) {
     topology.add(convolution("conv", input_info("reorder"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
+    ov::intel_gpu::ImplementationDesc impl = {format::b_fs_yx_fsv16, std::string(""), impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}}));
     config.set_property(ov::enable_profiling(true));
 
     network network(engine, topology, config);

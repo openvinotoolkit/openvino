@@ -56,42 +56,32 @@ public:
         result << "actualOptimalNum_" << actualOptimalNum << "actualCustomerNum_" << actualCustomerNum;
         result << "expectOptimalNum_" << expectOptimalNum;
         if (isThroughput) {
-            result << "_isThroughput"
-                   << "true";
+            result << "_isThroughput" << "true";
         } else {
-            result << "__isThroughput"
-                   << "false";
+            result << "__isThroughput" << "false";
         }
         if (cpuSleep) {
-            result << "_cpuSleep_"
-                   << "true";
+            result << "_cpuSleep_" << "true";
         } else {
-            result << "_cpuSleep_"
-                   << "false";
+            result << "_cpuSleep_" << "false";
         }
 
         if (actualSleep) {
-            result << "_actualSleep_"
-                   << "true";
+            result << "_actualSleep_" << "true";
         } else {
-            result << "_actualSleep_"
-                   << "false";
+            result << "_actualSleep_" << "false";
         }
         result << "_actualDeviceName_" << actualDeviceName;
         result << "_gpuPerfHintNum_" << gpuPerfHintNum;
         if (isSupportOptimalNum) {
-            result << "_supportOptimalNum_"
-                   << "true";
+            result << "_supportOptimalNum_" << "true";
         } else {
-            result << "_supportOptimalNum_"
-                   << "false";
+            result << "_supportOptimalNum_" << "false";
         }
         if (isSupportNumRequests) {
-            result << "_supportNumRequests_"
-                   << "true";
+            result << "_supportNumRequests_" << "true";
         } else {
-            result << "_supportNumRequests_"
-                   << "false";
+            result << "_supportNumRequests_" << "false";
         }
         return result.str();
     }
@@ -116,18 +106,14 @@ public:
         std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
-            result << "_isNewAPI_"
-                   << "true";
+            result << "_isNewAPI_" << "true";
         } else {
-            result << "_isNewAPI_"
-                   << "false";
+            result << "_isNewAPI_" << "false";
         }
         if (actualSleep) {
-            result << "_actualSleep_"
-                   << "true";
+            result << "_actualSleep_" << "true";
         } else {
-            result << "_actualSleep_"
-                   << "false";
+            result << "_actualSleep_" << "false";
         }
         result << "_actualDeviceName_" << actualDeviceName;
         result << "_performanceMode_" << performanceMode.as<std::string>();
@@ -370,18 +356,14 @@ public:
         std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
-            result << "_isNewAPI_"
-                   << "true";
+            result << "_isNewAPI_" << "true";
         } else {
-            result << "_isNewAPI_"
-                   << "false";
+            result << "_isNewAPI_" << "false";
         }
         if (actualSleep) {
-            result << "_actualSleep_"
-                   << "true";
+            result << "_actualSleep_" << "true";
         } else {
-            result << "_actualSleep_"
-                   << "false";
+            result << "_actualSleep_" << "false";
         }
         result << "_actualDeviceName_" << actualDeviceName;
         result << "_performanceMode_" << performanceMode.as<std::string>();

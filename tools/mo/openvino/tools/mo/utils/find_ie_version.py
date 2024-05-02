@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
 import platform
-import subprocess # nosec
+import subprocess  # nosec
+import sys
 
 lib_env_key = "PATH" if platform.system() == "Windows" else "LD_LIBRARY_PATH"
 if lib_env_key not in os.environ:
@@ -46,14 +46,21 @@ def try_to_import_ie(module="", libs=[], silent=False):
     :param libs: list with paths to libraries
     :param silent: hide all output
     """
-    path_to_script = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'check_ie_bindings.py')
+    path_to_script = os.path.join(
+        os.path.realpath(os.path.dirname(__file__)), "check_ie_bindings.py"
+    )
     # We need to execute python modules checker in subprocess to avoid issue with environment
     # in case if previous import was unsuccessful it can fail further imports even if sys.path
     # will be restored to initial default values.
     # To pass environment to sub-process PATH/LD_LIBRARY_PATH and PYTHONPATH are used from
     # os.environ that is set after setup_env()
     setup_env(module=module, libs=libs)
-    cmd_args = [sys.executable, path_to_script, "--path_to_module", "PYTHONPATH" if module == "" else module]
+    cmd_args = [
+        sys.executable,
+        path_to_script,
+        "--path_to_module",
+        "PYTHONPATH" if module == "" else module,
+    ]
     if silent:
         cmd_args.append("--silent")
 
@@ -84,18 +91,22 @@ def find_ie_version(silent=False):
     bindings_paths_windows = [
         # Local builds
         {
-            "module": os.path.join(script_path, '../../../../../../bin/intel64/Release/python/'),
+            "module": os.path.join(
+                script_path, "../../../../../../bin/intel64/Release/python/"
+            ),
             "libs": [
-                os.path.join(script_path, '../../../../../../bin/intel64/Release'),
-                os.path.join(script_path, '../../../../../../temp/tbb/bin'),
-            ]
+                os.path.join(script_path, "../../../../../../bin/intel64/Release"),
+                os.path.join(script_path, "../../../../../../temp/tbb/bin"),
+            ],
         },
         {
-            "module": os.path.join(script_path, '../../../../../../bin/intel64/Debug/python/'),
+            "module": os.path.join(
+                script_path, "../../../../../../bin/intel64/Debug/python/"
+            ),
             "libs": [
-                os.path.join(script_path, '../../../../../../bin/intel64/Debug'),
-                os.path.join(script_path, '../../../../../../temp/tbb/bin'),
-            ]
+                os.path.join(script_path, "../../../../../../bin/intel64/Debug"),
+                os.path.join(script_path, "../../../../../../temp/tbb/bin"),
+            ],
         },
     ]
 
@@ -103,31 +114,47 @@ def find_ie_version(silent=False):
     bindings_paths_linux = [
         # Local builds
         {
-            "module": os.path.join(script_path, '../../../../../../bin/intel64/Release/python/'),
+            "module": os.path.join(
+                script_path, "../../../../../../bin/intel64/Release/python/"
+            ),
             "libs": [
-                os.path.join(script_path, '../../../../../../bin/intel64/Release'),
-            ]
+                os.path.join(script_path, "../../../../../../bin/intel64/Release"),
+            ],
         },
         {
-            "module": os.path.join(script_path, '../../../../../../bin/intel64/RelWithDebInfo/python'),
+            "module": os.path.join(
+                script_path, "../../../../../../bin/intel64/RelWithDebInfo/python"
+            ),
             "libs": [
-                os.path.join(script_path, '../../../../../../bin/intel64/RelWithDebInfo'),
-            ]
+                os.path.join(
+                    script_path, "../../../../../../bin/intel64/RelWithDebInfo"
+                ),
+            ],
         },
         {
-            "module": os.path.join(script_path, '../../../../../../bin/intel64/Debug/python'),
+            "module": os.path.join(
+                script_path, "../../../../../../bin/intel64/Debug/python"
+            ),
             "libs": [
-                os.path.join(script_path, '../../../../../../bin/intel64/Debug'),
-            ]
-        }
+                os.path.join(script_path, "../../../../../../bin/intel64/Debug"),
+            ],
+        },
     ]
 
-    bindings_paths = bindings_paths_windows if platform.system() == "Windows" else bindings_paths_linux
+    bindings_paths = (
+        bindings_paths_windows
+        if platform.system() == "Windows"
+        else bindings_paths_linux
+    )
     for item in bindings_paths:
-        module = item['module']
+        module = item["module"]
         if not os.path.exists(module):
             continue
-        if try_to_import_ie(module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
+        if try_to_import_ie(
+            module=os.path.normpath(module),
+            libs=item["libs"] if "libs" in item else [],
+            silent=silent,
+        ):
             return True
 
     return False

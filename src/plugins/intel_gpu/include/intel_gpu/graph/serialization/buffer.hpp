@@ -3,8 +3,9 @@
 //
 
 #pragma once
-#include <utility>
 #include <type_traits>
+#include <utility>
+
 #include "openvino/core/except.hpp"
 #include "serializer.hpp"
 
@@ -17,8 +18,8 @@ class Buffer {
 public:
     Buffer(BufferType* const buffer) : buffer(buffer) {}
 
-    template <typename ... Types>
-    inline BufferType& operator()(Types&& ... args) {
+    template <typename... Types>
+    inline BufferType& operator()(Types&&... args) {
         process(std::forward<Types>(args)...);
         return *buffer;
     }
@@ -31,14 +32,14 @@ protected:
     BufferType* const buffer;
 
 private:
-    template <typename T, typename ... OtherTypes>
-    inline void process(T&& first, OtherTypes&& ... remains) {
+    template <typename T, typename... OtherTypes>
+    inline void process(T&& first, OtherTypes&&... remains) {
         process(std::forward<T>(first));
         process(std::forward<OtherTypes>(remains)...);
     }
 
     template <typename T>
-    inline void process(T&& object){
+    inline void process(T&& object) {
         buffer->process(std::forward<T>(object));
     }
 };
@@ -46,6 +47,7 @@ private:
 template <typename BufferType>
 class OutputBuffer : public Buffer<BufferType> {
     friend class Buffer<BufferType>;
+
 public:
     OutputBuffer(BufferType* const buffer) : Buffer<BufferType>(buffer) {}
 
@@ -54,16 +56,20 @@ public:
         process(std::forward<T>(arg));
         return Buffer<BufferType>::getBuffer();
     }
+
 private:
     template <typename T>
     inline void process(T&& object) {
-        Serializer<BufferType, typename std::remove_const<typename std::remove_reference<T>::type>::type>::save(*Buffer<BufferType>::buffer, object);
+        Serializer<BufferType, typename std::remove_const<typename std::remove_reference<T>::type>::type>::save(
+            *Buffer<BufferType>::buffer,
+            object);
     }
 };
 
 template <typename BufferType>
 class InputBuffer : public Buffer<BufferType> {
     friend class Buffer<BufferType>;
+
 public:
     InputBuffer(BufferType* const buffer, engine& engine) : Buffer<BufferType>(buffer), _engine(engine) {}
 
@@ -73,7 +79,10 @@ public:
         return Buffer<BufferType>::getBuffer();
     }
 
-    engine& get_engine() { return _engine; }
+    engine& get_engine() {
+        return _engine;
+    }
+
 private:
     template <typename T>
     inline void process(T&& object) {

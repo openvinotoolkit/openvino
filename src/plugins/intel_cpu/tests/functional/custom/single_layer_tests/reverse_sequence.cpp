@@ -7,7 +7,6 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 
@@ -24,7 +23,8 @@ using ReverseSequenceCPUTestParams =
                         std::string>;           // Device name
 
 class ReverseSequenceLayerCPUTest : public testing::WithParamInterface<ReverseSequenceCPUTestParams>,
-                                    virtual public SubgraphBaseTest, public CPUTestsBase {
+                                    virtual public SubgraphBaseTest,
+                                    public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReverseSequenceCPUTestParams> obj) {
         int64_t batchAxisIndex;
@@ -35,7 +35,13 @@ public:
         InputShape seqLengthsShape;
         utils::InputLayerType secondaryInputType;
 
-        std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetName) = obj.param;
+        std::tie(batchAxisIndex,
+                 seqAxisIndex,
+                 dataInputShape,
+                 seqLengthsShape,
+                 secondaryInputType,
+                 netPrecision,
+                 targetName) = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({dataInputShape.first}) << "_";
@@ -66,14 +72,20 @@ protected:
         InputShape seqLengthsShape;
         utils::InputLayerType secondaryInputType;
 
-        std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
+        std::tie(batchAxisIndex,
+                 seqAxisIndex,
+                 dataInputShape,
+                 seqLengthsShape,
+                 secondaryInputType,
+                 netPrecision,
+                 targetDevice) = GetParam();
         m_seqAxisIndex = seqAxisIndex;
 
         init_input_shapes({dataInputShape, seqLengthsShape});
 
         ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
-        constexpr auto seqLengthsPrc = ov::element::Type_t::i32; //according to the specification
+        constexpr auto seqLengthsPrc = ov::element::Type_t::i32;  // according to the specification
         std::shared_ptr<ov::Node> seqLengthsInput;
 
         if (secondaryInputType == utils::InputLayerType::PARAMETER) {
@@ -82,10 +94,17 @@ protected:
             paramsIn.push_back(param);
         } else {
             const auto maxSeqLength = dataInputShape.second.front().at(seqAxisIndex);
-            seqLengthsInput = ov::test::utils::deprecated::make_constant<float>(seqLengthsPrc, seqLengthsShape.second.front(), {}, true, maxSeqLength);
+            seqLengthsInput = ov::test::utils::deprecated::make_constant<float>(seqLengthsPrc,
+                                                                                seqLengthsShape.second.front(),
+                                                                                {},
+                                                                                true,
+                                                                                maxSeqLength);
         }
 
-        const auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn.front(), seqLengthsInput, batchAxisIndex, seqAxisIndex);
+        const auto reverse = std::make_shared<ov::op::v0::ReverseSequence>(paramsIn.front(),
+                                                                           seqLengthsInput,
+                                                                           batchAxisIndex,
+                                                                           seqAxisIndex);
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(reverse)};
         function = std::make_shared<ov::Model>(results, paramsIn, "ReverseSequence");
     }
@@ -95,8 +114,7 @@ protected:
         const auto& funcInputs = function->inputs();
 
         const auto dataInputTensor =
-            ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
-                                                    targetInputStaticShapes[0]);
+            ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0]);
         inputs.insert({funcInputs[0].get_node_shared_ptr(), dataInputTensor});
 
         if (funcInputs.size() != 1) {
@@ -104,8 +122,9 @@ protected:
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 1;
             in_data.range = maxSeqLength;
-            const auto seqLengthsTensor =
-                ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
+            const auto seqLengthsTensor = ov::test::utils::create_and_fill_tensor(funcInputs[1].get_element_type(),
+                                                                                  targetInputStaticShapes[1],
+                                                                                  in_data);
             inputs.insert({funcInputs[1].get_node_shared_ptr(), seqLengthsTensor});
         }
     }
@@ -120,10 +139,7 @@ TEST_P(ReverseSequenceLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32,
-        ov::element::i32
-};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::i32};
 
 const int64_t batchAxisIndex = 0L;
 
@@ -137,88 +153,86 @@ const std::vector<InputShape> dataInputStaticShapes5D = {{{}, {{3, 12, 7, 10, 2}
 
 const std::vector<InputShape> seqLengthsStaticShapes = {{{}, {{3}}}};
 
-const std::vector<InputShape> dataInputDynamicShapes3D =
-    {{{-1, -1, {5, 10}}, {{7, 20, 8}, {10, 15, 10}}}, {{-1, -1, -1}, {{7, 4, 1}, {10, 42, 70}}}};
+const std::vector<InputShape> dataInputDynamicShapes3D = {{{-1, -1, {5, 10}}, {{7, 20, 8}, {10, 15, 10}}},
+                                                          {{-1, -1, -1}, {{7, 4, 1}, {10, 42, 70}}}};
 
-const std::vector<InputShape> dataInputDynamicShapes4D =
-    {{{-1, -1, {5, 10}, -1}, {{7, 20, 8, 4}, {10, 2, 7, 50}}}, {{-1, -1, -1, -1}, {{7, 15, 1, 100}, {10, 4, 10, 12}}}};
+const std::vector<InputShape> dataInputDynamicShapes4D = {{{-1, -1, {5, 10}, -1}, {{7, 20, 8, 4}, {10, 2, 7, 50}}},
+                                                          {{-1, -1, -1, -1}, {{7, 15, 1, 100}, {10, 4, 10, 12}}}};
 
-const std::vector<InputShape> dataInputDynamicShapes5D =
-    {{{-1, -1, {5, 10}, -1, {2, 14}}, {{7, 3, 8, 20, 9}, {10, 12, 10, 3, 2}}},
+const std::vector<InputShape> dataInputDynamicShapes5D = {
+    {{-1, -1, {5, 10}, -1, {2, 14}}, {{7, 3, 8, 20, 9}, {10, 12, 10, 3, 2}}},
     {{-1, -1, -1, -1, -1}, {{7, 15, 15, 10, 3}, {10, 4, 100, 90, 5}}}};
 
 const std::vector<InputShape> seqLengthsDynamicShapes = {{{-1}, {{7}, {10}}}};
 
-const std::vector<utils::InputLayerType> secondaryInputTypes = {
-        utils::InputLayerType::CONSTANT,
-        utils::InputLayerType::PARAMETER
-};
+const std::vector<utils::InputLayerType> secondaryInputTypes = {utils::InputLayerType::CONSTANT,
+                                                                utils::InputLayerType::PARAMETER};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic3D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputStaticShapes3D),
-                            ::testing::ValuesIn(seqLengthsStaticShapes),
-                            ::testing::ValuesIn(secondaryInputTypes),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic3D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputStaticShapes3D),
+                                            ::testing::ValuesIn(seqLengthsStaticShapes),
+                                            ::testing::ValuesIn(secondaryInputTypes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputStaticShapes4D),
-                            ::testing::ValuesIn(seqLengthsStaticShapes),
-                            ::testing::ValuesIn(secondaryInputTypes),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic4D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputStaticShapes4D),
+                                            ::testing::ValuesIn(seqLengthsStaticShapes),
+                                            ::testing::ValuesIn(secondaryInputTypes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputStaticShapes5D),
-                            ::testing::ValuesIn(seqLengthsStaticShapes),
-                            ::testing::ValuesIn(secondaryInputTypes),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUStatic5D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputStaticShapes5D),
+                                            ::testing::ValuesIn(seqLengthsStaticShapes),
+                                            ::testing::ValuesIn(secondaryInputTypes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputDynamicShapes3D),
-                            ::testing::ValuesIn(seqLengthsDynamicShapes),
-                            ::testing::Values(utils::InputLayerType::PARAMETER),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic3D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputDynamicShapes3D),
+                                            ::testing::ValuesIn(seqLengthsDynamicShapes),
+                                            ::testing::Values(utils::InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputDynamicShapes4D),
-                            ::testing::ValuesIn(seqLengthsDynamicShapes),
-                            ::testing::Values(utils::InputLayerType::PARAMETER),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic4D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputDynamicShapes4D),
+                                            ::testing::ValuesIn(seqLengthsDynamicShapes),
+                                            ::testing::Values(utils::InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D, ReverseSequenceLayerCPUTest,
-                        ::testing::Combine(
-                            ::testing::Values(batchAxisIndex),
-                            ::testing::ValuesIn(seqAxisIndices),
-                            ::testing::ValuesIn(dataInputDynamicShapes5D),
-                            ::testing::ValuesIn(seqLengthsDynamicShapes),
-                            ::testing::Values(utils::InputLayerType::PARAMETER),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ReverseSequenceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequenceCPUDynamic5D,
+                         ReverseSequenceLayerCPUTest,
+                         ::testing::Combine(::testing::Values(batchAxisIndex),
+                                            ::testing::ValuesIn(seqAxisIndices),
+                                            ::testing::ValuesIn(dataInputDynamicShapes5D),
+                                            ::testing::ValuesIn(seqLengthsDynamicShapes),
+                                            ::testing::Values(utils::InputLayerType::PARAMETER),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ReverseSequenceLayerCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

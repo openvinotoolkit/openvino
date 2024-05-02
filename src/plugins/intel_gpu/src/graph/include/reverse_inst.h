@@ -18,7 +18,7 @@ class typed_primitive_inst<reverse> : public typed_primitive_inst_base<reverse> 
     using parent::parent;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(reverse_node const& /*node*/, const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }

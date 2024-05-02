@@ -3,11 +3,11 @@
 //
 
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -20,7 +20,12 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     std::vector<uint16_t> order;
     if (op->get_input_size() == 2) {
         auto order_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-        OPENVINO_ASSERT(order_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        OPENVINO_ASSERT(order_constant != nullptr,
+                        "[GPU] Unsupported parameter nodes type in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
         order = order_constant->cast_vector<uint16_t>();
     }
 
@@ -31,9 +36,7 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
             order.push_back((uint16_t)o);
     }
 
-    auto permutePrim = cldnn::permute(layerName,
-                                      inputs[0],
-                                      order);
+    auto permutePrim = cldnn::permute(layerName, inputs[0], order);
     permutePrim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, permutePrim);
 }

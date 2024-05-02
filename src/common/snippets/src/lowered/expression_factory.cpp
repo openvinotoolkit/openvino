@@ -38,14 +38,14 @@ void LinearIR::ExpressionFactory::create_expression_outputs(const ExpressionPtr&
 }
 
 // The method verifies of input port connectors to availability of the expression as consumer and add it if missed
-void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr, const std::vector<PortConnectorPtr>& inputs) {
+void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& expr,
+                                                         const std::vector<PortConnectorPtr>& inputs) {
     for (size_t i = 0; i < inputs.size(); ++i) {
         const auto& input = inputs[i];
         const auto consumers = input->get_consumers();
-        const auto found = std::find_if(consumers.begin(), consumers.end(),
-                                        [&](const ExpressionPort& desc) {
-                                            return desc.get_index() == i && desc.get_expr() == expr;
-                                        });
+        const auto found = std::find_if(consumers.begin(), consumers.end(), [&](const ExpressionPort& desc) {
+            return desc.get_index() == i && desc.get_expr() == expr;
+        });
         if (found == consumers.end()) {
             input->add_consumer(expr->get_input_port(i));
         }
@@ -54,29 +54,36 @@ void LinearIR::ExpressionFactory::init_expression_inputs(const ExpressionPtr& ex
 }
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Parameter>& par,
-                                                  const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
-    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
+                                                  const LinearIR& linear_ir,
+                                                  const std::shared_ptr<ov::Model>& model) {
+    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
+    // make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Parameter there must be inited model!");
-    auto expr = std::shared_ptr<IOExpression>(new IOExpression(par, model->get_parameter_index(par), linear_ir.m_shape_infer_factory));
+    auto expr = std::shared_ptr<IOExpression>(
+        new IOExpression(par, model->get_parameter_index(par), linear_ir.m_shape_infer_factory));
     create_expression_outputs(expr);
     expr->validate();
     return expr;
 }
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::v0::Result>& res,
-                                                  const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
-    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
+                                                  const LinearIR& linear_ir,
+                                                  const std::shared_ptr<ov::Model>& model) {
+    // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly
+    // make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Result there must be inited model!");
-    auto expr = std::shared_ptr<IOExpression>(new IOExpression(res, model->get_result_index(res), linear_ir.m_shape_infer_factory));
+    auto expr = std::shared_ptr<IOExpression>(
+        new IOExpression(res, model->get_result_index(res), linear_ir.m_shape_infer_factory));
     create_expression_inputs(linear_ir, expr);
-    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
-    // The port descriptors are automatically created in constructor. We manually clean output ports.
+    // The Result node don't need output port (because of sense of the node). But each node in openvino must have one
+    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;
 }
 
-ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir,
+ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n,
+                                                  const LinearIR& linear_ir,
                                                   const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(!ov::is_type<op::LoopBase>(n), "Default expression builder doesn't support LoopBegin and LoopEnd");
     // Note: ctor of shared_ptr isn't friend class for Expression
@@ -107,11 +114,12 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
         expr->m_input_port_descriptors[i] = std::make_shared<PortDescriptor>();
     }
     const auto& last_input = inputs.back()->get_source();
-    OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()), "LoopEnd expression expects LoopBegin on last input");
+    OPENVINO_ASSERT(ov::is_type<op::LoopBegin>(last_input.get_expr()->get_node()),
+                    "LoopEnd expression expects LoopBegin on last input");
     expr->m_input_port_descriptors[inputs.size() - 1] = last_input.get_descriptor_ptr()->clone();
     init_expression_inputs(expr, inputs);
-    // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one output at least.
-    // The port descriptors are automatically created in constructor. We manually clean output ports.
+    // The LoopEnd node don't need output port (because of sense of the node). But each node in openvino must have one
+    // output at least. The port descriptors are automatically created in constructor. We manually clean output ports.
     expr->m_output_port_descriptors.clear();
     expr->validate();
     return expr;
@@ -145,8 +153,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create_without_connections(const std:
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node>& n,
                                                   const std::vector<PortConnectorPtr>& inputs,
                                                   const LinearIR& linear_ir) {
-    OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(n) &&
-                    !ov::is_type<ov::op::v0::Result>(n),
+    OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(n) && !ov::is_type<ov::op::v0::Result>(n),
                     "Expression builder with inputs doesn't support Result and Parameter");
     auto expr = std::shared_ptr<Expression>(new Expression(n, linear_ir.m_shape_infer_factory));
     init_expression_inputs(expr, inputs);
@@ -158,6 +165,6 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
         expr->updateShapes();
     return expr;
 }
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

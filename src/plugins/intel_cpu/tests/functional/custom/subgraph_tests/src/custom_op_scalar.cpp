@@ -25,11 +25,8 @@ public:
 
     void validate_and_infer_types() override {
         const auto& inputs_count = input_values().size();
-        OPENVINO_ASSERT(inputs_count == 2,
-                        "Input count must be 1, Got: ",
-                        inputs_count);
-        OPENVINO_ASSERT(get_input_element_type(0) == ov::element::Type_t::u8,
-                        "The input must be u8.");
+        OPENVINO_ASSERT(inputs_count == 2, "Input count must be 1, Got: ", inputs_count);
+        OPENVINO_ASSERT(get_input_element_type(0) == ov::element::Type_t::u8, "The input must be u8.");
         set_output_size(1);
 
         auto inShape = get_input_partial_shape(0);
@@ -38,7 +35,10 @@ public:
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments: ", new_args.size(), ". 2 is expected.");
+        OPENVINO_ASSERT(new_args.size() == 2,
+                        "Incorrect number of new arguments: ",
+                        new_args.size(),
+                        ". 2 is expected.");
 
         return std::make_shared<CustomOpScalar>(new_args);
     }
@@ -49,12 +49,16 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         for (size_t i = 0llu; i < inputs.size(); i++) {
-            OPENVINO_ASSERT(inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
-                "Invalid input shape rank: ", inputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
+                "Invalid input shape rank: ",
+                inputs[i].get_shape().size());
         }
         for (size_t i = 0llu; i < outputs.size(); i++) {
-            OPENVINO_ASSERT(outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
-                "Invalid outputs shape rank: ", outputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
+                "Invalid outputs shape rank: ",
+                outputs[i].get_shape().size());
         }
 
         const auto& in_0 = inputs[0];
@@ -77,8 +81,8 @@ public:
 };
 
 class CustomOpScalarCPUTest : public testing::WithParamInterface<CustomOpScalarCPUTestParams>,
-                                  virtual public SubgraphBaseTest,
-                                  public CPUTestsBase {
+                              virtual public SubgraphBaseTest,
+                              public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpScalarCPUTestParams>& obj) {
         ElementType inType;
@@ -138,11 +142,7 @@ TEST_P(CustomOpScalarCPUTest, CompareWithRefs) {
     run();
 }
 
-const std::vector<InputShape> inputShapes = {
-    {{}, {{2, 3, 16}}},
-    {{2, 3, -1}, {{2, 3, 0}}},
-    {{}, {{}}}
-};
+const std::vector<InputShape> inputShapes = {{{}, {{2, 3, 16}}}, {{2, 3, -1}, {{2, 3, 0}}}, {{}, {{}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          CustomOpScalarCPUTest,

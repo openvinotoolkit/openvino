@@ -17,13 +17,13 @@ class ReshapeMutation(BackReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('reshape', {'kind': 'op'})],
+            nodes=[("reshape", {"kind": "op"})],
             edges=[],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        reshape = match['reshape']
+        reshape = match["reshape"]
 
-        if reshape.soft_get('type') == 'Reshape':
-            reshape['force_precision_in_ports'] = {1: 'int64'}
+        if reshape.soft_get("type") == "Reshape":
+            reshape["force_precision_in_ports"] = {1: "int64"}

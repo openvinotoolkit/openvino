@@ -11,12 +11,11 @@ class TestNormalizeL2(CommonTFLayerTest):
     @staticmethod
     def create_normalize_l2_net(shape, axes):
         import tensorflow as tf
+
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            data = tf.compat.v1.placeholder(tf.float32, shape=shape, name='data')
-            tf.math.l2_normalize(data,
-                                 axes,
-                                 name='Operation')
+            data = tf.compat.v1.placeholder(tf.float32, shape=shape, name="data")
+            tf.math.l2_normalize(data, axes, name="Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -32,15 +31,22 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'),
-                       reason='Ticket - 126314, 122716')
-    def test_normalize_l2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
-        self._test(*self.create_normalize_l2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() in ("Linux", "Darwin")
+        and platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+        reason="Ticket - 126314, 122716",
+    )
+    def test_normalize_l2_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_normalize_l2_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
     test_data_complex = [
         dict(shape=[2, 3, 5, 4], axes=[1, 2, 3]),
@@ -49,8 +55,14 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_complex)
     @pytest.mark.nightly
-    def test_normalize_l2_complex(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_legacy_frontend):
-        self._test(*self.create_normalize_l2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_normalize_l2_complex(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_normalize_l2_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

@@ -1,9 +1,17 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
-
-from tests.test_transformations.utils.utils import MyModelPass, PatternReplacement, expect_exception
+from openvino.runtime.passes import (
+    BackwardGraphRewrite,
+    GraphRewrite,
+    Manager,
+    Serialize,
+)
+from tests.test_transformations.utils.utils import (
+    MyModelPass,
+    PatternReplacement,
+    expect_exception,
+)
 
 
 def test_registration_and_pass_name():
@@ -36,6 +44,12 @@ def test_registration_and_pass_name():
 def test_negative_pass_registration():
     manager = Manager()
     expect_exception(lambda: manager.register_pass(PatternReplacement))
-    expect_exception(lambda: manager.register_pass("PatternReplacement", PatternReplacement()))
-    expect_exception(lambda: manager.register_pass("Serialize", Serialize("out.xml", "out.bin")))
-    expect_exception(lambda: manager.register_pass(Serialize("out.xml", "out.bin", "out.wrong")))
+    expect_exception(
+        lambda: manager.register_pass("PatternReplacement", PatternReplacement())
+    )
+    expect_exception(
+        lambda: manager.register_pass("Serialize", Serialize("out.xml", "out.bin"))
+    )
+    expect_exception(
+        lambda: manager.register_pass(Serialize("out.xml", "out.bin", "out.wrong"))
+    )

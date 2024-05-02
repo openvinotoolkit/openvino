@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <map>
+
 #include "cpu_types.h"
 #include "input.h"
 #include "memory_state.h"
 #include "node.h"
 #include "ov_optional.hpp"
 #include "proxy_mem_mgr.h"
-
-#include <map>
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +22,7 @@ class MemoryInputBase;
 class ScaledDotProductAttention;
 
 class MemoryNode {
- public:
+public:
     explicit MemoryNode(std::string id) : m_id(id) {}
     explicit MemoryNode(const std::shared_ptr<ov::Node>& op);
     virtual ~MemoryNode() = default;
@@ -49,12 +49,12 @@ public:
 class MemoryNodeVirtualEdge {
 public:
     using Holder = std::map<std::string, MemoryNode*>;
-    static Holder & getExisted() {
+    static Holder& getExisted() {
         thread_local static Holder existed;
         return existed;
     }
 
-    static MemoryNode * getByName(Holder& holder, std::string name) {
+    static MemoryNode* getByName(Holder& holder, std::string name) {
         auto result = holder.find(name);
         if (result != holder.end()) {
             return result->second;
@@ -62,9 +62,9 @@ public:
         return nullptr;
     }
 
-    static Holder* registerOutput(MemoryOutputBase * node);
-    static Holder* registerInput(MemoryInputBase * node);
-    static void remove(MemoryNode * node, Holder* holder);
+    static Holder* registerOutput(MemoryOutputBase* node);
+    static Holder* registerInput(MemoryInputBase* node);
+    static void remove(MemoryNode* node, Holder* holder);
     static std::mutex holderMutex;
 };
 
@@ -91,8 +91,12 @@ public:
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
 
-    bool needShapeInfer() const override { return false; }
-    bool needPrepareParams() const override { return false; }
+    bool needShapeInfer() const override {
+        return false;
+    }
+    bool needPrepareParams() const override {
+        return false;
+    }
 
     virtual void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) = 0;
 
@@ -121,7 +125,7 @@ public:
 
 private:
     MemoryPtr assignedMem = nullptr;
-    MemoryDescPtr extMemDesc = nullptr; // used for resize
+    MemoryDescPtr extMemDesc = nullptr;  // used for resize
     ProxyMemoryMngrPtr memMngr = nullptr;
 };
 
@@ -229,6 +233,6 @@ private:
     int m_child_port_idx = -1;
     bool m_needShapeInfer = false;
 };
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

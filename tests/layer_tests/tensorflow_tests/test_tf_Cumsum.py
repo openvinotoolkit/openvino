@@ -3,12 +3,11 @@
 
 import numpy as np
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-
 
 # Testing Cumsum operation
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/Cumsum
+
 
 class TestCumsum(CommonTFLayerTest):
     # input_shape - should be an array
@@ -22,10 +21,12 @@ class TestCumsum(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_input = tf.compat.v1.placeholder(tf.float32, input_shape, 'Input')
+            tf_input = tf.compat.v1.placeholder(tf.float32, input_shape, "Input")
 
             tf_axis = tf.constant(axis, dtype=tf.int32)
-            tf.raw_ops.Cumsum(x=tf_input, axis=tf_axis, exclusive=exclusive, reverse=reverse)
+            tf.raw_ops.Cumsum(
+                x=tf_input, axis=tf_axis, exclusive=exclusive, reverse=reverse
+            )
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -49,11 +50,25 @@ class TestCumsum(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
-        self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_cumsum_basic(
+        self,
+        params,
+        exclusive,
+        reverse,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        self._test(
+            *self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
 
 class TestComplexCumsum(CommonTFLayerTest):
@@ -63,13 +78,13 @@ class TestComplexCumsum(CommonTFLayerTest):
     # reverse - enables reverse order of Cumsum
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'x_real:0' in inputs_info
-        assert 'x_imag:0' in inputs_info
-        x_shape = inputs_info['x_real:0']
+        assert "x_real:0" in inputs_info
+        assert "x_imag:0" in inputs_info
+        x_shape = inputs_info["x_real:0"]
         inputs_data = {}
 
-        inputs_data['x_real:0'] = 4 * rng.random(x_shape).astype(np.float64) - 2
-        inputs_data['x_imag:0'] = 4 * rng.random(x_shape).astype(np.float64) - 2
+        inputs_data["x_real:0"] = 4 * rng.random(x_shape).astype(np.float64) - 2
+        inputs_data["x_imag:0"] = 4 * rng.random(x_shape).astype(np.float64) - 2
 
         return inputs_data
 
@@ -80,11 +95,13 @@ class TestComplexCumsum(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x_real = tf.compat.v1.placeholder(tf.float32, input_shape, 'x_real')
-            x_imag = tf.compat.v1.placeholder(tf.float32, input_shape, 'x_imag')
+            x_real = tf.compat.v1.placeholder(tf.float32, input_shape, "x_real")
+            x_imag = tf.compat.v1.placeholder(tf.float32, input_shape, "x_imag")
             complex_input = tf.complex(x_real, x_imag)
             tf_axis = tf.constant(axis, dtype=tf.int32)
-            result = tf.raw_ops.Cumsum(x=complex_input, axis=tf_axis, exclusive=exclusive, reverse=reverse)
+            result = tf.raw_ops.Cumsum(
+                x=complex_input, axis=tf_axis, exclusive=exclusive, reverse=reverse
+            )
             real = tf.raw_ops.Real(input=result)
             img = tf.raw_ops.Imag(input=result)
 
@@ -109,8 +126,22 @@ class TestComplexCumsum(CommonTFLayerTest):
     @pytest.mark.parametrize("reverse", [False, True, None])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
-        self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_cumsum_basic(
+        self,
+        params,
+        exclusive,
+        reverse,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        self._test(
+            *self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

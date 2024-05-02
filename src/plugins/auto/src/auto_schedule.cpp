@@ -4,6 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_schedule.hpp"
+
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
 
@@ -28,8 +29,9 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             } else {
                 real_device_name = device_name;
             }
-            const auto current_device_iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>
-                                             (real_device_name, m_context->m_device_priorities);
+            const auto current_device_iter =
+                deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(real_device_name,
+                                                                                      m_context->m_device_priorities);
             if (current_device_iter != m_context->m_device_priorities.end()) {
                 if (m_context->m_device_priorities.size() == 1) {
                     LOG_INFO_TAG("No other devices in m_device_priorities");
@@ -63,7 +65,8 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 m_compile_context[ACTUALDEVICE].m_is_enabled = false;
                 m_compile_context[ACTUALDEVICE].m_is_load_success = false;
                 m_compile_context[ACTUALDEVICE].m_is_already = false;
-                LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                LOG_INFO_TAG("Select fallback device:%s",
+                             m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
             } else {
                 // load failed or generate works failed, so reselect other devices
@@ -95,7 +98,7 @@ void AutoSchedule::init() {
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority);
 
-    auto load_device_task = [&](AutoCompileContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
+    auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
@@ -108,7 +111,9 @@ void AutoSchedule::init() {
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
-                auto supported_config_keys = context_ptr->m_compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+                auto supported_config_keys =
+                    context_ptr->m_compiled_model->get_property(ov::supported_properties.name())
+                        .as<std::vector<ov::PropertyName>>();
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 for (const auto& cfg : supported_config_keys) {
                     try {
@@ -135,12 +140,14 @@ void AutoSchedule::init() {
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
         } else {
-            const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
+            const auto cpu_iter =
+                deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
             // if have CPU Device,  enable m_compile_context[CPU]
             if (cpu_iter != m_context->m_device_priorities.end()) {
                 m_compile_context[CPU].m_is_enabled = true;
                 m_compile_context[CPU].m_device_info = *cpu_iter;
-                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+                m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
+                    ov::hint::PerformanceMode::LATENCY;
                 m_compile_context[CPU].m_worker_name = "CPU_HELP";
                 LOG_INFO_TAG("will load CPU for accelerator");
             } else {
@@ -325,8 +332,8 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     // select next candidate device
     try {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        context.m_device_info = m_plugin->select_device(device_list,
-                context.m_model_precision, m_context->m_model_priority);
+        context.m_device_info =
+            m_plugin->select_device(device_list, context.m_model_precision, m_context->m_model_priority);
     } catch (const std::exception&) {
         return;
     }
@@ -381,7 +388,7 @@ SoCompiledModel AutoSchedule::wait_first_compiled_model_ready() {
         }
     }
     std::ostringstream result;
-    //print m_err_message
+    // print m_err_message
     result << "compile model failed, ";
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (m_compile_context[i].m_is_enabled) {

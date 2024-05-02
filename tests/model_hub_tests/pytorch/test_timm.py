@@ -7,17 +7,42 @@ import pytest
 import timm
 import torch
 from models_hub_common.utils import get_models_list
-
 from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico",
-                   "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini", "small",
-                   "lite", "medium", "m", "big", "large", "l", "xlarge", "xl",
-                   "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = [
+        "base",
+        "atto",
+        "femto",
+        "xxtiny",
+        "xxsmall",
+        "xxs",
+        "pico",
+        "xtiny",
+        "xmall",
+        "xs",
+        "nano",
+        "tiny",
+        "s",
+        "mini",
+        "small",
+        "lite",
+        "medium",
+        "m",
+        "big",
+        "large",
+        "l",
+        "xlarge",
+        "xl",
+        "huge",
+        "xxlarge",
+        "gigantic",
+        "giant",
+        "enormous",
+    ]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
         if "x_" in name:
@@ -70,12 +95,17 @@ class TestTimmConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
-                                      "poolformerv2_s12.sail_in1k",
-                                      "vit_base_patch8_224.augreg_in21k",
-                                      "beit_base_patch16_224.in22k_ft_in22k",
-                                      "sequencer2d_l.in1k",
-                                      "gcresnext26ts.ch_in1k"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "mobilevitv2_050.cvnets_in1k",
+            "poolformerv2_s12.sail_in1k",
+            "vit_base_patch8_224.augreg_in21k",
+            "beit_base_patch16_224.in22k_ft_in22k",
+            "sequencer2d_l.in1k",
+            "gcresnext26ts.ch_in1k",
+        ],
+    )
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"
@@ -92,6 +122,12 @@ class TestTimmConvertModel(TestTorchConvertModel):
     def test_models_list_complete(self, ie_device):
         m_list = timm.list_pretrained()
         all_models_ref = set(filter_timm(m_list))
-        all_models = set([m for m, _, _, _ in get_models_list(
-            os.path.join(os.path.dirname(__file__), "timm_models"))])
+        all_models = set(
+            [
+                m
+                for m, _, _, _ in get_models_list(
+                    os.path.join(os.path.dirname(__file__), "timm_models")
+                )
+            ]
+        )
         assert all_models == all_models_ref, f"Lists of models are not equal."

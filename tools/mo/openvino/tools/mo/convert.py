@@ -5,81 +5,83 @@ import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.runtime import PartialShape, Shape, Layout, Model
-from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import Layout, Model, PartialShape, Shape
 
-LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
+from openvino.tools.mo.convert_impl import _convert
+from openvino.tools.mo.utils.cli_parser import (  # pylint: disable=no-name-in-module,import-error
+    get_all_cli_parser,
+)
+from openvino.tools.mo.utils.logger import (  # pylint: disable=no-name-in-module,import-error
+    get_logger_state,
+    restore_logger_state,
+)
+
+LayoutMap = namedtuple(
+    "LayoutMap", ["source_layout", "target_layout"], defaults=[None, None]
+)
+InputCutInfo = namedtuple(
+    "InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None]
+)
 
 
 def convert_model(
-        input_model: [str, pathlib.Path, Any] = None,
-
-        # Optional parameters
-        help: bool = False,
-        framework: [str] = None,
-
-        # Framework-agnostic parameters
-        input: [str, list, tuple, InputCutInfo] = None,
-        output: [str, list] = None,
-        input_shape: [str, PartialShape, Shape, list] = None,
-        example_input: Any = None,
-        batch: int = None,
-        mean_values: [str, dict, list] = (),
-        scale_values: [str, dict, list] = (),
-        scale: [str, float] = None,
-        reverse_input_channels: bool = False,
-        source_layout: [str, Layout, dict] = (),
-        target_layout: [str, Layout, dict] = (),
-        layout: [str, Layout, LayoutMap, list, dict] = (),
-        compress_to_fp16: bool = False,
-        extensions: [str, pathlib.Path, list, Any] = None,
-        transform: [str, list, tuple] = "",
-        transformations_config: [str, pathlib.Path] = None,
-        silent: bool = True,
-        log_level: str = 'ERROR',
-        version: bool = None,
-        progress: bool = False,
-        stream_output: bool = False,
-        share_weights: bool = False,
-
-        # PaddlePaddle-specific parameters:
-        example_output: Any = None,
-
-        # TensorFlow*-specific parameters
-        input_model_is_text: bool = None,
-        input_checkpoint: [str, pathlib.Path] = None,
-        input_meta_graph: [str, pathlib.Path] = None,
-        saved_model_dir: [str, pathlib.Path] = None,
-        saved_model_tags: [str, list] = None,
-        tensorflow_custom_operations_config_update: [str, pathlib.Path] = None,
-        tensorflow_object_detection_api_pipeline_config: [str, pathlib.Path] = None,
-        tensorboard_logdir: [str, pathlib.Path] = None,
-        tensorflow_custom_layer_libraries: [str, pathlib.Path] = None,
-
-        # MXNet-specific parameters:
-        input_symbol: [str, pathlib.Path] = None,
-        nd_prefix_name: str = None,
-        pretrained_model_name: str = None,
-        save_params_from_nd: bool = None,
-        legacy_mxnet_model: bool = None,
-        enable_ssd_gluoncv: bool = False,
-
-        # Caffe*-specific parameters:
-        input_proto: [str, pathlib.Path] = None,
-        caffe_parser_path: [str, pathlib.Path] = None,
-        k: [str, pathlib.Path] = None,
-        disable_omitting_optional: bool = False,
-        enable_flattening_nested_params: bool = False,
-
-        # Kaldi-specific parameters:
-        counts: [str, pathlib.Path] = None,
-        remove_output_softmax: bool = False,
-        remove_memory: bool = False,
-
-        **args
+    input_model: [str, pathlib.Path, Any] = None,
+    # Optional parameters
+    help: bool = False,
+    framework: [str] = None,
+    # Framework-agnostic parameters
+    input: [str, list, tuple, InputCutInfo] = None,
+    output: [str, list] = None,
+    input_shape: [str, PartialShape, Shape, list] = None,
+    example_input: Any = None,
+    batch: int = None,
+    mean_values: [str, dict, list] = (),
+    scale_values: [str, dict, list] = (),
+    scale: [str, float] = None,
+    reverse_input_channels: bool = False,
+    source_layout: [str, Layout, dict] = (),
+    target_layout: [str, Layout, dict] = (),
+    layout: [str, Layout, LayoutMap, list, dict] = (),
+    compress_to_fp16: bool = False,
+    extensions: [str, pathlib.Path, list, Any] = None,
+    transform: [str, list, tuple] = "",
+    transformations_config: [str, pathlib.Path] = None,
+    silent: bool = True,
+    log_level: str = "ERROR",
+    version: bool = None,
+    progress: bool = False,
+    stream_output: bool = False,
+    share_weights: bool = False,
+    # PaddlePaddle-specific parameters:
+    example_output: Any = None,
+    # TensorFlow*-specific parameters
+    input_model_is_text: bool = None,
+    input_checkpoint: [str, pathlib.Path] = None,
+    input_meta_graph: [str, pathlib.Path] = None,
+    saved_model_dir: [str, pathlib.Path] = None,
+    saved_model_tags: [str, list] = None,
+    tensorflow_custom_operations_config_update: [str, pathlib.Path] = None,
+    tensorflow_object_detection_api_pipeline_config: [str, pathlib.Path] = None,
+    tensorboard_logdir: [str, pathlib.Path] = None,
+    tensorflow_custom_layer_libraries: [str, pathlib.Path] = None,
+    # MXNet-specific parameters:
+    input_symbol: [str, pathlib.Path] = None,
+    nd_prefix_name: str = None,
+    pretrained_model_name: str = None,
+    save_params_from_nd: bool = None,
+    legacy_mxnet_model: bool = None,
+    enable_ssd_gluoncv: bool = False,
+    # Caffe*-specific parameters:
+    input_proto: [str, pathlib.Path] = None,
+    caffe_parser_path: [str, pathlib.Path] = None,
+    k: [str, pathlib.Path] = None,
+    disable_omitting_optional: bool = False,
+    enable_flattening_nested_params: bool = False,
+    # Kaldi-specific parameters:
+    counts: [str, pathlib.Path] = None,
+    remove_output_softmax: bool = False,
+    remove_memory: bool = False,
+    **args
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.
@@ -358,7 +360,7 @@ def convert_model(
     """
     params = locals()
     logger_state = get_logger_state()
-    del params['args']
+    del params["args"]
     params.update(args)
     cli_parser = get_all_cli_parser()
     ov_model, _ = _convert(cli_parser, framework, params, True)

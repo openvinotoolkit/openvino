@@ -5,10 +5,10 @@
 #pragma once
 
 #include <atomic>
-#include <mutex>
 #include <map>
-#include <string>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <tuple>
 
 #include "kernel_selector_common.h"
@@ -31,7 +31,8 @@ public:
     // Constructs empty tuning cache.
     TuningCache();
 
-    // Returns cached kernel for specified params. If "update" moves it to newest version if found, which may require saving afterwards.
+    // Returns cached kernel for specified params. If "update" moves it to newest version if found, which may require
+    // saving afterwards.
     Entry LoadKernel(const Params& params);
     // Overrides the compute units count in params.
     Entry LoadKernel(const Params& params, uint32_t computeUnitsCount);

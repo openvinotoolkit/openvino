@@ -2,25 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "adaptive_pooling_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
 #include "adaptive_avg_pool_shape_inference.hpp"
 #include "adaptive_max_pool_shape_inference.hpp"
+#include "adaptive_pooling_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(adaptive_pooling)
 
-layout adaptive_pooling_inst::calc_output_layout(adaptive_pooling_node const& node, kernel_impl_params const& impl_param) {
+layout adaptive_pooling_inst::calc_output_layout(adaptive_pooling_node const& node,
+                                                 kernel_impl_params const& impl_param) {
     const auto data_layout = impl_param.get_input_layout();
     const auto prim = impl_param.typed_desc<adaptive_pooling>();
     return {data_layout.data_type, data_layout.format, prim->output_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_node const& /*node*/,
+                                                               const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
 
     const auto prim = impl_param.typed_desc<adaptive_pooling>();
@@ -28,10 +30,7 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
     auto input1_layout = impl_param.get_input_layout(1);
     auto output_format = input0_layout.format;
 
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        input1_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input0_layout.get<ShapeType>(), input1_layout.get<ShapeType>()};
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::unordered_map<size_t, ov::Tensor> const_data;
 
@@ -68,8 +67,9 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
     return layouts;
 }
 
-template std::vector<layout> adaptive_pooling_inst::calc_output_layouts<ov::PartialShape>(adaptive_pooling_node const& node,
-                                                                                          const kernel_impl_params& impl_param);
+template std::vector<layout> adaptive_pooling_inst::calc_output_layouts<ov::PartialShape>(
+    adaptive_pooling_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string adaptive_pooling_inst::to_string(adaptive_pooling_node const& node) {
     const auto prim = node.get_primitive();
@@ -88,5 +88,6 @@ std::string adaptive_pooling_inst::to_string(adaptive_pooling_node const& node) 
     return primitive_description.str();
 }
 
-adaptive_pooling_inst::typed_primitive_inst(network& network, adaptive_pooling_node const& node) : parent(network, node) {}
+adaptive_pooling_inst::typed_primitive_inst(network& network, adaptive_pooling_node const& node)
+    : parent(network, node) {}
 }  // namespace cldnn

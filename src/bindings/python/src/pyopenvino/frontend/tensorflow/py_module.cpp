@@ -6,9 +6,9 @@
 
 #include <string>
 
+#include "decoder_base.hpp"
 #include "extension.hpp"
 #include "graph_iterator.hpp"
-#include "decoder_base.hpp"
 
 namespace py = pybind11;
 

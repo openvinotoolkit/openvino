@@ -32,8 +32,9 @@ protected:
         const auto ngPrec = this->GetParam();
 
         ov::Shape splitShape{1, 2, 1, 16};
-        ov::ParameterVector splitInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        ov::ParameterVector splitInputParams{std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(splitShape))};
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(splitInputParams[0], split_axis_op, 2);
 
         std::vector<ov::Shape> concatShapes{{1, 1, 8, 8}, {1, 1, 8, 8}};
@@ -50,13 +51,17 @@ protected:
         const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(split->output(0), concat, false, false);
 
         ov::Shape matmulShape{1, 1, 16, 8};
-        ov::ParameterVector matmulInputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(matmulShape))};
+        ov::ParameterVector matmulInputParams{std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(matmulShape))};
 
         const auto matMul2 = std::make_shared<ov::op::v0::MatMul>(split->output(1), matmulInputParams[0], false, false);
 
-        const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul1, matMul2}, 2 /* 3rd axis */);
+        const auto concatMatMuls =
+            std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul1, matMul2}, 2 /* 3rd axis */);
 
-        ov::ParameterVector inputParams = {splitInputParams[0], concatInputParams[0], concatInputParams[1], matmulInputParams[0]};
+        ov::ParameterVector inputParams = {splitInputParams[0],
+                                           concatInputParams[0],
+                                           concatInputParams[1],
+                                           matmulInputParams[0]};
         function = makeNgraphFunction(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
     }
 };

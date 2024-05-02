@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "gather_tree_inst.h"
-#include "gather_tree/gather_tree_kernel_selector.h"
 #include "gather_tree/gather_tree_kernel_base.h"
+#include "gather_tree/gather_tree_kernel_selector.h"
+#include "gather_tree_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -35,11 +34,7 @@ struct gather_tree_impl : typed_primitive_impl_ocl<gather_tree> {
 
 namespace detail {
 attach_gather_tree_impl::attach_gather_tree_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i32
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i32};
 
     auto formats = {
         format::yxfb,
@@ -56,7 +51,10 @@ attach_gather_tree_impl::attach_gather_tree_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<gather_tree>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_tree>::create<gather_tree_impl>, types, formats);
+    implementation_map<gather_tree>::add(impl_types::ocl,
+                                         typed_primitive_impl_ocl<gather_tree>::create<gather_tree_impl>,
+                                         types,
+                                         formats);
 }
 
 }  // namespace detail

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include "pass/fuse_transpose_brgemm.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/common_utils.hpp"
-#include "subgraph_matmul.hpp"
 #include "subgraph_lowered.hpp"
+#include "subgraph_matmul.hpp"
 
 namespace ov {
 namespace test {
@@ -46,11 +48,12 @@ std::vector<fuseTransposeBrgemmParams> test_params{
     {{{1, 2, 49, 23}, {2, 2, 23, 39}}, 2},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FuseTransposeMatMul, FuseTransposeBrgemmTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FuseTransposeMatMul,
+                         FuseTransposeBrgemmTests,
                          ::testing::ValuesIn(test_params),
                          FuseTransposeBrgemmTests::getTestCaseName);
 
-} // namespace FuseTransposeBrgemmTestsInstantiation
+}  // namespace FuseTransposeBrgemmTestsInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

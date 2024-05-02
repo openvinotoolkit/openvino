@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "ctc_greedy_decoder_kernel_base.h"
 #include <string>
 #include <vector>
+
+#include "ctc_greedy_decoder_kernel_base.h"
 
 namespace kernel_selector {
 class CTCGreedyDecoderKernelRef : public CTCGreedyDecoderKernelBase {

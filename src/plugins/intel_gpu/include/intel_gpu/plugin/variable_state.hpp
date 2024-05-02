@@ -3,24 +3,27 @@
 //
 #pragma once
 
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/ivariable_state.hpp"
-#include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/shape_predictor.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 #include <functional>
 #include <unordered_map>
+
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 
 namespace ov {
 namespace intel_gpu {
 class RemoteContextImpl;
 
 struct VariableStateInfo {
-    VariableStateInfo(const std::string& id, const cldnn::layout& layout, ov::element::Type_t user_specified_type = ov::element::undefined)
-        : m_id(id)
-        , m_layout(layout)
-        , m_user_specified_type(user_specified_type)
-        , m_primitives() {}
+    VariableStateInfo(const std::string& id,
+                      const cldnn::layout& layout,
+                      ov::element::Type_t user_specified_type = ov::element::undefined)
+        : m_id(id),
+          m_layout(layout),
+          m_user_specified_type(user_specified_type),
+          m_primitives() {}
 
     std::string m_id;
     cldnn::layout m_layout;
@@ -30,15 +33,21 @@ struct VariableStateInfo {
 
 class VariableStateBase : public ov::IVariableState {
 public:
-    VariableStateBase(const std::string& id, std::shared_ptr<RemoteContextImpl> context) : ov::IVariableState(id), m_context(context) {}
+    VariableStateBase(const std::string& id, std::shared_ptr<RemoteContextImpl> context)
+        : ov::IVariableState(id),
+          m_context(context) {}
     virtual cldnn::memory::ptr get_memory() const = 0;
     virtual const cldnn::layout& get_layout() const = 0;
     virtual void set_layout(const cldnn::layout& new_layout) = 0;
     virtual void set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) = 0;
     virtual size_t get_actual_mem_size() const = 0;
 
-    void set() { m_is_set = true; }
-    bool is_set() const { return m_is_set; }
+    void set() {
+        m_is_set = true;
+    }
+    bool is_set() const {
+        return m_is_set;
+    }
 
 protected:
     bool m_is_set = false;
@@ -47,7 +56,9 @@ protected:
 
 class VariableState : public VariableStateBase {
 public:
-    VariableState(const VariableStateInfo& info, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
+    VariableState(const VariableStateInfo& info,
+                  std::shared_ptr<RemoteContextImpl> context,
+                  ShapePredictor::Ptr shape_predictor);
     using Ptr = std::shared_ptr<VariableState>;
 
     void reset() override;

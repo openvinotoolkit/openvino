@@ -20,15 +20,15 @@ auto autoBatchConfigs = []() {
                                     ov::auto_batch_timeout(0)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
-        ::testing::Combine(
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(configs())),
-        OVInferRequestCancellationTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestCancellationTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(configs())),
+                         OVInferRequestCancellationTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVInferRequestCancellationTests,
-                         ::testing::Combine(
-                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(autoBatchConfigs())),
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests,
+                         OVInferRequestCancellationTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(autoBatchConfigs())),
                          OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

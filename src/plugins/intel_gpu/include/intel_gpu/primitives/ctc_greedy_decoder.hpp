@@ -24,10 +24,10 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
                        const bool ctc_merge_repeated,
                        const tensor output_tensor,
                        const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding})
-        , blank_index(blank_index)
-        , ctc_merge_repeated(ctc_merge_repeated)
-        , output_tensor(output_tensor) {}
+        : primitive_base(id, inputs, {output_padding}),
+          blank_index(blank_index),
+          ctc_merge_repeated(ctc_merge_repeated),
+          output_tensor(output_tensor) {}
 
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
@@ -40,9 +40,9 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
                        const padding& output_padding = padding(),
                        data_types output_data_type = data_types::i32,
                        const size_t num_outputs = 1)
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs)
-        , blank_index(blank_index)
-        , ctc_merge_repeated(ctc_merge_repeated) {}
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+          blank_index(blank_index),
+          ctc_merge_repeated(ctc_merge_repeated) {}
 
     uint32_t blank_index = UINT32_MAX;
     bool ctc_merge_repeated = false;
@@ -63,8 +63,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
 
         auto rhs_casted = downcast<const ctc_greedy_decoder>(rhs);
 
-        return blank_index == rhs_casted.blank_index &&
-               ctc_merge_repeated == rhs_casted.ctc_merge_repeated &&
+        return blank_index == rhs_casted.blank_index && ctc_merge_repeated == rhs_casted.ctc_merge_repeated &&
                second_output.empty() == rhs_casted.second_output.empty();
     }
 

@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
-
-#include <vector>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

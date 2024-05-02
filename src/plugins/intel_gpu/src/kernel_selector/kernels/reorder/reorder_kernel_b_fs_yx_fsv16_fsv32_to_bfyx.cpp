@@ -3,14 +3,16 @@
 //
 
 #include "reorder_kernel_b_fs_yx_fsv16_fsv32_to_bfyx.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <string>
-#include <functional>
+
 #include <cmath>
+#include <functional>
+#include <string>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 // Tile size : 8x8
-#define HALF_TILE_SIZE 4
+#define HALF_TILE_SIZE    4
 #define DEFAULT_TILE_SIZE 8
 
 namespace kernel_selector {
@@ -39,7 +41,8 @@ ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_blocked_read_write();
@@ -60,7 +63,8 @@ static inline std::string GetTiledOutputOrder(size_t size) {
     case 6:
         order_str = "b, f, w, z, y, x";
         break;
-    default: throw std::runtime_error("Unsupported size\n");
+    default:
+        throw std::runtime_error("Unsupported size\n");
     }
     return order_str;
 }
@@ -107,9 +111,9 @@ static inline std::vector<size_t> GetGWS(const reorder_params& params) {
     const auto& in = params.inputs[0];
     const size_t fsv_alignment = GetFsvAlignment(params);
 
-    std::vector<size_t> gws = { CeilDiv(in.X().v, DEFAULT_TILE_SIZE) * fsv_alignment,
-        in.Y().v * in.Z().v,
-        in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment) };
+    std::vector<size_t> gws = {CeilDiv(in.X().v, DEFAULT_TILE_SIZE) * fsv_alignment,
+                               in.Y().v * in.Z().v,
+                               in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
 
     return gws;
 }
@@ -119,7 +123,7 @@ CommonDispatchData ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::SetDefault(const r
     const size_t fsv_alignment = GetFsvAlignment(params);
 
     dispatchData.gws = GetGWS(params);
-    dispatchData.lws = { fsv_alignment, 1, 1};
+    dispatchData.lws = {fsv_alignment, 1, 1};
     return dispatchData;
 }
 
@@ -142,7 +146,8 @@ JitConstants ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetJitConstants(const re
     // whether F is aligned
     if (f % fsv_alignment != 0) {
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % fsv_alignment));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION",
+                                        "(f >= (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE)) && (f < INPUT0_FEATURE_NUM)"));
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
     } else {
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
@@ -151,7 +156,8 @@ JitConstants ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetJitConstants(const re
     // whether x is tile_size-aligned
     if (x % DEFAULT_TILE_SIZE != 0) {
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", x % DEFAULT_TILE_SIZE));
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
+        jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION",
+                                        "(x >= (INPUT0_SIZE_X - X_REMAINDER_SIZE)) && (x < INPUT0_SIZE_X)"));
     }
 
     return jit;
@@ -180,21 +186,17 @@ bool ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::Validate(const Params& p) const 
     }
 
     // padding is not supported
-    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
-        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
-        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
-        input.W().pad.before != 0 || input.W().pad.after != 0 ||
-        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
-        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
+    if (input.X().pad.before != 0 || input.X().pad.after != 0 || input.Y().pad.before != 0 ||
+        input.Y().pad.after != 0 || input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
+        input.W().pad.before != 0 || input.W().pad.after != 0 || input.Feature().pad.before != 0 ||
+        input.Feature().pad.after != 0 || input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
         return false;
     }
 
-    if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
-        output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
-        output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
-        output.W().pad.before != 0 || output.W().pad.after != 0 ||
-        output.Feature().pad.before != 0 || output.Feature().pad.after != 0 ||
-        output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
+    if (output.X().pad.before != 0 || output.X().pad.after != 0 || output.Y().pad.before != 0 ||
+        output.Y().pad.after != 0 || output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
+        output.W().pad.before != 0 || output.W().pad.after != 0 || output.Feature().pad.before != 0 ||
+        output.Feature().pad.after != 0 || output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
         return false;
     }
 

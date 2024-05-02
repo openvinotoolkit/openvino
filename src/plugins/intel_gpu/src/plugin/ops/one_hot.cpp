@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "openvino/op/one_hot.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/one_hot.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -24,7 +23,11 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
     auto off_value_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
 
     OPENVINO_ASSERT(on_value_node != nullptr || off_value_node != nullptr || depth_value_node != nullptr,
-                    "[GPU] Unsupported on/off/depth nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                    "[GPU] Unsupported on/off/depth nodes type in ",
+                    op->get_friendly_name(),
+                    " (",
+                    op->get_type_name(),
+                    ")");
 
     float on_value;
     float off_value;
@@ -37,7 +40,11 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
     auto dims = op->get_input_partial_shape(0);
 
     if (axis < -1 || axis > static_cast<int16_t>(dims.size()))
-        OPENVINO_THROW(op->get_friendly_name(), " Incorrect OneHot axis value: ", axis, ". Should be between -1 and ", dims.size());
+        OPENVINO_THROW(op->get_friendly_name(),
+                       " Incorrect OneHot axis value: ",
+                       axis,
+                       ". Should be between -1 and ",
+                       dims.size());
 
     if (axis == -1) {
         axis = dims.size();

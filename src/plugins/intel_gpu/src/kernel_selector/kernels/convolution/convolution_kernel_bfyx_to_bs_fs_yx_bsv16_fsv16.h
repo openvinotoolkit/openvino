@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
-#include "convolution_kernel_bfyx_to_b_fs_yx_fsv16.h"
 #include <string>
 #include <vector>
+
+#include "convolution_kernel_base.h"
+#include "convolution_kernel_bfyx_to_b_fs_yx_fsv16.h"
 
 namespace kernel_selector {
 
@@ -25,9 +26,7 @@ protected:
         return WeightsLayout::os_is_yx_isv16_osv16;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
     bool Validate(const Params& p) const override;

@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/single_op/normalize_l2.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {

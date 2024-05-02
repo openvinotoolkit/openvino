@@ -3,8 +3,10 @@
 //
 
 #include "activation_kernel_opt.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -32,23 +34,25 @@ static size_t GetTotalSize(const activation_params& params) {
     const auto input = params.inputs[0];
     size_t totalSize = input.LogicalSize();
     switch (params.inputs[0].GetLayout()) {
-        case DataLayout::b_fs_yx_fsv4:
-            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 4);
-            break;
-        case DataLayout::b_fs_yx_fsv16:
-        case DataLayout::b_fs_zyx_fsv16:
-            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 16);
-            break;
-        case DataLayout::b_fs_yx_fsv32:
-        case DataLayout::b_fs_zyx_fsv32:
-        case DataLayout::fs_b_yx_fsv32:
-            totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 32);
-            break;
-        case DataLayout::bs_fs_zyx_bsv16_fsv16:
-        case DataLayout::bs_fs_yx_bsv16_fsv16:
-            totalSize = (totalSize / (input.Feature().v * input.Batch().v)) * Align(input.Feature().v, 16) * Align(input.Batch().v, 16);
-            break;
-        default: break;
+    case DataLayout::b_fs_yx_fsv4:
+        totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 4);
+        break;
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+        totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 16);
+        break;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::fs_b_yx_fsv32:
+        totalSize = (totalSize / input.Feature().v) * Align(input.Feature().v, 32);
+        break;
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+        totalSize = (totalSize / (input.Feature().v * input.Batch().v)) * Align(input.Feature().v, 16) *
+                    Align(input.Batch().v, 16);
+        break;
+    default:
+        break;
     }
     return totalSize;
 }
@@ -56,7 +60,7 @@ static size_t GetTotalSize(const activation_params& params) {
 ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const activation_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    dispatchData.gws = { GetTotalSize(params) / NUM_COLS_WI, 1, 1 };
+    dispatchData.gws = {GetTotalSize(params) / NUM_COLS_WI, 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -74,8 +78,7 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
     const activation_params& params = static_cast<const activation_params&>(p);
 
     const auto totalSize = GetTotalSize(params);
-    if ((totalSize % NUM_COLS_WI) != 0 ||
-        (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
+    if ((totalSize % NUM_COLS_WI) != 0 || (params.inputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0 ||
         (params.outputs[0].GetFirstElementOffset() % NUM_COLS_WI) != 0) {
         return false;
     }

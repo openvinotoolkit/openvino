@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace testing;
 using namespace ov::util;

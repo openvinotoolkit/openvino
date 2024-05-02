@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/fuse_dequantize_to_fake_quantize_transformation.hpp"
-#include <vector>
 #include <gtest/gtest.h>
+
+#include <vector>
+
+#include "low_precision_transformations/fuse_dequantize_to_fake_quantize_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -105,9 +107,9 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
 };
 // clang-format on
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseDequantizeToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues)),
-    FuseDequantizeToFakeQuantizeTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FuseDequantizeToFakeQuantizeTransformation,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(testValues)),
+                         FuseDequantizeToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

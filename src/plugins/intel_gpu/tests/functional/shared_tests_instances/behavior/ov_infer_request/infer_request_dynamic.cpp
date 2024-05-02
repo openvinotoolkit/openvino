@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+
 #include <vector>
 
-#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
 
 using namespace ov::test::behavior;
@@ -29,13 +30,14 @@ std::shared_ptr<ov::Model> getFunction1() {
     return std::make_shared<ov::Model>(relu, params, "SimpleActivation");
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
-                        ::testing::Combine(
-                                ::testing::Values(getFunction1()),
-                                ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
-                                    {{1, 4, 20, 20}, {1, 4, 20, 20}},
-                                    {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                ::testing::ValuesIn(configs())),
-                        OVInferRequestDynamicTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests_1,
+    OVInferRequestDynamicTests,
+    ::testing::Combine(::testing::Values(getFunction1()),
+                       ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                           {{1, 4, 20, 20}, {1, 4, 20, 20}},
+                           {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::ValuesIn(configs())),
+    OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

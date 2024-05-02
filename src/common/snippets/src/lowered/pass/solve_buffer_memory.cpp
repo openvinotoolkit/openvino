@@ -4,21 +4,21 @@
 
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
-
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateBuffers::BufferClusters& buffer_clusters) {
+std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(
+    const AllocateBuffers::BufferClusters& buffer_clusters) {
     std::vector<ov::MemorySolver::Box> boxes;
     const auto count = static_cast<int>(buffer_clusters.size());
     for (int i = 0; i < count; i++) {
-        ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+        ov::MemorySolver::Box box = {std::numeric_limits<int>::max(), 0, 0, i};
         int64_t box_size = 0;
         for (const auto& buffer_expr : buffer_clusters[i]) {
             int e_start = 0, e_finish = 0;
@@ -30,7 +30,8 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateB
             for (const auto& buffer_out : buffer_outs) {
                 const auto consumers = buffer_out->get_consumers();
                 for (const auto& consumer : consumers) {
-                    const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
+                    const auto consumer_order =
+                        static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
                     e_finish = std::max(e_finish, consumer_order);  // the last consumer
                 }
             }
@@ -43,8 +44,11 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateB
 
                 const auto buffer_siblings = buffer_in->get_consumers();
                 for (const auto& sibling : buffer_siblings) {
-                    if (const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node())) {
-                        e_start = std::min(e_start, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                    if (const auto loop_end =
+                            ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node())) {
+                        e_start = std::min(
+                            e_start,
+                            static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
                     }
                 }
             }
@@ -64,7 +68,6 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const AllocateB
     return boxes;
 }
 
-
 bool SolveBufferMemory::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SolveBufferMemory");
 
@@ -83,7 +86,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     return m_buffer_scratchpad_size > 0;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
+from functools import partial
 from typing import List, Optional, Union, get_args
 
 import numpy as np
-from functools import partial
-
 from openvino.runtime import Node, PartialShape, Type
 from openvino.runtime.op import Constant, Parameter, tensor_iterator
 from openvino.runtime.opset_utils import _get_node_factory
@@ -31,7 +30,6 @@ from openvino.runtime.utils.types import (
     get_element_type_str,
     make_constant_node,
 )
-
 
 _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 
@@ -173,7 +171,9 @@ def batch_norm_inference(
     :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(gamma, beta, data, mean, variance, name=name)
-    return _get_node_factory_opset1().create("BatchNormInference", inputs, {"epsilon": epsilon})
+    return _get_node_factory_opset1().create(
+        "BatchNormInference", inputs, {"epsilon": epsilon}
+    )
 
 
 @nameable_op
@@ -328,7 +328,9 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
     :param name: The optional new name for output node.
     :return: Return new node that is a concatenation of input nodes.
     """
-    return _get_node_factory_opset1().create("Concat", as_nodes(*nodes, name=name), {"axis": axis})
+    return _get_node_factory_opset1().create(
+        "Concat", as_nodes(*nodes, name=name), {"axis": axis}
+    )
 
 
 @nameable_op
@@ -600,7 +602,9 @@ def deformable_psroi_pooling(
 
 
 @nameable_op
-def depth_to_space(node: Node, mode: str, block_size: int = 1, name: Optional[str] = None) -> Node:
+def depth_to_space(
+    node: Node, mode: str, block_size: int = 1, name: Optional[str] = None
+) -> Node:
     """Rearranges input tensor from depth into blocks of spatial data.
 
     Values from the height and width dimensions are moved to the depth dimension.
@@ -831,7 +835,9 @@ def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node
     :param name: Optional output node name.
     :return: The new node performing an ELU operation on its input data element-wise.
     """
-    return _get_node_factory_opset1().create("Elu", [as_node(data, name=name)], {"alpha": alpha})
+    return _get_node_factory_opset1().create(
+        "Elu", [as_node(data, name=name)], {"alpha": alpha}
+    )
 
 
 @binary_op
@@ -1190,7 +1196,9 @@ def group_convolution_backprop_data(
         attributes["pads_begin"] = pads_begin
         attributes["pads_end"] = pads_end
 
-    return _get_node_factory_opset1().create("GroupConvolutionBackpropData", args, attributes)
+    return _get_node_factory_opset1().create(
+        "GroupConvolutionBackpropData", args, attributes
+    )
 
 
 @nameable_op
@@ -1214,7 +1222,9 @@ def hard_sigmoid(
 
         y = max(0, min(1, alpha * data + beta))
     """
-    return _get_node_factory_opset1().create("HardSigmoid", [data, as_node(alpha, name=name), as_node(beta, name=name)])
+    return _get_node_factory_opset1().create(
+        "HardSigmoid", [data, as_node(alpha, name=name), as_node(beta, name=name)]
+    )
 
 
 @nameable_op
@@ -1295,7 +1305,9 @@ def interpolate(
 
     check_valid_attributes("Interpolate", attrs, requirements)
 
-    return _get_node_factory_opset1().create("Interpolate", [image, as_node(output_shape, name=name)], attrs)
+    return _get_node_factory_opset1().create(
+        "Interpolate", [image, as_node(output_shape, name=name)], attrs
+    )
 
 
 @binary_op
@@ -1457,7 +1469,9 @@ def lrn(
     :return: The new node which performs LRN.
     """
     attributes = {"alpha": alpha, "beta": beta, "bias": bias, "size": size}
-    return _get_node_factory_opset1().create("LRN", as_nodes(data, axes, name=name), attributes)
+    return _get_node_factory_opset1().create(
+        "LRN", as_nodes(data, axes, name=name), attributes
+    )
 
 
 @nameable_op
@@ -1819,7 +1833,14 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold,
+        score_threshold,
+        name=name,
+    )
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -2401,7 +2422,9 @@ def range(
     :param name:   Optional name for output node.
     :return: Range node
     """
-    return _get_node_factory_opset1().create("Range", as_nodes(start, stop, step, name=name))
+    return _get_node_factory_opset1().create(
+        "Range", as_nodes(start, stop, step, name=name)
+    )
 
 
 @unary_op
@@ -2783,11 +2806,15 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param axis: An axis along which Softmax should be calculated
     :return: The new node with softmax operation applied on each element.
     """
-    return _get_node_factory_opset1().create("Softmax", [as_node(data, name=name)], {"axis": axis})
+    return _get_node_factory_opset1().create(
+        "Softmax", [as_node(data, name=name)], {"axis": axis}
+    )
 
 
 @nameable_op
-def space_to_depth(data: Node, mode: str, block_size: int = 1, name: Optional[str] = None) -> Node:
+def space_to_depth(
+    data: Node, mode: str, block_size: int = 1, name: Optional[str] = None
+) -> Node:
     """Perform SpaceToDepth operation on the input tensor.
 
     SpaceToDepth rearranges blocks of spatial data into depth.
@@ -2812,7 +2839,9 @@ def space_to_depth(data: Node, mode: str, block_size: int = 1, name: Optional[st
 
 
 @nameable_op
-def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None) -> Node:
+def split(
+    data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str] = None
+) -> Node:
     """Return a node which splits the input tensor into same-length slices.
 
     :param data: The input tensor to be split
@@ -3019,14 +3048,18 @@ def topk(
 
 
 @nameable_op
-def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = None) -> Node:
+def transpose(
+    data: NodeInput, input_order: NodeInput, name: Optional[str] = None
+) -> Node:
     """Return a node which transposes the data in the input tensor.
 
     :param data: The input tensor to be transposed
     :param input_order: Permutation of axes to be applied to the input tensor
     :return: Transpose node
     """
-    return _get_node_factory_opset1().create("Transpose", as_nodes(data, input_order, name=name))
+    return _get_node_factory_opset1().create(
+        "Transpose", as_nodes(data, input_order, name=name)
+    )
 
 
 def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
@@ -3044,7 +3077,9 @@ def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> N
                   One of: input node or array.
     :return: The new node performing an unsqueeze operation on input tensor.
     """
-    return _get_node_factory_opset1().create("Unsqueeze", as_nodes(data, axes, name=name))
+    return _get_node_factory_opset1().create(
+        "Unsqueeze", as_nodes(data, axes, name=name)
+    )
 
 
 @nameable_op

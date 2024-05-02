@@ -5,7 +5,6 @@
 #include "rms_fusion.hpp"
 
 #include "intel_gpu/op/rms.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -85,11 +84,12 @@ RMSFusion::RMSFusion(uint64_t max_work_group_size) {
         const auto& gamma_shape = gamma_node->get_output_partial_shape(0).to_shape();
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
-        const auto & axes = pattern_map.at(mean_axes).get_node_shared_ptr();
+        const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
         auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axes);
         auto axes_val = axes_constant->cast_vector<int64_t>();
         // allow last dimension only
-        if ((axes_val[0] != -1) && (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
+        if ((axes_val[0] != -1) &&
+            (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
             return false;
 
         const int32_t vec_size = 8;
@@ -98,10 +98,7 @@ RMSFusion::RMSFusion(uint64_t max_work_group_size) {
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
-        auto rms = std::make_shared<op::RMS>(x_output,
-                                             gamma_node,
-                                             eps_value,
-                                             output_type);
+        auto rms = std::make_shared<op::RMS>(x_output, gamma_node, eps_value, output_type);
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), rms);
         ov::replace_node(m.get_match_root(), rms);

@@ -3,8 +3,9 @@
 //
 
 #include "intel_gpu/graph/topology.hpp"
-#include <vector>
+
 #include <memory>
+#include <vector>
 
 namespace cldnn {
 
@@ -49,7 +50,8 @@ void topology::change_input_layout(const primitive_id& id, const layout& new_lay
 
 const std::vector<primitive_id> topology::get_primitives_ids() const {
     std::vector<primitive_id> prim_ids;
-    for (const auto& prim : _primitives) prim_ids.push_back(prim.first);
+    for (const auto& prim : _primitives)
+        prim_ids.push_back(prim.first);
     return prim_ids;
 }
 

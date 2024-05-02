@@ -3,11 +3,13 @@
 //
 
 #include "shared_test_classes/single_op/embedding_bag_offsets_sum.hpp"
+
 #include "common_test_utils/node_builders/embedding_bag_offsets_sum.hpp"
 
 namespace ov {
 namespace test {
-std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet>& obj) {
+std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(
+    const testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet>& obj) {
     embeddingBagOffsetsSumParams emb_params;
     ov::element::Type model_type, ind_type;
     std::vector<InputShape> shapes;
@@ -56,7 +58,14 @@ void EmbeddingBagOffsetsSumLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto embBag = ov::test::utils::make_embedding_bag_offsets_sum(model_type, ind_type, param, indices, offsets, default_index, with_weights, with_def_index);
+    auto embBag = ov::test::utils::make_embedding_bag_offsets_sum(model_type,
+                                                                  ind_type,
+                                                                  param,
+                                                                  indices,
+                                                                  offsets,
+                                                                  default_index,
+                                                                  with_weights,
+                                                                  with_def_index);
 
     auto result = std::make_shared<ov::op::v0::Result>(embBag);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "embeddingBagOffsetsSum");

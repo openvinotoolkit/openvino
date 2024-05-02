@@ -4,35 +4,39 @@
 
 # flake8: noqa
 
-import numpy as np
-import pytest
 from contextlib import nullcontext as does_not_raise
 
+import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino import Shape, Type
+import pytest
 from openvino.runtime import AxisSet
 from openvino.runtime.op import Constant, Parameter
 
+from openvino import Shape, Type
 
-@pytest.mark.parametrize(("ov_op", "expected_ov_str", "expected_type"), [
-    (lambda a, b: a + b, "Add", Type.f32),
-    (ov.add, "Add", Type.f32),
-    (lambda a, b: a - b, "Subtract", Type.f32),
-    (ov.subtract, "Subtract", Type.f32),
-    (lambda a, b: a * b, "Multiply", Type.f32),
-    (ov.multiply, "Multiply", Type.f32),
-    (lambda a, b: a / b, "Divide", Type.f32),
-    (ov.divide, "Divide", Type.f32),
-    (ov.maximum, "Maximum", Type.f32),
-    (ov.minimum, "Minimum", Type.f32),
-    (ov.power, "Power", Type.f32),
-    (ov.equal, "Equal", Type.boolean),
-    (ov.greater, "Greater", Type.boolean),
-    (ov.greater_equal, "GreaterEqual", Type.boolean),
-    (ov.less, "Less", Type.boolean),
-    (ov.less_equal, "LessEqual", Type.boolean),
-    (ov.not_equal, "NotEqual", Type.boolean),
-])
+
+@pytest.mark.parametrize(
+    ("ov_op", "expected_ov_str", "expected_type"),
+    [
+        (lambda a, b: a + b, "Add", Type.f32),
+        (ov.add, "Add", Type.f32),
+        (lambda a, b: a - b, "Subtract", Type.f32),
+        (ov.subtract, "Subtract", Type.f32),
+        (lambda a, b: a * b, "Multiply", Type.f32),
+        (ov.multiply, "Multiply", Type.f32),
+        (lambda a, b: a / b, "Divide", Type.f32),
+        (ov.divide, "Divide", Type.f32),
+        (ov.maximum, "Maximum", Type.f32),
+        (ov.minimum, "Minimum", Type.f32),
+        (ov.power, "Power", Type.f32),
+        (ov.equal, "Equal", Type.boolean),
+        (ov.greater, "Greater", Type.boolean),
+        (ov.greater_equal, "GreaterEqual", Type.boolean),
+        (ov.less, "Less", Type.boolean),
+        (ov.less_equal, "LessEqual", Type.boolean),
+        (ov.not_equal, "NotEqual", Type.boolean),
+    ],
+)
 def test_binary_op(ov_op, expected_ov_str, expected_type):
     element_type = Type.f32
     shape = Shape([2, 2])
@@ -61,28 +65,31 @@ def test_add_with_mul():
     assert node.get_output_element_type(0) == Type.f32
 
 
-@pytest.mark.parametrize(("ov_op", "expected_ov_str"), [
-    (ov.abs, "Abs"),
-    (ov.acos, "Acos"),
-    (ov.acosh, "Acosh"),
-    (ov.asin, "Asin"),
-    (ov.asinh, "Asinh"),
-    (ov.atan, "Atan"),
-    (ov.atanh, "Atanh"),
-    (ov.ceiling, "Ceiling"),
-    (ov.cos, "Cos"),
-    (ov.cosh, "Cosh"),
-    (ov.floor, "Floor"),
-    (ov.log, "Log"),
-    (ov.exp, "Exp"),
-    (ov.negative, "Negative"),
-    (ov.sign, "Sign"),
-    (ov.sin, "Sin"),
-    (ov.sinh, "Sinh"),
-    (ov.sqrt, "Sqrt"),
-    (ov.tan, "Tan"),
-    (ov.tanh, "Tanh"),
-])
+@pytest.mark.parametrize(
+    ("ov_op", "expected_ov_str"),
+    [
+        (ov.abs, "Abs"),
+        (ov.acos, "Acos"),
+        (ov.acosh, "Acosh"),
+        (ov.asin, "Asin"),
+        (ov.asinh, "Asinh"),
+        (ov.atan, "Atan"),
+        (ov.atanh, "Atanh"),
+        (ov.ceiling, "Ceiling"),
+        (ov.cos, "Cos"),
+        (ov.cosh, "Cosh"),
+        (ov.floor, "Floor"),
+        (ov.log, "Log"),
+        (ov.exp, "Exp"),
+        (ov.negative, "Negative"),
+        (ov.sign, "Sign"),
+        (ov.sin, "Sin"),
+        (ov.sinh, "Sinh"),
+        (ov.sqrt, "Sqrt"),
+        (ov.tan, "Tan"),
+        (ov.tanh, "Tanh"),
+    ],
+)
 def test_unary_op(ov_op, expected_ov_str):
 
     element_type = Type.f32
@@ -118,12 +125,15 @@ def test_broadcast():
     assert node.get_output_element_type(0) == element_type
 
 
-@pytest.mark.parametrize(("const", "args", "expectation"), [
-    (Constant, (Type.f32, Shape([3, 3]), list(range(9))), does_not_raise()),
-    (ov.constant, (np.arange(9).reshape(3, 3), Type.f32), does_not_raise()),
-    (ov.constant, (np.arange(9).reshape(3, 3), np.float32), does_not_raise()),
-    (ov.constant, [None], pytest.raises(ValueError)),
-])
+@pytest.mark.parametrize(
+    ("const", "args", "expectation"),
+    [
+        (Constant, (Type.f32, Shape([3, 3]), list(range(9))), does_not_raise()),
+        (ov.constant, (np.arange(9).reshape(3, 3), Type.f32), does_not_raise()),
+        (ov.constant, (np.arange(9).reshape(3, 3), np.float32), does_not_raise()),
+        (ov.constant, [None], pytest.raises(ValueError)),
+    ],
+)
 def test_constant(const, args, expectation):
     with expectation:
         node = const(*args)
@@ -325,15 +335,28 @@ def convolution2d(
 
     i_m, i_n = image.shape
     new_image = np.zeros(
-        (i_m + padding_below[0] + padding_above[0]) * (i_n + padding_below[1] + padding_above[1]),
+        (i_m + padding_below[0] + padding_above[0])
+        * (i_n + padding_below[1] + padding_above[1]),
         dtype=np.float32,
-    ).reshape(i_m + padding_below[0] + padding_above[0], i_n + padding_below[1] + padding_above[1])
-    new_image[padding_below[0] : padding_below[0] + i_m, padding_below[1] : padding_below[1] + i_n] = image
+    ).reshape(
+        i_m + padding_below[0] + padding_above[0],
+        i_n + padding_below[1] + padding_above[1],
+    )
+    new_image[
+        padding_below[0] : padding_below[0] + i_m,
+        padding_below[1] : padding_below[1] + i_n,
+    ] = image
     image = new_image
-    image = image if data_dilation[0] == data_dilation[1] == 1 else dilate(image, data_dilation)
+    image = (
+        image
+        if data_dilation[0] == data_dilation[1] == 1
+        else dilate(image, data_dilation)
+    )
     i_m, i_n = image.shape
 
-    filterit = filterit if dilation[0] == dilation[1] == 1 else dilate(filterit, dilation)
+    filterit = (
+        filterit if dilation[0] == dilation[1] == 1 else dilate(filterit, dilation)
+    )
     f_m, f_n = filterit.shape
 
     # result_shape
@@ -346,7 +369,10 @@ def convolution2d(
 
     for i in range(r_m):
         for j in range(r_n):
-            sub_m = image[i * strides[0] : i * strides[0] + f_m, j * strides[1] : j * strides[1] + f_n]
+            sub_m = image[
+                i * strides[0] : i * strides[0] + f_m,
+                j * strides[1] : j * strides[1] + f_n,
+            ]
             result[i][j] = np.sum(sub_m * filterit)
     return result
 

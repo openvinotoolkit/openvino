@@ -4,12 +4,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "async_infer_request.hpp"
-ov::auto_plugin::AsyncInferRequest::AsyncInferRequest(const Schedule::Ptr& schedule,
-                                                      const std::shared_ptr<ov::auto_plugin::InferRequest>& request,
-                                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor) :
-                                                      IAsyncInferRequest(request, nullptr, callback_executor),
-                                                      m_schedule(schedule),
-                                                      m_inferrequest(request) {
+ov::auto_plugin::AsyncInferRequest::AsyncInferRequest(
+    const Schedule::Ptr& schedule,
+    const std::shared_ptr<ov::auto_plugin::InferRequest>& request,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
+    : IAsyncInferRequest(request, nullptr, callback_executor),
+      m_schedule(schedule),
+      m_inferrequest(request) {
     auto pipeline = m_schedule->get_async_pipeline(m_inferrequest, &m_worker_inferrequest);
     if (pipeline.size() > 0) {
         m_pipeline = std::move(pipeline);

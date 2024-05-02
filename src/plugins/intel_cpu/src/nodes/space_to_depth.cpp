@@ -4,17 +4,16 @@
 
 #include "space_to_depth.h"
 
-#include "dnnl_extension_utils.h"
-#include "utils/general_utils.h"
-
 #include <cmath>
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include <string>
-#include "openvino/util/pp.hpp"
 
 #include "common/blocked_desc_creator.h"
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/util/pp.hpp"
+#include "utils/general_utils.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("SpaceToDepth layer with name '", getName(), "' ", __VA_ARGS__)
 
@@ -43,16 +42,14 @@ size_t SpaceToDepth::SpaceToDepthAttrs::hash() const {
 }
 
 bool SpaceToDepth::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) const {
-    bool result = layoutType == rhs.layoutType && mode == rhs.mode &&
-                  blockSize == rhs.blockSize && blockStep == rhs.blockStep &&
-                  dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+    bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
+                  blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
                   srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
 
     return result;
 }
 
-bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                                  std::string& errorMessage) noexcept {
+bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto spaceToDepth = ov::as_type_ptr<const ov::opset1::SpaceToDepth>(op);
         if (!spaceToDepth) {
@@ -175,11 +172,10 @@ void SpaceToDepth::createPrimitive() {
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)
-                           ? LayoutType::nCsp16c
-                           : memoryDesc.hasLayoutType(LayoutType::nCsp8c)
-                                 ? LayoutType::nCsp8c
-                                 : memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
+    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
+                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
+                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
+                                                                      : LayoutType::ncsp;
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
@@ -189,10 +185,8 @@ void SpaceToDepth::createPrimitive() {
 }
 
 void SpaceToDepth::prepareParams() {
-    attrs.srcBlockedDims =
-        getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    attrs.destBlockedDims =
-        getDstMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.destBlockedDims = getDstMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const SpaceToDepthAttrs& key) -> std::shared_ptr<SpaceToDepthExecutor> {
         return std::make_shared<SpaceToDepthExecutor>(key);
     };
@@ -207,11 +201,7 @@ void SpaceToDepth::prepareParams() {
 }
 
 SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
-    if (!one_of(attrs.layoutType,
-                LayoutType::nCsp16c,
-                LayoutType::nCsp8c,
-                LayoutType::nspc,
-                LayoutType::ncsp))
+    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
         OPENVINO_THROW("SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
                        "'nspc' or 'ncsp' layouts.");
 
@@ -327,6 +317,6 @@ bool SpaceToDepth::created() const {
     return getType() == Type::SpaceToDepth;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -4,8 +4,8 @@
 import sys
 
 from openvino.tools.mo.front.user_data_repack import UserDataRepack
-from openvino.tools.mo.load.loader import LoadFinish
 from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.load.loader import LoadFinish
 from openvino.tools.mo.utils import class_registration
 from openvino.tools.mo.utils.error import Error
 
@@ -61,14 +61,16 @@ class AnalyzeAction(object):
         failed_analysers = []
 
         try:
-            result, msg = self.analyze(graph)  # pylint: disable=assignment-from-no-return
+            result, msg = self.analyze(
+                graph
+            )  # pylint: disable=assignment-from-no-return
         except SystemExit:
             # the analysis transformation printing analysis results to the screen calls sys.exit(0) which in fact raises
             # SystemExit exception, so we handle it here
             sys.exit(0)
         except:
             failed_analysers.append(str(self.__class__))
-            analysis_results.add_result(failed_analysers, 'failed_analysers')
+            analysis_results.add_result(failed_analysers, "failed_analysers")
             result = None
             msg = None
 
@@ -78,7 +80,7 @@ class AnalyzeAction(object):
             analysis_results.add_message(msg)
 
     def analyze(self, graph: Graph):
-        raise Error('The method must be implemented in the sub-class')
+        raise Error("The method must be implemented in the sub-class")
 
     def run_before(self):
         """
@@ -120,6 +122,8 @@ def graph_contains_scope(graph: Graph, scope: [str, tuple]):
     :return: the result of the check (True/False)
     """
     if type(scope) is str:
-        return any([node.soft_get('name').find(scope) != -1 for node in graph.get_op_nodes()])
+        return any(
+            [node.soft_get("name").find(scope) != -1 for node in graph.get_op_nodes()]
+        )
     else:
         return any([graph_contains_scope(graph, s) for s in scope])

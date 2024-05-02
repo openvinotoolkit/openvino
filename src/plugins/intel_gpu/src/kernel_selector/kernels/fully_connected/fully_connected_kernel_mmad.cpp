@@ -3,6 +3,7 @@
 //
 
 #include "fully_connected_kernel_mmad.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -61,7 +62,8 @@ bool FullyConnectedKernelMMAD::Validate(const Params& params) const {
     return true;
 }
 
-FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::GetTuningParams(const fully_connected_params& params) const {
+FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::GetTuningParams(
+    const fully_connected_params& params) const {
     FullyConnectedTuningData tuning_data;
 
     const auto& input = params.inputs[0];
@@ -82,9 +84,11 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
     tuning_data.sub_group_size = 8;
 
     // Known cases for TGL where simd16 works better than simd8
-    bool simd16_is_faster = output_feature == 1024 && output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
+    bool simd16_is_faster =
+        output_feature == 1024 && output_batch == 128 && input_feature % 1024 == 0 && input_batch == 128;
     simd16_is_faster |= (input_feature == 25088 || input_feature == 21504) && output_feature == 512 &&
-                        input_batch == 1 && output_batch == 1 && input.X().v == 1 && input.Y().v == 1 && input.Z().v == 1;
+                        input_batch == 1 && output_batch == 1 && input.X().v == 1 && input.Y().v == 1 &&
+                        input.Z().v == 1;
 
     // Some specific HW doesn't support SIMD8, force SIMD16 to respect this HW
     // Also chose SIMD16 for the exception cases
@@ -93,17 +97,19 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 
-    tuning_data.feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input_feature % sub_group_pack_size != 0 ?
-                                       input_feature / sub_group_pack_size :
-                                       input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 ?
-                                       CeilDiv(input_feature, 32) % 2 == 0 ? CeilDiv(input_feature, 64) : CeilDiv(input_feature, 64) - 1 :
-                                       CeilDiv(input_feature, sub_group_pack_size);
+    tuning_data.feature_blocks_count =
+        input.GetLayout() == DataLayout::bfyx && input_feature % sub_group_pack_size != 0
+            ? input_feature / sub_group_pack_size
+        : input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16
+            ? CeilDiv(input_feature, 32) % 2 == 0 ? CeilDiv(input_feature, 64) : CeilDiv(input_feature, 64) - 1
+            : CeilDiv(input_feature, sub_group_pack_size);
 
-    bool slm_div_factor_exception = input_batch == 300 && input_feature == 2048 &&
-                                    output_batch == 300 && (output_feature == 324 || output_feature == 81);
+    bool slm_div_factor_exception = input_batch == 300 && input_feature == 2048 && output_batch == 300 &&
+                                    (output_feature == 324 || output_feature == 81);
 
-    bool big_wgs_exception = params.engineInfo.computeUnitsCount == 96 && params.engineInfo.maxThreadsPerExecutionUnit == 7 &&
-                             input_feature == 9216 && output_feature == 4096;
+    bool big_wgs_exception = params.engineInfo.computeUnitsCount == 96 &&
+                             params.engineInfo.maxThreadsPerExecutionUnit == 7 && input_feature == 9216 &&
+                             output_feature == 4096;
 
     size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
     if (max_work_group_size > 256 && !big_wgs_exception)
@@ -136,17 +142,22 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Get
 }
 
 FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params,
-                                                                            int, int /*kernel_number*/) const {
+                                                                            int,
+                                                                            int /*kernel_number*/) const {
     FullyConnectedTuningData tuning_data = GetTuningParams(params);
     auto dispatchData = Parent::SetDefault(params);
     const auto& output = params.outputs[0];
 
-    std::vector<size_t> global = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
+    std::vector<size_t> global = {Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor,
+                                  output.Batch().v,
+                                  1};
     if (output.GetLayout() == DataLayout::bfyx)
-        global = { Align(output.Y().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, output.Feature().v };
+        global = {Align(output.Y().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor,
+                  output.Batch().v,
+                  output.Feature().v};
 
     dispatchData.gws = global;
-    dispatchData.lws = { tuning_data.work_group_size, 1, 1 };
+    dispatchData.lws = {tuning_data.work_group_size, 1, 1};
 
     return dispatchData;
 }
@@ -166,26 +177,31 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
     if (tuning_data.sub_group_size == 8) {
         if (input.GetDims().size() == 5) {
-            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)", "GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_INDEX(FILTER, f, 0, 0, 0)"));
+            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)",
+                                            "GET_FILTER_OS_IS_YX_ISA8_OSV8_ISV4_INDEX(FILTER, f, 0, 0, 0)"));
         } else {
-            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)", "GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(FILTER, f, 0, 0, 0, 0)"));
+            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)",
+                                            "GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(FILTER, f, 0, 0, 0, 0)"));
         }
     } else {
         if (input.GetDims().size() == 5) {
-            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)", "GET_FILTER_OS_IS_YX_ISA8_OSV16_ISV4_INDEX(FILTER, f, 0, 0, 0)"));
+            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)",
+                                            "GET_FILTER_OS_IS_YX_ISA8_OSV16_ISV4_INDEX(FILTER, f, 0, 0, 0)"));
         } else {
-            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)", "GET_FILTER_OS_IS_ZYX_ISA8_OSV16_ISV4_INDEX(FILTER, f, 0, 0, 0, 0)"));
+            jit.AddConstant(MakeJitConstant("FILTER_GET_OFFSET(f)",
+                                            "GET_FILTER_OS_IS_ZYX_ISA8_OSV16_ISV4_INDEX(FILTER, f, 0, 0, 0, 0)"));
         }
     }
 
-    jit.Merge(MakeTypeJitConstants(input.GetDType() == Datatype::UINT8 ? Datatype::UINT32 : Datatype::INT32, "INPUT_PACKED"));
-    jit.Merge(MakeTypeJitConstants(weights.GetDType() == WeightsType::UINT8 ? Datatype::UINT32 : Datatype::INT32, "FILTER_PACKED"));
+    jit.Merge(
+        MakeTypeJitConstants(input.GetDType() == Datatype::UINT8 ? Datatype::UINT32 : Datatype::INT32, "INPUT_PACKED"));
+    jit.Merge(MakeTypeJitConstants(weights.GetDType() == WeightsType::UINT8 ? Datatype::UINT32 : Datatype::INT32,
+                                   "FILTER_PACKED"));
 
     auto filter_spatial_size = weights.X().v * weights.Y().v * weights.Z().v;
     auto filter_spatial_pitch = 8 * sub_group_pack_size;
-    auto filter_fblock_pitch = tuning_data.sub_group_size == 8 ?
-                               filter_spatial_size * filter_spatial_pitch :
-                               filter_spatial_size * filter_spatial_pitch * 2;
+    auto filter_fblock_pitch = tuning_data.sub_group_size == 8 ? filter_spatial_size * filter_spatial_pitch
+                                                               : filter_spatial_size * filter_spatial_pitch * 2;
 
     jit.AddConstant(MakeJitConstant("FILTER_SPATIAL_SIZE", filter_spatial_size));
     jit.AddConstant(MakeJitConstant("MMAD_FILTER_SPATIAL_PITCH", filter_spatial_pitch));
@@ -205,7 +221,8 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     }
 
     bool has_feature_leftovers = (input.GetLayout() == DataLayout::bfyx && input.Feature().v % sub_group_pack_size) ||
-                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 && CeilDiv(input.Feature().v, 32) % 2);
+                                 (input.GetLayout() != DataLayout::bfyx && tuning_data.sub_group_size == 16 &&
+                                  CeilDiv(input.Feature().v, 32) % 2);
 
     if (output.GetLayout() == DataLayout::bfyx)
         has_feature_leftovers = input.Y().v % sub_group_pack_size;
@@ -242,12 +259,12 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        std::vector<std::string> idx_order = { "batch", "feature", "0", "0" };
+        std::vector<std::string> idx_order = {"batch", "feature", "0", "0"};
         if (output.GetLayout() == DataLayout::bfyx)
-            idx_order = { "batch", "skip_f", "feature", "0" };
+            idx_order = {"batch", "skip_f", "feature", "0"};
 
-        FusedOpsConfiguration conf = { "", idx_order, "dequantized", input_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"", idx_order, "dequantized", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
@@ -257,16 +274,15 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params) const
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
 
-    auto w_layout = GetTuningParams(fc_params).sub_group_size == 16 ?
-                    input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv16_isv4 : WeightsLayout::os_is_zyx_isa8_osv16_isv4 :
-                    input.GetDims().size() == 4 ? WeightsLayout::os_is_yx_isa8_osv8_isv4 : WeightsLayout::os_is_zyx_isa8_osv8_isv4;
+    auto w_layout = GetTuningParams(fc_params).sub_group_size == 16 ? input.GetDims().size() == 4
+                                                                          ? WeightsLayout::os_is_yx_isa8_osv16_isv4
+                                                                          : WeightsLayout::os_is_zyx_isa8_osv16_isv4
+                    : input.GetDims().size() == 4                   ? WeightsLayout::os_is_yx_isa8_osv8_isv4
+                                                                    : WeightsLayout::os_is_zyx_isa8_osv8_isv4;
 
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    input.GetLayout(),
-                                                    w_layout,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, input.GetLayout(), w_layout, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 /*This test runs the following subgraph:
@@ -18,7 +18,7 @@
                     \   |   /\
                      \  |  /  \
                       Concat  Result
-                     /  |  \            
+                     /  |  \
                     /   |   \
                   Add  Add   Result
                    |    |
@@ -44,7 +44,8 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
         }
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
         auto split = std::make_shared<ov::op::v1::Split>(params.front(), split_axis_op, 3);
 
         auto add_const = ov::test::utils::deprecated::make_constant(precision, {1}, std::vector<float>({1.0f}));

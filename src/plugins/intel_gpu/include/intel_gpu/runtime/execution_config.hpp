@@ -4,22 +4,25 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-enum class PropertyVisibility {
-    INTERNAL = 0,
-    PUBLIC = 1
-};
+enum class PropertyVisibility { INTERNAL = 0, PUBLIC = 1 };
 
 inline std::ostream& operator<<(std::ostream& os, const PropertyVisibility& visibility) {
     switch (visibility) {
-    case PropertyVisibility::PUBLIC: os << "PUBLIC"; break;
-    case PropertyVisibility::INTERNAL: os << "INTERNAL"; break;
-    default: os << "UNKNOWN"; break;
+    case PropertyVisibility::PUBLIC:
+        os << "PUBLIC";
+        break;
+    case PropertyVisibility::INTERNAL:
+        os << "INTERNAL";
+        break;
+    default:
+        os << "UNKNOWN";
+        break;
     }
 
     return os;
@@ -34,7 +37,7 @@ public:
 
 class FuncValidator : public BaseValidator {
 public:
-explicit FuncValidator(std::function<bool(const ov::Any)> func) : m_func(func) { }
+    explicit FuncValidator(std::function<bool(const ov::Any)> func) : m_func(func) {}
     bool is_valid(const ov::Any& v) const override {
         return m_func(v);
     }
@@ -44,7 +47,7 @@ private:
 };
 
 // PropertyTypeValidator ensures that value can be converted to given property type
-template<typename T>
+template <typename T>
 class PropertyTypeValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
@@ -60,9 +63,15 @@ public:
 class ExecutionConfig {
 public:
     ExecutionConfig();
-    ExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : ExecutionConfig() { set_property(ov::AnyMap(values)); }
-    explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
-    explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
+    ExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : ExecutionConfig() {
+        set_property(ov::AnyMap(values));
+    }
+    explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() {
+        set_property(properties);
+    }
+    explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() {
+        set_property(property);
+    }
 
     void set_default();
     void set_property(const ov::AnyMap& properties);
@@ -70,13 +79,22 @@ public:
     Any get_property(const std::string& name) const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
-    void register_property_impl(const std::pair<std::string, ov::Any>& propertiy, PropertyVisibility visibility, BaseValidator::Ptr validator);
+    void register_property_impl(const std::pair<std::string, ov::Any>& propertiy,
+                                PropertyVisibility visibility,
+                                BaseValidator::Ptr validator);
 
-    template <PropertyVisibility visibility, typename... PropertyInitializer, typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
-    void register_property_impl() { }
+    template <PropertyVisibility visibility,
+              typename... PropertyInitializer,
+              typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
+    void register_property_impl() {}
 
-    template <PropertyVisibility visibility, typename T,  PropertyMutability mutability, typename ValueT, typename... PropertyInitializer>
-    void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
+    template <PropertyVisibility visibility,
+              typename T,
+              PropertyMutability mutability,
+              typename ValueT,
+              typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property,
+                                PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<T>>());
         register_property_impl(std::move(p), visibility, std::move(v));
@@ -89,8 +107,9 @@ public:
               typename ValueT,
               typename ValidatorT,
               typename... PropertyInitializer>
-    typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type
-    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+    typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type register_property_impl(
+        const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property,
+        PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<ValidatorT>(std::get<2>(property)));
         register_property_impl(std::move(p), visibility, std::move(v));
@@ -104,7 +123,8 @@ public:
               typename ValidatorT,
               typename... PropertyInitializer>
     typename std::enable_if<std::is_same<std::function<bool(const ov::Any&)>, ValidatorT>::value, void>::type
-    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property,
+                           PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>(std::get<2>(property)));
         register_property_impl(std::move(p), visibility, std::move(v));

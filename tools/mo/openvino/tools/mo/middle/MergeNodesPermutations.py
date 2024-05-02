@@ -3,9 +3,11 @@
 
 import numpy as np
 
-from openvino.tools.mo.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.ApplyNHWCtoNCHWpermutation import (
+    ApplyNHWCtoNCHWpermutation,
+)
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.utils.error import Error
 
@@ -29,7 +31,7 @@ class MergeNodesPermutations(MiddleReplacementPattern):
         # otherwise exception will be raised
         for node in graph.nodes():
             node = Node(graph, node)
-            if node.kind != 'data':
+            if node.kind != "data":
                 continue
 
             permutations = []
@@ -37,14 +39,14 @@ class MergeNodesPermutations(MiddleReplacementPattern):
             # Get all permutations from in edges
             for in_node in node.in_nodes():
                 edge_attrs = node.graph.get_edge_data(in_node.id, node.id)[0]
-                if 'permutation' in edge_attrs:
-                    permutations.append(edge_attrs['permutation'])
+                if "permutation" in edge_attrs:
+                    permutations.append(edge_attrs["permutation"])
 
             # Get all permutations from out edges
             for out_node in node.out_nodes():
                 edge_attrs = node.graph.get_edge_data(node.id, out_node.id)[0]
-                if 'permutation' in edge_attrs:
-                    permutations.append(edge_attrs['permutation'])
+                if "permutation" in edge_attrs:
+                    permutations.append(edge_attrs["permutation"])
 
             final_permutations = []
             for p in permutations:
@@ -57,9 +59,18 @@ class MergeNodesPermutations(MiddleReplacementPattern):
                 continue
 
             # Check that all permutations are equal
-            if not all([np.array_equal(final_permutations[0], perm) for perm in final_permutations]):
-                raise Error('Permutations requested for {} data node are not equal! List of permutations: {}'
-                            ''.format(node.name, [p.perm for p in permutations]))
+            if not all(
+                [
+                    np.array_equal(final_permutations[0], perm)
+                    for perm in final_permutations
+                ]
+            ):
+                raise Error(
+                    "Permutations requested for {} data node are not equal! List of permutations: {}"
+                    "".format(node.name, [p.perm for p in permutations])
+                )
 
-            assert not node.has_valid('permutation') or np.array_equal(node.permutation, permutations[0])
-            node['permutation'] = permutations[0]
+            assert not node.has_valid("permutation") or np.array_equal(
+                node.permutation, permutations[0]
+            )
+            node["permutation"] = permutations[0]

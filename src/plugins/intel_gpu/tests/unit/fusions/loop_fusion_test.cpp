@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "fusion_test_common.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
+#include <cmath>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/loop.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 
-#include <cmath>
+#include "fusion_test_common.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -31,12 +30,11 @@ struct loop_params {
     size_t expected_not_fused_primitives;
 };
 
-
 program::ptr build_program(engine& engine,
-                            topology& body_topology,
-                            primitive_id initial_condition_id,
-                            std::vector<loop::io_primitive_map> output_primitive_maps,
-                            std::vector<loop::backedge_mapping> back_edges) {
+                           topology& body_topology,
+                           primitive_id initial_condition_id,
+                           std::vector<loop::io_primitive_map> output_primitive_maps,
+                           std::vector<loop::backedge_mapping> back_edges) {
     std::vector<primitive_id> output_names_vec;
     for (auto out_map : output_primitive_maps) {
         output_names_vec.push_back(out_map.internal_id.pid);
@@ -62,7 +60,6 @@ program::ptr build_program(engine& engine,
 
 class LoopFusingTest : public ::BaseFusingTest<loop_params> {
 public:
-
     void execute(loop_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
@@ -76,11 +73,11 @@ public:
     }
 
     layout get_input_layout(loop_params& p) {
-        return layout{ p.data_type, p.default_format, p.in_shape, padding{} };
+        return layout{p.data_type, p.default_format, p.in_shape, padding{}};
     }
 };
 
-class permute_eltwise_loop: public LoopFusingTest {};
+class permute_eltwise_loop : public LoopFusingTest {};
 TEST_P(permute_eltwise_loop, basic) {
     auto p = GetParam();
     auto num_iteration_mem = engine.allocate_memory({data_types::i64, format::bfyx, {1, 1, 1, 1}});
@@ -92,13 +89,13 @@ TEST_P(permute_eltwise_loop, basic) {
     topology body(
         input_layout("body_input", layout{p.data_type, format::bfyx, p.loop_eltwise_shape}),
         input_layout("body_eltwise_operand", layout({p.data_type, format::bfyx, p.loop_eltwise_shape})),
-        eltwise("body_eltwise", input_info("body_input"), input_info("body_eltwise_operand"), eltwise_mode::sum)
-    );
+        eltwise("body_eltwise", input_info("body_input"), input_info("body_eltwise_operand"), eltwise_mode::sum));
 
-    std::vector<loop::io_primitive_map> input_primitive_maps {loop::io_primitive_map("eltwise", "body_input", 2),
-                                                              loop::io_primitive_map("loop_eltwise_init_values", "body_eltwise_operand")};
-    std::vector<loop::io_primitive_map> output_primitive_maps {loop::io_primitive_map("loop", "body_eltwise", 2)};
-    std::vector<loop::backedge_mapping> back_edges {loop::backedge_mapping("body_eltwise", "body_eltwise_operand")};
+    std::vector<loop::io_primitive_map> input_primitive_maps{
+        loop::io_primitive_map("eltwise", "body_input", 2),
+        loop::io_primitive_map("loop_eltwise_init_values", "body_eltwise_operand")};
+    std::vector<loop::io_primitive_map> output_primitive_maps{loop::io_primitive_map("loop", "body_eltwise", 2)};
+    std::vector<loop::backedge_mapping> back_edges{loop::backedge_mapping("body_eltwise", "body_eltwise_operand")};
 
     auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges);
 
@@ -106,27 +103,40 @@ TEST_P(permute_eltwise_loop, basic) {
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{p.data_type, p.default_format, p.loop_input_shape})),
         permute("permute", input_info("input"), p.permute_order),
-        eltwise("eltwise", { input_info("permute"), input_info("eltwise_data") }, eltwise_mode::sum, p.data_type),
+        eltwise("eltwise", {input_info("permute"), input_info("eltwise_data")}, eltwise_mode::sum, p.data_type),
         data("loop_eltwise_init_values", get_mem(layout{p.data_type, format::bfyx, p.loop_eltwise_shape}, 0.f)),
         data("trip_count", trip_count_mem),
         data("initial_condition", initial_condition_mem),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"),
-                input_info("eltwise"), input_info("loop_eltwise_init_values") }, body_program,
-             "trip_count", "initial_condition", "num_iteration",
-             input_primitive_maps, output_primitive_maps, back_edges, p.loop_trip_count),
-        reorder("output", input_info("loop"), format::bfyx, p.default_type)
-    );
+        loop("loop",
+             {input_info("num_iteration"),
+              input_info("trip_count"),
+              input_info("initial_condition"),
+              input_info("eltwise"),
+              input_info("loop_eltwise_init_values")},
+             body_program,
+             "trip_count",
+             "initial_condition",
+             "num_iteration",
+             input_primitive_maps,
+             output_primitive_maps,
+             back_edges,
+             p.loop_trip_count),
+        reorder("output", input_info("loop"), format::bfyx, p.default_type));
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-#define CASE_LOOP_F32_1 3, { 1, 8, 3, 2 }, { 1, 2, 8, 3 }, { 1, 2, 8, 1 }, { 0, 2, 3, 1 }, data_types::f32, format::bfyx, data_types::f32
-#define CASE_LOOP_F16_0 4, { 1, 12, 4, 2 }, { 1, 2, 12, 4 }, { 1, 2, 12, 1 }, { 0, 2, 3, 1 }, data_types::f16, format::bfyx, data_types::f16
+#define CASE_LOOP_F32_1 \
+    3, {1, 8, 3, 2}, {1, 2, 8, 3}, {1, 2, 8, 1}, {0, 2, 3, 1}, data_types::f32, format::bfyx, data_types::f32
+#define CASE_LOOP_F16_0 \
+    4, {1, 12, 4, 2}, {1, 2, 12, 4}, {1, 2, 12, 1}, {0, 2, 3, 1}, data_types::f16, format::bfyx, data_types::f16
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_eltwise_loop, ::testing::ValuesIn(std::vector<loop_params>{
-    loop_params{ CASE_LOOP_F32_1, 3, 5 },
-    loop_params{ CASE_LOOP_F16_0, 3, 5 },
-}));
-} // namespace
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                         permute_eltwise_loop,
+                         ::testing::ValuesIn(std::vector<loop_params>{
+                             loop_params{CASE_LOOP_F32_1, 3, 5},
+                             loop_params{CASE_LOOP_F16_0, 3, 5},
+                         }));
+}  // namespace

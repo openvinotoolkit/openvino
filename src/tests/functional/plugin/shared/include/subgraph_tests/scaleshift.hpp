@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(ScaleShiftLayerTest, Inference){
+TEST_P(ScaleShiftLayerTest, Inference) {
     run();
 };
 }  // namespace test

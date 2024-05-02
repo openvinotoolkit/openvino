@@ -7,12 +7,12 @@ from functools import reduce
 import numpy as np
 import onnx
 import pytest
-
 from tests.tests_python.utils import run_node
 
 
 @pytest.mark.parametrize(
-    ("onnx_op", "numpy_func"), [("Sum", np.add), ("Min", np.minimum), ("Max", np.maximum)],
+    ("onnx_op", "numpy_func"),
+    [("Sum", np.add), ("Min", np.minimum), ("Max", np.maximum)],
 )
 def test_variadic(onnx_op, numpy_func):
     data = [
@@ -21,7 +21,9 @@ def test_variadic(onnx_op, numpy_func):
         np.array([7, 8, 9], dtype=np.int32),
     ]
     node = onnx.helper.make_node(
-        onnx_op, inputs=["data_0", "data_1", "data_2"], outputs=["y"],
+        onnx_op,
+        inputs=["data_0", "data_1", "data_2"],
+        outputs=["y"],
     )
     expected_output = reduce(numpy_func, data)
 
@@ -36,7 +38,9 @@ def test_mean():
         np.array([7, 8, 9], dtype=np.int32),
     ]
     node = onnx.helper.make_node(
-        "Mean", inputs=["data_0", "data_1", "data_2"], outputs=["y"],
+        "Mean",
+        inputs=["data_0", "data_1", "data_2"],
+        outputs=["y"],
     )
     expected_output = reduce(np.add, data) / len(data)
 

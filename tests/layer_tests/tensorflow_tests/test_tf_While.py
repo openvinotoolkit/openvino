@@ -11,17 +11,20 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestWhile(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x:0']
-        y_shape = inputs_info['y:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        assert "y:0" in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info["x:0"]
+        y_shape = inputs_info["y:0"]
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
+        inputs_data["x:0"] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data["y:0"] = np.random.randint(-50, 50, y_shape).astype(np.int32)
         return inputs_data
 
     def create_while_net(self, y_shape, data_type, lower_control_flow):
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+        from tensorflow.python.framework.convert_to_constants import (
+            convert_variables_to_constants_v2,
+        )
+
         def while_function(x, y):
             @tf.function
             def cond(x, y):
@@ -42,8 +45,9 @@ class TestWhile(CommonTFLayerTest):
 
         # lower_control_flow defines representation of While operation
         # in case of lower_control_flow=True it is decomposed into LoopCond, NextIteration and TensorArray operations
-        frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                        lower_control_flow=lower_control_flow)
+        frozen_func = convert_variables_to_constants_v2(
+            concrete_func, lower_control_flow=lower_control_flow
+        )
 
         graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
         return graph_def, None
@@ -52,33 +56,42 @@ class TestWhile(CommonTFLayerTest):
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=False),
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=True),
         dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=False),
-        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True)
+        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
-    def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        self._test(*self.create_while_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.skipif(platform == "darwin", reason="Ticket - 122182")
+    def test_while_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_while_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
 
 class TestWhileShapeVariant(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x:0']
-        y_shape = inputs_info['y:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        assert "y:0" in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info["x:0"]
+        y_shape = inputs_info["y:0"]
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data["x:0"] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data["y:0"] = np.random.randint(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_while_net(self, y_shape, lower_control_flow):
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+        from tensorflow.python.framework.convert_to_constants import (
+            convert_variables_to_constants_v2,
+        )
+
         def while_function(x, y):
             @tf.function
             def cond(x, y):
@@ -91,9 +104,15 @@ class TestWhileShapeVariant(CommonTFLayerTest):
                 x_new = tf.add(x, tf.constant(1, tf.int32))
                 return x_new, y_new
 
-            return tf.while_loop(cond, body, [x, y],
-                                 shape_invariants=[tf.TensorShape([]),
-                                                   tf.TensorShape([None] + y_shape[1:])])
+            return tf.while_loop(
+                cond,
+                body,
+                [x, y],
+                shape_invariants=[
+                    tf.TensorShape([]),
+                    tf.TensorShape([None] + y_shape[1:]),
+                ],
+            )
 
         tf_while_graph = tf.function(while_function)
         x = np.random.randint(1, 10, []).astype(np.int32)
@@ -102,8 +121,9 @@ class TestWhileShapeVariant(CommonTFLayerTest):
 
         # lower_control_flow defines representation of While operation
         # in case of lower_control_flow=True it is decomposed into LoopCond, NextIteration and TensorArray operations
-        frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                        lower_control_flow=lower_control_flow)
+        frozen_func = convert_variables_to_constants_v2(
+            concrete_func, lower_control_flow=lower_control_flow
+        )
 
         graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
         return graph_def, None
@@ -112,33 +132,42 @@ class TestWhileShapeVariant(CommonTFLayerTest):
         dict(y_shape=[2, 3], lower_control_flow=False),
         dict(y_shape=[2, 3], lower_control_flow=True),
         dict(y_shape=[2, 1, 4], lower_control_flow=False),
-        dict(y_shape=[2, 1, 4], lower_control_flow=True)
+        dict(y_shape=[2, 1, 4], lower_control_flow=True),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
-    def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        self._test(*self.create_while_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.skipif(platform == "darwin", reason="Ticket - 122182")
+    def test_while_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_while_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
 
 class TestWhileWithNestedIf(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x:0']
-        y_shape = inputs_info['y:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        assert "y:0" in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info["x:0"]
+        y_shape = inputs_info["y:0"]
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
+        inputs_data["x:0"] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data["y:0"] = np.random.randint(-50, 50, y_shape).astype(np.int32)
         return inputs_data
 
     def create_while_with_nested_if_net(self, y_shape, data_type, lower_control_flow):
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+        from tensorflow.python.framework.convert_to_constants import (
+            convert_variables_to_constants_v2,
+        )
+
         def while_function(x, y):
             @tf.function
             def cond(x, y):
@@ -158,7 +187,7 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
                         return y_new
 
                     if_op = tf.cond(cond, then_branch, else_branch)
-                    output = tf.identity(if_op, name='if_op')
+                    output = tf.identity(if_op, name="if_op")
                     return output
 
                 y_new = tf.add(y, tf.constant(2, dtype=data_type))
@@ -176,8 +205,9 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
 
         # lower_control_flow defines representation of While operation
         # in case of lower_control_flow=True it is decomposed into LoopCond, NextIteration and TensorArray operations
-        frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                        lower_control_flow=lower_control_flow)
+        frozen_func = convert_variables_to_constants_v2(
+            concrete_func, lower_control_flow=lower_control_flow
+        )
 
         graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
         return graph_def, None
@@ -186,17 +216,23 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=False),
         dict(y_shape=[2, 3], data_type=np.int32, lower_control_flow=True),
         dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=False),
-        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True)
+        dict(y_shape=[2, 1, 4], data_type=np.int32, lower_control_flow=True),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
-    def test_while_with_nested_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
-        if ie_device == 'GPU':
+    @pytest.mark.skipif(platform == "darwin", reason="Ticket - 122182")
+    def test_while_with_nested_if_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU":
             pytest.skip("accuracy issue on GPU")
-        self._test(*self.create_while_with_nested_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_while_with_nested_if_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

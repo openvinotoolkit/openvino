@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/detection_output.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/detection_output.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "detection_output_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -43,7 +40,7 @@ struct detection_output_test_params {
     layout expected_layout;
 };
 
-class detection_output_test : public testing::TestWithParam<detection_output_test_params> { };
+class detection_output_test : public testing::TestWithParam<detection_output_test_params> {};
 
 TEST_P(detection_output_test, shape_infer) {
     auto p = GetParam();
@@ -90,28 +87,37 @@ TEST_P(detection_output_test, shape_infer) {
         program_wrapper::add_connection(prog, input_layout_node, detection_output_node);
     }
 
-    auto res = detection_output_inst::calc_output_layouts<ov::PartialShape>(detection_output_node, *detection_output_node.get_kernel_impl_params());
+    auto res =
+        detection_output_inst::calc_output_layouts<ov::PartialShape>(detection_output_node,
+                                                                     *detection_output_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, detection_output_test,
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    detection_output_test,
     testing::ValuesIn(std::vector<detection_output_test_params>{
-        {
-            {layout{ov::PartialShape{1, 60}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1, 165}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1, 1, 60}, data_types::f32, format::bfyx}},
-            11, 75, true, 50, true, true,
-            layout{ov::PartialShape{1, 1, 50, 7}, data_types::f32, format::bfyx}
-        },
-        {
-            {layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
-             layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
-             layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}},
-            11, 75, true, 50, true, true,
-            layout{ov::PartialShape{1, 1, ov::Dimension::dynamic(), 7}, data_types::f32, format::bfyx}
-        }
-    }));
+        {{layout{ov::PartialShape{1, 60}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{1, 165}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{1, 1, 60}, data_types::f32, format::bfyx}},
+         11,
+         75,
+         true,
+         50,
+         true,
+         true,
+         layout{ov::PartialShape{1, 1, 50, 7}, data_types::f32, format::bfyx}},
+        {{layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+          layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+          layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}},
+         11,
+         75,
+         true,
+         50,
+         true,
+         true,
+         layout{ov::PartialShape{1, 1, ov::Dimension::dynamic(), 7}, data_types::f32, format::bfyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

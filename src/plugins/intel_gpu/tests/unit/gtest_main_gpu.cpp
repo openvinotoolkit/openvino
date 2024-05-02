@@ -27,38 +27,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <cstdio>
-#include <string>
 #include <stdlib.h>
 
-#include "intel_gpu/runtime/device_query.hpp"
-#include "gtest/gtest.h"
-#include "test_utils/test_utils.h"
+#include <cstdio>
+#include <string>
+
 #include "gflags/gflags.h"
+#include "gtest/gtest.h"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "test_utils/test_utils.h"
 
 DEFINE_int32(device_suffix, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
 
-    //gflags
+    // gflags
     gflags::AllowCommandLineReparsing();
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_device_suffix != -1 && cldnn::device_query::device_id == -1)
         cldnn::device_query::device_id = FLAGS_device_suffix;
-    //restore cmdline arg for gtest
-    auto varg=gflags::GetArgvs();
+    // restore cmdline arg for gtest
+    auto varg = gflags::GetArgvs();
     int new_argc = static_cast<int>(varg.size());
-    char** new_argv=new char*[new_argc];
-    for(int i=0;i<new_argc;i++)
-        new_argv[i]=&varg[i][0];
+    char** new_argv = new char*[new_argc];
+    for (int i = 0; i < new_argc; i++)
+        new_argv[i] = &varg[i][0];
 
     if (const auto env_var = std::getenv("cl_cache_dir"))
         printf("Env variable cl_cache_dir: %s\n", env_var);
     else
         printf("WARNING: cl_cache_dir is not set. Test will take longer than expected\n");
 
-    //gtest
+    // gtest
     testing::InitGoogleTest(&new_argc, new_argv);
     auto retcode = RUN_ALL_TESTS();
     delete[] new_argv;

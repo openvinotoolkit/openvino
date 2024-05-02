@@ -6,17 +6,20 @@
 
 using namespace ov::test::behavior;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTest,
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            OVHoldersTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         OVHoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
-                    ::testing::Values(//ov::test::utils::DEVICE_BATCH,
-                                        "HETERO:GPU"),
-            OVHoldersTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values(  // ov::test::utils::DEVICE_BATCH,
+                             "HETERO:GPU"),
+                         OVHoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            OVHoldersTestOnImportedNetwork::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVHoldersTestOnImportedNetwork,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         OVHoldersTestOnImportedNetwork::getTestCaseName);
 
 }  // namespace

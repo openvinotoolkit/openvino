@@ -4,23 +4,21 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/profiling.hpp"
-#include "openvino/util/util.hpp"
-#include "ocl_base_event.hpp"
-#include <memory>
 #include <list>
+#include <memory>
 
-OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
-                                           // so turn it off
+#include "intel_gpu/runtime/profiling.hpp"
+#include "ocl_base_event.hpp"
+#include "openvino/util/util.hpp"
+
+OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done
+                                           // intentionally so turn it off
 
 namespace cldnn {
 namespace ocl {
 
 struct ocl_user_event : public ocl_base_event {
-    explicit ocl_user_event(const cl::Context& ctx, bool is_set = false)
-    : ocl_base_event()
-    , _ctx(ctx)
-    , _event(_ctx) {
+    explicit ocl_user_event(const cl::Context& ctx, bool is_set = false) : ocl_base_event(), _ctx(ctx), _event(_ctx) {
         if (is_set) {
             set();
         }
@@ -28,7 +26,9 @@ struct ocl_user_event : public ocl_base_event {
 
     void set_impl() override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
-    cl::Event& get() override { return _event; };
+    cl::Event& get() override {
+        return _event;
+    };
 
 protected:
     cldnn::instrumentation::timer<> _timer;

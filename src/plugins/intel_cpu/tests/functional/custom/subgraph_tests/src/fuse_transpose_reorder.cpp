@@ -3,11 +3,12 @@
 //
 
 #include "custom/subgraph_tests/include/fuse_transpose_reorder.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
-#include "openvino/openvino.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/openvino.hpp"
 
 using namespace CPUTestUtils;
 
@@ -30,9 +31,9 @@ void FuseTransposeAndReorderTest::check_transpose_count(size_t expectedTranspose
     auto runtime_model = compiledModel.get_runtime_model();
     ASSERT_NE(nullptr, runtime_model);
     size_t actual_transpose_count = 0;
-    for (const auto &node : runtime_model->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+    for (const auto& node : runtime_model->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
             OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
@@ -52,10 +53,9 @@ void FuseTransposeAndReorderTest::SetUp() {
     create_model();
 }
 
-const auto fuseTransposeAndReorderCommonParams = ::testing::Combine(
-        ::testing::Values(ov::Shape{1, 2, 3, 4}, ov::Shape{1, 2, 3, 4, 5}),
-        ::testing::Values(ov::element::i8, ov::element::u8)
-);
+const auto fuseTransposeAndReorderCommonParams =
+    ::testing::Combine(::testing::Values(ov::Shape{1, 2, 3, 4}, ov::Shape{1, 2, 3, 4, 5}),
+                       ::testing::Values(ov::element::i8, ov::element::u8));
 
 /*  FuseTransposeAndReorderTest model
       ---------
@@ -96,8 +96,10 @@ TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
     check_transpose_count(0);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest1 model
              ---------
@@ -154,7 +156,9 @@ void FuseTransposeAndReorderTest1::create_model() {
     auto memFmt3 = input_shape.size() == 5 ? ncdhw : nchw;
     transpose3->get_rt_info() = makeCPUInfo({memFmt3}, {memFmt3}, {});
 
-    auto shape = ov::test::utils::deprecated::make_constant(ov::element::i64, {input_shape.size()}, transpose3->get_output_shape(0));
+    auto shape = ov::test::utils::deprecated::make_constant(ov::element::i64,
+                                                            {input_shape.size()},
+                                                            transpose3->get_output_shape(0));
     auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose1, shape, false);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{transpose3, reshape}, 1);
@@ -169,8 +173,10 @@ TEST_P(FuseTransposeAndReorderTest1, DISABLED_CompareWithRefs) {
     check_transpose_count(2);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest1,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest2 graph
     ---------         ---------
@@ -227,7 +233,10 @@ TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     check_transpose_count(0);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest2,
+                         fuseTransposeAndReorderCommonParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest3 graph
     Parameter
@@ -284,11 +293,13 @@ TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs) {
     check_transpose_count(1);
 }
 
-const auto convSumTranposeParams = ::testing::Combine(::testing::Values(ov::Shape{1, 16, 32, 35}),
-                                                      ::testing::Values(ov::element::f32)
-);
+const auto convSumTranposeParams =
+    ::testing::Combine(::testing::Values(ov::Shape{1, 16, 32, 35}), ::testing::Values(ov::element::f32));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest3, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest3,
+                         convSumTranposeParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest4 graph
          param
@@ -353,7 +364,10 @@ TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs) {
     check_transpose_count(0);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest4, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest4,
+                         convSumTranposeParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 void FuseTransposeAndReorderTest5::create_model() {
     OPENVINO_ASSERT(input_shape.size() == 4);
@@ -399,7 +413,10 @@ TEST_P(FuseTransposeAndReorderTest5, CompareWithRefs) {
     run();
     check_transpose_count(0);
 }
-INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest5, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Basic,
+                         FuseTransposeAndReorderTest5,
+                         convSumTranposeParams,
+                         FuseTransposeAndReorderTest::getTestCaseName);
 
 TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
     auto model = ov::builder::preprocess::create_preprocess_1input(ov::element::u8, ov::PartialShape{1, 3, 224, 224});

@@ -10,15 +10,14 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        std::vector<ov::Shape>,          // Input shapes
-        std::vector<int64_t>,            // Transpose Order
-        int64_t,                         // Softmax Axis
-        size_t,                          // Expected num nodes
-        size_t,                          // Expected num subgraphs
-        std::string                      // Target Device
-> TransposeSoftmaxParams;
-
+typedef std::tuple<std::vector<ov::Shape>,  // Input shapes
+                   std::vector<int64_t>,    // Transpose Order
+                   int64_t,                 // Softmax Axis
+                   size_t,                  // Expected num nodes
+                   size_t,                  // Expected num subgraphs
+                   std::string              // Target Device
+                   >
+    TransposeSoftmaxParams;
 
 class TransposeSoftmax : public testing::WithParamInterface<ov::test::snippets::TransposeSoftmaxParams>,
                          virtual public ov::test::SnippetsTestsCommon {
@@ -34,7 +33,6 @@ protected:
     void SetUp() override;
 };
 
-
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

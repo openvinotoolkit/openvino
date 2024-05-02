@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "shared_test_classes/base/snippets_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/snippets_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -18,7 +18,8 @@ typedef std::tuple<InputShape,                      // Input shape
                    size_t,                          // Expected num nodes
                    size_t,                          // Expected num subgraphs
                    std::string                      // Target device
-> ReduceParams;
+                   >
+    ReduceParams;
 
 class Reduce : public testing::WithParamInterface<ov::test::snippets::ReduceParams>,
                virtual public ov::test::SnippetsTestsCommon {
@@ -29,6 +30,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

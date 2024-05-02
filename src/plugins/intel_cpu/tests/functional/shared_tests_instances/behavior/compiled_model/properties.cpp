@@ -3,8 +3,8 @@
 //
 
 #include "behavior/compiled_model/properties.hpp"
-#include "behavior/compiled_model/properties_hetero.hpp"
 
+#include "behavior/compiled_model/properties_hetero.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
@@ -104,7 +104,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                                             ::testing::ValuesIn(auto_batch_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
+                         OVCompiledModelIncorrectDevice,
+                         ::testing::Values("CPU"));
 
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
     {ov::device::properties("CPU", ov::num_streams(4))},
@@ -166,43 +168,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_HETERO_OVClassCompileModelWithCorrectPropertiesTe
 // Executable Network GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetPropertyTest, OVClassCompiledModelGetPropertyTest,
-        ::testing::Values("CPU", "HETERO:CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest,
+                         ::testing::Values("CPU", "HETERO:CPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_CPU = {
-        {"CPU", std::make_pair(ov::AnyMap{}, "CPU")}};
+    {"CPU", std::make_pair(ov::AnyMap{}, "CPU")}};
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetPropertyTest, OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
-        ::testing::ValuesIn(GetMetricTest_ExecutionDevice_CPU));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
+                         ::testing::ValuesIn(GetMetricTest_ExecutionDevice_CPU));
 
 //
 // OV CompiledModel GetProperty / SetProperty
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetIncorrectPropertyTest, OVClassCompiledModelGetIncorrectPropertyTest,
-        ::testing::Values("CPU", "HETERO:CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
+                         OVClassCompiledModelGetIncorrectPropertyTest,
+                         ::testing::Values("CPU", "HETERO:CPU"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetConfigTest, OVClassCompiledModelGetConfigTest,
-        ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetConfigTest,
+                         OVClassCompiledModelGetConfigTest,
+                         ::testing::Values("CPU"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelSetIncorrectConfigTest, OVClassCompiledModelSetIncorrectConfigTest,
-        ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelSetIncorrectConfigTest,
+                         OVClassCompiledModelSetIncorrectConfigTest,
+                         ::testing::Values("CPU"));
 
 //
 // Hetero OV CompiledModel Get RO Property
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
+                         OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         ::testing::Values("CPU"));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassHeteroExecutableNetworkGetMetricTest, OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK,
-        ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroExecutableNetworkGetMetricTest,
+                         OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK,
+                         ::testing::Values("CPU"));
 
 }  // namespace

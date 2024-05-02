@@ -2,35 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "random_uniform_inst.h"
-#include "primitive_type_base.h"
 #include "json_object.h"
-
+#include "primitive_type_base.h"
+#include "random_uniform_inst.h"
 #include "random_uniform_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(random_uniform)
 
-random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const &node)
-: parent(network, node) {
-}
+random_uniform_inst::typed_primitive_inst(network& network, random_uniform_node const& node) : parent(network, node) {}
 
-layout random_uniform_inst::calc_output_layout(random_uniform_node const &node, kernel_impl_params const& impl_param) {
+layout random_uniform_inst::calc_output_layout(random_uniform_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<random_uniform>();
     auto format = format::get_default_format(primitive->output_shape.size());
 
     return {primitive->output_shape, *primitive->output_data_types[0], format};
 }
 
-template<typename ShapeType>
-std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node const& /*node*/, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node const& /*node*/,
+                                                             kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<random_uniform>();
     auto output_data_type = desc->output_data_types[0].value_or(impl_param.get_input_layout().data_type);
 
     std::vector<ShapeType> output_shapes;
-    std::vector<ShapeType> input_shapes = { impl_param.get_input_layout(0).get_partial_shape(),
-                                            impl_param.get_input_layout(1).get_partial_shape(),
-                                            impl_param.get_input_layout(2).get_partial_shape() };
+    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get_partial_shape(),
+                                           impl_param.get_input_layout(1).get_partial_shape(),
+                                           impl_param.get_input_layout(2).get_partial_shape()};
 
     auto& memory_deps = impl_param.memory_deps;
     std::unordered_map<size_t, ov::Tensor> const_data;
@@ -62,12 +60,14 @@ std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node
         output_shapes = run_shape_infer();
     }
 
-    return { layout{output_shapes[0], output_data_type, format::get_default_format(output_shapes[0].size())} };
+    return {layout{output_shapes[0], output_data_type, format::get_default_format(output_shapes[0].size())}};
 }
 
-template std::vector<layout> random_uniform_inst::calc_output_layouts<ov::PartialShape>(random_uniform_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> random_uniform_inst::calc_output_layouts<ov::PartialShape>(
+    random_uniform_node const& node,
+    const kernel_impl_params& impl_param);
 
-std::string random_uniform_inst::to_string(random_uniform_node const &node) {
+std::string random_uniform_inst::to_string(random_uniform_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite random_uniform_info;
     random_uniform_info.add("input id", node.input().id());
@@ -81,4 +81,4 @@ std::string random_uniform_inst::to_string(random_uniform_node const &node) {
     return primitive_description.str();
 }
 
-} // namespace cldnn
+}  // namespace cldnn

@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <mutex>
-#include <atomic>
-#include <unordered_set>
-#include <future>
-#include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
+#include <atomic>
+#include <future>
+#include <mutex>
+#include <unordered_set>
+
+#include "intel_gpu/runtime/utils.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
-    CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
+    CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config)
+        : _task_executor_config(task_executor_config) {
         _task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(_task_executor_config);
     }
 
@@ -89,7 +91,8 @@ private:
     std::atomic_bool _stop_compilation{false};
 };
 
-std::shared_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
+std::shared_ptr<ICompilationContext> ICompilationContext::create(
+    ov::threading::IStreamsExecutor::Config task_executor_config) {
     return cldnn::make_unique<CompilationContext>(task_executor_config);
 }
 

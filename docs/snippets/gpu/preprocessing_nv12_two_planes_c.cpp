@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/c/openvino.h>
 #include <openvino/c/gpu/gpu_plugin_properties.h>
+#include <openvino/c/openvino.h>
+
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
 cl::Image2D get_y_image();

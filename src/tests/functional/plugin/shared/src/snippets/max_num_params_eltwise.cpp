@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/max_num_params_eltwise.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
+std::string MaxNumParamsEltwise::getTestCaseName(
+    testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
     ov::test::InputShape inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -47,6 +49,6 @@ TEST_P(MaxNumParamsEltwise, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

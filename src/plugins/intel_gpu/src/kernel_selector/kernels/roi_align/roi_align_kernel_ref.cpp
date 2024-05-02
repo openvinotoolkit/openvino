@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "roi_align_kernel_ref.h"
+
 #include <kernel_selector_utils.h>
 
 namespace kernel_selector {
@@ -39,27 +40,26 @@ ROIAlignKernelRef::DispatchData SetDefault(const roi_align_params& params) {
     return dispatchData;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
-KernelsData ROIAlignKernelRef::GetKernelsData(const Params &params) const {
+KernelsData ROIAlignKernelRef::GetKernelsData(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<roi_align_params>(params);
-    roi_align_params &new_params = dynamic_cast<roi_align_params&>(*kernel_data.params.get());
+    roi_align_params& new_params = dynamic_cast<roi_align_params&>(*kernel_data.params.get());
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto roi_align_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, roi_align_specific_jit, entry_point);
-    FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo,
-            kernelName, jit, entry_point);
+    FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point);
     kernel_data.kernels[0].params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     kernel_data.kernels[0].params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
 
     return {kernel_data};
 }
 
-float ROIAlignKernelRef::GetKernelsPriority(const Params &params) const {
+float ROIAlignKernelRef::GetKernelsPriority(const Params& params) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -68,7 +68,7 @@ bool ROIAlignKernelRef::Validate(const Params& p) const {
         return false;
     }
 
-    const roi_align_params &params = static_cast<const roi_align_params&>(p);
+    const roi_align_params& params = static_cast<const roi_align_params&>(p);
     if (params.inputs.size() != 3)
         return false;
 

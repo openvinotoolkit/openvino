@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 class ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw : public ConvolutionKernelBase {
@@ -26,12 +27,12 @@ protected:
     bool Validate(const Params& params) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
-    bool NeedPaddedInput() const override { return false; }
+    bool NeedPaddedInput() const override {
+        return false;
+    }
     bool HasPaddedInput(const convolution_params& params) const;
     bool ParamsHavePadding(const convolution_params& params) const;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

@@ -4,26 +4,23 @@
 
 #include "low_precision/rt_info/precisions_attribute.hpp"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <iterator>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
-#include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace ov;
 using namespace ov;
 
-PrecisionsAttribute::PrecisionsAttribute(const std::vector<ov::element::Type>& precisions) :
-    SharedAttribute(precisions) {
-}
+PrecisionsAttribute::PrecisionsAttribute(const std::vector<ov::element::Type>& precisions)
+    : SharedAttribute(precisions) {}
 
-ov::Any PrecisionsAttribute::create(
-    const std::shared_ptr<ov::Node>& node,
-    const AttributeParameters& params) {
+ov::Any PrecisionsAttribute::create(const std::shared_ptr<ov::Node>& node, const AttributeParameters& params) {
     auto& rt = ov::is_type<opset1::FakeQuantize>(node) ? node->output(0).get_rt_info() : node->get_rt_info();
     return (rt[PrecisionsAttribute::get_type_info_static()] = PrecisionsAttribute(params.defaultPrecisions));
 }
@@ -45,7 +42,6 @@ void PrecisionsAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
         }
     }
 }
-
 
 std::string PrecisionsAttribute::to_string() const {
     std::stringstream ss;

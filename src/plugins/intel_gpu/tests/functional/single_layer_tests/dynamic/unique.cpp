@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/unique.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -48,8 +48,7 @@ public:
         if (!std::get<0>(flat_or_axis)) {
             result << "axis=" << std::get<1>(flat_or_axis) << "_";
         } else {
-            result << "flattened"
-                   << "_";
+            result << "flattened" << "_";
         }
         result << "sorted=" << (sorted ? "True" : "False") << "_";
         result << "dataPrc=" << model_type;
@@ -111,7 +110,9 @@ protected:
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -range / 2;
                 in_data.range = range;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[0],
+                                                                 in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

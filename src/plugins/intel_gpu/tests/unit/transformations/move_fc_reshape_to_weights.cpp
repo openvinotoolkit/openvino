@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <plugin/transformations/move_fc_reshape_to_weights.hpp>
-
 #include <gtest/gtest.h>
 
-#include <string>
-#include <memory>
-
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <intel_gpu/op/fully_connected.hpp>
 #include <intel_gpu/op/placeholder.hpp>
+#include <memory>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <plugin/transformations/move_fc_reshape_to_weights.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -25,7 +23,8 @@ using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::
                                                 bool,                                    // add transpose
                                                 bool>;                                   // add subtract
 
-class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
+class MoveFCReshapeToWeightsTests : public TransformationTestsF,
+                                    public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
@@ -72,7 +71,7 @@ public:
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {2}, {1, 0});
             weights_path = std::make_shared<ov::opset1::Transpose>(weights_path, transpose_const);
         }
-	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto fully_connected = std::make_shared<op::FullyConnected>(data, weights_path, no_bias);
         return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
@@ -96,15 +95,13 @@ protected:
 
 TEST_P(MoveFCReshapeToWeightsTests, CompareFunctions) {}
 
-const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {
-    {{-1, -1, -1}, {1, 4, 3}}
-};
+const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {{{-1, -1, -1}, {1, 4, 3}}};
 const std::vector<bool> add_transpose = {false, true};
 const std::vector<bool> add_subtract = {false, true};
 
-INSTANTIATE_TEST_SUITE_P(smoke_TransformationTests_wo_transpose, MoveFCReshapeToWeightsTests,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(input_shapes_wo_transpose),
-                                ::testing::ValuesIn(add_transpose),
-                                ::testing::ValuesIn(add_subtract)),
-                            MoveFCReshapeToWeightsTests::get_test_case_name);
+INSTANTIATE_TEST_SUITE_P(smoke_TransformationTests_wo_transpose,
+                         MoveFCReshapeToWeightsTests,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_wo_transpose),
+                                            ::testing::ValuesIn(add_transpose),
+                                            ::testing::ValuesIn(add_subtract)),
+                         MoveFCReshapeToWeightsTests::get_test_case_name);

@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -21,7 +22,7 @@ public:
 
 protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::yxio;
     }
     bool Validate(const Params& p) const override;

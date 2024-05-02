@@ -4,16 +4,13 @@
 
 #pragma once
 #include <limits>
+
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Select method for coding the prior-boxes in the @ref detection output layer.
-enum class prior_box_code_type : int32_t {
-    corner,
-    center_size,
-    corner_size
-};
+enum class prior_box_code_type : int32_t { corner, center_size, corner_size };
 
 /// @brief Generates a list of detections based on location and confidence predictions by doing non maximum suppression.
 /// @details Each row is a 7 dimension vector, which stores: [image_id, label, confidence, xmin, ymin, xmax, ymax].
@@ -21,7 +18,8 @@ enum class prior_box_code_type : int32_t {
 struct detection_output : public primitive_base<detection_output> {
     CLDNN_DECLARE_PRIMITIVE(detection_output)
 
-    detection_output() : primitive_base("", {}),
+    detection_output()
+        : primitive_base("", {}),
           num_classes(0),
           keep_top_k(0),
           share_location(true),
@@ -53,7 +51,8 @@ struct detection_output : public primitive_base<detection_output> {
     /// @param top_k Maximum number of results to be kept in NMS.
     /// @param eta Used for adaptive NMS.
     /// @param code_type Type of coding method for bounding box.
-    /// @param variance_encoded_in_target If true, variance is encoded in target; otherwise we need to adjust the predicted offset accordingly.
+    /// @param variance_encoded_in_target If true, variance is encoded in target; otherwise we need to adjust the
+    /// predicted offset accordingly.
     /// @param confidence_threshold Only keep detections with confidences larger than this threshold.
     detection_output(const primitive_id& id,
                      const std::vector<input_info>& inputs,
@@ -122,7 +121,8 @@ struct detection_output : public primitive_base<detection_output> {
     const bool variance_encoded_in_target;
     /// @brief Only keep detections with confidences larger than this threshold.
     const float confidence_threshold;
-    /// @brief Number of elements in a single prior description (4 if priors calculated using PriorBox layer, 5 - if Proposal)
+    /// @brief Number of elements in a single prior description (4 if priors calculated using PriorBox layer, 5 - if
+    /// Proposal)
     const int32_t prior_info_size;
     /// @brief Offset of the box coordinates w.r.t. the beginning of a prior info record
     const int32_t prior_coordinates_offset;
@@ -132,7 +132,8 @@ struct detection_output : public primitive_base<detection_output> {
     const int32_t input_width;
     /// @brief Height of input image.
     const int32_t input_height;
-    /// @brief Decrease label id to skip background label equal to 0. Can't be used simultaneously with background_label_id.
+    /// @brief Decrease label id to skip background label equal to 0. Can't be used simultaneously with
+    /// background_label_id.
     const bool decrease_label_id;
     /// @brief Clip decoded boxes right after decoding
     const bool clip_before_nms;
@@ -171,27 +172,14 @@ struct detection_output : public primitive_base<detection_output> {
 
         auto rhs_casted = downcast<const detection_output>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(num_classes) &&
-               cmp_fields(keep_top_k) &&
-               cmp_fields(share_location) &&
-               cmp_fields(background_label_id) &&
-               cmp_fields(nms_threshold) &&
-               cmp_fields(top_k) &&
-               cmp_fields(eta) &&
-               cmp_fields(code_type) &&
-               cmp_fields(variance_encoded_in_target) &&
-               cmp_fields(confidence_threshold) &&
-               cmp_fields(prior_info_size) &&
-               cmp_fields(prior_coordinates_offset) &&
-               cmp_fields(prior_is_normalized) &&
-               cmp_fields(input_width) &&
-               cmp_fields(input_height) &&
-               cmp_fields(decrease_label_id) &&
-               cmp_fields(clip_before_nms) &&
-               cmp_fields(clip_after_nms) &&
-               cmp_fields(objectness_score);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(num_classes) && cmp_fields(keep_top_k) && cmp_fields(share_location) &&
+               cmp_fields(background_label_id) && cmp_fields(nms_threshold) && cmp_fields(top_k) && cmp_fields(eta) &&
+               cmp_fields(code_type) && cmp_fields(variance_encoded_in_target) && cmp_fields(confidence_threshold) &&
+               cmp_fields(prior_info_size) && cmp_fields(prior_coordinates_offset) && cmp_fields(prior_is_normalized) &&
+               cmp_fields(input_width) && cmp_fields(input_height) && cmp_fields(decrease_label_id) &&
+               cmp_fields(clip_before_nms) && cmp_fields(clip_after_nms) && cmp_fields(objectness_score);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

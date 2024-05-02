@@ -23,6 +23,7 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
     static bool isBroadcasted(const PartialShape& shape);
+
 protected:
     int getNotEmpty(const std::shared_ptr<Node>& eltwise) const;
     // Return indexes:

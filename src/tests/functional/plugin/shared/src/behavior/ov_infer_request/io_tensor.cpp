@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <thread>
-#include <future>
-
 #include "behavior/ov_infer_request/io_tensor.hpp"
+
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/result.hpp"
+#include <future>
+#include <thread>
+
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 #include "common_test_utils/subgraph_builders/single_split.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -25,8 +26,7 @@ void OVInferRequestIOTensorTest::SetUp() {
     try {
         req = execNet.create_infer_request();
     } catch (const std::exception& ex) {
-        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]"
-               << std::endl;
+        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]" << std::endl;
     }
     input = execNet.input();
     output = execNet.output();
@@ -84,7 +84,6 @@ TEST_P(OVInferRequestIOTensorTest, canSetAndGetOutput) {
     ASSERT_EQ(output.get_element_type(), actual_tensor.get_element_type());
     ASSERT_EQ(output.get_shape(), actual_tensor.get_shape());
 }
-
 
 TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
     auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
@@ -283,7 +282,8 @@ TEST_P(OVInferRequestIOTensorTest, CheckInferIsNotChangeInput) {
     ov::test::utils::compare(input_tensor, input_after_several_infer);
 }
 
-std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
+std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(
+    const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
     std::string target_device;
     ov::AnyMap configuration;
@@ -294,7 +294,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace ov::test::utils;
-        for (auto &configItem : configuration) {
+        for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
             result << "_";
@@ -340,7 +340,8 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
     }
 }
 
-std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
+std::string OVInferRequestCheckTensorPrecision::getTestCaseName(
+    const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
     element::Type type;
     std::string target_device;
     AnyMap configuration;
@@ -350,7 +351,7 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace ov::test::utils;
-        for (auto &configItem : configuration) {
+        for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
             result << "_";
@@ -399,7 +400,7 @@ void OVInferRequestCheckTensorPrecision::createInferRequest() {
             GTEST_SKIP_(expectedMsg.c_str());
         } else {
             FAIL() << "Precision " << element_type.c_type_string()
-                    << " is marked as supported but the network was not loaded";
+                   << " is marked as supported but the network was not loaded";
         }
     }
 }

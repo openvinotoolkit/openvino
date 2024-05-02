@@ -5,19 +5,18 @@
 #include "shared_test_classes/single_op/minimum_maximum.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/maximum.hpp"
-
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 using ov::test::utils::MinMaxOpType;
 
-std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple> &obj) {
+std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type model_type;
     std::string target_name;
@@ -53,8 +52,8 @@ void MaxMinLayerTest::SetUp() {
     std::tie(shapes, op_type, model_type, second_input_type, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
-    ov::NodeVector inputs {params[0]};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
+    ov::NodeVector inputs{params[0]};
 
     if (InputLayerType::PARAMETER == second_input_type) {
         auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);
@@ -81,5 +80,5 @@ void MaxMinLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(min_max_op);
     function = std::make_shared<ov::Model>(result, params, "MinMax");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

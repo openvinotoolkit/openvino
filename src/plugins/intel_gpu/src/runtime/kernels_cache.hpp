@@ -4,23 +4,22 @@
 
 #pragma once
 
+#include <atomic>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/kernel.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-
-#include <map>
-#include <mutex>
-#include <vector>
-#include <memory>
-#include <atomic>
-#include <string>
-#include <set>
-
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "intel_gpu/runtime/kernel.hpp"
 #include "kernels_factory.hpp"
 #include "ocl/ocl_engine.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 namespace cldnn {
 
@@ -35,12 +34,12 @@ public:
                     const kernel_impl_params& _params,
                     bool _dump_custom_program)
             : kernel_strings(_kernel_strings),
-                params(_params),
-                dump_custom_program(_dump_custom_program) {}
+              params(_params),
+              dump_custom_program(_dump_custom_program) {}
     };
 
     struct impl_hasher {
-        size_t operator()(const kernel_impl_params &k) const {
+        size_t operator()(const kernel_impl_params& k) const {
             return k.hash();
         }
     };
@@ -58,7 +57,10 @@ public:
         bool dump_custom_program;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
-        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
+        explicit batch_program(int32_t _bucket_id,
+                               int32_t _batch_id,
+                               std::string _options,
+                               const std::vector<std::string>& batch_header_str)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
               hash_value(0),
@@ -66,11 +68,11 @@ public:
               source(std::move(batch_header_str)),
               options(_options),
               dump_custom_program(false),
-              entry_point_to_id({}) {
-        }
+              entry_point_to_id({}) {}
     };
 
-    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<std::pair<kernel::ptr, size_t>>, impl_hasher>;
+    using compiled_kernels =
+        std::unordered_map<kernel_impl_params, std::vector<std::pair<kernel::ptr, size_t>>, impl_hasher>;
 
 private:
     static std::mutex _mutex;
@@ -100,7 +102,7 @@ public:
                            const std::vector<std::string>& batch_header_str = {});
     kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
     std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
-    void set_batch_header_str(const std::vector<std::string> &batch_headers) {
+    void set_batch_header_str(const std::vector<std::string>& batch_headers) {
         batch_header_str = std::move(batch_headers);
     }
 
@@ -111,11 +113,11 @@ public:
     void reset();
 
     void add_kernels_source(const kernel_impl_params& params,
-                                const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
-                                bool dump_custom_program = false);
+                            const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
+                            bool dump_custom_program = false);
     compiled_kernels compile(const kernel_impl_params& params,
-                                const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
-                                bool dump_custom_program = false);
+                             const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
+                             bool dump_custom_program = false);
 
     std::string get_cached_kernel_id(kernel::ptr kernel) const;
     std::vector<std::string> get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const;

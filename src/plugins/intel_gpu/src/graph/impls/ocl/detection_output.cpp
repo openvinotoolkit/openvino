@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "detection_output_inst.h"
-#include "detection_output/detection_output_kernel_selector.h"
 #include "detection_output/detection_output_kernel_ref.h"
+#include "detection_output/detection_output_kernel_selector.h"
+#include "detection_output_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -74,7 +73,10 @@ attach_detection_output_impl::attach_detection_output_impl() {
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_zyx_bsv16_fsv32,
     };
-    implementation_map<detection_output>::add(impl_types::ocl, typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>, dt, fmt);
+    implementation_map<detection_output>::add(impl_types::ocl,
+                                              typed_primitive_impl_ocl<detection_output>::create<detection_output_impl>,
+                                              dt,
+                                              fmt);
 }
 
 }  // namespace detail

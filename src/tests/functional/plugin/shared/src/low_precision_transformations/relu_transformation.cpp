@@ -5,12 +5,12 @@
 #include "low_precision_transformations/relu_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/relu.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -22,14 +22,10 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result <<
-        precision << "_" <<
-        targetDevice << "_" <<
-        testValues.fakeQuantize;
+    result << precision << "_" << targetDevice << "_" << testValues.fakeQuantize;
 
     return result.str();
 }
-
 
 void ReluTransformation::SetUp() {
     ov::element::Type precision;

@@ -3,16 +3,18 @@
 
 from openvino.tools.mo.utils.graph import Node
 from openvino.tools.mo.utils.ir_reader.extender import Extender
-from openvino.tools.mo.utils.ir_reader.extenders.priorbox_extender import PriorBox_extender
+from openvino.tools.mo.utils.ir_reader.extenders.priorbox_extender import (
+    PriorBox_extender,
+)
 
 
 class PriorBoxClustered_extender(Extender):
-    op = 'PriorBoxClustered'
+    op = "PriorBoxClustered"
 
     @staticmethod
     def extend(op: Node):
-        op['V10_infer'] = True
+        op["V10_infer"] = True
 
-        PriorBox_extender.attr_restore(op, 'width', value=1.0)
-        PriorBox_extender.attr_restore(op, 'height', value=1.0)
-        PriorBox_extender.attr_restore(op, 'variance')
+        PriorBox_extender.attr_restore(op, "width", value=1.0)
+        PriorBox_extender.attr_restore(op, "height", value=1.0)
+        PriorBox_extender.attr_restore(op, "variance")

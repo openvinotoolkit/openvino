@@ -3,12 +3,11 @@
 //
 
 #include "dft_inst.h"
-#include "primitive_type_base.h"
 #include "fft_base_shape_inference.hpp"
-#include "rdft_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
-
 #include "json_object.h"
+#include "primitive_type_base.h"
+#include "rdft_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dft)
@@ -39,7 +38,7 @@ layout dft_inst::calc_output_layout(dft_node const& node, kernel_impl_params con
     return {input_layout.data_type, output_format, tensor(output_format, dims_converted)};
 }
 
-template<typename ShapeType>
+template <typename ShapeType>
 std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kernel_impl_params const& impl_param) {
     std::vector<layout> layouts;
 
@@ -47,10 +46,7 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
     const auto input0_layout = impl_param.get_input_layout(0);
     const auto input1_layout = impl_param.get_input_layout(1);
 
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        input1_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input0_layout.get<ShapeType>(), input1_layout.get<ShapeType>()};
 
     if (impl_param.input_layouts.size() == 3)
         input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
@@ -70,7 +66,8 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
 
         if (primitive->signal_size.size() > 0) {
             auto signal_size_ptr = reinterpret_cast<uint8_t*>(const_cast<int64_t*>(primitive->signal_size.data()));
-            signal_size_tensor = ov::Tensor(ov::element::i64, ov::Shape({primitive->signal_size.size()}), signal_size_ptr, {});
+            signal_size_tensor =
+                ov::Tensor(ov::element::i64, ov::Shape({primitive->signal_size.size()}), signal_size_ptr, {});
             const_data.emplace(2, signal_size_tensor);
         }
     } else {
@@ -82,7 +79,8 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
 
             if (memory_deps.count(2)) {
                 auto signal_size_mem = memory_deps.at(2);
-                cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem, impl_param.get_stream());
+                cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem,
+                                                                               impl_param.get_stream());
                 signal_size_tensor = make_tensor(signal_size_mem->get_layout(), signal_size_lock.data());
                 const_data.emplace(2, signal_size_tensor);
             }
@@ -119,7 +117,8 @@ std::vector<layout> dft_inst::calc_output_layouts(dft_node const& /*node*/, kern
     return layouts;
 }
 
-template std::vector<layout> dft_inst::calc_output_layouts<ov::PartialShape>(dft_node const& node, kernel_impl_params const& impl_param);
+template std::vector<layout> dft_inst::calc_output_layouts<ov::PartialShape>(dft_node const& node,
+                                                                             kernel_impl_params const& impl_param);
 
 std::string dft_inst::to_string(dft_node const& node) {
     auto desc = node.get_primitive();

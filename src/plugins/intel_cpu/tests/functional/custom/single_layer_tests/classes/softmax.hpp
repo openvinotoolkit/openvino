@@ -31,9 +31,6 @@ protected:
     void SetUp() override;
 };
 
-namespace SoftMax {
-
-
-}  // namespace SoftMax
+namespace SoftMax {}  // namespace SoftMax
 }  // namespace test
 }  // namespace ov

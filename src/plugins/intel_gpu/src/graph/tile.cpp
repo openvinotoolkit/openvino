@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "intel_gpu/runtime/format.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "json_object.h"
+#include "memory_accessor.hpp"
+#include "primitive_type_base.h"
 #include "tile_inst.h"
 #include "tile_shape_inference.hpp"
-
-#include "primitive_type_base.h"
-#include "memory_accessor.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/format.hpp"
-#include "json_object.h"
-#include <string>
 
 namespace cldnn {
 
@@ -33,7 +33,7 @@ layout tile_inst::calc_output_layout(tile_node const& node, kernel_impl_params c
     return layout{input_layout.data_type, input_format, tensor(input_format, out_shape)};
 }
 
-template<typename ShapeType>
+template <typename ShapeType>
 std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<tile>();
     auto input0_layout = impl_param.get_input_layout(0);
@@ -44,20 +44,16 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     }
 
     ShapeType repeats_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
-                                                                   : ov::Shape{ desc->repeats.size() };
+                                                                   : ov::Shape{desc->repeats.size()};
     ov::op::v0::Tile op;
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        repeats_shape
-    };
+    std::vector<ShapeType> input_shapes = {input0_layout.get<ShapeType>(), repeats_shape};
 
     auto repeats = desc->repeats;
     const auto data_accessor =
         MemoryAccessor(&impl_param.memory_deps, impl_param.prog->get_stream(), [&repeats, &repeats_shape](size_t port) {
-            return (port == 1 && repeats.data()) ? ov::Tensor(ov::element::i64,
-                                                              repeats_shape.to_shape(),
-                                                              repeats.data())
-                                                 : ov::Tensor();
+            return (port == 1 && repeats.data())
+                       ? ov::Tensor(ov::element::i64, repeats_shape.to_shape(), repeats.data())
+                       : ov::Tensor();
         });
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes, data_accessor);
@@ -67,7 +63,8 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> tile_inst::calc_output_layouts<ov::PartialShape>(tile_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> tile_inst::calc_output_layouts<ov::PartialShape>(tile_node const& node,
+                                                                              const kernel_impl_params& impl_param);
 
 std::string tile_inst::to_string(tile_node const& node) {
     auto desc = node.get_primitive();

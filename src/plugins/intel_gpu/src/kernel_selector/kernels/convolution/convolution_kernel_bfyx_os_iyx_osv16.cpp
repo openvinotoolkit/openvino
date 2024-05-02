@@ -3,9 +3,10 @@
 //
 
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
-#include <vector>
-#include <utility>
+
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 // Sub-group size used by "kernel_name_bfyx_os_iyx_osv16" kernel.
@@ -88,7 +89,11 @@ static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_blo
     return std::make_pair(input_block_array_size, input_block_read_width);
 }
 
-static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_t& block_x, size_t& block_y, size_t sub_group_size) {
+static void shrink_blocks_to_output_size(size_t output_x,
+                                         size_t output_y,
+                                         size_t& block_x,
+                                         size_t& block_y,
+                                         size_t sub_group_size) {
     // how many elements we will compute in each dimension
     size_t computed_x = Align(output_x, block_x);
     size_t computed_y = Align(output_y, block_y);
@@ -126,10 +131,11 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
             option.blockWidth = sub_group_size;
             option.blockHeight = 1;
             option.prefetch = 4;
-        // if less than 16 values is required to compute one single row of output
-        // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
-        // performance results)
-        } else if (!p.is_shape_agnostic && cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
+            // if less than 16 values is required to compute one single row of output
+            // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
+            // performance results)
+        } else if (!p.is_shape_agnostic &&
+                   cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
             option.blockWidth = cp.outputs[0].X().v;
             option.blockHeight = 1;
             option.prefetch = 4;
@@ -155,7 +161,11 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
     if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1)) {
-        shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
+        shrink_blocks_to_output_size(cp.outputs[0].X().v,
+                                     cp.outputs[0].Y().v,
+                                     option.blockWidth,
+                                     option.blockHeight,
+                                     sub_group_size);
     }
     return option;
 }
@@ -174,14 +184,15 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    auto input_block_dims = get_bfyx_req_input_block_dims(dispatchData.cldnnStyle.blockWidth,
-                                                          dispatchData.cldnnStyle.blockHeight,
-                                                          cp.filterSize,
-                                                          cp.stride,
-                                                          cp.dilation,
-                                                          sub_group_size,
-                                                          cp.outputs[0].GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
-                                                          sub_group_size);
+    auto input_block_dims =
+        get_bfyx_req_input_block_dims(dispatchData.cldnnStyle.blockWidth,
+                                      dispatchData.cldnnStyle.blockHeight,
+                                      cp.filterSize,
+                                      cp.stride,
+                                      cp.dilation,
+                                      sub_group_size,
+                                      cp.outputs[0].GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
+                                      sub_group_size);
     dispatchData.cldnnStyle.inputBlockArraySize = input_block_dims.first;
     dispatchData.cldnnStyle.inputBlockWidth = input_block_dims.second;
 
@@ -206,7 +217,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
     }
 
     // To prevent big sized filter which causes lots of CL build time.
-    const size_t acceptable_filter_size = 1024;     // This acceptable size was decided by heuristics
+    const size_t acceptable_filter_size = 1024;  // This acceptable size was decided by heuristics
     const auto& params = static_cast<const convolution_params&>(p);
     auto filter_size = params.filterSize.x * params.filterSize.y;
     if (filter_size > acceptable_filter_size) {
@@ -230,7 +241,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
@@ -249,8 +260,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     return jit;
 }
 
-WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
+WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(const convolution_params& params) const {
     return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
 }
 

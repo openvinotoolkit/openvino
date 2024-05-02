@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantize_kernel_selector.h"
 #include "quantize_kernel_ref.h"
 #include "quantize_kernel_scale_shift_opt.h"
+#include "quantize_kernel_selector.h"
 
 namespace kernel_selector {
 

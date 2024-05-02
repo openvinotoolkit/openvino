@@ -4,16 +4,16 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino import Model, Shape
-
 from openvino.runtime.op.util import (
-    InvariantInputDescription,
     BodyOutputDescription,
-    SliceInputDescription,
-    MergedInputDescription,
     ConcatOutputDescription,
+    InvariantInputDescription,
+    MergedInputDescription,
+    SliceInputDescription,
 )
 from tests.utils.helpers import compare_models
+
+from openvino import Model, Shape
 
 
 def test_simple_loop():
@@ -36,7 +36,9 @@ def test_simple_loop():
     add = ov.add(x_i, y_i)
     zo = ov.multiply(add, m_body)
 
-    body = Model([body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function")
+    body = Model(
+        [body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function"
+    )
 
     loop = ov.loop(trip_count, exec_condition)
     loop.set_function(body)
@@ -88,7 +90,9 @@ def test_loop_inputs_are_nodes():
     add = ov.add(x_i, y_i)
     zo = ov.multiply(add, m_body)
 
-    body = Model([body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function")
+    body = Model(
+        [body_condition, zo], [current_iteration, x_i, y_i, m_body], "body_function"
+    )
 
     loop = ov.loop(trip_count, exec_condition)
     loop.set_function(body)

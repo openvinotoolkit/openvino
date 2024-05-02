@@ -4,15 +4,17 @@
 
 #include "intel_gpu/runtime/layout.hpp"
 
+#include <algorithm>
 #include <list>
 #include <vector>
-#include <algorithm>
 
 namespace cldnn {
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
 
-std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::string in_order, std::string out_order) {
+std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes,
+                                        std::string in_order,
+                                        std::string out_order) {
     std::vector<int32_t> new_sizes(out_order.size(), {-1});
     for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
         auto channel = out_order[out_idx];
@@ -56,7 +58,7 @@ tensor::value_type layout::feature() const {
 }
 
 tensor::value_type layout::spatial(size_t spatial_idx) const {
-    if (spatial_idx >= format.spatial_num() )
+    if (spatial_idx >= format.spatial_num())
         return 1;
     auto dims = get_dims();
     const size_t dim_idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
@@ -113,7 +115,8 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_padded_dims() is called for dynamic shape");
 
-    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
+    auto default_fmt =
+        format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
     auto t = get_tensor();
     auto padded_size = t.add(data_padding.lower_size()).add(data_padding.upper_size());
     return padded_size.sizes(default_fmt);
@@ -124,35 +127,36 @@ static format to_weights_format(format f, bool is_grouped) {
         return f;
 
     switch (f) {
-        case format::bfyx:
-            return format::oiyx;
-        case format::fbyx:
-            return format::ioyx;
-        case format::fyxb:
-            return format::iyxo;
-        case format::byxf:
-            return format::oyxi;
-        case format::byfx:
-            return format::oyix;
-        case format::bxfy:
-            return format::oxiy;
-        case format::yxfb:
-            return format::yxio;
-        case format::bfzyx:
-            return is_grouped ? format::goiyx : format::oizyx;
-        case format::bfwzyx: {
-            if (!is_grouped)
-                throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
-            return format::goizyx;
-        }
-        case format::b_fs_yx_fsv4:
-            return format::o_is_yx_isv4;
-        case format::b_fs_yx_fsv16:
-            return format::o_is_yx_isv16;
-        case format::bs_fs_fsv8_bsv8:
-            return format::os_i_osv8__ai8;
-        default:
-            throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
+    case format::bfyx:
+        return format::oiyx;
+    case format::fbyx:
+        return format::ioyx;
+    case format::fyxb:
+        return format::iyxo;
+    case format::byxf:
+        return format::oyxi;
+    case format::byfx:
+        return format::oyix;
+    case format::bxfy:
+        return format::oxiy;
+    case format::yxfb:
+        return format::yxio;
+    case format::bfzyx:
+        return is_grouped ? format::goiyx : format::oizyx;
+    case format::bfwzyx: {
+        if (!is_grouped)
+            throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped "
+                                     "as 4D spatials are not supported");
+        return format::goizyx;
+    }
+    case format::b_fs_yx_fsv4:
+        return format::o_is_yx_isv4;
+    case format::b_fs_yx_fsv16:
+        return format::o_is_yx_isv16;
+    case format::bs_fs_fsv8_bsv8:
+        return format::os_i_osv8__ai8;
+    default:
+        throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
 }
 
@@ -240,11 +244,12 @@ ov::Shape layout::get_shape() const {
 }
 
 tensor layout::get_tensor() const {
-    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(),
+                    "[GPU] get_tensor() is called for dynamic shape without upper bound");
     ov::Shape shape;
     if (is_dynamic() && has_upper_bound()) {
         for (auto dim : size) {
-                shape.push_back(dim.get_max_length());
+            shape.push_back(dim.get_max_length());
         }
     } else {
         shape = size.to_shape();
@@ -269,20 +274,21 @@ tensor layout::get_tensor() const {
     return t;
 }
 
-template<typename T>
+template <typename T>
 T layout::get() const {
     static_assert(meta::always_false<T>::value, "Unexpected layout::get() template speciaization");
 }
 
-template<>
+template <>
 ov::PartialShape layout::get<ov::PartialShape>() const {
     return size;
 }
 
 void layout::set_tensor(const tensor& size) {
-    auto sizes = format == format::any ? size.sizes() : size.sizes(format::get_default_format(format.dimension(),
-                                                                                              format::is_weights_format(format),
-                                                                                              format::is_grouped(format)));
+    auto sizes = format == format::any ? size.sizes()
+                                       : size.sizes(format::get_default_format(format.dimension(),
+                                                                               format::is_weights_format(format),
+                                                                               format::is_grouped(format)));
     ov::Shape shape(sizes.begin(), sizes.end());
     this->size = ov::PartialShape(shape);
 }
@@ -293,7 +299,7 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 
 tensor layout::get_buffer_size() const {
     if (is_dynamic() && !has_upper_bound()) {
-            throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+        throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
     }
 
     auto t = get_tensor();
@@ -327,7 +333,8 @@ size_t layout::get_linear_offset(tensor element) const {
         (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
         (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
         (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
-        throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
+        throw std::invalid_argument(
+            "Requested to calculate linear offset for an element which lies outside of the buffer range.");
 
     auto padded_size = t + l_padd + u_padd;
     auto padded_element = element + l_padd;
@@ -359,17 +366,19 @@ size_t layout::get_linear_size() const {
         processed_dims.insert(block_axis);
     }
 
-    if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
+    if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 &&
+        (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
         sizes[0] = align_to(sizes[0], 8);
         sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
+    } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
+               (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
         sizes[0] = align_to(sizes[0], 16);
         sizes[1] = align_to(sizes[1], 32);
     } else if (this->format == cldnn::format::image_2d_rgba) {
         sizes[1] = 4;
     } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
-                this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
-                this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+               this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
+               this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
         sizes[3] = align_to(sizes[2] * sizes[3], 4);
         sizes[2] = 1;
     } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
@@ -377,20 +386,18 @@ size_t layout::get_linear_size() const {
     } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
                 this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
                 this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
-                this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
+                this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) &&
+               !is_aligned_to(sizes[0], 32)) {
         sizes[0] = align_to(sizes[0], 32);
         sizes[3] = align_to(sizes[2] * sizes[3], 2);
         sizes[2] = 1;
-    } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+    } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 ||
+               this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
         sizes[3] = align_to(sizes[2] * sizes[3], 2);
         sizes[2] = 1;
     }
 
-    size_t total = std::accumulate(
-        sizes.begin(),
-        sizes.end(),
-        static_cast<size_t>(1),
-        std::multiplies<size_t>());
+    size_t total = std::accumulate(sizes.begin(), sizes.end(), static_cast<size_t>(1), std::multiplies<size_t>());
 
     return total;
 }
@@ -426,8 +433,8 @@ bool layout::compatible(const layout& other) const {
         return false;
     // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
-    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
-        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) && !l1_pad && !l2_pad &&
+        l1.get_linear_size() == l2.get_linear_size())
         return true;
     if (l1_size != l2_size)
         return false;
@@ -435,40 +442,27 @@ bool layout::compatible(const layout& other) const {
         return false;
 
     auto check_format = [&l1, &l2](cldnn::format format) {
-        return (l1.format == format && l2.format != format) ||
-               (l2.format == format && l1.format != format);
+        return (l1.format == format && l2.format != format) || (l2.format == format && l1.format != format);
     };
 
     const auto& blocks1 = format::block_sizes(l1.format);
     const auto& blocks2 = format::block_sizes(l2.format);
 
     // TODO: Relax restrictions below
-    if (blocks1 != blocks2 ||
-        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
+    if (blocks1 != blocks2 || (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
 
-    if (check_format(format::b_fs_yx_fsv2) ||
-        check_format(format::b_fs_yx_fsv4) ||
-        check_format(format::fs_b_yx_fsv32) ||
-        check_format(format::b_fs_yx_fsv16) ||
-        check_format(format::b_fs_yx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv2) ||
-        check_format(format::b_fs_zyx_fsv4) ||
-        check_format(format::b_fs_zyx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv16) ||
-        check_format(format::bs_fs_yx_bsv4_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv4) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv2) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv2) ||
-        check_format(format::bs_fs_yx_bsv4_fsv2) ||
-        check_format(format::bs_fs_yx_bsv32_fsv16) ||
-        check_format(format::bs_fs_yx_bsv32_fsv32) ||
-        check_format(format::bs_fs_yx_bsv16_fsv16) ||
-        check_format(format::bs_fs_yx_bsv16_fsv32) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv32) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv16) ||
+    if (check_format(format::b_fs_yx_fsv2) || check_format(format::b_fs_yx_fsv4) ||
+        check_format(format::fs_b_yx_fsv32) || check_format(format::b_fs_yx_fsv16) ||
+        check_format(format::b_fs_yx_fsv32) || check_format(format::b_fs_zyx_fsv2) ||
+        check_format(format::b_fs_zyx_fsv4) || check_format(format::b_fs_zyx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv16) || check_format(format::bs_fs_yx_bsv4_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv4) || check_format(format::bs_fs_zyx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) || check_format(format::bs_fs_zyx_bsv8_fsv2) ||
+        check_format(format::bs_fs_yx_bsv4_fsv2) || check_format(format::bs_fs_yx_bsv32_fsv16) ||
+        check_format(format::bs_fs_yx_bsv32_fsv32) || check_format(format::bs_fs_yx_bsv16_fsv16) ||
+        check_format(format::bs_fs_yx_bsv16_fsv32) || check_format(format::bs_fs_zyx_bsv16_fsv32) ||
+        check_format(format::bs_fs_zyx_bsv16_fsv16) || check_format(format::bs_fs_zyx_bsv32_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv32))
         return false;
 
@@ -514,7 +508,9 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
     }
 
     const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
-    auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
+    auto old_sizes = convert_dimensions(dims,
+                                        old_fmt.order(),
+                                        default_fmt.internal_order());  // convert to internal order (bfxyzwuv)
 
     auto val_order = default_fmt.internal_order();
     auto new_order = new_fmt.internal_order();
@@ -522,15 +518,10 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
 
     std::vector<int32_t> new_sizes(old_sizes.size(), {default_size});
 
-    static const std::map<char, char> flatten_mapping = {
-        { 'v', 'u'},
-        { 'u', 'w'},
-        { 'w', 'z'},
-        { 'z', 'y'}
-    };
+    static const std::map<char, char> flatten_mapping = {{'v', 'u'}, {'u', 'w'}, {'w', 'z'}, {'z', 'y'}};
 
     for (size_t i = 0; i < default_fmt.order().size(); i++) {
-        auto target_dim = val_order[i]; //bfxywzuv
+        auto target_dim = val_order[i];  // bfxywzuv
         while (!new_traits.has_dimension(target_dim)) {
             if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
                 target_dim = flatten_mapping.at(target_dim);
@@ -550,7 +541,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
     }
 
     for (size_t i = 0; i < new_order.size(); i++) {
-        auto c = new_order[i]; //bfxywz
+        auto c = new_order[i];  // bfxywz
         if (c == '?')
             continue;
         if (new_sizes[i] == -1) {
@@ -574,23 +565,23 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
     if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.data_padding && !l2.data_padding &&
-        !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
-        l2.data_type == l1.data_type && l2.count() == l1.count()) {
+        !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) && l2.data_type == l1.data_type &&
+        l2.count() == l1.count()) {
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
         auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
         if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
-           (l2.feature() % max_inner_blk == 0)) {
+            (l2.feature() % max_inner_blk == 0)) {
             return true;
         }
 
         // Acceptable if a feature size of l2 'byxf' fits to l1's inner block size of 'b_fs_yx_fsv'
-        if ((l2.format == format::byxf && (l1.format == format::b_fs_yx_fsv16 ||  l1.format == format::b_fs_yx_fsv32) &&
-            l2.feature() == l1_inner_blk) ||
-            (l1.format == format::byxf && (l2.format == format::b_fs_yx_fsv16 ||  l2.format == format::b_fs_yx_fsv32) &&
-            l1.feature() == l2_inner_blk)) {
+        if ((l2.format == format::byxf && (l1.format == format::b_fs_yx_fsv16 || l1.format == format::b_fs_yx_fsv32) &&
+             l2.feature() == l1_inner_blk) ||
+            (l1.format == format::byxf && (l2.format == format::b_fs_yx_fsv16 || l2.format == format::b_fs_yx_fsv32) &&
+             l1.feature() == l2_inner_blk)) {
             // each spatial axis should be same
-            for (size_t i = 0 ; i < l2.get_spatial_rank() ; i++) {
+            for (size_t i = 0; i < l2.get_spatial_rank(); i++) {
                 if (l2.spatial(i) != l1.spatial(i))
                     return false;
             }

@@ -4,6 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "cumulative_schedule.hpp"
+
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
 
@@ -35,8 +36,9 @@ bool CumuSchedule::select_other_device(const std::string& cur_dev_name) {
 
         auto remove_inferfail_device = [&](const std::string& device_name) {
             if (m_context->m_device_priorities.size() > 1) {
-                const auto current_device_iter =
-                    deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(device_name, m_context->m_device_priorities);
+                const auto current_device_iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
+                    device_name,
+                    m_context->m_device_priorities);
                 if (current_device_iter != m_context->m_device_priorities.end()) {
                     m_context->m_device_priorities.erase(current_device_iter);
                     return true;
@@ -87,8 +89,7 @@ void CumuSchedule::init() {
         m_context->m_performance_hint = ov::hint::PerformanceMode::THROUGHPUT;
     }
 
-    auto load_device_task = [&](AutoCompileContext* context_ptr,
-                                const std::shared_ptr<ov::Model>& model) {
+    auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
@@ -101,7 +102,9 @@ void CumuSchedule::init() {
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
-                auto supported_config_keys = context_ptr->m_compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+                auto supported_config_keys =
+                    context_ptr->m_compiled_model->get_property(ov::supported_properties.name())
+                        .as<std::vector<ov::PropertyName>>();
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 for (const auto& cfg : supported_config_keys) {
                     try {
@@ -118,7 +121,8 @@ void CumuSchedule::init() {
         if (!context_ptr->m_is_load_success) {
             std::string failedDeviceName = context_ptr->m_device_info.device_name;
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-            const auto DeviceIter = deviceChecker().check_and_return_if_device_in_list(failedDeviceName, m_context->m_device_priorities);
+            const auto DeviceIter =
+                deviceChecker().check_and_return_if_device_in_list(failedDeviceName, m_context->m_device_priorities);
             // Remove failed device from m_device_priorities
             if (DeviceIter != m_context->m_device_priorities.end()) {
                 m_context->m_device_priorities.erase(DeviceIter);
@@ -195,7 +199,8 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model =
+                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }

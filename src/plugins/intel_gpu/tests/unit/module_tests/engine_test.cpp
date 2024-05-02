@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
-#include "test_utils.h"
-
 #include "runtime/ocl/ocl_engine.hpp"
 #include "runtime/ocl/ocl_memory.hpp"
-#include <memory>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -45,11 +45,12 @@ TEST(engine, memory_creation) {
         ASSERT_TRUE(mem->is_allocated_by(engine));
     }
 
-    std::vector<uint8_t> host_data(2*4);
+    std::vector<uint8_t> host_data(2 * 4);
     ASSERT_NO_THROW(mem = engine.attach_memory(layout_to_allocate, host_data.data()));
     ASSERT_NE(mem, nullptr);
     ASSERT_EQ(mem->get_layout(), layout_to_allocate);
     ASSERT_NE(std::dynamic_pointer_cast<simple_attached_memory>(mem), nullptr);
     ASSERT_FALSE(mem->is_allocated_by(engine));
-    ASSERT_EQ(std::dynamic_pointer_cast<simple_attached_memory>(mem)->lock(get_test_stream(), mem_lock_type::read), host_data.data());
+    ASSERT_EQ(std::dynamic_pointer_cast<simple_attached_memory>(mem)->lock(get_test_stream(), mem_lock_type::read),
+              host_data.data());
 }

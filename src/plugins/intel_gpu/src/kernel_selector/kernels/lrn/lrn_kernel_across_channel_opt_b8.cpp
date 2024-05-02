@@ -57,24 +57,23 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params,
+                                                        const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = {
-            "",
-            {"batch_id", "feature_id", "y", "x"},
-            "lrn_result",
-            input_dt,
-            8,
-            LoadType::LT_UNALIGNED,
-            BoundaryCheck::DISABLED,
-            IndexType::TENSOR_COORD,
-            Tensor::DataChannelName::BATCH
-        };
+        FusedOpsConfiguration conf = {"",
+                                      {"batch_id", "feature_id", "y", "x"},
+                                      "lrn_result",
+                                      input_dt,
+                                      8,
+                                      LoadType::LT_UNALIGNED,
+                                      BoundaryCheck::DISABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::BATCH};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;

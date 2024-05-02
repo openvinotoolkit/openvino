@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/single_op/depth_to_space.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -26,7 +26,7 @@ static inline std::string DepthToSpaceModeToString(const DepthToSpace::DepthToSp
         throw std::runtime_error("Unsupported DepthToSpaceMode");
 }
 
-std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<depthToSpaceParamsTuple> &obj) {
+std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<depthToSpaceParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     DepthToSpace::DepthToSpaceMode mode;
     std::size_t block_size;

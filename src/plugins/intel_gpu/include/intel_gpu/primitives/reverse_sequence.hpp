@@ -27,7 +27,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
                      const int32_t seq_axis,
                      const int32_t batch_axis = 0,
                      const padding& output_padding = padding())
-        : primitive_base(id, {input, seq_lengths}, {output_padding}), seq_axis(seq_axis), batch_axis(batch_axis) {
+        : primitive_base(id, {input, seq_lengths}, {output_padding}),
+          seq_axis(seq_axis),
+          batch_axis(batch_axis) {
         const int32_t number_of_dims = 4;
 
         int32_t batch_a = batch_axis;
@@ -67,8 +69,7 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
 
         auto rhs_casted = downcast<const reverse_sequence>(rhs);
 
-        return seq_axis == rhs_casted.seq_axis &&
-               batch_axis == rhs_casted.batch_axis;
+        return seq_axis == rhs_casted.seq_axis && batch_axis == rhs_casted.batch_axis;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

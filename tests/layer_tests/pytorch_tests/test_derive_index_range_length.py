@@ -45,14 +45,29 @@ class TestDeriveIndexRangeLength(PytorchLayerTest):
 
         ref_net = None
 
-        return prim_derive_index_range_length(), ref_net, ["aten::__range_length", "aten::__derive_index"]
+        return (
+            prim_derive_index_range_length(),
+            ref_net,
+            ["aten::__range_length", "aten::__derive_index"],
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_derive_index_range_length(self, ie_device, precision, ir_version, start, stop, step):
+    def test_derive_index_range_length(
+        self, ie_device, precision, ir_version, start, stop, step
+    ):
         self.start = start
         self.stop = stop
         self.step = step
         if ((stop - start) / step) < 0:
-            pytest.xfail("Failed due to prim::Loop translation not supporting 0 iterations. Ticket: 110808")
-        self._test(*self.create_model(), ie_device, precision, ir_version, freeze_model=False, trace_model=False)
+            pytest.xfail(
+                "Failed due to prim::Loop translation not supporting 0 iterations. Ticket: 110808"
+            )
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            freeze_model=False,
+            trace_model=False
+        )

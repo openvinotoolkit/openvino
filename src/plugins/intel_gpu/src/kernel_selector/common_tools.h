@@ -3,9 +3,10 @@
 //
 
 #pragma once
-#include "common_types.h"
-#include <type_traits>
 #include <stdexcept>
+#include <type_traits>
+
+#include "common_types.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -13,36 +14,36 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline uint32_t BytesPerElement(Datatype dt) {
     switch (dt) {
-        case Datatype::INT8:
-        case Datatype::UINT8:
-            return 1;
-        case Datatype::F16:
-        case Datatype::INT16:
-        case Datatype::UINT16:
-            return 2;
-        case Datatype::F32:
-        case Datatype::INT32:
-        case Datatype::UINT32:
-            return 4;
-        case Datatype::INT64:
-            return 8;
-        default:
-            throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
+    case Datatype::INT8:
+    case Datatype::UINT8:
+        return 1;
+    case Datatype::F16:
+    case Datatype::INT16:
+    case Datatype::UINT16:
+        return 2;
+    case Datatype::F32:
+    case Datatype::INT32:
+    case Datatype::UINT32:
+        return 4;
+    case Datatype::INT64:
+        return 8;
+    default:
+        throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
 }
 
 inline uint32_t BytesPerElement(WeightsType wt) {
     switch (wt) {
-        case WeightsType::INT8:
-        case WeightsType::UINT8:
-            return 1;
-        case WeightsType::F16:
-            return 2;
-        case WeightsType::F32:
-        case WeightsType::INT32:
-            return 4;
-        default:
-            throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
+    case WeightsType::INT8:
+    case WeightsType::UINT8:
+        return 1;
+    case WeightsType::F16:
+        return 2;
+    case WeightsType::F32:
+    case WeightsType::INT32:
+        return 4;
+    default:
+        throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
 }
 
@@ -50,20 +51,20 @@ inline uint8_t GetActivationAdditionalParamsNumber(ActivationFunction func) {
     uint8_t paramsNum = 0;
 
     switch (func) {
-        case ActivationFunction::LINEAR:
-        case ActivationFunction::CLAMP:
-        case ActivationFunction::HARD_SIGMOID:
-        case ActivationFunction::SELU:
-            paramsNum = 2;
-            break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE:
-        case ActivationFunction::ELU:
-        case ActivationFunction::POW:
-        case ActivationFunction::SWISH:
-            paramsNum = 1;
-            break;
-        default:
-            break;
+    case ActivationFunction::LINEAR:
+    case ActivationFunction::CLAMP:
+    case ActivationFunction::HARD_SIGMOID:
+    case ActivationFunction::SELU:
+        paramsNum = 2;
+        break;
+    case ActivationFunction::RELU_NEGATIVE_SLOPE:
+    case ActivationFunction::ELU:
+    case ActivationFunction::POW:
+    case ActivationFunction::SWISH:
+        paramsNum = 1;
+        break;
+    default:
+        break;
     }
 
     return paramsNum;

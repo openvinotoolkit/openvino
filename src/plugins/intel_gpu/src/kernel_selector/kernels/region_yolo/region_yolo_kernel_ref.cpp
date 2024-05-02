@@ -3,8 +3,10 @@
 //
 
 #include "region_yolo_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
@@ -14,9 +16,10 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     const auto& input = params.inputs[0];
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::BATCH}};
 
     switch (input.GetLayout()) {
     case DataLayout::b_fs_yx_fsv16:
@@ -29,7 +32,8 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     default:
         throw std::invalid_argument("Unsupported DataLayout");
     }
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -69,7 +73,8 @@ bool RegionYoloKernelRef::Validate(const Params& p) const {
 
     const region_yolo_params& params = static_cast<const region_yolo_params&>(p);
     const size_t expected_feature_size =
-            params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v : params.inputs[0].Feature().v;
+        params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v
+                          : params.inputs[0].Feature().v;
 
     if (expected_feature_size != params.outputs[0].Feature().v) {
         return false;

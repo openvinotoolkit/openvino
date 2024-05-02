@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "data_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/network.hpp"
-#include "data_inst.h"
-#include "intel_gpu/runtime/itt.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "reorder_inst.h"
-#include "graph/impls/onednn/utils.hpp"
-#endif // ENABLE_ONEDNN_FOR_GPU
-#include <vector>
+#    include "graph/impls/onednn/utils.hpp"
+#    include "reorder_inst.h"
+#endif  // ENABLE_ONEDNN_FOR_GPU
 #include <list>
 #include <memory>
 #include <utility>
+#include <vector>
 
 using namespace cldnn;
 
@@ -55,10 +55,12 @@ void propagate_constants::run(program& p) {
 
         for (auto& usr : users) {
             auto& usr_deps = usr->dependencies;
-            usr_deps.erase(std::remove_if(usr_deps.begin(), usr_deps.end(),
-                           [&](const std::pair<program_node*, int>& dep) {
-                               return node == dep.first;
-                           }), usr_deps.end());
+            usr_deps.erase(std::remove_if(usr_deps.begin(),
+                                          usr_deps.end(),
+                                          [&](const std::pair<program_node*, int>& dep) {
+                                              return node == dep.first;
+                                          }),
+                           usr_deps.end());
         }
         users.clear();
 
@@ -97,7 +99,9 @@ void propagate_constants::run(program& p) {
         // dependencies)
         curr_node.users.erase(std::remove_if(curr_node.users.begin(),
                                              curr_node.users.end(),
-                                             [](program_node* node) { return node->is_constant(); }),
+                                             [](program_node* node) {
+                                                 return node->is_constant();
+                                             }),
                               curr_node.users.end());
         p.replace(curr_node, new_node);
     }
@@ -113,9 +117,10 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
-                                                                               const ExecutionConfig& config,
-                                                                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(
+    engine& engine,
+    const ExecutionConfig& config,
+    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
@@ -131,7 +136,8 @@ std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(e
     auto outputs = net->get_outputs();
 
     std::list<std::pair<primitive_id, memory::ptr>> ret;
-    for (auto& out : outputs) ret.push_back({out->id(), out->output_memory_ptr()});
+    for (auto& out : outputs)
+        ret.push_back({out->id(), out->output_memory_ptr()});
 
     return ret;
 }
@@ -158,7 +164,8 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
     add_deps_to_tpl(prog, node.get_dependencies());
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Add reorder to transpose when the impl type of reorder is onednn and the weights for deconvolution should be transposed.
+    // Add reorder to transpose when the impl type of reorder is onednn and the weights for deconvolution should be
+    // transposed.
     bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
     if (is_reorder_weights) {
         const auto& weights_params = node.as<reorder>().get_primitive()->weights_reorder_params;
@@ -174,11 +181,11 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
             prog.add_intermediate(rotate_node, node, 0);
             prog.get_or_create(rotate_prim).recalc_output_layouts(false);
             nodes.insert(prog.get_node_ptr(rotate_node.id()));
-            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before "
-                << node.id() << std::endl;
+            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before " << node.id()
+                          << std::endl;
         }
     }
-#endif // ENABLE_ONEDNN_FOR_GPU
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }
 
 void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps) {

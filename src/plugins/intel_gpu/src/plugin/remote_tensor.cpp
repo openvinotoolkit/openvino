@@ -2,24 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
 
 #include <memory>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 TensorType RemoteTensorImpl::allocation_type_to_tensor_type(cldnn::allocation_type t) {
     switch (t) {
-    case cldnn::allocation_type::cl_mem: return TensorType::BT_BUF_INTERNAL;
-    case cldnn::allocation_type::usm_host: return TensorType::BT_USM_HOST_INTERNAL;
-    case cldnn::allocation_type::usm_device: return TensorType::BT_USM_DEVICE_INTERNAL;
-    default: return TensorType::BT_EMPTY;
+    case cldnn::allocation_type::cl_mem:
+        return TensorType::BT_BUF_INTERNAL;
+    case cldnn::allocation_type::usm_host:
+        return TensorType::BT_USM_HOST_INTERNAL;
+    case cldnn::allocation_type::usm_device:
+        return TensorType::BT_USM_DEVICE_INTERNAL;
+    default:
+        return TensorType::BT_EMPTY;
     }
 
     return TensorType::BT_EMPTY;
@@ -32,14 +37,14 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_handle mem,
                                    cldnn::shared_surface surf,
                                    uint32_t plane)
-    : m_context(context)
-    , m_element_type(element_type)
-    , m_shape(shape)
-    , m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())})
-    , m_mem_type(mem_type)
-    , m_mem(mem)
-    , m_surf(surf)
-    , m_plane(plane) {
+    : m_context(context),
+      m_element_type(element_type),
+      m_shape(shape),
+      m_layout(cldnn::layout{ov::PartialShape{shape}, element_type, cldnn::format::get_default_format(shape.size())}),
+      m_mem_type(mem_type),
+      m_mem(mem),
+      m_surf(surf),
+      m_plane(plane) {
     update_hash();
     allocate();
 }
@@ -77,13 +82,15 @@ const AnyMap& RemoteTensorImpl::get_properties() const {
     return m_properties;
 }
 
- void RemoteTensorImpl::set_shape(ov::Shape shape) {
+void RemoteTensorImpl::set_shape(ov::Shape shape) {
     m_layout.set_partial_shape(ov::PartialShape{shape});
     m_shape = shape;
 
     if (ov::shape_size(shape) > m_memory_object->count()) {
         GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;
-        OPENVINO_ASSERT(!is_shared(), "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
+        OPENVINO_ASSERT(
+            !is_shared(),
+            "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
         if (!deallocate()) {
             OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
         }
@@ -124,11 +131,10 @@ void RemoteTensorImpl::allocate() {
 
     auto& engine = context->get_engine();
 
-    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
-    // W/A for this issue:
-    // Allocate with non-empty shape and then reinterprete with original shape
+    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is
+    // empty W/A for this issue: Allocate with non-empty shape and then reinterprete with original shape
     auto shape_copy = m_shape;
-    for (auto &i : shape_copy) {
+    for (auto& i : shape_copy) {
         if (i == 0)
             i = 1;
     }
@@ -193,10 +199,8 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 }
 
 bool RemoteTensorImpl::is_shared() const noexcept {
-    return m_mem_type == TensorType::BT_BUF_SHARED ||
-           m_mem_type == TensorType::BT_USM_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_SURF_SHARED ||
+    return m_mem_type == TensorType::BT_BUF_SHARED || m_mem_type == TensorType::BT_USM_SHARED ||
+           m_mem_type == TensorType::BT_IMG_SHARED || m_mem_type == TensorType::BT_SURF_SHARED ||
            m_mem_type == TensorType::BT_DX_BUF_SHARED;
 }
 
@@ -218,8 +222,7 @@ void RemoteTensorImpl::update_hash() {
 }
 
 bool RemoteTensorImpl::is_surface() const noexcept {
-    return m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED;
+    return m_mem_type == TensorType::BT_SURF_SHARED || m_mem_type == TensorType::BT_IMG_SHARED;
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {

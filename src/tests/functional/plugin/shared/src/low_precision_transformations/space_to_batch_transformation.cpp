@@ -7,12 +7,13 @@
 #include <memory>
 #include <tuple>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/space_to_batch.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParamInfo<SpaceToBatchTransformationParams>& obj) {
+std::string SpaceToBatchTransformation::getTestCaseName(
+    const testing::TestParamInfo<SpaceToBatchTransformationParams>& obj) {
     ov::element::Type input_type;
     std::string target_device;
     SpaceToBatchTransformationParam param;
@@ -30,13 +31,12 @@ void SpaceToBatchTransformation::SetUp() {
 
     init_input_shapes(param.input_shape);
 
-    function = ov::builder::subgraph::SpaceToBatchFunction::get(
-        param.input_shape,
-        input_type,
-        param.fake_quantize,
-        param.block_shape,
-        param.pads_begin,
-        param.pads_end);
+    function = ov::builder::subgraph::SpaceToBatchFunction::get(param.input_shape,
+                                                                input_type,
+                                                                param.fake_quantize,
+                                                                param.block_shape,
+                                                                param.pads_begin,
+                                                                param.pads_end);
 }
 
 void SpaceToBatchTransformation::run() {

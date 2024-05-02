@@ -4,10 +4,10 @@
 
 #include "openvino/op/proposal.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
@@ -94,16 +94,16 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 mutable_precision = ov::element::i32;
             }
 
-            cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
-                                                        cldnn::format::get_default_format(op->get_output_shape(1).size()),
-                                                        tensor_from_dims(op->get_output_shape(1)));
+            cldnn::layout mutableLayout =
+                cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
+                              cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                              tensor_from_dims(op->get_output_shape(1)));
 
             GPU_DEBUG_LOG << "[" << layerName << ": mutable data]" << std::endl;
             auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
             cldnn::primitive_id proposal_mutable_id_w = layerName + "_md_write";
-            auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w,
-                                                           shared_memory);
+            auto argmax_mutable_prim = cldnn::mutable_data(proposal_mutable_id_w, shared_memory);
             p.add_primitive(*op, argmax_mutable_prim);
             inputs.push_back(cldnn::input_info(proposal_mutable_id_w));
 
@@ -137,9 +137,8 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             p.add_primitive(*op, proposalPrim);
 
             cldnn::primitive_id proposal_mutable_id_r = layerName + ".out1";
-            auto argmax_mutable_prim_r = cldnn::mutable_data(proposal_mutable_id_r,
-                                                             { cldnn::input_info(proposalLayerName) },
-                                                             shared_memory);
+            auto argmax_mutable_prim_r =
+                cldnn::mutable_data(proposal_mutable_id_r, {cldnn::input_info(proposalLayerName)}, shared_memory);
             p.add_primitive(*op, argmax_mutable_prim_r);
             return;
         } else if (op->get_output_size() == 1) {

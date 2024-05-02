@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -24,16 +25,16 @@ protected:
     bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
-    bool NeedPaddedInput() const override { return false; }
+    bool NeedPaddedInput() const override {
+        return false;
+    }
 
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::gs_oi_yxs_gsv4_yxsv4;
     }
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
     struct AutoTuneParams {
@@ -51,8 +52,7 @@ protected:
 
     bool ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const;
     AutoTuneParams GetAutoTuneParams(const convolution_params& params, int index) const;
-    KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                           int autoTuneIndex = -1) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
 };
 }  // namespace kernel_selector

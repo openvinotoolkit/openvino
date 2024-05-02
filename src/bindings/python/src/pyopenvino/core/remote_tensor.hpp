@@ -16,9 +16,9 @@ class RemoteTensorWrapper {
 public:
     RemoteTensorWrapper() {}
 
-    RemoteTensorWrapper(ov::RemoteTensor& _tensor): tensor{_tensor} {}
+    RemoteTensorWrapper(ov::RemoteTensor& _tensor) : tensor{_tensor} {}
 
-    RemoteTensorWrapper(ov::RemoteTensor&& _tensor): tensor{std::move(_tensor)} {}
+    RemoteTensorWrapper(ov::RemoteTensor&& _tensor) : tensor{std::move(_tensor)} {}
 
     ov::RemoteTensor tensor;
 };
@@ -27,9 +27,9 @@ void regclass_RemoteTensor(py::module m);
 
 class VASurfaceTensorWrapper : public RemoteTensorWrapper {
 public:
-    VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
+    VASurfaceTensorWrapper(ov::RemoteTensor& _tensor) : RemoteTensorWrapper{_tensor} {}
 
-    VASurfaceTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
+    VASurfaceTensorWrapper(ov::RemoteTensor&& _tensor) : RemoteTensorWrapper{std::move(_tensor)} {}
 
     uint32_t surface_id() {
         return tensor.get_params().at(ov::intel_gpu::dev_object_handle.name()).as<uint32_t>();

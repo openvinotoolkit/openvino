@@ -37,6 +37,6 @@ protected:
 };
 
 std::string boolToString(const bool value);
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

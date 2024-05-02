@@ -136,8 +136,7 @@ std::shared_ptr<pass::PassBase> TransformInnerSplitLoop::merge(const std::shared
     return merged_pass;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

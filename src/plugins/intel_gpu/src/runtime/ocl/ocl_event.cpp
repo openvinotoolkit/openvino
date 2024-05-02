@@ -3,13 +3,14 @@
 //
 
 #include "ocl_event.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <cassert>
 #include <iostream>
-#include <vector>
 #include <list>
 #include <map>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 using namespace ocl;
@@ -25,10 +26,12 @@ bool is_event_profiled(const cl::Event& event) {
     return false;
 }
 
-instrumentation::profiling_interval get_profiling_interval(instrumentation::profiling_stage stage, cl_ulong start,  cl_ulong end) {
+instrumentation::profiling_interval get_profiling_interval(instrumentation::profiling_stage stage,
+                                                           cl_ulong start,
+                                                           cl_ulong end) {
     auto diff = std::chrono::nanoseconds(end - start);
     auto period = std::make_shared<instrumentation::profiling_period_basic>(diff);
-    return { stage, period };
+    return {stage, period};
 }
 
 }  // namespace
@@ -79,9 +82,9 @@ bool ocl_event::add_event_handler_impl(event_handler, void*) {
 }
 
 static const std::vector<profiling_period_ocl_start_stop> profiling_periods{
-    { instrumentation::profiling_stage::submission, CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT },
-    { instrumentation::profiling_stage::starting, CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START },
-    { instrumentation::profiling_stage::executing, CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END },
+    {instrumentation::profiling_stage::submission, CL_PROFILING_COMMAND_QUEUED, CL_PROFILING_COMMAND_SUBMIT},
+    {instrumentation::profiling_stage::starting, CL_PROFILING_COMMAND_SUBMIT, CL_PROFILING_COMMAND_START},
+    {instrumentation::profiling_stage::executing, CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END},
 };
 
 bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
@@ -90,7 +93,7 @@ bool ocl_event::get_profiling_info_impl(std::list<instrumentation::profiling_int
         auto duration = std::chrono::nanoseconds(duration_nsec.value());
         auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
 
-        info.push_back({ stage, period });
+        info.push_back({stage, period});
 
         return true;
     }
@@ -144,7 +147,8 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
     // For every profiling period (i.e. submission / starting / executing),
     // the goal is to sum up all disjoint durations of its projection on the time axis
 
-    std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
+    std::map<instrumentation::profiling_stage, std::vector<std::pair<unsigned long long, unsigned long long>>>
+        all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = downcast<ocl_event>(_events[i].get());
@@ -160,8 +164,8 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
             } catch (cl::Error const& err) {
                 OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
             }
-            auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
-                                              static_cast<unsigned long long>(ev_end));
+            auto ev_duration =
+                std::make_pair(static_cast<unsigned long long>(ev_start), static_cast<unsigned long long>(ev_end));
 
             auto& durations = all_durations[period.stage];
             bool ev_duration_merged = false;

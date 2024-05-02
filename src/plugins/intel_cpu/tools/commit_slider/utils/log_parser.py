@@ -1,11 +1,12 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import re
-import zipfile
-import os
 import csv
+import os
+import re
 import shutil
+import zipfile
+
 from utils.helpers import CfgError
 
 
@@ -14,10 +15,8 @@ def getMap(hashPatternList, intervalPatternList):
     hashMap = {}
 
     for i, x in enumerate(intervalPatternList):
-        leftHash = hashPatternList[i].split()\
-            [intervalPos].split("..")[0]
-        rightHash = hashPatternList[i].split()\
-            [intervalPos].split("..")[1]
+        leftHash = hashPatternList[i].split()[intervalPos].split("..")[0]
+        rightHash = hashPatternList[i].split()[intervalPos].split("..")[1]
 
         leftInd = (x.split()[2]).split("..")[0]
         rightInd = (x.split()[2]).split("..")[1]
@@ -26,6 +25,7 @@ def getMap(hashPatternList, intervalPatternList):
         hashMap[rightInd] = rightHash
 
     return hashMap
+
 
 def extractPatterns(dirName):
     data = ""
@@ -44,6 +44,7 @@ def extractPatterns(dirName):
 
     return hashPatternList, intervalPatternList
 
+
 def prepareCSVData(hashMap, dirName):
     throughputPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
     csvData = []
@@ -59,32 +60,30 @@ def prepareCSVData(hashMap, dirName):
 
             foundThroughput = re.search(
                 throughputPattern, data, flags=re.MULTILINE
-                ).group(1)
+            ).group(1)
 
-            csvData.append({
-                "id": k,
-                "hash": v,
-                "throughput": foundThroughput
-            })
+            csvData.append({"id": k, "hash": v, "throughput": foundThroughput})
 
-    csvData.sort(key=lambda x: int(x['id']))
+    csvData.sort(key=lambda x: int(x["id"]))
 
     return csvData
 
+
 def makeCSV(csvData):
-    fields = ['id', 'hash', 'throughput']
+    fields = ["id", "hash", "throughput"]
     rows = []
 
     for item in csvData:
-        row = [item['id'], item['hash'], item['throughput']]
+        row = [item["id"], item["hash"], item["throughput"]]
         rows.append(row)
 
-    with open("csv_report.csv", 'w') as csvfile: 
+    with open("csv_report.csv", "w") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(fields)
         csvwriter.writerows(rows)
 
-def logParser(args, zipName="archive", dirName = "artifacts"):
+
+def logParser(args, zipName="archive", dirName="artifacts"):
     args = vars(args)
     if "-path" not in args:
         raise CfgError("No 'path' for log parser provided")
@@ -94,14 +93,14 @@ def logParser(args, zipName="archive", dirName = "artifacts"):
 
     clearArtifacts = False
 
-    if path.endswith('.zip'):
+    if path.endswith(".zip"):
         clearArtifacts = True
-        with zipfile.ZipFile(path, 'r') as zip_ref:
+        with zipfile.ZipFile(path, "r") as zip_ref:
             zip_ref.extractall(dirName)
             dirName = os.path.join(dirName, zipName)
     else:
         dirName = path
-    
+
     hashPatternList, intervalPatternList = extractPatterns(dirName)
     hashMap = getMap(hashPatternList, intervalPatternList)
     csvData = prepareCSVData(hashMap, dirName)

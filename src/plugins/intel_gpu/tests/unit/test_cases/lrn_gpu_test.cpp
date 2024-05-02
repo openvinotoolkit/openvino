@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/lrn.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/lrn.hpp>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -22,10 +22,12 @@ void test_fp32_basic(bool is_caching_test) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({data_types::f32, format::b_fs_yx_fsv16, {b, f, x, y}});
     std::vector<T> inputVals(b * f * y * x);
     T n = 0;
-    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable {
+        return n++;
+    });
 
     set_values(input, inputVals);
 
@@ -37,7 +39,8 @@ void test_fp32_basic(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -46,12 +49,22 @@ void test_fp32_basic(bool is_caching_test) {
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        0.f, 1.99901f, 3.99486f, 5.98519f,
-        7.96766f, 9.93997f, 11.8999f, 13.8451f,
-        15.7736f, 17.6831f, 19.5718f, 21.4376f,
-        23.2787f, 25.0933f, 26.8797f, 29.3463f
-    };
+    std::vector<float> expected_results = {0.f,
+                                           1.99901f,
+                                           3.99486f,
+                                           5.98519f,
+                                           7.96766f,
+                                           9.93997f,
+                                           11.8999f,
+                                           13.8451f,
+                                           15.7736f,
+                                           17.6831f,
+                                           19.5718f,
+                                           21.4376f,
+                                           23.2787f,
+                                           25.0933f,
+                                           26.8797f,
+                                           29.3463f};
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -74,10 +87,12 @@ void test_fp32_basic2(bool is_caching_test) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({data_types::f32, format::b_fs_yx_fsv16, {b, f, x, y}});
     std::vector<T> inputVals(b * f * y * x);
     T n = 0;
-    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable {
+        return n++;
+    });
 
     set_values(input, inputVals);
 
@@ -89,7 +104,8 @@ void test_fp32_basic2(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -98,12 +114,22 @@ void test_fp32_basic2(bool is_caching_test) {
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        0.f, 1.99889f, 3.99525f, 5.98696f,
-        7.97159f, 9.94682f, 11.9104f, 13.86f,
-        15.7936f, 17.709f, 19.6041f, 21.4769f,
-        23.3257f, 25.1485f, 27.2091f, 29.3151f
-    };
+    std::vector<float> expected_results = {0.f,
+                                           1.99889f,
+                                           3.99525f,
+                                           5.98696f,
+                                           7.97159f,
+                                           9.94682f,
+                                           11.9104f,
+                                           13.86f,
+                                           15.7936f,
+                                           17.709f,
+                                           19.6041f,
+                                           21.4769f,
+                                           23.3257f,
+                                           25.1485f,
+                                           27.2091f,
+                                           29.3151f};
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -126,10 +152,12 @@ void test_fp16_basic1(bool is_caching_test) {
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({data_types::f16, format::b_fs_yx_fsv16, {b, f, x, y}});
     std::vector<T> inputVals(b * f * y * x);
     float n = 0;
-    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return T(n++); });
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable {
+        return T(n++);
+    });
 
     set_values(input, inputVals);
 
@@ -141,7 +169,8 @@ void test_fp16_basic1(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -150,12 +179,22 @@ void test_fp16_basic1(bool is_caching_test) {
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        0.f, 1.99889f, 3.99525f, 5.98696f,
-        7.97159f, 9.94682f, 11.9104f, 13.86f,
-        15.7936f, 17.709f, 19.6041f, 21.4769f,
-        23.3257f, 25.1485f, 27.2091f, 29.3151f
-    };
+    std::vector<float> expected_results = {0.f,
+                                           1.99889f,
+                                           3.99525f,
+                                           5.98696f,
+                                           7.97159f,
+                                           9.94682f,
+                                           11.9104f,
+                                           13.86f,
+                                           15.7936f,
+                                           17.709f,
+                                           19.6041f,
+                                           21.4769f,
+                                           23.3257f,
+                                           25.1485f,
+                                           27.2091f,
+                                           29.3151f};
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -178,10 +217,12 @@ void test_fp32_basic3(bool is_caching_test) {
     const size_t y = 4;
     const size_t x = 4;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = engine.allocate_memory({data_types::f32, format::b_fs_yx_fsv16, {b, f, x, y}});
     std::vector<T> inputVals(b * f * y * x);
     T n = 0;
-    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable {
+        return n++;
+    });
 
     set_values(input, inputVals);
 
@@ -193,7 +234,8 @@ void test_fp32_basic3(bool is_caching_test) {
     float beta = 0.75f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -249,8 +291,7 @@ void test_fp32_basic3(bool is_caching_test) {
         44.8184f, 44.7773f,  44.7362f, 44.6952f, 44.6543f, 52.4043f, 64.2239f, 63.7976f, 52.1113f, 44.4513f, 44.411f,
         44.3708f, 44.3307f,  44.2907f, 44.2508f, 44.211f,  44.1713f, 44.1317f, 44.0921f, 44.0527f, 44.0134f, 51.6758f,
         63.379f,  62.9695f,  51.3943f, 43.8181f, 43.7793f, 43.7406f, 43.702f,  43.6635f, 43.6251f, 43.5867f, 43.5485f,
-        43.5104f, 43.4723f,  43.4343f, 43.3965f, 50.9729f, 62.56f
-    };
+        43.5104f, 43.4723f,  43.4343f, 43.3965f, 50.9729f, 62.56f};
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
-#include <string>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "openvino/op/depth_to_space.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -18,11 +18,10 @@ namespace subgraph {
 
 class DepthToSpaceFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const ov::op::v0::DepthToSpace::DepthToSpaceMode mode,
-        const size_t blockSize);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const ov::op::v0::DepthToSpace::DepthToSpaceMode mode,
+                                                  const size_t blockSize);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::PartialShape& inputShape,

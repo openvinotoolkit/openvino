@@ -7,7 +7,8 @@
 using namespace ov::test;
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_TransposeMatMulFusion, TransposeMatMulFusion,
+INSTANTIATE_TEST_SUITE_P(smoke_TransposeMatMulFusion,
+                         TransposeMatMulFusion,
                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                          TransposeMatMulFusion::getTestCaseName);
 

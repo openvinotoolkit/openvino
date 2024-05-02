@@ -12,6 +12,7 @@ class DeleteControlFlowEdges(MiddleReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.PartialInfer import PartialInfer
+
         return [PartialInfer]
 
     def run_before(self):
@@ -19,6 +20,6 @@ class DeleteControlFlowEdges(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for u, v, k, attrs in list(graph.edges(keys=True, data=True)):
-            if 'control_flow_edge' in attrs and attrs['control_flow_edge']:
+            if "control_flow_edge" in attrs and attrs["control_flow_edge"]:
                 graph.remove_edge(u, v, k)
-                log.debug('Removing control flow edge from {} to {}'.format(u, v))
+                log.debug("Removing control flow edge from {} to {}".format(u, v))

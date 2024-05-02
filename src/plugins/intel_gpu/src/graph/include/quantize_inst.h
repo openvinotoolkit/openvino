@@ -3,11 +3,12 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
+#include "data_inst.h"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "primitive_inst.h"
-#include "data_inst.h"
-#include <string>
-#include <memory>
 
 namespace cldnn {
 class QuantizeFuseParams : public NodeFuseParams {
@@ -34,29 +35,29 @@ public:
                        float out_hi,
                        float out_scale,
                        float out_shift)
-    : NodeFuseParams(quantize::type_id())
-    , _out_layout(out_layout)
-    , _scale_shift_opt(scale_shift_opt)
-    , _need_post_scale(need_post_scale)
-    , _need_post_shift(need_post_shift)
-    , _need_pre_shift(need_pre_shift)
-    , _need_clamp(need_clamp)
-    , _need_min_clamp(need_min_clamp)
-    , _need_max_clamp(need_max_clamp)
-    , _per_tensor_input_range(per_tensor_input_range)
-    , _per_tensor_input_scale(per_tensor_input_scale)
-    , _per_tensor_input_shift(per_tensor_input_shift)
-    , _per_tensor_output_range(per_tensor_output_range)
-    , _per_tensor_output_scale(per_tensor_output_scale)
-    , _per_tensor_output_shift(per_tensor_output_shift)
-    , _in_lo(in_lo)
-    , _in_hi(in_hi)
-    , _in_scale(in_scale)
-    , _in_shift(in_shift)
-    , _out_lo(out_lo)
-    , _out_hi(out_hi)
-    , _out_scale(out_scale)
-    , _out_shift(out_shift)  {}
+        : NodeFuseParams(quantize::type_id()),
+          _out_layout(out_layout),
+          _scale_shift_opt(scale_shift_opt),
+          _need_post_scale(need_post_scale),
+          _need_post_shift(need_post_shift),
+          _need_pre_shift(need_pre_shift),
+          _need_clamp(need_clamp),
+          _need_min_clamp(need_min_clamp),
+          _need_max_clamp(need_max_clamp),
+          _per_tensor_input_range(per_tensor_input_range),
+          _per_tensor_input_scale(per_tensor_input_scale),
+          _per_tensor_input_shift(per_tensor_input_shift),
+          _per_tensor_output_range(per_tensor_output_range),
+          _per_tensor_output_scale(per_tensor_output_scale),
+          _per_tensor_output_shift(per_tensor_output_shift),
+          _in_lo(in_lo),
+          _in_hi(in_hi),
+          _in_scale(in_scale),
+          _in_shift(in_shift),
+          _out_lo(out_lo),
+          _out_hi(out_hi),
+          _out_scale(out_scale),
+          _out_shift(out_shift) {}
 
     size_t ops_count() const override {
         size_t count = 0;
@@ -94,9 +95,7 @@ public:
                 count += 2;
             }
             // round
-            {
-                count++;
-            }
+            { count++; }
         }
 
         return count;
@@ -140,29 +139,75 @@ struct typed_program_node<quantize> : public typed_program_node_base<quantize> {
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-    int get_levels() const { return get_primitive()->levels; }
-    bool get_scale_shift_opt() const { return get_primitive()->scale_shift_opt; }
-    bool get_need_pre_shift() const { return get_primitive()->need_pre_shift; }
-    bool get_need_post_scale() const { return get_primitive()->need_post_scale; }
-    bool get_need_post_shift() const { return get_primitive()->need_post_shift; }
-    bool get_need_clamp() const { return get_primitive()->need_clamp; }
-    bool get_need_min_clamp() const { return get_primitive()->need_min_clamp; }
-    bool get_need_max_clamp() const { return get_primitive()->need_max_clamp; }
-    bool get_per_tensor_input_scale() const { return get_primitive()->per_tensor_input_scale; }
-    bool get_per_tensor_input_shift() const { return get_primitive()->per_tensor_input_shift; }
-    bool get_per_tensor_input_range() const { return get_primitive()->per_tensor_input_range; }
-    bool get_per_tensor_output_scale() const { return get_primitive()->per_tensor_output_scale; }
-    bool get_per_tensor_output_shift() const { return get_primitive()->per_tensor_output_shift; }
-    bool get_per_tensor_output_range() const { return get_primitive()->per_tensor_output_range; }
-    float get_input_scale_val() const { return get_primitive()->in_scale; }
-    float get_input_shift_val() const { return get_primitive()->in_shift; }
-    float get_input_lo_val() const { return get_primitive()->in_lo; }
-    float get_input_hi_val() const { return get_primitive()->in_hi; }
-    float get_output_scale_val() const { return get_primitive()->out_scale; }
-    float get_output_shift_val() const { return get_primitive()->out_shift; }
-    float get_output_lo_val() const { return get_primitive()->out_lo; }
-    float get_output_hi_val() const { return get_primitive()->out_hi; }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
+    int get_levels() const {
+        return get_primitive()->levels;
+    }
+    bool get_scale_shift_opt() const {
+        return get_primitive()->scale_shift_opt;
+    }
+    bool get_need_pre_shift() const {
+        return get_primitive()->need_pre_shift;
+    }
+    bool get_need_post_scale() const {
+        return get_primitive()->need_post_scale;
+    }
+    bool get_need_post_shift() const {
+        return get_primitive()->need_post_shift;
+    }
+    bool get_need_clamp() const {
+        return get_primitive()->need_clamp;
+    }
+    bool get_need_min_clamp() const {
+        return get_primitive()->need_min_clamp;
+    }
+    bool get_need_max_clamp() const {
+        return get_primitive()->need_max_clamp;
+    }
+    bool get_per_tensor_input_scale() const {
+        return get_primitive()->per_tensor_input_scale;
+    }
+    bool get_per_tensor_input_shift() const {
+        return get_primitive()->per_tensor_input_shift;
+    }
+    bool get_per_tensor_input_range() const {
+        return get_primitive()->per_tensor_input_range;
+    }
+    bool get_per_tensor_output_scale() const {
+        return get_primitive()->per_tensor_output_scale;
+    }
+    bool get_per_tensor_output_shift() const {
+        return get_primitive()->per_tensor_output_shift;
+    }
+    bool get_per_tensor_output_range() const {
+        return get_primitive()->per_tensor_output_range;
+    }
+    float get_input_scale_val() const {
+        return get_primitive()->in_scale;
+    }
+    float get_input_shift_val() const {
+        return get_primitive()->in_shift;
+    }
+    float get_input_lo_val() const {
+        return get_primitive()->in_lo;
+    }
+    float get_input_hi_val() const {
+        return get_primitive()->in_hi;
+    }
+    float get_output_scale_val() const {
+        return get_primitive()->out_scale;
+    }
+    float get_output_shift_val() const {
+        return get_primitive()->out_shift;
+    }
+    float get_output_lo_val() const {
+        return get_primitive()->out_lo;
+    }
+    float get_output_hi_val() const {
+        return get_primitive()->out_hi;
+    }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<QuantizeFuseParams>(get_output_layout(),
@@ -188,7 +233,9 @@ public:
                                                     get_primitive()->out_scale,
                                                     get_primitive()->out_shift);
     }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using quantize_node = typed_program_node<quantize>;
@@ -199,7 +246,7 @@ class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize
     using parent::parent;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(quantize_node const& node, kernel_impl_params const& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }

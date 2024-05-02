@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-
 #include "shared_test_classes/single_op/eltwise.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
+using ov::test::utils::EltwiseTypes;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
-using ov::test::utils::EltwiseTypes;
 
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
     std::vector<InputShape> shapes;
@@ -22,7 +21,15 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     EltwiseTypes eltwise_op_type;
     std::string device_name;
     ov::AnyMap additional_config;
-    std::tie(shapes, eltwise_op_type, secondary_input_type, op_type, model_type, in_type, out_type, device_name, additional_config) = obj.param;
+    std::tie(shapes,
+             eltwise_op_type,
+             secondary_input_type,
+             op_type,
+             model_type,
+             in_type,
+             out_type,
+             device_name,
+             additional_config) = obj.param;
     std::ostringstream results;
 
     results << "IS=(";
@@ -76,22 +83,30 @@ void EltwiseLayerTest::SetUp() {
     OpType op_type;
     EltwiseTypes eltwise_type;
     Config additional_config;
-    std::tie(shapes, eltwise_type, secondary_input_type, op_type, model_type, inType, outType, targetDevice, configuration) = this->GetParam();
+    std::tie(shapes,
+             eltwise_type,
+             secondary_input_type,
+             op_type,
+             model_type,
+             inType,
+             outType,
+             targetDevice,
+             configuration) = this->GetParam();
     init_input_shapes(shapes);
 
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     ov::PartialShape shape_input_secondary;
     switch (op_type) {
-        case OpType::SCALAR: {
-            shape_input_secondary = {1};
-            break;
-        }
-        case OpType::VECTOR:
-            shape_input_secondary = inputDynamicShapes.back();
-            break;
-        default:
-            FAIL() << "Unsupported Secondary operation type";
+    case OpType::SCALAR: {
+        shape_input_secondary = {1};
+        break;
+    }
+    case OpType::VECTOR:
+        shape_input_secondary = inputDynamicShapes.back();
+        break;
+    default:
+        FAIL() << "Unsupported Secondary operation type";
     }
     // To propagate shape_input_secondary just in static case because all shapes are defined in dynamic scenarion
     if (secondary_input_type == InputLayerType::PARAMETER) {
@@ -107,28 +122,28 @@ void EltwiseLayerTest::SetUp() {
         ov::Shape shape = inputDynamicShapes.back().get_max_shape();
         ov::test::utils::InputGenerateData in_data;
         switch (eltwise_type) {
-            case EltwiseTypes::DIVIDE:
-            case EltwiseTypes::MOD:
-            case EltwiseTypes::FLOOR_MOD: {
-                in_data.start_from = 2;
-                in_data.range = 8;
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
-                secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
-                break;
-            }
-            case EltwiseTypes::POWER: {
-                in_data.start_from = 1;
-                in_data.range = 2;
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
-                secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
-                break;
-            }
-            default: {
-                in_data.start_from = 1;
-                in_data.range = 9;
-                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
-                secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
-            }
+        case EltwiseTypes::DIVIDE:
+        case EltwiseTypes::MOD:
+        case EltwiseTypes::FLOOR_MOD: {
+            in_data.start_from = 2;
+            in_data.range = 8;
+            auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
+            secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
+            break;
+        }
+        case EltwiseTypes::POWER: {
+            in_data.start_from = 1;
+            in_data.range = 2;
+            auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
+            secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
+            break;
+        }
+        default: {
+            in_data.start_from = 1;
+            in_data.range = 9;
+            auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
+            secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
+        }
         }
     }
 
@@ -138,5 +153,5 @@ void EltwiseLayerTest::SetUp() {
     auto eltwise = ov::test::utils::make_eltwise(parameters[0], secondary_input, eltwise_type);
     function = std::make_shared<ov::Model>(eltwise, parameters, "Eltwise");
 }
-} //  namespace test
-} //  namespace ov
+}  //  namespace test
+}  //  namespace ov

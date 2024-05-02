@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "openvino/core/model.hpp"
 

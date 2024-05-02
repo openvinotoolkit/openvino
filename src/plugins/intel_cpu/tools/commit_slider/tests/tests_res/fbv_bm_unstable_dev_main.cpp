@@ -1,13 +1,13 @@
-#include <random>
 #include <iostream>
+#include <random>
 
-int main () {
+int main() {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> leftDistr(550, 1000);
     std::uniform_int_distribution<> rightDistr(0, 450);
 
-    const char *patchGenerator = R"V0G0N(
+    const char* patchGenerator = R"V0G0N(
 [
     {
         "str": "std::cout << \"prefix\\nThroughput: \" << leftDistr(gen) << \".0 FPS\\n\";",
@@ -19,6 +19,6 @@ int main () {
     }
 ]
 )V0G0N";
-    
+
     return 0;
 }

@@ -96,42 +96,47 @@ class TestingSimpleProtoParser(unittest.TestCase):
         self.assertRaises(Error, PipelineConfig, "/abc/def")
 
     def test_pipeline_config_non_model_file(self):
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data="non_model {}")):
+        with unittest.mock.patch(
+            "builtins.open", unittest.mock.mock_open(read_data="non_model {}")
+        ):
             self.assertRaises(Error, PipelineConfig, __file__)
 
     def test_pipeline_config_existing_file(self):
-        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
+        with unittest.mock.patch(
+            "builtins.open", unittest.mock.mock_open(read_data=file_content)
+        ):
             pipeline_config = PipelineConfig(__file__)
-        expected_result = {'resizer_min_dimension': 600,
-                           'first_stage_nms_score_threshold': 0.0,
-                           'anchor_generator_aspect_ratios': [0.5, 1.0, 2.0],
-                           'num_classes': 90,
-                           'anchor_generator_scales': [0.25, 0.5, 1.0, 2.0],
-                           'first_stage_max_proposals': 100,
-                           'first_stage_nms_iou_threshold': 0.699999988079,
-                           'resizer_max_dimension': 1024,
-                           'initial_crop_size': 14,
-                           'frcnn_variance_height': 5.0,
-                           'frcnn_variance_width': 5.0,
-                           'frcnn_variance_x': 10.0,
-                           'frcnn_variance_y': 10.0,
-                           'ssd_anchor_generator_base_anchor_width': 1.0,
-                           'ssd_anchor_generator_base_anchor_height': 1.0,
-                           'anchor_generator_height': 256,
-                           'anchor_generator_width': 256,
-                           'anchor_generator_height_stride': 16,
-                           'anchor_generator_width_stride': 16,
-                           'ssd_anchor_generator_min_scale': 0.2,
-                           'ssd_anchor_generator_max_scale': 0.95,
-                           'ssd_anchor_generator_interpolated_scale_aspect_ratio': 1.0,
-                           'use_matmul_crop_and_resize': False,
-                           'add_background_class': True,
-                           'share_box_across_classes': False,
-                           'pad_to_max_dimension': True,
-                           'postprocessing_score_threshold': 0.300000011921,
-                           'postprocessing_score_converter': 'SOFTMAX',
-                           'postprocessing_iou_threshold': 0.600000023842,
-                           'postprocessing_max_detections_per_class': 100,
-                           'postprocessing_max_total_detections': 200,
-                           }
+        expected_result = {
+            "resizer_min_dimension": 600,
+            "first_stage_nms_score_threshold": 0.0,
+            "anchor_generator_aspect_ratios": [0.5, 1.0, 2.0],
+            "num_classes": 90,
+            "anchor_generator_scales": [0.25, 0.5, 1.0, 2.0],
+            "first_stage_max_proposals": 100,
+            "first_stage_nms_iou_threshold": 0.699999988079,
+            "resizer_max_dimension": 1024,
+            "initial_crop_size": 14,
+            "frcnn_variance_height": 5.0,
+            "frcnn_variance_width": 5.0,
+            "frcnn_variance_x": 10.0,
+            "frcnn_variance_y": 10.0,
+            "ssd_anchor_generator_base_anchor_width": 1.0,
+            "ssd_anchor_generator_base_anchor_height": 1.0,
+            "anchor_generator_height": 256,
+            "anchor_generator_width": 256,
+            "anchor_generator_height_stride": 16,
+            "anchor_generator_width_stride": 16,
+            "ssd_anchor_generator_min_scale": 0.2,
+            "ssd_anchor_generator_max_scale": 0.95,
+            "ssd_anchor_generator_interpolated_scale_aspect_ratio": 1.0,
+            "use_matmul_crop_and_resize": False,
+            "add_background_class": True,
+            "share_box_across_classes": False,
+            "pad_to_max_dimension": True,
+            "postprocessing_score_threshold": 0.300000011921,
+            "postprocessing_score_converter": "SOFTMAX",
+            "postprocessing_iou_threshold": 0.600000023842,
+            "postprocessing_max_detections_per_class": 100,
+            "postprocessing_max_total_detections": 200,
+        }
         self.assertDictEqual(pipeline_config._model_params, expected_result)

@@ -3,8 +3,10 @@
 //
 
 #include "softmax_kernel_bf.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
@@ -55,7 +57,8 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
         dispatchData.lws[0] = 1;
         // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
         // reads.
-        while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) &&
+               (2 * dispatchData.lws[0] <= max_lws)) {
             dispatchData.lws[0] *= 2;
             dispatchData.itemsNum /= 2;
         }
@@ -75,7 +78,8 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
             else
                 dispatchData.subgroupBlockSize = 1;
         }
-        assert((dispatchData.itemsNum + 1) * dispatchData.lws[0] >= dispatchData.dataSetSize && "More than 'lws[0]' items per batch remains! Lws too small?");
+        assert((dispatchData.itemsNum + 1) * dispatchData.lws[0] >= dispatchData.dataSetSize &&
+               "More than 'lws[0]' items per batch remains! Lws too small?");
 
         dispatchData.gws[0] = dispatchData.lws[0];
 
@@ -134,8 +138,9 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         }
 
         // It can be expected that the maximum possible itemsNum will not exceed 32
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to 34(32 + 2(aligned offset + leftovers))
-        constexpr size_t stack_size = 34; // The size of stack for my_chunk
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 34(32 + 2(aligned offset +
+        // leftovers))
+        constexpr size_t stack_size = 34;  // The size of stack for my_chunk
         jit.AddConstants({
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
@@ -151,7 +156,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 2), // (aligned offset + leftovers)
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 2),  // (aligned offset + leftovers)
         });
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
@@ -164,10 +169,11 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
                                            {"data_set_offset", "in_data_set_idx + i * workers_per_data_set", "0", "0"},
                                            "dequantized",
                                            activation_dt};
-        FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",
-                                                {"data_set_offset", "workers_per_data_set * ITEMS_NUM + in_data_set_idx", "0", "0"},
-                                                "dequantized",
-                                                activation_dt};
+        FusedOpsConfiguration conf_leftovers = {
+            "_LEFTOVERS",
+            {"data_set_offset", "workers_per_data_set * ITEMS_NUM + in_data_set_idx", "0", "0"},
+            "dequantized",
+            activation_dt};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_main, conf_leftovers}));
     }
 

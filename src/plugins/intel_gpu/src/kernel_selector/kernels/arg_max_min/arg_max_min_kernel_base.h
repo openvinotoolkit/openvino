@@ -40,8 +40,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~ArgMaxMinKernelBase() {}
 
-    struct DispatchData : public CommonDispatchData {
-    };
+    struct DispatchData : public CommonDispatchData {};
 
 protected:
     bool Validate(const Params&) const override;

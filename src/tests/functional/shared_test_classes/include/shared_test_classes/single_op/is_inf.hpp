@@ -19,12 +19,12 @@ using IsInfParams = std::tuple<std::vector<InputShape>,  // Data shape
                                ov::AnyMap                // Additional config
                                >;
 
-class IsInfLayerTest : public testing::WithParamInterface<IsInfParams>,
-                        virtual public SubgraphBaseTest {
+class IsInfLayerTest : public testing::WithParamInterface<IsInfParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<IsInfParams>& obj);
+
 protected:
     void SetUp() override;
 };
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

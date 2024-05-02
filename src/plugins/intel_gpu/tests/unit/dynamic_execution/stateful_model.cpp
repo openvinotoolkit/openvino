@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gather.hpp>
-#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/kv_cache.hpp>
 #include <intel_gpu/primitives/read_value.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/runtime/internal_properties.hpp>
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -35,11 +33,11 @@ TEST(stateful_model, skip_gather_at_runtime) {
                       gather("gather",
                              input_info("kv_cache"),
                              input_info("beam_idx"),
-                             0,                                       // axis
-                             input_kv_lay.get_partial_shape().size(), // input rank
-                             ov::Shape{},                             // output shape
-                             0,                                       // batch_dim
-                             true),                                   // support_neg_ind
+                             0,                                        // axis
+                             input_kv_lay.get_partial_shape().size(),  // input rank
+                             ov::Shape{},                              // output shape
+                             0,                                        // batch_dim
+                             true),                                    // support_neg_ind
                       concatenation("concat", {input_info("gather"), input_info("present")}, 0),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
@@ -91,11 +89,11 @@ TEST(stateful_model, not_skip_gather_at_runtime) {
                       gather("gather",
                              input_info("kv_cache"),
                              input_info("beam_idx"),
-                             0,                                       // axis
-                             input_kv_lay.get_partial_shape().size(), // input rank
-                             ov::Shape{},                             // output shape
-                             0,                                       // batch_dim
-                             true),                                   // support_neg_ind
+                             0,                                        // axis
+                             input_kv_lay.get_partial_shape().size(),  // input rank
+                             ov::Shape{},                              // output shape
+                             0,                                        // batch_dim
+                             true),                                    // support_neg_ind
                       concatenation("concat", {input_info("gather"), input_info("present")}, 0),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
@@ -143,17 +141,18 @@ TEST(stateful_model, not_skip_gather_in_cpuimpl) {
                       gather("gather",
                              input_info("kv_cache"),
                              input_info("beam_idx"),
-                             0,                                       // axis
-                             input_kv_lay.get_partial_shape().size(), // input rank
-                             ov::Shape{},                             // output shape
-                             0,                                       // batch_dim
-                             true),                                   // support_neg_ind
+                             0,                                        // axis
+                             input_kv_lay.get_partial_shape().size(),  // input rank
+                             ov::Shape{},                              // output shape
+                             0,                                        // batch_dim
+                             true),                                    // support_neg_ind
                       concatenation("concat", {input_info("gather"), input_info("present")}, 0),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"gather", {format::bfyx, "", impl_types::cpu}}}));
 
     network network(engine, topology, config);
     auto gather_inst = network.get_primitive("gather");
@@ -201,11 +200,11 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                       gather("gather",
                              input_info("kv_cache"),
                              input_info("beam_idx"),
-                             0,                                       // axis
-                             input_kv_lay.get_partial_shape().size(), // input rank
-                             ov::Shape{},                             // output shape
-                             0,                                       // batch_dim
-                             true),                                   // support_neg_ind
+                             0,                                        // axis
+                             input_kv_lay.get_partial_shape().size(),  // input rank
+                             ov::Shape{},                              // output shape
+                             0,                                        // batch_dim
+                             true),                                    // support_neg_ind
                       kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
@@ -229,4 +228,4 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
     ASSERT_EQ(kv_cache_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
 }
 
-}  // stateful_model_tests
+}  // namespace stateful_model_tests

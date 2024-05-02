@@ -5,17 +5,17 @@
 #include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj) {
+std::string GroupConvolutionQDqTransformation::getTestCaseName(
+    const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -37,17 +37,22 @@ void GroupConvolutionQDqTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        netPrecision,
-        inputShape,
-        param.fakeQuantizeOnData,
-        param.convertOnData,
-        param.dequantizationOnData,
-        param.constantOnWeights,
-        param.fakeQuantizeOnWeights,
-        param.convertOnWeights,
-        param.dequantizationOnWeights,
-        {}, {}, {}, param.reshape, {}, "GroupConvolution", param.multiplyAfter);
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(netPrecision,
+                                                                              inputShape,
+                                                                              param.fakeQuantizeOnData,
+                                                                              param.convertOnData,
+                                                                              param.dequantizationOnData,
+                                                                              param.constantOnWeights,
+                                                                              param.fakeQuantizeOnWeights,
+                                                                              param.convertOnWeights,
+                                                                              param.dequantizationOnWeights,
+                                                                              {},
+                                                                              {},
+                                                                              {},
+                                                                              param.reshape,
+                                                                              {},
+                                                                              "GroupConvolution",
+                                                                              param.multiplyAfter);
 }
 
 void GroupConvolutionQDqTransformation::run() {

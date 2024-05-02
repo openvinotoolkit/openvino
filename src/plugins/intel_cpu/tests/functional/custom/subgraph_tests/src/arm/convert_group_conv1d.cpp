@@ -56,19 +56,34 @@ protected:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
         switch (convType) {
-            case nodeType::convolution : {
-                conv = utils::make_convolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation,
-                                                paddingType, numOutChannels);
-                break;
-            }
-            case nodeType::groupConvolution : {
-                conv = utils::make_group_convolution(inputParams[0], element::f32, kernelSize, strides, padBegin, padEnd, dilation,
-                                                     paddingType, numOutChannels, numOfGroups);
-                break;
-            }
-            default: {
-                throw std::runtime_error("Conv1dConvertTransformationCPUTest doesn't support this type of operation");
-            }
+        case nodeType::convolution: {
+            conv = utils::make_convolution(inputParams[0],
+                                           element::f32,
+                                           kernelSize,
+                                           strides,
+                                           padBegin,
+                                           padEnd,
+                                           dilation,
+                                           paddingType,
+                                           numOutChannels);
+            break;
+        }
+        case nodeType::groupConvolution: {
+            conv = utils::make_group_convolution(inputParams[0],
+                                                 element::f32,
+                                                 kernelSize,
+                                                 strides,
+                                                 padBegin,
+                                                 padEnd,
+                                                 dilation,
+                                                 paddingType,
+                                                 numOutChannels,
+                                                 numOfGroups);
+            break;
+        }
+        default: {
+            throw std::runtime_error("Conv1dConvertTransformationCPUTest doesn't support this type of operation");
+        }
         }
 
         ResultVector results;
@@ -84,41 +99,32 @@ TEST_P(Conv1dConvertTransformationCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<nodeType> convType = { nodeType::convolution, nodeType::groupConvolution };
-std::vector<InputShape> inputShapes1d = {
-        {{}, {{ 2, 64, 7 }}},
-        {{}, {{ 1, 32, 7 }}},
-        {
-            //dynamic shape
-            { -1, 64, {1, 20} },
-            { //target static shapes
-                { 2, 64, 7 },
-                { 1, 64, 9 }
-            }
-        },
-        {
-            //dynamic shape
-            { -1, 32, {1, 20} },
-            { //target static shapes
-                { 2, 32, 7 },
-                { 1, 32, 9 }
-            }
-        },
-        {
-            //dynamic shape
-            { {1, 20}, 64, -1 },
-            { //target static shapes
-                { 2, 64, 7 },
-                { 1, 64, 5 }
-            }
-        }
-};
+const std::vector<nodeType> convType = {nodeType::convolution, nodeType::groupConvolution};
+std::vector<InputShape> inputShapes1d = {{{}, {{2, 64, 7}}},
+                                         {{}, {{1, 32, 7}}},
+                                         {// dynamic shape
+                                          {-1, 64, {1, 20}},
+                                          {// target static shapes
+                                           {2, 64, 7},
+                                           {1, 64, 9}}},
+                                         {// dynamic shape
+                                          {-1, 32, {1, 20}},
+                                          {// target static shapes
+                                           {2, 32, 7},
+                                           {1, 32, 9}}},
+                                         {// dynamic shape
+                                          {{1, 20}, 64, -1},
+                                          {// target static shapes
+                                           {2, 64, 7},
+                                           {1, 64, 5}}}};
 
-const auto groupConvTransformationParams = ::testing::Combine(::testing::ValuesIn(convType),
-                                                              ::testing::ValuesIn(inputShapes1d));
+const auto groupConvTransformationParams =
+    ::testing::Combine(::testing::ValuesIn(convType), ::testing::ValuesIn(inputShapes1d));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest, Conv1dConvertTransformationCPUTest,
-                         groupConvTransformationParams, Conv1dConvertTransformationCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest,
+                         Conv1dConvertTransformationCPUTest,
+                         groupConvTransformationParams,
+                         Conv1dConvertTransformationCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

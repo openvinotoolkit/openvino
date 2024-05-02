@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "broadcast_inst.h"
 #include "broadcast_shape_inference.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
-#include <string>
-#include <vector>
-#include <set>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(broadcast)
@@ -29,16 +29,17 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
         for (size_t i = dims_converted.size(); i < 4; i++)
             dims_converted.push_back(1);  // extend shape to 4d
 
-        return { input_layout.data_type,
-                 input_layout.format,
-                 tensor(format::get_default_format(dims_converted.size()), dims_converted) };
+        return {input_layout.data_type,
+                input_layout.format,
+                tensor(format::get_default_format(dims_converted.size()), dims_converted)};
     } else {
-        return { input_layout.data_type, input_layout.format, desc->broadcast_sizes };
+        return {input_layout.data_type, input_layout.format, desc->broadcast_sizes};
     }
 }
 
-template<typename ShapeType>
-std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*node*/,
+                                                        const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<broadcast>();
     auto input0_layout = impl_param.get_input_layout(0);
 
@@ -47,19 +48,15 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         output_type = impl_param.get_output_element_type();
     }
 
-
     ov::op::v3::Broadcast op;
     op.set_broadcast_spec(desc->broadcast_mode);
     bool third_input_needed = desc->broadcast_mode == ov::op::BroadcastType::EXPLICIT;
     auto target_shape = desc->target_shape;
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
-                                                                   : ShapeType(ov::Shape{ target_shape.size() });
+                                                                   : ShapeType(ov::Shape{target_shape.size()});
     std::vector<ShapeType> output_shapes = {ShapeType{}};
-    std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        pattern_shape
-    };
+    std::vector<ShapeType> input_shapes = {input0_layout.get<ShapeType>(), pattern_shape};
 
     auto axes_mapping = desc->axes_mapping.to_vector();
     ShapeType axes_mapping_shape = ov::Shape{axes_mapping.size()};
@@ -68,8 +65,8 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     if (third_input_needed) {
         input_shapes.emplace_back(axes_mapping_shape);
 
-        auto axes_mapping_tensor = make_tensor({axes_mapping_shape, data_types::i64, format::bfyx},
-                                                    static_cast<void*>(axes_mapping.data()));
+        auto axes_mapping_tensor =
+            make_tensor({axes_mapping_shape, data_types::i64, format::bfyx}, static_cast<void*>(axes_mapping.data()));
         const_data.emplace(2, axes_mapping_tensor);
     }
 
@@ -81,24 +78,29 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() == 1) {
         // predefined pattern shape
-        auto target_shape_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(target_shape.data()));
+        auto target_shape_tensor =
+            make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
         output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() >= 2) {
         auto input1 = impl_param.get_input_layout(1);
         auto output_rank = input1.get<ShapeType>().size();
         if (input1.is_static()) {
-            output_rank = input1.get_dim(0);    // target shape rank is set as second input.
+            output_rank = input1.get_dim(0);  // target shape rank is set as second input.
         }
-        output_shapes[0] = desc->output_pshape.rank().is_static() ? desc->output_pshape : ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
+        output_shapes[0] = desc->output_pshape.rank().is_static()
+                               ? desc->output_pshape
+                               : ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> broadcast_inst::calc_output_layouts<ov::PartialShape>(broadcast_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> broadcast_inst::calc_output_layouts<ov::PartialShape>(
+    broadcast_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string broadcast_inst::to_string(broadcast_node const& node) {
     auto desc = node.get_primitive();
@@ -163,7 +165,9 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
     size_t input_index = broadcast_axes_size;
 
     OPENVINO_ASSERT(broadcast_axes_size >= 0 && broadcast_axes_size <= max_axes_num,
-                    "Incorrect parameters configuration: broadcast_axes size should be less or equal ", std::to_string(max_axes_num), ".");
+                    "Incorrect parameters configuration: broadcast_axes size should be less or equal ",
+                    std::to_string(max_axes_num),
+                    ".");
     for (size_t i = 0; i < broadcast_axes_size; ++i) {
         if (broadcast_axes.at(i) >= max_axes_num) {
             CLDNN_ERROR_MESSAGE(
@@ -195,7 +199,8 @@ broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& nod
             ++input_index;
         }
     }
-    tensor input_sizes_to_compare = tensor(format::get_default_format(reordered_input_dims.size()), reordered_input_dims);
+    tensor input_sizes_to_compare =
+        tensor(format::get_default_format(reordered_input_dims.size()), reordered_input_dims);
 
     CLDNN_ERROR_TENSOR_SIZES_NOT_DIVIDABLE(node.id(),
                                            "Broadcast sizes",

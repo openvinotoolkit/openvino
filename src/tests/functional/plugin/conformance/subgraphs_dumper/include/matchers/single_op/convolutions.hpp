@@ -14,13 +14,13 @@ class ConvolutionsMatcher : public SingleOpMatcher {
 public:
     ConvolutionsMatcher();
 
-    bool match_inputs(const std::shared_ptr<ov::Node> &node,
-                      const std::shared_ptr<ov::Node> &ref) const override;
-    bool match(const std::shared_ptr<ov::Node> &node,
-               const std::shared_ptr<ov::Node> &ref) const override;
+    bool match_inputs(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const override;
+    bool match(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const override;
 
 protected:
-    bool match_only_configured_ops() const override { return true; }
+    bool match_only_configured_ops() const override {
+        return true;
+    }
 };
 }  // namespace subgraph_dumper
 }  // namespace tools

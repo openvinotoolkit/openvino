@@ -4,29 +4,35 @@
 
 #include "shared_test_classes/single_op/loop.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/loop.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 
 namespace ov {
 namespace test {
-std::string LoopLayerTest::getTestCaseName(const testing::TestParamInfo<LoopParams> &obj) {
+std::string LoopLayerTest::getTestCaseName(const testing::TestParamInfo<LoopParams>& obj) {
     bool execute_first_iteration;
     bool is_body_condition_const;
-    bool body_condition; // works only if is_body_condition_const ==
+    bool body_condition;  // works only if is_body_condition_const ==
     int64_t trip_count;
     std::vector<InputShape> shapes;
     std::vector<LOOP_IN_TYPE> input_types;
     ov::element::Type model_type;
     std::string targetDevice;
-    std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, input_types, model_type,
-                targetDevice) = obj.param;
+    std::tie(execute_first_iteration,
+             is_body_condition_const,
+             body_condition,
+             trip_count,
+             shapes,
+             input_types,
+             model_type,
+             targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -56,28 +62,34 @@ std::string LoopLayerTest::getTestCaseName(const testing::TestParamInfo<LoopPara
 void LoopLayerTest::SetUp() {
     bool execute_first_iteration;
     bool is_body_condition_const;
-    bool body_condition; // works only if is_body_condition_const ==
+    bool body_condition;  // works only if is_body_condition_const ==
     int64_t trip_count;
     std::vector<InputShape> shapes;
     std::vector<LOOP_IN_TYPE> input_types;
     ov::element::Type model_type;
-    std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, input_types, model_type,
-                targetDevice) = this->GetParam();
+    std::tie(execute_first_iteration,
+             is_body_condition_const,
+             body_condition,
+             trip_count,
+             shapes,
+             input_types,
+             model_type,
+             targetDevice) = this->GetParam();
     init_input_shapes(shapes);
 
     // Example:
-/*  auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});
-    auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});
-    auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});*/
+    /*  auto X = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});
+        auto Y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});
+        auto M = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 10});*/
     ov::ParameterVector params;
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
     }
 
-    //Example:
-/*  auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
-    auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());*/
+    // Example:
+    /*  auto Xi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto Yi = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
+        auto M_body = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic());*/
 
     ov::ParameterVector body_params;
     for (int i = 0; i < inputDynamicShapes.size(); i++) {
@@ -86,10 +98,12 @@ void LoopLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> body_condition_const;
     if (is_body_condition_const) {
-            body_condition_const = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, body_condition);
+        body_condition_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, body_condition);
     }
     auto trip_count_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
-    auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, execute_first_iteration);
+    auto exec_condition =
+        std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, execute_first_iteration);
 
     // Body
     std::shared_ptr<ov::Node> Zo = body_params[0];
@@ -126,7 +140,7 @@ void LoopLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(ov::ResultVector{result0, result1, result2}, params, "loop");
 }
 
-std::string StaticShapeLoopLayerTest::getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj) {
+std::string StaticShapeLoopLayerTest::getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams>& obj) {
     bool unrolling;
     bool static_iter_num;
     bool static_continue_cond;
@@ -138,14 +152,8 @@ std::string StaticShapeLoopLayerTest::getTestCaseName(const testing::TestParamIn
     ov::element::Type model_type;
     std::string target_device;
     auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-    std::tie(
-        unrolling,
-        static_continue_cond,
-        args_papck,
-        start_value,
-        data_shape,
-        model_type,
-        target_device) = obj.param;
+    std::tie(unrolling, static_continue_cond, args_papck, start_value, data_shape, model_type, target_device) =
+        obj.param;
 
     std::ostringstream result;
     result << "unrolling=" << std::to_string(unrolling) << "_";
@@ -176,21 +184,17 @@ void StaticShapeLoopLayerTest::SetUp() {
     ov::Shape data_shape;
     ov::element::Type model_type;
     auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-    std::tie(
-        unrolling,
-        static_continue_cond,
-        args_papck,
-        start_value,
-        data_shape,
-        model_type,
-        targetDevice) = GetParam();
+    std::tie(unrolling, static_continue_cond, args_papck, start_value, data_shape, model_type, targetDevice) =
+        GetParam();
 
     const auto ngShape = ov::Shape{data_shape};
     const auto scalarShape = ov::Shape{};
 
     ov::ParameterVector params{};
-    auto cond_input_create = [&params] (ov::element::Type model_type, const ov::Shape &shape, int value = 0, bool is_static = false)
-            -> std::shared_ptr<ov::Node> {
+    auto cond_input_create = [&params](ov::element::Type model_type,
+                                       const ov::Shape& shape,
+                                       int value = 0,
+                                       bool is_static = false) -> std::shared_ptr<ov::Node> {
         if (is_static)
             return std::make_shared<ov::op::v0::Constant>(model_type, shape, value);
 
@@ -201,7 +205,7 @@ void StaticShapeLoopLayerTest::SetUp() {
 
     auto start = cond_input_create(model_type, ngShape);
     auto count = cond_input_create(ov::element::i64, scalarShape, max_iter_num, static_iter_num);
-    auto skip  = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
+    auto skip = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
 
     //
     //      count skip  start         count skip      start
@@ -220,7 +224,7 @@ void StaticShapeLoopLayerTest::SetUp() {
     auto b_indx = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
     auto b_data = std::make_shared<ov::op::v0::Parameter>(model_type, ngShape);
     auto b_indx_cast = std::make_shared<ov::op::v0::Convert>(b_indx, model_type);
-    auto b_add  = std::make_shared<ov::op::v1::Add>(b_data, b_indx_cast);
+    auto b_add = std::make_shared<ov::op::v1::Add>(b_data, b_indx_cast);
 
     std::shared_ptr<ov::Node> b_cond;
     if (dynamic_exit == -1) {
@@ -230,9 +234,8 @@ void StaticShapeLoopLayerTest::SetUp() {
         b_cond = std::make_shared<ov::op::v1::Less>(b_indx, b_exit_value);
     }
 
-    auto body = std::make_shared<ov::Model>(
-            ov::OutputVector    {b_cond, b_add},    // TODO: check with reverse
-            ov::ParameterVector {b_indx, b_data});  // TODO: check with reverse
+    auto body = std::make_shared<ov::Model>(ov::OutputVector{b_cond, b_add},       // TODO: check with reverse
+                                            ov::ParameterVector{b_indx, b_data});  // TODO: check with reverse
 
     auto loop = std::make_shared<ov::op::v5::Loop>(count, skip);
     loop->set_function(body);
@@ -243,9 +246,7 @@ void StaticShapeLoopLayerTest::SetUp() {
     else
         loop->get_concatenated_slices(b_add, 0, 1, 1, -1, axis);
 
-    function = std::make_shared<ov::Model>(
-            ov::OutputVector {loop},
-            params);
+    function = std::make_shared<ov::Model>(ov::OutputVector{loop}, params);
     if (unrolling) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::UnrollTensorIterator>();

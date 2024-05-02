@@ -4,6 +4,7 @@
 
 #pragma once
 #include <intel_gpu/primitives/slice.hpp>
+
 #include "primitive_inst.h"
 
 namespace cldnn {
@@ -27,14 +28,7 @@ using slice_node = typed_program_node<slice>;
 // likely you will needed to update this one too.
 class SliceKernelRefNeededInputs {
 public:
-    enum InputIndices {
-        kData,
-        kStart,
-        kEnd,
-        kStep,
-        kAxes,
-        kInputsNum
-    };
+    enum InputIndices { kData, kStart, kEnd, kStep, kAxes, kInputsNum };
 
     // Creates instance of SliceKernelRefNeededInputs.
     static SliceKernelRefNeededInputs Create(const slice_node& node);
@@ -55,8 +49,8 @@ class typed_primitive_inst<slice> : public typed_primitive_inst_base<slice> {
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-        static std::vector<layout> calc_output_layouts(const slice_node& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const slice_node& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(slice_node const& node);
 
@@ -86,4 +80,4 @@ inline bool SliceKernelRefNeededInputs::IsInputNeededInRuntime(InputIndices type
     return false;
 }
 
-} // namespace cldnn
+}  // namespace cldnn

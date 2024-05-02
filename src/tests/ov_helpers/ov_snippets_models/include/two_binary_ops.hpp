@@ -19,21 +19,23 @@ namespace snippets {
  */
 class BaseDummyOperation : public ov::op::Op {
 public:
-    BaseDummyOperation(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : Op({ arg0, arg1 }), output_type(output_type) {
+    BaseDummyOperation(const Output<Node>& arg0,
+                       const Output<Node>& arg1,
+                       const element::Type& output_type = element::undefined)
+        : Op({arg0, arg1}),
+          output_type(output_type) {
         constructor_validate_and_infer_types();
     }
 
     void validate_and_infer_types() override {
-        set_output_type(
-            0,
-            output_type == element::undefined ? get_input_element_type(0) : output_type,
-            get_input_partial_shape(0));
+        set_output_type(0,
+                        output_type == element::undefined ? get_input_element_type(0) : output_type,
+                        get_input_partial_shape(0));
     }
 
-    element::Type get_output_type() const { return output_type; }
+    element::Type get_output_type() const {
+        return output_type;
+    }
 
 protected:
     element::Type output_type;
@@ -47,14 +49,15 @@ class DummyOperation1 : public BaseDummyOperation {
 public:
     OPENVINO_OP("DummyOperation1", "test::snippets");
 
-    DummyOperation1(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+    DummyOperation1(const Output<Node>& arg0,
+                    const Output<Node>& arg1,
+                    const element::Type& output_type = element::undefined)
+        : BaseDummyOperation(arg0, arg1, output_type) {
         constructor_validate_and_infer_types();
     }
 
-    DummyOperation1(const BaseDummyOperation& op) : DummyOperation1(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+    DummyOperation1(const BaseDummyOperation& op)
+        : DummyOperation1(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
         constructor_validate_and_infer_types();
     }
 
@@ -71,14 +74,15 @@ class DummyOperation2 : public BaseDummyOperation {
 public:
     OPENVINO_OP("DummyOperation2", "test::snippets");
 
-    DummyOperation2(
-        const Output<Node>& arg0,
-        const Output<Node>& arg1,
-        const element::Type& output_type = element::undefined) : BaseDummyOperation(arg0, arg1, output_type) {
+    DummyOperation2(const Output<Node>& arg0,
+                    const Output<Node>& arg1,
+                    const element::Type& output_type = element::undefined)
+        : BaseDummyOperation(arg0, arg1, output_type) {
         constructor_validate_and_infer_types();
     }
 
-    DummyOperation2(const BaseDummyOperation& op) : DummyOperation2(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
+    DummyOperation2(const BaseDummyOperation& op)
+        : DummyOperation2(op.get_input_source_output(0), op.get_input_source_output(1), op.get_output_type()) {
         constructor_validate_and_infer_types();
     }
 
@@ -125,19 +129,18 @@ public:
         element::Type convertion_before_result;
     };
 
-    explicit TwoBinaryOpsFunction(
-        const std::vector<PartialShape> input_shapes,
-        const ov::element::Type precision1,
-        const ov::element::Type precision2,
-        const ov::element::Type constant_precision,
-        Actual actual,
-        Expected expected) :
-        SnippetsFunctionBase(input_shapes),
-        precision1(precision1),
-        precision2(precision2),
-        constant_precision(constant_precision),
-        actual(actual),
-        expected(expected) {
+    explicit TwoBinaryOpsFunction(const std::vector<PartialShape> input_shapes,
+                                  const ov::element::Type precision1,
+                                  const ov::element::Type precision2,
+                                  const ov::element::Type constant_precision,
+                                  Actual actual,
+                                  Expected expected)
+        : SnippetsFunctionBase(input_shapes),
+          precision1(precision1),
+          precision2(precision2),
+          constant_precision(constant_precision),
+          actual(actual),
+          expected(expected) {
         OPENVINO_ASSERT(input_shapes.size() == 2ull, "input_shapes size has to be equal to 2");
     }
 
@@ -155,17 +158,16 @@ private:
     /*
      * Returns model implicitly via getOriginal call in initOriginal or getReference in initReference.
      */
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type& precision1,
-        const ov::PartialShape& inputShape1,
-        const ov::element::Type& precision2,
-        const ov::PartialShape& inputShape2,
-        const ov::element::Type& constant_precision,
-        const std::pair<element::Type, element::Type>& convertion_before_op1,
-        const element::Type& convertion_before_op2_1,
-        const std::pair<element::Type, element::Type>& convertion_before_op2_2,
-        const element::Type& convertion_after_op2,
-        const element::Type& convertion_before_result = {});
+    static std::shared_ptr<ov::Model> get(const ov::element::Type& precision1,
+                                          const ov::PartialShape& inputShape1,
+                                          const ov::element::Type& precision2,
+                                          const ov::PartialShape& inputShape2,
+                                          const ov::element::Type& constant_precision,
+                                          const std::pair<element::Type, element::Type>& convertion_before_op1,
+                                          const element::Type& convertion_before_op2_1,
+                                          const std::pair<element::Type, element::Type>& convertion_before_op2_2,
+                                          const element::Type& convertion_after_op2,
+                                          const element::Type& convertion_before_result = {});
 };
 
 }  // namespace snippets

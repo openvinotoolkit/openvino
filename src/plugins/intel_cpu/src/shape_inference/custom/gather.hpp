@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -13,11 +14,14 @@ using Result = IShapeInfer::Result;
 
 class GatherShapeInfer : public ShapeInferEmptyPads {
 public:
-    GatherShapeInfer(bool isAxisInputConst, bool isIndicesScalar, int axis, int batchDims) : m_isAxisInputConst(isAxisInputConst),
-                     m_isIndicesScalar(isIndicesScalar), m_axis(axis), m_batchDims(batchDims) {}
+    GatherShapeInfer(bool isAxisInputConst, bool isIndicesScalar, int axis, int batchDims)
+        : m_isAxisInputConst(isAxisInputConst),
+          m_isIndicesScalar(isIndicesScalar),
+          m_axis(axis),
+          m_batchDims(batchDims) {}
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     port_mask_t get_port_mask() const override {
         return PortMask(2);
     }
@@ -37,7 +41,6 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

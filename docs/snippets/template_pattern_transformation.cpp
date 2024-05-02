@@ -10,8 +10,8 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "template_model_transformation.hpp"
+#include "transformations/utils/utils.hpp"
 
 // ! [graph_rewrite:template_transformation_cpp]
 // template_pattern_transformation.cpp

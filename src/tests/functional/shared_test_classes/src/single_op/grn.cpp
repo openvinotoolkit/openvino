@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/single_op/grn.hpp"
 
+#include "openvino/op/grn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/grn.hpp"
 
 namespace ov {
 namespace test {
@@ -31,7 +31,7 @@ std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams
         result << "}_";
     }
     result << "modelType=" << model_type.get_type_name() << '_';
-    result << "bias="   << bias << '_';
+    result << "bias=" << bias << '_';
     result << "trgDev=" << '_';
     return result.str();
 }

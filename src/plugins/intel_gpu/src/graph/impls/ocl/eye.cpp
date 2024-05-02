@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "eye_inst.h"
 #include "eye/eye_kernel_ref.h"
 #include "eye/eye_kernel_selector.h"
+#include "eye_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

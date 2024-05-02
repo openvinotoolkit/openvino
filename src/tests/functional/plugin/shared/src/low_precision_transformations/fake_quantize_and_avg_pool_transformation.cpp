@@ -5,17 +5,18 @@
 #include "low_precision_transformations/fake_quantize_and_avg_pool_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/avg_pool.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
+std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(
+    const testing::TestParamInfo<FakeQuantizeAndAvgPoolTransformationParams>& obj) {
     ov::element::Type precision;
     ov::PartialShape inputShapes;
     std::string targetDevice;
@@ -35,10 +36,7 @@ void FakeQuantizeAndAvgPoolTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::AvgPoolFunction::getOriginal(
-        precision,
-        inputShape,
-        fakeQuantize);
+    function = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision, inputShape, fakeQuantize);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

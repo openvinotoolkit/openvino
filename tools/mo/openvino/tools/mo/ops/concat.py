@@ -8,26 +8,30 @@ from openvino.tools.mo.ops.op import Op
 
 
 class Concat(Op):
-    op = 'Concat'
+    op = "Concat"
     enabled = True
 
     def __init__(self, graph, attrs: dict):
-        super().__init__(graph, {
-            'type': self.op,
-            'op': self.op,
-            'version': 'opset1',
-            'axis': 1,
-            'infer': concat_infer,
-            'reverse_infer': self.reverse_infer,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": self.op,
+                "op": self.op,
+                "version": "opset1",
+                "axis": 1,
+                "infer": concat_infer,
+                "reverse_infer": self.reverse_infer,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )
 
     def supported_attrs(self):
-        return ['axis']
+        return ["axis"]
 
     @staticmethod
     def reverse_infer(node: Node):
-        assert hasattr(node, 'axis')
+        assert hasattr(node, "axis")
         out_shape = node.out_port(0).data.get_shape()
 
         if out_shape is None:

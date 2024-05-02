@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/softmax.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/softmax.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/log_softmax.hpp"
 #include "openvino/op/softmax.hpp"
@@ -17,9 +18,7 @@ static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1:
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-    auto softmaxPrim = cldnn::softmax(layerName,
-                                      inputs[0],
-                                      op->get_axis());
+    auto softmaxPrim = cldnn::softmax(layerName, inputs[0], op->get_axis());
     p.add_primitive(*op, softmaxPrim);
 }
 
@@ -30,9 +29,7 @@ static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8:
 
     int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
-    auto softmaxPrim = cldnn::softmax(layerName,
-                                      inputs[0],
-                                      axis);
+    auto softmaxPrim = cldnn::softmax(layerName, inputs[0], axis);
     p.add_primitive(*op, softmaxPrim);
 }
 
@@ -44,11 +41,12 @@ static void CreateLogSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
-    auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
-                                      inputs[0],
-                                      axis);
+    auto softmaxPrim = cldnn::softmax(layerNameSoftmax, inputs[0], axis);
 
-    auto logPrim = cldnn::activation(layerName, cldnn::input_info(layerNameSoftmax), cldnn::activation_func::log, {(0.0F), (0.0F)});
+    auto logPrim = cldnn::activation(layerName,
+                                     cldnn::input_info(layerNameSoftmax),
+                                     cldnn::activation_func::log,
+                                     {(0.0F), (0.0F)});
 
     p.add_primitive(*op, softmaxPrim);
     p.add_primitive(*op, logPrim);

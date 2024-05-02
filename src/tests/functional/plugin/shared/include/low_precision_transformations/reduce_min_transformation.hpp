@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class ReduceMinTransformationParam {
@@ -18,17 +18,15 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ReduceMinTransformationParam
-> ReduceMinTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   ReduceMinTransformationParam>
+    ReduceMinTransformationParams;
 
-class ReduceMinTransformation :
-    public testing::WithParamInterface<ReduceMinTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class ReduceMinTransformation : public testing::WithParamInterface<ReduceMinTransformationParams>,
+                                public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReduceMinTransformationParams>& obj);
 

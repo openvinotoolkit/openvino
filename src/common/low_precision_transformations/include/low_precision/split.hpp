@@ -28,11 +28,10 @@ public:
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    void updateOutputs(
-        TransformationContext& context,
-        std::vector<std::shared_ptr<ov::Node>> lastNodes,
-        std::shared_ptr<ov::Node> originalNode) const;
+    void updateOutputs(TransformationContext& context,
+                       std::vector<std::shared_ptr<ov::Node>> lastNodes,
+                       std::shared_ptr<ov::Node> originalNode) const;
 };
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

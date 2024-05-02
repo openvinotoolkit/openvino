@@ -6,8 +6,8 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "internal_properties.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {

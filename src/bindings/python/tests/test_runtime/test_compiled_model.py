@@ -3,19 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-import pytest
-import numpy as np
 
+import numpy as np
+import openvino.properties as props
+import pytest
+from openvino.runtime import ConstOutput
 from tests.utils.helpers import (
-    get_relu_model,
+    create_filename_for_test,
     generate_image,
     generate_model_and_image,
     generate_relu_compiled_model,
-    create_filename_for_test)
-from openvino import Model, Shape, Core, Tensor, serialize
-from openvino.runtime import ConstOutput
+    get_relu_model,
+)
 
-import openvino.properties as props
+from openvino import Core, Model, Shape, Tensor, serialize
 
 
 def test_get_property(device):
@@ -39,8 +40,12 @@ def test_get_runtime_model(device):
 def test_export_import(device):
     core = Core()
 
-    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
-        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(
+        device, props.device.capabilities
+    ):
+        pytest.skip(
+            f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented."
+        )
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -59,8 +64,12 @@ def test_export_import_advanced(device):
 
     core = Core()
 
-    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
-        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(
+        device, props.device.capabilities
+    ):
+        pytest.skip(
+            f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented."
+        )
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -166,7 +175,9 @@ def test_inputs_docs(device):
     compiled_model = generate_relu_compiled_model(device)
 
     input_0 = compiled_model.inputs[0]
-    assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
+    assert (
+        input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
+    )
 
 
 def test_infer_new_request_numpy(device):
@@ -182,7 +193,9 @@ def test_infer_new_request_tensor_numpy_copy(device):
     res_tensor = compiled_model.infer_new_request({"data": tensor})
     res_img = compiled_model.infer_new_request({"data": img})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 531
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(
+        res_img[list(res_img)[0]]
+    )
 
 
 def test_infer_tensor_numpy_shared_memory(device):
@@ -193,7 +206,9 @@ def test_infer_tensor_numpy_shared_memory(device):
     res_tensor = compiled_model.infer_new_request({"data": tensor})
     res_img = compiled_model.infer_new_request({"data": img})
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == 531
-    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
+    assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(
+        res_img[list(res_img)[0]]
+    )
 
 
 def test_infer_new_request_wrong_port_name(device):
@@ -211,7 +226,7 @@ def test_infer_tensor_wrong_input_data(device):
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     with pytest.raises(TypeError) as e:
-        compiled_model.infer_new_request({0.: tensor})
+        compiled_model.infer_new_request({0.0: tensor})
     assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
@@ -223,7 +238,9 @@ def test_direct_infer(device, shared_flag):
     res = compiled_model({"data": tensor}, share_inputs=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
-    assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
+    assert np.array_equal(
+        ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]]
+    )
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -241,7 +258,14 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     del core
     del model
     # check compiled and infer request can work properly after core object is destroyed
-    compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+    compiled(
+        [
+            np.random.normal(size=list(input.shape)).astype(
+                dtype=input.get_element_type().to_dtype()
+            )
+            for input in compiled.inputs
+        ]
+    )
 
 
 def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
@@ -255,4 +279,11 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
         xml = f.read()
 
     compiled = core.compile_model(model=xml, weights=weights, device_name=device)
-    _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+    _ = compiled(
+        [
+            np.random.normal(size=list(input.shape)).astype(
+                dtype=input.get_element_type().to_dtype()
+            )
+            for input in compiled.inputs
+        ]
+    )

@@ -64,4 +64,3 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
 
 }  // namespace test
 }  // namespace ov
-

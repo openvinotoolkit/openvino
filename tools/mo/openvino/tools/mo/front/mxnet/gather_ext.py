@@ -5,7 +5,7 @@ from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class GatherFrontExtractor(FrontExtractorOp):
-    op = 'Embedding'
+    op = "Embedding"
     enabled = True
 
     @classmethod

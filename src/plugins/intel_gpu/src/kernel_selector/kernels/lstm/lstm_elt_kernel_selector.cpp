@@ -3,10 +3,13 @@
 //
 
 #include "lstm_elt_kernel_selector.h"
+
 #include "lstm_elt_kernel_ref.h"
 
 namespace kernel_selector {
-lstm_elt_kernel_selector::lstm_elt_kernel_selector() { Attach<LSTMEltKernelRef>(); }
+lstm_elt_kernel_selector::lstm_elt_kernel_selector() {
+    Attach<LSTMEltKernelRef>();
+}
 
 KernelsData lstm_elt_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::LSTM_ELT);

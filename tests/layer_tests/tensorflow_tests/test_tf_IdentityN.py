@@ -13,12 +13,14 @@ class TestIdentityN(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             axis = tf.constant(axis_value, dtype=tf.int32)
             size_splits = tf.constant(size_splits_values, dtype=tf.int32)
-            value = tf.compat.v1.placeholder(tf.float32, value_shape, 'value')
+            value = tf.compat.v1.placeholder(tf.float32, value_shape, "value")
             num_split = len(size_splits_values)
             # we have to do a trick using Split operation to avoid fusing output tensors into input tensors
             # so that Parameter node will contain both input and output tensor names
             # 97192: this is a limitation of layer test infrastructure
-            split = tf.raw_ops.SplitV(value=value, size_splits=size_splits, axis=axis, num_split=num_split)
+            split = tf.raw_ops.SplitV(
+                value=value, size_splits=size_splits, axis=axis, num_split=num_split
+            )
             split_outputs = []
             for output_ind in range(num_split):
                 split_outputs.append(split[output_ind])
@@ -38,8 +40,14 @@ class TestIdentityN(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        self._test(*self.create_identityn_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_split_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_identityn_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

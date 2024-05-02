@@ -7,14 +7,13 @@
 """
 import errno
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def get_openvino_environment(install_prefix: Path):
-    """ Get OpenVINO environment variables
-    """
+    """Get OpenVINO environment variables"""
     if sys.platform == "win32":
         script = install_prefix / "setupvars.bat"
         cmd = f"{script} && set"

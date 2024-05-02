@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class ClampTransformationParam {
@@ -17,19 +17,18 @@ public:
     double clampHighConst;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ClampTransformationParam
-> ClampTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   ClampTransformationParam>
+    ClampTransformationParams;
 
-class ClampTransformation :
-    public testing::WithParamInterface<ClampTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class ClampTransformation : public testing::WithParamInterface<ClampTransformationParams>,
+                            public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj);
+
 protected:
     void SetUp() override;
 };

@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import openvino as ov
 from snippets import get_model
+
+import openvino as ov
 
 
 def main():
     model = get_model()
-    
+
     core = ov.Core()
     if "GPU" not in core.available_devices:
         return 0
@@ -35,5 +36,7 @@ def main():
 
     #! [dynamic_batch]
 
-    assert list(results.keys())[0].partial_shape == ov.PartialShape([(1, 10), 3, 224, 224])
+    assert list(results.keys())[0].partial_shape == ov.PartialShape(
+        [(1, 10), 3, 224, 224]
+    )
     assert list(results.values())[0].shape == tuple(ov.Shape([2, 3, 224, 224]))

@@ -7,7 +7,7 @@
 namespace ov {
 namespace test {
 
-std::string BroadcastEltwiseEliminated::getTestCaseName(const testing::TestParamInfo<const char*> &obj) {
+std::string BroadcastEltwiseEliminated::getTestCaseName(const testing::TestParamInfo<const char*>& obj) {
     return "device=" + std::string(obj.param);
 }
 
@@ -38,7 +38,7 @@ void BroadcastEltwiseEliminated::TearDown() {
             num_ops++;
         EXPECT_NE(layer_type, "Broadcast");
     }
-    ASSERT_EQ(num_ops, 3); // one Input, one Eltwise and one Output
+    ASSERT_EQ(num_ops, 3);  // one Input, one Eltwise and one Output
 }
 
 }  // namespace test

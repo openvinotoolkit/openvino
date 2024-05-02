@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/depth_to_space.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
 
 namespace ov {
@@ -14,11 +13,12 @@ namespace intel_gpu {
 
 static cldnn::depth_to_space_mode GetDepthMode(ov::op::v0::DepthToSpace::DepthToSpaceMode mode) {
     switch (mode) {
-        case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
-            return cldnn::depth_to_space_mode::blocks_first;
-        case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
-            return cldnn::depth_to_space_mode::depth_first;
-        default: OPENVINO_THROW("Unsupported DepthToSpaceMode value: ", static_cast<int>(mode));
+    case ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+        return cldnn::depth_to_space_mode::blocks_first;
+    case ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+        return cldnn::depth_to_space_mode::depth_first;
+    default:
+        OPENVINO_THROW("Unsupported DepthToSpaceMode value: ", static_cast<int>(mode));
     }
     return cldnn::depth_to_space_mode::blocks_first;
 }
@@ -31,10 +31,7 @@ static void CreateDepthToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     size_t blockSize = op->get_block_size();
     cldnn::depth_to_space_mode mode = GetDepthMode(op->get_mode());
 
-    auto depthToSpacePrim = cldnn::depth_to_space(layerName,
-                                                  inputPrimitives[0],
-                                                  blockSize,
-                                                  mode);
+    auto depthToSpacePrim = cldnn::depth_to_space(layerName, inputPrimitives[0], blockSize, mode);
 
     p.add_primitive(*op, depthToSpacePrim);
 }

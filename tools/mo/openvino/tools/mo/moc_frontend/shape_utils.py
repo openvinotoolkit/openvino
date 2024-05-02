@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from openvino.runtime import PartialShape, Dimension
-from openvino.tools.mo.utils.error import Error
+from openvino.runtime import Dimension, PartialShape
+
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, split_shapes
+from openvino.tools.mo.utils.error import Error
 
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
@@ -67,8 +68,8 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
 
 def parse_input_shapes(argv):
     input_shapes = None
-    if 'input_shape' in argv and argv['input_shape'] is not None:
-        shapes = argv['input_shape']
+    if "input_shape" in argv and argv["input_shape"] is not None:
+        shapes = argv["input_shape"]
         if isinstance(shapes, str):
             shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
         if isinstance(shapes, list) or isinstance(shapes, tuple):
@@ -76,11 +77,17 @@ def parse_input_shapes(argv):
             is_single_shape = False
             for shape in shapes:
                 if isinstance(shape, str):
-                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
+                    _, shape_tuple, _ = get_placeholder_shapes(
+                        argv_input=None, argv_input_shape=shape
+                    )
                     input_shapes.append(shape_tuple)
                     if is_single_shape:
                         raise Error("Incorrect format of shape.")
-                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
+                elif (
+                    isinstance(shape, int)
+                    or isinstance(shape, np.int64)
+                    or isinstance(shape, Dimension)
+                ):
                     is_single_shape = True
                     input_shapes.append(shape)
                 else:
@@ -94,6 +101,7 @@ def parse_input_shapes(argv):
         else:
             try:
                 import torch
+
                 if isinstance(shapes, torch.Size):
                     return [shapes]
             except ImportError:

@@ -31,7 +31,13 @@ def update_components(item):
     components = item.get_closest_marker(MarkGeneral.COMPONENTS.mark)
     if components is not None:
         current_components = next(
-            (component for component in item.own_markers if component.name == MarkGeneral.COMPONENTS.mark), None)
+            (
+                component
+                for component in item.own_markers
+                if component.name == MarkGeneral.COMPONENTS.mark
+            ),
+            None,
+        )
         if current_components is None:
             item.own_markers.append(components)
 
@@ -78,18 +84,26 @@ def deselect(item, test_type, required_marker_ids):
 
 
 def _test_deselected(item):
-    result = any([
-        MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_ON_COMMIT and not config.run_on_commit_tests,
-        MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_REGRESSION and not config.run_regression_tests,
-        MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_ENABLING and not config.run_enabling_tests,
-    ])
+    result = any(
+        [
+            MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_ON_COMMIT
+            and not config.run_on_commit_tests,
+            MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_REGRESSION
+            and not config.run_regression_tests,
+            MarkRunType.get_test_type_mark(item) == MarkRunType.TEST_MARK_ENABLING
+            and not config.run_enabling_tests,
+        ]
+    )
     return result
 
 
 def _is_test_marker_id_is_matched_with_id(test, id_to_check: str):
     for marker in test.own_markers:
-        if marker.name is MarkGeneral.BUGS.value or marker.name is MarkGeneral.REQIDS.value or \
-                marker.name is MarkGeneral.COMPONENTS.value:
+        if (
+            marker.name is MarkGeneral.BUGS.value
+            or marker.name is MarkGeneral.REQIDS.value
+            or marker.name is MarkGeneral.COMPONENTS.value
+        ):
             marker_arg = marker.args[0]
             if isinstance(marker_arg, dict):
                 for param in marker_arg:
@@ -104,7 +118,9 @@ def _is_test_marker_id_is_matched_with_id(test, id_to_check: str):
                 if id_to_check in marker_arg:
                     return True
             else:
-                raise RuntimeError(f"Test {test.name} do not have mark in correct form. Form: {type(marker_arg)} ")
+                raise RuntimeError(
+                    f"Test {test.name} do not have mark in correct form. Form: {type(marker_arg)} "
+                )
     return False
 
 

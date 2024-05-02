@@ -7,14 +7,12 @@ import subprocess
 import sys
 
 import numpy as np
+import openvino.runtime.opset13 as ops
+import pytest
+from openvino.helpers import pack_data, unpack_data
+from tests.utils.helpers import generate_image, generate_relu_compiled_model
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
-from openvino.helpers import pack_data, unpack_data
-
-import pytest
-
-from tests.utils.helpers import generate_image, generate_relu_compiled_model
 
 
 @pytest.mark.parametrize(
@@ -49,7 +47,10 @@ def test_init_with_ov_type(ov_type, numpy_dtype):
 
 
 def test_subprocess():
-    args = [sys.executable, os.path.join(os.path.dirname(__file__), "subprocess_test_tensor.py")]
+    args = [
+        sys.executable,
+        os.path.join(os.path.dirname(__file__), "subprocess_test_tensor.py"),
+    ]
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode
@@ -369,7 +370,9 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov_tensor.get_strides()
-    assert "Could not get strides for types with bitwidths less then 8 bit." in str(e.value)
+    assert "Could not get strides for types with bitwidths less then 8 bit." in str(
+        e.value
+    )
 
 
 @pytest.mark.parametrize(
@@ -458,8 +461,12 @@ def test_packing(shape, low, high, ov_type, dtype):
 def test_viewed_tensor(dtype, element_type):
     buffer = np.random.normal(size=(2, 16)).astype(dtype)
     fit = (dtype().nbytes * 8) / element_type.bitwidth
-    tensor = ov.Tensor(buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type)
-    assert np.array_equal(tensor.data, buffer.view(ov.runtime.utils.types.get_dtype(element_type)))
+    tensor = ov.Tensor(
+        buffer, (buffer.shape[0], int(buffer.shape[1] * fit)), element_type
+    )
+    assert np.array_equal(
+        tensor.data, buffer.view(ov.runtime.utils.types.get_dtype(element_type))
+    )
 
 
 def test_viewed_tensor_default_type():

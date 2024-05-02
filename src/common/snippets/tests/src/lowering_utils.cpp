@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/ov_test_utils.hpp>
 #include "lowering_utils.hpp"
-#include "snippets/pass/tokenization.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
-#include "snippets/lowered/expression.hpp"
 
+#include <common_test_utils/ov_test_utils.hpp>
+
+#include "snippets/lowered/expression.hpp"
+#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&custom_opset) {
-    auto dummy_functor = ov::snippets::jitters_value {
-        [](const ov::snippets::lowered::ExpressionPtr& n) { return std::make_shared<DummyEmitter>(); },
-        [](const std::shared_ptr<ov::Node>& n) { return std::set<std::vector<element::Type>>{};}
-    };
+DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>& custom_opset) {
+    auto dummy_functor = ov::snippets::jitters_value{[](const ov::snippets::lowered::ExpressionPtr& n) {
+                                                         return std::make_shared<DummyEmitter>();
+                                                     },
+                                                     [](const std::shared_ptr<ov::Node>& n) {
+                                                         return std::set<std::vector<element::Type>>{};
+                                                     }};
 
     jitters[op::v0::Parameter::get_type_info_static()] = dummy_functor;
     jitters[op::v0::Constant::get_type_info_static()] = dummy_functor;
@@ -101,32 +104,39 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
                             "Functions provided for lowering tests contains more than one subgraph.");
             subgraph = as_type_ptr<ov::snippets::op::Subgraph>(op);
         }
-        OPENVINO_ASSERT(is_subgraph ||
-                        is_type<ov::op::v0::Parameter>(op) ||
-                        is_type<ov::op::v0::Constant>(op) ||
-                        is_type<ov::op::v0::Result>(op),
-                     "Models provided for lowering tests is not fully tokenizable");
+        OPENVINO_ASSERT(is_subgraph || is_type<ov::op::v0::Parameter>(op) || is_type<ov::op::v0::Constant>(op) ||
+                            is_type<ov::op::v0::Result>(op),
+                        "Models provided for lowering tests is not fully tokenizable");
     }
     return subgraph;
 }
 
-std::shared_ptr<ov::snippets::op::Subgraph>
-        LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
-                                          const std::vector<ov::snippets::pass::Manager::PositionedPassBase>& backend_passes,
-                                          const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config,
-                                          const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
-                                          const std::shared_ptr<ov::snippets::Generator>& generator,
-                                          size_t min_parallel_work_amount, size_t min_kernel_work_amount,
-                                          const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
+std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(
+    const std::shared_ptr<Model>& f,
+    const std::vector<ov::snippets::pass::Manager::PositionedPassBase>& backend_passes,
+    const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config,
+    const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,
+    const std::shared_ptr<ov::snippets::Generator>& generator,
+    size_t min_parallel_work_amount,
+    size_t min_kernel_work_amount,
+    const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(generator == nullptr ? std::make_shared<DummyGenerator>() : generator);
     subgraph->set_tile_rank(2);
     // Note: lowered_pipeline would have no effect on subgraph body, since it's applied on linear IR
-    subgraph->generate({}, {}, {}, backend_passes, lowered_pass_config, lowered_backend_passes, min_parallel_work_amount, min_kernel_work_amount, factory);
+    subgraph->generate({},
+                       {},
+                       {},
+                       backend_passes,
+                       lowered_pass_config,
+                       lowered_backend_passes,
+                       min_parallel_work_amount,
+                       min_kernel_work_amount,
+                       factory);
     return subgraph;
 }
 
-std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(const std::shared_ptr<Model> &f) {
+std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getTokenizedSubgraph(const std::shared_ptr<Model>& f) {
     // Perform tokenization
     ov::pass::Manager m;
     m.register_pass<ov::snippets::pass::EnumerateNodes>();

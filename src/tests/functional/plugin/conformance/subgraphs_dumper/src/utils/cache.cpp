@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils/cache.hpp"
+
 #include <fstream>
 
-#include "openvino/util/file_util.hpp"
-#include "utils/cache.hpp"
 #include "op_conformance_utils/utils/file.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace util {
@@ -20,14 +21,16 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
         ov::util::create_directory_recursive(cache_status_path);
     }
     for (const auto& status_info : caching_status) {
-        std::string output_file_path = ov::util::path_join({ cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION});
+        std::string output_file_path =
+            ov::util::path_join({cache_status_path, model_cache_status_to_str[status_info.first] + LST_EXTENSION});
         vector_to_file(status_info.second, output_file_path);
     }
 }
 
 // { models, { not_read_model }}
-std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
-find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
+std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>> find_models(
+    const std::vector<std::string>& dirs,
+    const std::string& regexp) {
     std::vector<std::string> models, full_content, not_read_model;
     for (const auto& dir : dirs) {
         std::vector<std::string> dir_content;
@@ -50,13 +53,14 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
                 // models.emplace_back(file);
                 if (ov::util::file_exists(model_file)) {
                     auto model_size = core->read_model(model_file)->get_graph_size();
-                    models_sorted_by_size.insert({ model_size, model_file});
+                    models_sorted_by_size.insert({model_size, model_file});
                 } else {
                     continue;
                 }
             } catch (std::exception) {
                 not_read_model.emplace_back(model_file);
-                // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " << e.what();
+                // std::cout << "[ ERROR ] Impossible to read model: " << model_file << std::endl << "Exception: " <<
+                // e.what();
             }
         }
     }
@@ -69,7 +73,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
         ++it;
     }
     std::cout << "[ INFO ] Total model number is " << models.size() << std::endl;
-    return { models, { ModelCacheStatus::NOT_READ, not_read_model } };
+    return {models, {ModelCacheStatus::NOT_READ, not_read_model}};
 }
 
 #undef LST_EXTENSION
@@ -77,13 +81,14 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::shared_ptr<ov::tools::subgraph_dumper::ICache>& cache,
     const std::vector<std::string>& models,
-    bool extract_body, bool from_cache) {
+    bool extract_body,
+    bool from_cache) {
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
-        { ModelCacheStatus::SUCCEED, {} },
-        { ModelCacheStatus::NOT_FULLY_CACHED, {} },
-        { ModelCacheStatus::NOT_READ, {} },
-        { ModelCacheStatus::LARGE_MODELS_EXCLUDED, {} },
-        { ModelCacheStatus::LARGE_MODELS_INCLUDED, {} },
+        {ModelCacheStatus::SUCCEED, {}},
+        {ModelCacheStatus::NOT_FULLY_CACHED, {}},
+        {ModelCacheStatus::NOT_READ, {}},
+        {ModelCacheStatus::LARGE_MODELS_EXCLUDED, {}},
+        {ModelCacheStatus::LARGE_MODELS_INCLUDED, {}},
     };
     auto models_size = models.size();
 
@@ -104,7 +109,8 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                     }
                     cache->update_cache(function, model, extract_body, from_cache);
                 } catch (std::exception& e) {
-                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl
+                              << e.what() << std::endl;
                     model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
             } catch (std::exception) {

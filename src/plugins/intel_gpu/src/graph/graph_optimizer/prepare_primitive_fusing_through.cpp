@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "pass_manager.h"
-#include "program_helpers.h"
-#include "strided_slice_inst.h"
-#include "reshape_inst.h"
-#include "reduce_inst.h"
+#include <memory>
+#include <vector>
+
 #include "data_inst.h"
 #include "eltwise_inst.h"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "mutable_data_inst.h"
-#include <vector>
-#include <memory>
+#include "pass_manager.h"
+#include "program_helpers.h"
+#include "reduce_inst.h"
+#include "reshape_inst.h"
+#include "strided_slice_inst.h"
 
 using namespace cldnn;
 
@@ -38,17 +39,16 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (node->get_users().size() > 1)
                 return false;
 
-            if (node->is_type<reorder>() &&
-                node->get_output_layout().data_type != node->get_input_layout(0).data_type)
+            if (node->is_type<reorder>() && node->get_output_layout().data_type != node->get_input_layout(0).data_type)
                 return false;
 
-            // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized out.
+            // Not to fuse reshape after Reduce changing the order of un-reduced axes. It is expected to be optimized
+            // out.
             if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
             // Not to raise up target node through reshape where the size of dimension is changed (e.g. Unsqueeze)
-            if (node->is_type<reshape>() &&
-                node->get_output_pshape().size() != node->get_input_pshape(0).size())
+            if (node->is_type<reshape>() && node->get_output_pshape().size() != node->get_input_pshape(0).size())
                 return false;
 
             return true;
@@ -83,13 +83,12 @@ void prepare_primitive_fusing_through::run(program& p) {
             input_node = &node->get_dependency(0);
         } else if (node->is_type<quantize>()) {
             auto& quantize_node = node->as<quantize>();
-            bool per_tensor_values = quantize_node.get_scale_shift_opt() &&
-                                     quantize_node.get_per_tensor_input_scale() &&
-                                     (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
-                                     quantize_node.get_per_tensor_input_range() &&
-                                     quantize_node.get_per_tensor_output_scale() &&
-                                     (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
-                                     quantize_node.get_per_tensor_output_range();
+            bool per_tensor_values =
+                quantize_node.get_scale_shift_opt() && quantize_node.get_per_tensor_input_scale() &&
+                (quantize_node.get_per_tensor_input_shift() || !quantize_node.get_need_pre_shift()) &&
+                quantize_node.get_per_tensor_input_range() && quantize_node.get_per_tensor_output_scale() &&
+                (quantize_node.get_per_tensor_output_shift() || !quantize_node.get_need_post_shift()) &&
+                quantize_node.get_per_tensor_output_range();
 
             if (!per_tensor_values)
                 continue;
@@ -133,15 +132,14 @@ void prepare_primitive_fusing_through::run(program& p) {
 
         // Check broadcastable for fused eltwise's output
         if (node->is_type<eltwise>()) {
-            auto out_shape = new_prev->get_output_layout().get_partial_shape();  // new_prev's layout became node's new layout after fusing
+            auto out_shape = new_prev->get_output_layout()
+                                 .get_partial_shape();  // new_prev's layout became node's new layout after fusing
             auto in_shape = node->get_dependency(1).get_output_layout().get_partial_shape();
             if (!broadcastable(in_shape, out_shape, true, true))
                 continue;
         }
 
-        if (new_prev->is_type<input_layout>() ||
-            new_prev->is_type<mutable_data>() ||
-            new_prev->is_type<quantize>())
+        if (new_prev->is_type<input_layout>() || new_prev->is_type<mutable_data>() || new_prev->is_type<quantize>())
             continue;
 
         std::vector<cldnn::program_node*> dependencies;
@@ -174,7 +172,9 @@ void prepare_primitive_fusing_through::run(program& p) {
                 // We can't modify reorder's output type directly, so replace old node with new one
                 auto reorder_layout = itermediate_node->get_output_layout();
                 reorder_layout.data_type = target_dt;
-                auto r_prim = std::make_shared<reorder>(itermediate_node->id() + "_reorder_to_req_dt", itermediate_node->id(), reorder_layout);
+                auto r_prim = std::make_shared<reorder>(itermediate_node->id() + "_reorder_to_req_dt",
+                                                        itermediate_node->id(),
+                                                        reorder_layout);
                 auto& new_reorder = p.get_or_create(r_prim);
 
                 p.add_intermediate(new_reorder, *itermediate_node->get_users().front(), *itermediate_node);

@@ -4,11 +4,12 @@
 import unittest
 from unittest.mock import patch
 
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
+
 from openvino.tools.mo.front.caffe.argmax_ext import ArgMaxFrontExtractor
 from openvino.tools.mo.ops.argmax import ArgMaxOp, arg_ops_infer
 from openvino.tools.mo.ops.op import Op
-from unit_tests.utils.extractors import FakeMultiParam
-from unit_tests.utils.graph import FakeNode
 
 
 class FakeArgMaxProtoLayer:
@@ -19,21 +20,15 @@ class FakeArgMaxProtoLayer:
 class TestArgMaxExt(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['ArgMax'] = ArgMaxOp
+        Op.registered_ops["ArgMax"] = ArgMaxOp
 
     def test_argmax_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ArgMaxFrontExtractor.extract, None)
 
-    @patch('openvino.tools.mo.front.caffe.argmax_ext.merge_attrs')
+    @patch("openvino.tools.mo.front.caffe.argmax_ext.merge_attrs")
     def test_argmax_ext_ideal_numbers(self, merge_attrs_mock):
-        params = {
-            'out_max_val': True,
-            'top_k': 100,
-            'axis': 2
-        }
-        merge_attrs_mock.return_value = {
-            **params
-        }
+        params = {"out_max_val": True, "top_k": 100, "axis": 2}
+        merge_attrs_mock.return_value = {**params}
 
         fake_pl = FakeArgMaxProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
@@ -41,11 +36,11 @@ class TestArgMaxExt(unittest.TestCase):
         ArgMaxFrontExtractor.extract(fake_node)
 
         exp_res = {
-            'out_max_val': True,
-            'top_k': 100,
-            'axis': 2,
-            'infer': arg_ops_infer,
-            'remove_values_output': True,
+            "out_max_val": True,
+            "top_k": 100,
+            "axis": 2,
+            "infer": arg_ops_infer,
+            "remove_values_output": True,
         }
 
         for key in exp_res.keys():

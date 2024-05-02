@@ -2,32 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <sstream>
-#include <memory>
-#include <vector>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-
-#include "low_precision/low_precision.hpp"
-
-#include "low_precision/concat.hpp"
-#include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
-#include "low_precision/align_quantization_parameters.hpp"
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
-#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
-#include "low_precision/markup_can_be_quantized.hpp"
-#include "low_precision/markup_quantization_granularity.hpp"
+#include <memory>
+#include <sstream>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ov_lpt_models/concat.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/align_quantization_parameters.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "low_precision/low_precision.hpp"
+#include "low_precision/markup_can_be_quantized.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -46,14 +42,10 @@ public:
     ov::builder::subgraph::DequantizationOperations dequantization2;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const ConcatWithNotQuantizedParentTransformationActualValues& values) {
-    return out << "_" <<
-        values.fakeQuantize1 << "_" <<
-        values.convert1.outPrecision << "_" <<
-        values.dequantization1 << "_" <<
-        values.fakeQuantize2 << "_" <<
-        values.convert2.outPrecision << "_" <<
-        values.dequantization2;
+inline std::ostream& operator<<(std::ostream& out,
+                                const ConcatWithNotQuantizedParentTransformationActualValues& values) {
+    return out << "_" << values.fakeQuantize1 << "_" << values.convert1.outPrecision << "_" << values.dequantization1
+               << "_" << values.fakeQuantize2 << "_" << values.convert2.outPrecision << "_" << values.dequantization2;
 }
 
 class ConcatWithNotQuantizedParentTransformationResultValues {
@@ -68,15 +60,11 @@ public:
     ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const ConcatWithNotQuantizedParentTransformationResultValues& values) {
-    return out << "_" <<
-        values.fakeQuantize1 << "_" <<
-        values.convert1.outPrecision << "_" <<
-        values.dequantization1 << "_" <<
-        values.fakeQuantize2 << "_" <<
-        values.convert2.outPrecision << "_" <<
-        values.dequantization2 << "_" <<
-        values.dequantizationAfter;
+inline std::ostream& operator<<(std::ostream& out,
+                                const ConcatWithNotQuantizedParentTransformationResultValues& values) {
+    return out << "_" << values.fakeQuantize1 << "_" << values.convert1.outPrecision << "_" << values.dequantization1
+               << "_" << values.fakeQuantize2 << "_" << values.convert2.outPrecision << "_" << values.dequantization2
+               << "_" << values.dequantizationAfter;
 }
 
 class ConcatWithNotQuantizedParentTransformationTestValues {
@@ -85,18 +73,18 @@ public:
     ConcatWithNotQuantizedParentTransformationTestValues(
         const TestTransformationParams& params,
         const bool multiChannels,
-        const  std::int64_t axis,
+        const std::int64_t axis,
         const ConcatWithNotQuantizedParentTransformationActualValues& actual,
         const ConcatWithNotQuantizedParentTransformationResultValues& result,
         const bool addNotPrecisionPreservedOperation = false,
-        const bool checkIntervalsAlignmentAttributes = true) :
-        params(params),
-        multiChannels(multiChannels),
-        axis(axis),
-        actual(actual),
-        result(result),
-        addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
-        checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
+        const bool checkIntervalsAlignmentAttributes = true)
+        : params(params),
+          multiChannels(multiChannels),
+          axis(axis),
+          actual(actual),
+          result(result),
+          addNotPrecisionPreservedOperation(addNotPrecisionPreservedOperation),
+          checkIntervalsAlignmentAttributes(checkIntervalsAlignmentAttributes) {}
 
     TestTransformationParams params;
     bool multiChannels;
@@ -113,15 +101,13 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNotQuantizedP
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple <
-    ov::element::Type,
-    std::pair<ov::Shape, ov::Shape>,
-    ConcatWithNotQuantizedParentTransformationTestValues
-> ConcatWithNotQuantizedParentTransformationParams;
+typedef std::
+    tuple<ov::element::Type, std::pair<ov::Shape, ov::Shape>, ConcatWithNotQuantizedParentTransformationTestValues>
+        ConcatWithNotQuantizedParentTransformationParams;
 
-class ConcatWithNotQuantizedParentTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<ConcatWithNotQuantizedParentTransformationParams> {
+class ConcatWithNotQuantizedParentTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<ConcatWithNotQuantizedParentTransformationParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
@@ -137,35 +123,31 @@ public:
             testValues.actual.dequantization2.multiply.outPrecision = precision;
         }
 
-        actualFunction = ov::builder::subgraph::ConcatFunction::get(
-            precision,
-            shapes.first,
-            testValues.actual.fakeQuantize1,
-            testValues.actual.convert1,
-            testValues.actual.dequantization1,
-            false,
-            shapes.second,
-            testValues.actual.fakeQuantize2,
-            testValues.actual.convert2,
-            testValues.actual.dequantization2,
-            true,
-            {},
-            ov::element::undefined,
-            {},
-            testValues.axis,
-            testValues.addNotPrecisionPreservedOperation);
+        actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
+                                                                    shapes.first,
+                                                                    testValues.actual.fakeQuantize1,
+                                                                    testValues.actual.convert1,
+                                                                    testValues.actual.dequantization1,
+                                                                    false,
+                                                                    shapes.second,
+                                                                    testValues.actual.fakeQuantize2,
+                                                                    testValues.actual.convert2,
+                                                                    testValues.actual.dequantization2,
+                                                                    true,
+                                                                    {},
+                                                                    ov::element::undefined,
+                                                                    {},
+                                                                    testValues.axis,
+                                                                    testValues.addNotPrecisionPreservedOperation);
 
-        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
-            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
-                {{0}, {ov::element::u8}},
-                {{1}, {ov::element::i8}}
-            }),
-            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
-        });
+        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(
+                 {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}}),
+             ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
+                 {{{0}, testValues.params.precisionsOnActivations}})});
 
-        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
-            ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})
-        });
+        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>(
+            {ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})});
 
         const auto params = TestTransformationParams(testValues.params.updatePrecisions);
         const auto legacyParams = TestTransformationParams::toParams(params);
@@ -199,8 +181,7 @@ public:
             testValues.result.dequantizationAfter.multiply.outPrecision = precision;
         }
 
-        if (!testValues.params.updatePrecisions &&
-            (precision == ov::element::f32) &&
+        if (!testValues.params.updatePrecisions && (precision == ov::element::f32) &&
             !testValues.result.dequantizationAfter.convert.empty()) {
             testValues.result.dequantizationAfter.convert = {};
         }
@@ -217,11 +198,9 @@ public:
             testValues.result.convert2,
             testValues.result.dequantization2,
             true,
-            {
-                ov::PrecisionPreservedAttribute(true),
-                ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
-                ov::QuantizationAlignmentAttribute(false)
-            },
+            {ov::PrecisionPreservedAttribute(true),
+             ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
+             ov::QuantizationAlignmentAttribute(false)},
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
             testValues.axis,
@@ -234,13 +213,9 @@ public:
         const ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
-        result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shapes.first, testValues.params) << "_" <<
-            shapes.second <<
-            (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") <<
-            "axis_" << testValues.axis << "_" <<
-            testValues.actual << "_" <<
-            testValues.result << "_";
+        result << LayerTransformation::getTestCaseNameByParams(precision, shapes.first, testValues.params) << "_"
+               << shapes.second << (testValues.multiChannels ? "multiChannels_" : "notMultiChannels_") << "axis_"
+               << testValues.axis << "_" << testValues.actual << "_" << testValues.result << "_";
         return result.str();
     }
 };
@@ -258,58 +233,46 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
             break;
         }
     }
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "ov::PrecisionsAttribute are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes))
+        << "ov::PrecisionsAttribute are not the same";
 
     ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
         auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(operations)) <<
-            "ov::IntervalsAlignmentAttribute are not the same";
+        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(operations))
+            << "ov::IntervalsAlignmentAttribute are not the same";
     }
 }
 
 const std::vector<ov::element::Type> precisions = {
     ov::element::f32,
-    //ov::element::f16
+    // ov::element::f16
 };
 
 const std::vector<ConcatWithNotQuantizedParentTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        false,
-        1,
-        {
-            { 256ul, {}, {0.f}, {1.275f}, {0.f}, {1.275f} },
-            {},
-            {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} }
-        },
-        {
-            { 256ul, {}, {0.f}, {1.275f}, {0.f}, {1.28f} },
-            {},
-            {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            {},
-            {},
-            ov::element::f32,
-            {},
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     false,
+     1,
+     {{256ul, {}, {0.f}, {1.275f}, {0.f}, {1.275f}}, {}, {}, {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}},
+     {
+         {256ul, {}, {0.f}, {1.275f}, {0.f}, {1.28f}},
+         {},
+         {},
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {},
+         {},
+         ov::element::f32,
+         {},
+     }}};
 
-const std::vector<std::pair<ov::Shape, ov::Shape>> shapes = {
-    {{ 1, 3, 9, 9 }, { 1, 3, 9, 9 }},
-    {{ 4, 3, 9, 9 }, { 4, 3, 9, 9 }}
-};
+const std::vector<std::pair<ov::Shape, ov::Shape>> shapes = {{{1, 3, 9, 9}, {1, 3, 9, 9}},
+                                                             {{4, 3, 9, 9}, {4, 3, 9, 9}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConcatWithNotQuantizedParentTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    ConcatWithNotQuantizedParentTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConcatWithNotQuantizedParentTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         ConcatWithNotQuantizedParentTransformation::getTestCaseName);
 }  // namespace

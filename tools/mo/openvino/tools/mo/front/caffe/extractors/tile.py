@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.tile import AttributedTile
 
 
 class TileFrontExtractor(FrontExtractorOp):
-    op = 'Tile'
+    op = "Tile"
     enabled = True
 
     @classmethod
@@ -15,8 +15,8 @@ class TileFrontExtractor(FrontExtractorOp):
         proto_layer = node.pb
         param = proto_layer.tile_param
         mapping_rule = {
-            'axis': int(param.axis),
-            'tiles': int(param.tiles),
+            "axis": int(param.axis),
+            "tiles": int(param.tiles),
         }
         mapping_rule = merge_attrs(param, mapping_rule)
 

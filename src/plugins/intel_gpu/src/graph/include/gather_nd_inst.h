@@ -3,9 +3,10 @@
 //
 
 #pragma once
+#include <string>
+
 #include "intel_gpu/primitives/gather_nd.hpp"
 #include "primitive_inst.h"
-#include <string>
 
 namespace cldnn {
 
@@ -17,8 +18,9 @@ class typed_primitive_inst<gather_nd> : public typed_primitive_inst_base<gather_
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(gather_nd_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_nd_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nd_node const& node);
 

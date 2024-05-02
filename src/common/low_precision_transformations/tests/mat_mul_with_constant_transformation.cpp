@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/mat_mul.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/mat_mul.hpp"
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 using namespace testing;
@@ -67,8 +67,7 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
     return out << "_" << values.actual << "_" << values.expected;
 }
 
-typedef std::tuple<ov::element::Type, ov::PartialShape, MatMullTransformationTestValues>
-    MatMulTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, MatMullTransformationTestValues> MatMulTransformationParams;
 
 class MatMulWithConstantTransformation : public LayerTransformation,
                                          public testing::WithParamInterface<MatMulTransformationParams> {
@@ -80,12 +79,12 @@ public:
 
         actualFunction =
             ov::builder::subgraph::MatMulFunction::getOriginal(precision,
-                                                                   inputShape,
-                                                                   testValues.actual.precisionBeforeDequantization,
-                                                                   testValues.actual.dequantizationOnData,
-                                                                   testValues.actual.weights,
-                                                                   testValues.actual.fqOnWeights,
-                                                                   testValues.actual.dequantizationOnWeights);
+                                                               inputShape,
+                                                               testValues.actual.precisionBeforeDequantization,
+                                                               testValues.actual.dequantizationOnData,
+                                                               testValues.actual.weights,
+                                                               testValues.actual.fqOnWeights,
+                                                               testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::MatMulTransformation, ov::op::v0::MatMul>(testValues.params);
@@ -93,21 +92,19 @@ public:
 
         referenceFunction =
             (testValues.expected.fqOnWeights.empty() && testValues.expected.dequantizationOnWeights.empty())
-                ? ov::builder::subgraph::MatMulFunction::getReference(
-                      precision,
-                      inputShape,
-                      testValues.expected.precisionBeforeDequantization,
-                      testValues.expected.dequantizationOnData,
-                      testValues.expected.weights,
-                      testValues.expected.resultDequantization)
-                : ov::builder::subgraph::MatMulFunction::getOriginal(
-                      precision,
-                      inputShape,
-                      testValues.expected.precisionBeforeDequantization,
-                      testValues.expected.dequantizationOnData,
-                      testValues.expected.weights,
-                      testValues.expected.fqOnWeights,
-                      testValues.expected.dequantizationOnWeights);
+                ? ov::builder::subgraph::MatMulFunction::getReference(precision,
+                                                                      inputShape,
+                                                                      testValues.expected.precisionBeforeDequantization,
+                                                                      testValues.expected.dequantizationOnData,
+                                                                      testValues.expected.weights,
+                                                                      testValues.expected.resultDequantization)
+                : ov::builder::subgraph::MatMulFunction::getOriginal(precision,
+                                                                     inputShape,
+                                                                     testValues.expected.precisionBeforeDequantization,
+                                                                     testValues.expected.dequantizationOnData,
+                                                                     testValues.expected.weights,
+                                                                     testValues.expected.fqOnWeights,
+                                                                     testValues.expected.dequantizationOnWeights);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
@@ -136,10 +133,9 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 namespace testValues1 {
-const std::vector<ov::PartialShape> inputShapes = {
-    {1, 384, 1024},
-    {4, 384, 1024},
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}};
+const std::vector<ov::PartialShape> inputShapes = {{1, 384, 1024},
+                                                   {4, 384, 1024},
+                                                   {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // supported 3D: U8 & I8
@@ -184,8 +180,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 
 namespace testValues2 {
 const std::vector<ov::PartialShape> inputShapes = {{1, 3, 4},
-                                                       {4, 3, 4},
-                                                       {Dimension::dynamic(), 3, Dimension::dynamic()}};
+                                                   {4, 3, 4},
+                                                   {Dimension::dynamic(), 3, Dimension::dynamic()}};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // 3D: U8 & I8
@@ -347,9 +343,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ov::PartialShape> inputShapes = {{1, 2048},
-                                                       {4, 2048},
-                                                       {Dimension::dynamic(), Dimension::dynamic()}};
+const std::vector<ov::PartialShape> inputShapes = {{1, 2048}, {4, 2048}, {Dimension::dynamic(), Dimension::dynamic()}};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // 2D: U8 & I8

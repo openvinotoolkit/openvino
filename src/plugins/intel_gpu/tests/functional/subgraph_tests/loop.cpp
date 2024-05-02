@@ -2,32 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/loop.hpp"
+
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-using DynamicShapeLoopParams = typename std::tuple<
-        bool,
-        std::tuple<
-            bool,
-            int64_t,
-            int64_t,
-            int64_t
-            >,
-        int64_t,
-        InputShape,
-        ov::element::Type,
-        std::string>;
+using DynamicShapeLoopParams = typename std::
+    tuple<bool, std::tuple<bool, int64_t, int64_t, int64_t>, int64_t, InputShape, ov::element::Type, std::string>;
 
 /**
  * Test case with Dynamic SHAPE version of loop operation.
@@ -36,7 +26,7 @@ using DynamicShapeLoopParams = typename std::tuple<
 class DynamicShapeLoopTest : public testing::WithParamInterface<DynamicShapeLoopParams>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopParams>& obj) {
         bool static_iter_num;
         bool static_continue_cond;
         int64_t max_iter_num;
@@ -47,13 +37,7 @@ public:
         ov::element::Type model_type;
         std::string targetDevice;
         auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            model_type,
-            targetDevice) = obj.param;
+        std::tie(static_continue_cond, args_pack, start_value, data_shapes, model_type, targetDevice) = obj.param;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
@@ -92,23 +76,17 @@ private:
 protected:
     void SetUp() override {
         auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            model_type,
-            targetDevice) = GetParam();
+        std::tie(static_continue_cond, args_pack, start_value, data_shapes, model_type, targetDevice) = GetParam();
 
         const auto inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
         init_input_shapes({data_shapes, data_shapes});
 
         ov::ParameterVector params{};
-        auto cond_input_create = [&params] (ov::element::Type model_type,
-                                            const ov::PartialShape &shape,
-                                            int value = 0,
-                                            bool is_static = false) -> std::shared_ptr<ov::Node> {
+        auto cond_input_create = [&params](ov::element::Type model_type,
+                                           const ov::PartialShape& shape,
+                                           int value = 0,
+                                           bool is_static = false) -> std::shared_ptr<ov::Node> {
             if (is_static)
                 return std::make_shared<ov::op::v0::Constant>(model_type, shape.to_shape(), value);
 
@@ -123,7 +101,7 @@ protected:
         start_mul->set_friendly_name("start_mul");
         auto count = cond_input_create(ov::element::i64, scalarShape, max_iter_num, static_iter_num);
         count->set_friendly_name("count");
-        auto skip  = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
+        auto skip = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
         skip->set_friendly_name("skip");
 
         auto b_indx = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
@@ -134,9 +112,9 @@ protected:
         b_data_mul->set_friendly_name("b_data_mul");
         auto b_indx_cast = std::make_shared<ov::op::v0::Convert>(b_indx, model_type);
         b_indx_cast->set_friendly_name("body_index_cast");
-        auto b_add  = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
+        auto b_add = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
         b_add->set_friendly_name("body_add");
-        auto b_mul  = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
+        auto b_mul = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
         b_mul->set_friendly_name("body_mul");
 
         std::shared_ptr<ov::Node> b_cond;
@@ -151,8 +129,8 @@ protected:
         }
 
         auto body = std::make_shared<ov::Model>(
-                ov::OutputVector    {b_cond, b_add, b_mul},    // TODO: check with reverse
-                ov::ParameterVector {b_indx, b_data_add, b_data_mul});  // TODO: check with reverse
+            ov::OutputVector{b_cond, b_add, b_mul},                // TODO: check with reverse
+            ov::ParameterVector{b_indx, b_data_add, b_data_mul});  // TODO: check with reverse
         body->set_friendly_name("body_network");
 
         auto loop = std::make_shared<ov::op::v5::Loop>(count, skip);
@@ -175,144 +153,136 @@ protected:
             res->set_friendly_name("loop_output_" + std::to_string(i));
             results.push_back(res);
         }
-        function = std::make_shared<ov::Model>(
-                results,
-                params);
+        function = std::make_shared<ov::Model>(results, params);
         function->set_friendly_name("outer_body_network");
     }
 };
-
 
 TEST_P(DynamicShapeLoopTest, Inference) {
     run();
 }
 
-std::vector<ov::element::Type> model_types = {
-    ov::element::f32,
-    ov::element::i32
-};
+std::vector<ov::element::Type> model_types = {ov::element::f32, ov::element::i32};
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_axis_0 {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_axis_0{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  10, -1, 0 },  // n_iter 10, no dynamic exit
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 10, -1, 0},  // n_iter 10, no dynamic exit
 };
 
 std::vector<InputShape> inputs_0 = {
     InputShape(ov::PartialShape({1, -1, 2}), {{1, 4, 2}, {1, 5, 2}, {1, 10, 2}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_0, DynamicShapeLoopTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_types_axis_0),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_0),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_0,
+                         DynamicShapeLoopTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_types_axis_0),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_0),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopTest::getTestCaseName);
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_1 {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_1{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  5, -1,  1 },  // n_iter 5, no dynamic exit
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 5, -1, 1},  // n_iter 5, no dynamic exit
 };
 
 std::vector<InputShape> inputs_1 = {
     InputShape(ov::PartialShape({-1, 1, 4, -1}), {{2, 1, 4, 10}, {3, 1, 4, 14}, {6, 1, 4, 16}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_1, DynamicShapeLoopTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_types_1),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_1),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_1,
+                         DynamicShapeLoopTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_types_1),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_1),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopTest::getTestCaseName);
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_2 {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_2{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  10, -1,  2 },  // n_iter 10, no dynamic exit
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 10, -1, 2},  // n_iter 10, no dynamic exit
 };
 
 std::vector<InputShape> inputs_2 = {
     InputShape(ov::PartialShape({-1, -1, 1, 6}), {{2, 4, 1, 6}, {10, 40, 1, 6}, {12, 16, 1, 6}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_2, DynamicShapeLoopTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_types_2),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_2),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_axis_2,
+                         DynamicShapeLoopTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_types_2),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_2),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopTest::getTestCaseName);
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_no_auto_concat {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_no_auto_concat{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  10, -1, -1 },  // n_iter 5, no dynamic exit
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 10, -1, -1},  // n_iter 5, no dynamic exit
 };
 
 std::vector<InputShape> inputs_no_auto_concat = {
     InputShape(ov::PartialShape({-1, 1, 6}), {{2, 1, 6}, {10, 1, 6}, {12, 1, 6}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_no_auto_concat, DynamicShapeLoopTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_types_no_auto_concat),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_no_auto_concat),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_no_auto_concat,
+                         DynamicShapeLoopTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_types_no_auto_concat),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_no_auto_concat),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopTest::getTestCaseName);
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_dynamic_exit {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_types_dynamic_exit{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  5,  3,  -1 },  // n_iter 3, dynamic exit on 3
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  5,  7,   1 },  // n_iter 5, dynamic exit not reached
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true , -1,  5,  -1 },  // n_iter 5, inf loop with dynamic exit on 5
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 5, 3, -1},   // n_iter 3, dynamic exit on 3
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 5, 7, 1},    // n_iter 5, dynamic exit not reached
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, -1, 5, -1},  // n_iter 5, inf loop with dynamic exit on 5
 };
 
 std::vector<InputShape> inputs_dynamic_exit = {
     InputShape(ov::PartialShape({-1, 1, 2}), {{4, 1, 2}, {10, 1, 2}, {12, 1, 2}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_dynamic_exit, DynamicShapeLoopTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_types_dynamic_exit),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_dynamic_exit),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_dynamic_exit,
+                         DynamicShapeLoopTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_types_dynamic_exit),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_dynamic_exit),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopTest::getTestCaseName);
 
-
-using DynamicShapeLoopDynamicInputParams = typename std::tuple<
-        bool,
-        std::tuple<
-            bool,
-            int64_t,
-            int64_t,
-            int64_t
-            >,
-        int64_t,
-        InputShape,
-        InputShape,
-        ov::element::Type,
-        std::string>;
+using DynamicShapeLoopDynamicInputParams = typename std::tuple<bool,
+                                                               std::tuple<bool, int64_t, int64_t, int64_t>,
+                                                               int64_t,
+                                                               InputShape,
+                                                               InputShape,
+                                                               ov::element::Type,
+                                                               std::string>;
 
 class DynamicShapeLoopDynamicInputTest : public testing::WithParamInterface<DynamicShapeLoopDynamicInputParams>,
                                          virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopDynamicInputParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopDynamicInputParams>& obj) {
         bool static_iter_num;
         bool static_continue_cond;
         int64_t max_iter_num;
@@ -324,14 +294,8 @@ public:
         ov::element::Type model_type;
         std::string targetDevice;
         auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            constant_shapes,
-            model_type,
-            targetDevice) = obj.param;
+        std::tie(static_continue_cond, args_pack, start_value, data_shapes, constant_shapes, model_type, targetDevice) =
+            obj.param;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
@@ -371,24 +335,18 @@ private:
 protected:
     void SetUp() override {
         auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            constant_shapes,
-            model_type,
-            targetDevice) = GetParam();
+        std::tie(static_continue_cond, args_pack, start_value, data_shapes, constant_shapes, model_type, targetDevice) =
+            GetParam();
 
         const auto inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
         init_input_shapes({data_shapes, data_shapes, constant_shapes});
 
         ov::ParameterVector params{};
-        auto cond_input_create = [&params] (ov::element::Type model_type,
-                                            const ov::PartialShape &shape,
-                                            int value = 0,
-                                            bool is_static = false) -> std::shared_ptr<ov::Node> {
+        auto cond_input_create = [&params](ov::element::Type model_type,
+                                           const ov::PartialShape& shape,
+                                           int value = 0,
+                                           bool is_static = false) -> std::shared_ptr<ov::Node> {
             if (is_static)
                 return std::make_shared<ov::op::v0::Constant>(model_type, shape.to_shape(), value);
 
@@ -405,7 +363,7 @@ protected:
         start_mul->set_friendly_name("start_mul");
         auto count = cond_input_create(ov::element::i64, scalarShape, max_iter_num, static_iter_num);
         count->set_friendly_name("count");
-        auto skip  = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
+        auto skip = cond_input_create(ov::element::boolean, scalarShape, true, static_continue_cond);
         skip->set_friendly_name("skip");
         auto init_const = cond_input_create(model_type, constant_shapes.first, 1);
         init_const->set_friendly_name("init_const");
@@ -420,9 +378,9 @@ protected:
         b_data_broadcast->set_friendly_name("b_data_broadcast");
         auto b_indx_cast = std::make_shared<ov::op::v0::Convert>(b_indx, model_type);
         b_indx_cast->set_friendly_name("body_index_cast");
-        auto b_add  = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
+        auto b_add = std::make_shared<ov::op::v1::Add>(b_data_add, b_indx_cast);
         b_add->set_friendly_name("body_add");
-        auto b_mul  = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
+        auto b_mul = std::make_shared<ov::op::v1::Multiply>(b_data_mul, b_indx_cast);
         b_mul->set_friendly_name("body_mul");
         auto b_shapeof1 = std::make_shared<ov::op::v3::ShapeOf>(b_data_mul);
         b_shapeof1->set_friendly_name("b_shapeof1");
@@ -432,7 +390,7 @@ protected:
         b_max->set_friendly_name("b_max");
         auto b_broadcast = std::make_shared<ov::op::v3::Broadcast>(b_data_broadcast, b_max);
         b_broadcast->set_friendly_name("b_broadcast");
-        auto b_mul2  = std::make_shared<ov::op::v1::Multiply>(b_broadcast, b_mul);
+        auto b_mul2 = std::make_shared<ov::op::v1::Multiply>(b_broadcast, b_mul);
         b_mul2->set_friendly_name("b_mul2");
 
         std::shared_ptr<ov::Node> b_cond;
@@ -447,8 +405,8 @@ protected:
         }
 
         auto body = std::make_shared<ov::Model>(
-                ov::OutputVector    {b_cond, b_add, b_mul, b_mul2},    // TODO: check with reverse
-                ov::ParameterVector {b_indx, b_data_add, b_data_mul, b_data_broadcast});  // TODO: check with reverse
+            ov::OutputVector{b_cond, b_add, b_mul, b_mul2},                          // TODO: check with reverse
+            ov::ParameterVector{b_indx, b_data_add, b_data_mul, b_data_broadcast});  // TODO: check with reverse
         body->set_friendly_name("body_network");
 
         auto loop = std::make_shared<ov::op::v5::Loop>(count, skip);
@@ -473,9 +431,7 @@ protected:
             res->set_friendly_name("loop_output_" + std::to_string(i));
             results.push_back(res);
         }
-        function = std::make_shared<ov::Model>(
-                results,
-                params);
+        function = std::make_shared<ov::Model>(results, params);
         function->set_friendly_name("outer_body_network");
     }
 };
@@ -484,11 +440,11 @@ TEST_P(DynamicShapeLoopDynamicInputTest, Inference) {
     run();
 }
 
-static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_input {
+static const std::vector<std::tuple<bool, int64_t, int64_t, int64_t>> dynamic_loop_input{
     //  GCC4.8 limitation: have to specify type of each element in list
     //                               static_trip_count |  max | dynamic_exit | axis
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true ,  5,  3,  -1 },  // n_iter 3, dynamic exit on 3
-    std::tuple<bool, int64_t, int64_t, int64_t>{  true , -1,  5,  -1 },  // n_iter 5, inf loop with dynamic exit on 5
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, 5, 3, -1},   // n_iter 3, dynamic exit on 3
+    std::tuple<bool, int64_t, int64_t, int64_t>{true, -1, 5, -1},  // n_iter 5, inf loop with dynamic exit on 5
 };
 
 std::vector<InputShape> inputs_dynamic_shape = {
@@ -499,14 +455,15 @@ std::vector<InputShape> constant_dynamic_shape = {
     InputShape(ov::PartialShape({-1, 1, -1}), {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}}),
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_dynamic, DynamicShapeLoopDynamicInputTest,
-                        testing::Combine(
-                        /* static_continue_cond */ testing::Values(true),
-                        /* args_pack */ testing::ValuesIn(dynamic_loop_input),
-                        /* start_value */ testing::Values<int64_t>(0),
-                        /* data_shape */ testing::ValuesIn(inputs_dynamic_shape),
-                        /* constant_shape */ testing::ValuesIn(constant_dynamic_shape),
-                        /* model_type */ testing::ValuesIn(model_types),
-                        /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                        DynamicShapeLoopDynamicInputTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapeLoop_dynamic,
+                         DynamicShapeLoopDynamicInputTest,
+                         testing::Combine(
+                             /* static_continue_cond */ testing::Values(true),
+                             /* args_pack */ testing::ValuesIn(dynamic_loop_input),
+                             /* start_value */ testing::Values<int64_t>(0),
+                             /* data_shape */ testing::ValuesIn(inputs_dynamic_shape),
+                             /* constant_shape */ testing::ValuesIn(constant_dynamic_shape),
+                             /* model_type */ testing::ValuesIn(model_types),
+                             /* device */ testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         DynamicShapeLoopDynamicInputTest::getTestCaseName);
+}  // namespace

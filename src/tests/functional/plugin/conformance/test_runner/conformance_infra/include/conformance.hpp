@@ -4,14 +4,12 @@
 
 #pragma once
 
-
-#include <list>
 #include <algorithm>
-
-#include "openvino/opsets/opset.hpp"
+#include <list>
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/node_utils.hpp"
+#include "openvino/opsets/opset.hpp"
 
 namespace ov {
 namespace test {
@@ -21,11 +19,7 @@ extern const char* refCachePath;
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
 
-enum ShapeMode {
-    DYNAMIC,
-    STATIC,
-    BOTH
-};
+enum ShapeMode { DYNAMIC, STATIC, BOTH };
 
 extern ShapeMode shapeMode;
 

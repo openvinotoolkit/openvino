@@ -13,18 +13,17 @@
 
 namespace ov {
 namespace test {
-using spaceToBatchParamsTuple = typename std::tuple<
-        std::vector<int64_t>,               // block_shape
-        std::vector<int64_t>,               // pads_begin
-        std::vector<int64_t>,               // pads_end
-        std::vector<InputShape>,            // Input shapes
-        ov::element::Type,                  // Model type
-        std::string>;                       // Device name
+using spaceToBatchParamsTuple = typename std::tuple<std::vector<int64_t>,     // block_shape
+                                                    std::vector<int64_t>,     // pads_begin
+                                                    std::vector<int64_t>,     // pads_end
+                                                    std::vector<InputShape>,  // Input shapes
+                                                    ov::element::Type,        // Model type
+                                                    std::string>;             // Device name
 
 class SpaceToBatchLayerTest : public testing::WithParamInterface<spaceToBatchParamsTuple>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple>& obj);
 
 protected:
     void SetUp() override;

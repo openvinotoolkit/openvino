@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "event.hpp"
-#include "kernel.hpp"
-#include "kernel_args.hpp"
-#include "execution_config.hpp"
-
 #include <memory>
 #include <vector>
 
+#include "event.hpp"
+#include "execution_config.hpp"
+#include "kernel.hpp"
+#include "kernel_args.hpp"
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl.hpp>
 #endif
 
 namespace cldnn {
@@ -28,7 +28,9 @@ public:
     virtual void finish() const = 0;
     virtual void wait() = 0;
 
-    virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
+    virtual void set_arguments(kernel& kernel,
+                               const kernel_arguments_desc& args_desc,
+                               const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,
                                       const kernel_arguments_desc& args_desc,
                                       const kernel_arguments_data& args,
@@ -41,7 +43,9 @@ public:
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
 
-    QueueTypes get_queue_type() const { return queue_type; }
+    QueueTypes get_queue_type() const {
+        return queue_type;
+    }
 
     static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
 

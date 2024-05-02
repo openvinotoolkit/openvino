@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <array>
+
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "node.h"
 #include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
-
-#include <array>
 
 namespace ov {
 namespace intel_cpu {
@@ -55,7 +55,7 @@ public:
     };
 
 private:
-    typedef void (*kernel)(const void *, const void *);
+    typedef void (*kernel)(const void*, const void*);
 
     static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
 
@@ -72,66 +72,68 @@ private:
     bool is_dynamic = false;
 
     class SnippetExecutor {
-        public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
-            virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
-            virtual ~SnippetExecutor() = default;
-            std::shared_ptr<IShapeInfer> shapeInference = nullptr;
+    public:
+        SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
+        virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+        virtual ~SnippetExecutor() = default;
+        std::shared_ptr<IShapeInfer> shapeInference = nullptr;
 
-        protected:
-            SnippetAttrs snippetAttrs;
-            bool is_dynamic = false;
+    protected:
+        SnippetAttrs snippetAttrs;
+        bool is_dynamic = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
 
     class SnippetJitExecutor : public SnippetExecutor {
-        public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
-            void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+    public:
+        SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
+        void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
-            bool schedule_created();
+        bool schedule_created();
 
-        private:
-            static const size_t rank6D {6};
+    private:
+        static const size_t rank6D{6};
 
-            typedef void (*kernel)(const void *, const void *);
+        typedef void (*kernel)(const void*, const void*);
 
-            size_t numInput = 0;
-            size_t numOutput = 0;
+        size_t numInput = 0;
+        size_t numOutput = 0;
 
-            void generate(const jit_snippets_compile_args*);
-            inline void update_ptrs(jit_snippets_call_args&, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-            // Evaluates generated snippet using parallel backend
-            void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
-            void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+        void generate(const jit_snippets_compile_args*);
+        inline void update_ptrs(jit_snippets_call_args&,
+                                const std::vector<MemoryPtr>& inMemPtrs,
+                                const std::vector<MemoryPtr>& outMemPtrs);
+        // Evaluates generated snippet using parallel backend
+        void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+        void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
-            // Holds generated snippet with information about how to schedule it
-            snippets::Schedule schedule;
+        // Holds generated snippet with information about how to schedule it
+        snippets::Schedule schedule;
 
-            // Holds index of output used as in execution domain
-            // it should be compatible with a schedule's work size
-            std::vector<size_t> parallel_exec_domain = {};
+        // Holds index of output used as in execution domain
+        // it should be compatible with a schedule's work size
+        std::vector<size_t> parallel_exec_domain = {};
 
-            /// scheduling info
-            size_t tensorRank = 0;
-            size_t harnessWorkAmount = 0;
+        /// scheduling info
+        size_t tensorRank = 0;
+        size_t harnessWorkAmount = 0;
 
-            std::vector<size_t> dataSize = {};
+        std::vector<size_t> dataSize = {};
 
-            std::vector<ptrdiff_t> start_offset_in = {};
-            std::vector<ptrdiff_t> start_offset_out = {};
+        std::vector<ptrdiff_t> start_offset_in = {};
+        std::vector<ptrdiff_t> start_offset_out = {};
 
-            // Buffer scratchpad
-            std::vector<uint8_t> buffer_scratchpad = {};
-            size_t buffer_scratchpad_size = 0;
+        // Buffer scratchpad
+        std::vector<uint8_t> buffer_scratchpad = {};
+        size_t buffer_scratchpad_size = 0;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-            inline void segfault_detector();
+        inline void segfault_detector();
 #endif
     };
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

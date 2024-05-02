@@ -5,7 +5,6 @@ import argparse
 import logging
 import os
 import shutil
-
 from pathlib import Path
 
 
@@ -30,10 +29,18 @@ def copy_directory_structure(input_dir, output_dir):
 def main():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--filetype', choices=['md', 'rst'], help='Type of processed files, allowed md or rst.')
-    parser.add_argument('--input_dir', type=Path, help='Path to a folder containing files.')
-    parser.add_argument('--output_dir', type=Path, help='Path to the output folder.')
-    parser.add_argument('--exclude_dir', type=Path, action='append', default=[], help='Ignore a folder.')
+    parser.add_argument(
+        "--filetype",
+        choices=["md", "rst"],
+        help="Type of processed files, allowed md or rst.",
+    )
+    parser.add_argument(
+        "--input_dir", type=Path, help="Path to a folder containing files."
+    )
+    parser.add_argument("--output_dir", type=Path, help="Path to the output folder.")
+    parser.add_argument(
+        "--exclude_dir", type=Path, action="append", default=[], help="Ignore a folder."
+    )
     args = parser.parse_args()
     input_dir = args.input_dir
     output_dir = args.output_dir
@@ -41,5 +48,5 @@ def main():
     copy_directory_structure(input_dir, output_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

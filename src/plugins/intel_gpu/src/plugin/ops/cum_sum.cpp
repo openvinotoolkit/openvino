@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/cum_sum.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/cum_sum.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cum_sum.hpp"
@@ -23,16 +24,17 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     int64_t axis = 0;
     if (op->get_input_size() == 2) {
         auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-        OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        OPENVINO_ASSERT(axes_constant != nullptr,
+                        "[GPU] Unsupported parameter nodes type in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
         axis = axes_constant->cast_vector<int64_t>()[0];
     }
     axis = ov::util::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
 
-    auto primitive = cldnn::cum_sum(layerName,
-                                    inputs[0],
-                                    axis,
-                                    exclusive,
-                                    reverse);
+    auto primitive = cldnn::cum_sum(layerName, inputs[0], axis, exclusive, reverse);
 
     p.add_primitive(*op, primitive);
 }

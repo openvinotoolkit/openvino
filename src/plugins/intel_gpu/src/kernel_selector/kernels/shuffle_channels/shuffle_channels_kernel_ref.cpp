@@ -3,9 +3,11 @@
 //
 
 #include "shuffle_channels_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -44,14 +46,16 @@ CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_p
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::BATCH},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
 
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v,
-                         params.outputs[0].Y().v * params.outputs[0].X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].Y().v * params.outputs[0].X().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -63,14 +67,14 @@ JitConstants ShuffleChannelsKernelRef::GetJitConstants(const shuffle_channels_pa
 
     auto getDimSizeByAxis = [](const shuffle_channels_params& params) -> size_t {
         switch (params.axis) {
-            case 0:
-                return params.inputs[0].Batch().v;
-            case 1:
-                return params.inputs[0].Feature().v;
-            case 2:
-                return params.inputs[0].Y().v;
-            case 3:
-                return params.inputs[0].X().v;
+        case 0:
+            return params.inputs[0].Batch().v;
+        case 1:
+            return params.inputs[0].Feature().v;
+        case 2:
+            return params.inputs[0].Y().v;
+        case 3:
+            return params.inputs[0].X().v;
         }
         return 0;
     };

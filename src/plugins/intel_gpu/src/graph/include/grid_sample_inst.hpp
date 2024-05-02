@@ -15,8 +15,12 @@ struct typed_program_node<grid_sample> : public typed_program_node_base<grid_sam
 public:
     using parent::parent;
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    program_node& input(size_t idx = 0) const {
+        return get_dependency(idx);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using grid_sample_node = typed_program_node<grid_sample>;
@@ -27,8 +31,9 @@ class typed_primitive_inst<grid_sample> : public typed_primitive_inst_base<grid_
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(grid_sample_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(grid_sample_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(const grid_sample_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const grid_sample_node& node);
 

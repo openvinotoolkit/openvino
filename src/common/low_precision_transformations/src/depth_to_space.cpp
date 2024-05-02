@@ -5,15 +5,16 @@
 #include "low_precision/depth_to_space.hpp"
 
 #include <memory>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
+
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov::pass::low_precision;
 
 DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : TransparentBaseTransformation(params) {
     MATCHER_SCOPE(DepthToSpaceTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::DepthToSpace>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<ov::opset1::DepthToSpace>({pattern::wrap_type<ov::opset1::Multiply>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -27,7 +28,8 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
     this->register_matcher(m, callback);
 }
 
-bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const {
+bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context,
+                                                  std::shared_ptr<ov::Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
     }

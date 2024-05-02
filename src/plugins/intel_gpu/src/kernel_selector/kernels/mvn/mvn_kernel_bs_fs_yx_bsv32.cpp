@@ -3,11 +3,12 @@
 //
 
 #include "mvn_kernel_bs_fs_yx_bsv32.hpp"
-#include "common_tools.h"
 
-#include <string>
 #include <algorithm>
 #include <iostream>
+#include <string>
+
+#include "common_tools.h"
 
 namespace kernel_selector {
 
@@ -69,13 +70,14 @@ Datatype MVNKernel_bs_fs_yx_bsv32::GetAccumulatorType(const mvn_params& params) 
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
-        case Datatype::F32:
-        case Datatype::F16:
-            return Datatype::F32;
-        case Datatype::INT8:
-        case Datatype::UINT8:
-            return Datatype::INT32;
-        default: return Datatype::F32;
+    case Datatype::F32:
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 
@@ -94,7 +96,7 @@ JitConstants MVNKernel_bs_fs_yx_bsv32::GetJitConstants(const mvn_params& params,
 
     if (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
         jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", (size_t)(32 * 32)));
-    } else { // DataLayout::bs_fs_yx_bsv32_fsv16
+    } else {  // DataLayout::bs_fs_yx_bsv32_fsv16
         jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", (size_t)(32 * 16)));
     }
 
@@ -127,7 +129,7 @@ std::vector<size_t> MVNKernel_bs_fs_yx_bsv32::GetFinalKernelLws(const std::vecto
 }
 
 MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefaultForMulti(const mvn_params& params,
-                                                                                                    bool has_enough_data) const {
+                                                                                         bool has_enough_data) const {
     MultiDispatchData dispatchData;
 
     auto items_num = params.outputs[0].X().v * params.outputs[0].Y().v;
@@ -189,8 +191,7 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
     return dispatchData;
 }
 
-KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params& params,
-                                                                        bool has_enough_data) const {
+KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params& params, bool has_enough_data) const {
     if (!Validate(params))
         return {};
 
@@ -213,21 +214,21 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
-                            dispatchData.stage_1,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            0,
-                            0);
+                             dispatchData.stage_1,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             0,
+                             0);
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                            dispatchData.item_groups * intermediate_bytes);
+                                             dispatchData.item_groups * intermediate_bytes);
         }
         {
             // Mean second stage
@@ -237,21 +238,21 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
-                            dispatchData.stage_2,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            0,
-                            0);
+                             dispatchData.stage_2,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             0,
+                             0);
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
             kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                            intermediate_bytes);
+                                             intermediate_bytes);
         }
         if (params.mvnNormalizeVariance) {
             // Variance first stage
@@ -261,16 +262,16 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[2];
             FillCLKernelData(kernel,
-                            dispatchData.stage_1,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            0,
-                            0);
+                             dispatchData.stage_1,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             0,
+                             0);
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
@@ -284,21 +285,21 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[3];
             FillCLKernelData(kernel,
-                            dispatchData.stage_2,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            0,
-                            0);
+                             dispatchData.stage_2,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             0,
+                             0);
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
             kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                            intermediate_bytes);
+                                             intermediate_bytes);
         }
         {  // Final
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_final);
@@ -308,23 +309,23 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[kernels_num - 1];
             FillCLKernelData(kernel,
-                            dispatchData.stage_final,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            1,
-                            GetFusedPrimitiveInputsCount(params));
+                             dispatchData.stage_final,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             1,
+                             GetFusedPrimitiveInputsCount(params));
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
             if (params.mvnNormalizeVariance) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
             }
         }
         kd.internalBufferDataType = Datatype::F32;
-    } else { // not enough data
+    } else {  // not enough data
         kd = KernelData::Default<mvn_params>(params, 2);
         auto finalKernelName = GetKernelName(params);
         {
@@ -335,25 +336,25 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
-                            dispatchData.stage_1,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            0,
-                            0);
+                             dispatchData.stage_1,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             0,
+                             0);
             kernel.params.arguments.clear();  // Clear original output argument
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                            intermediate_bytes);
+                                             intermediate_bytes);
             if (params.mvnNormalizeVariance) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-                kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                            intermediate_bytes);
+                kd.internalBufferSizes.push_back(params.outputs[0].Batch().v *
+                                                 Align(params.outputs[0].Feature().v, fsv) * intermediate_bytes);
             }
         }
         {  // Final
@@ -364,16 +365,16 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
-                            dispatchData.stage_final,
-                            params.engineInfo,
-                            finalKernelName,
-                            jit,
-                            entry_point,
-                            "",
-                            false,
-                            false,
-                            1,
-                            GetFusedPrimitiveInputsCount(params));
+                             dispatchData.stage_final,
+                             params.engineInfo,
+                             finalKernelName,
+                             jit,
+                             entry_point,
+                             "",
+                             false,
+                             false,
+                             1,
+                             GetFusedPrimitiveInputsCount(params));
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             if (params.mvnNormalizeVariance) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
@@ -397,7 +398,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetKernelsData(const Params& params) const
     auto enough_lws = max_lws / simd >= 1;
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
-    return GetMultiStageKernelsData(orgParams,  enough_slm && enough_lws && enough_items);
+    return GetMultiStageKernelsData(orgParams, enough_slm && enough_lws && enough_items);
 }
 
 KernelsPriority MVNKernel_bs_fs_yx_bsv32::GetKernelsPriority(const Params& /*params*/) const {

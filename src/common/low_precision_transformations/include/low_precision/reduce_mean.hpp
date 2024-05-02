@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "low_precision/reduce_base_transformation.hpp"
-
 #include <memory>
 
 #include "layer_transformation.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -33,6 +32,6 @@ protected:
     bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

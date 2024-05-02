@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <queue>
+#include <tuple>
+#include <vector>
+
+#include "cpu_impl_helpers.hpp"
+#include "implementation_map.hpp"
 #include "non_max_suppression_inst.h"
 #include "primitive_inst.h"
 #include "register.hpp"
-#include "cpu_impl_helpers.hpp"
-#include "implementation_map.hpp"
-
-#include <vector>
-#include <queue>
-#include <algorithm>
-#include <tuple>
 
 namespace cldnn {
 namespace cpu {
@@ -31,15 +31,13 @@ struct boxInfo {
     int suppress_begin_index;
 };
 
-std::vector<result_indices> run_nms(
-    const vector2D<bounding_box>& boxes,
-    const vector3D<float>& scores,
-    int num_select_per_class,
-    float score_threshold,
-    float iou_threshold,
-    float soft_nms_sigma,
-    bool sort_result_descending
-) {
+std::vector<result_indices> run_nms(const vector2D<bounding_box>& boxes,
+                                    const vector3D<float>& scores,
+                                    int num_select_per_class,
+                                    float score_threshold,
+                                    float iou_threshold,
+                                    float soft_nms_sigma,
+                                    bool sort_result_descending) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -87,7 +85,8 @@ std::vector<result_indices> run_nms(
                 currBox.suppress_begin_index = static_cast<int>(fb.size());
                 if (box_is_selected) {
                     if (currBox.score == origScore) {
-                        fb.push_back(result_indices{ currBox.score, static_cast<int>(bi), static_cast<int>(ci), currBox.idx });
+                        fb.push_back(
+                            result_indices{currBox.score, static_cast<int>(bi), static_cast<int>(ci), currBox.idx});
                         continue;
                     }
                     if (currBox.score > score_threshold) {
@@ -132,12 +131,11 @@ vector2D<bounding_box> load_boxes_impl(stream& stream, memory::ptr mem, bool cen
                                         static_cast<float>(ptr[offset + 3]),
                                         bounding_box::center_point_construct_tag());
             } else {
-                result[bi].emplace_back(
-                    static_cast<float>(ptr[offset + 1]),
-                    static_cast<float>(ptr[offset + 0]),
-                    static_cast<float>(ptr[offset + 3]),
-                    static_cast<float>(ptr[offset + 2]),
-                    bounding_box::two_corners_construct_tag());
+                result[bi].emplace_back(static_cast<float>(ptr[offset + 1]),
+                                        static_cast<float>(ptr[offset + 0]),
+                                        static_cast<float>(ptr[offset + 3]),
+                                        static_cast<float>(ptr[offset + 2]),
+                                        bounding_box::two_corners_construct_tag());
             }
         }
     }
@@ -402,10 +400,12 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
 
     non_max_suppression_impl() : parent("non_max_suppression_impl") {}
 
-    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<non_max_suppression>& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            typed_primitive_inst<non_max_suppression>& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -434,11 +434,13 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
 namespace detail {
 
 attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
-    implementation_map<non_max_suppression>::add(impl_types::cpu, non_max_suppression_impl::create, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-    });
+    implementation_map<non_max_suppression>::add(impl_types::cpu,
+                                                 non_max_suppression_impl::create,
+                                                 {
+                                                     std::make_tuple(data_types::i32, format::bfyx),
+                                                     std::make_tuple(data_types::f16, format::bfyx),
+                                                     std::make_tuple(data_types::f32, format::bfyx),
+                                                 });
 }
 
 }  // namespace detail

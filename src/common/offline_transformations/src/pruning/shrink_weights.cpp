@@ -85,8 +85,8 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ov::Mask
     consumers.begin()->replace_source_output(sub);
     copy_runtime_info(shape.get_node_shared_ptr(), {sub_const, sub});
 
-    OPENVINO_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")"
-                   << " by substracting " << vec_to_str(sub_const_vector);
+    OPENVINO_DEBUG << "Adopting values in (" << shape.get_node()->get_friendly_name() << ")" << " by substracting "
+                   << vec_to_str(sub_const_vector);
     return true;
 }
 

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "fully_connected_kernel_bfyx_ref.h"
+
 #include <vector>
 
 #include "common_types.h"
-#include "fully_connected_kernel_bfyx_ref.h"
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -44,12 +45,13 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
 }
 
 FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
-                                                                          int, int /*kernel_number*/) const {
+                                                                          int,
+                                                                          int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = { params.outputs[0].Feature().v, params.outputs[0].Batch().v, 1 };
+    std::vector<size_t> global = {params.outputs[0].Feature().v, params.outputs[0].Batch().v, 1};
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        global = { params.outputs[0].Feature().v, params.outputs[0].Y().v, params.outputs[0].Batch().v };
+        global = {params.outputs[0].Feature().v, params.outputs[0].Y().v, params.outputs[0].Batch().v};
     }
 
     dispatchData.gws = global;
@@ -62,7 +64,8 @@ KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*para
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
+JitConstants FullyConnected_bfyx_Ref::GetJitConstants(
+    const fully_connected_params& params,
     const FullyConnectedKernelBase::DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     Datatype accumulator_dt = GetAccumulatorType(params);
@@ -79,11 +82,11 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     }
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };
+        std::vector<std::string> idx_order = {"b", "ofm", "0", "0"};
         if (params.outputs[0].GetLayout() == DataLayout::bfyx)
-            idx_order = { "b", "ofm", "oym", "0" };
-        FusedOpsConfiguration conf = { "", idx_order, "dequantized", activation_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+            idx_order = {"b", "ofm", "oym", "0"};
+        FusedOpsConfiguration conf = {"", idx_order, "dequantized", activation_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;
 }
@@ -92,11 +95,10 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(
-            params,
-            fc_params.inputs[0].GetLayout(),
-            WeightsLayout::oiyx,
-            static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params,
+                                                    fc_params.inputs[0].GetLayout(),
+                                                    WeightsLayout::oiyx,
+                                                    static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

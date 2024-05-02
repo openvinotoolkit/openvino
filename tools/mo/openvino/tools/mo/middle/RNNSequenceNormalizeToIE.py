@@ -3,7 +3,11 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_delete, mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    int64_array,
+    mo_array,
+    shape_delete,
+)
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
@@ -38,32 +42,36 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             6: (optional for LSTM) Peepholes weights, shape  [(M - 1) * hidden_size]
 
     """
+
     force_shape_inference = True
 
     def run_after(self):
-        from openvino.tools.mo.middle.DecomposeBidirectionalRNNSequence import DecomposeBidirectionalRNNSequence
+        from openvino.tools.mo.middle.DecomposeBidirectionalRNNSequence import (
+            DecomposeBidirectionalRNNSequence,
+        )
+
         return [DecomposeBidirectionalRNNSequence]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('rnn_layer', dict(kind='op', type='RNNSequence')),
-                ('input', dict(kind='data')),
-                ('W', dict(kind='data')),
-                ('R', dict(kind='data')),
-                ('B', dict(kind='data')),
+                ("rnn_layer", dict(kind="op", type="RNNSequence")),
+                ("input", dict(kind="data")),
+                ("W", dict(kind="data")),
+                ("R", dict(kind="data")),
+                ("B", dict(kind="data")),
             ],
             edges=[
-                ('input', 'rnn_layer', {'in': 0}),
-                ('W', 'rnn_layer', {'in': 1}),
-                ('R', 'rnn_layer', {'in': 2}),
-                ('B', 'rnn_layer', {'in': 3}),
+                ("input", "rnn_layer", {"in": 0}),
+                ("W", "rnn_layer", {"in": 1}),
+                ("R", "rnn_layer", {"in": 2}),
+                ("B", "rnn_layer", {"in": 3}),
             ],
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
         self.repack_weights(graph, match)
-        if match['rnn_layer'].has_num_directions:
+        if match["rnn_layer"].has_num_directions:
             self.unsqueeze_num_directions(graph, match)
         self.squeeze_initial_states(graph, match)
         self.reordering_inputs(graph, match)
@@ -72,15 +80,19 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
     def repack_weights(self, graph: Graph, match: dict):
         # Concat W, R in IE- format
         # Delete useless num_dir dimensions and n_cells dimensions in W, R, B (peepholes?)
-        lstm = match['rnn_layer']
-        W, R, B = match['W'].value.copy(), match['R'].value.copy(), match['B'].value.copy()
+        lstm = match["rnn_layer"]
+        W, R, B = (
+            match["W"].value.copy(),
+            match["R"].value.copy(),
+            match["B"].value.copy(),
+        )
 
-        graph.remove_edge(match['W'].id, lstm.id)
-        graph.remove_edge(match['R'].id, lstm.id)
-        graph.remove_edge(match['B'].id, lstm.id)
+        graph.remove_edge(match["W"].id, lstm.id)
+        graph.remove_edge(match["R"].id, lstm.id)
+        graph.remove_edge(match["B"].id, lstm.id)
 
         # Sum component of B that correspond to W and R
-        if lstm.op == 'GRU' and lstm.linear_before_reset:
+        if lstm.op == "GRU" and lstm.linear_before_reset:
             B_shape = mo_array(B.shape)
             B_shape[3] = 4
             B_shape[2] = 1
@@ -112,29 +124,29 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         WR = WR.reshape(final_shape_WR)
 
         final_shape_B = final_shape_WR
-        if lstm.op == 'GRU' and lstm.linear_before_reset:
+        if lstm.op == "GRU" and lstm.linear_before_reset:
             final_shape_B[0] = lstm.hidden_size * 4
         B = B.reshape(final_shape_B)
 
         # Squeeze fake dimension in B
         B = B.squeeze(axis=-1)
 
-        for blob, port, name in [(WR, 1, 'weights'), (B, 2, 'biases')]:
+        for blob, port, name in [(WR, 1, "weights"), (B, 2, "biases")]:
             Op.create_and_connect_input_data_node(
                 graph,
                 lstm,
-                {'value': blob, 'shape': int64_array(blob.shape)},
-                {'in': port, 'bin': name, 'permutation': None}
+                {"value": blob, "shape": int64_array(blob.shape)},
+                {"in": port, "bin": name, "permutation": None},
             )
 
     @staticmethod
     def unsqueeze_num_directions(graph: Graph, match: dict):
-        """ Assuming considered LSTM/GRU/RNN node should has num_directions in output shape and add Unsqueeze
-            to match it.
+        """Assuming considered LSTM/GRU/RNN node should has num_directions in output shape and add Unsqueeze
+        to match it.
         """
 
-        rnn_layer = match['rnn_layer']
-        rnn_layer_name = rnn_layer.soft_get('name', rnn_layer.id)
+        rnn_layer = match["rnn_layer"]
+        rnn_layer_name = rnn_layer.soft_get("name", rnn_layer.id)
         # num_directions is at 1st position in output shape, and in 0st position in hidden and cell states
         # please refer to docs in this transform
 
@@ -144,18 +156,30 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             old_shape = old_data_node.shape.copy()
             new_shape = shape_delete(old_shape, direction_dim[i])
 
-            data = Op._create_data_node(graph, name=rnn_layer.name + '/Out/{}/'.format(i), attrs={'shape': new_shape})
+            data = Op._create_data_node(
+                graph,
+                name=rnn_layer.name + "/Out/{}/".format(i),
+                attrs={"shape": new_shape},
+            )
             graph.remove_edge(rnn_layer.id, old_data_node.id)
             graph.add_edge(rnn_layer.id, data.id, key=0, out=i)
 
             unsqueeze = Unsqueeze(graph, dict())
 
-            unsqueeze_dim_data = Const(graph, {'name': rnn_layer.name + '/UnsqueezeNumDirections/{}/Dim'.format(i),
-                                               'value': int64_array([direction_dim[i]])}).create_node_with_data()
+            unsqueeze_dim_data = Const(
+                graph,
+                {
+                    "name": rnn_layer.name + "/UnsqueezeNumDirections/{}/Dim".format(i),
+                    "value": int64_array([direction_dim[i]]),
+                },
+            ).create_node_with_data()
 
-            unsqueeze.create_node_with_data([data, unsqueeze_dim_data],
-                                            dict(name=rnn_layer_name + '/UnsqueezeNumDirections/{}'.format(i)),
-                                            data_nodes=[old_data_node])
+            unsqueeze.create_node_with_data(
+                [data, unsqueeze_dim_data],
+                dict(name=rnn_layer_name + "/UnsqueezeNumDirections/{}".format(i)),
+                data_nodes=[old_data_node],
+            )
+
     @staticmethod
     def squeeze_initial_states(graph: Graph, match: dict):
         """
@@ -164,27 +188,38 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         hidden_init_port = 5
         cell_init_port = 6
 
-        rnn_layer = match['rnn_layer']
+        rnn_layer = match["rnn_layer"]
         # Add input ports to rnn_layer
-        rnn_layer.add_sequence_of_ports(type='in', rng=range(7))
-        rnn_layer_name = rnn_layer.soft_get('name', rnn_layer.id)
+        rnn_layer.add_sequence_of_ports(type="in", rng=range(7))
+        rnn_layer_name = rnn_layer.soft_get("name", rnn_layer.id)
 
         assert hidden_init_port in rnn_layer.in_nodes()
         hidden_size = rnn_layer.hidden_size
-        shape = Shape(graph, dict(name=rnn_layer_name + '/ShapeOf')).create_node()
+        shape = Shape(graph, dict(name=rnn_layer_name + "/ShapeOf")).create_node()
         rnn_layer.in_port(0).get_source().connect(shape.in_port(0))
 
-        reshape_h = create_op_node_with_second_input(graph, Reshape, second_input_value=int64_array([-1, hidden_size]),
-                                                     op_attrs={'name': rnn_layer_name + '/HiddenStateResize',
-                                                               'override_output_shape': True})
+        reshape_h = create_op_node_with_second_input(
+            graph,
+            Reshape,
+            second_input_value=int64_array([-1, hidden_size]),
+            op_attrs={
+                "name": rnn_layer_name + "/HiddenStateResize",
+                "override_output_shape": True,
+            },
+        )
         rnn_layer.in_port(hidden_init_port).get_connection().insert_node(reshape_h)
 
-        if rnn_layer.op == 'LSTM':
+        if rnn_layer.op == "LSTM":
             assert cell_init_port in rnn_layer.in_nodes()
-            reshape_c = create_op_node_with_second_input(graph, Reshape,
-                                                         second_input_value=int64_array([-1, hidden_size]),
-                                                         op_attrs={'name': rnn_layer_name + '/CellStateResize',
-                                                                   'override_output_shape': True})
+            reshape_c = create_op_node_with_second_input(
+                graph,
+                Reshape,
+                second_input_value=int64_array([-1, hidden_size]),
+                op_attrs={
+                    "name": rnn_layer_name + "/CellStateResize",
+                    "override_output_shape": True,
+                },
+            )
             rnn_layer.in_port(cell_init_port).get_connection().insert_node(reshape_c)
 
     @staticmethod
@@ -192,25 +227,25 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
         """
         Reorder (renumbering) inputs to described format. We need to renumber initial states ports.
         """
-        rnn_layer = match['rnn_layer']
+        rnn_layer = match["rnn_layer"]
         assert 5 in rnn_layer.in_nodes()
         hidden_state_edge = graph.get_edge_data(rnn_layer.in_node(5).id, rnn_layer.id)
-        hidden_state_edge[0]['in'] = 4
+        hidden_state_edge[0]["in"] = 4
 
-        if rnn_layer.op == 'LSTM':
+        if rnn_layer.op == "LSTM":
             assert 6 in rnn_layer.in_nodes()
             cell_state_edge = graph.get_edge_data(rnn_layer.in_node(6).id, rnn_layer.id)
-            cell_state_edge[0]['in'] = 5
+            cell_state_edge[0]["in"] = 5
 
     @staticmethod
     def ports_checks(graph: Graph, match: dict):
         """
-            Check that all mandatory ports is present.
+        Check that all mandatory ports is present.
         """
-        rnn_layer = match['rnn_layer']
+        rnn_layer = match["rnn_layer"]
         mandatory_ports = [0, 1, 2, 4]
 
-        if rnn_layer.op == 'LSTM':
+        if rnn_layer.op == "LSTM":
             mandatory_ports.append(5)
 
         assert set(rnn_layer.in_nodes().keys()) >= set(mandatory_ports)

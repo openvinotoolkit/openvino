@@ -3,6 +3,7 @@
 //
 
 #include "eltwise_kernel_ref.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -57,7 +58,8 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
 
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-            if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !CheckInputsOutputNoPitchSameDims(params)) {
+            if (!params.layoutBased && !params.int8_quantization && !params.broadcast &&
+                !CheckInputsOutputNoPitchSameDims(params)) {
                 auto calc_dim = [&params](Tensor::DataChannelName channel) {
                     size_t idx = DataTensor::Channelndex(params.outputs[0].GetLayout(), channel);
                     // We increment the index, because fusions dims ordering starts from one
@@ -79,11 +81,19 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             }
         }
 
-        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
-            FusedOpsConfiguration conf = {"", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
+        if (!params.layoutBased && !params.int8_quantization && !params.broadcast &&
+            CheckInputsOutputNoPitchSameDims(params)) {
+            FusedOpsConfiguration conf = {"",
+                                          {"d1"},
+                                          "res",
+                                          input_dt,
+                                          1,
+                                          LoadType::LT_UNALIGNED,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::LINEAR_OFFSET};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         } else {
-            FusedOpsConfiguration conf =  {"", idx_order, "res", input_dt, 1};
+            FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         }
     }

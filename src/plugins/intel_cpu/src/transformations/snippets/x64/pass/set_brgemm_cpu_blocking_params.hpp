@@ -15,12 +15,11 @@ namespace pass {
  * @brief The pass selects optimal M, K and N blocking parameters for BrgemmCPU and sets them to the node.
  * @ingroup snippets
  */
-class SetBrgemmCPUBlockingParams: public ov::pass::MatcherPass {
+class SetBrgemmCPUBlockingParams : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SetBrgemmCPUBlockingParams", "0");
     SetBrgemmCPUBlockingParams();
 };
-
 
 }  // namespace pass
 }  // namespace intel_cpu

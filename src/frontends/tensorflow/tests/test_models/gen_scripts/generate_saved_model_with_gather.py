@@ -13,10 +13,15 @@ class ModelWithGather(tf.Module):
         super(ModelWithGather, self).__init__()
         self.var1 = tf.Variable(5.0)
 
-    @tf.function(input_signature=[tf.TensorSpec([20, 5], tf.float32), tf.TensorSpec([4], tf.int32)])
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec([20, 5], tf.float32),
+            tf.TensorSpec([4], tf.int32),
+        ]
+    )
     def __call__(self, params, indices):
         gather = tf.raw_ops.GatherV2(params=params, indices=indices, axis=0)
-        return {'test_output_name': gather * self.var1}
+        return {"test_output_name": gather * self.var1}
 
 
 module = ModelWithGather()

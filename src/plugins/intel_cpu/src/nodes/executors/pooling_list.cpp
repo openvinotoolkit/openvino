@@ -9,11 +9,10 @@ namespace intel_cpu {
 
 const std::vector<PoolingExecutorDesc>& getPoolingExecutorsList() {
     static std::vector<PoolingExecutorDesc> descs = {
-        OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclPoolingExecutorBuilder>())
-    };
+        OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclPoolingExecutorBuilder>())};
 
     return descs;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

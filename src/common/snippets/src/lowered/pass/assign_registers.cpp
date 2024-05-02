@@ -4,9 +4,9 @@
 
 #include "snippets/lowered/pass/assign_registers.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
@@ -20,16 +20,15 @@ namespace pass {
 void AssignRegisters::set_reg_types(LinearIR& linear_ir) {
     for (const auto& expr : linear_ir) {
         const auto op = expr->get_node();
-        if (ov::is_type<op::LoopEnd>(op) ||
-            ov::is_type<ov::op::v0::Result>(op)
+        if (ov::is_type<op::LoopEnd>(op) || ov::is_type<ov::op::v0::Result>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
-        || ov::is_type<op::PerfCountBeginBase>(op)
-        || ov::is_type<op::PerfCountEndBase>(op)
+            || ov::is_type<op::PerfCountBeginBase>(op) || ov::is_type<op::PerfCountEndBase>(op)
 #endif
         )
-        continue;
+            continue;
 
-        OPENVINO_ASSERT(expr->get_output_count() == op->get_output_size(), "Incorrect count of output port descriptors!");
+        OPENVINO_ASSERT(expr->get_output_count() == op->get_output_size(),
+                        "Incorrect count of output port descriptors!");
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto reg_type = m_reg_type_mapper(op->output(i));
             expr->get_output_port_descriptor(i)->set_reg_type(reg_type);
@@ -54,23 +53,25 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     Reg num_results = 0;
     for (const auto& expr : io_exprs) {
         switch (expr->get_type()) {
-            case snippets::lowered::IOExpression::io_type::INPUT: {
-                num_parameters++;
-                break;
-            }
-            case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                num_results++;
-                break;
-            } default : {
-                OPENVINO_THROW("Kernel detected unsupported io_type");
-            }
+        case snippets::lowered::IOExpression::io_type::INPUT: {
+            num_parameters++;
+            break;
+        }
+        case snippets::lowered::IOExpression::io_type::OUTPUT: {
+            num_results++;
+            break;
+        }
+        default: {
+            OPENVINO_THROW("Kernel detected unsupported io_type");
+        }
         }
     }
 
     size_t counter_vec = 0;
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
-    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
+    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done
+    // manually
     std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     auto accumulator_reg = 0lu;
@@ -91,7 +92,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                 // shape infer ops sequence before result
                 const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(io_expr);
                 for (const auto& parent_shape_infer_expr : shape_infer_sources) {
-                    manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                    manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] =
+                        num_parameters + io_expr->get_index();
                 }
             } else {
                 OPENVINO_THROW("Unsupported io_type detected");
@@ -101,21 +103,22 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             // All buffers have one common data pointer
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
-                // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
-                // child shape info ops share the same memory as IntermediateMemoryBuffer.
+                    static_cast<Reg>(num_results + num_parameters + buffer_id);
+                // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new
+                // loop should start. child shape info ops share the same memory as IntermediateMemoryBuffer.
                 const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
                 for (const auto& child_shape_infer_expr : shape_infer_consumers) {
                     manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
                         manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                            static_cast<Reg>(num_results + num_parameters + buffer_id);
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
-                    static_cast<Reg>(num_results + num_parameters + buffer_id);
+                static_cast<Reg>(num_results + num_parameters + buffer_id);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
-            // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
+            // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a
+            // accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
             const auto& input_tensor = expr->get_input_port_connector(0);
             const auto& input_expr = input_tensor->get_source().get_expr();
@@ -123,9 +126,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             for (const auto& tensor : input_expr_input_tensors) {
                 const auto parent_expr = tensor->get_source().get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                    if (ov::is_type<op::VectorBuffer>(
+                            parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
                         manually_assigned_vecs[tensor] = static_cast<Reg>(accumulator_reg);
-                        manually_assigned_vecs[parent_expr->get_input_port_connector(0)] = static_cast<Reg>(accumulator_reg);
+                        manually_assigned_vecs[parent_expr->get_input_port_connector(0)] =
+                            static_cast<Reg>(accumulator_reg);
                     }
                 }
             }
@@ -134,12 +139,12 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         }
     }
     // Note: have to specify default capture "=" due to MSVC bug (it doesn't capture const expressions implicitly)
-    // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default capture mode has been specified"
-    // the same problem with all the other lambdas in this file
-    auto enumerate_out_tensor = [=] (const tensor& out_tensor,
-                                     decltype(regs_vec)& reg_map,
-                                     const std::map<tensor, Reg>& manually_assigned_regs,
-                                     size_t& counter) {
+    // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default
+    // capture mode has been specified" the same problem with all the other lambdas in this file
+    auto enumerate_out_tensor = [=](const tensor& out_tensor,
+                                    decltype(regs_vec)& reg_map,
+                                    const std::map<tensor, Reg>& manually_assigned_regs,
+                                    size_t& counter) {
         // Note that some ops might have identical input&output tensors (Result and Tile* for ex.)
         // so we have to check that the tensor has not been enumerated already
         if (reg_map.count(out_tensor) == 0) {
@@ -150,26 +155,26 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out = expr->get_output_port(i);
             switch (out.get_descriptor_ptr()->get_reg().type) {
-                case RegType::vec:
-                    enumerate_out_tensor(out.get_port_connector_ptr(), regs_vec, manually_assigned_vecs, counter_vec);
-                    break;
-                case RegType::gpr:
-                    enumerate_out_tensor(out.get_port_connector_ptr(), regs_gpr, manually_assigned_gprs, counter_gpr);
-                    break;
-                default:
-                    OPENVINO_THROW("Unsupported reg type detected");
+            case RegType::vec:
+                enumerate_out_tensor(out.get_port_connector_ptr(), regs_vec, manually_assigned_vecs, counter_vec);
+                break;
+            case RegType::gpr:
+                enumerate_out_tensor(out.get_port_connector_ptr(), regs_gpr, manually_assigned_gprs, counter_gpr);
+                break;
+            default:
+                OPENVINO_THROW("Unsupported reg type detected");
             }
         }
     }
     // todo: make one for gpr and one for vector
-    std::vector<std::set<Reg>> used_gpr, used_vec; // used = used as an input
-    std::vector<std::set<Reg>> defined_gpr, defined_vec; // defined = used as output
+    std::vector<std::set<Reg>> used_gpr, used_vec;        // used = used as an input
+    std::vector<std::set<Reg>> defined_gpr, defined_vec;  // defined = used as output
     used_gpr.reserve(num_expressions);
     used_vec.reserve(num_expressions);
     defined_gpr.reserve(num_expressions);
     defined_vec.reserve(num_expressions);
 
-    auto tensor2reg = [=] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
+    auto tensor2reg = [=](const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
@@ -186,27 +191,27 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         for (size_t i = 0; i < expr->get_input_count(); ++i) {
             const auto& in = expr->get_input_port(i);
             switch (in.get_descriptor_ptr()->get_reg().type) {
-                case RegType::vec:
-                    used_vec_tensors.push_back(in.get_port_connector_ptr());
-                    break;
-                case RegType::gpr:
-                    used_gpr_tensors.push_back(in.get_port_connector_ptr());
-                    break;
-                default:
-                    OPENVINO_THROW("Unsupported reg type detected");
+            case RegType::vec:
+                used_vec_tensors.push_back(in.get_port_connector_ptr());
+                break;
+            case RegType::gpr:
+                used_gpr_tensors.push_back(in.get_port_connector_ptr());
+                break;
+            default:
+                OPENVINO_THROW("Unsupported reg type detected");
             }
         }
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out = expr->get_output_port(i);
             switch (out.get_descriptor_ptr()->get_reg().type) {
-                case RegType::vec:
-                    defined_vec_tensors.push_back(out.get_port_connector_ptr());
-                    break;
-                case RegType::gpr:
-                    defined_gpr_tensors.push_back(out.get_port_connector_ptr());
-                    break;
-                default:
-                    OPENVINO_THROW("Unsupported reg type detected");
+            case RegType::vec:
+                defined_vec_tensors.push_back(out.get_port_connector_ptr());
+                break;
+            case RegType::gpr:
+                defined_gpr_tensors.push_back(out.get_port_connector_ptr());
+                break;
+            default:
+                OPENVINO_THROW("Unsupported reg type detected");
             }
         }
         used_vec.emplace_back(tensor2reg(used_vec_tensors, regs_vec));
@@ -218,21 +223,25 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     // define life intervals
     // liveOut[i] - regs that are live on exit from i-th (topologically ordered) operation
     // liveIn[i] - regs that are live on entering the i-th (topologically ordered) operation
-    std::vector<std::set<Reg>> life_in_vec(std::move(used_vec)),
-                               life_in_gpr(std::move(used_gpr));
+    std::vector<std::set<Reg>> life_in_vec(std::move(used_vec)), life_in_gpr(std::move(used_gpr));
     std::vector<std::set<Reg>> life_out_vec(num_expressions, std::set<Reg>()),
-                               life_out_gpr(num_expressions, std::set<Reg>());
+        life_out_gpr(num_expressions, std::set<Reg>());
 
-    // todo: this part if O(N*N), so it's slow for large subgraphs. Can we simplify it? At least add an early stopping criteria
+    // todo: this part if O(N*N), so it's slow for large subgraphs. Can we simplify it? At least add an early stopping
+    // criteria
     for (size_t i = 0; i < num_expressions; i++) {
         for (size_t n = 0; n < num_expressions; n++) {
-            // Regs that are live on entering the operation = regs used by the op + (all other regs alive - regs defined by the op)
-            // copy regs from lifeOut to lifeIn while ignoring regs in def
-            std::set_difference(life_out_gpr[n].begin(), life_out_gpr[n].end(),
-                                defined_gpr[n].begin(), defined_gpr[n].end(),
+            // Regs that are live on entering the operation = regs used by the op + (all other regs alive - regs defined
+            // by the op) copy regs from lifeOut to lifeIn while ignoring regs in def
+            std::set_difference(life_out_gpr[n].begin(),
+                                life_out_gpr[n].end(),
+                                defined_gpr[n].begin(),
+                                defined_gpr[n].end(),
                                 std::inserter(life_in_gpr[n], life_in_gpr[n].begin()));
-            std::set_difference(life_out_vec[n].begin(), life_out_vec[n].end(),
-                                defined_vec[n].begin(), defined_vec[n].end(),
+            std::set_difference(life_out_vec[n].begin(),
+                                life_out_vec[n].end(),
+                                defined_vec[n].begin(),
+                                defined_vec[n].end(),
                                 std::inserter(life_in_vec[n], life_in_vec[n].begin()));
         }
         size_t n = 0;
@@ -260,7 +269,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     }
     struct by_starting {
         auto operator()(const std::pair<int, int>& lhs, const std::pair<int, int>& rhs) const -> bool {
-            return lhs.first < rhs.first|| (lhs.first == rhs.first && lhs.second < rhs.second);
+            return lhs.first < rhs.first || (lhs.first == rhs.first && lhs.second < rhs.second);
         }
     };
 
@@ -345,7 +354,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 
     std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_gprs));
     assigned_regs.insert(manually_assigned_vecs.begin(), manually_assigned_vecs.end());
-    auto register_assigned_regs = [=, &assigned_regs](const std::map<tensor, Reg>& unique_regs, const std::map<Reg, Reg>& unique2reused) {
+    auto register_assigned_regs = [=, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
+                                                      const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)
                 continue;
@@ -368,8 +378,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     return false;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "convolution.hpp"
 
 namespace ov {
@@ -23,16 +22,16 @@ class LP_TRANSFORMATIONS_API GroupConvolutionTransformation : public Convolution
 public:
     OPENVINO_RTTI("GroupConvolutionTransformation", "0");
     GroupConvolutionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
-        const std::vector<ov::element::Type>& defaultPrecisions) const override;
+                     const std::vector<ov::element::Type>& defaultPrecisions) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
-        const std::vector<ov::element::Type>& defaultPrecisions);
+                                  const std::vector<ov::element::Type>& defaultPrecisions);
 
 protected:
     size_t getInputChannels(const std::shared_ptr<ov::Node> conv) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

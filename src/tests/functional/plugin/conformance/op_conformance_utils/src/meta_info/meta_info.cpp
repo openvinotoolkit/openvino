@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pugixml.hpp"
-
 #include "op_conformance_utils/meta_info/meta_info.hpp"
+
 #include "op_conformance_utils/utils/file.hpp"
+#include "pugixml.hpp"
 
 namespace ov {
 namespace conformance {
@@ -20,16 +20,19 @@ MetaInfo::MetaInfo(const std::string& _model_path,
                    const std::string& extractor,
                    size_t model_priority) {
     unsigned long tmp_graph_priority = _total_op_cnt * model_priority;
-    if (tmp_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = tmp_graph_priority;
-    if (tmp_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = tmp_graph_priority;
+    if (tmp_graph_priority < MIN_MODEL_PRIORITY)
+        MIN_MODEL_PRIORITY = tmp_graph_priority;
+    if (tmp_graph_priority > MAX_MODEL_PRIORITY)
+        MAX_MODEL_PRIORITY = tmp_graph_priority;
     if (_model_path != "") {
-        model_info.insert({ get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, _this_op_cnt, model_priority) });
+        model_info.insert(
+            {get_model_name_by_path(_model_path), ModelInfo(_model_path, _total_op_cnt, _this_op_cnt, model_priority)});
     }
     if (!_input_info.empty()) {
         input_info = _input_info;
     }
     if (!extractor.empty()) {
-        extractors = { extractor };
+        extractors = {extractor};
     }
 }
 
@@ -76,17 +79,18 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, bool read_p
             ModelInfo tmp_model_info;
             tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
             tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
-            tmp_model_info.model_priority = model_child.attribute("priority") ? model_child.attribute("priority").as_uint() : 1;
+            tmp_model_info.model_priority =
+                model_child.attribute("priority") ? model_child.attribute("priority").as_uint() : 1;
             for (const auto& path : model_child.child("path")) {
                 tmp_model_info.model_paths.insert(std::string(path.attribute("path").value()));
             }
-            model_info.insert({ std::string(model_child.attribute("name").value()), tmp_model_info });
+            model_info.insert({std::string(model_child.attribute("name").value()), tmp_model_info});
         }
     }
     std::map<std::string, InputInfo> input_info;
     {
         auto input_info_xml = doc.child("meta_info").child("input_info");
-        for (const auto &input : input_info_xml.children()) {
+        for (const auto& input : input_info_xml.children()) {
             auto in_name = std::string(input.attribute("id").value());
             InputInfo in_info;
             in_info.is_const = input.attribute("convert_to_const").as_bool();
@@ -124,54 +128,58 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, bool read_p
             extractors.insert(std::string(extractor.attribute("name").value()));
         }
     }
-    double graph_priority = read_priority ? doc.child("meta_info").child("graph_priority").attribute("value").as_double() : 0;
+    double graph_priority =
+        read_priority ? doc.child("meta_info").child("graph_priority").attribute("value").as_double() : 0;
 
     auto new_meta = MetaInfo(input_info, model_info, extractors, graph_priority);
     return new_meta;
 }
 
 void MetaInfo::serialize(const std::string& serialization_path) {
-        pugi::xml_document doc;
-        pugi::xml_node root = doc.append_child("meta_info");
-        pugi::xml_node models = root.append_child("models");
-        // todo: iefode: update to prioritize_latest opset
-        for (const auto& model : model_info) {
-            pugi::xml_node model_node = models.append_child("model");
-            model_node.append_attribute("name").set_value(model.first.c_str());
-            model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
-            model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
-            model_node.append_attribute("priority").set_value(static_cast<unsigned long long>(model.second.model_priority));
-            for (const auto& model_path : model.second.model_paths) {
-                model_node.append_child("path").append_child("model").append_attribute("path").set_value(model_path.c_str());
-            }
+    pugi::xml_document doc;
+    pugi::xml_node root = doc.append_child("meta_info");
+    pugi::xml_node models = root.append_child("models");
+    // todo: iefode: update to prioritize_latest opset
+    for (const auto& model : model_info) {
+        pugi::xml_node model_node = models.append_child("model");
+        model_node.append_attribute("name").set_value(model.first.c_str());
+        model_node.append_attribute("this_op_count")
+            .set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
+        model_node.append_attribute("total_op_count")
+            .set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
+        model_node.append_attribute("priority").set_value(static_cast<unsigned long long>(model.second.model_priority));
+        for (const auto& model_path : model.second.model_paths) {
+            model_node.append_child("path").append_child("model").append_attribute("path").set_value(
+                model_path.c_str());
         }
-        if (!extractors.empty()) {
-            auto extractors_node = root.append_child("extractors");
-            for (const auto& extractor : extractors) {
-                extractors_node.append_child("extractor").append_attribute("name").set_value(extractor.c_str());
-            }
+    }
+    if (!extractors.empty()) {
+        auto extractors_node = root.append_child("extractors");
+        for (const auto& extractor : extractors) {
+            extractors_node.append_child("extractor").append_attribute("name").set_value(extractor.c_str());
         }
-        double graph_priority = get_graph_priority();
-        root.append_child("graph_priority").append_attribute("value").set_value(graph_priority);
-        auto ports_info = root.append_child("input_info");
-        for (const auto& input : input_info) {
-            auto input_node = ports_info.append_child("input");
-            input_node.append_attribute("id").set_value(input.first.c_str());
-            if (input.second.ranges.min == DEFAULT_MIN_VALUE) {
-                input_node.append_attribute("min").set_value("undefined");
-            } else {
-                input_node.append_attribute("min").set_value(input.second.ranges.min);
-            }
-            if (input.second.ranges.max == DEFAULT_MAX_VALUE) {
-                input_node.append_attribute("max").set_value("undefined");
-            } else {
-                input_node.append_attribute("max").set_value(input.second.ranges.max);
-            }
-            input_node.append_attribute("convert_to_const").set_value(input.second.is_const);
-            input_node.append_attribute("max_shape").set_value(input.second.max_shape.to_string().c_str());
-            input_node.append_attribute("min_shape").set_value(input.second.min_shape.to_string().c_str());
+    }
+    double graph_priority = get_graph_priority();
+    root.append_child("graph_priority").append_attribute("value").set_value(graph_priority);
+    auto ports_info = root.append_child("input_info");
+    for (const auto& input : input_info) {
+        auto input_node = ports_info.append_child("input");
+        input_node.append_attribute("id").set_value(input.first.c_str());
+        if (input.second.ranges.min == DEFAULT_MIN_VALUE) {
+            input_node.append_attribute("min").set_value("undefined");
+        } else {
+            input_node.append_attribute("min").set_value(input.second.ranges.min);
         }
-        doc.save_file(serialization_path.c_str());
+        if (input.second.ranges.max == DEFAULT_MAX_VALUE) {
+            input_node.append_attribute("max").set_value("undefined");
+        } else {
+            input_node.append_attribute("max").set_value(input.second.ranges.max);
+        }
+        input_node.append_attribute("convert_to_const").set_value(input.second.is_const);
+        input_node.append_attribute("max_shape").set_value(input.second.max_shape.to_string().c_str());
+        input_node.append_attribute("min_shape").set_value(input.second.min_shape.to_string().c_str());
+    }
+    doc.save_file(serialization_path.c_str());
 }
 
 void MetaInfo::update(const std::string& _model_path,
@@ -191,14 +199,16 @@ void MetaInfo::update(const std::string& _model_path,
         }
         model_info.at(model_name).this_op_cnt += _this_op_cnt;
     } else {
-        model_info.insert({ model_name, ModelInfo(_model_path, _total_op_cnt) });\
+        model_info.insert({model_name, ModelInfo(_model_path, _total_op_cnt)});
     }
 
     // update max and mib abs priority to normilize priorities when serialize
     {
         auto abs_graph_priority = get_abs_graph_priority();
-        if (abs_graph_priority > MAX_MODEL_PRIORITY) MAX_MODEL_PRIORITY = abs_graph_priority;
-        if (abs_graph_priority < MIN_MODEL_PRIORITY) MIN_MODEL_PRIORITY = abs_graph_priority;
+        if (abs_graph_priority > MAX_MODEL_PRIORITY)
+            MAX_MODEL_PRIORITY = abs_graph_priority;
+        if (abs_graph_priority < MIN_MODEL_PRIORITY)
+            MIN_MODEL_PRIORITY = abs_graph_priority;
     }
     if (!extractor.empty()) {
         extractors.insert(extractor);
@@ -227,11 +237,11 @@ std::map<std::string, ModelInfo> MetaInfo::get_model_info() const {
 
 std::string MetaInfo::get_model_name_by_path(const std::string& model_path) {
     constexpr const auto file_separator =
-    #ifdef _WIN32
-            '\\';
-    #else
-            '/';
-    #endif
+#ifdef _WIN32
+        '\\';
+#else
+        '/';
+#endif
 
     auto model_name = ov::util::split_str(model_path, file_separator).back();
     return ov::util::replace_extension(model_name, "");

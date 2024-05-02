@@ -4,29 +4,29 @@
 
 #pragma once
 
-#include <vector>
-#include <tuple>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-    std::vector<float>,  // widths
-    std::vector<float>,  // heights
-    bool,                // clip
-    float,               // step_width
-    float,               // step_height
-    float,               // step
-    float,               // offset
-    std::vector<float>> priorBoxClusteredSpecificParams;
+typedef std::tuple<std::vector<float>,  // widths
+                   std::vector<float>,  // heights
+                   bool,                // clip
+                   float,               // step_width
+                   float,               // step_height
+                   float,               // step
+                   float,               // offset
+                   std::vector<float>>
+    priorBoxClusteredSpecificParams;
 
-typedef std::tuple<
-    priorBoxClusteredSpecificParams,
-    ov::element::Type,        // Model type
-    std::vector<InputShape>,  // Input shape
-    std::string> priorBoxClusteredLayerParams;
+typedef std::tuple<priorBoxClusteredSpecificParams,
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shape
+                   std::string>
+    priorBoxClusteredLayerParams;
 
 class PriorBoxClusteredLayerTest : public testing::WithParamInterface<priorBoxClusteredLayerParams>,
                                    virtual public ov::test::SubgraphBaseTest {

@@ -4,26 +4,27 @@
 
 #pragma once
 
+#include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/infer_request.hpp"
-#include "openvino/runtime/compiled_model.hpp"
-#include "openvino/op/parameter.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-#include "base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
 
-using RemoteTensorParams = std::tuple<element::Type,        // element type
-                                      std::string,          // target device
-                                      ov::AnyMap,    // config
-                                      std::pair<ov::AnyMap, ov::AnyMap>>; // remote context and tensor parameters
+using RemoteTensorParams = std::tuple<element::Type,                       // element type
+                                      std::string,                         // target device
+                                      ov::AnyMap,                          // config
+                                      std::pair<ov::AnyMap, ov::AnyMap>>;  // remote context and tensor parameters
 
 class OVRemoteTest : public testing::WithParamInterface<RemoteTensorParams>,
                      public ov::test::behavior::OVPluginTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RemoteTensorParams> obj);
+
 protected:
     void SetUp() override;
     void TearDown() override;

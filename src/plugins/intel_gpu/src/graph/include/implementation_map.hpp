@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-
 #include <functional>
 #include <map>
 #include <string>
 #include <tuple>
 #include <typeinfo>
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/implementation_desc.hpp"
 
 namespace cldnn {
 
@@ -46,11 +45,16 @@ class implementation_map {
 public:
     using key_builder = implementation_key;
     using key_type = typename key_builder::type;
-    using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&,
+                                                                       const kernel_impl_params&)>;
     using list_type = singleton_list<std::tuple<impl_types, shape_types, std::set<key_type>, factory_type>>;
 
-    static factory_type get(const kernel_impl_params& impl_params, impl_types preferred_impl_type, shape_types target_shape_type) {
-        auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
+    static factory_type get(const kernel_impl_params& impl_params,
+                            impl_types preferred_impl_type,
+                            shape_types target_shape_type) {
+        auto input_layout = !impl_params.input_layouts.empty()
+                                ? impl_params.input_layouts[0]
+                                : layout{ov::PartialShape{}, data_types::f32, format::any};
         auto key = key_builder()(input_layout);
         for (auto& kv : list_type::instance()) {
             impl_types impl_type = std::get<0>(kv);
@@ -61,25 +65,41 @@ public:
                 continue;
             std::set<key_type>& keys_set = std::get<2>(kv);
             auto& factory = std::get<3>(kv);
-            if (keys_set.empty() || keys_set.find(key) != keys_set.end())  {
+            if (keys_set.empty() || keys_set.find(key) != keys_set.end()) {
                 return factory;
             }
         }
-        OPENVINO_ASSERT(false, "[GPU] implementation_map for ", typeid(primitive_kind).name(),
-                               " could not find any implementation to match key: ", std::get<0>(key), "|", std::get<1>(key),
-                               ", impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type, ", node_id: ",  impl_params.desc->id);
+        OPENVINO_ASSERT(false,
+                        "[GPU] implementation_map for ",
+                        typeid(primitive_kind).name(),
+                        " could not find any implementation to match key: ",
+                        std::get<0>(key),
+                        "|",
+                        std::get<1>(key),
+                        ", impl_type: ",
+                        preferred_impl_type,
+                        ", shape_type: ",
+                        target_shape_type,
+                        ", node_id: ",
+                        impl_params.desc->id);
     }
 
     // check if for a given engine and type there exist an implementation
     static bool check(const kernel_impl_params& impl_params, impl_types target_impl_type, shape_types shape_type) {
-        auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
+        auto input_layout = !impl_params.input_layouts.empty()
+                                ? impl_params.input_layouts[0]
+                                : layout{ov::PartialShape{}, data_types::f32, format::any};
         auto key = key_builder()(input_layout);
         return check_key(target_impl_type, key, shape_type);
     }
 
     // check if there exists a kernel implementation of a primitive with output set it primitive's output layout
-    static bool check_io_eq(const kernel_impl_params& impl_params, impl_types target_impl_type, shape_types shape_type) {
-        auto output_layout = !impl_params.output_layouts.empty() ? impl_params.get_output_layout() : layout{ov::PartialShape{}, data_types::f32, format::any};
+    static bool check_io_eq(const kernel_impl_params& impl_params,
+                            impl_types target_impl_type,
+                            shape_types shape_type) {
+        auto output_layout = !impl_params.output_layouts.empty()
+                                 ? impl_params.get_output_layout()
+                                 : layout{ov::PartialShape{}, data_types::f32, format::any};
         auto key = key_builder()(output_layout);
         return check_key(target_impl_type, key, shape_type);
     }
@@ -121,13 +141,18 @@ public:
         return res;
     }
 
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory,
-                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+    static void add(impl_types impl_type,
+                    shape_types shape_type,
+                    factory_type factory,
+                    const std::vector<data_types>& types,
+                    const std::vector<format::type>& formats) {
         add(impl_type, shape_type, std::move(factory), combine(types, formats));
     }
 
-    static void add(impl_types impl_type, factory_type factory,
-                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+    static void add(impl_types impl_type,
+                    factory_type factory,
+                    const std::vector<data_types>& types,
+                    const std::vector<format::type>& formats) {
         add(impl_type, std::move(factory), combine(types, formats));
     }
 
@@ -172,7 +197,10 @@ struct WeightsReordersFactory {
             return std::get<2>(kv);
         }
         OPENVINO_THROW("[GPU] WeightsReordersFactory doesn't have any implementation for "
-                       " impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type);
+                       " impl_type: ",
+                       preferred_impl_type,
+                       ", shape_type: ",
+                       target_shape_type);
     }
 };
 }  // namespace cldnn

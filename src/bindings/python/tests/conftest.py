@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import pytest
 
 
@@ -15,7 +16,9 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
     config.addinivalue_line("markers", "template_extension")
-    config.addinivalue_line("markers", "dynamic_library: Runs tests only in dynamic libraries case")
+    config.addinivalue_line(
+        "markers", "dynamic_library: Runs tests only in dynamic libraries case"
+    )
 
 
 @pytest.fixture(scope="session")

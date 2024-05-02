@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "batch_to_space_inst.h"
-
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
 #include <string>
 #include <vector>
 
+#include "batch_to_space_inst.h"
 #include "batch_to_space_shape_inference.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(batch_to_space)
@@ -33,19 +32,19 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node, 
     const auto& crops_end = desc->crops_end;
 
     if (block_shape.batch[0] != 1)
-        CLDNN_ERROR_MESSAGE(desc->id,
-            "block_shape[0] is expected to be 1. Actual block_shape[0] is " +
-            std::to_string(block_shape.batch[0]));
+        CLDNN_ERROR_MESSAGE(
+            desc->id,
+            "block_shape[0] is expected to be 1. Actual block_shape[0] is " + std::to_string(block_shape.batch[0]));
 
     if (crops_begin.batch[0] != 0)
-        CLDNN_ERROR_MESSAGE(desc->id,
-            "crops_begin[0] is expected to be 0. Actual crops_begin[0] is " +
-            std::to_string(crops_begin.batch[0]));
+        CLDNN_ERROR_MESSAGE(
+            desc->id,
+            "crops_begin[0] is expected to be 0. Actual crops_begin[0] is " + std::to_string(crops_begin.batch[0]));
 
     if (crops_end.batch[0] != 0)
-        CLDNN_ERROR_MESSAGE(desc->id,
-            "crops_end[0] is expected to be 0. Actual crops_end[0] is " +
-            std::to_string(crops_end.batch[0]));
+        CLDNN_ERROR_MESSAGE(
+            desc->id,
+            "crops_end[0] is expected to be 0. Actual crops_end[0] is " + std::to_string(crops_end.batch[0]));
 
     size_t block_sizes_multiplied = block_shape.feature[0];
     for (size_t i = 0; i < spatial_num; ++i)
@@ -53,17 +52,15 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node, 
 
     if (input_layout.batch() % block_sizes_multiplied != 0)
         CLDNN_ERROR_MESSAGE(desc->id,
-            "The batch of the input tensor must be divisible by multiplied block sizes = " +
-            std::to_string(block_sizes_multiplied));
+                            "The batch of the input tensor must be divisible by multiplied block sizes = " +
+                                std::to_string(block_sizes_multiplied));
 
     if (crops_begin.feature[0] + crops_end.feature[0] >= block_shape.feature[0] * input_layout.feature())
-            CLDNN_ERROR_MESSAGE(desc->id,
-                "Output dimensions must be positive");
+        CLDNN_ERROR_MESSAGE(desc->id, "Output dimensions must be positive");
 
     for (size_t i = 0; i < spatial_num; ++i)
         if (crops_begin.spatial[i] + crops_end.spatial[i] >= block_shape.spatial[i] * input_layout.spatial(i))
-            CLDNN_ERROR_MESSAGE(desc->id,
-                "Output dimensions must be positive");
+            CLDNN_ERROR_MESSAGE(desc->id, "Output dimensions must be positive");
 
     return layout{output_type, input_format, desc->out_size};
 }
@@ -77,8 +74,9 @@ static std::vector<int32_t> tensor_to_vec(const tensor& t, const format f) {
     return vec;
 }
 
-template<typename ShapeType>
-std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node const& /*node*/,
+                                                             const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<batch_to_space>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
@@ -96,21 +94,19 @@ std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node
 
     if (desc->shape_constant == 0 && (!constant_mem.count(1) || !constant_mem.count(2) || !constant_mem.count(3))) {
         auto out_shape = ov::PartialShape::dynamic(input0_size);
-        return { layout{out_shape, output_type, input0_format } };
+        return {layout{out_shape, output_type, input0_format}};
     }
 
-    ShapeType block_shape = desc->shape_constant == 0 ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ input0_size };
-    ShapeType begin_shape = desc->shape_constant == 0 ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{ input0_size };
-    ShapeType end_shape = desc->shape_constant == 0 ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{ input0_size };
+    ShapeType block_shape =
+        desc->shape_constant == 0 ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{input0_size};
+    ShapeType begin_shape =
+        desc->shape_constant == 0 ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{input0_size};
+    ShapeType end_shape =
+        desc->shape_constant == 0 ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{input0_size};
 
     ov::op::v1::BatchToSpace op;
     std::vector<ShapeType> output_shapes = {ShapeType{}};
-    std::vector<ShapeType> input_shapes = {
-        input0_shape,
-        block_shape,
-        begin_shape,
-        end_shape
-    };
+    std::vector<ShapeType> input_shapes = {input0_shape, block_shape, begin_shape, end_shape};
 
     std::unordered_map<size_t, ov::Tensor> const_data;
     if (desc->shape_constant) {
@@ -122,9 +118,9 @@ std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node
         auto begin_values = static_cast<void*>(begin_sizes.data());
         auto end_values = static_cast<void*>(end_sizes.data());
 
-        auto block_tensor = make_tensor({ block_shape, data_types::i32, input0_format }, block_values);
-        auto begin_tensor = make_tensor({ begin_shape, data_types::i32, input0_format }, begin_values);
-        auto end_tensor = make_tensor({ end_shape, data_types::i32, input0_format }, end_values);
+        auto block_tensor = make_tensor({block_shape, data_types::i32, input0_format}, block_values);
+        auto begin_tensor = make_tensor({begin_shape, data_types::i32, input0_format}, begin_values);
+        auto end_tensor = make_tensor({end_shape, data_types::i32, input0_format}, end_values);
 
         const_data.emplace(1, block_tensor);
         const_data.emplace(2, begin_tensor);
@@ -151,10 +147,12 @@ std::vector<layout> batch_to_space_inst::calc_output_layouts(batch_to_space_node
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     }
 
-    return { layout{output_shapes[0], output_type, input0_format} };
+    return {layout{output_shapes[0], output_type, input0_format}};
 }
 
-template std::vector<layout> batch_to_space_inst::calc_output_layouts<ov::PartialShape>(batch_to_space_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> batch_to_space_inst::calc_output_layouts<ov::PartialShape>(
+    batch_to_space_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string batch_to_space_inst::to_string(batch_to_space_node const& node) {
     auto desc = node.get_primitive();
@@ -172,7 +170,6 @@ std::string batch_to_space_inst::to_string(batch_to_space_node const& node) {
     return primitive_description.str();
 }
 
-batch_to_space_inst::typed_primitive_inst(network& network, batch_to_space_node const& node)
-    : parent(network, node) {}
+batch_to_space_inst::typed_primitive_inst(network& network, batch_to_space_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

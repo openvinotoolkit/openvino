@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_gpu_bs_fs_yx_bsv16_fsv16.h"
+
 #include "kernel_selector_utils.h"
 
 //
@@ -39,7 +40,8 @@ ParamsKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -47,10 +49,11 @@ DeviceFeaturesKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::get_required_device_
     return k;
 }
 
-PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDefault(const pooling_params& params) const {
+PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDefault(
+    const pooling_params& params) const {
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    dispatchData.gws[0] = params.outputs[0].Feature().v/16;
+    dispatchData.gws[0] = params.outputs[0].Feature().v / 16;
     dispatchData.gws[1] = params.outputs[0].X().v * params.outputs[0].Y().v;
     dispatchData.gws[2] = params.outputs[0].Batch().v;
 
@@ -65,13 +68,14 @@ KernelsPriority Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetKernelsPriority(con
     return FORCE_PRIORITY_1;
 }
 
-JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params,
+                                                                       DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "pool_result[i]", input_dt, 1};
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

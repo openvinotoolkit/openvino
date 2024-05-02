@@ -19,7 +19,7 @@ class TestIndexAdd(PytorchLayerTest):
                 super(aten_index_add, self).__init__()
                 self.dim = dim
                 self.index = index
-                self.src = src                    
+                self.src = src
                 self.inplace = mode == "inplace"
                 self.alpha = alpha
                 if mode == "out":
@@ -30,11 +30,19 @@ class TestIndexAdd(PytorchLayerTest):
                 if self.inplace:
                     return x.index_add_(self.dim, index, self.src, alpha=self.alpha), x
                 else:
-                    return torch.index_add(x, self.dim, index, self.src, alpha=self.alpha), x
+                    return (
+                        torch.index_add(x, self.dim, index, self.src, alpha=self.alpha),
+                        x,
+                    )
 
             def forward_out(self, x: torch.Tensor, out):
                 index = self.index
-                return torch.index_add(x, self.dim, index, self.src, out=out, alpha=self.alpha), out
+                return (
+                    torch.index_add(
+                        x, self.dim, index, self.src, out=out, alpha=self.alpha
+                    ),
+                    out,
+                )
 
         op_name = "aten::index_add_" if mode == "inplace" else "aten::index_add"
 
@@ -45,16 +53,15 @@ class TestIndexAdd(PytorchLayerTest):
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.parametrize(
         "index",
-        [
-            torch.tensor([0, 2, 1]),
-            torch.tensor([0, 0, 0])
-        ],
+        [torch.tensor([0, 2, 1]), torch.tensor([0, 0, 0])],
     )
     @pytest.mark.parametrize("src", [torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])])
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("mode", ["inplace", "out", "default"])
     @pytest.mark.parametrize("alpha", [1, -1, 0.5, 0.25])
-    def test_scatter_reduce(self, dim, index, src, dtype, mode, alpha, ie_device, precision, ir_version):
+    def test_scatter_reduce(
+        self, dim, index, src, dtype, mode, alpha, ie_device, precision, ir_version
+    ):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
         self._test(

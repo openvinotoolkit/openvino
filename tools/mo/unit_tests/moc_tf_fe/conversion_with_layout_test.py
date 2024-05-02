@@ -5,11 +5,10 @@ import os
 import unittest
 
 import numpy as np
-from generator import generator, generate
-
 import openvino.runtime.opset11 as opset11
-from openvino.runtime import Model
-from openvino.runtime import PartialShape, Dimension
+from generator import generate, generator
+from openvino.runtime import Dimension, Model, PartialShape
+
 from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.utils.error import Error
 
@@ -23,16 +22,22 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
 
         for ov_input in ov_model.inputs:
             input_name = ov_input.any_name
-            assert input_name in refs_shapes, "No reference input shape is found for {}".format(input_name)
+            assert (
+                input_name in refs_shapes
+            ), "No reference input shape is found for {}".format(input_name)
             input_shape = ov_input.get_partial_shape()
             ref_shape = refs_shapes[input_name]
-            assert input_shape == ref_shape, "Incorrect shape for {} input:" \
-                                             " expected shape - {}, actual shape - {}".format(input_name, ref_shape,
-                                                                                              input_shape)
+            assert input_shape == ref_shape, (
+                "Incorrect shape for {} input:"
+                " expected shape - {}, actual shape - {}".format(
+                    input_name, ref_shape, input_shape
+                )
+            )
 
     @unittest.skip("Fix importing of openvino.test_utils in Jenkins")
     def test_basic_model_no_layout(self):
         from openvino.test_utils import compare_functions
+
         path = os.path.dirname(__file__)
         input_model = os.path.join(path, "test_models", "model_fp32.pbtxt")
         ov_model = convert_model(input_model)
@@ -48,50 +53,83 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
     @generate(
         *[
             (
-                    "model_fp32.pbtxt", 5, "in1:0(cn),in2:0(cn)",
-                    {"in1:0": PartialShape([2, 5]), "in2:0": PartialShape([2, 5])},
+                "model_fp32.pbtxt",
+                5,
+                "in1:0(cn),in2:0(cn)",
+                {"in1:0": PartialShape([2, 5]), "in2:0": PartialShape([2, 5])},
             ),
             (
-                    "model_fp32.pbtxt", 9, "in1:0(nc),in2:0(nc)",
-                    {"in1:0": PartialShape([9, 2]), "in2:0": PartialShape([9, 2])},
+                "model_fp32.pbtxt",
+                9,
+                "in1:0(nc),in2:0(nc)",
+                {"in1:0": PartialShape([9, 2]), "in2:0": PartialShape([9, 2])},
             ),
             (
-                    "model_fp32.pbtxt", 7, "in1:0(?c),in2:0(?c)",
-                    {"in1:0": PartialShape([2, 2]), "in2:0": PartialShape([2, 2])},
+                "model_fp32.pbtxt",
+                7,
+                "in1:0(?c),in2:0(?c)",
+                {"in1:0": PartialShape([2, 2]), "in2:0": PartialShape([2, 2])},
             ),
         ],
     )
-    def test_basic_model_with_layout(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+    def test_basic_model_with_layout(
+        self, model_name: str, batch: int, layout: str, refs_shapes: dict
+    ):
         self.basic_check(model_name, batch, layout, refs_shapes)
 
     @generate(
         *[
             (
-                    "model_with_convolution_dynamic_rank.pbtxt", 7, "x:0(n???),kernel:0(????)",
-                    {"x:0": PartialShape([7, Dimension.dynamic(), Dimension.dynamic(), 3]),
-                     "kernel:0": PartialShape([2, 2, 3, 1])},
+                "model_with_convolution_dynamic_rank.pbtxt",
+                7,
+                "x:0(n???),kernel:0(????)",
+                {
+                    "x:0": PartialShape(
+                        [7, Dimension.dynamic(), Dimension.dynamic(), 3]
+                    ),
+                    "kernel:0": PartialShape([2, 2, 3, 1]),
+                },
             ),
             (
-                    "model_with_convolution_dynamic_rank.pbtxt", 3, "x:0(???n),kernel:0(??n?)",
-                    {"x:0": PartialShape([Dimension.dynamic(), Dimension.dynamic(), Dimension.dynamic(), 3]),
-                     "kernel:0": PartialShape([2, 2, 3, 1])},
+                "model_with_convolution_dynamic_rank.pbtxt",
+                3,
+                "x:0(???n),kernel:0(??n?)",
+                {
+                    "x:0": PartialShape(
+                        [
+                            Dimension.dynamic(),
+                            Dimension.dynamic(),
+                            Dimension.dynamic(),
+                            3,
+                        ]
+                    ),
+                    "kernel:0": PartialShape([2, 2, 3, 1]),
+                },
             ),
         ],
     )
-    def test_model_with_convolution_dynamic_rank(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+    def test_model_with_convolution_dynamic_rank(
+        self, model_name: str, batch: int, layout: str, refs_shapes: dict
+    ):
         self.basic_check(model_name, batch, layout, refs_shapes)
 
     @generate(
         *[
             (
-                    "model_fp32.pbtxt", 17, "",
-                    {},
+                "model_fp32.pbtxt",
+                17,
+                "",
+                {},
             ),
         ],
     )
-    def test_model_expected_failure(self, model_name: str, batch: int, layout: str, refs_shapes: dict):
+    def test_model_expected_failure(
+        self, model_name: str, batch: int, layout: str, refs_shapes: dict
+    ):
         # try to override batch size by default index (without specifying layout)
-        with self.assertRaisesRegex(Error,
-                                    "When you use -b \(--batch\) option, Model Optimizer applies its value to the first "
-                                    "element of the shape if it is equal to -1, 0 or 1\."):
+        with self.assertRaisesRegex(
+            Error,
+            "When you use -b \(--batch\) option, Model Optimizer applies its value to the first "
+            "element of the shape if it is equal to -1, 0 or 1\.",
+        ):
             self.basic_check(model_name, batch, layout, refs_shapes)

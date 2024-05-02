@@ -51,7 +51,7 @@ public:
 
         cldnn::layout outLayout{data_type, cldnn::format::bfyx, params.outputTensor};
         topology.add(experimental_detectron_prior_grid_generator(experimental_detectron_prior_grid_generator_id,
-                                                                 { input_info(priors_id) },
+                                                                 {input_info(priors_id)},
                                                                  params.flatten,
                                                                  params.h,
                                                                  params.w,
@@ -62,7 +62,11 @@ public:
                                                                  params.imageShape.first,
                                                                  params.imageShape.second));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), params.is_caching_test);
+        cldnn::network::ptr network = get_network(engine,
+                                                  topology,
+                                                  get_test_default_config(engine),
+                                                  get_test_stream_ptr(),
+                                                  params.is_caching_test);
 
         network->set_input_data(priors_id, prior_input);
 
@@ -85,7 +89,8 @@ std::vector<T> getValues(const std::vector<float>& values) {
 }
 
 template <typename T>
-std::vector<ExperimentalDetectronPriorGridGeneratorParams<T>> generateExperimentalPGGParams(bool is_caching_test=false) {
+std::vector<ExperimentalDetectronPriorGridGeneratorParams<T>> generateExperimentalPGGParams(
+    bool is_caching_test = false) {
     std::vector<ExperimentalDetectronPriorGridGeneratorParams<T>> experimentalPGGParams{
         {getValues<T>({-24.5, -12.5, 24.5, 12.5, -16.5, -16.5, 16.5, 16.5, -12.5, -24.5, 12.5, 24.5}),
          tensor(batch(3), feature(4)),
@@ -141,8 +146,7 @@ std::vector<ExperimentalDetectronPriorGridGeneratorParams<T>> generateExperiment
               -4.5,  -12.5, 60.5, 52.5, 3.5,   -24.5, 52.5, 64.5, -8.5,  -4.5,  80.5, 44.5, 3.5,   -12.5, 68.5, 52.5,
               11.5,  -24.5, 60.5, 64.5, -0.5,  -4.5,  88.5, 44.5, 11.5,  -12.5, 76.5, 52.5, 19.5,  -24.5, 68.5, 64.5,
               7.5,   -4.5,  96.5, 44.5, 19.5,  -12.5, 84.5, 52.5, 27.5,  -24.5, 76.5, 64.5}),
-         is_caching_test
-        },
+         is_caching_test},
         {getValues<T>({-364.5, -184.5, 364.5, 184.5, -256.5, -256.5, 256.5, 256.5, -180.5, -360.5, 180.5, 360.5}),
          tensor(batch(3), feature(4)),
          3,
@@ -213,7 +217,8 @@ struct PrintToStringParamName {
 };
 
 using experimental_detectron_prior_grid_generator_test_f32 = experimental_detectron_prior_grid_generator_test<float>;
-using experimental_detectron_prior_grid_generator_test_f16 = experimental_detectron_prior_grid_generator_test<ov::float16>;
+using experimental_detectron_prior_grid_generator_test_f16 =
+    experimental_detectron_prior_grid_generator_test<ov::float16>;
 
 TEST_P(experimental_detectron_prior_grid_generator_test_f32, experimental_detectron_prior_grid_generator_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test());

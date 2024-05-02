@@ -4,12 +4,12 @@
 
 #include "shared_test_classes/single_op/convolution.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/convolution.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -70,7 +70,13 @@ void ConvolutionLayerTest::SetUp() {
 
     auto tensor = ov::test::utils::create_and_fill_tensor(model_type, filterWeightsShape);
     auto filter_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
-    auto conv = std::make_shared<ov::op::v1::Convolution>(params[0], filter_weights_node, stride, pad_begin, pad_end, dilation, pad_type);
+    auto conv = std::make_shared<ov::op::v1::Convolution>(params[0],
+                                                          filter_weights_node,
+                                                          stride,
+                                                          pad_begin,
+                                                          pad_end,
+                                                          dilation,
+                                                          pad_type);
 
     function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(conv), params, "convolution");
 }

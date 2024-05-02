@@ -17,6 +17,6 @@ class AssignAndAssertElimination(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
-            if node.soft_get('op') in ["Assign", "AssignSub", "AssignAdd", "Assert"]:
+            if node.soft_get("op") in ["Assign", "AssignSub", "AssignAdd", "Assert"]:
                 log.debug('"{}" op with id="{}" was removed'.format(node.op, node.id))
                 graph.remove_node(node.id)

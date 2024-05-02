@@ -13,15 +13,11 @@ class PackBinaryWeights(BackReplacementPattern):
 
     @staticmethod
     def pattern():
-        return dict(
-            nodes=[
-                ('op', dict(kind='op', type='BinaryConvolution'))],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(kind="op", type="BinaryConvolution"))], edges=[])
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        conv = match['op']
+        conv = match["op"]
         assert len(conv.in_nodes()) == 2
         initial_shape = conv.in_port(1).data.get_shape()
         assert initial_shape is not None
@@ -33,15 +29,17 @@ class PackBinaryWeights(BackReplacementPattern):
         # Reversing element in chunks by 8 elements to pack bits correctly
         # First need to pad data with necessary number of element to make the length dividable by 8
         pad = (-len(weights_rounded)) % 8
-        weights_rounded = mo_array(np.concatenate((weights_rounded, np.zeros([pad]))), dtype=np.int32)
+        weights_rounded = mo_array(
+            np.concatenate((weights_rounded, np.zeros([pad]))), dtype=np.int32
+        )
         assert len(weights_rounded) % 8 == 0
         weights_rounded = weights_rounded.reshape([len(weights_rounded) // 8, 8])
         weights_rounded = np.flip(weights_rounded, axis=1)
         weights_rounded = weights_rounded.flatten()
         packed = np.packbits(weights_rounded)
         conv.in_port(1).data.set_value(packed)
-        conv['packed_weights'] = 1
+        conv["packed_weights"] = 1
 
-        conv.in_node(1)['force_shape'] = initial_shape.copy()
-        conv.in_node(1)['shape'] = initial_shape.copy()
-        conv.in_node(1)['force_type'] = 'U1'
+        conv.in_node(1)["force_shape"] = initial_shape.copy()
+        conv.in_node(1)["shape"] = initial_shape.copy()
+        conv.in_node(1)["force_type"] = "U1"

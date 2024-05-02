@@ -3,14 +3,16 @@
 //
 
 #include "permute_kernel_tile_8x8_4x4_fsv.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <string>
-#include <functional>
+
 #include <cmath>
+#include <functional>
+#include <string>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 // Tile size : 4x4 or 8x8
-#define MIN_TILE_SIZE 4
+#define MIN_TILE_SIZE     4
 #define DEFAULT_TILE_SIZE 8
 
 namespace kernel_selector {
@@ -52,13 +54,14 @@ ParamsKey PermuteKernel_tile_8x8_4x4_fsv::GetSupportedKey() const {
 static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
     std::vector<std::string> ret;
     switch (size) {
-        case 4:
-            ret = {"b", "y + lh", "x", "f + lw"};
-            break;
-        case 5:
-            ret = {"b", "z + lh", "y", "x", "f + lw"};
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
+    case 4:
+        ret = {"b", "y + lh", "x", "f + lw"};
+        break;
+    case 5:
+        ret = {"b", "z + lh", "y", "x", "f + lw"};
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return ret;
 }
@@ -66,13 +69,14 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 static inline std::string GetTiledOutputOrder(size_t size) {
     std::string order_str = "";
     switch (size) {
-        case 4 :
-            order_str = "b, y, x, f + lw";
-            break;
-        case 5 :
-            order_str = "b, z, y, x, f + lw";
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
+    case 4:
+        order_str = "b, y, x, f + lw";
+        break;
+    case 5:
+        order_str = "b, z, y, x, f + lw";
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return order_str;
 }
@@ -84,13 +88,14 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
     if (dim_diff == 0) {
         switch (params.outputs[0].GetDims().size()) {
-           case 4 :
-                order_str = "b, y + lh, x, f";
-                break;
-           case 5 :
-                order_str = "b, z + lh, y, x, f";
-                break;
-           default : throw std::runtime_error("Unsupported combination\n");
+        case 4:
+            order_str = "b, y + lh, x, f";
+            break;
+        case 5:
+            order_str = "b, z + lh, y, x, f";
+            break;
+        default:
+            throw std::runtime_error("Unsupported combination\n");
         }
     } else if (dim_diff > 0) {
         // dim is shrinked (5 -> 4 only)
@@ -98,19 +103,16 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y + lh, x / " + toCodeString(params.outputs[0].Y().v)
-                                 + ", x % " + toCodeString(params.outputs[0].Y().v)
-                                 + ", f");
+            order_str = ("b, y + lh, x / " + toCodeString(params.outputs[0].Y().v) + ", x % " +
+                         toCodeString(params.outputs[0].Y().v) + ", f");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y + lh, x / (" + toCodeString(params.outputs[0].Y().v)
-                                 + " * " + toCodeString(params.outputs[0].Z().v) + ")"
-                                 + ", x / " + toCodeString(params.outputs[0].Y().v)
-                                 + ", x % " + toCodeString(params.outputs[0].Y().v)
-                                 + ", f");
+            order_str =
+                ("b, y + lh, x / (" + toCodeString(params.outputs[0].Y().v) + " * " +
+                 toCodeString(params.outputs[0].Z().v) + ")" + ", x / " + toCodeString(params.outputs[0].Y().v) +
+                 ", x % " + toCodeString(params.outputs[0].Y().v) + ", f");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z + lh, y /" + toCodeString(params.outputs[0].Z().v)
-                                 + ", y % " + toCodeString(params.outputs[0].Z().v)
-                                 + ", x, f");
+            order_str = ("b, z + lh, y /" + toCodeString(params.outputs[0].Z().v) + ", y % " +
+                         toCodeString(params.outputs[0].Z().v) + ", x, f");
         } else {
             throw std::runtime_error("Unsupported combination\n");
         }
@@ -121,34 +123,35 @@ static inline std::string GetReorderedTiledOutputOrder(const permute_params& par
 static inline std::string GetTiledInputOrder(size_t size) {
     std::string order_str = "";
     switch (size) {
-        case 4 :
-            order_str = "b, f, y + lh, x";
-            break;
-        case 5 :
-            order_str = "b, f, z + lh, y, x";
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
+    case 4:
+        order_str = "b, f, y + lh, x";
+        break;
+    case 5:
+        order_str = "b, f, z + lh, y, x";
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return order_str;
 }
 
 static inline size_t GetFsvAlignment(const permute_params& params) {
-    const auto& in =  params.inputs[0];
+    const auto& in = params.inputs[0];
     int fsv_alignment = -1;
     switch (in.GetLayout()) {
-        case DataLayout::b_fs_yx_fsv16:
-        case DataLayout::b_fs_zyx_fsv16:
-            fsv_alignment = 16;
-            break;
-        case DataLayout::b_fs_yx_fsv32:
-        case DataLayout::b_fs_zyx_fsv32:
-            fsv_alignment = 32;
-            break;
-        case DataLayout::b_fs_yx_fsv4:
-            fsv_alignment = 4;
-            break;
-        default:
-            throw std::runtime_error("Unsupported combination\n");
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+        fsv_alignment = 16;
+        break;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+        fsv_alignment = 32;
+        break;
+    case DataLayout::b_fs_yx_fsv4:
+        fsv_alignment = 4;
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return fsv_alignment;
 }
@@ -177,7 +180,8 @@ static inline size_t GetTileSize(const permute_params& params) {
     return DEFAULT_TILE_SIZE;
 }
 
-JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_params& params,
+                                                             const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     const size_t f = params.inputs[0].Feature().v;
     const size_t z = params.inputs[0].Z().v;
@@ -203,7 +207,8 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     // whether F is tile_size-aligned
     if (f % tile_size != 0) {
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_size));
-        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", "((INPUT0_FEATURE_NUM - F_REMAINDER_SIZE) <= f) && (f < INPUT0_FEATURE_NUM)"));
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION",
+                                        "((INPUT0_FEATURE_NUM - F_REMAINDER_SIZE) <= f) && (f < INPUT0_FEATURE_NUM)"));
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < (INPUT0_FEATURE_NUM - F_REMAINDER_SIZE))"));
     } else {
         jit.AddConstant(MakeJitConstant("F_NO_REMAINDER_CONDITION", "(f < INPUT0_FEATURE_NUM)"));
@@ -213,11 +218,13 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     if ((input_ndims == 4) && (y % tile_size != 0)) {
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", y % tile_size));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "y < (INPUT0_SIZE_Y - YZ_REMAINDER_SIZE)"));
-        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Y - YZ_REMAINDER_SIZE) <= y) && (y < INPUT0_SIZE_Y)"));
+        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION",
+                                        "((INPUT0_SIZE_Y - YZ_REMAINDER_SIZE) <= y) && (y < INPUT0_SIZE_Y)"));
     } else if ((input_ndims == 5) && (z % tile_size != 0)) {
         jit.AddConstant(MakeJitConstant("YZ_REMAINDER_SIZE", z % tile_size));
         jit.AddConstant(MakeJitConstant("YZ_NO_REMAINDER_CONDITION", "z < (INPUT0_SIZE_Z - YZ_REMAINDER_SIZE)"));
-        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION", "((INPUT0_SIZE_Z - YZ_REMAINDER_SIZE) <= z) && (z < INPUT0_SIZE_Z)"));
+        jit.AddConstant(MakeJitConstant("YZ_REMAINDER_CONDITION",
+                                        "((INPUT0_SIZE_Z - YZ_REMAINDER_SIZE) <= z) && (z < INPUT0_SIZE_Z)"));
     }
 
     if (!params.fused_ops.empty()) {
@@ -228,7 +235,10 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv::GetJitConstants(const permute_param
     return jit;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_width, const size_t tile_size) {
+static std::vector<size_t> GetBestLwsFromGws(const permute_params& params,
+                                             const std::vector<size_t>& gws,
+                                             const size_t tile_width,
+                                             const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
     std::vector<size_t> dims{0, 1, 2};
 
@@ -236,7 +246,8 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     const size_t elem_size = params.outputs[0].ElementSize();
     const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
-    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
+    size_t max_num_work_items =
+        std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_width * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];
@@ -258,26 +269,26 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
 }
 
 static inline std::vector<size_t> GetGWS(const permute_params& params) {
-    const auto& in =  params.inputs[0];
+    const auto& in = params.inputs[0];
     const size_t tile_size = GetTileSize(params);
     const size_t fsv_alignment = GetFsvAlignment(params);
     std::vector<size_t> gws;
     switch (in.GetLayout()) {
-        case DataLayout::b_fs_yx_fsv16:
-        case DataLayout::b_fs_yx_fsv32:
-        case DataLayout::b_fs_yx_fsv4:
-            gws = {CeilDiv(fsv_alignment, tile_size),
-                CeilDiv(in.Y().v, tile_size) * in.X().v,
-                in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
-            break;
-        case DataLayout::b_fs_zyx_fsv16:
-        case DataLayout::b_fs_zyx_fsv32:
-            gws = {CeilDiv(fsv_alignment, tile_size),
-                CeilDiv(in.Z().v, tile_size) * in.X().v * in.Y().v,
-                in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
-            break;
-        default:
-            throw std::runtime_error("Unsupported combination\n");
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_yx_fsv4:
+        gws = {CeilDiv(fsv_alignment, tile_size),
+               CeilDiv(in.Y().v, tile_size) * in.X().v,
+               in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
+        break;
+    case DataLayout::b_fs_zyx_fsv16:
+    case DataLayout::b_fs_zyx_fsv32:
+        gws = {CeilDiv(fsv_alignment, tile_size),
+               CeilDiv(in.Z().v, tile_size) * in.X().v * in.Y().v,
+               in.Batch().v * CeilDiv(in.Feature().v, fsv_alignment)};
+        break;
+    default:
+        throw std::runtime_error("Unsupported combination\n");
     }
     return gws;
 }
@@ -292,19 +303,24 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv::SetDefault(const permute_para
 
 // Validate is the same as permute_kernel_tile_8x8_4x4
 bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p))
+        return false;
 
-    std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        // ex) 0(b), 3(f), 1(y), 2(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
-        }
-        return true;
-    };
+    std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch =
+        [](const std::vector<uint16_t>& order) {
+            // Target transform: Rotate feature dim to back to be taken as inner-most axis
+            // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+            // ex) 0(b), 3(f), 1(y), 2(x)
+            if ((int32_t)order[1] != order.size() - 1)
+                return false;
+            if ((int32_t)order[0] != 0)
+                return false;
+            for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
+                if ((int32_t)order[i] != (i - 1))
+                    return false;
+            }
+            return true;
+        };
 
     const permute_params& params = static_cast<const permute_params&>(p);
     // blocked format => blocked format is not supported
@@ -312,15 +328,15 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p) const {
         if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) ||
             (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32)) {
-            if (params.outputs[0].GetLayout() != DataLayout::bfyx
-                && params.outputs[0].GetLayout() != DataLayout::bfzyx
-                && params.outputs[0].GetLayout() != DataLayout::bfwzyx)
+            if (params.outputs[0].GetLayout() != DataLayout::bfyx &&
+                params.outputs[0].GetLayout() != DataLayout::bfzyx &&
+                params.outputs[0].GetLayout() != DataLayout::bfwzyx)
                 return false;
         } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
                    (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32)) {
-            if (params.outputs[0].GetLayout() != DataLayout::bfyx
-                && params.outputs[0].GetLayout() != DataLayout::bfzyx
-                && params.outputs[0].GetLayout() != DataLayout::bfwzyx) {
+            if (params.outputs[0].GetLayout() != DataLayout::bfyx &&
+                params.outputs[0].GetLayout() != DataLayout::bfzyx &&
+                params.outputs[0].GetLayout() != DataLayout::bfwzyx) {
                 return false;
             }
         } else {
@@ -344,7 +360,7 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv::GetKernelsPriority(const Params&
     std::vector<size_t> gws = GetGWS(newParams);
     std::vector<size_t> lws = GetBestLwsFromGws(newParams, gws, tile_size, tile_size);
     size_t num_working_groups = 1;
-    for (size_t i=0; i < gws.size(); ++i) {
+    for (size_t i = 0; i < gws.size(); ++i) {
         num_working_groups *= gws.at(i) / lws.at(i);
     }
 

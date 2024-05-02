@@ -1,14 +1,27 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.elementwise import Div, Greater, GreaterEqual, Equal, NotEqual, Sub, Mul, Add, Less, LessEqual, Minimum, Maximum
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.mxnet.extractors.utils import scalar_ops_replacer
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.elementwise import (
+    Add,
+    Div,
+    Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Maximum,
+    Minimum,
+    Mul,
+    NotEqual,
+    Sub,
+)
 
 
 class DivScalarFrontReplacer(FrontReplacementOp):
-    op = '_div_scalar'
+    op = "_div_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -17,7 +30,7 @@ class DivScalarFrontReplacer(FrontReplacementOp):
 
 
 class GreaterScalarFrontReplacer(FrontReplacementOp):
-    op = '_greater_scalar'
+    op = "_greater_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -26,7 +39,7 @@ class GreaterScalarFrontReplacer(FrontReplacementOp):
 
 
 class GreaterEqualScalarFrontReplacer(FrontReplacementOp):
-    op = '_greater_equal_scalar'
+    op = "_greater_equal_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -35,7 +48,7 @@ class GreaterEqualScalarFrontReplacer(FrontReplacementOp):
 
 
 class EqualScalarFrontReplacer(FrontReplacementOp):
-    op = '_equal_scalar'
+    op = "_equal_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -44,7 +57,7 @@ class EqualScalarFrontReplacer(FrontReplacementOp):
 
 
 class NotEqualScalarFrontReplacer(FrontReplacementOp):
-    op = '_not_equal_scalar'
+    op = "_not_equal_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -53,7 +66,7 @@ class NotEqualScalarFrontReplacer(FrontReplacementOp):
 
 
 class LesserScalarFrontReplacer(FrontReplacementOp):
-    op = '_lesser_scalar'
+    op = "_lesser_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -62,7 +75,7 @@ class LesserScalarFrontReplacer(FrontReplacementOp):
 
 
 class LesserEqualScalarFrontReplacer(FrontReplacementOp):
-    op = '_lesser_equal_scalar'
+    op = "_lesser_equal_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -71,7 +84,7 @@ class LesserEqualScalarFrontReplacer(FrontReplacementOp):
 
 
 class MinusScalarFrontReplacer(FrontReplacementOp):
-    op = '_minus_scalar'
+    op = "_minus_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -80,7 +93,7 @@ class MinusScalarFrontReplacer(FrontReplacementOp):
 
 
 class MulScalarFrontReplacer(FrontReplacementOp):
-    op = '_mul_scalar'
+    op = "_mul_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -89,7 +102,7 @@ class MulScalarFrontReplacer(FrontReplacementOp):
 
 
 class PlusScalarFrontReplacer(FrontReplacementOp):
-    op = '_plus_scalar'
+    op = "_plus_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -98,7 +111,7 @@ class PlusScalarFrontReplacer(FrontReplacementOp):
 
 
 class MinimumScalarFrontReplacer(FrontReplacementOp):
-    op = '_minimum_scalar'
+    op = "_minimum_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -107,7 +120,7 @@ class MinimumScalarFrontReplacer(FrontReplacementOp):
 
 
 class MaximumScalarFrontReplacer(FrontReplacementOp):
-    op = '_maximum_scalar'
+    op = "_maximum_scalar"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):

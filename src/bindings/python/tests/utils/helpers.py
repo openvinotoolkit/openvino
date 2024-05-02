@@ -2,21 +2,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Tuple, Union, List
-
 import os
 import sys
-import numpy as np
-
-from sys import platform
 from pathlib import Path
+from sys import platform
+from typing import List, Tuple, Union
 
-import openvino
-from openvino import Model, Core, Shape
+import numpy as np
 import openvino.runtime.opset13 as ops
 
+import openvino
+from openvino import Core, Model, Shape
 
-def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
+
+def _compare_models(
+    model_one: Model, model_two: Model, compare_names: bool = True
+) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
     """Function to compare OpenVINO model (ops names, types and shapes).
 
     Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
@@ -50,7 +51,11 @@ def _compare_models(model_one: Model, model_two: Model, compare_names: bool = Tr
         op_one_name = model_one_ops[i].get_friendly_name()  # op from model_one
         op_two_name = model_two_ops[i].get_friendly_name()  # op from model_two
         # Check friendly names
-        if (compare_names and op_one_name != op_two_name and model_one_ops[i].get_type_name() != "Constant"):
+        if (
+            compare_names
+            and op_one_name != op_two_name
+            and model_one_ops[i].get_type_name() != "Constant"
+        ):
             result = False
             msg += "Not equal op names "
             msg += f"model_one: {op_one_name}, "
@@ -111,14 +116,17 @@ def plugins_path(device, lib_path):
     return plugins_paths
 
 
-def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
+def generate_image(
+    shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32"
+) -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
 
 
 def get_model_with_template_extension():
     core = Core()
-    ir = bytes(b"""<net name="Activation" version="10">
+    ir = bytes(
+        b"""<net name="Activation" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data shape="1,3,22,22" element_type="f32"/>
@@ -164,7 +172,8 @@ def get_model_with_template_extension():
         <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
         <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     if platform == "win32":
         core.add_extension(library_path="openvino_template_extension.dll")
     else:
@@ -172,7 +181,9 @@ def get_model_with_template_extension():
     return core, core.read_model(ir)
 
 
-def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.Model:
+def get_relu_model(
+    input_shape: List[int] = None, input_dtype=np.float32
+) -> openvino.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
     param = ops.parameter(input_shape, input_dtype, name="data")
@@ -199,10 +210,15 @@ def generate_relu_compiled_model(
 def generate_model_and_image(device, input_shape: List[int] = None):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
+    return (
+        generate_relu_compiled_model(device, input_shape),
+        generate_image(input_shape),
+    )
 
 
-def generate_add_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.Model:
+def generate_add_model(
+    input_shape: List[int] = None, input_dtype=np.float32
+) -> openvino.Model:
     if input_shape is None:
         input_shape = [2, 1]
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
@@ -230,7 +246,9 @@ def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.M
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    model = Model(
+        results=[res], sinks=[node], parameters=[input_data], name="TestModel"
+    )
     return model
 
 

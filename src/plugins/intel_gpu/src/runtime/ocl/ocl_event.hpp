@@ -4,28 +4,28 @@
 
 #pragma once
 
-#include "ocl_common.hpp"
-#include "ocl_base_event.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
-
-#include <vector>
-#include <memory>
 #include <list>
+#include <memory>
+#include <vector>
+
+#include "intel_gpu/runtime/optionals.hpp"
+#include "ocl_base_event.hpp"
+#include "ocl_common.hpp"
 
 namespace cldnn {
 namespace ocl {
 
 struct ocl_event : public ocl_base_event {
 public:
-    ocl_event(cl::Event const& ev, uint64_t queue_stamp = 0)
-        : ocl_base_event(queue_stamp)
-        , _event(ev) {}
+    ocl_event(cl::Event const& ev, uint64_t queue_stamp = 0) : ocl_base_event(queue_stamp), _event(ev) {}
 
     ocl_event(uint64_t duration_nsec, uint64_t queue_stamp = 0)
-        : ocl_base_event(queue_stamp)
-        , duration_nsec(duration_nsec) {}
+        : ocl_base_event(queue_stamp),
+          duration_nsec(duration_nsec) {}
 
-    cl::Event& get() override { return _event; }
+    cl::Event& get() override {
+        return _event;
+    }
 
 private:
     bool _callback_set = false;
@@ -47,12 +47,13 @@ protected:
 
 struct ocl_events : public ocl_base_event {
 public:
-    ocl_events(std::vector<event::ptr> const& ev)
-        : ocl_base_event(0) {
+    ocl_events(std::vector<event::ptr> const& ev) : ocl_base_event(0) {
         process_events(ev);
     }
 
-    cl::Event& get() override { return _last_ocl_event; }
+    cl::Event& get() override {
+        return _last_ocl_event;
+    }
 
     void reset() override {
         event::reset();

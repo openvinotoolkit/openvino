@@ -30,10 +30,8 @@ DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_featur
     return k;
 }
 
-FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(
-    const fully_connected_params& arg,
-    int,
-    int /*kernel_number*/) const {
+FullyConnected_bf_io_input_spatial::DispatchData
+FullyConnected_bf_io_input_spatial::SetDefault(const fully_connected_params& arg, int, int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     dispatchData.gws[0] = Align(arg.outputs[0].LogicalSize() / arg.inputs[0].Batch().v, 16);
@@ -82,17 +80,14 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p) const {
 }
 
 KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params,  DataLayout::bf, WeightsLayout::io);
+    return GetCommonKernelsData(params, DataLayout::bf, WeightsLayout::io);
 }
 
 KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const Params& params) const {
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    DataLayout::bf,
-                                                    WeightsLayout::io,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, DataLayout::bf, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

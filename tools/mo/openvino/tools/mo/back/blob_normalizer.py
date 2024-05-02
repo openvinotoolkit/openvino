@@ -21,6 +21,7 @@ class BlobNormalizer(BackReplacementPattern):
     New version (after BlobNormalizer execution) weighs and biases are represented
     as inputs to Convolution/FullyConnected layer
     """
+
     enabled = True
 
     def run_before(self):
@@ -28,32 +29,58 @@ class BlobNormalizer(BackReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.back.pass_separator import BackFinish
+
         return [BackFinish]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('conv', dict(type=lambda type: type in ['Convolution', 'Deconvolution', 'FullyConnected', 'DeformableConvolution']))],
-            edges=[]
+            nodes=[
+                (
+                    "conv",
+                    dict(
+                        type=lambda type: type
+                        in [
+                            "Convolution",
+                            "Deconvolution",
+                            "FullyConnected",
+                            "DeformableConvolution",
+                        ]
+                    ),
+                )
+            ],
+            edges=[],
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        conv = match['conv']
+        conv = match["conv"]
         for i in [1, 2]:
-            if i in conv.in_edges() and conv.in_edges()[i] and 'bin' in conv.in_edges()[i]:
-                del conv.in_edges()[i]['bin']
+            if (
+                i in conv.in_edges()
+                and conv.in_edges()[i]
+                and "bin" in conv.in_edges()[i]
+            ):
+                del conv.in_edges()[i]["bin"]
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
-            if node.soft_get('type').lower() not in OpVersioning.opset_1_types and \
-                    not node.soft_get('version') in ["opset2", "opset3", "opset4", "opset8"]:
+            if node.soft_get(
+                "type"
+            ).lower() not in OpVersioning.opset_1_types and not node.soft_get(
+                "version"
+            ) in [
+                "opset2",
+                "opset3",
+                "opset4",
+                "opset8",
+            ]:
                 continue
 
             for _, d in node.in_edges().items():
-                if 'bin' in d:
-                    del d['bin']
+                if "bin" in d:
+                    del d["bin"]
 
         for node in graph.get_data_nodes():
             for d in node.in_edges():
-                if 'bin' in d:
-                    del d['bin']
+                if "bin" in d:
+                    del d["bin"]

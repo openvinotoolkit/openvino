@@ -8,15 +8,16 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/op/avg_pool.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
     // Check all AvgPool nodes
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::op::v1::AvgPool>(), "ConvertAvgPoolingToReduce");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::op::v1::AvgPool>(),
+                                                          "ConvertAvgPoolingToReduce");
     register_matcher(m, [&](ov::pass::pattern::Matcher& m) {
         auto pool = std::dynamic_pointer_cast<ov::op::v1::AvgPool>(m.get_match_root());
         if (!pool || transformation_callback(pool)) {
@@ -34,7 +35,8 @@ ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
         }
         const auto rank = input_shape.rank().get_length();
         // Check if input spatial size is same with kernel size.
-        bool has_same_spatial_size = rank > 2 && std::equal(input_shape.end() - (rank - 2), input_shape.end(), kernel.end() - (rank - 2));
+        bool has_same_spatial_size =
+            rank > 2 && std::equal(input_shape.end() - (rank - 2), input_shape.end(), kernel.end() - (rank - 2));
         // Check if pads are zeros.
         bool no_padding =
             std::count(pads_begin.begin(), pads_begin.end(), 0) == static_cast<int64_t>(pads_begin.size()) &&

@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "compiled_model.hpp"
 #include "auto_schedule.hpp"
+#include "compiled_model.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -32,7 +32,7 @@ private:
     friend class InferRequest;
     friend class Plugin;
     std::shared_ptr<ov::Model> m_model;
-    AutoSchedule::Ptr          m_scheduler;
+    AutoSchedule::Ptr m_scheduler;
 };
 }  // namespace auto_plugin
-} // namespace ov
+}  // namespace ov

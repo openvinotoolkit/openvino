@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using get_property_param = std::tuple<std::string,  // Property need to be set
                                       bool>;        // Throw exception
@@ -86,7 +86,8 @@ public:
 
         ON_CALL(*m_core, get_property(_, StrEq("GPU_DEVICE_TOTAL_MEM_SIZE"), _)).WillByDefault(Return("10240"));
 
-        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
+        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
+                                    {ov::device::priorities("CPU(16)")}};
         ASSERT_NO_THROW(auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
 
         std::string network_name = m_model.get()->get_name();

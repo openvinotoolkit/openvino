@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "primitive.hpp"
+#include <cmath>
+#include <limits>
+#include <vector>
+
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
-
-#include <cmath>
-#include <vector>
-#include <limits>
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -34,7 +34,8 @@ struct prior_box : public primitive_base<prior_box> {
     /// @param min_sizes Minimum box sizes in pixels.
     /// @param max_sizes Maximum box sizes in pixels.
     /// @param aspect_ratios Various of aspect ratios. Duplicate ratios will be ignored.
-    /// @param flip If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio "1.0/r" we will generated as well.
+    /// @param flip If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio
+    /// "1.0/r" we will generated as well.
     /// @param clip If true, will clip the prior so that it is within [0, 1].
     /// @param variance Variance for adjusting the prior boxes.
     /// @param step_width Step.
@@ -57,8 +58,7 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& density = {},
               const bool support_opset8 = false,
               const bool min_max_aspect_ratios_order = true,
-              const padding& output_padding = padding()
-              )
+              const padding& output_padding = padding())
         : primitive_base{id, inputs, {output_padding}},
           output_size(output_size),
           img_size(img_size),
@@ -102,8 +102,7 @@ struct prior_box : public primitive_base<prior_box> {
           scale_all_sizes(false),
           widths(widths),
           heights(heights),
-          clustered(true) {
-    }
+          clustered(true) {}
 
     PriorBoxV0Op::Attributes get_attrs_v0() const {
         PriorBoxV0Op::Attributes attrs;
@@ -163,7 +162,8 @@ struct prior_box : public primitive_base<prior_box> {
     std::vector<float> max_sizes{};
     /// @brief Various of aspect ratios. Duplicate ratios will be ignored.
     std::vector<float> aspect_ratios{};
-    /// @brief If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio "1.0/r" we will generated as well.
+    /// @brief If true, will flip each aspect ratio. For example, if there is aspect ratio "r", aspect ratio "1.0/r" we
+    /// will generated as well.
     bool flip{false};
     /// @brief If true, will clip the prior so that it is within [0, 1].
     bool clip{false};
@@ -193,8 +193,12 @@ struct prior_box : public primitive_base<prior_box> {
     /// @brief Required for clustered version.
     std::vector<float> heights{};
 
-    bool is_clustered() const { return clustered; }
-    bool is_v8_support() const { return support_opset8;}
+    bool is_clustered() const {
+        return clustered;
+    }
+    bool is_v8_support() const {
+        return support_opset8;
+    }
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -235,28 +239,14 @@ struct prior_box : public primitive_base<prior_box> {
 
         auto rhs_casted = downcast<const prior_box>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(img_size) &&
-               cmp_fields(min_sizes) &&
-               cmp_fields(max_sizes) &&
-               cmp_fields(aspect_ratios) &&
-               cmp_fields(flip) &&
-               cmp_fields(clip) &&
-               cmp_fields(variance) &&
-               cmp_fields(step_width) &&
-               cmp_fields(step_height) &&
-               cmp_fields(offset) &&
-               cmp_fields(scale_all_sizes) &&
-               cmp_fields(fixed_ratio) &&
-               cmp_fields(fixed_size) &&
-               cmp_fields(density) &&
-               cmp_fields(support_opset8) &&
-               cmp_fields(step) &&
-               cmp_fields(min_max_aspect_ratios_order) &&
-               cmp_fields(widths) &&
-               cmp_fields(heights) &&
-               cmp_fields(clustered);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(img_size) && cmp_fields(min_sizes) && cmp_fields(max_sizes) && cmp_fields(aspect_ratios) &&
+               cmp_fields(flip) && cmp_fields(clip) && cmp_fields(variance) && cmp_fields(step_width) &&
+               cmp_fields(step_height) && cmp_fields(offset) && cmp_fields(scale_all_sizes) &&
+               cmp_fields(fixed_ratio) && cmp_fields(fixed_size) && cmp_fields(density) && cmp_fields(support_opset8) &&
+               cmp_fields(step) && cmp_fields(min_max_aspect_ratios_order) && cmp_fields(widths) &&
+               cmp_fields(heights) && cmp_fields(clustered);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

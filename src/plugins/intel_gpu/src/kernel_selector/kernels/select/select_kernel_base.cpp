@@ -3,9 +3,11 @@
 //
 
 #include "select_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -55,14 +57,14 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         // x, x, f16
         if (params.inputs[0].GetDType() == Datatype::F32 || params.inputs[0].GetDType() == Datatype::F16) {
             absType = "fabs";
-        // f32, f32, i8
-        // f32, f32, u8
-        // f16, f16, i8
-        // f16, f16, u8
-        // i32, i32, i8
-        // i32, i32, u8
-        // i16, i16, i8
-        // i16, i16, u8
+            // f32, f32, i8
+            // f32, f32, u8
+            // f16, f16, i8
+            // f16, f16, u8
+            // i32, i32, i8
+            // i32, i32, u8
+            // i16, i16, i8
+            // i16, i16, u8
         } else {
             absType = "abs";
         }
@@ -71,14 +73,14 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         // i32, i32, x
         if (params.inputs[1].GetDType() == Datatype::F32 || params.inputs[1].GetDType() == Datatype::INT32) {
             destType = "int";
-        // f16, f16, x
-        // i16, i16, x
+            // f16, f16, x
+            // i16, i16, x
         } else if (params.inputs[1].GetDType() == Datatype::F16 || params.inputs[1].GetDType() == Datatype::INT16) {
             destType = "short";
-        // i8, i8, f32
-        // i8, i8, f16
-        // u8, u8, f32
-        // u8, u8, f16
+            // i8, i8, f32
+            // i8, i8, f16
+            // u8, u8, f32
+            // u8, u8, f16
         } else {
             destType = "char";
         }
@@ -98,13 +100,18 @@ SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params&
     const auto& out = params.outputs[0];
     const auto& in = params.inputs[0];
 
-    dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
+    dispatchData.gws = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X},
+        {Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in.GetLayout(), out.GetLayout(), dims_by_gws);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws,
+                                                     params.engineInfo,
+                                                     in.GetLayout(),
+                                                     out.GetLayout(),
+                                                     dims_by_gws);
 
     return dispatchData;
 }
@@ -137,8 +144,15 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params) const {
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
                      (uint32_t)newParams.inputs.size(),
                      0,
                      1,

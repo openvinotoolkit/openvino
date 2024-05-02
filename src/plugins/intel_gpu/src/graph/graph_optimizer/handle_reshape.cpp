@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iterator>
+#include <memory>
+#include <vector>
+
+#include "fully_connected_inst.h"
+#include "gemm_inst.h"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "layout_optimizer.h"
 #include "pass_manager.h"
+#include "pooling_inst.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
-#include "layout_optimizer.h"
-
-#include "gemm_inst.h"
-#include "pooling_inst.h"
-#include "fully_connected_inst.h"
-
-#include <iterator>
-#include <vector>
-#include <memory>
 
 using namespace cldnn;
 
@@ -36,8 +35,7 @@ void handle_reshape::run(program& p) {
             auto input_lay = input_node.get_output_layout();
             auto output_lay = node.get_output_layout();
 
-            if (!node.is_in_place() ||
-                node.has_fused_primitives())
+            if (!node.is_in_place() || node.has_fused_primitives())
                 return;
 
             if (input_lay.identical(output_lay)) {
@@ -70,8 +68,9 @@ void handle_reshape::run(program& p) {
 
             const auto& out_reshape = out_node->as<reshape>();
             // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
-            // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
-            // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
+            // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has
+            // special_zero=true Configuration above will fail if we remove reshape1 node as attempt to handle special
+            // zero will fail due to small rank of input
             if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
                 out_node->get_output_pshape().size() != node.get_input_pshape().size() &&
                 (out_reshape.get_primitive()->special_zero || node.get_primitive()->special_zero))
@@ -101,7 +100,7 @@ void handle_reshape::run(program& p) {
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>() &&
-                    (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
+                    (*user).as<reorder>().get_primitive()->truncate == false)  // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
                 if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
                     onednn_users.push_back(user);
@@ -119,21 +118,26 @@ void handle_reshape::run(program& p) {
                         auto out_dt = user->get_output_layout().data_type;
                         if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
                             bool is_fc = user->is_type<fully_connected>();
-                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                    user->as<gemm>().get_input_layout(1).data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
+                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type
+                                                : user->as<gemm>().get_input_layout(1).data_type;
+                            onednn_support =
+                                layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
                         } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
                             bool is_conv = user->is_type<convolution>();
-                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
-                                                    user->as<deconvolution>().weights().get_output_layout().data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
+                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type
+                                                  : user->as<deconvolution>().weights().get_output_layout().data_type;
+                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type,
+                                                                                                       wei_dt,
+                                                                                                       out_dt);
                         } else if (user->is_type<pooling>()) {
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
+                            onednn_support =
+                                layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
                         }
 
                         if (!onednn_support) {
-                            reorder_node_to_split.erase(std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),
-                                                        reorder_node_to_split.end());
+                            reorder_node_to_split.erase(
+                                std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),
+                                reorder_node_to_split.end());
                             break;
                         }
                     }
@@ -154,7 +158,8 @@ void handle_reshape::run(program& p) {
                     // reshape node for first user will be the orginal reshape from the graph
                     if (!found_one) {
                         if ((std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
-                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
+                             reorder_node_to_split.end()) &&
+                            (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
                             reorder_reshape_nodes.push_back(node);
                         found_one = true;
                         continue;
@@ -163,11 +168,13 @@ void handle_reshape::run(program& p) {
                     // other reshapes will be clones of the orginal one connected to reshape->reorder sequences
                     if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
                         reorder_node_to_split.end()) {
-                        auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
-                                                                     cldnn::input_info(input_node.id(), input_port),
-                                                                     output_shape);
+                        auto new_reshape =
+                            std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
+                                                      cldnn::input_info(input_node.id(), input_port),
+                                                      output_shape);
                         GPU_DEBUG_LOG << "reshape_handler: " << new_reshape->id
-                            << " input_info : " << new_reshape->dependencies().front().to_string() << std::endl;
+                                      << " input_info : " << new_reshape->dependencies().front().to_string()
+                                      << std::endl;
                         new_reshape->special_zero = prim->special_zero;
                         new_reshape->output_partial_shape = prim->output_partial_shape;
                         new_reshape->output_pattern = prim->output_pattern;
@@ -200,7 +207,7 @@ void handle_reshape::run(program& p) {
                         format,
                         reshape_in_layout.data_type);
                     GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
-                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+                                  << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
 
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node,
@@ -218,7 +225,7 @@ void handle_reshape::run(program& p) {
             auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
 
             if (!(node->is_output()) &&
-                 (((reshape_layout.format != target_format) && !reshape_layout.compatible(target_layout)) ||
+                (((reshape_layout.format != target_format) && !reshape_layout.compatible(target_layout)) ||
                  (reshape_layout.format != input_layout.format))) {
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
@@ -226,11 +233,11 @@ void handle_reshape::run(program& p) {
                 // Check whether input reorder is required for format change
                 if (!format::is_simple_data_format(input_layout.format)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
-                                                                cldnn::input_info(input_node.id(), input_port),
-                                                                target_format,
-                                                                reshape_layout.data_type);
+                                                                   cldnn::input_info(input_node.id(), input_port),
+                                                                   target_format,
+                                                                   reshape_layout.data_type);
                     GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
-                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+                                  << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
                     reshape_input_node.recalc_output_layout();
@@ -245,12 +252,13 @@ void handle_reshape::run(program& p) {
                                                                         reshape_layout.format,
                                                                         reshape_layout.data_type);
                         GPU_DEBUG_LOG << "reshape_handler: " << reshape_output->id
-                            << " input_info : " << reshape_output->dependencies().front().to_string() << std::endl;
+                                      << " input_info : " << reshape_output->dependencies().front().to_string()
+                                      << std::endl;
                         auto& reshape_output_node = p.get_or_create(reshape_output);
                         p.add_intermediate(reshape_output_node,
-                                        *user,
-                                        *node,
-                                        reshape_output_node.get_dependencies().empty());
+                                           *user,
+                                           *node,
+                                           reshape_output_node.get_dependencies().empty());
                         reshape_output_node.recalc_output_layout();
                     }
                     node->recalc_output_layout();

@@ -6,23 +6,23 @@ import logging
 import os
 import re
 import shutil
-
 from pathlib import Path
 
-
-INLINE_LINKS_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.md)\)'
-REFERENCE_LINKS_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.md)'
-INLINE_IMAGES_PATTERN = r'!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))\)'
-REFERENCE_IMAGES_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))'
-LABEL_PATTERN = r'\{\#(.+)\}'
+INLINE_LINKS_PATTERN = r"!?\[.*?\]\(([\w\/\-\.]+\.md)\)"
+REFERENCE_LINKS_PATTERN = r"\[.+\]\:\s*?([\w\/\-\.]+\.md)"
+INLINE_IMAGES_PATTERN = r"!?\[.*?\]\(([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))\)"
+REFERENCE_IMAGES_PATTERN = r"\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))"
+LABEL_PATTERN = r"\{\#(.+)\}"
 DEFAULT_EXCLUDES = {
-    'rst': r'^.*(thirdparty|bin|tests|temp|docs/ops/internal).*$',
-    'md': r'$-'  # to not match anything
+    "rst": r"^.*(thirdparty|bin|tests|temp|docs/ops/internal).*$",
+    "md": r"$-",  # to not match anything
 }
-                    
+
 
 class FileHelper:
-    def __init__(self, filetype, file, label, input_dir, output_dir, file_to_label_mapping):
+    def __init__(
+        self, filetype, file, label, input_dir, output_dir, file_to_label_mapping
+    ):
         self.filetype = filetype
         self.file = file
         self.label = label
@@ -33,7 +33,7 @@ class FileHelper:
         self.image_links = self.get_image_links()
         if self.filetype == "md":
             self.md_links = self.get_md_links()
-        self.file_to_label_mapping=file_to_label_mapping
+        self.file_to_label_mapping = file_to_label_mapping
 
     def get_parent_folder(self):
         """
@@ -45,7 +45,7 @@ class FileHelper:
         """
         Read file
         """
-        with open(self.file, 'r', encoding='utf-8') as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             return f.read()
 
     def replace_image_links(self):
@@ -53,7 +53,9 @@ class FileHelper:
         Replace image links
         """
         for image in self.image_links:
-            self.content = self.content.replace(image, self.parent_folder.joinpath(image).name)
+            self.content = self.content.replace(
+                image, self.parent_folder.joinpath(image).name
+            )
 
     def copy_images(self):
         """
@@ -72,14 +74,14 @@ class FileHelper:
         try:
             shutil.copy(path, dest)
         except FileNotFoundError:
-            logging.warning('{}: image not found'.format(path))
+            logging.warning("{}: image not found".format(path))
 
     def copy(self):
         """
         Save processed content of file in output_dir
         """
-        output = os.path.join(self.output_dir, f'{self.label}.{self.filetype}')
-        with open(output, 'w', encoding='utf-8') as f:
+        output = os.path.join(self.output_dir, f"{self.label}.{self.filetype}")
+        with open(output, "w", encoding="utf-8") as f:
             f.write(self.content)
 
     def replace_md_links(self):
@@ -89,21 +91,27 @@ class FileHelper:
         for link in self.md_links:
             link_path = self.parent_folder.joinpath(link).resolve()
             if os.path.exists(link_path) and link_path in self.file_to_label_mapping:
-                self.content = self.content.replace(link, self.file_to_label_mapping[link_path] + '.md')
+                self.content = self.content.replace(
+                    link, self.file_to_label_mapping[link_path] + ".md"
+                )
 
     def remove_comment_block_sphinxdirective(self):
         """
         Remove comment blocks from `sphinxdirective`
         """
-        self.content = re.sub(r'\<\!\-\-\s*?\@sphinxdirective', '@sphinxdirective', self.content)
-        self.content = re.sub(r'\@endsphinxdirective\s*?\-\-\>', '@endsphinxdirective', self.content)
+        self.content = re.sub(
+            r"\<\!\-\-\s*?\@sphinxdirective", "@sphinxdirective", self.content
+        )
+        self.content = re.sub(
+            r"\@endsphinxdirective\s*?\-\-\>", "@endsphinxdirective", self.content
+        )
 
     def remove_label(self):
         """
         Remove label from processed md file.
         """
-        label_regex = r'\{\#' + re.escape(self.label) + r'\}'
-        self.content = re.sub(label_regex, '', self.content)
+        label_regex = r"\{\#" + re.escape(self.label) + r"\}"
+        self.content = re.sub(label_regex, "", self.content)
 
     def run(self):
         """
@@ -120,8 +128,12 @@ class FileHelper:
         """
         Get image links from the page
         """
-        inline_images = set(re.findall(INLINE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE))
-        reference_images = set(re.findall(REFERENCE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE))
+        inline_images = set(
+            re.findall(INLINE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE)
+        )
+        reference_images = set(
+            re.findall(REFERENCE_IMAGES_PATTERN, self.content, flags=re.IGNORECASE)
+        )
         image_links = inline_images
         image_links.update(reference_images)
         return image_links
@@ -144,7 +156,7 @@ def get_label(file):
     Assume the label is in the first line
     :return: A label
     """
-    with open(file, 'r', encoding='utf-8') as f:
+    with open(file, "r", encoding="utf-8") as f:
         line = f.readline()
         label = re.search(LABEL_PATTERN, line)
         if label:
@@ -156,9 +168,13 @@ def get_file_to_label_mapping(md_files):
     Get a dictionary containing path as keys and
     doxygen labels as values
     :param md_files: A list of md files
-    :return: A dictionary containing a file to label mapping 
+    :return: A dictionary containing a file to label mapping
     """
-    return dict(filter(lambda x: x[1], map(lambda f: (Path(f).resolve(), get_label(f)), md_files)))
+    return dict(
+        filter(
+            lambda x: x[1], map(lambda f: (Path(f).resolve(), get_label(f)), md_files)
+        )
+    )
 
 
 def filter_paths(files, exclude_dirs):
@@ -168,7 +184,9 @@ def filter_paths(files, exclude_dirs):
     :param exclude_dirs: A list of directories to be excluded from processing
     :return: A list of files to be process after excluded paths
     """
-    return filter(lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), files)
+    return filter(
+        lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), files
+    )
 
 
 def process(filetype, input_dir, output_dir, exclude_dirs):
@@ -182,12 +200,14 @@ def process(filetype, input_dir, output_dir, exclude_dirs):
         label = get_label(file)
         if label and not re.match(DEFAULT_EXCLUDES[filetype], str(file.parent)):
             logging.info("Processing {} file".format(file))
-            helper = FileHelper(filetype=filetype,
-                                file=file,
-                                label=label,
-                                input_dir=input_dir,
-                                output_dir=output_dir,
-                                file_to_label_mapping=file_to_label_map)
+            helper = FileHelper(
+                filetype=filetype,
+                file=file,
+                label=label,
+                input_dir=input_dir,
+                output_dir=output_dir,
+                file_to_label_mapping=file_to_label_map,
+            )
             helper.run()
         else:
             logging.info("Skipped {} file - no label or matched excludes".format(file))
@@ -196,10 +216,18 @@ def process(filetype, input_dir, output_dir, exclude_dirs):
 def main():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--filetype', choices=['md', 'rst'], help='Type of processed files, allowed md or rst.')
-    parser.add_argument('--input_dir', type=Path, help='Path to a folder containing files.')
-    parser.add_argument('--output_dir', type=Path, help='Path to the output folder.')
-    parser.add_argument('--exclude_dir', type=Path, action='append', default=[], help='Ignore a folder.')
+    parser.add_argument(
+        "--filetype",
+        choices=["md", "rst"],
+        help="Type of processed files, allowed md or rst.",
+    )
+    parser.add_argument(
+        "--input_dir", type=Path, help="Path to a folder containing files."
+    )
+    parser.add_argument("--output_dir", type=Path, help="Path to the output folder.")
+    parser.add_argument(
+        "--exclude_dir", type=Path, action="append", default=[], help="Ignore a folder."
+    )
     args = parser.parse_args()
     filetype = args.filetype
     input_dir = args.input_dir
@@ -209,5 +237,5 @@ def main():
     process(filetype, input_dir, output_dir, exclude_dirs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

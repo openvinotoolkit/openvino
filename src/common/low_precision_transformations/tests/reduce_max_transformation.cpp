@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
 #include "low_precision/reduce_max.hpp"
-#include "ov_lpt_models/reduce.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/reduce.hpp"
+#include "reduce_transformation.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -47,301 +44,154 @@ TEST_P(ReduceMaxTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ov::PartialShape> inputShapes = {
-    {1, 3, 16, 16},
-    {4, 3, 16, 16},
-    {-1, -1, -1, -1}
-};
+const std::vector<ov::PartialShape> inputShapes = {{1, 3, 16, 16}, {4, 3, 16, 16}, {-1, -1, -1, -1}};
 
 const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestValues = {
     // U8: keep dims, per-channel quantization, reduction by batch
-    {
-        LayerTransformation::createParamsU8I8(),
-        {0},
-        true,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {0},
+     true,
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
+      {},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // U8: don't keep dims, per-channel quantization with negative values, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsU8I8(),
-        {2, 3},
-        false,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {2, 3},
+     false,
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+      ov::element::f32,
+      {}}},
     // U8: keep dims, per-channel quantization with subtract, reduction by batch
-    {
-        LayerTransformation::createParamsU8I8(),
-        {0},
-        true,
-        {
-            ov::element::u8,
-            {
-                {ov::element::f32},
-                {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
-            }
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            {
-                {ov::element::f32},
-                {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
-                {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}
-            }
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {0},
+     true,
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
+      {},
+      ov::element::u8,
+      {{ov::element::f32},
+       {{64.f, 128.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},
+       {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // U8: don't keep dims, per-channel quantization, reduction by channel
-    {
-        LayerTransformation::createParamsU8I8(),
-        {1},
-        false,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {1},
+     false,
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+      ov::element::f32,
+      {}}},
     // U8: don't keep dims, per-tensor quantization, reduction by channel (reduction constant with negative values)
-    {
-        LayerTransformation::createParamsU8I8(),
-        {-2},
-        false,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {128.f}, {0.1f}}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            {{ov::element::f32}, {128.f}, {0.1f}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {-2},
+     false,
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}},
+     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}}},
     // U8: keep dims, per-channel quantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsU8I8(),
-        {2, 3},
-        true,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {2, 3},
+     true,
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8,
+      {},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // U8: don't keep dims, per-channel quantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsU8I8(),
-        {2, 3},
-        false,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {2, 3},
+     false,
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}}},
     // I8: keep dims, per-channel quantization, reduction by batch
-    {
-        LayerTransformation::createParamsI8I8(),
-        {0},
-        true,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::i8,
-            {},
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {0},
+     true,
+     {ov::element::i8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
+      {},
+      ov::element::i8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // I8: don't keep dims, per-channel quantization with negative values, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsI8I8(),
-        {2, 3},
-        false,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {2, 3},
+     false,
+     {ov::element::i8, {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
+      {{ov::element::f32}, {}, {{0.1f, -1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+      ov::element::f32,
+      {}}},
     // I8: don't keep dims, per-channel quantization, reduction by channel
-    {
-        LayerTransformation::createParamsI8I8(),
-        {1},
-        false,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {1},
+     false,
+     {ov::element::i8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}},
+      ov::element::f32,
+      {}}},
     // I8: don't keep dims, per-tensor quantization, reduction by channel (reduction constant with negative values)
-    {
-        LayerTransformation::createParamsI8I8(),
-        {-2},
-        false,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {64.f}, {0.1f}}
-        },
-        {
-            ov::element::i8,
-            {},
-            ov::element::i8,
-            {{ov::element::f32}, {64.f}, {0.1f}}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {-2},
+     false,
+     {ov::element::i8, {{ov::element::f32}, {64.f}, {0.1f}}},
+     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {64.f}, {0.1f}}}},
     // I8: don't keep dims, per-channel quantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsI8I8(),
-        {2, 3},
-        false,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::i8,
-            {},
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {2, 3},
+     false,
+     {ov::element::i8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8, {}, ov::element::i8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3}}}}},
     // I8: keep dims, per-channel quantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsI8I8(),
-        {2, 3},
-        true,
-        {
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::i8,
-            {},
-            ov::element::i8,
-            {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {2, 3},
+     true,
+     {ov::element::i8, {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::i8,
+      {},
+      ov::element::i8,
+      {{ov::element::f32}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // not update precisions, keep dims, per-channel quantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
-        {2, 3},
-        true,
-        {
-            ov::element::f32,
-            {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        },
-        {
-            ov::element::f32,
-            {},
-            ov::element::f32,
-            {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}
-        }
-    },
+    {LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
+     {2, 3},
+     true,
+     {ov::element::f32, {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}},
+     {ov::element::f32, {}, ov::element::f32, {{}, {}, {{0.1f, 1.f, 10.f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // I8: keep dims, no dequantization, reduction by spatial dimensions
-    {
-        LayerTransformation::createParamsI8I8(),
-        {2, 3},
-        true,
-        {
-            ov::element::f32,
-            {}
-        },
-        {
-            ov::element::f32,
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {2, 3},
+     true,
+     {ov::element::f32, {}},
+     {ov::element::f32, {}, ov::element::f32, {}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ReduceMaxTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(reduceMaxTransformationTestValues)),
-    ReduceMaxTransformation::getTestCaseName);
-} // namespace testValues1
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ReduceMaxTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(reduceMaxTransformationTestValues)),
+                         ReduceMaxTransformation::getTestCaseName);
+}  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
-    PartialShape::dynamic()
-};
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {PartialShape::dynamic()};
 
 const std::vector<ReduceTransformationTestValues> reduceMaxTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {-2},
-        false,
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {128.f}, {0.1f}}
-        },
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {128.f}, {0.1f}},
-            ov::element::f32,
-            {}
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     {-2},
+     false,
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {128.f}, {0.1f}}, ov::element::f32, {}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ReduceMaxTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::ValuesIn(reduceMaxTransformationTestValues)),
-    ReduceMaxTransformation::getTestCaseName);
-} // namespace testValues2
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ReduceMaxTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesWithDynamicRank),
+                                            ::testing::ValuesIn(reduceMaxTransformationTestValues)),
+                         ReduceMaxTransformation::getTestCaseName);
+}  // namespace testValues2
+}  // namespace

@@ -27,7 +27,8 @@ DeviceFeaturesKey FullyConnected_fb_io_block::get_required_device_features_key(c
 }
 
 FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(const fully_connected_params& arg,
-                                                                                int, int /*kernel_number*/) const {
+                                                                                int,
+                                                                                int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
     const auto& output = arg.outputs[0];
 
@@ -62,8 +63,9 @@ FullyConnected_fb_io_block::DispatchData FullyConnected_fb_io_block::SetDefault(
     return dispatchData;
 }
 
-JitConstants FullyConnected_fb_io_block::GetJitConstants(const fully_connected_params& params,
-                                                         const FullyConnectedKernelBase::DispatchData& dispatchData) const {
+JitConstants FullyConnected_fb_io_block::GetJitConstants(
+    const fully_connected_params& params,
+    const FullyConnectedKernelBase::DispatchData& dispatchData) const {
     auto cldnn_jit = FullyConnectedKernelBase::GetJitConstants(params, dispatchData);
     cldnn_jit.AddConstants({
         MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]),
@@ -128,10 +130,7 @@ KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params) con
 
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    DataLayout::yxfb,
-                                                    WeightsLayout::yxio,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, DataLayout::yxfb, WeightsLayout::yxio, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
@@ -144,6 +143,6 @@ KernelsPriority FullyConnected_fb_io_block::GetKernelsPriority(const Params& par
     const auto& p = static_cast<const fully_connected_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3
-                                                                               : FORCE_PRIORITY_5;
+                                                                                   : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

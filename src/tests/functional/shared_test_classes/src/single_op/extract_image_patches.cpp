@@ -4,15 +4,14 @@
 
 #include "shared_test_classes/single_op/extract_image_patches.hpp"
 
+#include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/extractimagepatches.hpp"
-
 
 namespace ov {
 namespace test {
 
-std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInfo<extractImagePatchesTuple> &obj) {
+std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInfo<extractImagePatchesTuple>& obj) {
     std::vector<InputShape> shapes;
     std::vector<size_t> kernel, strides, rates;
     ov::op::PadType pad_type;
@@ -51,7 +50,11 @@ void ExtractImagePatchesTest::SetUp() {
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
-    auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(param, ov::Shape(kernel), ov::Strides(strides), ov::Shape(rates), pad_type);
+    auto extImgPatches = std::make_shared<ov::op::v3::ExtractImagePatches>(param,
+                                                                           ov::Shape(kernel),
+                                                                           ov::Strides(strides),
+                                                                           ov::Shape(rates),
+                                                                           pad_type);
     auto result = std::make_shared<ov::op::v0::Result>(extImgPatches);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "ExtractImagePatches");
 }

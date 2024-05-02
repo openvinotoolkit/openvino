@@ -9,5 +9,5 @@ namespace intel_cpu {
 
 ReduceExecutor::ReduceExecutor(const ExecutorContext::CPtr context) : context(context) {}
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/opsets/opset13.hpp>
+#include <openvino/pass/manager.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <string>
 #include <transformations/cpu_opset/common/op/sdpa.hpp>
 #include <transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "utils/gen_pattern.hpp"
@@ -24,7 +23,10 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace ov::gen_pattern;
 
-static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, bool isRef = false, bool hasConvert = false, bool hasMultiquery = false) {
+static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape,
+                                           bool isRef = false,
+                                           bool hasConvert = false,
+                                           bool hasMultiquery = false) {
     auto q = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
     auto kvInputShape = inputShape;
     if (hasMultiquery) {
@@ -34,11 +36,11 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     auto v = std::make_shared<ov::op::v0::Parameter>(element::f32, kvInputShape);
     auto init = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
     auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
-    auto var_k = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{kvInputShape, element::f32, "pastk"});
+    auto var_k =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{kvInputShape, element::f32, "pastk"});
     std::shared_ptr<ov::Node> pastk = std::make_shared<ov::op::v6::ReadValue>(k, var_k);
-    auto var_v = std::make_shared<ov::op::util::Variable>(
-        ov::op::util::VariableInfo{kvInputShape, element::f32, "pastv"});
+    auto var_v =
+        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{kvInputShape, element::f32, "pastv"});
     std::shared_ptr<ov::Node> pastv = std::make_shared<ov::op::v6::ReadValue>(v, var_v);
     Output<ov::Node> concatK, concatV, sdp;
     if (hasConvert) {
@@ -48,7 +50,9 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     if (isRef) {
         ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
         config.fuse_concat = true;
-        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(OutputVector{q, k, v, beam_idx, pastk, pastv}, config);
+        auto new_node = std::make_shared<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(
+            OutputVector{q, k, v, beam_idx, pastk, pastv},
+            config);
         sdp = new_node->output(0);
         concatK = new_node->output(1);
         concatV = new_node->output(2);
@@ -58,27 +62,32 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
         concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{pastk, k}, 2);
         concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{pastv, v}, 2);
         if (hasMultiquery) {
-            auto make_multi_query = [&] (const Output<Node>& conat) {
-                auto beam_idx_shape = makeOP<ov::op::TypeRelaxed<opset1::ShapeOf>>({beam_idx},
+            auto make_multi_query = [&](const Output<Node>& conat) {
+                auto beam_idx_shape = makeOP<ov::op::TypeRelaxed<opset1::ShapeOf>>(
+                    {beam_idx},
                     {{"type_relax", true}, {"input_data_types", {}}, {"output_data_types", {element::i32}}});
                 auto unsqueeze_concat = makeOP<opset1::Unsqueeze>({conat, 2});
                 auto concat_shape = makeOP<ov::op::TypeRelaxed<opset1::ShapeOf>>(
                     {conat},
                     {{"type_relax", true}, {"input_data_types", {}}, {"output_data_types", {element::i32}}});
                 auto gather_ls = makeOP<opset8::Gather>({concat_shape, {2, 3}, 0}, {{"batch_dims", 0}});
-                auto expected_group_shape = makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1] / 4}, {4}, gather_ls}, {{"axis", 0}});
+                auto expected_group_shape =
+                    makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1] / 4}, {4}, gather_ls}, {{"axis", 0}});
                 auto expand_Abs = makeOP<opset1::Abs>({expected_group_shape});
                 auto axis_mapping = makeConst(element::u8, ov::Shape({}), {0});
-                auto expand_ones = makeOP<opset1::Broadcast>({{1.0f},
-                    expand_Abs,
-                    axis_mapping}, {{"mode", "numpy"}});
-                auto expand_Broadcast = makeOP<opset1::Multiply>({unsqueeze_concat,
-                    expand_ones}, {{"auto_broadcast", "numpy"}});
-                auto expected_shape = makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1]}, gather_ls}, {{"axis", 0}});
-                auto reshape_Reshape = makeOP<opset1::Reshape>({expand_Broadcast, expected_shape}, {{"special_zero", false}});
+                auto expand_ones = makeOP<opset1::Broadcast>({{1.0f}, expand_Abs, axis_mapping}, {{"mode", "numpy"}});
+                auto expand_Broadcast =
+                    makeOP<opset1::Multiply>({unsqueeze_concat, expand_ones}, {{"auto_broadcast", "numpy"}});
+                auto expected_shape =
+                    makeOP<opset1::Concat>({beam_idx_shape, {inputShape[1]}, gather_ls}, {{"axis", 0}});
+                auto reshape_Reshape =
+                    makeOP<opset1::Reshape>({expand_Broadcast, expected_shape}, {{"special_zero", false}});
                 return reshape_Reshape;
             };
-            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, make_multi_query(concatK), make_multi_query(concatV), false);
+            sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q,
+                                                                           make_multi_query(concatK),
+                                                                           make_multi_query(concatV),
+                                                                           false);
         } else {
             sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(q, concatK, concatV, false);
         }
@@ -108,10 +117,8 @@ TEST(TransformationTests, StateConcatSDPA) {
             m.register_pass<StatefulSDPAFusion>();
             m.run_passes(f);
         }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true);
-        }
+        // construct ref interaction
+        { f_ref = makeSDPA(inputShape, true); }
         auto res = compare_functions(f, f_ref);
         ASSERT_TRUE(res.first) << res.second;
     }
@@ -129,10 +136,8 @@ TEST(TransformationTests, StateConcatSDPAWithConvert) {
             m.register_pass<StatefulSDPAFusion>();
             m.run_passes(f);
         }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, true);
-        }
+        // construct ref interaction
+        { f_ref = makeSDPA(inputShape, true, true); }
         auto res = compare_functions(f, f_ref);
         ASSERT_TRUE(res.first) << res.second;
     }
@@ -150,10 +155,8 @@ TEST(TransformationTests, StateConcatSDPAMixtral) {
             m.register_pass<StatefulSDPAFusion>();
             m.run_passes(f);
         }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, false, true);
-        }
+        // construct ref interaction
+        { f_ref = makeSDPA(inputShape, true, false, true); }
         auto res = compare_functions(f, f_ref);
         ASSERT_TRUE(res.first) << res.second;
     }

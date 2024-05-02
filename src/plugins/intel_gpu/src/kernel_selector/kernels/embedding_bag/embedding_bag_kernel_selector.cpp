@@ -3,6 +3,7 @@
 //
 
 #include "embedding_bag_kernel_selector.h"
+
 #include "embedding_bag_kernel_ref.h"
 
 namespace kernel_selector {

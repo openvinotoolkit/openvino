@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "pass.hpp"
-
 #include "allocate_buffers.hpp"
 #include "openvino/runtime/memory_solver.hpp"
+#include "pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -27,7 +26,8 @@ public:
     OPENVINO_RTTI("SolveBufferMemory", "Pass")
 
     SolveBufferMemory(size_t& buffer_scratchpad_size, AllocateBuffers::BufferClusters& clusters)
-        : m_buffer_scratchpad_size(buffer_scratchpad_size), m_clusters(clusters) {}
+        : m_buffer_scratchpad_size(buffer_scratchpad_size),
+          m_clusters(clusters) {}
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -46,10 +46,10 @@ private:
     size_t& m_buffer_scratchpad_size;
     AllocateBuffers::BufferClusters& m_clusters;
 
-    constexpr static size_t m_alignment = 32; // 32 bytes for data alignment in allocated memory
+    constexpr static size_t m_alignment = 32;  // 32 bytes for data alignment in allocated memory
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <string>
+
 #include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
-#include <string>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +55,9 @@ protected:
     bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
-    virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
+    virtual std::string GetKernelName(const mvn_params&) const {
+        return kernelName;
+    }
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetActivationType(const mvn_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

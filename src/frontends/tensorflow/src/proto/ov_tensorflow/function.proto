@@ -133,6 +133,6 @@ message FunctionDef {
 // loss function). dL/dx_i is the partial derivative of L with respect
 // to x_i.
 message GradientDef {
-  string function_name = 1;  // The function name.
-  string gradient_func = 2;  // The gradient function's name.
+  string function_name = 1; // The function name.
+  string gradient_func = 2; // The gradient function's name.
 }

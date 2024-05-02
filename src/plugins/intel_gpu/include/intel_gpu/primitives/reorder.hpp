@@ -3,11 +3,12 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 #include <vector>
+
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -22,7 +23,10 @@ enum class reorder_mean_mode {
 struct WeightsReorderParams {
     WeightsReorderParams() {}
 
-    WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
+    WeightsReorderParams(const layout& in_layout,
+                         const layout& out_layout,
+                         bool transposed = false,
+                         bool grouped = false)
         : _in_layout(in_layout),
           _out_layout(out_layout),
           _transposed(transposed),
@@ -39,19 +43,29 @@ struct WeightsReorderParams {
         if (typeid(*this) != typeid(rhs))
             return false;
 
-        return _in_layout == rhs._in_layout &&
-               _out_layout == rhs._out_layout &&
-               _transposed == rhs._transposed &&
+        return _in_layout == rhs._in_layout && _out_layout == rhs._out_layout && _transposed == rhs._transposed &&
                _grouped == rhs._grouped;
     }
 
-    layout get_input_layout() const { return _in_layout; }
-    layout get_output_layout() const { return _out_layout; }
-    bool should_be_transposed() const { return _transposed; }
-    bool get_grouped() const { return _grouped; }
+    layout get_input_layout() const {
+        return _in_layout;
+    }
+    layout get_output_layout() const {
+        return _out_layout;
+    }
+    bool should_be_transposed() const {
+        return _transposed;
+    }
+    bool get_grouped() const {
+        return _grouped;
+    }
 
-    void set_input_layout(const layout& layout) { _in_layout = layout; }
-    void set_output_layout(const layout& layout) { _out_layout = layout; }
+    void set_input_layout(const layout& layout) {
+        _in_layout = layout;
+    }
+    void set_output_layout(const layout& layout) {
+        _out_layout = layout;
+    }
 
     void save(cldnn::BinaryOutputBuffer& ob) const {
         ob << _in_layout;
@@ -76,20 +90,15 @@ protected:
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
-/// Also merged with subtraction layer, which can subtract, multiply or divide values based on mean_mode value, while doing reordering.
-/// NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
+/// Also merged with subtraction layer, which can subtract, multiply or divide values based on mean_mode value, while
+/// doing reordering. NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
 
-    reorder() : primitive_base("", {}),
-                output_format(format::any),
-                mean_mode(reorder_mean_mode::subtract) {}
+    reorder() : primitive_base("", {}), output_format(format::any), mean_mode(reorder_mean_mode::subtract) {}
 
     /// @brief reorder memory types
-    enum class memory_type {
-        buffer,
-        surface
-    };
+    enum class memory_type { buffer, surface };
 
     /// @brief Constructs reorder primitive with directly provided mean subtract values.
     /// @param id This primitive id.
@@ -101,7 +110,7 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract)
-        : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type {output_layout.data_type}}),
+        : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type{output_layout.data_type}}),
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature(values_to_subtract),
@@ -117,7 +126,7 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             primitive_id const& mean,
             const reorder_mean_mode mode = reorder_mean_mode::subtract)
-        : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type {output_layout.data_type}}),
+        : primitive_base(id, {input}, {output_layout.data_padding}, {optional_data_type{output_layout.data_type}}),
           output_format(output_layout.format),
           mean(mean),
           subtract_per_feature(0),
@@ -156,7 +165,7 @@ struct reorder : public primitive_base<reorder> {
             primitive_id const& mean,
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type {output_data_type}}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
           output_format(output_format),
           mean(mean),
           subtract_per_feature(0),
@@ -174,7 +183,10 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract)
-        : primitive_base(id, { input, input2 }, {output_layout.data_padding}, {optional_data_type { output_layout.data_type }}),
+        : primitive_base(id,
+                         {input, input2},
+                         {output_layout.data_padding},
+                         {optional_data_type{output_layout.data_type}}),
           output_format(output_layout.format),
           mean(""),
           subtract_per_feature(values_to_subtract),
@@ -192,10 +204,13 @@ struct reorder : public primitive_base<reorder> {
             const layout& output_layout,
             primitive_id const& mean,
             const reorder_mean_mode mode = reorder_mean_mode::subtract)
-        : primitive_base(id, { input, input2 }, {output_layout.data_padding}, {optional_data_type{ output_layout.data_type }}),
-        output_format(output_layout.format),
-        mean(mean),
-        mean_mode(mode) {}
+        : primitive_base(id,
+                         {input, input2},
+                         {output_layout.data_padding},
+                         {optional_data_type{output_layout.data_type}}),
+          output_format(output_layout.format),
+          mean(mean),
+          mean_mode(mode) {}
 
     /// @brief Constructs weights reorder primitive.
     /// @param id This primitive id.
@@ -225,8 +240,7 @@ struct reorder : public primitive_base<reorder> {
     std::shared_ptr<WeightsReorderParams> weights_reorder_params = {};
 
     inline bool has_surface_input() const {
-        return input.size() == 1 &&
-               input_mem_type == memory_type::surface;
+        return input.size() == 1 && input_mem_type == memory_type::surface;
     }
 
     /// @brief Convert truncation Mode
@@ -257,12 +271,9 @@ struct reorder : public primitive_base<reorder> {
             reorder_weights_eq = *weights_reorder_params == *rhs_casted.weights_reorder_params;
         }
 
-        return subtract_per_feature == rhs_casted.subtract_per_feature &&
-               mean_mode == rhs_casted.mean_mode &&
-               input_mem_type == rhs_casted.input_mem_type &&
-               truncate == rhs_casted.truncate &&
-               output_format == rhs_casted.output_format &&
-               mean.empty() == rhs_casted.mean.empty() &&
+        return subtract_per_feature == rhs_casted.subtract_per_feature && mean_mode == rhs_casted.mean_mode &&
+               input_mem_type == rhs_casted.input_mem_type && truncate == rhs_casted.truncate &&
+               output_format == rhs_casted.output_format && mean.empty() == rhs_casted.mean.empty() &&
                reorder_weights_eq;
     }
 

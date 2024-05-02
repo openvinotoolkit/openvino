@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -12,15 +13,15 @@
 #include <vector>
 
 namespace cldnn {
-const char *debug_configuration::prefix = "GPU_Debug: ";
+const char* debug_configuration::prefix = "GPU_Debug: ";
 
 // Default policy is that dump_configuration will override other configuration from IE.
 
 #ifdef GPU_DEBUG_CONFIG
 
-#define GPU_DEBUG_COUT_ std::cout << cldnn::debug_configuration::prefix
+#    define GPU_DEBUG_COUT_ std::cout << cldnn::debug_configuration::prefix
 
-template<typename T>
+template <typename T>
 void print_option(std::string option_name, T option_value) {
     GPU_DEBUG_COUT_ << "Config " << option_name << " = " << option_value << std::endl;
 }
@@ -42,7 +43,8 @@ static std::string to_upper_case(const std::string& var) {
     return s.str();
 }
 
-static std::vector<std::string> get_possible_option_names(const std::string& var, std::vector<std::string> allowed_option_prefixes) {
+static std::vector<std::string> get_possible_option_names(const std::string& var,
+                                                          std::vector<std::string> allowed_option_prefixes) {
     std::vector<std::string> result;
 
     for (auto& prefix : allowed_option_prefixes) {
@@ -54,7 +56,7 @@ static std::vector<std::string> get_possible_option_names(const std::string& var
 }
 
 template <typename T>
-T convert_to(const std::string &str) {
+T convert_to(const std::string& str) {
     std::istringstream ss(str);
     T res;
     ss >> res;
@@ -62,12 +64,12 @@ T convert_to(const std::string &str) {
 }
 
 template <>
-std::string convert_to(const std::string &str) {
+std::string convert_to(const std::string& str) {
     return str;
 }
 
-template<typename T>
-void get_debug_env_var(const std::string &var, T &val, std::vector<std::string> allowed_option_prefixes) {
+template <typename T>
+void get_debug_env_var(const std::string& var, T& val, std::vector<std::string> allowed_option_prefixes) {
     bool found = false;
     for (auto o : get_possible_option_names(var, allowed_option_prefixes)) {
         if (const auto env_var = std::getenv(o.c_str())) {
@@ -81,22 +83,19 @@ void get_debug_env_var(const std::string &var, T &val, std::vector<std::string> 
     }
 }
 
-template<typename T>
-void get_gpu_debug_env_var(const std::string &var, T &val) {
+template <typename T>
+void get_gpu_debug_env_var(const std::string& var, T& val) {
     return get_debug_env_var(var, val, {"OV_GPU_"});
 }
 
-template<typename T>
-void get_common_debug_env_var(const std::string &var, T &val) {
+template <typename T>
+void get_common_debug_env_var(const std::string& var, T& val) {
     // The list below should be prioritized from lowest to highest prefix priority
-    // If an option is set several times with different prefixes, version with the highest priority will be actually used.
-    // This may allow to enable global option with some value and override this value for GPU plugin
-    // For example: OV_GPU_Verbose=2 OV_Verbose=1 ./my_app => this->verbose == 2
-    // In that case we enable Verbose (with level = 1) for all OV components that support this option, but for GPU plugin we increase verbose level to 2
-    std::vector<std::string> allowed_option_prefixes = {
-        "OV_",
-        "OV_GPU_"
-    };
+    // If an option is set several times with different prefixes, version with the highest priority will be actually
+    // used. This may allow to enable global option with some value and override this value for GPU plugin For example:
+    // OV_GPU_Verbose=2 OV_Verbose=1 ./my_app => this->verbose == 2 In that case we enable Verbose (with level = 1) for
+    // all OV components that support this option, but for GPU plugin we increase verbose level to 2
+    std::vector<std::string> allowed_option_prefixes = {"OV_", "OV_GPU_"};
 
     return get_debug_env_var(var, val, allowed_option_prefixes);
 }
@@ -107,41 +106,52 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_Verbose", "Verbose execution");
     message_list.emplace_back("OV_GPU_VerboseColor", "Print verbose color");
     message_list.emplace_back("OV_GPU_ListLayers", "Print layers names");
-    message_list.emplace_back("OV_GPU_PrintMultiKernelPerf", "Print execution time of each kernel in multi-kernel primitimive");
-    message_list.emplace_back("OV_GPU_PrintInputDataShapes",  "Print data_shapes of input layers for benchmark_app.");
+    message_list.emplace_back("OV_GPU_PrintMultiKernelPerf",
+                              "Print execution time of each kernel in multi-kernel primitimive");
+    message_list.emplace_back("OV_GPU_PrintInputDataShapes", "Print data_shapes of input layers for benchmark_app.");
     message_list.emplace_back("OV_GPU_DisableUsm", "Disable usm usage");
     message_list.emplace_back("OV_GPU_DisableOnednn", "Disable onednn for discrete GPU (no effect for integrated GPU)");
     message_list.emplace_back("OV_GPU_DisableOnednnOptPostOps", "Disable onednn optimize post operators");
-    message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
-                              " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
-                              " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
-    message_list.emplace_back("OV_GPU_DumpProfilingDataIteration", "Enable collecting profiling data only at iterations with requested range. "
-                              "For example for dump profiling data only when iteration is from 10 to 20, you can use "
-                              "OV_GPU_DumpProfilingDataIteration='10..20'. Additionally, you can dump profiling data only "
-                              "from one specific iteration by giving the same values for the start and end, and the open "
-                              "ended range is also available by range from given start to the last iteration as -1. e.g. "
-                              "OV_GPU_DumpProfilingDataIteration='10..-1'");
-    message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
+    message_list.emplace_back(
+        "OV_GPU_DumpProfilingData",
+        "Enables dump of extended profiling information to specified directory."
+        " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
+        " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
+    message_list.emplace_back(
+        "OV_GPU_DumpProfilingDataIteration",
+        "Enable collecting profiling data only at iterations with requested range. "
+        "For example for dump profiling data only when iteration is from 10 to 20, you can use "
+        "OV_GPU_DumpProfilingDataIteration='10..20'. Additionally, you can dump profiling data only "
+        "from one specific iteration by giving the same values for the start and end, and the open "
+        "ended range is also available by range from given start to the last iteration as -1. e.g. "
+        "OV_GPU_DumpProfilingDataIteration='10..-1'");
+    message_list.emplace_back("OV_GPU_DumpGraphs",
+                              "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
                               "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
     message_list.emplace_back("OV_GPU_DumpLayersPath", "Enable dumping intermediate buffers and set the dest path");
-    message_list.emplace_back("OV_GPU_DumpLayers", "Dump intermediate buffers of specified layers only, separated by space."
-                               " Support case-insensitive and regular expression. For example .*conv.*");
+    message_list.emplace_back("OV_GPU_DumpLayers",
+                              "Dump intermediate buffers of specified layers only, separated by space."
+                              " Support case-insensitive and regular expression. For example .*conv.*");
     message_list.emplace_back("OV_GPU_DumpLayersResult", "Dump output buffers of result layers only");
-    message_list.emplace_back("OV_GPU_DumpLayersInput",  "Dump intermediate buffers of input layers only");
+    message_list.emplace_back("OV_GPU_DumpLayersInput", "Dump intermediate buffers of input layers only");
     message_list.emplace_back("OV_GPU_DumpLayersDstOnly", "Dump only output of layers");
     message_list.emplace_back("OV_GPU_DumpLayersLimitBatch", "Limit the size of batch to dump");
     message_list.emplace_back("OV_GPU_DumpLayersRaw", "If true, dump data is stored in raw memory format.");
     message_list.emplace_back("OV_GPU_DumpLayersRawBinary", "If true, dump data is stored in binary format.");
     message_list.emplace_back("OV_GPU_DryRunPath", "Dry run and serialize execution graph into the specified path");
     message_list.emplace_back("OV_GPU_BaseBatchForMemEstimation", "Base batch size to be used in memory estimation");
-    message_list.emplace_back("OV_GPU_AfterProc", "Run inference after the specified process PIDs are finished, separated by space."
+    message_list.emplace_back("OV_GPU_AfterProc",
+                              "Run inference after the specified process PIDs are finished, separated by space."
                               " Supported on only on linux.");
     message_list.emplace_back("OV_GPU_SerialCompile", "Serialize creating primitives and compiling kernels");
-    message_list.emplace_back("OV_GPU_ForceImplTypes", "Force implementation type of a target primitive or layer. [primitive or layer_name]:[impl_type]"
-                              " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
-                              " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
-    message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back(
+        "OV_GPU_ForceImplTypes",
+        "Force implementation type of a target primitive or layer. [primitive or layer_name]:[impl_type]"
+        " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
+        " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
+    message_list.emplace_back("OV_GPU_MaxKernelsPerBatch",
+                              "Maximum number of kernels in a batch during compiling kernels");
     message_list.emplace_back("OV_GPU_ImplsCacheCapacity", "The maximum number of entries in the kernel impl cache");
     message_list.emplace_back("OV_GPU_DisableAsyncCompilation", "Disable async compilation");
     message_list.emplace_back("OV_GPU_DisableWinogradConv", "Disable Winograd convolution");
@@ -149,24 +159,33 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeBufferFusing", "Disable runtime buffer fusing");
     message_list.emplace_back("OV_GPU_DisableMemoryReuse", "Disable memory reuse");
     message_list.emplace_back("OV_GPU_DumpRuntimeMemoryPool", "Dump memory pool contents of each iteration");
-    message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes", "Disable build time weight reorder for dynmaic nodes.");
+    message_list.emplace_back("OV_GPU_DisableBuildTimeWeightReorderForDynamicNodes",
+                              "Disable build time weight reorder for dynmaic nodes.");
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DumpIteration", "Dump n-th execution of network, separated by space.");
-    message_list.emplace_back("OV_GPU_MemPreallocationOptions", "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
-                              "the following order: number of iterations for pre-allocation(int), max size of single iteration in bytes(int), "
-                              "max per-dim allowed diff(int), unconditional buffers preallocation ratio(float). For example for disabling memory "
+    message_list.emplace_back("OV_GPU_MemPreallocationOptions",
+                              "Controls buffer pre-allocation feature. Expects 4 values separated by space in "
+                              "the following order: number of iterations for pre-allocation(int), max size of single "
+                              "iteration in bytes(int), "
+                              "max per-dim allowed diff(int), unconditional buffers preallocation ratio(float). For "
+                              "example for disabling memory "
                               "preallocation at all, you can use OV_GPU_MemPreallocationOptions='0 0 0 1.0'");
-    message_list.emplace_back("OV_GPU_LoadDumpRawBinary",
-                               "Specified layers which are loading dumped binary files generated by OV_GPU_DumpLayersRawBinary debug-config."
-                               " Currently, other layers except input-layer('parameter' type) are loading binaries for only input."
-                               " Different input or output tensors are seperated by ','. Different layers are separated by space. For example, "
-                               " \"[input_layer_name1]:[binary_dumped_file1],[binary_dump_file2] [input_layer_name2]:[binary_dump_1],[binary_dump_2]\"");
+    message_list.emplace_back(
+        "OV_GPU_LoadDumpRawBinary",
+        "Specified layers which are loading dumped binary files generated by OV_GPU_DumpLayersRawBinary debug-config."
+        " Currently, other layers except input-layer('parameter' type) are loading binaries for only input."
+        " Different input or output tensors are seperated by ','. Different layers are separated by space. For "
+        "example, "
+        " \"[input_layer_name1]:[binary_dumped_file1],[binary_dump_file2] "
+        "[input_layer_name2]:[binary_dump_1],[binary_dump_2]\"");
 
-    auto max_name_length_item = std::max_element(message_list.begin(), message_list.end(),
-        [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b){
-            return a.first.size() < b.first.size();
-    });
+    auto max_name_length_item =
+        std::max_element(message_list.begin(),
+                         message_list.end(),
+                         [](std::pair<std::string, std::string>& a, std::pair<std::string, std::string>& b) {
+                             return a.first.size() < b.first.size();
+                         });
     int name_width = static_cast<int>(max_name_length_item->first.size()) + 2;
 
     GPU_DEBUG_COUT_ << "Supported environment variables for debugging" << std::endl;
@@ -178,40 +197,40 @@ static void print_help_messages() {
 #endif
 
 debug_configuration::debug_configuration()
-        : help(0)
-        , verbose(0)
-        , verbose_color(0)
-        , list_layers(0)
-        , print_multi_kernel_perf(0)
-        , print_input_data_shapes(0)
-        , disable_usm(0)
-        , disable_onednn(0)
-        , disable_onednn_opt_post_ops(0)
-        , dump_profiling_data(std::string(""))
-        , dump_profiling_data_per_iter(0)
-        , dump_graphs(std::string())
-        , dump_sources(std::string())
-        , dump_layers_path(std::string())
-        , dry_run_path(std::string())
-        , dump_layers_dst_only(0)
-        , dump_layers_result(0)
-        , dump_layers_input(0)
-        , dump_layers_limit_batch(std::numeric_limits<int>::max())
-        , dump_layers_raw(0)
-        , dump_layers_binary(0)
-        , dump_runtime_memory_pool(0)
-        , base_batch_for_memory_estimation(-1)
-        , serialize_compile(0)
-        , max_kernels_per_batch(0)
-        , impls_cache_capacity(-1)
-        , disable_async_compilation(0)
-        , disable_winograd_conv(0)
-        , disable_dynamic_impl(0)
-        , disable_runtime_buffer_fusing(0)
-        , disable_memory_reuse(0)
-        , disable_build_time_weight_reorder_for_dynamic_nodes(0)
-        , disable_runtime_skip_reorder(0)
-        , disable_primitive_fusing(0) {
+    : help(0),
+      verbose(0),
+      verbose_color(0),
+      list_layers(0),
+      print_multi_kernel_perf(0),
+      print_input_data_shapes(0),
+      disable_usm(0),
+      disable_onednn(0),
+      disable_onednn_opt_post_ops(0),
+      dump_profiling_data(std::string("")),
+      dump_profiling_data_per_iter(0),
+      dump_graphs(std::string()),
+      dump_sources(std::string()),
+      dump_layers_path(std::string()),
+      dry_run_path(std::string()),
+      dump_layers_dst_only(0),
+      dump_layers_result(0),
+      dump_layers_input(0),
+      dump_layers_limit_batch(std::numeric_limits<int>::max()),
+      dump_layers_raw(0),
+      dump_layers_binary(0),
+      dump_runtime_memory_pool(0),
+      base_batch_for_memory_estimation(-1),
+      serialize_compile(0),
+      max_kernels_per_batch(0),
+      impls_cache_capacity(-1),
+      disable_async_compilation(0),
+      disable_winograd_conv(0),
+      disable_dynamic_impl(0),
+      disable_runtime_buffer_fusing(0),
+      disable_memory_reuse(0),
+      disable_build_time_weight_reorder_for_dynamic_nodes(0),
+      disable_runtime_skip_reorder(0),
+      disable_primitive_fusing(0) {
 #ifdef GPU_DEBUG_CONFIG
     get_gpu_debug_env_var("Help", help);
     get_common_debug_env_var("Verbose", verbose);
@@ -252,7 +271,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableDynamicImpl", disable_dynamic_impl);
     get_gpu_debug_env_var("DisableRuntimeBufferFusing", disable_runtime_buffer_fusing);
     get_gpu_debug_env_var("DisableMemoryReuse", disable_memory_reuse);
-    get_gpu_debug_env_var("DisableBuildTimeWeightReorderForDynamicNodes", disable_build_time_weight_reorder_for_dynamic_nodes);
+    get_gpu_debug_env_var("DisableBuildTimeWeightReorderForDynamicNodes",
+                          disable_build_time_weight_reorder_for_dynamic_nodes);
     get_gpu_debug_env_var("DisableRuntimeSkipReorder", disable_runtime_skip_reorder);
     get_gpu_debug_env_var("DisablePrimitiveFusing", disable_primitive_fusing);
     std::string dump_iteration_str;
@@ -279,13 +299,14 @@ debug_configuration::debug_configuration()
                     is_valid_range = true;
                     dump_prof_data_iter_params.start = start;
                     dump_prof_data_iter_params.end = end;
-                } catch(const std::exception &) {
+                } catch (const std::exception&) {
                     is_valid_range = false;
                 }
             }
         }
         if (!is_valid_range)
-            std::cout << "OV_GPU_DumpProfilingDataIteration was ignored. It cannot be parsed to valid iteration range." << std::endl;
+            std::cout << "OV_GPU_DumpProfilingDataIteration was ignored. It cannot be parsed to valid iteration range."
+                      << std::endl;
         dump_prof_data_iter_params.is_enabled = is_valid_range;
     }
 
@@ -325,9 +346,10 @@ debug_configuration::debug_configuration()
         while (ss >> token) {
             try {
                 dump_iteration.insert(static_cast<int64_t>(std::stol(token)));
-            } catch(const std::exception &) {
+            } catch (const std::exception&) {
                 dump_iteration.clear();
-                GPU_DEBUG_COUT << "OV_GPU_DumpIteration was ignored. It cannot be parsed to integer array." << std::endl;
+                GPU_DEBUG_COUT << "OV_GPU_DumpIteration was ignored. It cannot be parsed to integer array."
+                               << std::endl;
                 break;
             }
         }
@@ -348,7 +370,7 @@ debug_configuration::debug_configuration()
                 mem_preallocation_params.max_per_iter_size = std::stol(params[1]);
                 mem_preallocation_params.max_per_dim_diff = std::stol(params[2]);
                 mem_preallocation_params.buffers_preallocation_ratio = std::stof(params[3]);
-            } catch(const std::exception &) {
+            } catch (const std::exception&) {
                 correct_params = false;
             }
         }
@@ -360,21 +382,21 @@ debug_configuration::debug_configuration()
     }
 
     if (after_proc_str.length() > 0) {
-#ifdef _WIN32
+#    ifdef _WIN32
         GPU_DEBUG_COUT_ << "Warning: OV_GPU_AfterProc is supported only on linux" << std::endl;
-#else
-        after_proc_str = " " + after_proc_str + " "; // Insert delimiter for easier parsing when used
+#    else
+        after_proc_str = " " + after_proc_str + " ";  // Insert delimiter for easier parsing when used
         std::stringstream ss(after_proc_str);
         std::string pid;
         while (ss >> pid) {
             after_proc.push_back(pid);
         }
-#endif
+#    endif
     }
 #endif
 }
 
-const debug_configuration *debug_configuration::get_instance() {
+const debug_configuration* debug_configuration::get_instance() {
     static std::unique_ptr<debug_configuration> instance(nullptr);
 #ifdef GPU_DEBUG_CONFIG
     static std::mutex _m;
@@ -405,7 +427,8 @@ bool debug_configuration::is_target_dump_prof_data_iteration(int64_t iteration) 
 #endif
 }
 
-std::vector<std::string> debug_configuration::get_filenames_for_matched_layer_loading_binaries(const std::string& id) const {
+std::vector<std::string> debug_configuration::get_filenames_for_matched_layer_loading_binaries(
+    const std::string& id) const {
     std::vector<std::string> file_names;
 #ifdef GPU_DEBUG_CONFIG
     if (load_layers_raw_dump.empty())
@@ -425,9 +448,9 @@ std::vector<std::string> debug_configuration::get_filenames_for_matched_layer_lo
                     else
                         file_names.push_back(file_name_str.substr(head));
 
-                    head = found+1;
-                    GPU_DEBUG_LOG << " Layer name loading raw dump : " << load_layer.substr(0, file) << " / the dump file : "
-                                << file_names.back() << std::endl;
+                    head = found + 1;
+                    GPU_DEBUG_LOG << " Layer name loading raw dump : " << load_layer.substr(0, file)
+                                  << " / the dump file : " << file_names.back() << std::endl;
                 } while (found != std::string::npos);
 
                 return file_names;
@@ -439,7 +462,8 @@ std::vector<std::string> debug_configuration::get_filenames_for_matched_layer_lo
     return file_names;
 }
 
-std::string debug_configuration::get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) const {
+std::string debug_configuration::get_matched_from_filelist(const std::vector<std::string>& file_names,
+                                                           std::string pattern) const {
 #ifdef GPU_DEBUG_CONFIG
     for (const auto& file : file_names) {
         auto found = file.find(pattern);
@@ -465,8 +489,7 @@ std::string debug_configuration::get_name_for_dump(const std::string& file_name)
 bool debug_configuration::is_layer_for_dumping(const std::string& layer_name, bool is_output, bool is_input) const {
 #ifdef GPU_DEBUG_CONFIG
     // Dump result layer
-    if (is_output == true && dump_layers_result == 1 &&
-        (layer_name.find("constant:") == std::string::npos))
+    if (is_output == true && dump_layers_result == 1 && (layer_name.find("constant:") == std::string::npos))
         return true;
     // Dump all layers
     if (dump_layers.empty() && dump_layers_result == 0 && dump_layers_input == 0)
@@ -494,7 +517,7 @@ bool debug_configuration::is_layer_for_dumping(const std::string& layer_name, bo
         return std::regex_match(upper_layer_name, re);
     };
 
-    auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl){
+    auto iter = std::find_if(dump_layers.begin(), dump_layers.end(), [&](const std::string& dl) {
         return is_match(layer_name, dl);
     });
     return (iter != dump_layers.end());
@@ -519,4 +542,4 @@ bool debug_configuration::is_target_iteration(int64_t iteration) const {
     return false;
 #endif
 }
-} // namespace cldnn
+}  // namespace cldnn

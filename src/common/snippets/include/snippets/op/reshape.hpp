@@ -32,6 +32,6 @@ private:
     ov::PartialShape m_target_shape = {};
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -4,7 +4,10 @@
     "declaration": true,
     "esModuleInterop": true,
     "target": "ES2017",
-    "lib": ["ES2017", "dom"],
+    "lib": [
+      "ES2017",
+      "dom"
+    ],
     "sourceMap": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,

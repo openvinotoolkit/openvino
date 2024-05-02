@@ -3,9 +3,11 @@
 //
 
 #include "convert_color_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey ConvertColorKernelRef::GetSupportedKey() const {

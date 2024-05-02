@@ -3,14 +3,16 @@
 //
 
 #include "permute_kernel_bfzyx_to_bfyxz.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <string>
-#include <functional>
+
 #include <cmath>
+#include <functional>
+#include <string>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 // Tile size : 4x4 or 8x8
-#define MIN_TILE_SIZE 4
+#define MIN_TILE_SIZE     4
 #define DEFAULT_TILE_SIZE 8
 
 namespace kernel_selector {
@@ -53,7 +55,8 @@ static inline size_t GetTileSize(const permute_params& params) {
     return DEFAULT_TILE_SIZE;
 }
 
-JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params& params,
+                                                           const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     size_t tile_size = GetTileSize(params);
     size_t vector_width = tile_size;
@@ -69,7 +72,8 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
     if (params.inputs[0].X().v % tile_size) {
         jit.AddConstant(MakeJitConstant("X_REMAINDER_ITEM", params.inputs[0].X().v / tile_size));
         jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", params.inputs[0].X().v % tile_size));
-        jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
+        jit.AddConstant(
+            MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
         normal_tile_cond += " && (x < X_REMAINDER_ITEM)";
         x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
         z_remainder_cond += " && (x < X_REMAINDER_ITEM)";
@@ -77,7 +81,8 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
     if (params.inputs[0].Z().v % tile_size) {
         jit.AddConstant(MakeJitConstant("Z_REMAINDER_ITEM", params.inputs[0].Z().v / tile_size));
         jit.AddConstant(MakeJitConstant("Z_REMAINDER_SIZE", params.inputs[0].Z().v % tile_size));
-        jit.AddConstant(MakeJitConstant("Z_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Z().v % tile_size, vector_width)));
+        jit.AddConstant(
+            MakeJitConstant("Z_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Z().v % tile_size, vector_width)));
         normal_tile_cond += " && (z < Z_REMAINDER_ITEM)";
         x_remainder_cond += " && (z < Z_REMAINDER_ITEM)";
         z_remainder_cond += " && (z == Z_REMAINDER_ITEM)";
@@ -93,7 +98,7 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
     jit.AddConstant(MakeJitConstant("AS_INPUTVTYPE", "CAT(as_, INPUTVTYPE)"));
     jit.AddConstant(MakeJitConstant("AS_OUTPUTVTYPE", "CAT(as_, OUTPUTVTYPE)"));
     jit.AddConstant(MakeJitConstant("LOCAL_BUF_STRIDE", (tile_size / vector_width) * tile_size));
-    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", (tile_size / vector_width) * tile_size * total_lws) );
+    jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", (tile_size / vector_width) * tile_size * total_lws));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> input_order = {"b", "f", "y", "(x * TILE_SIZE + i)", "(z * TILE_SIZE + lh)"};
@@ -104,7 +109,9 @@ JitConstants PermuteKernel_bfzyx_to_bfyxz::GetJitConstants(const permute_params&
     return jit;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_size) {
+static std::vector<size_t> GetBestLwsFromGws(const permute_params& params,
+                                             const std::vector<size_t>& gws,
+                                             const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
     std::vector<size_t> dims{0, 2, 1};
 
@@ -135,21 +142,26 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
 
 CommonDispatchData PermuteKernel_bfzyx_to_bfyxz::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
-    const auto& in =  params.inputs[0];
+    const auto& in = params.inputs[0];
     size_t tile_size = GetTileSize(params);
-    dispatchData.gws = {CeilDiv(in.X().v , tile_size), in.Y().v, CeilDiv(in.Z().v, tile_size) * in.Feature().v * in.Batch().v};
+    dispatchData.gws = {CeilDiv(in.X().v, tile_size),
+                        in.Y().v,
+                        CeilDiv(in.Z().v, tile_size) * in.Feature().v * in.Batch().v};
     dispatchData.lws = GetBestLwsFromGws(params, dispatchData.gws, tile_size);
     return dispatchData;
 }
 
 bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p))
+        return false;
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_coords = [](const std::vector<uint16_t>& order) {
-        const std::vector<uint16_t> expected_order {0, 1, 4, 2, 3};
-        if (order.size() != expected_order.size()) return false;
+        const std::vector<uint16_t> expected_order{0, 1, 4, 2, 3};
+        if (order.size() != expected_order.size())
+            return false;
         for (size_t i{}; i < order.size(); ++i)
-            if (order[i] != expected_order[i]) return false;
+            if (order[i] != expected_order[i])
+                return false;
         return true;
     };
 
@@ -170,7 +182,8 @@ KernelsPriority PermuteKernel_bfzyx_to_bfyxz::GetKernelsPriority(const Params& p
 
     if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) && IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
         return FORCE_PRIORITY_1;
-    } else if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) || IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
+    } else if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) ||
+               IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
         return FORCE_PRIORITY_2;
     } else {
         return FORCE_PRIORITY_3;

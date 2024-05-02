@@ -7,6 +7,6 @@
 
 namespace ov {
 namespace intel_cpu {
-    OV_CC_DOMAINS(intel_cpu)
+OV_CC_DOMAINS(intel_cpu)
 }
-}
+}  // namespace ov

@@ -10,25 +10,25 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        ov::PartialShape,            // Input 0 Shape
-        std::vector<int>,            // Transpose order
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> TransposeParams;
+typedef std::tuple<ov::PartialShape,  // Input 0 Shape
+                   std::vector<int>,  // Transpose order
+                   size_t,            // Expected num nodes
+                   size_t,            // Expected num subgraphs
+                   std::string        // Target Device
+                   >
+    TransposeParams;
 
-typedef std::tuple<
-        ov::PartialShape,            // Input 0 Shape
-        ov::PartialShape,            // Input 1 Shape
-        std::vector<int>,            // Transpose order
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> TransposeMulParams;
+typedef std::tuple<ov::PartialShape,  // Input 0 Shape
+                   ov::PartialShape,  // Input 1 Shape
+                   std::vector<int>,  // Transpose order
+                   size_t,            // Expected num nodes
+                   size_t,            // Expected num subgraphs
+                   std::string        // Target Device
+                   >
+    TransposeMulParams;
 
 class Transpose : public testing::WithParamInterface<ov::test::snippets::TransposeParams>,
-            virtual public ov::test::SnippetsTestsCommon {
+                  virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeParams> obj);
 
@@ -37,7 +37,7 @@ protected:
 };
 
 class TransposeMul : public testing::WithParamInterface<ov::test::snippets::TransposeMulParams>,
-                  virtual public ov::test::SnippetsTestsCommon {
+                     virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj);
 
@@ -45,6 +45,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

@@ -23,9 +23,8 @@ struct gather_nd : public primitive_base<gather_nd> {
     /// @param indices_rank         Rank of indices.
     /// @param batch_dims           batch_dims as an attribute of GatherND. Optional.
     /// @param batch_merged_output  batched output shape is merged as a dimention for v5.
-    ///                             In case of output{3, 2, 4, 5} at batch_dims = 2, real output shape should be {6, 4, 5}.
-    ///                             This should be false for v8.
-    ///                             For batch_dims < 2, This doesn't have any meaning.
+    ///                             In case of output{3, 2, 4, 5} at batch_dims = 2, real output shape should be {6, 4,
+    ///                             5}. This should be false for v8. For batch_dims < 2, This doesn't have any meaning.
     gather_nd(const primitive_id& id,
               const input_info& data,
               const input_info& indices,
@@ -35,10 +34,10 @@ struct gather_nd : public primitive_base<gather_nd> {
               const bool batch_merged_output = true,
               const padding& output_padding = padding())
         : primitive_base(id, {data, indices}, {output_padding}),
-                         input_rank(input_rank),
-                         indices_rank(indices_rank),
-                         batch_dims(batch_dims),
-                         batch_merged_output(batch_merged_output) {}
+          input_rank(input_rank),
+          indices_rank(indices_rank),
+          batch_dims(batch_dims),
+          batch_merged_output(batch_merged_output) {}
 
     /// @brief GatherND input_rank
     uint8_t input_rank;
@@ -66,10 +65,8 @@ struct gather_nd : public primitive_base<gather_nd> {
 
         auto rhs_casted = downcast<const gather_nd>(rhs);
 
-        return input_rank == rhs_casted.input_rank &&
-               indices_rank == rhs_casted.indices_rank &&
-               batch_dims == rhs_casted.batch_dims &&
-               batch_merged_output == rhs_casted.batch_merged_output;
+        return input_rank == rhs_casted.input_rank && indices_rank == rhs_casted.indices_rank &&
+               batch_dims == rhs_casted.batch_dims && batch_merged_output == rhs_casted.batch_merged_output;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

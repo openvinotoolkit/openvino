@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include "intel_gpu/runtime/compilation_context.hpp"
+#include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "fully_connected_inst.h"
-
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "program_wrapper.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,20 +21,19 @@ TEST(kernel_impl_params_relevance, weights_layout) {
     const int32_t in_f = 4;
     const int32_t wei_o = 3;
 
-    auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(1, 10), in_f }, data_types::f32, format::bfyx };
-    auto actual_input_data = engine.allocate_memory(layout{ ov::PartialShape{ in_b, in_f }, data_types::f32, format::bfyx });
-    auto weights_data = engine.allocate_memory({ ov::PartialShape{ wei_o, in_f }, data_types::f32, format::bfyx });
+    auto input_dyn_layout = layout{ov::PartialShape{ov::Dimension(1, 10), in_f}, data_types::f32, format::bfyx};
+    auto actual_input_data =
+        engine.allocate_memory(layout{ov::PartialShape{in_b, in_f}, data_types::f32, format::bfyx});
+    auto weights_data = engine.allocate_memory({ov::PartialShape{wei_o, in_f}, data_types::f32, format::bfyx});
 
-    cldnn::topology topology{
-        input_layout("input", input_dyn_layout),
-        data("weights", weights_data),
-        fully_connected("fc", input_info("input"), "weights")
-    };
+    cldnn::topology topology{input_layout("input", input_dyn_layout),
+                             data("weights", weights_data),
+                             fully_connected("fc", input_info("input"), "weights")};
 
     auto fc_opt_impl = ov::intel_gpu::ImplementationDesc(format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl);
-    ExecutionConfig cfg{ ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_opt_impl} }),
-                         ov::intel_gpu::optimize_data(true),
-                         ov::intel_gpu::allow_new_shape_infer(true) };
+    ExecutionConfig cfg{ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_opt_impl}}),
+                        ov::intel_gpu::optimize_data(true),
+                        ov::intel_gpu::allow_new_shape_infer(true)};
 
     // 1. Compile network with forced `fully_connected_gpu_bf_tiled` kernel => optimized shape-agnostic
     //    kernel will be used
@@ -47,12 +44,13 @@ TEST(kernel_impl_params_relevance, weights_layout) {
     //    so during _node->type()->choose_impl(*_node, updated_params); call for static kernel version reference
     //    impl will be used. Call execute() to trigger desired kernel compilation
     auto fc_ref_impl = ov::intel_gpu::ImplementationDesc(format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl);
-    auto force_impl_prop = ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_ref_impl} });
+    auto force_impl_prop = ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_ref_impl}});
     program_wrapper::update_configs_properties(*network.get_program(), {force_impl_prop});
 
     network.execute();
 
-    // 3. WA: Call wait_all() to wait for all queued kernels compilation finish (including above `fully_connected_gpu_bfyx_ref`)
+    // 3. WA: Call wait_all() to wait for all queued kernels compilation finish (including above
+    // `fully_connected_gpu_bfyx_ref`)
     network.get_program()->get_compilation_context().wait_all();
 
     // 4. Call execute() second time with same input shape to use pre-compiled `fully_connected_gpu_bfyx_ref` kernel

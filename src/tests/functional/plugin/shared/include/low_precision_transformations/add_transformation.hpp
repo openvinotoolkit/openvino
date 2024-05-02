@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include <string>
+
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
-class AddTestValues{
+class AddTestValues {
 public:
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
     ov::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
@@ -20,16 +21,10 @@ public:
     std::vector<ov::element::Type> expectedPrecisions;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    AddTestValues
-> AddTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, AddTestValues> AddTransformationParams;
 
-class AddTransformation :
-    public testing::WithParamInterface<AddTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class AddTransformation : public testing::WithParamInterface<AddTransformationParams>,
+                          public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AddTransformationParams>& obj);
 

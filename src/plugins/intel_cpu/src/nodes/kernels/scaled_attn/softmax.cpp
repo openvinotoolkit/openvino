@@ -13,10 +13,10 @@
 #    include <immintrin.h>
 #endif
 
+#include "common.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
-#include "common.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -34,7 +34,17 @@ void attn_softmax(float* a,
                   size_t total_size,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
-    attn_softmax_kernel(a, a_dst, scale, alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, total_size, attn_mask_prec, dst_precision);
+    attn_softmax_kernel(a,
+                        a_dst,
+                        scale,
+                        alibi,
+                        attn_mask,
+                        causal_mask,
+                        select_nfltmax_at_0,
+                        len,
+                        total_size,
+                        attn_mask_prec,
+                        dst_precision);
 }
 
 }  // namespace XARCH

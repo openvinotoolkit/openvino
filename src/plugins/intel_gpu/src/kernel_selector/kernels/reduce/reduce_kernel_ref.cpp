@@ -3,10 +3,12 @@
 //
 
 #include "reduce_kernel_ref.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
 #include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey ReduceKernelRef::GetSupportedKey() const {
@@ -35,15 +37,20 @@ CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params) cons
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
-                                                                       Tensor::DataChannelName::U, Tensor::DataChannelName::V },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::Z,
+         Tensor::DataChannelName::W,
+         Tensor::DataChannelName::U,
+         Tensor::DataChannelName::V},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
-    dispatchData.gws = { params.outputs[0].X().v * params.outputs[0].Y().v,
-                         params.outputs[0].Z().v * params.outputs[0].W().v * params.outputs[0].U().v * params.outputs[0].V().v,
-                         params.outputs[0].Batch().v * params.outputs[0].Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {
+        params.outputs[0].X().v * params.outputs[0].Y().v,
+        params.outputs[0].Z().v * params.outputs[0].W().v * params.outputs[0].U().v * params.outputs[0].V().v,
+        params.outputs[0].Batch().v * params.outputs[0].Feature().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -60,11 +67,21 @@ JitConstants ReduceKernelRef::GetJitConstants(const reduce_params& params) const
 
         std::vector<std::string> idx_order;
         switch (DataTensor::ChannelsCount(params.inputs[0].GetLayout())) {
-            case 8: idx_order = {"b", "f", "v", "u", "w", "z", "y", "x" }; break;
-            case 7: idx_order = {"b", "f", "u", "w", "z", "y", "x" }; break;
-            case 6: idx_order = {"b", "f", "w", "z", "y", "x" }; break;
-            case 5: idx_order = {"b", "f", "z", "y", "x" }; break;
-            default: idx_order = {"b", "f", "y", "x" }; break;
+        case 8:
+            idx_order = {"b", "f", "v", "u", "w", "z", "y", "x"};
+            break;
+        case 7:
+            idx_order = {"b", "f", "u", "w", "z", "y", "x"};
+            break;
+        case 6:
+            idx_order = {"b", "f", "w", "z", "y", "x"};
+            break;
+        case 5:
+            idx_order = {"b", "f", "z", "y", "x"};
+            break;
+        default:
+            idx_order = {"b", "f", "y", "x"};
+            break;
         }
 
         FusedOpsConfiguration conf = {"",

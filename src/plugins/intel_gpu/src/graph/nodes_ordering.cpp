@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <map>
+#include <vector>
+
 #include "intel_gpu/graph/program.hpp"
 #include "program_node.h"
-#include <vector>
-#include <map>
-#include <algorithm>
 
 namespace cldnn {
 // helper method for calc_processing order

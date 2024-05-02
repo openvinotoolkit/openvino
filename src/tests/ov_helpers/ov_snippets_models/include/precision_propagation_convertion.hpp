@@ -23,10 +23,9 @@ namespace snippets {
  */
 class PrecisionPropagationConvertionFunction : public SnippetsFunctionBase {
 public:
-    PrecisionPropagationConvertionFunction(
-        const std::vector<ov::PartialShape>& input_shapes,
-        const element::Type input_type,
-        const std::vector<float>& fake_quantize_intervals);
+    PrecisionPropagationConvertionFunction(const std::vector<ov::PartialShape>& input_shapes,
+                                           const element::Type input_type,
+                                           const std::vector<float>& fake_quantize_intervals);
 
 protected:
     std::shared_ptr<Model> initOriginal() const override;
@@ -35,10 +34,9 @@ private:
     /*
      * Returns model implicitly via getOriginal call in initOriginal.
      */
-    static std::shared_ptr<ov::Model> get(
-        const std::vector<ov::PartialShape>& input_shapes,
-        const element::Type input_type,
-        const std::vector<float>& fake_quantize_intervals);
+    static std::shared_ptr<ov::Model> get(const std::vector<ov::PartialShape>& input_shapes,
+                                          const element::Type input_type,
+                                          const std::vector<float>& fake_quantize_intervals);
 
     const std::vector<float> fake_quantize_intervals;
 };

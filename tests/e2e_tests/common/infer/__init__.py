@@ -7,4 +7,4 @@ from .provider import StepProvider
 try:
     from .common_inference import Infer
 except ImportError as e:
-    Infer = use_dummy('ie_sync', str(e))
+    Infer = use_dummy("ie_sync", str(e))

@@ -5,6 +5,4 @@ from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_in
 
 
 def tf_identity_ext(pb):
-    return {
-        'infer': copy_shape_infer
-    }
+    return {"infer": copy_shape_infer}

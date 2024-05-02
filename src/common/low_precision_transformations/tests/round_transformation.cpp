@@ -33,8 +33,8 @@ public:
 
         actualFunction =
             ov::builder::subgraph::RoundWithToleranceFunction::getOriginal(testValues.inputPrecision,
-                                                                               testValues.inputShape,
-                                                                               testValues.actualDequantization);
+                                                                           testValues.inputShape,
+                                                                           testValues.actualDequantization);
         const auto lastNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(lastNode);
         const auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
@@ -53,8 +53,8 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::RoundWithToleranceFunction::getReference(testValues.inputPrecision,
-                                                                                testValues.inputShape,
-                                                                                testValues.referenceDequantization);
+                                                                            testValues.inputShape,
+                                                                            testValues.referenceDequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<RoundTestValues> obj) {

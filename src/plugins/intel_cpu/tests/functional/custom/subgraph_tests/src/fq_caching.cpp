@@ -3,9 +3,9 @@
 //
 
 // Motivation:
-// In a dynamic scenario, depending on the input shapes for the current node, we can either generate a new jit kernel or get an existing one from the cache.
-// But the current single layer tests do not allow checking the case when the same kernel can be used for different nodes.
-// This subgraph test contains 2 FQ nodes and allows us to check this case.
+// In a dynamic scenario, depending on the input shapes for the current node, we can either generate a new jit kernel or
+// get an existing one from the cache. But the current single layer tests do not allow checking the case when the same
+// kernel can be used for different nodes. This subgraph test contains 2 FQ nodes and allows us to check this case.
 
 //  ------------------------------------    ------------------------------------
 //  |             Input 0              |    |             Input 1              |
@@ -27,11 +27,11 @@
 //                                   |Output|
 //                                   --------
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "internal_properties.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -43,11 +43,11 @@ using InputShapesTuple = std::tuple<std::vector<InputShape>,              // fq 
                                     std::vector<int32_t>                  // reshape shape
                                     >;
 
-using FqSpecificParams = std::tuple<int64_t,                  // 'data' input low bounds
-                                    int64_t,                  // 'data' input high bounds
-                                    std::vector<float>,       // output low
-                                    std::vector<float>,       // output high
-                                    size_t>;                  // levels
+using FqSpecificParams = std::tuple<int64_t,             // 'data' input low bounds
+                                    int64_t,             // 'data' input high bounds
+                                    std::vector<float>,  // output low
+                                    std::vector<float>,  // output high
+                                    size_t>;             // levels
 
 typedef std::tuple<InputShapesTuple,                                   // fq input shapes and reshape shape
                    FqSpecificParams,                                   // fq specific params
@@ -58,9 +58,10 @@ typedef std::tuple<InputShapesTuple,                                   // fq inp
     FakeQuantizeCacheTestParams;
 
 class FakeQuantizeCacheTest : public testing::WithParamInterface<FakeQuantizeCacheTestParams>,
-                         virtual public SubgraphBaseTest, public CPUTestsBase {
+                              virtual public SubgraphBaseTest,
+                              public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeCacheTestParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeCacheTestParams>& obj) {
         InputShapesTuple inputShapesTuple;
         FqSpecificParams fqParams;
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
@@ -126,8 +127,7 @@ protected:
         std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
         CPUSpecificParams cpuParams;
         ov::AnyMap additionalConfig;
-        std::tie(inputShapesTuple, fqParams, inputRangesValues,
-                cpuParams, additionalConfig) = this->GetParam();
+        std::tie(inputShapesTuple, fqParams, inputRangesValues, cpuParams, additionalConfig) = this->GetParam();
 
         std::vector<InputShape> shapesVec;
         std::vector<std::vector<ov::Shape>> rangesVec;
@@ -158,7 +158,7 @@ protected:
         }
 
         auto makeFQ = [&](int i) {
-            auto extendData = [](const std::vector<float> &data, size_t newSize) {
+            auto extendData = [](const std::vector<float>& data, size_t newSize) {
                 std::vector<float> extendedData(newSize);
                 size_t oldSize = data.size();
                 for (size_t i = 0; i < newSize; i++) {
@@ -169,14 +169,26 @@ protected:
 
             auto ranges = rangesVec[i];
 
-            auto il = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[0], extendData(rangesBounds[0],
-                std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
-            auto ih = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[1], extendData(rangesBounds[1],
-                std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
-            auto ol = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[2], extendData(rangesBounds[2],
-                std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
-            auto oh = ov::test::utils::deprecated::make_constant(ngInPrec, ranges[3], extendData(rangesBounds[3],
-                std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
+            auto il = ov::test::utils::deprecated::make_constant(
+                ngInPrec,
+                ranges[0],
+                extendData(rangesBounds[0],
+                           std::accumulate(ranges[0].begin(), ranges[0].end(), 1, std::multiplies<size_t>())));
+            auto ih = ov::test::utils::deprecated::make_constant(
+                ngInPrec,
+                ranges[1],
+                extendData(rangesBounds[1],
+                           std::accumulate(ranges[1].begin(), ranges[1].end(), 1, std::multiplies<size_t>())));
+            auto ol = ov::test::utils::deprecated::make_constant(
+                ngInPrec,
+                ranges[2],
+                extendData(rangesBounds[2],
+                           std::accumulate(ranges[2].begin(), ranges[2].end(), 1, std::multiplies<size_t>())));
+            auto oh = ov::test::utils::deprecated::make_constant(
+                ngInPrec,
+                ranges[3],
+                extendData(rangesBounds[3],
+                           std::accumulate(ranges[3].begin(), ranges[3].end(), 1, std::multiplies<size_t>())));
 
             auto fqNode = std::make_shared<ov::op::v0::FakeQuantize>(paramVect[i], il, ih, ol, oh, levels);
             fqNode->get_rt_info() = getCPUInfo();
@@ -194,7 +206,7 @@ protected:
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{lastNode0, lastNode1}, 0);
 
         if (selectedType.empty()) {
-           selectedType = getPrimitiveType() + "_f32";
+            selectedType = getPrimitiveType() + "_f32";
         }
 
         function = std::make_shared<ov::Model>(concat, paramVect, "fq_cache");
@@ -209,7 +221,9 @@ protected:
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = inDataLowBounds;
             in_data.range = inDataHighBounds - inDataLowBounds;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -264,9 +278,9 @@ std::vector<InputShapesTuple> inputShapes_3D = {
         // fq range input shapes
         {
             // input0
-            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, // miss
-            // input1
-            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, // hit
+            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}},  // miss
+                                                           // input1
+            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}},  // hit
         },
         // reshape shape
         {},
@@ -282,9 +296,9 @@ std::vector<InputShapesTuple> inputShapes_3D = {
         // fq range input shapes
         {
             // input0
-            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}}, // miss
-            // input1
-            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}}, // hit
+            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}},  // miss
+                                                               // input1
+            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}},  // hit
         },
         // reshape shape
         {},
@@ -300,9 +314,9 @@ std::vector<InputShapesTuple> inputShapes_3D = {
         // fq range input shapes
         {
             // input0
-            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}}, // miss
-            // input1
-            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, // miss
+            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}},  // miss
+                                                               // input1
+            {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}},      // miss
         },
         // reshape shape
         {},
@@ -318,30 +332,29 @@ std::vector<InputShapesTuple> inputShapes_3D = {
         // fq range input shapes
         {
             // input0
-            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}}, // miss
-            // input1
-            {{1, 20, 1}, {1, 20, 1}, {1, 20, 1}, {1, 20, 1}}, // hit
+            {{1, 10, 1}, {1, 10, 1}, {1, 10, 1}, {1, 10, 1}},  // miss
+                                                               // input1
+            {{1, 20, 1}, {1, 20, 1}, {1, 20, 1}, {1, 20, 1}},  // hit
         },
         // reshape shape
         {-1, 10, 22},
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_3D, FakeQuantizeCacheTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inputShapes_3D),
-                                specificParams,
-                                ::testing::ValuesIn(inputRanges),
-                                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D)),
-                                ::testing::Values(disableSnippets)),
-                        FakeQuantizeCacheTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_3D,
+                         FakeQuantizeCacheTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_3D),
+                                            specificParams,
+                                            ::testing::ValuesIn(inputRanges),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D)),
+                                            ::testing::Values(disableSnippets)),
+                         FakeQuantizeCacheTest::getTestCaseName);
 
 // 4D
 std::vector<CPUSpecificParams> cpuParams_4D = {
-        CPUSpecificParams({nchw}, {nchw}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
+    CPUSpecificParams({nchw}, {nchw}, {}, {}),
+    CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
+    CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
 };
 
 std::vector<InputShapesTuple> inputShapes_4D = {
@@ -356,9 +369,9 @@ std::vector<InputShapesTuple> inputShapes_4D = {
         // fq range input shapes
         {
             // input0
-            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, // miss
-            // input1
-            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, // hit
+            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}},  // miss
+                                                                       // input1
+            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}},  // hit
         },
         // reshape shape
         {},
@@ -374,9 +387,9 @@ std::vector<InputShapesTuple> inputShapes_4D = {
         // fq range input shapes
         {
             // input0
-            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}}, // miss
-            // input1
-            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}}, // hit
+            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}},  // miss
+                                                                           // input1
+            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}},  // hit
         },
         // reshape shape
         {},
@@ -392,9 +405,9 @@ std::vector<InputShapesTuple> inputShapes_4D = {
         // fq range input shapes
         {
             // input0
-            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}}, // miss
-            // input1
-            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}, // miss
+            {{1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}, {1, 47, 1, 1}},  // miss
+                                                                           // input1
+            {{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}},      // miss
         },
         // reshape shape
         {},
@@ -410,30 +423,29 @@ std::vector<InputShapesTuple> inputShapes_4D = {
         // fq range input shapes
         {
             // input0
-            {{1, 17, 1, 1}, {1, 17, 1, 1}, {1, 17, 1, 1}, {1, 17, 1, 1}}, // miss
-            // input1
-            {{1, 34, 1, 1}, {1, 34, 1, 1}, {1, 34, 1, 1}, {1, 34, 1, 1}}, // hit
+            {{1, 17, 1, 1}, {1, 17, 1, 1}, {1, 17, 1, 1}, {1, 17, 1, 1}},  // miss
+                                                                           // input1
+            {{1, 34, 1, 1}, {1, 34, 1, 1}, {1, 34, 1, 1}, {1, 34, 1, 1}},  // hit
         },
         // reshape shape
         {-1, 17, 2, 22},
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_4D, FakeQuantizeCacheTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inputShapes_4D),
-                                specificParams,
-                                ::testing::ValuesIn(inputRanges),
-                                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
-                                ::testing::Values(disableSnippets)),
-                        FakeQuantizeCacheTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_4D,
+                         FakeQuantizeCacheTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D),
+                                            specificParams,
+                                            ::testing::ValuesIn(inputRanges),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+                                            ::testing::Values(disableSnippets)),
+                         FakeQuantizeCacheTest::getTestCaseName);
 
 // 5D
 std::vector<CPUSpecificParams> cpuParams_5D = {
-        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-        CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
+    CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
+    CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
+    CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
 };
 
 std::vector<InputShapesTuple> inputShapes_5D = {
@@ -448,9 +460,9 @@ std::vector<InputShapesTuple> inputShapes_5D = {
         // fq range input shapes
         {
             // input0
-            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}, // miss
-            // input1
-            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}, // hit
+            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},  // miss
+                                                                                   // input1
+            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},  // hit
         },
         // reshape shape
         {},
@@ -466,9 +478,9 @@ std::vector<InputShapesTuple> inputShapes_5D = {
         // fq range input shapes
         {
             // input0
-            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}}, // miss
-            // input1
-            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}}, // hit
+            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}},  // miss
+                                                                                       // input1
+            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}},  // hit
         },
         // reshape shape
         {},
@@ -484,9 +496,9 @@ std::vector<InputShapesTuple> inputShapes_5D = {
         // fq range input shapes
         {
             // input0
-            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}}, // miss
-            // input1
-            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}}, // miss
+            {{1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}, {1, 47, 1, 1, 1}},  // miss
+                                                                                       // input1
+            {{1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}},      // miss
         },
         // reshape shape
         {},
@@ -502,23 +514,23 @@ std::vector<InputShapesTuple> inputShapes_5D = {
         // fq range input shapes
         {
             // input0
-            {{1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}}, // miss
-            // input1
-            {{1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}}, // hit
+            {{1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}, {1, 17, 1, 1, 1}},  // miss
+                                                                                       // input1
+            {{1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}, {1, 34, 1, 1, 1}},  // hit
         },
         // reshape shape
         {-1, 17, 2, 3, 22},
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_5D, FakeQuantizeCacheTest,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(inputShapes_5D),
-                                specificParams,
-                                ::testing::ValuesIn(inputRanges),
-                                ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
-                                ::testing::Values(disableSnippets)),
-                        FakeQuantizeCacheTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantizeCache_5D,
+                         FakeQuantizeCacheTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_5D),
+                                            specificParams,
+                                            ::testing::ValuesIn(inputRanges),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+                                            ::testing::Values(disableSnippets)),
+                         FakeQuantizeCacheTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

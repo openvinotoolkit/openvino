@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class PadTransformationParam {
@@ -18,18 +18,16 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    ov::op::PadMode,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    PadTransformationParam
-> PadTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   ov::op::PadMode,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   PadTransformationParam>
+    PadTransformationParams;
 
-class PadTransformation :
-    public testing::WithParamInterface<PadTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class PadTransformation : public testing::WithParamInterface<PadTransformationParams>,
+                          public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj);
 

@@ -2,23 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "decompose_reduce_for_false_keepdims.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -83,9 +83,7 @@ DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
             reshape_shape[0] = reduce_shape[0];
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
-                ov::op::v0::Constant::create(ov::element::i64,
-                                              ov::Shape{reshape_shape.size()},
-                                              reshape_shape),
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 false);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "_reshape_false_keepdims");

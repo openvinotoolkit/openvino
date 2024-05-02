@@ -22,10 +22,7 @@ public:
 protected:
     JitConstants GetJitConstants(const depth_to_space_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::REORDER,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::REORDER, FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

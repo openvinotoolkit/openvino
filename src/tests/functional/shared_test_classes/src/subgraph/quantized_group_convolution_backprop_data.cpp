@@ -3,15 +3,17 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_group_convolution_backprop_data.hpp"
-#include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 #include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace test {
 
-std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvBackpropDataLayerTestParamsSet>& obj) {
+std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<quantGroupConvBackpropDataLayerTestParamsSet>& obj) {
     quantGroupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::element::Type element_type;
     ov::Shape inputShapes;
@@ -23,7 +25,16 @@ std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(const testing::
     size_t convOutChannels, numGroups;
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
+    std::tie(kernel,
+             stride,
+             padBegin,
+             padEnd,
+             dilation,
+             convOutChannels,
+             numGroups,
+             padType,
+             quantLevels,
+             quantGranularity) = groupConvBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -53,7 +64,16 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
     size_t convOutChannels, numGroups;
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
+    std::tie(kernel,
+             stride,
+             padBegin,
+             padEnd,
+             dilation,
+             convOutChannels,
+             numGroups,
+             padType,
+             quantLevels,
+             quantGranularity) = groupConvBackpropDataParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
@@ -70,7 +90,8 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
@@ -79,7 +100,14 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
     auto weightsFq = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
     auto groupConvBackpropData = std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(
-            ov::test::utils::make_group_convolution_backprop_data(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
+        ov::test::utils::make_group_convolution_backprop_data(dataFq,
+                                                              weightsFq,
+                                                              element_type,
+                                                              stride,
+                                                              padBegin,
+                                                              padEnd,
+                                                              dilation,
+                                                              padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};
     function = std::make_shared<ov::Model>(results, params, "QuantGroupConvolutionBackpropData");

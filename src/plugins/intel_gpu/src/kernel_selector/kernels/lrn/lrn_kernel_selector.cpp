@@ -3,14 +3,15 @@
 //
 
 #include "lrn_kernel_selector.h"
-#include "lrn_kernel_ref.h"
-#include "lrn_kernel_within_channel_ref.h"
-#include "lrn_kernel_within_channel_ref_opt.h"
-#include "lrn_kernel_across_channel_ref.h"
-#include "lrn_kernel_across_channel_opt_b8.h"
+
 #include "lrn_kernel_across_channel_multiple_features.h"
 #include "lrn_kernel_across_channel_multiple_features_fsv16.h"
+#include "lrn_kernel_across_channel_opt_b8.h"
+#include "lrn_kernel_across_channel_ref.h"
+#include "lrn_kernel_ref.h"
 #include "lrn_kernel_within_channel_byxf_opt.h"
+#include "lrn_kernel_within_channel_ref.h"
+#include "lrn_kernel_within_channel_ref_opt.h"
 
 namespace kernel_selector {
 lrn_kernel_selector::lrn_kernel_selector() {

@@ -16,7 +16,7 @@ namespace pass {
  * @brief The pass validates OV model on correctness after all common optimizations
  * @ingroup snippets
  */
-class Validate: public ov::pass::ModelPass {
+class Validate : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("Validate", "0");
     Validate(const std::shared_ptr<ov::pass::PassConfig>& pass_config) : m_pass_config(pass_config) {}

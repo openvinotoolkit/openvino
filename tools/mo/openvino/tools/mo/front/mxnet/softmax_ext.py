@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxFrontExtractor(FrontExtractorOp):
-    op = 'softmax'
+    op = "softmax"
     enabled = True
 
     @classmethod
@@ -15,9 +15,9 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         update_attrs = {
-            'type': 'SoftMax',
-            'axis': attrs.int("axis", -1),
-            'temperature': attrs.float('temperature', 1.0)
+            "type": "SoftMax",
+            "axis": attrs.int("axis", -1),
+            "temperature": attrs.float("temperature", 1.0),
         }
 
         # update the attributes of the node

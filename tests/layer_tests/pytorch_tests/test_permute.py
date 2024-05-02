@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestPermute(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
     def create_model(self, order):
@@ -33,10 +33,15 @@ class TestPermute(PytorchLayerTest):
     def test_permute(self, order, ie_device, precision, ir_version):
         self._test(*self.create_model(order), ie_device, precision, ir_version)
 
+
 class TestPermuteList(PytorchLayerTest):
     def _prepare_input(self, permute_shape):
         import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32), np.random.randn(*permute_shape).astype(np.float32))
+
+        return (
+            np.random.randn(1, 3, 224, 224).astype(np.float32),
+            np.random.randn(*permute_shape).astype(np.float32),
+        )
 
     def create_model(self):
         import torch
@@ -45,7 +50,9 @@ class TestPermuteList(PytorchLayerTest):
 
             def forward(self, x, y):
                 y_shape = y.shape
-                return torch.permute(x, [y_shape[0] - 1, y_shape[1] - 1, y_shape[2] - 1, y_shape[3] - 1])
+                return torch.permute(
+                    x, [y_shape[0] - 1, y_shape[1] - 1, y_shape[2] - 1, y_shape[3] - 1]
+                )
 
         ref_net = None
 
@@ -56,5 +63,11 @@ class TestPermuteList(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_permute(self, order, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"permute_shape": order}, dynamic_shapes=ie_device != "GPU")
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"permute_shape": order},
+            dynamic_shapes=ie_device != "GPU"
+        )

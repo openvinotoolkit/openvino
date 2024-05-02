@@ -3,14 +3,16 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
-#include "common_test_utils/node_builders/group_convolution.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 
 namespace ov {
 namespace test {
 
-std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
+std::string QuantGroupConvLayerTest::getTestCaseName(
+    const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
     quantGroupConvSpecificParams groupConvParams;
     ov::element::Type element_type;
     ov::Shape inputShapes;
@@ -23,7 +25,16 @@ std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInf
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
+    std::tie(kernel,
+             stride,
+             padBegin,
+             padEnd,
+             dilation,
+             convOutChannels,
+             numGroups,
+             quantLevels,
+             quantGranularity,
+             quantizeWeights) = groupConvParams;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -55,7 +66,16 @@ void QuantGroupConvLayerTest::SetUp() {
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
     bool quantizeWeights;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
+    std::tie(kernel,
+             stride,
+             padBegin,
+             padEnd,
+             dilation,
+             convOutChannels,
+             numGroups,
+             quantLevels,
+             quantGranularity,
+             quantizeWeights) = groupConvParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
@@ -72,7 +92,8 @@ void QuantGroupConvLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
@@ -85,8 +106,15 @@ void QuantGroupConvLayerTest::SetUp() {
         weights = weightsNode;
     }
 
-    auto groupConv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(
-            ov::test::utils::make_group_convolution(dataFq, weights, element_type, stride, padBegin, padEnd, dilation, padType));
+    auto groupConv =
+        std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(ov::test::utils::make_group_convolution(dataFq,
+                                                                                                        weights,
+                                                                                                        element_type,
+                                                                                                        stride,
+                                                                                                        padBegin,
+                                                                                                        padEnd,
+                                                                                                        dilation,
+                                                                                                        padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConv)};
     function = std::make_shared<ov::Model>(results, params, "QuantGroupConvolution");

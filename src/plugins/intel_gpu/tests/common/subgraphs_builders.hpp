@@ -5,22 +5,23 @@
 #pragma once
 
 #include <memory>
+
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/make_stateful.hpp"
@@ -70,7 +71,10 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
         auto bcast_value = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, 0.0f);
         ov::NodeVector dims = {gather};
         for (size_t i = 1; i < kv_cache_size.size(); i++) {
-            dims.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(kv_cache_size[i].get_min_length())));
+            dims.push_back(
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                       ov::Shape{1},
+                                                       static_cast<int32_t>(kv_cache_size[i].get_min_length())));
         }
         auto shape = std::make_shared<ov::op::v0::Concat>(dims, 0);
         state_initializer = std::make_shared<ov::op::v3::Broadcast>(bcast_value, shape);
@@ -85,9 +89,9 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
 
     std::shared_ptr<ov::Node> kv_input = concat;
     if (num_groups > 1) {
-        auto unsqueeze_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(2));
+        auto unsqueeze_axis =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(2));
         auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_axis);
-
 
         // prepare broadcast shape
         auto concat_shape_of = std::make_shared<ov::op::v3::ShapeOf>(concat, ov::element::i32);
@@ -100,13 +104,16 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
         auto axis23 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto gather23 = std::make_shared<ov::op::v8::Gather>(concat_shape_of, indices23, axis23, 0);
 
-        auto groups = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(num_groups));
-
+        auto groups =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(num_groups));
 
         auto shape_concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{gather01, groups, gather23}, 0);
         auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, shape_concat);
 
-        std::vector<int32_t> s = { 0, static_cast<int32_t>(n_heads.get_length()), -1, static_cast<int32_t>(n_features.get_length()) };
+        std::vector<int32_t> s = {0,
+                                  static_cast<int32_t>(n_heads.get_length()),
+                                  -1,
+                                  static_cast<int32_t>(n_features.get_length())};
         auto target_shape = ov::op::v0::Constant::create(ov::element::i32, {4}, s);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, target_shape, true);
 
@@ -137,4 +144,4 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
     return model;
 }
 
-} // namespace tests
+}  // namespace tests

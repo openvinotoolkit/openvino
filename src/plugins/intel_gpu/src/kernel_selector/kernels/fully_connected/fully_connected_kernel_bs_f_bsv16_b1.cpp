@@ -52,7 +52,8 @@ JitConstants FullyConnected_bs_f_bsv16_b1::GetJitConstants(
 }
 
 FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefault(const fully_connected_params& arg,
-                                                                                    int, int /*kernel_number*/) const {
+                                                                                    int,
+                                                                                    int /*kernel_number*/) const {
     DispatchData dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     // Properties of chunk and unit.
@@ -108,10 +109,8 @@ bool FullyConnected_bs_f_bsv16_b1::Validate(const Params& p) const {
 KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    DataLayout::bf,
-                                                    WeightsLayout::os_i_osv16,
-                                                    static_cast<int>(i));
+        KernelsData kd =
+            GetTunedKernelsDataByIndex(params, DataLayout::bf, WeightsLayout::os_i_osv16, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

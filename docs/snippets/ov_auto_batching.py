@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino as ov
 from utils import get_model
+
+import openvino as ov
 
 
 def main():
@@ -24,9 +25,11 @@ def main():
 
     # [compile_model_no_auto_batching]
     # disabling the automatic batching
-    # leaving intact other configurations options that the device selects for the 'throughput' hint 
-    config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
-              hints.allow_auto_batching: False}
+    # leaving intact other configurations options that the device selects for the 'throughput' hint
+    config = {
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        hints.allow_auto_batching: False,
+    }
     compiled_model = core.compile_model(model, "GPU", config)
     # [compile_model_no_auto_batching]
 
@@ -39,16 +42,20 @@ def main():
     # [query_optimal_num_requests]
 
     # [hint_num_requests]
-    config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
-              hints.num_requests: "4"}
+    config = {
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        hints.num_requests: "4",
+    }
     # limiting the available parallel slack for the 'throughput'
-    # so that certain parameters (like selected batch size) are automatically accommodated accordingly 
+    # so that certain parameters (like selected batch size) are automatically accommodated accordingly
     compiled_model = core.compile_model(model, "GPU", config)
     # [hint_num_requests]
 
     # [hint_plus_low_level]
-    config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
-              props.inference_num_threads: "4"}
+    config = {
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        props.inference_num_threads: "4",
+    }
     # limiting the available parallel slack for the 'throughput'
     # so that certain parameters (like selected batch size) are automatically accommodated accordingly
     compiled_model = core.compile_model(model, "CPU", config)

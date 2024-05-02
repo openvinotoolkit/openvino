@@ -5,7 +5,7 @@ import json
 import os
 
 
-class CfgManager():
+class CfgManager:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
 
@@ -18,16 +18,12 @@ class CfgManager():
         if tmplName == "bm_simple":
             fullCfg = self.generatebmSimpleTemplate()
         else:
-            raise Exception(
-                "Unknown template '{}'".format(tmplName)
-            )
+            raise Exception("Unknown template '{}'".format(tmplName))
         fullCfg["logPath"] = logPath
         return fullCfg
-    
+
     def readJsonTmpl(self, tmplFileName: str):
-        tmplFileName = os.path.join(
-            "utils/cfg_samples/", tmplFileName
-        )
+        tmplFileName = os.path.join("utils/cfg_samples/", tmplFileName)
         with open(tmplFileName) as cfgFile:
             tmplJSON = json.load(cfgFile)
             return tmplJSON
@@ -39,7 +35,7 @@ class CfgManager():
         if "appCmd" in tmpl:
             tmpJSON["appCmd"] = tmpl["appCmd"]
         else:
-            raise("No 'appcmd' in template")
+            raise ("No 'appcmd' in template")
         if devParam in tmpl:
             tmpJSON["runConfig"][devParam] = tmpl[devParam]
         return tmpJSON

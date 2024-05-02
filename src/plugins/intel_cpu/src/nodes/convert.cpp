@@ -29,7 +29,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, PassThroughShapeInferFactory()) {
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
@@ -41,8 +41,11 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     convertParams.origPrc = convert->get_destination_type();
 }
 
-Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
-                 const std::string &nodeName, const GraphContext::CPtr context)
+Convert::Convert(const Shape& shape,
+                 const ov::element::Type& inPrc,
+                 const ov::element::Type& outPrc,
+                 const std::string& nodeName,
+                 const GraphContext::CPtr context)
     : Node("Convert", {shape}, {shape}, {inPrc}, {outPrc}, nodeName, context) {
     convertParams.origPrc = outPrc;
 
@@ -67,7 +70,7 @@ void Convert::getSupportedDescriptors() {
         OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
 }
 
-bool Convert::isSupportedDesc(const MemoryDesc &desc) {
+bool Convert::isSupportedDesc(const MemoryDesc& desc) {
     bool isSupported = desc.getType() & MemoryDescType::Blocked;
     if (desc.getType() == MemoryDescType::DnnlBlocked)
         isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
@@ -94,13 +97,16 @@ void Convert::initSupportedPrimitiveDescriptors() {
         MemoryDescPtr dstMemoryDesc = config.outConfs[0].getMemDesc();
         convertParams.srcPrc = srcMemoryDesc->getPrecision();
         convertParams.dstPrc = dstMemoryDesc->getPrecision();
-        auto factory = std::make_shared<ConvertExecutorFactory>(convertParams, srcMemoryDesc, dstMemoryDesc,
-                                                                std::make_shared<ExecutorContext>(context, getImplPriority()));
+        auto factory =
+            std::make_shared<ConvertExecutorFactory>(convertParams,
+                                                     srcMemoryDesc,
+                                                     dstMemoryDesc,
+                                                     std::make_shared<ExecutorContext>(context, getImplPriority()));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
 
-    // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were set using setDescs method, so
-    // they should be used as the actual descriptors.
+    // if input and output pointers are not null and not contain extra data, then the inp/output tensor descriptors were
+    // set using setDescs method, so they should be used as the actual descriptors.
     if (canInitExternalDesc) {
         dataIn.setMemDesc(input);
         config.inConfs.push_back(dataIn);
@@ -135,8 +141,10 @@ void Convert::initSupportedPrimitiveDescriptors() {
                          : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
         for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
-            config.outConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
+            config.inConfs[0].setMemDesc(
+                std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
+            config.outConfs[0].setMemDesc(
+                std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
 
             supportedPrimitiveDescriptorsBuilder(config);
         }
@@ -152,10 +160,8 @@ void Convert::prepareParams() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
     MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
-    execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
-                                                                                       srcDesc,
-                                                                                       dstDesc,
-                                                                                       {});
+    execPtr =
+        selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams, srcDesc, dstDesc, {});
     selectedPD->setImplementationType(execPtr->implType());
 }
 
@@ -182,6 +188,6 @@ bool Convert::created() const {
     return getType() == Type::Convert;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

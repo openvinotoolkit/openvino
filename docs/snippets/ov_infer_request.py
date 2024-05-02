@@ -5,6 +5,7 @@ from utils import get_model
 
 #! [import]
 import openvino as ov
+
 #! [import]
 
 core = ov.Core()
@@ -31,9 +32,11 @@ infer_request.wait()
 infer_request.wait_for(10)
 #! [wait_for]
 
+
 #! [set_callback]
 def callback(request, _):
     request.start_async()
+
 
 callbacks_info = {}
 callbacks_info["finished"] = 0

@@ -24,9 +24,12 @@ public:
     explicit ConvertFunction(const std::vector<PartialShape>& inputShapes,
                              const ov::element::Type inType = ov::element::f32,
                              const ov::element::Type outType = ov::element::u8)
-    : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
+        : SnippetsFunctionBase(inputShapes),
+          inType(inType),
+          outType(outType) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -34,7 +37,6 @@ protected:
     ov::element::Type inType;
     ov::element::Type outType;
 };
-
 
 /// The one of the input of Add is Convert
 /// Tokenized simply by starting subgraph.
@@ -47,9 +49,12 @@ public:
     explicit ConvertInputFunction(const std::vector<PartialShape>& inputShapes,
                                   const ov::element::Type inType = ov::element::f32,
                                   const ov::element::Type outType = ov::element::u8)
-    : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
+        : SnippetsFunctionBase(inputShapes),
+          inType(inType),
+          outType(outType) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -69,9 +74,12 @@ public:
     explicit ConvertOutputFunction(const std::vector<PartialShape>& inputShapes,
                                    const ov::element::Type inType = ov::element::f32,
                                    const ov::element::Type outType = ov::element::i8)
-    : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
+        : SnippetsFunctionBase(inputShapes),
+          inType(inType),
+          outType(outType) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -79,7 +87,6 @@ protected:
     ov::element::Type inType;
     ov::element::Type outType;
 };
-
 
 /// There are 2 subgraphs: Add + Convert(Stub) and Relu
 /// Tokenized simply by starting subgraph.
@@ -93,9 +100,12 @@ public:
     explicit ConvertStubFunction(const std::vector<PartialShape>& inputShapes,
                                  const ov::element::Type inType = ov::element::f32,
                                  const ov::element::Type outType = ov::element::i8)
-        : SnippetsFunctionBase(inputShapes), inType(inType), outType(outType) {
+        : SnippetsFunctionBase(inputShapes),
+          inType(inType),
+          outType(outType) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -103,7 +113,6 @@ protected:
     ov::element::Type inType;
     ov::element::Type outType;
 };
-
 
 /// Not all Inputs and Results have Convert
 /// Tokenized simply by starting subgraph.
@@ -119,9 +128,12 @@ public:
     explicit ConvertPartialInputsAndResultsFunction(const std::vector<PartialShape>& inputShapes,
                                                     const std::vector<ov::element::Type>& inTypes = {ov::element::f32},
                                                     const std::vector<ov::element::Type>& outTypes = {ov::element::f32})
-    : SnippetsFunctionBase(inputShapes), inTypes(inTypes), outTypes(outTypes) {
+        : SnippetsFunctionBase(inputShapes),
+          inTypes(inTypes),
+          outTypes(outTypes) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -141,11 +153,14 @@ protected:
 //  Result
 class ConvertManyOnInputsFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertManyOnInputsFunction(const std::vector<ov::PartialShape>& inputShapes, const std::vector<ov::element::Type>& types)
-    : SnippetsFunctionBase(inputShapes), types(types) {
+    explicit ConvertManyOnInputsFunction(const std::vector<ov::PartialShape>& inputShapes,
+                                         const std::vector<ov::element::Type>& types)
+        : SnippetsFunctionBase(inputShapes),
+          types(types) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
         OPENVINO_ASSERT(types.size() > 1, "Got invalid number of element types");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -164,11 +179,14 @@ protected:
 //  Result        Result
 class ConvertManyOnOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit ConvertManyOnOutputsFunction(const std::vector<ov::PartialShape>& inputShapes, const std::vector<ov::element::Type>& types)
-    : SnippetsFunctionBase(inputShapes), types(types) {
+    explicit ConvertManyOnOutputsFunction(const std::vector<ov::PartialShape>& inputShapes,
+                                          const std::vector<ov::element::Type>& types)
+        : SnippetsFunctionBase(inputShapes),
+          types(types) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
         OPENVINO_ASSERT(types.size() > 1, "Got invalid number of element types");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -193,11 +211,14 @@ public:
     explicit ConvertManyOnInputOutputFunction(const std::vector<ov::PartialShape>& inputShapes,
                                               const std::vector<ov::element::Type>& inTypes,
                                               const std::vector<ov::element::Type>& outTypes)
-    : SnippetsFunctionBase(inputShapes), inTypes(inTypes), outTypes(outTypes) {
+        : SnippetsFunctionBase(inputShapes),
+          inTypes(inTypes),
+          outTypes(outTypes) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
         OPENVINO_ASSERT(inTypes.size() > 1, "Got invalid number of input element types");
         OPENVINO_ASSERT(outTypes.size() > 0, "Got invalid number of output element types");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -205,8 +226,6 @@ protected:
     std::vector<ov::element::Type> inTypes;
     std::vector<ov::element::Type> outTypes;
 };
-
-
 
 }  // namespace snippets
 }  // namespace test

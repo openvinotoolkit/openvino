@@ -3,13 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union, Dict, Any
+from functools import partial, singledispatch
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial, singledispatch
-
-from openvino.runtime import Node, Shape, Type, PartialShape
-from openvino.runtime.op import assign, Constant, Parameter
+from openvino.runtime import Node, PartialShape, Shape, Type
+from openvino.runtime.op import Constant, Parameter, assign
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.input_validation import (
@@ -67,7 +66,9 @@ def ctc_greedy_decoder_seq_len(
         "sequence_length_type": sequence_length_type,
     }
 
-    return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
+    return _get_node_factory_opset6().create(
+        "CTCGreedyDecoderSeqLen", inputs, attributes
+    )
 
 
 @nameable_op
@@ -126,11 +127,13 @@ def mvn(
 
 @singledispatch
 @nameable_op
-def read_value(init_value: NodeInput,
-               variable_id: str,
-               variable_type: Optional[Union[NumericType, Type, str]] = None,
-               variable_shape: Optional[TensorShape] = None,
-               name: Optional[str] = None) -> Node:
+def read_value(
+    init_value: NodeInput,
+    variable_id: str,
+    variable_type: Optional[Union[NumericType, Type, str]] = None,
+    variable_shape: Optional[TensorShape] = None,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which produces the Assign operation.
 
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
@@ -159,10 +162,12 @@ def read_value(init_value: NodeInput,
 
 
 @read_value.register
-def _(variable_id: str,
-      variable_type: Optional[Union[NumericType, Type, str]] = None,
-      variable_shape: Optional[TensorShape] = None,
-      name: Optional[str] = None) -> Node:
+def _(
+    variable_id: str,
+    variable_type: Optional[Union[NumericType, Type, str]] = None,
+    variable_shape: Optional[TensorShape] = None,
+    name: Optional[str] = None,
+) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.

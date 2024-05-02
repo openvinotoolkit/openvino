@@ -2,18 +2,18 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import time
-import pytest
-import os
 import io
+import os
 import threading
+import time
+
 import numpy as np
 import openvino.properties as props
-
-from openvino import Core, Model, AsyncInferQueue, PartialShape, Layout, serialize
-from openvino.runtime import opset13 as ops
+import pytest
 from openvino.preprocess import PrePostProcessor
+from openvino.runtime import opset13 as ops
 
+from openvino import AsyncInferQueue, Core, Layout, Model, PartialShape, serialize
 from tests import skip_devtest
 
 
@@ -62,6 +62,7 @@ user_stream = io.BytesIO()
 
 # AsyncInferQueue
 
+
 @skip_devtest
 def test_gil_released_async_infer_queue_start_async():
     infer_queue.start_async()
@@ -92,6 +93,7 @@ def test_gil_released_async_infer_queue_get_idle_request_id():
 
 # CompiledModel
 
+
 @skip_devtest
 def test_gil_released_create_infer_request():
     check_gil_released_safe(compiled_model.create_infer_request, True)
@@ -120,6 +122,7 @@ def test_gil_released_get_runtime_model():
 
 # Core
 
+
 @skip_devtest
 def test_compile_model(device):
     check_gil_released_safe(core.compile_model, True, [model, device])
@@ -127,7 +130,8 @@ def test_compile_model(device):
 
 @skip_devtest
 def test_read_model_from_bytes():
-    bytes_model = bytes(b"""<net name="relu_model" version="11">
+    bytes_model = bytes(
+        b"""<net name="relu_model" version="11">
     <layers>
         <layer id="0" name="x" type="Parameter" version="opset1">
             <data element_type="f32" shape="10"/>
@@ -161,13 +165,15 @@ def test_read_model_from_bytes():
         <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
         <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     check_gil_released_safe(core.read_model, True, [bytes_model])
 
 
 @skip_devtest
 def test_read_model_from_path():
     from pathlib import Path
+
     model_path = "relu.xml"
     bin_path = "relu.bin"
     serialize(model, model_path, bin_path)
@@ -237,6 +243,7 @@ def test_query_state():
 
 
 # Preprocessing
+
 
 @skip_devtest
 def test_pre_post_process_build():

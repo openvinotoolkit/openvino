@@ -4,22 +4,22 @@
 
 #pragma once
 
-#include "device.hpp"
-#include "event.hpp"
-#include "memory_caps.hpp"
-#include "memory_pool.hpp"
-#include "layout.hpp"
-#include "execution_config.hpp"
-#include "engine_configuration.hpp"
-
+#include <atomic>
 #include <memory>
 #include <set>
-#include <utility>
 #include <string>
-#include <atomic>
+#include <utility>
+
+#include "device.hpp"
+#include "engine_configuration.hpp"
+#include "event.hpp"
+#include "execution_config.hpp"
+#include "layout.hpp"
+#include "memory_caps.hpp"
+#include "memory_pool.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl.hpp>
 #endif
 
 namespace cldnn {
@@ -44,13 +44,15 @@ public:
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.
     /// @note Size (in bytes) of the buffer should be equal to @p layout.bytes_count()
-    /// User is responsible for buffer deallocation. Buffer lifetime should be bigger than lifetime of the memory object.
+    /// User is responsible for buffer deallocation. Buffer lifetime should be bigger than lifetime of the memory
+    /// object.
     memory_ptr attach_memory(const layout& layout, void* ptr);
 
     /// Allocate gpu memory using specified @p layout and alloation @p type
     virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) = 0;
 
-    /// Allocate gpu memory using specified @p layout. Allocation type is selected automatically based on engine/device configuration
+    /// Allocate gpu memory using specified @p layout. Allocation type is selected automatically based on engine/device
+    /// configuration
     memory_ptr allocate_memory(const layout& layout, bool reset = true);
 
     /// Created memory object from memory @p params and reinterpred the data using specified @p layout
@@ -81,7 +83,8 @@ public:
 
     virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
 
-    /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
+    /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device
+    /// doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
 
     /// Returns preferred allocation type which can be mapped to host ptr
@@ -105,7 +108,8 @@ public:
     /// Returns the total maximum amount of GPU memory allocated by engine in current process for all allocation types
     uint64_t get_max_used_device_memory() const;
 
-    /// Returns the maximum amount of GPU memory allocated by engine in current process for the specified allocation @p type
+    /// Returns the maximum amount of GPU memory allocated by engine in current process for the specified allocation @p
+    /// type
     uint64_t get_max_used_device_memory(allocation_type type) const;
 
     /// Returns the amount of GPU memory specified allocation @p type that currently used by the engine
@@ -134,7 +138,7 @@ public:
     virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
 
     /// Creates stream object from user handle
-    virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
+    virtual stream_ptr create_stream(const ExecutionConfig& config, void* handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_service_stream() const = 0;
@@ -151,14 +155,18 @@ public:
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
-    /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
+    /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations
+    /// might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
+                                                 runtime_types runtime_type,
+                                                 const device::ptr device);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
-    /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
+    /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations
+    /// might be unsupported
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type);

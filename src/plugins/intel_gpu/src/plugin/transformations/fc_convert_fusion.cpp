@@ -6,7 +6,6 @@
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -22,7 +21,8 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     auto weights = any_input();
     auto bias = any_input();
     auto fully_connected = wrap_type<op::FullyConnected>({data, weights, bias}, consumers_count(1));
-    auto fully_connected_compressed = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));
+    auto fully_connected_compressed =
+        wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));
     auto fc = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected, fully_connected_compressed});
     auto convert = wrap_type<ov::op::v0::Convert>({fc}, type_matches(element::f32));
 

@@ -3,11 +3,11 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "openvino/op/util/attr_types.hpp"
-
 #include <algorithm>
 #include <vector>
+
+#include "openvino/op/util/attr_types.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -19,13 +19,14 @@ namespace cldnn {
 struct arg_max_min : public primitive_base<arg_max_min> {
     CLDNN_DECLARE_PRIMITIVE(arg_max_min)
 
-    arg_max_min() : primitive_base("", {}),
-                    mode(ov::op::TopKMode::MAX),
-                    top_k(0),
-                    axis(0),
-                    sort(ov::op::TopKSortType::NONE),
-                    values_first(false),
-                    stable(false) {}
+    arg_max_min()
+        : primitive_base("", {}),
+          mode(ov::op::TopKMode::MAX),
+          top_k(0),
+          axis(0),
+          sort(ov::op::TopKSortType::NONE),
+          values_first(false),
+          stable(false) {}
 
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
@@ -79,13 +80,15 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     ov::op::TopKMode mode;
     /// @brief Number of indices to output.
     uint32_t top_k;
-    /// @brief Axis to maximize/minimize along. If not set, maximize the flattened trailing dimensions for each index of the batch dimension.
+    /// @brief Axis to maximize/minimize along. If not set, maximize the flattened trailing dimensions for each index of
+    /// the batch dimension.
     int64_t axis;
     /// @brief Type of sorting - by values or indices.
     ov::op::TopKSortType sort;
     /// @brief Sets output order: if True than first output contains values and second (optional) - indices.
     bool values_first;
-    /// @brief Specifies whether the equivalent elements should maintain their relative order from the input tensor during sorting.
+    /// @brief Specifies whether the equivalent elements should maintain their relative order from the input tensor
+    /// during sorting.
     bool stable;
 
     size_t hash() const override {
@@ -105,19 +108,19 @@ struct arg_max_min : public primitive_base<arg_max_min> {
 
         auto rhs_casted = downcast<const arg_max_min>(rhs);
 
-        return mode == rhs_casted.mode &&
-               top_k == rhs_casted.top_k &&
-               axis == rhs_casted.axis &&
-               sort == rhs_casted.sort &&
-               values_first == rhs_casted.values_first &&
-               stable == rhs_casted.stable;
+        return mode == rhs_casted.mode && top_k == rhs_casted.top_k && axis == rhs_casted.axis &&
+               sort == rhs_casted.sort && values_first == rhs_casted.values_first && stable == rhs_casted.stable;
     }
 
     size_t get_output_nums() const {
         return (input_size() == 3 ? 2 : output_size());
     }
-    bool has_second_output() const { return get_output_nums() == 2; }
-    bool use_multiple_outputs() const { return input_size() != 3; }
+    bool has_second_output() const {
+        return get_output_nums() == 2;
+    }
+    bool use_multiple_outputs() const {
+        return input_size() != 3;
+    }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<arg_max_min>::save(ob);

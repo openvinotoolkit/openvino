@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/fusing_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,7 +20,8 @@ using NormalizeL2LayerCPUTestParamSet = std::tuple<InputShape,            // inp
                                                    fusingSpecificParams>;
 
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
-                                virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                                virtual public SubgraphBaseTest,
+                                public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
         InputShape shapes;
@@ -94,9 +95,12 @@ protected:
                 in_data.range = 10;
                 in_data.resolution = 7;
                 in_data.seed = 222;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor =
+                    ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -112,25 +116,23 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* ============= Common params ============= */
-std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
+std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec,
 #if defined(OPENVINO_ARCH_X86_64)
-        fusingMultiplyPerTensor,
-        fusingRelu,
-        fusingPReluPerChannel
+                                                  fusingMultiplyPerTensor,
+                                                  fusingRelu,
+                                                  fusingPReluPerChannel
 #endif
 };
 
-std::vector<fusingSpecificParams> fusingParamsSetDynamic {
-    emptyFusingSpec,
+std::vector<fusingSpecificParams> fusingParamsSetDynamic{emptyFusingSpec,
 #if defined(OPENVINO_ARCH_X86_64)
-    fusingMultiplyPerTensor,
-    fusingRelu,
-    fusingFakeQuantizePerTensor
+                                                         fusingMultiplyPerTensor,
+                                                         fusingRelu,
+                                                         fusingFakeQuantizePerTensor
 #endif
 };
 
-std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
+std::vector<fusingSpecificParams> fusingParamsSetPerChannel{
 #if defined(OPENVINO_ARCH_X86_64)
     fusingPReluPerChannel,
     fusingFakeQuantizePerChannel
@@ -139,146 +141,110 @@ std::vector<fusingSpecificParams> fusingParamsSetPerChannel {
 
 const float epsilon = 1e-4f;
 const op::EpsMode epsMode = op::EpsMode::ADD;
-const std::vector<ElementType> netPrecisions = {
-        ElementType::f32,
-        ElementType::bf16
-};
+const std::vector<ElementType> netPrecisions = {ElementType::f32, ElementType::bf16};
 
 /* ============= 2D ============= */
-const std::vector<ov::Shape> inputShapeStatic_2D = {
-        {2, 3},
-        {2, 16},
-        {3, 20}
-};
+const std::vector<ov::Shape> inputShapeStatic_2D = {{2, 3}, {2, 16}, {3, 20}};
 
-const std::vector<InputShape> inputShapeDynamic_2D = {
-        {{-1, -1},
-        {{2, 3}, {2, 3}, {5, 5}, {2, 3}}},
+const std::vector<InputShape> inputShapeDynamic_2D = {{{-1, -1}, {{2, 3}, {2, 3}, {5, 5}, {2, 3}}},
 
-        {{-1, 5},
-        {{5, 5}, {5, 5}, {12, 5}, {5, 5}}},
+                                                      {{-1, 5}, {{5, 5}, {5, 5}, {12, 5}, {5, 5}}},
 
-        {{{1, 5}, {8, 16}},
-        {{3, 8}, {5, 16}, {3, 10}}}
-};
+                                                      {{{1, 5}, {8, 16}}, {{3, 8}, {5, 16}, {3, 10}}}};
 
-const std::vector<std::vector<int64_t>> axes_2D = {
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_2D = {{1}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Static_2D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_2D)),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_2D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSet)),
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Static_2D,
+    NormalizeL2LayerCPUTest,
+    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_2D)),
+                       ::testing::ValuesIn(netPrecisions),
+                       ::testing::ValuesIn(axes_2D),
+                       ::testing::Values(epsilon),
+                       ::testing::Values(epsMode),
+                       ::testing::Values(CPUSpecificParams{}),
+                       ::testing::ValuesIn(fusingParamsSet)),
+    NormalizeL2LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapeDynamic_2D),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_2D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::Values(CPUSpecificParams{}),
+                                            ::testing::ValuesIn(fusingParamsSetDynamic)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapeDynamic_2D),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_2D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSetDynamic)),
-                         NormalizeL2LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D_FusingPerChannel, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Values(inputShapeDynamic_2D[1]),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_2D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_2D_FusingPerChannel,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::Values(inputShapeDynamic_2D[1]),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_2D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::Values(CPUSpecificParams{}),
+                                            ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 3D ============= */
-const std::vector<ov::Shape> inputShapeStatic_3D = {
-        {2, 3, 4},
-        {2, 16, 6},
-        {3, 20, 10}
-};
+const std::vector<ov::Shape> inputShapeStatic_3D = {{2, 3, 4}, {2, 16, 6}, {3, 20, 10}};
 
 const std::vector<InputShape> inputShapeDynamic_3D = {
-        {{-1, -1, -1},
-         {{2, 3, 4}, {2, 5, 5}, {1, 10, 2}, {2, 3, 4}}},
+    {{-1, -1, -1}, {{2, 3, 4}, {2, 5, 5}, {1, 10, 2}, {2, 3, 4}}},
 
-        {{-1, 5, -1},
-         {{1, 5, 5}, {2, 5, 3}, {5, 5, 5}, {1, 5, 5}}},
+    {{-1, 5, -1}, {{1, 5, 5}, {2, 5, 3}, {5, 5, 5}, {1, 5, 5}}},
 
-        {{{1, 5}, {5, 10}, {5, 10}},
-         {{3, 8, 8}, {5, 5, 10}, {5, 5, 10}, {5, 10, 10}}}
-};
+    {{{1, 5}, {5, 10}, {5, 10}}, {{3, 8, 8}, {5, 5, 10}, {5, 5, 10}, {5, 10, 10}}}};
 
-const std::vector<std::vector<int64_t>> axes_3D = {
-    {1, 2},
-    {2, 1},
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_3D = {{1, 2}, {2, 1}, {1}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Static_3D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_3D)),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_3D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSet)),
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Static_3D,
+    NormalizeL2LayerCPUTest,
+    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_3D)),
+                       ::testing::ValuesIn(netPrecisions),
+                       ::testing::ValuesIn(axes_3D),
+                       ::testing::Values(epsilon),
+                       ::testing::Values(epsMode),
+                       ::testing::Values(CPUSpecificParams{}),
+                       ::testing::ValuesIn(fusingParamsSet)),
+    NormalizeL2LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapeDynamic_3D),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_3D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::Values(CPUSpecificParams{}),
+                                            ::testing::ValuesIn(fusingParamsSetDynamic)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapeDynamic_3D),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_3D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSetDynamic)),
-                         NormalizeL2LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D_FusingPerChannel, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Values(inputShapeDynamic_3D[1]),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_3D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::Values(CPUSpecificParams{}),
-                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_3D_FusingPerChannel,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::Values(inputShapeDynamic_3D[1]),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_3D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::Values(CPUSpecificParams{}),
+                                            ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 /* ============= 4D ============= */
-const std::vector<ov::Shape> inputShapeStatic_4D = {
-        {2, 3, 4, 4},
-        {2, 16, 7, 6},
-        {3, 20, 2, 10}
-};
+const std::vector<ov::Shape> inputShapeStatic_4D = {{2, 3, 4, 4}, {2, 16, 7, 6}, {3, 20, 2, 10}};
 
 const std::vector<InputShape> inputShapeDynamic_4D = {
-        {{-1, -1, -1, -1},
-         {{2, 3, 4, 5}, {2, 5, 5, 5}, {1, 16, 2, 4}, {2, 3, 4, 5}}},
+    {{-1, -1, -1, -1}, {{2, 3, 4, 5}, {2, 5, 5, 5}, {1, 16, 2, 4}, {2, 3, 4, 5}}},
 
-        {{-1, 5, -1, -1},
-        {{1, 5, 5, 8}, {1, 5, 5, 8}, {3, 5, 8, 8}, {1, 5, 5, 8}}},
+    {{-1, 5, -1, -1}, {{1, 5, 5, 8}, {1, 5, 5, 8}, {3, 5, 8, 8}, {1, 5, 5, 8}}},
 
-        {{{1, 5}, {5, 16}, {5, 10}, {5, 10}},
-        {{3, 8, 8, 8}, {5, 7, 10, 10}, {1, 16, 7, 9}, {5, 9, 10, 5}}}
-};
+    {{{1, 5}, {5, 16}, {5, 10}, {5, 10}}, {{3, 8, 8, 8}, {5, 7, 10, 10}, {1, 16, 7, 9}, {5, 9, 10, 5}}}};
 
-const std::vector<std::vector<int64_t>> axes_4D = {
-    {1, 2, 3},
-    {3, 1, 2},
-    {1}
-};
+const std::vector<std::vector<int64_t>> axes_4D = {{1, 2, 3}, {3, 1, 2}, {1}};
 
 std::vector<CPUSpecificParams> getCPUSpecificParams() {
     std::vector<CPUSpecificParams> result;
@@ -294,37 +260,38 @@ std::vector<CPUSpecificParams> getCPUSpecificParams() {
     return result;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Static_4D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_4D)),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_4D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::ValuesIn(getCPUSpecificParams()),
-                                 ::testing::ValuesIn(fusingParamsSet)),
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Static_4D,
+    NormalizeL2LayerCPUTest,
+    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inputShapeStatic_4D)),
+                       ::testing::ValuesIn(netPrecisions),
+                       ::testing::ValuesIn(axes_4D),
+                       ::testing::Values(epsilon),
+                       ::testing::Values(epsMode),
+                       ::testing::ValuesIn(getCPUSpecificParams()),
+                       ::testing::ValuesIn(fusingParamsSet)),
+    NormalizeL2LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapeDynamic_4D),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_4D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::ValuesIn(getCPUSpecificParams()),
+                                            ::testing::ValuesIn(fusingParamsSetDynamic)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapeDynamic_4D),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_4D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::ValuesIn(getCPUSpecificParams()),
-                                 ::testing::ValuesIn(fusingParamsSetDynamic)),
-                         NormalizeL2LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D_FusingPerChannel, NormalizeL2LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Values(inputShapeDynamic_4D[1]),
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(axes_4D),
-                                 ::testing::Values(epsilon),
-                                 ::testing::Values(epsMode),
-                                 ::testing::ValuesIn(getCPUSpecificParams()),
-                                 ::testing::ValuesIn(fusingParamsSetPerChannel)),
+INSTANTIATE_TEST_SUITE_P(smoke_Dynamic_4D_FusingPerChannel,
+                         NormalizeL2LayerCPUTest,
+                         ::testing::Combine(::testing::Values(inputShapeDynamic_4D[1]),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(axes_4D),
+                                            ::testing::Values(epsilon),
+                                            ::testing::Values(epsMode),
+                                            ::testing::ValuesIn(getCPUSpecificParams()),
+                                            ::testing::ValuesIn(fusingParamsSetPerChannel)),
                          NormalizeL2LayerCPUTest::getTestCaseName);
 
 }  // namespace

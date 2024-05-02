@@ -4,9 +4,9 @@
 
 #include "insert_convert_after_extension.hpp"
 
-#include "openvino/op/convert.hpp"
 #include "cpu_types.h"
 #include "itt.hpp"
+#include "openvino/op/convert.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_output_precision) {

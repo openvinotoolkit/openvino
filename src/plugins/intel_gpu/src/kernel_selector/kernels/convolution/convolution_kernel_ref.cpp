@@ -3,9 +3,11 @@
 //
 
 #include "convolution_kernel_ref.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -53,7 +55,8 @@ KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params) const {
     return GetTunedKernelsDataByIndex(params);
 }
 
-JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params,
+                                                    const DispatchData& dispatchData) const {
     JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     Datatype accumulator_dt;
@@ -99,12 +102,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     const auto& out = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
-                                                                     {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                                                                     {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X},
+        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
     dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     return dispatchData;
 }
 

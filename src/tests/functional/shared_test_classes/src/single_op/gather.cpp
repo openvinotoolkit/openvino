@@ -5,14 +5,14 @@
 #include "shared_test_classes/single_op/gather.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj) {
+std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple>& obj) {
     int axis;
     std::vector<int> indices;
     ov::Shape indices_shape;
@@ -49,7 +49,8 @@ void GatherLayerTest::SetUp() {
     ov::element::Type model_type;
     std::tie(indices, indices_shape, axis, shapes, model_type, targetDevice) = GetParam();
     init_input_shapes(shapes);
-    ASSERT_EQ(ov::shape_size(indices_shape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
+    ASSERT_EQ(ov::shape_size(indices_shape), indices.size())
+        << "Indices vector size and provided indices shape doesn't fit each other";
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
@@ -165,7 +166,8 @@ void Gather8IndiceScalarLayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto indices_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {targetStaticShapes[0][0][axis] - 1});
+    auto indices_node =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {targetStaticShapes[0][0][axis] - 1});
     auto axis_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape(), {axis});
 
     auto gather = std::make_shared<ov::op::v8::Gather>(param, indices_node, axis_node, batch_idx);
@@ -174,7 +176,8 @@ void Gather8IndiceScalarLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gather");
 }
 
-std::string Gather8withIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<gather8withIndicesDataParamsTuple>& obj) {
+std::string Gather8withIndicesDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<gather8withIndicesDataParamsTuple>& obj) {
     gather7ParamsTuple basicParams;
     std::vector<int64_t> indicesData;
     std::tie(basicParams, indicesData) = obj.param;
@@ -245,7 +248,8 @@ void Gather8withIndicesDataLayerTest::SetUp() {
 }
 
 // Gather String support
-std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<GatherStringParamsTuple>& obj) {
+std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<GatherStringParamsTuple>& obj) {
     const GatherStringParamsTuple& basicParams = obj.param;
     std::vector<int64_t> indicesData;
     std::vector<std::string> str_data;
@@ -313,7 +317,8 @@ void GatherStringWithIndicesDataLayerTest::generate_inputs(const std::vector<ov:
     inputs.clear();
     const auto& func_inputs = function->inputs();
     auto& data_input = func_inputs[0];
-    inputs.insert({data_input.get_node_shared_ptr(), ov::Tensor(element::string, data_input.get_shape(), string_data.data())});
+    inputs.insert(
+        {data_input.get_node_shared_ptr(), ov::Tensor(element::string, data_input.get_shape(), string_data.data())});
 }
 
 }  // namespace test

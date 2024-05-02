@@ -1,21 +1,21 @@
 # Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from pathlib import Path
-import os
 import glob
+import os
 import re
 import sys
-
-# ticket 95904
-#import paddle
-#from paddle.jit import to_static
-#from paddle.static import InputSpec
+from pathlib import Path
 
 import pytest
-
 from openvino.frontend import FrontEndManager
 from openvino.runtime import shutdown
+
+# ticket 95904
+# import paddle
+# from paddle.jit import to_static
+# from paddle.static import InputSpec
+
 
 PADDLE_FRONTEND_NAME = "paddle"
 paddle_relu6_model_basename = "relu6"
@@ -32,28 +32,28 @@ def skip_if_paddle_frontend_is_disabled():
 
 
 # ticket 95904
-#def create_paddle_model():
-    #@to_static()
-    #def test(x):
-    #    return paddle.nn.functional.relu6(x)
-    #x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
-    #paddle.jit.save(test, path=paddle_relu6_model_basename, input_spec=[x_spec, ])
+# def create_paddle_model():
+# @to_static()
+# def test(x):
+#    return paddle.nn.functional.relu6(x)
+# x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
+# paddle.jit.save(test, path=paddle_relu6_model_basename, input_spec=[x_spec, ])
 
 
 # ticket 95904
-#def create_concat_model():
-    #@to_static()
-    #def test(x, y):
-    #    return paddle.concat([x, y], axis=0)
-    #x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
-    #y_spec = InputSpec(shape=[None, 3], dtype="float32", name="y")
-    #paddle.jit.save(test, path=paddle_concat_model_basename, input_spec=[x_spec, y_spec])
+# def create_concat_model():
+# @to_static()
+# def test(x, y):
+#    return paddle.concat([x, y], axis=0)
+# x_spec = InputSpec(shape=[None, 3], dtype="float32", name="x")
+# y_spec = InputSpec(shape=[None, 3], dtype="float32", name="y")
+# paddle.jit.save(test, path=paddle_concat_model_basename, input_spec=[x_spec, y_spec])
 
 
 # ticket 95904
-#def setup_module():
-    #create_paddle_model()
-    #create_concat_model()
+# def setup_module():
+# create_paddle_model()
+# create_concat_model()
 
 
 def teardown_module():
@@ -67,9 +67,9 @@ def test_paddle_conversion_extension():
     skip_if_paddle_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.paddle import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.paddle import ConversionExtension
 
     fe = fem.load_by_model(paddle_relu6_model_filename)
     assert fe
@@ -108,7 +108,9 @@ def test_op_extension_via_paddle_extension_set_attrs_values():
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Clamp", "relu6", ["X"], ["Out"], {}, {"min": 0.0, "max": 6.0}))
+    ie.add_extension(
+        OpExtension("Clamp", "relu6", ["X"], ["Out"], {}, {"min": 0.0, "max": 6.0})
+    )
 
     model = ie.read_model(paddle_relu6_model_filename)
     assert model
@@ -128,7 +130,9 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     assert model
 
     # add extensions
-    ie.add_extension(OpExtension("Clamp", "relu6", ["X"], ["Out"], {}, {"min": 0.0, "max": 6.0}))
+    ie.add_extension(
+        OpExtension("Clamp", "relu6", ["X"], ["Out"], {}, {"min": 0.0, "max": 6.0})
+    )
 
     model = ie.read_model(paddle_relu6_model_filename)
     assert model
@@ -141,7 +145,9 @@ def get_builtin_extensions_path():
         base_paths.append(repo_dir)
 
     for base_path in base_paths:
-        paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+        paths = glob.glob(
+            os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*")
+        )
         for path in paths:
             if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
                 return path

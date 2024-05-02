@@ -3,11 +3,12 @@
 //
 
 #include "permute_kernel_selector.h"
+
+#include "permute_kernel_bfzyx_to_bfyxz.h"
+#include "permute_kernel_f_y_axes.h"
 #include "permute_kernel_ref.h"
 #include "permute_kernel_tile_8x8_4x4.h"
 #include "permute_kernel_tile_8x8_4x4_fsv.h"
-#include "permute_kernel_bfzyx_to_bfyxz.h"
-#include "permute_kernel_f_y_axes.h"
 
 namespace kernel_selector {
 

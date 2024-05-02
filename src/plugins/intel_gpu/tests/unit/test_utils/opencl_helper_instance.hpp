@@ -6,7 +6,7 @@
 
 #include <ocl/ocl_wrapper.hpp>
 
-static void checkStatus(int status, const char *message) {
+static void checkStatus(int status, const char* message) {
     if (status != 0) {
         std::string str_message(message + std::string(": "));
         std::string str_number(std::to_string(status));
@@ -23,13 +23,12 @@ struct OpenCL {
     bool _supports_usm;
     bool _out_of_order_queue;
 
-    OpenCL(bool out_of_order_queue = true)
-    {
+    OpenCL(bool out_of_order_queue = true) {
         // get Intel iGPU OCL device, create context and queue
         {
             static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
             const uint32_t device_type = CL_DEVICE_TYPE_GPU;  // only gpu devices
-            const uint32_t device_vendor = 0x8086;  // Intel vendor
+            const uint32_t device_vendor = 0x8086;            // Intel vendor
 
             cl_uint n = 0;
             cl_int err = clGetPlatformIDs(0, NULL, &n);
@@ -61,7 +60,8 @@ struct OpenCL {
 
                         _usm_helper = std::make_shared<cl::UsmHelper>(_context, _device, _supports_usm);
 
-                        cl_command_queue_properties props = _out_of_order_queue ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : CL_NONE;
+                        cl_command_queue_properties props =
+                            _out_of_order_queue ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : CL_NONE;
                         _queue = cl::CommandQueue(_context, _device, props);
 
                         return;
@@ -71,8 +71,7 @@ struct OpenCL {
         }
     }
 
-    OpenCL(cl::Device device, bool out_of_order_queue = true)
-    {
+    OpenCL(cl::Device device, bool out_of_order_queue = true) {
         cl_uint n = 0;
         cl_int err = clGetPlatformIDs(0, NULL, &n);
         checkStatus(err, "clGetPlatformIDs");

@@ -2,21 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gflag_config.hpp"
-#include "cache/op_cache.hpp"
 #include "cache/graph_cache.hpp"
-#include "utils/model.hpp"
-
-#include "openvino/util/file_util.hpp"
+#include "cache/op_cache.hpp"
+#include "gflag_config.hpp"
 #include "op_conformance_utils/utils/file.hpp"
-
-#include "utils/memory.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/cache.hpp"
-
+#include "utils/memory.hpp"
+#include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
@@ -25,15 +22,19 @@ int main(int argc, char *argv[]) {
 
     if (!FLAGS_device.empty() && !FLAGS_plugin_lib_name.empty()) {
         try {
-            auto plugin_path = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), std::string(FLAGS_plugin_lib_name) + OV_BUILD_POSTFIX);
+            auto plugin_path =
+                ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(),
+                                                   std::string(FLAGS_plugin_lib_name) + OV_BUILD_POSTFIX);
             if (!ov::util::file_exists(plugin_path)) {
                 throw std::runtime_error("[ WARNING ][ GRAPH CACHE ] Plugin: " + plugin_path + " does not exists!");
             }
             ov::util::core->register_plugin(plugin_path, FLAGS_device);
-            std::cout << "[ INFO ] Device: " << FLAGS_device << " is registred in OV core with " << FLAGS_plugin_lib_name << " lib" << std::endl;
+            std::cout << "[ INFO ] Device: " << FLAGS_device << " is registred in OV core with "
+                      << FLAGS_plugin_lib_name << " lib" << std::endl;
         } catch (const std::exception& e) {
-            std::cout << "[ ERROR ] Impossible to register device " << FLAGS_device << " with lib " << FLAGS_plugin_lib_name <<
-            std::endl << e.what() << std::endl;
+            std::cout << "[ ERROR ] Impossible to register device " << FLAGS_device << " with lib "
+                      << FLAGS_plugin_lib_name << std::endl
+                      << e.what() << std::endl;
         }
     }
 
@@ -44,7 +45,8 @@ int main(int argc, char *argv[]) {
     std::map<ov::util::ModelCacheStatus, std::vector<std::string>> cache_model_status;
 
     if (!ov::util::directory_exists(FLAGS_output_folder)) {
-        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
+        std::string msg =
+            "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
         std::cout << msg << std::endl;
         ov::util::create_directory_recursive(FLAGS_output_folder);
     }

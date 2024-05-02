@@ -7,12 +7,11 @@ Configurations management
 
 # pylint: disable=fixme,broad-except
 
-import os
-import sys
 import ast
 import json
+import os
+import sys
 from pathlib import Path
-
 
 if sys.version_info[:2] < (3, 8):
     raise Exception("Python version must be >= 3.8")
@@ -67,7 +66,9 @@ class Config:
                 except Exception:
                     pass
                 if not isinstance(property_value, type(value)):
-                    raise ConfigException(f"Python type of {name} parameter must be {type(value)}")
+                    raise ConfigException(
+                        f"Python type of {name} parameter must be {type(value)}"
+                    )
             else:
                 property_value = value
             Config._properties[name] = property_value
@@ -77,7 +78,9 @@ class Config:
     def __getattr__(self, attr_name):
         if attr_name in self._properties:
             return self._properties.get(attr_name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{attr_name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{attr_name}'"
+        )
 
     def _load_cfg(self):
         """Load the json configuration file"""
@@ -85,7 +88,9 @@ class Config:
             with open(self._file_path, encoding="utf-8") as conf:
                 self._json_cfg = json.load(conf)
         except Exception as exc:
-            raise ConfigException("Failed to load configuration from:", self._file_path) from exc
+            raise ConfigException(
+                "Failed to load configuration from:", self._file_path
+            ) from exc
 
     def _parse_cli_args(self):
         """Parse argparse arguments with patterns: 'name=value' or 'name'"""

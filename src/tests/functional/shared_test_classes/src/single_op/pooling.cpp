@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/single_op/pooling.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -42,13 +42,13 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
         result << "}_";
     }
     switch (pool_type) {
-        case PoolingTypes::MAX:
-            result << "MaxPool_";
-            break;
-        case PoolingTypes::AVG:
-            result << "AvgPool_";
-            result << "ExcludePad=" << excludePad << "_";
-            break;
+    case PoolingTypes::MAX:
+        result << "MaxPool_";
+        break;
+    case PoolingTypes::AVG:
+        result << "AvgPool_";
+        result << "ExcludePad=" << excludePad << "_";
+        break;
     }
     result << "K" << ov::test::utils::vec2str(kernel) << "_";
     result << "S" << ov::test::utils::vec2str(stride) << "_";
@@ -79,15 +79,22 @@ void PoolingLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> pooling;
     if (ov::test::utils::PoolingTypes::MAX == pool_type) {
-        pooling = std::make_shared<ov::op::v1::MaxPool>(param, stride, pad_begin, pad_end, kernel, rounding_type, pad_type);
+        pooling =
+            std::make_shared<ov::op::v1::MaxPool>(param, stride, pad_begin, pad_end, kernel, rounding_type, pad_type);
     } else {
-        pooling = std::make_shared<ov::op::v1::AvgPool>(param, stride, pad_begin, pad_end, kernel, excludePad, rounding_type, pad_type);
+        pooling = std::make_shared<ov::op::v1::AvgPool>(param,
+                                                        stride,
+                                                        pad_begin,
+                                                        pad_end,
+                                                        kernel,
+                                                        excludePad,
+                                                        rounding_type,
+                                                        pad_type);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(pooling);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "pooling");
 }
-
 
 std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj) {
     maxPoolV8SpecificParams pool_params;
@@ -101,7 +108,8 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     ov::op::RoundingType rounding_type;
     ov::element::Type index_element_type;
     int64_t axis;
-    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) = pool_params;
+    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) =
+        pool_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -141,14 +149,22 @@ void MaxPoolingV8LayerTest::SetUp() {
     ov::op::RoundingType rounding_type;
     ov::element::Type index_element_type;
     int64_t axis;
-    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) = pool_params;
+    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) =
+        pool_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto max_pool = std::make_shared<ov::op::v8::MaxPool>(param, stride, dilation, pad_begin, pad_end,
-                                                          kernel, rounding_type, pad_type,
-                                                          index_element_type, axis);
+    auto max_pool = std::make_shared<ov::op::v8::MaxPool>(param,
+                                                          stride,
+                                                          dilation,
+                                                          pad_begin,
+                                                          pad_end,
+                                                          kernel,
+                                                          rounding_type,
+                                                          pad_type,
+                                                          index_element_type,
+                                                          axis);
 
     const auto max_pool_v8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
 
@@ -157,7 +173,7 @@ void MaxPoolingV8LayerTest::SetUp() {
         results = {std::make_shared<ov::op::v0::Result>(max_pool->output(0)),
                    std::make_shared<ov::op::v0::Result>(max_pool->output(1))};
     } else {
-        results = { std::make_shared<ov::op::v0::Result>(max_pool->output(0)) };
+        results = {std::make_shared<ov::op::v0::Result>(max_pool->output(0))};
     }
     function = std::make_shared<ov::Model>(max_pool->outputs(), ov::ParameterVector{param}, "MaxPoolV8");
 }

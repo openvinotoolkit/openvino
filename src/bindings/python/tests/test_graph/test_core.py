@@ -5,11 +5,10 @@
 import copy
 
 import numpy as np
+import openvino.runtime.opset8 as ov
 import pytest
 
 from openvino import Dimension, Model, PartialShape, Shape
-
-import openvino.runtime.opset8 as ov
 
 
 def test_dimension():
@@ -211,7 +210,9 @@ def test_partial_shape():
     assert ps == PartialShape.dynamic()
 
     ps = PartialShape("[?, 3, ..224, 28..224]")
-    assert ps == PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(28, 224)])
+    assert ps == PartialShape(
+        [Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(28, 224)]
+    )
 
     with pytest.raises(RuntimeError) as e:
         ps = PartialShape("[?,,3]")
@@ -222,27 +223,51 @@ def test_partial_shape():
 
     shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     shape = PartialShape("[...]")
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     shape = PartialShape([Dimension(-1, 100), 25, -1])
     copied_shape = copy.copy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     shape = PartialShape("[?, 3, ..224, 28..224, 25..]")
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     shape = PartialShape("[...]")
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     shape = PartialShape([Dimension(-1, 100), 25, -1])
     copied_shape = copy.deepcopy(shape)
-    assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
+    assert (
+        shape == copied_shape
+    ), "Copied shape {0} is not equal to original shape {1}.".format(
+        copied_shape, shape
+    )
 
     ps = PartialShape.dynamic(rank=3)
     assert not ps.is_static

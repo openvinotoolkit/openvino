@@ -12,18 +12,18 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-    ov::element::Type,          // Model type
-    std::vector<InputShape>,    // Input shapes
-    bool,                       // Merge repeated
-    std::string                 // Device name
-> ctcGreedyDecoderParams;
+typedef std::tuple<ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shapes
+                   bool,                     // Merge repeated
+                   std::string               // Device name
+                   >
+    ctcGreedyDecoderParams;
 
-class CTCGreedyDecoderLayerTest
-    :  public testing::WithParamInterface<ctcGreedyDecoderParams>,
-       virtual public ov::test::SubgraphBaseTest {
+class CTCGreedyDecoderLayerTest : public testing::WithParamInterface<ctcGreedyDecoderParams>,
+                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj);
+
 protected:
     void SetUp() override;
 };

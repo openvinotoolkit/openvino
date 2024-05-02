@@ -3,6 +3,7 @@
 //
 
 #include "lrn_kernel_base.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -21,7 +22,8 @@ bool LRNKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNKernelBase::DispatchData& /*dispatchData*/) const {
+JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params,
+                                            const LRNKernelBase::DispatchData& /*dispatchData*/) const {
     JitConstants mem_consts = MakeBaseParamsJitConstants(params);
 
     const auto padding = (params.localSize - 1) / 2;
@@ -47,9 +49,11 @@ JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNK
 
     mem_consts.AddConstants({
         MakeJitConstant("ALPHA_AFTER_FACTORED", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha),
-        MakeJitConstant("ALPHA_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha_div_by_size),
+        MakeJitConstant("ALPHA_DIV_BY_SIZE",
+                        params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha_div_by_size),
         MakeJitConstant("ALPHA_VAL_FACTOR", params.inputs[0].GetDType() == Datatype::F16 ? alpha_abs_sqrt : 1.0f),
-        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_div_by_size_abs_sqrt : 1.0f),
+        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE",
+                        params.inputs[0].GetDType() == Datatype::F16 ? alpha_div_by_size_abs_sqrt : 1.0f),
     });
 
     return mem_consts;
@@ -64,7 +68,7 @@ LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) 
     dispatchData.gws[0] = output.Batch().v * output.Feature().v;  // B, F
     dispatchData.gws[1] = output.X().v;                           // X
     dispatchData.gws[2] = output.Y().v;                           // Y
-                             // Find largest positive local work size that is divider for global work size.
+                                         // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
     while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
         --dispatchData.lws[0];

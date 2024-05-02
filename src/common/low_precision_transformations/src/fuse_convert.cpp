@@ -7,14 +7,12 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-
+#include "itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
-
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -22,17 +20,20 @@ namespace low_precision {
 
 FuseConvertTransformation::FuseConvertTransformation(const Params& params) : CleanupTransformation(params) {
     MATCHER_SCOPE(FuseConvertTransformation);
-    auto multiply = pattern::wrap_type<ov::opset1::Multiply>({ pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>() });
-    auto subtract = pattern::wrap_type<ov::opset1::Subtract>({ pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>() });
-    auto add = pattern::wrap_type<ov::opset1::Add>({ pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>() });
-    auto fakeQuantize = pattern::wrap_type<ov::opset1::FakeQuantize>({
-        pattern::wrap_type<ov::opset1::Convert>({pattern::wrap_type<ov::opset1::Constant>()}),
-        pattern::any_input(),
-        pattern::any_input(),
-        pattern::any_input(),
-        pattern::any_input()});
+    auto multiply = pattern::wrap_type<ov::opset1::Multiply>(
+        {pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>()});
+    auto subtract = pattern::wrap_type<ov::opset1::Subtract>(
+        {pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>()});
+    auto add = pattern::wrap_type<ov::opset1::Add>(
+        {pattern::wrap_type<ov::opset1::Convert>(), pattern::wrap_type<ov::opset1::Constant>()});
+    auto fakeQuantize = pattern::wrap_type<ov::opset1::FakeQuantize>(
+        {pattern::wrap_type<ov::opset1::Convert>({pattern::wrap_type<ov::opset1::Constant>()}),
+         pattern::any_input(),
+         pattern::any_input(),
+         pattern::any_input(),
+         pattern::any_input()});
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ multiply, subtract, add, fakeQuantize }),
+        std::make_shared<pass::pattern::op::Or>(OutputVector{multiply, subtract, add, fakeQuantize}),
         matcher_name);
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -48,15 +49,15 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Cle
 
 namespace {
 
-std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
-    const std::shared_ptr<ov::opset1::Convert>& convert,
-    const std::shared_ptr<ov::opset1::Subtract>& subtract) {
+std::shared_ptr<Node> removeConvertIfPossibleForSubtract(const std::shared_ptr<ov::opset1::Convert>& convert,
+                                                         const std::shared_ptr<ov::opset1::Subtract>& subtract) {
     std::shared_ptr<Node> newSubtract;
 
     const element::Type precisionBeforeConvert = convert->input(0).get_element_type();
     if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->get_input_node_shared_ptr(1))) {
         newSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-            std::vector<ov::element::Type>{ element::f32, element::f32 }, std::vector<ov::element::Type>{},
+            std::vector<ov::element::Type>{element::f32, element::f32},
+            std::vector<ov::element::Type>{},
             ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
             ov::op::TemporaryReplaceOutputType(subtract->input_value(1), element::f32).get());
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(newSubtract, subtract->get_output_element_type(0));
@@ -66,9 +67,9 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     return newSubtract;
 }
 
-} // namespace
+}  // namespace
 
-bool FuseConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto op = m.get_match_root();
     if (!canBeTransformed(context, op)) {
         return false;
@@ -88,16 +89,18 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ov::pa
             newOp = removeConvertIfPossibleForSubtract(convert, subtract);
         } else if (ov::is_type<ov::opset1::Multiply>(op)) {
             newOp = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-                    std::vector<ov::element::Type>{ element::f32, element::f32 }, std::vector<ov::element::Type>{},
-                    ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
+                std::vector<ov::element::Type>{element::f32, element::f32},
+                std::vector<ov::element::Type>{},
+                ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         } else if (ov::is_type<ov::opset1::Add>(op)) {
             newOp = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-                    std::vector<ov::element::Type>{ element::f32, element::f32 }, std::vector<ov::element::Type>{},
-                    ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
+                std::vector<ov::element::Type>{element::f32, element::f32},
+                std::vector<ov::element::Type>{},
+                ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         }
@@ -106,7 +109,7 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ov::pa
             return false;
         }
 
-        ov::copy_runtime_info({ convert, op }, newOp);
+        ov::copy_runtime_info({convert, op}, newOp);
         newOp->set_friendly_name(op->get_friendly_name());
         register_new_node(newOp);
     }
@@ -137,6 +140,6 @@ bool FuseConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

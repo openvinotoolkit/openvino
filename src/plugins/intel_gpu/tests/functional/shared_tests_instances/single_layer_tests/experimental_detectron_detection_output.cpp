@@ -26,8 +26,9 @@ const std::vector<int64_t> num_classes = {2};
 const std::vector<int64_t> post_nms_count = {5, 25};
 
 // specifies maximual number of detections per image
-// there is assigning size_t rois_num = attrs.max_detections_per_image at docs/template_plugin/backend/evaluates_map.cpp:2117,
-// as a result we have to set max_detections_per_image equal to rois_num
+// there is assigning size_t rois_num = attrs.max_detections_per_image at
+// docs/template_plugin/backend/evaluates_map.cpp:2117, as a result we have to set max_detections_per_image equal to
+// rois_num
 const std::vector<size_t> max_detections_per_image16 = {16};
 const std::vector<size_t> max_detections_per_image = {5, 25};
 
@@ -44,7 +45,6 @@ const std::vector<ov::test::InputShape> inputShapes = {
     // inputRois / inputDeltas / inputScores / inputImInfos
     ov::test::static_shapes_to_test_representation({{16, 4}, {16, 8}, {16, 2}, {1, 3}}),
 };
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronDetectionOutput,
                          ExperimentalDetectronDetectionOutputLayerTest,
@@ -90,6 +90,5 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_ExperimentalDetectronDetectionOutput,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName);
-
 
 }  // namespace

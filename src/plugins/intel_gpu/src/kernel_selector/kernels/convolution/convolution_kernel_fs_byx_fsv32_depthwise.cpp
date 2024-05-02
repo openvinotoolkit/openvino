@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_fs_byx_fsv32_depthwise.h"
+
 #include <vector>
 
 namespace kernel_selector {
@@ -41,7 +42,8 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_depthwise::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(
+    const Params& params) const {
     return get_common_subgroups_device_features_key(params);
 }
 
@@ -49,7 +51,8 @@ size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution
     return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
 }
 
-size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) const {
+size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getMinRegisterUsage(const convolution_params& arg,
+                                                                     size_t blockWidth) const {
     size_t weightsRegisters = 2;
     size_t outputRegisters = blockWidth * 2;
     size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;
@@ -160,10 +163,14 @@ JitConstants ConvolutionKernel_fs_byx_fsv32_depthwise::GetJitConstants(const con
         auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
                                                {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                               "tmp_write[out_f]", input_dt, 1 };
+                                               "tmp_write[out_f]",
+                                               input_dt,
+                                               1};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                             "out[out_idx]", input_dt, 1 };
+                                             "out[out_idx]",
+                                             input_dt,
+                                             1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
     }
 

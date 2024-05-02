@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "kernel_selector.h"
+
+#include <fstream>
+#include <iostream>
+#include <set>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
-#include "kernel_selector.h"
 #include "kernel_selector_params.h"
-#include <type_traits>
-#include <sstream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <set>
-#include <iostream>
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
 
 #ifdef ENABLE_ENV_PRINT
-#define ENV_PRINTF(...) printf(__VA_ARGS__)
+#    define ENV_PRINTF(...) printf(__VA_ARGS__)
 #else
-#define ENV_PRINTF(...)
+#    define ENV_PRINTF(...)
 #endif  // ENABLE_ENV_PRINT
 
 #define ENABLE_OFFLINE_TUNING_CACHE 1
@@ -67,10 +69,13 @@ kernel_selector_base::kernel_selector_base() {
 
 KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
     auto kernels = GetBestKernels(params);
-    OPENVINO_ASSERT(!kernels.empty(), "[GPU] Could not find a suitable kernel for ", params.layerID, " params raw string: ", params.to_cache_string_v2());
+    OPENVINO_ASSERT(!kernels.empty(),
+                    "[GPU] Could not find a suitable kernel for ",
+                    params.layerID,
+                    " params raw string: ",
+                    params.to_cache_string_v2());
     return kernels[0];
 }
-
 
 KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) const {
     KernelsData kernelsData;
@@ -90,8 +95,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
-            kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what() << std::endl;
+            kernelName = (implementation != nullptr) ? implementation->GetName() : "[impl is null]";
+            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what()
+                            << std::endl;
         }
     }
 
@@ -113,7 +119,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 
     auto allImplementations = GetAllImplementations(params, kType);
     auto kernel_params = static_cast<const base_params&>(params);
-    bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
+    bool int8_kernel =
+        kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
     if (!int8_kernel) {  // Try to load kernel/config from offline cache
         cachedKernelConfig = autoTuner.LoadKernelOffline(params);
@@ -181,13 +188,12 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
             sortedImpls.emplace(impl->GetKernelsPriority(params), impl);
         }
 
-        std::transform(
-            sortedImpls.begin(),
-            sortedImpls.end(),
-            std::back_inserter(result),
-            [](const PriorityPair& impl) {
-                return std::move(impl.second);
-            });
+        std::transform(sortedImpls.begin(),
+                       sortedImpls.end(),
+                       std::back_inserter(result),
+                       [](const PriorityPair& impl) {
+                           return std::move(impl.second);
+                       });
     }
 
     return result;

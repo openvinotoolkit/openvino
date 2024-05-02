@@ -4,10 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/avg_pool.hpp"
-#include "low_precision/common/precisions_restriction.hpp"
-#include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/low_precision.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
@@ -15,6 +11,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -128,8 +128,8 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
 
 namespace testValues1 {
 const std::vector<ov::element::Type> precisions = {ov::element::f32,
-                                                       // ov::element::i32,
-                                                       ov::element::f16};
+                                                   // ov::element::i32,
+                                                   ov::element::f16};
 
 const std::vector<bool> updatePrecisions = {true, false};
 
@@ -146,14 +146,12 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
      {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
      ov::element::u8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.01f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.01f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.01f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.01f}}}}},
     {LayerTransformation::createParamsU8I8(),
      {256ul, {}, {-1.23f}, {2.55f}, {-1.23f}, {2.55f}},
      {256ul, {}, {-1.23f}, {2.55f}, {0.f}, {255.f}},
      ov::element::u8,
-     {{ov::element::f32, {{}, {82.97619048f}, {0.014823529f}}},
-      {ov::element::f16, {{}, {83.f}, {0.014823529f}}}},
+     {{ov::element::f32, {{}, {82.97619048f}, {0.014823529f}}}, {ov::element::f16, {{}, {83.f}, {0.014823529f}}}},
      true},
     {LayerTransformation::createParamsU8I8(),
      {256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
@@ -167,8 +165,7 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
      {256ul, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
      {256ul, {}, {-1.28f}, {1.27f}, {-128.f}, {127.f}},
      ov::element::i8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.01f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.01f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.01f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.01f}}}}},
     {LayerTransformation::createParamsI8I8(),
      {256ul, {}, {-0.12f}, {1.27f}, {-0.12f}, {1.27f}},
      {256ul, {}, {-0.12f}, {1.27f}, {-128.f}, {127.f}},
@@ -197,29 +194,25 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
      {256ul, {}, {0.f}, {25.5f}, {-1.0686283872061019e-38}, {1.0686283872061019e-38}},
      {256ul, {}, {0.f}, {25.5f}, {-128.f}, {127.f}},
      ov::element::i8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {1e-32f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {1e-32f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {1e-32f}}}, {ov::element::f16, {{ov::element::f16}, {}, {1e-32f}}}}},
     // denormal values
     {LayerTransformation::createParamsU8I8AndI8(),
      {256ul, {}, {0.f}, {25.5f}, {0.0}, {1.0686283872061019e-38}},
      {256ul, {}, {0.f}, {25.5f}, {0.0}, {255}},
      ov::element::u8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {1e-32f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {1e-32f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {1e-32f}}}, {ov::element::f16, {{ov::element::f16}, {}, {1e-32f}}}}},
     // U16
     {LayerTransformation::createParamsU8I8(),
      {65536ul, {}, {0.f}, {65.535f}, {0.f}, {65.535f}},
      {65536ul, {}, {0.f}, {65.535f}, {0.f}, {65535.f}},
      ov::element::u16,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.001f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.001f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.001f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.001f}}}}},
     // I16
     {LayerTransformation::createParamsU8I8(),
      {65536ul, {}, {-32.768f}, {32.767f}, {-32.768f}, {32.767f}},
      {65536ul, {}, {-32.768f}, {32.767f}, {-32768.f}, {32767.f}},
      ov::element::i16,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.001f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.001f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.001f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.001f}}}}},
     // U32
     {LayerTransformation::createParamsU8I8(),
      {static_cast<size_t>(4294967296), {}, {0.f}, {4.294967295f}, {0.f}, {4.294967295f}},
@@ -255,15 +248,13 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
      {16ul, {}, {0.f}, {1.5f}, {0.f}, {1.5f}},
      {16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f}},
      ov::element::u8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.1f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.1f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.1f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.1f}}}}},
     // i4 through i8
     {LayerTransformation::createParamsI8I8(),
      {16ul, {}, {-0.8f}, {0.7f}, {-0.8f}, {0.7f}},
      {16ul, {}, {-0.8f}, {0.7f}, {-8.f}, {7.f}},
      ov::element::i8,
-     {{ov::element::f32, {{ov::element::f32}, {}, {0.1f}}},
-      {ov::element::f16, {{ov::element::f16}, {}, {0.1f}}}}},
+     {{ov::element::f32, {{ov::element::f32}, {}, {0.1f}}}, {ov::element::f16, {{ov::element::f16}, {}, {0.1f}}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

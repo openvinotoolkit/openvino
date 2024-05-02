@@ -98,13 +98,15 @@ public:
         topology topology;
         for (const auto& input : inputs) {
             topology.add(input_layout(std::get<0>(input), std::get<1>(input)->get_layout()));
-            topology.add(reorder("reordered_" + std::get<0>(input), input_info(std::get<0>(input)), fmt, std::get<2>(input)));
+            topology.add(
+                reorder("reordered_" + std::get<0>(input), input_info(std::get<0>(input)), fmt, std::get<2>(input)));
         }
 
         topology.add(ctc_loss("ctc_loss", inputs_ids, p.preprocess_collapse_repeated, p.ctc_merge_repeated, p.unique));
         topology.add(reorder("reordered_ctc_loss", input_info("ctc_loss"), plane_format, float_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         for (auto& input : inputs) {
             network->set_input_data(std::get<0>(input), std::get<1>(input));
@@ -233,7 +235,9 @@ const std::vector<format::type> layout_formats = {
 
 #define INSTANTIATE_CTC_LOSS_TEST_SUITE(float_type, int_type)                                              \
     using ctc_loss_gpu_test_##float_type##int_type = ctc_loss_gpu_test<float_type, int_type>;              \
-    TEST_P(ctc_loss_gpu_test_##float_type##int_type, test) { ASSERT_NO_FATAL_FAILURE(test()); }            \
+    TEST_P(ctc_loss_gpu_test_##float_type##int_type, test) {                                               \
+        ASSERT_NO_FATAL_FAILURE(test());                                                                   \
+    }                                                                                                      \
     INSTANTIATE_TEST_SUITE_P(smoke_ctc_loss_##float_type##int_type,                                        \
                              ctc_loss_gpu_test_##float_type##int_type,                                     \
                              testing::Combine(testing::ValuesIn(getCTCLossParams<float_type, int_type>()), \
@@ -247,8 +251,8 @@ INSTANTIATE_CTC_LOSS_TEST_SUITE(float16, int32_t);
 INSTANTIATE_TEST_SUITE_P(export_import,
                          ctc_loss_gpu_test_float16int32_t,
                          testing::Combine(testing::Values(getCTCLossParams<ov::float16, int32_t>()[0]),
-                                         testing::Values(layout_formats[0]),
-                                         testing::Values(true)),
+                                          testing::Values(layout_formats[0]),
+                                          testing::Values(true)),
                          ctc_loss_gpu_test_float16int32_t::PrintToStringParamName);
 
 }  // namespace

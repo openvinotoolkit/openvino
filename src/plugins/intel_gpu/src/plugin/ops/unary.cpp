@@ -3,53 +3,53 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/elu.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/asin.hpp"
-#include "openvino/op/asinh.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/floor.hpp"
 #include "openvino/op/ceiling.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/hard_sigmoid.hpp"
-#include "openvino/op/log.hpp"
-#include "openvino/op/negative.hpp"
-#include "openvino/op/selu.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/tan.hpp"
-#include "openvino/op/sin.hpp"
-#include "openvino/op/sinh.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
-#include "openvino/op/softsign.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/hswish.hpp"
-#include "openvino/op/mish.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gelu.hpp"
-#include "openvino/op/sign.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
-
-#include "intel_gpu/primitives/activation.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/tan.hpp"
+#include "openvino/op/tanh.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op,
-                          cldnn::activation_func func, cldnn::activation_additional_params params) {
+void CreateUnaryEltwiseOp(ProgramBuilder& p,
+                          const std::shared_ptr<ov::Node>& op,
+                          cldnn::activation_func func,
+                          cldnn::activation_additional_params params) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params);
@@ -83,15 +83,17 @@ static void CreatePReluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::P
     if (slope_node && ov::shape_size(slope_shape.to_shape()) == 1) {
         float slope;
         OPENVINO_ASSERT(ov::op::util::get_single_value(slope_node, slope),
-                        "[GPU] Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                        "[GPU] Unsupported parameter size in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
     } else if (out_shape.size() >= 2) {
         auto inputs = p.GetInputInfo(op);
         std::string layerName = layer_type_name_ID(op);
-        auto activationPrimitive = cldnn::activation(layerName,
-                                                     inputs[0],
-                                                     inputs[1].pid,
-                                                     cldnn::activation_func::relu_negative_slope);
+        auto activationPrimitive =
+            cldnn::activation(layerName, inputs[0], inputs[1].pid, cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, activationPrimitive);
     }
 }
@@ -102,9 +104,9 @@ static void CreateClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::C
     if (op->get_output_element_type(0) == ov::element::i32) {
         // Currently jitter saves all compile time constant as floats
         // and we have a code like that: (int)(as_float(0x4f000000))
-        // So values in range (2147483583.0, 2147483647.0] are converted to  2147483648.0 due to fp32 representation error
-        // and then conversion back to int32 returns -2147483648 due to overflow
-        // So to avoid this issue we use largest representable value which doesn't cause overflow
+        // So values in range (2147483583.0, 2147483647.0] are converted to  2147483648.0 due to fp32 representation
+        // error and then conversion back to int32 returns -2147483648 due to overflow So to avoid this issue we use
+        // largest representable value which doesn't cause overflow
         // TODO: Consider improving jitter to operate with int types directly
         max = std::min<double>(2147483583.0, max);
     }
@@ -168,11 +170,14 @@ static void CreateHardSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     auto alpha_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto beta_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     if (!alpha_node || !beta_node) {
-        OPENVINO_THROW("[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        OPENVINO_THROW("[GPU] Unsupported parameter nodes type in ",
+                       op->get_friendly_name(),
+                       " (",
+                       op->get_type_name(),
+                       ")");
     }
 
-    if (ov::shape_size(alpha_node->get_output_shape(0)) == 1 &&
-        ov::shape_size(beta_node->get_output_shape(0)) == 1)  {
+    if (ov::shape_size(alpha_node->get_output_shape(0)) == 1 && ov::shape_size(beta_node->get_output_shape(0)) == 1) {
         float alpha, beta;
         if (!ov::op::util::get_single_value(alpha_node, alpha) || !ov::op::util::get_single_value(beta_node, beta)) {
             OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
@@ -197,15 +202,19 @@ static void CreateSeluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Se
         OPENVINO_THROW("Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
 
-    if (ov::shape_size(alpha_node->get_output_shape(0)) == 1 &&
-        ov::shape_size(lambda_node->get_output_shape(0)) == 1)  {
+    if (ov::shape_size(alpha_node->get_output_shape(0)) == 1 && ov::shape_size(lambda_node->get_output_shape(0)) == 1) {
         float alpha, lambda;
-        if (!ov::op::util::get_single_value(alpha_node, alpha) || !ov::op::util::get_single_value(lambda_node, lambda)) {
+        if (!ov::op::util::get_single_value(alpha_node, alpha) ||
+            !ov::op::util::get_single_value(lambda_node, lambda)) {
             OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::selu, {alpha, lambda});
     } else {
-        OPENVINO_THROW("Unsupported shapes of parameter nodes in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        OPENVINO_THROW("Unsupported shapes of parameter nodes in ",
+                       op->get_friendly_name(),
+                       " (",
+                       op->get_type_name(),
+                       ")");
     }
 }
 
@@ -241,11 +250,19 @@ static void CreateSwishOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::S
             if (ov::shape_size(beta_node->get_output_shape(0)) == 1) {
                 float beta;
                 if (!ov::op::util::get_single_value(beta_node, beta)) {
-                    OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                    OPENVINO_THROW("Unsupported parameter size in ",
+                                   op->get_friendly_name(),
+                                   " (",
+                                   op->get_type_name(),
+                                   ")");
                 }
                 CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {beta});
             } else {
-                OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                OPENVINO_THROW("Unsupported parameter size in ",
+                               op->get_friendly_name(),
+                               " (",
+                               op->get_type_name(),
+                               ")");
             }
         } else {
             OPENVINO_THROW("Unsupported parameter type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
@@ -264,9 +281,9 @@ static void CreateMishOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::Mi
 }
 
 static void CreateGeluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v7::Gelu>& op) {
-    cldnn::activation_func activationFunc =
-            op->get_approximation_mode() == op::GeluApproximationMode::ERF ? cldnn::activation_func::gelu
-                                                                           : cldnn::activation_func::gelu_tanh;
+    cldnn::activation_func activationFunc = op->get_approximation_mode() == op::GeluApproximationMode::ERF
+                                                ? cldnn::activation_func::gelu
+                                                : cldnn::activation_func::gelu_tanh;
     CreateUnaryEltwiseOp(p, op, activationFunc, {});
 }
 
@@ -274,8 +291,8 @@ static void CreateSoftSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v9
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::softsign, {});
 }
 
-static void CreateGeluOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v0::Gelu>& op) {
-    CreateUnaryEltwiseOp(p, op,  cldnn::activation_func::gelu, {});
+static void CreateGeluOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Gelu>& op) {
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::gelu, {});
 }
 
 static void CreateSignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Sign>& op) {
@@ -289,9 +306,14 @@ static void CreateHSigmoidOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5
 static void CreateRoundOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::Round>& op) {
     auto func = cldnn::activation_func::none;
     switch (op->get_mode()) {
-        case ov::op::v5::Round::RoundMode::HALF_TO_EVEN : func = cldnn::activation_func::round_half_to_even; break;
-        case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO : func = cldnn::activation_func::round_half_away_from_zero; break;
-        default: OPENVINO_THROW("Unsupported round mode in ", op->get_friendly_name(), ": ", static_cast<int>(op->get_mode()));
+    case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
+        func = cldnn::activation_func::round_half_to_even;
+        break;
+    case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+        func = cldnn::activation_func::round_half_away_from_zero;
+        break;
+    default:
+        OPENVINO_THROW("Unsupported round mode in ", op->get_friendly_name(), ": ", static_cast<int>(op->get_mode()));
     }
     CreateUnaryEltwiseOp(p, op, func, {});
 }

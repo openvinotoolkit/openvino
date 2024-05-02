@@ -11,7 +11,11 @@ namespace kernel_selector {
 // gather_nd_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_nd_params : public base_params {
-    gather_nd_params() : base_params(KernelType::GATHER_ND), indices_rank(0), batch_dims(0), batch_merged_output(true) {}
+    gather_nd_params()
+        : base_params(KernelType::GATHER_ND),
+          indices_rank(0),
+          batch_dims(0),
+          batch_merged_output(true) {}
 
     uint8_t indices_rank;
 
@@ -29,9 +33,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
 
 protected:

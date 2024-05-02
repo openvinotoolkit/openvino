@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
 #include <gtest/gtest.h>
+
+#include <utility>
+
+#include "cpu_memory.h"
 #include "mlas/sgemm.hpp"
 #include "onednn/dnnl.h"
-#include "cpu_memory.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
@@ -22,18 +24,42 @@ TEST(MLASGemmTests, simpleGemm) {
     size_t M = 128;
     size_t K = 512;
     size_t N = L2cacheSize / sizeof(float) / (M);
-    std::vector<float> aData(M * K, (1.0f/33));
+    std::vector<float> aData(M * K, (1.0f / 33));
     size_t bSize = ov::intel_cpu::mlas_sgemm_pack_get_size(N, K);
     size_t nthr = parallel_get_max_threads();
     auto alignedB = ov::AlignedBuffer(bSize, 64);
     float* bData = reinterpret_cast<float*>(alignedB.get_ptr());
     std::vector<float> cData(M * N, 0.0f);
 
-    ASSERT_NO_THROW(
-        ov::intel_cpu::
-            mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr));
+    ASSERT_NO_THROW(ov::intel_cpu::mlas_sgemm_compute("N",
+                                                      "T",
+                                                      M,
+                                                      N,
+                                                      K,
+                                                      1.0f,
+                                                      aData.data(),
+                                                      K,
+                                                      bData,
+                                                      N,
+                                                      0.0f,
+                                                      cData.data(),
+                                                      N,
+                                                      nullptr,
+                                                      nthr));
 
-    ASSERT_NO_THROW(
-        ov::intel_cpu::
-            mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr - 1));
+    ASSERT_NO_THROW(ov::intel_cpu::mlas_sgemm_compute("N",
+                                                      "T",
+                                                      M,
+                                                      N,
+                                                      K,
+                                                      1.0f,
+                                                      aData.data(),
+                                                      K,
+                                                      bData,
+                                                      N,
+                                                      0.0f,
+                                                      cData.data(),
+                                                      N,
+                                                      nullptr,
+                                                      nthr - 1));
 }

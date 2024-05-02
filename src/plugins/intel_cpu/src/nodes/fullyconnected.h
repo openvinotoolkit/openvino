@@ -13,8 +13,8 @@
 
 #include "cpu_memory.h"
 #include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "post_ops.hpp"
 
 namespace ov {
@@ -25,7 +25,7 @@ class FullyConnected : public Node {
 public:
     FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void execute(dnnl::stream strm) override;
     bool created() const override;
 

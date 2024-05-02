@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import os
 from pathlib import Path
 
 from openvino.tools.mo.utils.error import Error
-import os
 
 
 def default_path():
-    EXT_DIR_NAME = '.'
+    EXT_DIR_NAME = "."
     return os.path.abspath(os.getcwd().join(EXT_DIR_NAME))
 
 
@@ -17,7 +17,7 @@ def any_extensions_used(argv: argparse.Namespace):
     # Checks that extensions are provided.
     # Allowed types are string containing path to legacy extension directory
     # or path to new extension .so file, or classes inherited from BaseExtension.
-    if not hasattr(argv, 'extensions') or argv.extensions is None:
+    if not hasattr(argv, "extensions") or argv.extensions is None:
         return False
 
     if isinstance(argv.extensions, list) and len(argv.extensions) > 0:
@@ -33,7 +33,9 @@ def any_extensions_used(argv: argparse.Namespace):
 
         return has_non_default_path or has_non_str_objects
 
-    raise Exception("Expected list of extensions, got {}.".format(type(argv.extensions)))
+    raise Exception(
+        "Expected list of extensions, got {}.".format(type(argv.extensions))
+    )
 
 
 def legacy_extensions_used(argv: argparse.Namespace):
@@ -52,7 +54,7 @@ def legacy_extensions_used(argv: argparse.Namespace):
         elif legacy_ext_counter == 0:
             return False  # provided only new extensions
         else:
-            raise Error('Using new and legacy extensions in the same time is forbidden')
+            raise Error("Using new and legacy extensions in the same time is forbidden")
     return False
 
 
@@ -65,7 +67,7 @@ def new_extensions_used(argv: argparse.Namespace):
         for extension in extensions:
             if isinstance(extension, str):
                 path = Path(extension)
-                if path.is_file() and (path.suffix == '.so' or path.suffix == '.dll'):
+                if path.is_file() and (path.suffix == ".so" or path.suffix == ".dll"):
                     new_ext_counter += 1
             else:
                 new_ext_counter += 1
@@ -74,13 +76,16 @@ def new_extensions_used(argv: argparse.Namespace):
         elif new_ext_counter == 0:
             return False  # provided only legacy extensions
         else:
-            raise Error('Using new and legacy extensions in the same time is forbidden')
+            raise Error("Using new and legacy extensions in the same time is forbidden")
     return False
 
 
 def get_transformations_config_path(argv: argparse.Namespace) -> Path:
-    if hasattr(argv, 'transformations_config') \
-            and argv.transformations_config is not None and len(argv.transformations_config):
+    if (
+        hasattr(argv, "transformations_config")
+        and argv.transformations_config is not None
+        and len(argv.transformations_config)
+    ):
         if isinstance(argv.transformations_config, str):
             path = Path(argv.transformations_config)
             if path.is_file():
@@ -93,10 +98,15 @@ def legacy_transformations_config_used(argv: argparse.Namespace):
 
 
 def tensorflow_custom_operations_config_update_used(argv: argparse.Namespace):
-    return hasattr(argv, 'tensorflow_custom_operations_config_update') and \
-           argv.tensorflow_custom_operations_config_update is not None
+    return (
+        hasattr(argv, "tensorflow_custom_operations_config_update")
+        and argv.tensorflow_custom_operations_config_update is not None
+    )
 
 
 def input_freezig_used(argv):
-    return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
-           and len(argv.freeze_placeholder_with_value) > 0
+    return (
+        hasattr(argv, "freeze_placeholder_with_value")
+        and argv.freeze_placeholder_with_value is not None
+        and len(argv.freeze_placeholder_with_value) > 0
+    )

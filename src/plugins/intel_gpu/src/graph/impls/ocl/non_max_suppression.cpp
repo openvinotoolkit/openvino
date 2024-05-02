@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "non_max_suppression_inst.h"
 #include "data_inst.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
 #include "non_max_suppression/non_max_suppression_kernel_selector.h"
+#include "non_max_suppression_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -60,7 +59,8 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg,
+                                                  const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<non_max_suppression>();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
 
@@ -111,7 +111,7 @@ public:
             }
         }
 
-        auto get_additional_output_node_idx = [&] (bool is_third) {
+        auto get_additional_output_node_idx = [&](bool is_third) {
             size_t offset = 2;
             offset += arg.has_num_select_per_class();
             offset += arg.has_iou_threshold();
@@ -123,12 +123,14 @@ public:
         };
 
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
+            params.inputs.push_back(
+                convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
             params.has_second_output = true;
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
+            params.inputs.push_back(
+                convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
             params.has_third_output = true;
         }
 
@@ -142,14 +144,14 @@ public:
         params.box_encoding = primitive->center_point_box ? kernel_selector::BoxEncodingType::BOX_ENCODING_CENTER
                                                           : kernel_selector::BoxEncodingType::BOX_ENCODING_CORNER;
         switch (primitive->rotation) {
-            case non_max_suppression::Rotation::CLOCKWISE:
-                params.rotation = kernel_selector::NMSRotationType::CLOCKWISE;
-                break;
-            case non_max_suppression::Rotation::COUNTERCLOCKWISE:
-                params.rotation = kernel_selector::NMSRotationType::COUNTERCLOCKWISE;
-                break;
-            default:
-                params.rotation = kernel_selector::NMSRotationType::NONE;
+        case non_max_suppression::Rotation::CLOCKWISE:
+            params.rotation = kernel_selector::NMSRotationType::CLOCKWISE;
+            break;
+        case non_max_suppression::Rotation::COUNTERCLOCKWISE:
+            params.rotation = kernel_selector::NMSRotationType::COUNTERCLOCKWISE;
+            break;
+        default:
+            params.rotation = kernel_selector::NMSRotationType::NONE;
         }
 
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {

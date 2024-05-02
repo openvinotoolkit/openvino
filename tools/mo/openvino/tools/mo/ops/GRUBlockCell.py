@@ -6,14 +6,18 @@ from openvino.tools.mo.ops.op import Op
 
 
 class GRUBlockCell(Op):
-    op = 'GRUBlockCell'
+    op = "GRUBlockCell"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'infer': None,
-            'in_ports_count': 6,
-            'out_ports_count': 4,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "infer": None,
+                "in_ports_count": 6,
+                "out_ports_count": 4,
+            },
+            attrs,
+        )

@@ -3,13 +3,14 @@
 //
 
 #include "shared_test_classes/single_op/embedding_segments_sum.hpp"
-#include "common_test_utils/node_builders/embedding_segments_sum.hpp"
 
+#include "common_test_utils/node_builders/embedding_segments_sum.hpp"
 
 namespace ov {
 namespace test {
 
-std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
+std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(
+    const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
     embeddingSegmentsSumParams params;
     ov::element::Type model_type, ind_type;
     std::vector<InputShape> shapes;
@@ -33,7 +34,7 @@ std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestPa
         }
         result << "}_";
     }
-    result << "I"  << ov::test::utils::vec2str(indices) << "_";
+    result << "I" << ov::test::utils::vec2str(indices) << "_";
     result << "SI" << ov::test::utils::vec2str(segment_ids) << "_";
     result << "NS" << num_segments << "_";
     result << "DI" << default_index << "_";

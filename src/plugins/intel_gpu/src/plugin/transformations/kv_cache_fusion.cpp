@@ -3,10 +3,10 @@
 //
 
 #include "kv_cache_fusion.hpp"
+
 #include <memory>
 
 #include "intel_gpu/op/kv_cache.hpp"
-
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -20,8 +20,8 @@
 #include "openvino/op/sink.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -57,7 +57,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_map.at(concat).get_node_shared_ptr());
 
         auto past_node = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(pattern_map.at(past).get_node_shared_ptr());
-        auto present_node = std::dynamic_pointer_cast<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
+        auto present_node =
+            std::dynamic_pointer_cast<ov::op::v6::Assign>(pattern_map.at(present).get_node_shared_ptr());
 
         if (past_node->get_variable_id() != present_node->get_variable_id())
             return false;
@@ -75,9 +76,11 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             variable_initializer = past_node->get_input_node_shared_ptr(0);
         }
 
-        // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform
-        auto new_read_value_node = variable_initializer ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
-                                                        : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+        // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed
+        // by this transform
+        auto new_read_value_node = variable_initializer
+                                       ? std::make_shared<ov::intel_gpu::op::ReadValue>(variable_initializer, variable)
+                                       : std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         new_read_value_node->set_friendly_name(past_node->get_friendly_name());
         ov::copy_runtime_info(past_node, new_read_value_node);
         ov::replace_node(past_node, new_read_value_node);

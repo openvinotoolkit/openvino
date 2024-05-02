@@ -11,7 +11,8 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_prior_grid_generator)
 
 layout experimental_detectron_prior_grid_generator_inst::calc_output_layout(
-    const experimental_detectron_prior_grid_generator_node& node, kernel_impl_params const& impl_param) {
+    const experimental_detectron_prior_grid_generator_node& node,
+    kernel_impl_params const& impl_param) {
     const layout data_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<experimental_detectron_prior_grid_generator>();
     if (desc->flatten) {

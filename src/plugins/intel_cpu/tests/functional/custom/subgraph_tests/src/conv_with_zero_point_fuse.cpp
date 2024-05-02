@@ -6,8 +6,8 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "utils/convolution_params.hpp"
 
 using namespace CPUTestUtils;
@@ -46,13 +46,13 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
 
     ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShapes)};
     const auto fq = ov::test::utils::make_fake_quantize(inputParams[0],
-                                                      ov::element::f32,
-                                                      256,
-                                                      {1, 1, 1, 1},
-                                                      {-12.8f},
-                                                      {12.7f},
-                                                      {-12.8f},
-                                                      {12.7f});
+                                                        ov::element::f32,
+                                                        256,
+                                                        {1, 1, 1, 1},
+                                                        {-12.8f},
+                                                        {12.7f},
+                                                        {-12.8f},
+                                                        {12.7f});
 
     std::vector<std::shared_ptr<ov::Node>> branches(2);
     {
@@ -62,13 +62,13 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     }
     {
         const auto fq_conv_data = ov::test::utils::make_fake_quantize(fq,
-                                                                    ov::element::f32,
-                                                                    256,
-                                                                    {1, 1, 1, 1},
-                                                                    {-12.8f},
-                                                                    {12.7f},
-                                                                    {-12.8f},
-                                                                    {12.7f});
+                                                                      ov::element::f32,
+                                                                      256,
+                                                                      {1, 1, 1, 1},
+                                                                      {-12.8f},
+                                                                      {12.7f},
+                                                                      {-12.8f},
+                                                                      {12.7f});
 
         const ov::Shape weights_const_shape = {numOutChannels, inputShapes[1], kernelSize[0], kernelSize[1]};
         const auto weights_const_values = std::vector<int>(ov::shape_size(weights_const_shape), 1);
@@ -80,8 +80,8 @@ void ConvWithZeroPointFuseSubgraphTest::SetUp() {
         const auto weights_multiply = std::make_shared<ov::opset10::Multiply>(
             weights_convert,
             ov::test::utils::deprecated::make_constant(ov::element::f32,
-                                          {numOutChannels, 1, 1, 1},
-                                          std::vector<float>(numOutChannels, 1.0)));
+                                                       {numOutChannels, 1, 1, 1},
+                                                       std::vector<float>(numOutChannels, 1.0)));
 
         switch (type) {
         case nodeType::convolution: {

@@ -10,9 +10,7 @@ from glob import glob
 from inspect import getsourcefile
 
 from _pytest.mark import MarkDecorator
-
 from e2e_tests.common.pytest_utils import mark as Mark
-
 from e2e_tests.test_utils.test_utils import BrokenTestException
 
 
@@ -32,7 +30,7 @@ def apply_glob(paths, file_ext="py"):
                         files are returned)
     :return:    resolved paths
     """
-    file_pattern = '*.{ext}'.format(ext=file_ext)
+    file_pattern = "*.{ext}".format(ext=file_ext)
     globbed_paths = []
     for path in paths:
         # resolve files
@@ -43,13 +41,16 @@ def apply_glob(paths, file_ext="py"):
         elif os.path.isdir(path):
             globbed_paths.extend(
                 glob(
-                    '{dir}/**/{file}'.format(dir=path, file=file_pattern),
-                    recursive=True))
+                    "{dir}/**/{file}".format(dir=path, file=file_pattern),
+                    recursive=True,
+                )
+            )
         # resolve patterns
-        elif any(special in path for special in ['*', '?', '[', ']', '!']):
+        elif any(special in path for special in ["*", "?", "[", "]", "!"]):
             resolved = glob(path, recursive=True)
             globbed_paths.extend(
-                [entry for entry in resolved if fnmatch(entry, file_pattern)])
+                [entry for entry in resolved if fnmatch(entry, file_pattern)]
+            )
     return list(set(globbed_paths))
 
 
@@ -86,17 +87,20 @@ def find_tests(modules, attributes):
 
 
 def set_pytest_marks(_test, _object, _runner, log):
-    """ Set pytest markers from object to the test according to test runner. """
+    """Set pytest markers from object to the test according to test runner."""
     _err = False
-    if hasattr(_object, '__pytest_marks__'):
+    if hasattr(_object, "__pytest_marks__"):
         for mark in _object.__pytest_marks__:
             if isinstance(mark, MarkDecorator):
                 _test.add_marker(mark)
                 continue
             if not isinstance(mark, Mark):
                 _err = True
-                log.error("Current mark '{}' for instance '{}' from '{}' isn't wrapped in 'mark' from '{}'"
-                          .format(mark, str(_object), _object.definition_path, getsourcefile(Mark)))
+                log.error(
+                    "Current mark '{}' for instance '{}' from '{}' isn't wrapped in 'mark' from '{}'".format(
+                        mark, str(_object), _object.definition_path, getsourcefile(Mark)
+                    )
+                )
                 continue
             if mark.target_runner != "all" and mark.target_runner != _runner:
                 continue
@@ -107,14 +111,19 @@ def set_pytest_marks(_test, _object, _runner, log):
                     mark_to_add, reason = mark.pytest_mark
                 except ValueError as ve:
                     _err = True
-                    log.exception("Error with marks for {}".format(str(_object)), exc_info=ve)
+                    log.exception(
+                        "Error with marks for {}".format(str(_object)), exc_info=ve
+                    )
                     continue
                 if mark_to_add is None:  # skip None values
                     continue
                 if not reason:
                     _err = True
-                    log.error("Mark '{mark}' exists in instance '{instance}' without specified reason"
-                              .format(mark=mark_to_add, instance=str(_object)))
+                    log.error(
+                        "Mark '{mark}' exists in instance '{instance}' without specified reason".format(
+                            mark=mark_to_add, instance=str(_object)
+                        )
+                    )
                     continue
             _test.add_marker(mark_to_add)
     if _err:

@@ -3,8 +3,10 @@
 //
 
 #include "gather_nonzero_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey GatherNonzeroKernelRef::GetSupportedKey() const {
@@ -47,7 +49,8 @@ JitConstants GatherNonzeroKernelRef::GetJitConstants(const gather_nonzero_params
 
     if (input.is_dynamic()) {
         DimensionAccessHelper dims(input);
-        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
+        const std::string total_data_size =
+            toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", total_data_size));
     } else {
         jit.AddConstant(MakeJitConstant("TOTAL_DATA_SIZE", params.inputs[0].LogicalSize()));

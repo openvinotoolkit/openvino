@@ -4,6 +4,7 @@
 
 #include "snippets/pass/softmax_decomposition.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -11,7 +12,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace snippets {
@@ -57,8 +57,10 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
         for (size_t i = axis; i < rank; ++i)
             subtensor[i] = PortDescriptor::ServiceDimensions::FULL_DIM;
 
-        PortDescriptorUtils::set_port_descriptor_ptr(power->input(0), std::make_shared<PortDescriptor>(power->input(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(power->output(0), std::make_shared<PortDescriptor>(power->output(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(power->input(0),
+                                                     std::make_shared<PortDescriptor>(power->input(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(power->output(0),
+                                                     std::make_shared<PortDescriptor>(power->output(0), subtensor));
 
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, multiply});
         return ov::replace_node_update_name(softmax, multiply);

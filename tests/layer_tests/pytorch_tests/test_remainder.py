@@ -7,14 +7,7 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize(
-    "input_shape_rhs",
-    [
-        [2, 5, 3, 4],
-        [1, 5, 3, 4],
-        [1]
-    ]
-)
+@pytest.mark.parametrize("input_shape_rhs", [[2, 5, 3, 4], [1, 5, 3, 4], [1]])
 class TestRemainder(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(2, 5, 3, 4).astype(np.float32), self.input_rhs)
@@ -32,7 +25,13 @@ class TestRemainder(PytorchLayerTest):
     @pytest.mark.precommit
     def test_remainder(self, ie_device, precision, ir_version, input_shape_rhs):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            use_convert_model=True,
+        )
 
 
 class TestRemainderTypes(PytorchLayerTest):
@@ -60,17 +59,25 @@ class TestRemainderTypes(PytorchLayerTest):
                     self.forward = self.forward3
 
             def forward1(self, rhs):
-                return torch.remainder(torch.tensor(3).to(self.lhs_type), rhs.to(self.rhs_type))
+                return torch.remainder(
+                    torch.tensor(3).to(self.lhs_type), rhs.to(self.rhs_type)
+                )
 
             def forward2(self, lhs):
-                return torch.remainder(lhs.to(self.lhs_type), torch.tensor(3).to(self.rhs_type))
+                return torch.remainder(
+                    lhs.to(self.lhs_type), torch.tensor(3).to(self.rhs_type)
+                )
 
             def forward3(self, lhs, rhs):
                 return torch.remainder(lhs.to(self.lhs_type), rhs.to(self.rhs_type))
 
         ref_net = None
 
-        return aten_remainder(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::remainder"
+        return (
+            aten_remainder(lhs_type, lhs_shape, rhs_type, rhs_shape),
+            ref_net,
+            "aten::remainder",
+        )
 
     @pytest.mark.parametrize(
         ("lhs_type", "rhs_type"),
@@ -97,7 +104,9 @@ class TestRemainderTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_remainder_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
+    def test_remainder_types(
+        self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape
+    ):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type

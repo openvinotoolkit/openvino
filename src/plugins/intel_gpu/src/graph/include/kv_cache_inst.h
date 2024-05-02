@@ -20,9 +20,13 @@ private:
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 
     std::vector<layout> get_shape_info_input_layouts() const override {
         std::vector<layout> res;
@@ -31,7 +35,7 @@ public:
             res.push_back(d.first->get_output_layout(false, d.second));
         }
 
-        if (get_primitive()->indirect) { // insert an additional input with beam table past layout
+        if (get_primitive()->indirect) {  // insert an additional input with beam table past layout
             res.push_back(layout(ov::PartialShape::dynamic(4), data_types::i32, format::bfyx));
         }
 
@@ -41,12 +45,12 @@ public:
 
 using kv_cache_node = typed_program_node<kv_cache>;
 
-template<>
+template <>
 class typed_primitive_inst<kv_cache> : public typed_primitive_inst_base<kv_cache>, public memory_state::variable {
     using parent = typed_primitive_inst_base<kv_cache>;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(kv_cache_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param);
 
@@ -76,7 +80,10 @@ public:
         return sequence_axis_legacy;
     }
 
-    static int64_t get_max_pad(const layout& target_layout, size_t buffer_size, int64_t legacy_sequence_axis, std::string target_name = "") {
+    static int64_t get_max_pad(const layout& target_layout,
+                               size_t buffer_size,
+                               int64_t legacy_sequence_axis,
+                               std::string target_name = "") {
         if (buffer_size == 0)
             return 0;
         const size_t total_elements = target_layout.count();
@@ -85,13 +92,14 @@ public:
         const int64_t max_sequence_elements = buffer_size / sequence_element_size;
         auto max_pad = std::max<int64_t>(max_sequence_elements - concat_axis_size, 0);
         auto target_layout_name = (target_name != "") ? target_name : "target_layout";
-        GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] " << target_name  << " : " << target_layout.to_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] " << target_name << " : " << target_layout.to_string() << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] buffer size " << buffer_size << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] total_elements " << total_elements << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] concat_axis_size = " << concat_axis_size << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] sequence_element_size = " << sequence_element_size << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] max_sequence_elements = " << max_sequence_elements << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] max_pad (max_sequence_elements - concat_axis_size) = " << max_pad << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "[get_max_pad] max_pad (max_sequence_elements - concat_axis_size) = " << max_pad
+                               << std::endl;
         return max_pad;
     }
     void update_shape_info_tensor(const kernel_impl_params& params) override;
@@ -105,4 +113,4 @@ private:
 
 using kv_cache_inst = typed_primitive_inst<kv_cache>;
 
-} // namespace cldnn
+}  // namespace cldnn

@@ -3,16 +3,23 @@
 
 import logging as log
 from collections import deque
-from re import match, compile
+from re import compile, match
 
 import networkx as nx
 
-from openvino.tools.mo.graph.graph import Node, Graph, set_edge_attribute_between_nodes, get_edge_attribute_between_nodes
+from openvino.tools.mo.graph.graph import (
+    Graph,
+    Node,
+    get_edge_attribute_between_nodes,
+    set_edge_attribute_between_nodes,
+)
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
-def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: list = None):
+def backward_bfs_for_operation(
+    start_node: Node, op_names: list, skip_op_list: list = None
+):
     """
     Find node with 'op' attribute equal to one of from 'op_name', searching in the backward direction.
     In case of branching algorithm goes into each branch, but if it can't find layer in one of them it returns
@@ -31,14 +38,14 @@ def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: l
         in_nodes_size = len(node.in_nodes())
         for id in range(in_nodes_size):  # in_nodes() can return either list or dict
             pnode = node.in_node(id)
-            if pnode.kind == 'op':
-                if pnode.has_valid('op') and pnode.op in op_names:
+            if pnode.kind == "op":
+                if pnode.has_valid("op") and pnode.op in op_names:
                     if pnode.id not in ret:
                         ret.append(pnode.id)
                 else:
                     if pnode.op not in skip_op_list:
                         q.append(pnode)
-            elif pnode.kind == 'data' and pnode.value is None:
+            elif pnode.kind == "data" and pnode.value is None:
                 q.append(pnode)
     return [Node(start_node.graph, x) for x in ret]
 
@@ -53,7 +60,11 @@ def bfs_search(graph: Graph, start_nodes: list = list()):
     """
     result = list()
     if len(start_nodes) == 0:
-        start_nodes = [node_name for node_name in graph.nodes() if len(graph.in_edges(node_name)) == 0]
+        start_nodes = [
+            node_name
+            for node_name in graph.nodes()
+            if len(graph.in_edges(node_name)) == 0
+        ]
 
     visited = set(start_nodes)
     d = deque(start_nodes)
@@ -76,7 +87,11 @@ def nodes_matching_name_pattern(graph: Graph, pattern: str):
     :return: list of matched node names.
     """
     compiled_pattern = compile(pattern)
-    return [node_name for node_name in list(graph.nodes()) if match(compiled_pattern, node_name)]
+    return [
+        node_name
+        for node_name in list(graph.nodes())
+        if match(compiled_pattern, node_name)
+    ]
 
 
 def is_connected_component(graph: Graph, node_names: list):
@@ -99,8 +114,15 @@ def is_connected_component(graph: Graph, node_names: list):
         cur_node_name = d.popleft()
         visited.add(cur_node_name)
         # find adjacent nodes from the list of node_names. Ignoring edges direction
-        adj_nodes = [src_node for src_node, _ in graph.in_edges(cur_node_name) if src_node in node_names] + \
-                    [dst_node for _, dst_node in graph.out_edges(cur_node_name) if dst_node in node_names]
+        adj_nodes = [
+            src_node
+            for src_node, _ in graph.in_edges(cur_node_name)
+            if src_node in node_names
+        ] + [
+            dst_node
+            for _, dst_node in graph.out_edges(cur_node_name)
+            if dst_node in node_names
+        ]
         for adj_node in adj_nodes:
             if adj_node not in visited:
                 d.append(adj_node)
@@ -108,8 +130,14 @@ def is_connected_component(graph: Graph, node_names: list):
     return set(node_names).issubset(visited)
 
 
-def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
-                            include_control_flow=True, allow_non_reachable_end_nodes=False):
+def sub_graph_between_nodes(
+    graph: Graph,
+    start_nodes: list,
+    end_nodes: list,
+    detect_extra_start_node: callable = None,
+    include_control_flow=True,
+    allow_non_reachable_end_nodes=False,
+):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
     added to the sub-graph. Constant inputs of the 'start_nodes' are also added to the sub-graph.
@@ -127,26 +155,33 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
     d = deque(start_nodes)
     extra_start_nodes = []
 
-    nx.set_node_attributes(G=graph, name='prev', values=None)
+    nx.set_node_attributes(G=graph, name="prev", values=None)
     while len(d) != 0:
         cur_node_id = d.popleft()
         sub_graph_nodes.append(cur_node_id)
         if cur_node_id not in end_nodes:  # do not add output nodes of the end_nodes
             for _, dst_node_name, attrs in graph.out_edges(cur_node_id, data=True):
-                if dst_node_name not in visited and (include_control_flow or not attrs.get('control_flow_edge', False)):
+                if dst_node_name not in visited and (
+                    include_control_flow or not attrs.get("control_flow_edge", False)
+                ):
                     d.append(dst_node_name)
                     visited.add(dst_node_name)
-                    graph.node[dst_node_name]['prev'] = cur_node_id
+                    graph.node[dst_node_name]["prev"] = cur_node_id
 
         for src_node_name, _, attrs in graph.in_edges(cur_node_id, data=True):
             # add input nodes for the non-start_nodes
-            if cur_node_id not in start_nodes and src_node_name not in visited and\
-                    (include_control_flow or not attrs.get('control_flow_edge', False)):
-                if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_id)):
+            if (
+                cur_node_id not in start_nodes
+                and src_node_name not in visited
+                and (include_control_flow or not attrs.get("control_flow_edge", False))
+            ):
+                if detect_extra_start_node is not None and detect_extra_start_node(
+                    Node(graph, cur_node_id)
+                ):
                     extra_start_nodes.append(cur_node_id)
                 else:
                     d.append(src_node_name)
-                    graph.node[src_node_name]['prev'] = cur_node_id
+                    graph.node[src_node_name]["prev"] = cur_node_id
                     visited.add(src_node_name)
 
     # use forward dfs to check that all end nodes are reachable from at least one of input nodes
@@ -155,27 +190,42 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
         graph.dfs(start_node, forward_visited)
     for end_node in end_nodes:
         if not allow_non_reachable_end_nodes and end_node not in forward_visited:
-            raise Error('End node "{}" is not reachable from start nodes: {}. '.format(end_node, start_nodes) +
-                        refer_to_faq_msg(74))
+            raise Error(
+                'End node "{}" is not reachable from start nodes: {}. '.format(
+                    end_node, start_nodes
+                )
+                + refer_to_faq_msg(74)
+            )
 
     for node_id in sub_graph_nodes:
         # sub-graph should not contain Placeholder nodes
-        if graph.node[node_id].get('op', '') == 'Parameter':
+        if graph.node[node_id].get("op", "") == "Parameter":
             path = list()
             cur_node = node_id
-            while cur_node and 'prev' in graph.node[cur_node]:
+            while cur_node and "prev" in graph.node[cur_node]:
                 path.append(str(cur_node))
-                cur_node = graph.node[cur_node]['prev']
-            log.debug("The path from input node is the following: {}".format('\n'.join(path)))
-            raise Error('The matched sub-graph contains network input node "{}". '.format(node_id) +
-                        refer_to_faq_msg(75))
+                cur_node = graph.node[cur_node]["prev"]
+            log.debug(
+                "The path from input node is the following: {}".format("\n".join(path))
+            )
+            raise Error(
+                'The matched sub-graph contains network input node "{}". '.format(
+                    node_id
+                )
+                + refer_to_faq_msg(75)
+            )
     if detect_extra_start_node is None:
         return sub_graph_nodes
     else:
         return sub_graph_nodes, extra_start_nodes
 
 
-def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
+def invert_sub_graph_between_nodes(
+    graph: Graph,
+    start_nodes: list,
+    end_nodes: list,
+    detect_extra_start_node: callable = None,
+):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. But doing it from start_nodes stepping
     backward by in edges.
@@ -192,32 +242,43 @@ def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: l
     d = deque(start_nodes)
     extra_start_nodes = []
 
-    nx.set_node_attributes(G=graph, name='prev', values=None)
+    nx.set_node_attributes(G=graph, name="prev", values=None)
     while len(d) != 0:
         cur_node_name = d.popleft()
         sub_graph_nodes.append(cur_node_name)
-        if cur_node_name not in start_nodes and \
-                detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):
+        if (
+            cur_node_name not in start_nodes
+            and detect_extra_start_node is not None
+            and detect_extra_start_node(Node(graph, cur_node_name))
+        ):
             extra_start_nodes.append(cur_node_name)
         else:
-            if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes
+            if (
+                cur_node_name not in end_nodes
+            ):  # do not add output nodes of the end_nodes
                 for src_node_name, _ in graph.in_edges(cur_node_name):
                     if src_node_name not in visited:
                         d.append(src_node_name)
                         visited.add(src_node_name)
-                        graph.node[cur_node_name]['prev'] = src_node_name
+                        graph.node[cur_node_name]["prev"] = src_node_name
 
     for node_name in sub_graph_nodes:
         # sub-graph should not contain Input nodes
-        if graph.node[node_name].get('op', '') == 'Parameter':
+        if graph.node[node_name].get("op", "") == "Parameter":
             path = list()
             cur_node = node_name
-            while cur_node and 'prev' in graph.node[cur_node]:
+            while cur_node and "prev" in graph.node[cur_node]:
                 path.append(str(cur_node))
-                cur_node = graph.node[cur_node]['prev']
-            log.debug("The path from input node is the following: {}".format('\n'.join(path)))
-            raise Error('The matched sub-graph contains network input node "{}". '.format(node_name) +
-                        refer_to_faq_msg(75))
+                cur_node = graph.node[cur_node]["prev"]
+            log.debug(
+                "The path from input node is the following: {}".format("\n".join(path))
+            )
+            raise Error(
+                'The matched sub-graph contains network input node "{}". '.format(
+                    node_name
+                )
+                + refer_to_faq_msg(75)
+            )
     if detect_extra_start_node is None:
         return sub_graph_nodes
     else:
@@ -255,7 +316,9 @@ def node_incoming_neighbourhood(graph: Graph, node_name: str, depth: int):
     :param depth: maximum depth of input nodes.
     :return: list of names of nodes in the neighbourhood.
     """
-    return node_neighbourhood(node_name, depth, lambda node_name: [u for u, v in graph.in_edges([node_name])])
+    return node_neighbourhood(
+        node_name, depth, lambda node_name: [u for u, v in graph.in_edges([node_name])]
+    )
 
 
 def node_outcoming_neighbourhood(graph: Graph, node_name: str, depth: int):
@@ -266,10 +329,12 @@ def node_outcoming_neighbourhood(graph: Graph, node_name: str, depth: int):
     :param depth: maximum depth of output nodes.
     :return: list of names of nodes in the neighbourhood.
     """
-    return node_neighbourhood(node_name, depth, lambda node_name: [v for u, v in graph.out_edges([node_name])])
+    return node_neighbourhood(
+        node_name, depth, lambda node_name: [v for u, v in graph.out_edges([node_name])]
+    )
 
 
-def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
+def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str = "/"):
     """
     The function returns nodes producing output of the sub-graph defined by scope (name prefix). The node is considered
     output of the scope if it is in this scope and it's output is outside of the scope.
@@ -303,10 +368,13 @@ def clear_tensor_names_info(nodes: list):
     for node in nodes:
         for out_idx in node.out_nodes():
             out_node = node.out_node(out_idx)
-            fw_info_list = get_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info')
+            fw_info_list = get_edge_attribute_between_nodes(
+                node, out_node, "fw_tensor_debug_info"
+            )
             new_fw_info = []
             for fw_info in fw_info_list:
                 if fw_info is not None and len(fw_info) >= 2:
                     new_fw_info.append((fw_info[0], fw_info[1], None))
-            set_edge_attribute_between_nodes(node, out_node, 'fw_tensor_debug_info', new_fw_info)
-
+            set_edge_attribute_between_nodes(
+                node, out_node, "fw_tensor_debug_info", new_fw_info
+            )

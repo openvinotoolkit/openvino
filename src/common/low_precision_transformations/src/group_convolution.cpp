@@ -8,15 +8,16 @@
 #include <string>
 #include <vector>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
 
-GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
+GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params)
+    : ConvolutionTransformation(params) {
     MATCHER_SCOPE(GroupConvolutionTransformation);
     auto matcher = pattern::wrap_type<ov::opset1::GroupConvolution>();
 
@@ -33,11 +34,11 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
 }
 
 bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) const {
+                                                 const std::vector<ov::element::Type>& defaultPrecisions) const {
     return GroupConvolutionTransformation::isQuantizedStatic(layer, defaultPrecisions);
 }
 
-bool GroupConvolutionTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool GroupConvolutionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     auto convolution = m.get_match_root();
 
     if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
@@ -49,7 +50,7 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, o
 }
 
 bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) {
+                                                       const std::vector<ov::element::Type>& defaultPrecisions) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, true, defaultPrecisions);
 }
 
@@ -60,6 +61,6 @@ size_t GroupConvolutionTransformation::getInputChannels(const std::shared_ptr<ov
     return channels.get_length() * groups.get_length();
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

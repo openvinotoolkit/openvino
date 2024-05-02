@@ -3,12 +3,14 @@
 //
 
 #include "convolution_kernel_mmad_b_fs_yx_fsv32_dw.h"
-#include <vector>
-#include <utility>
-#include <string>
+
+#include <kernel_selector_utils.h>
+
 #include <algorithm>
 #include <iostream>
-#include <kernel_selector_utils.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 
@@ -42,7 +44,6 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetSupportedKey() const {
     return k;
 }
 
-
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
         return false;
@@ -53,8 +54,9 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p) const {
     if (params.inputs[0].Feature().v != params.groups || params.outputs[0].Feature().v != params.groups)
         return false;
 
-    if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
-        && !params.HasCompensation()) {
+    if ((params.quantization == QuantizationType::ASYMMETRIC_DATA ||
+         params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) &&
+        !params.HasCompensation()) {
         return false;
     }
 
@@ -66,12 +68,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Set
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     auto in_layout = cp.inputs[0].GetLayout();
     auto out_layout = cp.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::BATCH}};
 
-    dispatchData.gws = { cp.outputs[0].Feature().v, cp.outputs[0].X().v * cp.outputs[0].Y().v, cp.outputs[0].Batch().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {cp.outputs[0].Feature().v, cp.outputs[0].X().v * cp.outputs[0].Y().v, cp.outputs[0].Batch().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -87,13 +91,12 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const conv
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"b", "f", "y", "x"}, "res", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"b", "f", "y", "x"}, "res", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
     return jit;
 }
-
 
 KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsData(const Params& params) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params);

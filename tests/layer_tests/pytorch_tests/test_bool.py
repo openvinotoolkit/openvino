@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestBool(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randint(0, 10, 1).astype(np.int32),)
 
     def create_model(self, input_type):
@@ -17,12 +17,16 @@ class TestBool(PytorchLayerTest):
         class prim_bool(torch.nn.Module):
             def __init__(self, input_type):
                 super(prim_bool, self).__init__()
-                self.forward = self.forward_tensor if input_type != "scalar" else self.forward_scalar
+                self.forward = (
+                    self.forward_tensor
+                    if input_type != "scalar"
+                    else self.forward_scalar
+                )
 
             def forward_tensor(self, x):
                 return bool(x)
 
-            def forward_scalar(self, x:int):
+            def forward_scalar(self, x: int):
                 return bool(x)
 
         ref_net = None

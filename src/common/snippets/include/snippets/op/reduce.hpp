@@ -26,7 +26,9 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-    size_t get_axis() const { return m_axis; }
+    size_t get_axis() const {
+        return m_axis;
+    }
     static void compute_and_set_reduce_subtensors(const std::shared_ptr<ReduceBase>& reduce);
 
 protected:
@@ -49,6 +51,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

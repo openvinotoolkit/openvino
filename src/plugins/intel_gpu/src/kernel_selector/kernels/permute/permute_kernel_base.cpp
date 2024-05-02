@@ -3,6 +3,7 @@
 //
 
 #include "permute_kernel_base.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -19,7 +20,8 @@ bool PermuteKernelBase::Validate(const Params& p) const {
     }
 
     auto supported_dyn_layouts = {DataLayout::bfyx, DataLayout::bfzyx, DataLayout::bfwzyx};
-    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
+    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) ||
+                                         !layout_is_one_of(params.outputs, supported_dyn_layouts)))
         return false;
 
     return true;

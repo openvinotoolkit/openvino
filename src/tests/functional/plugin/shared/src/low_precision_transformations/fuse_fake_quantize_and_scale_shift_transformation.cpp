@@ -5,15 +5,16 @@
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
 #include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
+std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(
+    const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -35,10 +36,9 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
-        netPrecision,
-        inputShape,
-        fakeQuantizeOnData);
+    function = ov::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(netPrecision,
+                                                                                         inputShape,
+                                                                                         fakeQuantizeOnData);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

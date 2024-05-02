@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 enum SoftmaxVersion { V1, V8 };
-std::ostream &operator<<(std::ostream& os, const SoftmaxVersion& version);
+std::ostream& operator<<(std::ostream& os, const SoftmaxVersion& version);
 
 class SoftmaxFunction : public SnippetsFunctionBase {
 public:
@@ -32,9 +32,12 @@ protected:
 
 class AddSoftmaxFunction : public SnippetsFunctionBase {
 public:
-    explicit AddSoftmaxFunction(const std::vector<PartialShape>& inputShapes, int axis) : SnippetsFunctionBase(inputShapes), axis(axis) {
+    explicit AddSoftmaxFunction(const std::vector<PartialShape>& inputShapes, int axis)
+        : SnippetsFunctionBase(inputShapes),
+          axis(axis) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     int axis;
@@ -42,10 +45,15 @@ protected:
 
 class TransposeSoftmaxFunction : public SnippetsFunctionBase {
 public:
-    explicit TransposeSoftmaxFunction(const std::vector<PartialShape>& inputShapes, const std::vector<int64_t>& order, const int64_t axis)
-            : SnippetsFunctionBase(inputShapes), m_order(order), m_axis(axis) {
+    explicit TransposeSoftmaxFunction(const std::vector<PartialShape>& inputShapes,
+                                      const std::vector<int64_t>& order,
+                                      const int64_t axis)
+        : SnippetsFunctionBase(inputShapes),
+          m_order(order),
+          m_axis(axis) {
         OPENVINO_ASSERT(input_shapes.size() > 0, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
@@ -55,8 +63,11 @@ protected:
 
 class TransposeSoftmaxEltwiseFunction : public TransposeSoftmaxFunction {
 public:
-    explicit TransposeSoftmaxEltwiseFunction(const std::vector<PartialShape>& inputShapes, const std::vector<int64_t>& order, const int64_t axis)
-            : TransposeSoftmaxFunction(inputShapes, order, axis) {}
+    explicit TransposeSoftmaxEltwiseFunction(const std::vector<PartialShape>& inputShapes,
+                                             const std::vector<int64_t>& order,
+                                             const int64_t axis)
+        : TransposeSoftmaxFunction(inputShapes, order, axis) {}
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include "pass/softmax_decomposition.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/common_utils.hpp"
-#include "subgraph_softmax.hpp"
 #include "subgraph_lowered.hpp"
+#include "subgraph_softmax.hpp"
 
 namespace ov {
 namespace test {
@@ -56,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SoftmaxDecomposition_negative_axis,
                                             ::testing::Values(SoftmaxVersion::V8)),
                          SoftmaxDecompositionTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

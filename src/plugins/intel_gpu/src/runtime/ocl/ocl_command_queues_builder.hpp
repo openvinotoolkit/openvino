@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "ocl_common.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
+#include "ocl_common.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,8 +17,12 @@ public:
     ocl_queue_type build(const cl::Context& context, const cl::Device& device);
     void set_throttle_mode(ov::intel_gpu::hint::ThrottleLevel throttle, bool extension_support);
     void set_priority_mode(ov::hint::Priority priority, bool extension_support);
-    void set_profiling(bool flag) { _profiling = flag; }
-    void set_out_of_order(bool flag) { _out_of_order = flag; }
+    void set_profiling(bool flag) {
+        _profiling = flag;
+    }
+    void set_out_of_order(bool flag) {
+        _out_of_order = flag;
+    }
     void set_supports_queue_families(bool extension_support);
 
 private:

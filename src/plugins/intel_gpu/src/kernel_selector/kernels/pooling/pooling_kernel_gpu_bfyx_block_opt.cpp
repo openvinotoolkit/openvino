@@ -37,25 +37,25 @@ PoolingKernelBase::DispatchData PoolingKernelGPUBfyxBlockOpt::SetDefault(const p
     return dispatchData;
 }
 
-JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKernelGPUBfyxBlockOpt::GetJitConstants(const pooling_params& params,
+                                                           DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(
-        MakeJitConstant("BLOCK_SIZE_Y", params.poolSize.y + params.poolSize.y * params.poolStride.y - 1));
+    jit.AddConstant(MakeJitConstant("BLOCK_SIZE_Y", params.poolSize.y + params.poolSize.y * params.poolStride.y - 1));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "f", "y + i", "x"},
-                                     "pool_result",
-                                     input_dt,
-                                     1,
-                                     LoadType::LT_UNALIGNED,
-                                     BoundaryCheck::ENABLED,
-                                     IndexType::TENSOR_COORD,
-                                     Tensor::DataChannelName::Y};
+                                      {"b", "f", "y + i", "x"},
+                                      "pool_result",
+                                      input_dt,
+                                      1,
+                                      LoadType::LT_UNALIGNED,
+                                      BoundaryCheck::ENABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::Y};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

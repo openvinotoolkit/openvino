@@ -3,15 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-
 from functools import partial, singledispatchmethod
-from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
-
-from openvino.runtime import Node, Output, Extension
-
+from openvino.runtime import Extension, Node, Output
 from openvino.runtime.exceptions import UserInputError
 
 DEFAULT_OPSET = "opset13"
@@ -48,7 +45,9 @@ class NodeFactory(object):
             return node
 
         if arguments is None and attributes is not None:
-            raise UserInputError(f'Error: cannot create "{op_type_name}" op without arguments.')
+            raise UserInputError(
+                f'Error: cannot create "{op_type_name}" op without arguments.'
+            )
 
         if attributes is None:
             attributes = {}
@@ -61,7 +60,9 @@ class NodeFactory(object):
         return node
 
     @singledispatchmethod
-    def add_extension(self, extension: Union[Path, str, Extension, List[Extension]]) -> None:
+    def add_extension(
+        self, extension: Union[Path, str, Extension, List[Extension]]
+    ) -> None:
         raise TypeError(f"Unknown argument type: {type(extension)}")
 
     @add_extension.register(Path)

@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,29 +21,58 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
 
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weights = engine.allocate_memory(weight_layout);
-    set_values<ov::float16>(weights, {
-            1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 1.0f,
-            //
-            2.0f, 2.0f, 2.0f,
-            2.0f, 2.0f, 2.0f,
-            2.0f, 2.0f, 2.0f,
-            //
-            3.0f, 3.0f, 3.0f,
-            3.0f, 3.0f, 3.0f,
-            3.0f, 3.0f, 3.0f,
-    });
+    set_values<ov::float16>(weights,
+                            {
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                1.0f,
+                                //
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                2.0f,
+                                //
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                                3.0f,
+                            });
 
     layout in_layout = layout{ov::PartialShape{1, 3, 2, 2}, data_types::f32, format::bfyx};
     auto input_mem = engine.allocate_memory(in_layout);
-    set_values(input_mem, {11.0f,  11.0f, 11.0f, 11.0f,
-                           11.0f,  11.0f, 11.0f, 11.0f,
-                           11.0f,  11.0f, 11.0f, 11.0f});
-    std::vector<float> ref = { 77.0f,  143.0f, 143.0f, 77.0f,
-                               143.0f, 275.0f, 275.0f, 143.0f,
-                               143.0f, 275.0f, 275.0f, 143.0f,
-                               77.0f,  143.0f, 143.0f, 77.0f };
+    set_values(input_mem, {11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f, 11.0f});
+    std::vector<float> ref = {77.0f,
+                              143.0f,
+                              143.0f,
+                              77.0f,
+                              143.0f,
+                              275.0f,
+                              275.0f,
+                              143.0f,
+                              143.0f,
+                              275.0f,
+                              275.0f,
+                              143.0f,
+                              77.0f,
+                              143.0f,
+                              143.0f,
+                              77.0f};
 
     auto const1 = engine.allocate_memory(layout{ov::PartialShape({1, 1, 1, 1}), data_types::f32, format::bfyx});
     set_values(const1, {11.0f});
@@ -58,17 +85,22 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
                       data("weights", weights),
                       data("const1", const1),
                       data("const2", const2),
-                      reorder("reorder", input_info("input"), format::bfyx, data_types::f16,
-                      values_to_subtract, reorder_mean_mode::subtract, padding{{0, 0, 2, 2}, 0}),
+                      reorder("reorder",
+                              input_info("input"),
+                              format::bfyx,
+                              data_types::f16,
+                              values_to_subtract,
+                              reorder_mean_mode::subtract,
+                              padding{{0, 0, 2, 2}, 0}),
                       convolution("conv",
                                   input_info("reorder"),
                                   "weights",
-                                  "",     /*bias*/
+                                  "", /*bias*/
                                   1,
                                   {1, 1}, /*stride*/
                                   {1, 1}, /*dilation*/
-                                  {2, 2},  /*pad_above*/
-                                  {2, 2},  /*pad_below*/
+                                  {2, 2}, /*pad_above*/
+                                  {2, 2}, /*pad_below*/
                                   false,
                                   ov::op::PadType::EXPLICIT,
                                   padding{{0, 0, 0, 0}, 0}),
@@ -90,4 +122,4 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
         ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }
-}  // is_valid_fusion_tests
+}  // namespace is_valid_fusion_tests

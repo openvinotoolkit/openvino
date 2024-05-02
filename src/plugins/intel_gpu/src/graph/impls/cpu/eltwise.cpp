@@ -2,35 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
 #include "eltwise_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
+#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-#include "openvino/op/logical_and.hpp"
-#include "openvino/op/logical_or.hpp"
-#include "openvino/op/logical_xor.hpp"
-#include "openvino/op/xor.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/floor_mod.hpp"
-#include "openvino/op/mod.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/xor.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -79,7 +77,8 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "eltwise::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -157,11 +156,12 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             case eltwise_mode::is_inf: {
                 auto is_inf_op = std::make_shared<ov::op::v10::IsInf>();
 
-                OPENVINO_ASSERT(coefficients.size() == 2, "[GPU] Incorrect configuration of eltwise is_inf_op operation. ",
-                                                          "Expected number of coefficients is 2, but got ", coefficients.size());
+                OPENVINO_ASSERT(coefficients.size() == 2,
+                                "[GPU] Incorrect configuration of eltwise is_inf_op operation. ",
+                                "Expected number of coefficients is 2, but got ",
+                                coefficients.size());
 
-                is_inf_op->set_attributes({ static_cast<bool>(coefficients[0]),
-                                            static_cast<bool>(coefficients[1]) });
+                is_inf_op->set_attributes({static_cast<bool>(coefficients[0]), static_cast<bool>(coefficients[1])});
                 op = is_inf_op;
                 break;
             }
@@ -169,7 +169,9 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
                 op = std::make_shared<ov::op::v10::IsNaN>();
                 break;
             default:
-                OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (", static_cast<size_t>(mode), ")");
+                OPENVINO_THROW("[GPU] Couldn't create eltwise operation: unsupported eltwise operation (",
+                               static_cast<size_t>(mode),
+                               ")");
             }
         }
 
@@ -182,12 +184,14 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute eltwise primitive with id ", instance.id());
+                        "[GPU] Couldn't execute eltwise primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -203,7 +207,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -212,7 +216,6 @@ public:
         return make_unique<eltwise_impl>();
     }
 };
-
 
 namespace detail {
 

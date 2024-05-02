@@ -17,8 +17,8 @@ def main():
 
     # Create the graph and model
     with tf.compat.v1.Session() as sess:
-        x = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name='x')
-        y = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name='y')
+        x = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name="x")
+        y = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name="y")
         tf.raw_ops.AddV2(x=x, y=y)
         shape1 = tf.raw_ops.Shape(input=x)
         shape2 = tf.raw_ops.Shape(input=y)
@@ -31,7 +31,12 @@ def main():
         tf.compat.v1.global_variables_initializer()
         tf_net = sess.graph_def
 
-    tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "model_with_assert"), "model_with_assert.pb", False)
+    tf.io.write_graph(
+        tf_net,
+        os.path.join(sys.argv[1], "model_with_assert"),
+        "model_with_assert.pb",
+        False,
+    )
 
 
 if __name__ == "__main__":

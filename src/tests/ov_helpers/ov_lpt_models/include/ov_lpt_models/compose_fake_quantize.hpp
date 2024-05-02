@@ -14,12 +14,11 @@ namespace subgraph {
 
 class ComposeFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type precision,
-        const ov::Shape& inputShape,
-        const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
-        const ov::builder::subgraph::DequantizationOperations& dequantization1,
-        const ov::builder::subgraph::DequantizationOperations& dequantization2);
+    static std::shared_ptr<ov::Model> get(const ov::element::Type precision,
+                                          const ov::Shape& inputShape,
+                                          const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+                                          const ov::builder::subgraph::DequantizationOperations& dequantization1,
+                                          const ov::builder::subgraph::DequantizationOperations& dequantization2);
 };
 
 }  // namespace subgraph

@@ -13,17 +13,16 @@
 
 namespace ov {
 namespace test {
-using spaceToDepthParamsTuple = typename std::tuple<
-        std::vector<InputShape>,                        // Input shape
-        ov::element::Type,                              // Model type
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode,     // Mode
-        std::size_t,                                    // Block size
-        std::string>;                                   // Device name
+using spaceToDepthParamsTuple = typename std::tuple<std::vector<InputShape>,                     // Input shape
+                                                    ov::element::Type,                           // Model type
+                                                    ov::op::v0::SpaceToDepth::SpaceToDepthMode,  // Mode
+                                                    std::size_t,                                 // Block size
+                                                    std::string>;                                // Device name
 
 class SpaceToDepthLayerTest : public testing::WithParamInterface<spaceToDepthParamsTuple>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple>& obj);
 
 protected:
     void SetUp() override;

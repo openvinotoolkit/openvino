@@ -4,27 +4,37 @@
 import numpy as np
 
 from openvino.tools.mo.front.caffe.extractors.utils import get_canonical_axis_index
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension,
+    is_fully_defined,
+    shape_array,
+)
 from openvino.tools.mo.ops.op import PermuteAttrs
 from openvino.tools.mo.utils.error import Error
 
 
 def concat_infer(node):
-    node_name = node.soft_get('name', node.id)
-    if not node.has('axis'):
+    node_name = node.soft_get("name", node.id)
+    if not node.has("axis"):
         N = node.N
         axis_input = node.in_node(N)
-        if axis_input.has_valid('value') and axis_input.value.size == 1:
-            node['axis'] = axis_input.value.item()
-            node.graph.remove_edge(axis_input.node, node.node)  # TODO add skip attribute instead of deleting
+        if axis_input.has_valid("value") and axis_input.value.size == 1:
+            node["axis"] = axis_input.value.item()
+            node.graph.remove_edge(
+                axis_input.node, node.node
+            )  # TODO add skip attribute instead of deleting
         else:
-            raise Error('Input with value is not specified for node "{}"'.format(node_name))
+            raise Error(
+                'Input with value is not specified for node "{}"'.format(node_name)
+            )
     else:
         N = len(node.in_nodes())
 
     shapes = [node.in_node(i).shape for i in range(N)]
     if any(s is None for s in shapes):
-        raise Error('One of the input shapes is not defined for node "{}"'.format(node_name))
+        raise Error(
+            'One of the input shapes is not defined for node "{}"'.format(node_name)
+        )
 
     shape = shape_array(shapes[0])
 
@@ -39,7 +49,11 @@ def concat_infer(node):
         if np.ma.allequal(shape[not_mask], s[not_mask]):
             shape[mask] += s[mask]
         else:
-            raise Error('Concat input shapes do not match for node "{}" with axis {}'.format(node_name, axis))
+            raise Error(
+                'Concat input shapes do not match for node "{}" with axis {}'.format(
+                    node_name, axis
+                )
+            )
 
     #  dynamic dimensions in the output (except the concat axis) can be deduced from input shape
     for pos in range(len(shape)):
@@ -49,7 +63,7 @@ def concat_infer(node):
                     shape[pos] = in_shape[pos]
 
     node.out_port(0).data.set_shape(shape)
-    PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+    PermuteAttrs.create_permute_attrs(node, attrs=[("axis", "input:0")])
 
     values = [node.in_node(i).value for i in range(N)]
     if any([v is None for v in values]):
@@ -62,7 +76,11 @@ def concat_infer(node):
             output_dtype = input.dtype
 
     if any(not is_fully_defined(v) for v in values):
-        node.out_port(0).data.set_value(np.ma.concatenate(values, axis=node.axis).astype(output_dtype))
+        node.out_port(0).data.set_value(
+            np.ma.concatenate(values, axis=node.axis).astype(output_dtype)
+        )
     else:  # there is a serious performance benefit to use concatenation as it is implemented below
-        node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(values[0].dtype, copy=False)
+        node.out_node(0).value = np.concatenate(values, axis=node.axis).astype(
+            values[0].dtype, copy=False
+        )
         node.out_node(0).shape = shape_array(node.out_node(0).value.shape)

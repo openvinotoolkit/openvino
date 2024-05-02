@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
+#include <cstddef>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
-#include <intel_gpu/primitives/data.hpp>
-#include "quantize_inst.h"
 
-#include <cstddef>
+#include "quantize_inst.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -18,72 +17,50 @@ using namespace ::tests;
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                        -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                -1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(input_high, { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(output_low,  { -1.0f });
-    set_values(output_high, {  1.0f });
+    set_values(input_low,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(input_high,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(output_low, {-1.0f});
+    set_values(output_high, {1.0f});
 
     // 0 1 1 0  0 0 0 0  0 0 0 0  0 1 1 1
     // 1 1 1 1  0 1 0 0  0 0 1 1  0 1 1 1
     // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
     // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
-    std::vector<float> ref_data = { -1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                     1,  1,  1,  1,
-                                     1,  1, -1, -1,
-                                     1,  1,  1,  1 };
+    std::vector<float> ref_data = {-1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1,
+                                   -1, -1, -1, -1, -1, 1,  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                                   -1, -1, -1, -1, -1, -1, -1, -1, -1, 1,  -1, -1, -1, 1,  -1, -1,
+                                   -1, -1, -1, -1, 1,  1,  1,  1,  1,  1,  -1, -1, 1,  1,  1,  1};
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          2,
+                          data_types::f32));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -106,48 +83,41 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_thresh = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_thresh,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                                4.0f, 5.0f, 6.0f, 7.0f });
+    set_values(input_thresh, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
 
-    set_values(output_low,  { -1.0f });
-    set_values(output_high, {  1.0f });
+    set_values(output_low, {-1.0f});
+    set_values(output_high, {1.0f});
 
     // 0 1 1 0  0 0 0 0  0 0 0 0  0 1 1 1
     // 1 1 1 1  0 1 0 0  0 0 1 1  0 1 1 1
     // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
     // 1 1 1 0  0 0 0 0  0 0 0 0  0 1 0 1
-    std::vector<float> ref_data = { -1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                     1,  1,  1,  1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1 };
+    std::vector<float> ref_data = {-1, 1,  1,  1,  1,  1, 1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1,
+                                   -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_thresh),
-        data("input_high", input_thresh),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_thresh),
+                 data("input_high", input_thresh),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          2,
+                          data_types::f32));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -170,62 +140,44 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                        -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                -1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 4.0f });
-    set_values(input_high, { 4.0f });
-    set_values(output_low,  { -1.0f });
-    set_values(output_high, {  1.0f });
+    set_values(input_low, {4.0f});
+    set_values(input_high, {4.0f});
+    set_values(output_low, {-1.0f});
+    set_values(output_high, {1.0f});
 
-    std::vector<float> ref_data = { -1, -1, -1, -1,
-                                     1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1, -1, -1, -1,
-                                     1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1,  1, -1, -1,
-                                    -1, -1, -1, -1 };
+    std::vector<float> ref_data = {-1, -1, -1, -1, 1,  -1, -1, -1, -1, 1, -1, -1, -1, 1,  -1, -1,
+                                   -1, -1, -1, -1, -1, 1,  -1, -1, -1, 1, -1, -1, -1, -1, -1, -1,
+                                   -1, -1, -1, -1, 1,  -1, -1, -1, -1, 1, -1, -1, -1, 1,  -1, -1,
+                                   -1, -1, -1, -1, -1, 1,  -1, -1, -1, 1, -1, -1, -1, -1, -1, -1};
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          2,
+                          data_types::f32));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -248,73 +200,51 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
 TEST(quantize_gpu, quantize_levels_3) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                        -1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                -1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(input_high, { 0.0f, 4.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 1.0f });
+    set_values(input_low,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(input_high,
+               {0.0f, 4.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(output_low, {0.0f});
+    set_values(output_high, {1.0f});
 
     std::vector<float> ref_data = {
-            0.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 0.5f, 0.5f, 0.5f,
-            1.0f, 1.0f, 1.0f, 1.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
 
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
 
-            0.0f, 0.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 1.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
     };
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 3, data_types::f32)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          3,
+                          data_types::f32));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -338,74 +268,65 @@ TEST(quantize_gpu, quantize_levels_3) {
 TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.1f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                         1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                1.0f,  2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(input_high, { 10.0f, 21.0f, 32.0f, 43.0f,
-                             54.0f, 65.0f, 76.0f, 87.0f,
-                             87.0f, 76.0f, 65.0f, 54.0f,
-                             43.0f, 32.0f, 21.0f, 10.0f });
+    set_values(input_low,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(input_high,
+               {10.0f,
+                21.0f,
+                32.0f,
+                43.0f,
+                54.0f,
+                65.0f,
+                76.0f,
+                87.0f,
+                87.0f,
+                76.0f,
+                65.0f,
+                54.0f,
+                43.0f,
+                32.0f,
+                21.0f,
+                10.0f});
 
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 255.0f });
+    set_values(output_low, {0.0f});
+    set_values(output_high, {255.0f});
 
-    std::vector<uint8_t> ref_data = {
-            0, 54, 77, 102,
-            51, 13, 13, 26,
-            17, 34, 8, 8,
-            0, 13, 0, 0,
+    std::vector<uint8_t> ref_data = {0, 54, 77, 102, 51, 13, 13, 26, 17, 34, 8, 8, 0,  13, 0,  0,
 
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
+                                     0, 0,  0,  0,   0,  4,  0,  0,  0,  0,  0, 0, 0,  0,  0,  0,
 
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 5, 0, 0,
+                                     0, 0,  0,  0,   0,  0,  0,  0,  0,  4,  0, 0, 0,  5,  0,  0,
 
-            0, 0, 0, 0,
-            17, 34, 8, 8,
-            26, 51, 0, 0,
-            26, 26, 26, 26
-    };
+                                     0, 0,  0,  0,   17, 34, 8,  8,  26, 51, 0, 0, 26, 26, 26, 26};
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          256,
+                          data_types::u8));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -429,75 +350,66 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
 TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     cldnn::engine& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 16, 2, 1, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.1f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                         1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                1.0f,  2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(input_high, { 10.0f, 21.0f, 32.0f, 43.0f,
-                             54.0f, 65.0f, 76.0f, 87.0f,
-                             87.0f, 76.0f, 65.0f, 54.0f,
-                             43.0f, 32.0f, 21.0f, 10.0f });
+    set_values(input_low,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(input_high,
+               {10.0f,
+                21.0f,
+                32.0f,
+                43.0f,
+                54.0f,
+                65.0f,
+                76.0f,
+                87.0f,
+                87.0f,
+                76.0f,
+                65.0f,
+                54.0f,
+                43.0f,
+                32.0f,
+                21.0f,
+                10.0f});
 
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 255.0f });
+    set_values(output_low, {0.0f});
+    set_values(output_high, {255.0f});
 
-    std::vector<uint8_t> ref_data = {
-            0, 54, 77, 102,
-            51, 13, 13, 26,
-            17, 34, 8, 8,
-            0, 13, 0, 0,
+    std::vector<uint8_t> ref_data = {0, 54, 77, 102, 51, 13, 13, 26, 17, 34, 8, 8, 0,  13, 0,  0,
 
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
+                                     0, 0,  0,  0,   0,  4,  0,  0,  0,  0,  0, 0, 0,  0,  0,  0,
 
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 5, 0, 0,
+                                     0, 0,  0,  0,   0,  0,  0,  0,  0,  4,  0, 0, 0,  5,  0,  0,
 
-            0, 0, 0, 0,
-            17, 34, 8, 8,
-            26, 51, 0, 0,
-            26, 26, 26, 26
-    };
+                                     0, 0,  0,  0,   17, 34, 8,  8,  26, 51, 0, 0, 26, 26, 26, 26};
 
     topology topology;
-    topology.add(
-        input_layout("input", input->get_layout()),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8),
-        reorder("out", input_info("quantize"), format::bfzyx, data_types::u8)
-    );
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          256,
+                          data_types::u8),
+                 reorder("out", input_info("quantize"), format::bfzyx, data_types::u8));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -521,77 +433,68 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
 TEST(quantize_gpu, dynamic) {
     auto& engine = get_test_engine();
 
-    auto input       = engine.allocate_memory({ { 1, 16, 2, 2 }, data_types::f32, format::bfyx });
-    auto input_low   = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
-    auto input_high  = engine.allocate_memory({ { 1, 16, 1, 1 }, data_types::f32, format::bfyx });
-    auto output_low  = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
-    auto output_high = engine.allocate_memory({ { 1, 1,  1, 1 }, data_types::f32, format::bfyx });
+    auto input = engine.allocate_memory({{1, 16, 2, 2}, data_types::f32, format::bfyx});
+    auto input_low = engine.allocate_memory({{1, 16, 1, 1}, data_types::f32, format::bfyx});
+    auto input_high = engine.allocate_memory({{1, 16, 1, 1}, data_types::f32, format::bfyx});
+    auto output_low = engine.allocate_memory({{1, 1, 1, 1}, data_types::f32, format::bfyx});
+    auto output_high = engine.allocate_memory({{1, 1, 1, 1}, data_types::f32, format::bfyx});
 
-    layout in_dyn_layout { ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    layout in_dyn_layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
 
-    set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+    set_values(input,
+               {-1.0f, 2.1f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f,
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                         1.0f, 2.0f, 3.0f, 4.0f,
-                         5.0f, 2.0f, 2.0f, 3.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
+                1.0f,  2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f,
 
-                         1.0f, 1.0f, 1.0f, 1.0f,
-                         4.0f, 6.0f, 3.0f, 3.0f,
-                         3.0f, 5.0f, 1.0f, 1.0f,
-                         1.0f, 1.0f, 1.0f, 1.0f });
+                1.0f,  1.0f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
-    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
-                             4.0f, 5.0f, 6.0f, 7.0f,
-                             7.0f, 6.0f, 5.0f, 4.0f,
-                             3.0f, 2.0f, 1.0f, 0.0f });
-    set_values(input_high, { 10.0f, 21.0f, 32.0f, 43.0f,
-                             54.0f, 65.0f, 76.0f, 87.0f,
-                             87.0f, 76.0f, 65.0f, 54.0f,
-                             43.0f, 32.0f, 21.0f, 10.0f });
+    set_values(input_low,
+               {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f});
+    set_values(input_high,
+               {10.0f,
+                21.0f,
+                32.0f,
+                43.0f,
+                54.0f,
+                65.0f,
+                76.0f,
+                87.0f,
+                87.0f,
+                76.0f,
+                65.0f,
+                54.0f,
+                43.0f,
+                32.0f,
+                21.0f,
+                10.0f});
 
-    set_values(output_low,  { 0.0f });
-    set_values(output_high, { 255.0f });
+    set_values(output_low, {0.0f});
+    set_values(output_high, {255.0f});
 
-    std::vector<uint8_t> ref_data = {
-            0, 54, 77, 102,
-            51, 13, 13, 26,
-            17, 34, 8, 8,
-            0, 13, 0, 0,
+    std::vector<uint8_t> ref_data = {0, 54, 77, 102, 51, 13, 13, 26, 17, 34, 8, 8, 0,  13, 0,  0,
 
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0,
+                                     0, 0,  0,  0,   0,  4,  0,  0,  0,  0,  0, 0, 0,  0,  0,  0,
 
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 4, 0, 0,
-            0, 5, 0, 0,
+                                     0, 0,  0,  0,   0,  0,  0,  0,  0,  4,  0, 0, 0,  5,  0,  0,
 
-            0, 0, 0, 0,
-            17, 34, 8, 8,
-            26, 51, 0, 0,
-            26, 26, 26, 26
-    };
+                                     0, 0,  0,  0,   17, 34, 8,  8,  26, 51, 0, 0, 26, 26, 26, 26};
 
     topology topology;
-    topology.add(
-        input_layout("input", in_dyn_layout),
-        data("input_low", input_low),
-        data("input_high", input_high),
-        data("output_low", output_low),
-        data("output_high", output_high),
-        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 255, data_types::u8)
-    );
+    topology.add(input_layout("input", in_dyn_layout),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          255,
+                          data_types::u8));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -621,10 +524,10 @@ TEST(quantize_gpu, dynamic) {
 }
 
 struct quantize_random_test_params {
-    data_types  input_type;
-    data_types  output_type;
+    data_types input_type;
+    data_types output_type;
 
-    tensor      input_size;
+    tensor input_size;
 
     format::type in_format;
     format::type out_format;
@@ -632,8 +535,7 @@ struct quantize_random_test_params {
     int32_t inputs_num;  // 5: ref
 };
 
-struct quantize_random_test : testing::TestWithParam<quantize_random_test_params>
-{
+struct quantize_random_test : testing::TestWithParam<quantize_random_test_params> {
     tests::random_generator rg;
 
     void SetUp() override {
@@ -743,38 +645,43 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         auto input = engine.allocate_memory(in_layout);
         fill_random(input);
 
-        auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_high = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+        auto input_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto input_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto output_low = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto output_high = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
         // For quantize_gpu_scale_shift_opt
-        auto input_scale   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto input_shift   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_scale  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-        auto output_shift  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+        auto input_scale = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto input_shift = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto output_scale = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
+        auto output_shift = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
-        set_values(input_low,  { 0.0f });
-        set_values(input_high, { 40.0f });
-        set_values(output_low,  { 0.0f });
-        set_values(output_high, { 255.0f });
+        set_values(input_low, {0.0f});
+        set_values(input_high, {40.0f});
+        set_values(output_low, {0.0f});
+        set_values(output_high, {255.0f});
 
-        set_values(input_scale, { 2.0f });
-        set_values(input_shift, { 4.0f });
-        set_values(output_scale, { 2.0f });
-        set_values(output_shift, { 4.0f });
+        set_values(input_scale, {2.0f});
+        set_values(input_shift, {4.0f});
+        set_values(output_scale, {2.0f});
+        set_values(output_shift, {4.0f});
 
         // Execute quantize_gpu_ref
         cldnn::topology topo;
         if (params.inputs_num == 5) {
-            topo.add(
-                input_layout("input", input->get_layout()),
-                data("input_low", input_low),
-                data("input_high", input_high),
-                data("output_low", output_low),
-                data("output_high", output_high),
-                quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, params.output_type)
-            );
+            topo.add(input_layout("input", input->get_layout()),
+                     data("input_low", input_low),
+                     data("input_high", input_high),
+                     data("output_low", output_low),
+                     data("output_high", output_high),
+                     quantize("quantize",
+                              input_info("input"),
+                              input_info("input_low"),
+                              input_info("input_high"),
+                              input_info("output_low"),
+                              input_info("output_high"),
+                              256,
+                              params.output_type));
         } else {
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
@@ -804,20 +711,24 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
         cldnn::topology topo_opt;
         if (params.inputs_num == 5) {
-            topo_opt.add(
-                input_layout("input_opt", input_opt->get_layout()),
-                reorder("input_re", input_info("input_opt"), format::bfyx, params.input_type),
-                data("input_low", input_low),
-                data("input_high", input_high),
-                data("output_low", output_low),
-                data("output_high", output_high),
-                quantize("quantize_opt", input_info("input_re"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, params.output_type),
-                reorder("out", input_info("quantize_opt"), params.out_format, params.output_type)
-            );
+            topo_opt.add(input_layout("input_opt", input_opt->get_layout()),
+                         reorder("input_re", input_info("input_opt"), format::bfyx, params.input_type),
+                         data("input_low", input_low),
+                         data("input_high", input_high),
+                         data("output_low", output_low),
+                         data("output_high", output_high),
+                         quantize("quantize_opt",
+                                  input_info("input_re"),
+                                  input_info("input_low"),
+                                  input_info("input_high"),
+                                  input_info("output_low"),
+                                  input_info("output_high"),
+                                  256,
+                                  params.output_type),
+                         reorder("out", input_info("quantize_opt"), params.out_format, params.output_type));
         } else {
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
-
 
         network net_opt(engine, topo_opt, get_test_default_config(engine));
         net_opt.set_input_data("input_opt", input_opt);
@@ -843,9 +754,23 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 };
 
 struct quantize_random_test_param_generator : std::vector<quantize_random_test_params> {
-    quantize_random_test_param_generator& simple_params(data_types input_type, data_types output_type, format::type input_format, format::type output_format, int32_t inputs_num) {
-        push_back(quantize_random_test_params{ input_type, output_type, {1, 32, 2, 2}, input_format, output_format, inputs_num});
-        push_back(quantize_random_test_params{ input_type, output_type, {1, 16, 10, 10}, input_format, output_format, inputs_num});
+    quantize_random_test_param_generator& simple_params(data_types input_type,
+                                                        data_types output_type,
+                                                        format::type input_format,
+                                                        format::type output_format,
+                                                        int32_t inputs_num) {
+        push_back(quantize_random_test_params{input_type,
+                                              output_type,
+                                              {1, 32, 2, 2},
+                                              input_format,
+                                              output_format,
+                                              inputs_num});
+        push_back(quantize_random_test_params{input_type,
+                                              output_type,
+                                              {1, 16, 10, 10},
+                                              input_format,
+                                              output_format,
+                                              inputs_num});
         return *this;
     }
 };
@@ -855,13 +780,17 @@ TEST_P(quantize_random_test, random) {
     execute_compare(param, true, false);
 }
 
-INSTANTIATE_TEST_SUITE_P(quantize_smoke,
-                        quantize_random_test,
-                        testing::ValuesIn(
-                            quantize_random_test_param_generator()
-                            .simple_params(data_types::f32, data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5)
-                            .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
-                        ));
+INSTANTIATE_TEST_SUITE_P(
+    quantize_smoke,
+    quantize_random_test,
+    testing::ValuesIn(
+        quantize_random_test_param_generator()
+            .simple_params(data_types::f32,
+                           data_types::u8,
+                           format::bs_fs_yx_bsv32_fsv32,
+                           format::bs_fs_yx_bsv32_fsv32,
+                           5)
+            .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(quantize_random_test, random_cached) {
@@ -877,8 +806,11 @@ TEST_P(quantize_random_test_cached, random) {
 }
 
 INSTANTIATE_TEST_SUITE_P(quantize_smoke,
-                        quantize_random_test_cached,
-                        testing::Values(
-                            quantize_random_test_params{ data_types::f32, data_types::u8, {1, 16, 10, 10}, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5}
-                        ));
+                         quantize_random_test_cached,
+                         testing::Values(quantize_random_test_params{data_types::f32,
+                                                                     data_types::u8,
+                                                                     {1, 16, 10, 10},
+                                                                     format::bs_fs_yx_bsv32_fsv32,
+                                                                     format::bs_fs_yx_bsv32_fsv32,
+                                                                     5}));
 #endif

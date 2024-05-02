@@ -4,17 +4,16 @@
 
 #include "low_precision/mat_mul.hpp"
 
-#include <numeric>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
+#include "itt.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "openvino/util/log.hpp"
-#include "itt.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -25,7 +24,8 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
     auto mul1 = pattern::wrap_type<ov::opset1::Multiply>();
     auto mul2 = pattern::wrap_type<ov::opset1::Multiply>();
     auto fq2 = pattern::wrap_type<ov::opset1::FakeQuantize>();
-    auto matcher = pattern::wrap_type<ov::opset1::MatMul>({ mul1, std::make_shared<pass::pattern::op::Or>(OutputVector{ mul2, fq2 })});
+    auto matcher = pattern::wrap_type<ov::opset1::MatMul>(
+        {mul1, std::make_shared<pass::pattern::op::Or>(OutputVector{mul2, fq2})});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,7 +39,7 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
     this->register_matcher(m, callback);
 }
 
-bool MatMulTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool MatMulTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(m.get_match_root());
     if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
         return false;
@@ -56,21 +56,19 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
             const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fakeQuantize);
-            const auto precisions = precisionsAttribute.empty() ?
-                defaultPrecisions :
-                precisionsAttribute.as<PrecisionsAttribute>().value();
+            const auto precisions =
+                precisionsAttribute.empty() ? defaultPrecisions : precisionsAttribute.as<PrecisionsAttribute>().value();
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
             if (dataPrecision.empty()) {
                 return false;
             }
 
-            auto tuple = NetworkHelper::decomposeFakeQuantize(
-                fakeQuantize,
-                dataPrecision.precision,
-                dataPrecision.min,
-                dataPrecision.max,
-                dataPrecision.hasZeroPoint,
-                updatePrecisions);
+            auto tuple = NetworkHelper::decomposeFakeQuantize(fakeQuantize,
+                                                              dataPrecision.precision,
+                                                              dataPrecision.min,
+                                                              dataPrecision.max,
+                                                              dataPrecision.hasZeroPoint,
+                                                              updatePrecisions);
 
             dequantization2 = NetworkHelper::getDequantization(matMul, defaultPrecisions, 1);
         }
@@ -82,7 +80,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     }
 
     const std::shared_ptr<ov::opset1::MatMul> newMatMul = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MatMul>>(
-        std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
+        std::vector<element::Type>({deqPrecision, deqPrecision}),
+        std::vector<element::Type>({deqPrecision}),
         ov::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
         ov::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
         matMul->get_transpose_a(),
@@ -93,33 +92,35 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
 
     // dequantization with subtract on activations & constant weights
     if (dequantization1.subtract) {
-        auto broadcastShape = NetworkHelper::isScalarLike(ov::as_type_ptr<ov::opset1::Constant>(dequantization1.subtractConstant)) ?
-            Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
-            dequantization1.subtractConstant->get_shape();
+        auto broadcastShape =
+            NetworkHelper::isScalarLike(ov::as_type_ptr<ov::opset1::Constant>(dequantization1.subtractConstant))
+                ? Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1)
+                : dequantization1.subtractConstant->get_shape();
 
         const auto weightsPShape = newMatMul->get_input_partial_shape(1);
         assert(weightsPShape.is_static());
         const auto weightsShape = weightsPShape.to_shape();
 
-        const size_t firstWeightsIdx = matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
+        const size_t firstWeightsIdx =
+            matMul->get_transpose_b() ? weightsShape.size() - 1ul : weightsShape.size() - 2ul;
         const size_t lastDataIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
         broadcastShape[lastDataIdx] = weightsShape[firstWeightsIdx];
 
         // broadcasted sub const to form [1, ..., 1, Y]
         const auto broadcastedConst = fold<ov::opset1::Broadcast>(
             dequantization1.subtractConstant,
-            ov::opset1::Constant::create(ov::element::i32, { broadcastShape.size() }, broadcastShape));
+            ov::opset1::Constant::create(ov::element::i32, {broadcastShape.size()}, broadcastShape));
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
-        const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::MatMul>(
-            foldConvert(broadcastedConst, newMatMul->get_element_type()),
-            foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
-            newMatMul->get_transpose_a(),
-            newMatMul->get_transpose_b()));
+        const auto newSubConst = NetworkHelper::toScalarIfPossible(
+            fold<ov::opset1::MatMul>(foldConvert(broadcastedConst, newMatMul->get_element_type()),
+                                     foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
+                                     newMatMul->get_transpose_a(),
+                                     newMatMul->get_transpose_b()));
 
         const auto newSubtract = std::make_shared<ov::opset1::Subtract>(newMatMul, newSubConst);
         newSubtract->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationSubtract");
-        copy_runtime_info({ newSubtract, matMul }, newSubtract);
+        copy_runtime_info({newSubtract, matMul}, newSubtract);
 
         parent = newSubtract;
     }
@@ -134,13 +135,15 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
         std::iota(transposeConstant.begin(), transposeConstant.end(), 0);
         std::swap(*(transposeConstant.end() - 1), *(transposeConstant.end() - 2));
 
-        auto order = ov::opset1::Constant::create(element::u32, Shape{ transposeConstant.size() }, transposeConstant);
+        auto order = ov::opset1::Constant::create(element::u32, Shape{transposeConstant.size()}, transposeConstant);
         std::shared_ptr<Node> transposedConstant = fold<ov::opset1::Transpose>(node, order);
         return transposedConstant;
     };
 
-    const auto mulConst1 = matMul->get_transpose_a() ? transpose(dequantization1.multiplyConstant) : dequantization1.multiplyConstant;
-    auto mulConst2 = matMul->get_transpose_b() ? transpose(dequantization2.multiplyConstant) : dequantization2.multiplyConstant;
+    const auto mulConst1 =
+        matMul->get_transpose_a() ? transpose(dequantization1.multiplyConstant) : dequantization1.multiplyConstant;
+    auto mulConst2 =
+        matMul->get_transpose_b() ? transpose(dequantization2.multiplyConstant) : dequantization2.multiplyConstant;
 
     if (NetworkHelper::isScalarLike(ov::as_type_ptr<ov::opset1::Constant>(mulConst2))) {
         mulConst2 = NetworkHelper::toScalar(ov::as_type_ptr<ov::opset1::Constant>(mulConst2));
@@ -153,26 +156,26 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
             Shape unsqueezeConstantShape(inputRank - constShape.size());
             std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
 
-            mulConst2 = fold<ov::opset1::Unsqueeze>(
-                mulConst2,
-                ov::op::v0::Constant::create(element::i32, Shape{ unsqueezeConstantShape.size() }, unsqueezeConstantShape));
+            mulConst2 = fold<ov::opset1::Unsqueeze>(mulConst2,
+                                                    ov::op::v0::Constant::create(element::i32,
+                                                                                 Shape{unsqueezeConstantShape.size()},
+                                                                                 unsqueezeConstantShape));
         }
     }
 
-    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ov::opset1::Multiply>(
-            mulConst1,
-            foldConvert(mulConst2, element::f32)));
+    const auto newMulConst =
+        NetworkHelper::toScalarIfPossible(fold<ov::opset1::Multiply>(mulConst1, foldConvert(mulConst2, element::f32)));
 
     const auto newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-        std::vector<element::Type>{ deqPrecision, deqPrecision },
-        std::vector<element::Type>{ dequantization1.multiply->get_output_element_type(0) },
+        std::vector<element::Type>{deqPrecision, deqPrecision},
+        std::vector<element::Type>{dequantization1.multiply->get_output_element_type(0)},
         ov::op::TemporaryReplaceOutputType(parent, deqPrecision).get(),
         ov::op::TemporaryReplaceOutputType(newMulConst, deqPrecision).get());
 
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
     NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
-    copy_runtime_info({ newMultiply, matMul }, newMultiply);
+    copy_runtime_info({newMultiply, matMul}, newMultiply);
 
     updateOutput(context, newMultiply, newMatMul);
 
@@ -229,7 +232,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
 
         if (dequantization2.subtract) {
-            const auto roundedConst = NetworkHelper::round(dequantization2.subtractConstant, dequantization2.data.get_element_type());
+            const auto roundedConst =
+                NetworkHelper::round(dequantization2.subtractConstant, dequantization2.data.get_element_type());
             if (!NetworkHelper::isZeroConst(roundedConst)) {
                 return false;
             }
@@ -258,9 +262,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
         const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(matMul->input(1));
-        const auto precisions = precisionsAttribute.empty() ?
-            defaultPrecisions :
-            precisionsAttribute.as<PrecisionsAttribute>().value();
+        const auto precisions =
+            precisionsAttribute.empty() ? defaultPrecisions : precisionsAttribute.as<PrecisionsAttribute>().value();
 
         const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
         if (dataPrecision.hasZeroPoint || dataPrecision.empty()) {

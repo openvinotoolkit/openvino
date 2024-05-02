@@ -5,10 +5,11 @@
 #pragma once
 
 #include <node.h>
-#include <utils/multidim_map.hpp>
+
+#include <array>
 #include <functional>
 #include <tuple>
-#include <array>
+#include <utils/multidim_map.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -35,11 +36,11 @@ private:
     void initSupportedI420Impls();
 
 private:
-    using ConverterBuilder = std::function<Converter*(Node *)>;
-    using SupportedImpls = multidim_map<impl_desc_type,                             // Implementation type
-                                        Algorithm,                                  // Algorithm: ColorConvertXXX
-                                        ov::element::Type_t,                        // element type: f32/u8
-                                        bool,                                       // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
+    using ConverterBuilder = std::function<Converter*(Node*)>;
+    using SupportedImpls = multidim_map<impl_desc_type,       // Implementation type
+                                        Algorithm,            // Algorithm: ColorConvertXXX
+                                        ov::element::Type_t,  // element type: f32/u8
+                                        bool,  // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
                                         ConverterBuilder>;
 
     std::unique_ptr<Converter> _impl;
@@ -48,10 +49,11 @@ private:
 
 class ColorConvert::Converter {
 public:
-    using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,    // Input port configurator
-                                                  std::vector<PortConfigurator>,    // Output port configurator
-                                                  impl_desc_type,                   // Implementation type
-                                                  bool>>;                           // // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
+    using PrimitiveDescs =
+        std::vector<std::tuple<std::vector<PortConfigurator>,  // Input port configurator
+                               std::vector<PortConfigurator>,  // Output port configurator
+                               impl_desc_type,                 // Implementation type
+                               bool>>;  // // true - SinglePlaneConvert, false - TwoPlaneConvert/ThreePlaneConvert
     using Shapes = std::vector<VectorDims>;
 
     static constexpr size_t N_DIM = 0;
@@ -61,20 +63,20 @@ public:
 
     using ColorFormat = std::array<uint8_t, 3>;
 
-    Converter(Node *node, const ColorFormat & colorFormat);
+    Converter(Node* node, const ColorFormat& colorFormat);
     virtual ~Converter() = default;
     ov::element::Type inputPrecision(size_t idx) const;
     ov::element::Type outputPrecision(size_t idx) const;
-    const void * input(size_t idx) const;
-    void * output(size_t idx) const;
-    const VectorDims & inputDims(size_t idx) const;
+    const void* input(size_t idx) const;
+    void* output(size_t idx) const;
+    const VectorDims& inputDims(size_t idx) const;
     virtual void execute(dnnl::stream strm) = 0;
 
 protected:
-    Node *_node;
-    ColorFormat _colorFormat;   // RGB: {0,1,2}, BGR: {2,1,0}
+    Node* _node;
+    ColorFormat _colorFormat;  // RGB: {0,1,2}, BGR: {2,1,0}
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

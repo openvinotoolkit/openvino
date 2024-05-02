@@ -6,13 +6,13 @@
 
 #include <cmath>
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
+#include "itt.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
-#include "itt.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -35,7 +35,7 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
     this->register_matcher(m, callback);
 }
 
-bool FakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
     if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
@@ -61,7 +61,7 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const Partia
     if ((shape.size() > 1ul) && (shape.size() < static_cast<size_t>(targetShape.rank().get_length()))) {
         constantOp = fold<opset1::Unsqueeze>(
             constantOp,
-            std::make_shared<opset1::Constant>(ov::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
+            std::make_shared<opset1::Constant>(ov::element::i32, Shape{1}, std::vector<size_t>({0ul})));
     }
     return constantOp;
 }
@@ -83,7 +83,8 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
         return nullptr;
     }
 
-    std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+    std::shared_ptr<opset1::Constant> constant =
+        ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
     if (constant != nullptr) {
         return constant;
     }
@@ -96,10 +97,7 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
     const auto first_input_precision = inputs.empty() ? element::undefined : inputs[0].get_element_type();
     if (!inputs.empty()) {
         const auto first_input_precision = inputs[0].get_element_type();
-        if (std::any_of(
-            inputs.begin(),
-            inputs.end(),
-            [first_input_precision](const ov::Input<ov::Node>& input) {
+        if (std::any_of(inputs.begin(), inputs.end(), [first_input_precision](const ov::Input<ov::Node>& input) {
                 return input.get_element_type() != first_input_precision;
             })) {
             return false;
@@ -113,10 +111,7 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
             return false;
         }
 
-        if (std::any_of(
-            outputs.begin(),
-            outputs.end(),
-            [first_output_precision](const ov::Output<ov::Node>& output) {
+        if (std::any_of(outputs.begin(), outputs.end(), [first_output_precision](const ov::Output<ov::Node>& output) {
                 return output.get_element_type() != first_output_precision;
             })) {
             return false;
@@ -139,7 +134,8 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
     if (shape_size(shape) != 1ul) {
         const auto eltwiseInputPShape = eltwise->get_input_partial_shape(0);
         const auto eltwiseOutputPShape = eltwise->get_output_partial_shape(0);
-        if (eltwiseInputPShape != eltwiseOutputPShape || eltwiseInputPShape.rank().is_dynamic() || eltwiseOutputPShape.rank().is_dynamic()) {
+        if (eltwiseInputPShape != eltwiseOutputPShape || eltwiseInputPShape.rank().is_dynamic() ||
+            eltwiseOutputPShape.rank().is_dynamic()) {
             return false;
         }
 
@@ -181,7 +177,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 
         const auto valueVec = ov::as_type_ptr<opset1::Constant>(value)->cast_vector<float>();
 
-        if (std::any_of(valueVec.cbegin(), valueVec.cend(), [](const float value) { return value <= 0.f; })) {
+        if (std::any_of(valueVec.cbegin(), valueVec.cend(), [](const float value) {
+                return value <= 0.f;
+            })) {
             return nullptr;
         }
 
@@ -193,20 +191,25 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         }
 
         inputLowConst_f32 = fq::updateShape(inputLowConst_f32, fakeQuantize->get_output_partial_shape(0));
-        inputHighConst_f32 =  fq::updateShape(inputHighConst_f32, fakeQuantize->get_output_partial_shape(0));
+        inputHighConst_f32 = fq::updateShape(inputHighConst_f32, fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Subtract>(eltwise) && checkElementwise(eltwise)) {
         const auto value = foldConvert(constant, element::f32);
 
-        inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
-        inputHighConst_f32 = fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
+        inputLowConst_f32 =
+            fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
+        inputHighConst_f32 =
+            fq::updateShape(fold<opset1::Add>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Add>(eltwise) && checkElementwise(eltwise) && !ov::marked_as_bias(eltwise)) {
         const auto value = foldConvert(constant, element::f32);
-        inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_partial_shape(0));
-        inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value), fakeQuantize->get_output_partial_shape(0));
+        inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value),
+                                            fakeQuantize->get_output_partial_shape(0));
+        inputHighConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHighConst_f32, value),
+                                             fakeQuantize->get_output_partial_shape(0));
     } else if (ov::is_type<opset1::Convert>(eltwise)) {
         // issue #40611
         if ((eltwise->get_input_element_type(0) == element::i32) &&
-            ((eltwise->get_output_element_type(0) == element::f16) || (eltwise->get_output_element_type(0) == element::f32))) {
+            ((eltwise->get_output_element_type(0) == element::f16) ||
+             (eltwise->get_output_element_type(0) == element::f32))) {
             return nullptr;
         }
     } else {
@@ -214,20 +217,21 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     }
 
     // issue #79980
-    const auto data = eltwise->get_input_size() == 1ul ? eltwise->get_input_node_shared_ptr(0) : fq::getDataNode(eltwise);
+    const auto data =
+        eltwise->get_input_size() == 1ul ? eltwise->get_input_node_shared_ptr(0) : fq::getDataNode(eltwise);
     const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
 
-    const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({
-        data->output(outputIdx),
-        inputLowConst_f32,
-        inputHighConst_f32,
-        foldConvert(fakeQuantize->input_value(3), element::f32),
-        foldConvert(fakeQuantize->input_value(4), element::f32) }));
+    const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(
+        fakeQuantize->clone_with_new_inputs({data->output(outputIdx),
+                                             inputLowConst_f32,
+                                             inputHighConst_f32,
+                                             foldConvert(fakeQuantize->input_value(3), element::f32),
+                                             foldConvert(fakeQuantize->input_value(4), element::f32)}));
 
     matcherPass->register_new_node(newFakeQuantize);
 
     replace_node(fakeQuantize, newFakeQuantize);
-    ov::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);
+    ov::copy_runtime_info({fakeQuantize, eltwise}, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
     return newFakeQuantize;
 }
@@ -235,6 +239,6 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
 bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
 }
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

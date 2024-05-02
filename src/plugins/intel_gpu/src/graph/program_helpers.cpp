@@ -3,23 +3,24 @@
 //
 
 #include "program_helpers.h"
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
-#include "pooling_inst.h"
+
 #include <algorithm>
+#include <sstream>
 #include <utility>
 #include <vector>
-#include <sstream>
+
+#include "data_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "pooling_inst.h"
 
 namespace cldnn {
-void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
-    const int channels,
-    const int kernel_width,
-    const int kernel_height,
-    const int scale_factor,
-    std::vector<std::vector<std::vector<float> > >& subpixel_weights) {
-
-    std::vector<std::vector<float> > weights(channels);
+void program_helpers::reshape_deconvolution_weights(const std::vector<float>& deconv_weights,
+                                                    const int channels,
+                                                    const int kernel_width,
+                                                    const int kernel_height,
+                                                    const int scale_factor,
+                                                    std::vector<std::vector<std::vector<float>>>& subpixel_weights) {
+    std::vector<std::vector<float>> weights(channels);
 
     int pad_zero_x = kernel_width % 2 == 0 ? 0 : 1;
     int pad_zero_y = kernel_height % 2 == 0 ? 0 : 1;
@@ -31,11 +32,11 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
                 int index = f * kernel_width * kernel_height + kernel_y * kernel_width + kernel_x;
                 weights[f].push_back(deconv_weights[index]);
             }
-            if (pad_zero_x == 1) {    // pad with zero on x axis
+            if (pad_zero_x == 1) {  // pad with zero on x axis
                 weights[f].push_back(0.f);
             }
         }
-        if (pad_zero_y == 1) {    // pad a line on y axis with zero
+        if (pad_zero_y == 1) {  // pad a line on y axis with zero
             for (int kernel_x = 0; kernel_x < kernel_width + pad_zero_x; ++kernel_x) {
                 weights[f].push_back(0.f);
             }
@@ -43,13 +44,13 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 
     // reshape 32 10x10 weights to 4 32 5x5 weights
-    for (int s = 0; s < scale_factor*scale_factor; ++s) {
+    for (int s = 0; s < scale_factor * scale_factor; ++s) {
         subpixel_weights[s].resize(channels);
     }
 
     const int kernel_sz = kernel_width + pad_zero_x;
 
-    auto get_row_index = [](int index, const int kernel_sz)->int {
+    auto get_row_index = [](int index, const int kernel_sz) -> int {
         bool isRowEven = (index / (kernel_sz)) % 2 == 0 ? true : false;
         bool isColEven = (index % 2) == 0 ? true : false;
         int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
@@ -74,17 +75,16 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
 }
 
 bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
-    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
-        || l.batch() > 1) {
+    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1) || l.batch() > 1) {
         return true;
     }
     return false;
 }
 
 void onednn_add_fusing_helpers::for_eltwise(
-    const program_node& node, eltwise_mode mode,
-    std::function<void(const program_node& p_node,
-                    const fused_primitive_desc& desc)> func) {
+    const program_node& node,
+    eltwise_mode mode,
+    std::function<void(const program_node& p_node, const fused_primitive_desc& desc)> func) {
     for (auto& fo : node.get_fused_primitives()) {
         if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
             func(node, fo);
@@ -92,8 +92,8 @@ void onednn_add_fusing_helpers::for_eltwise(
     }
 }
 
-add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
-    const program_node& p_node, const fused_primitive_desc& desc) {
+add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(const program_node& p_node,
+                                                               const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
     }
@@ -112,12 +112,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     }
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
-        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
-            && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
-            && p_layout.data_padding == d_layout.data_padding
-            && dep_node.get_users().size() == 1
-            && !dep_node.is_constant()
-            && !p_node.is_type<pooling>()) {
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type) &&
+            p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor() &&
+            p_layout.data_padding == d_layout.data_padding && dep_node.get_users().size() == 1 &&
+            !dep_node.is_constant() && !p_node.is_type<pooling>()) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;
@@ -126,6 +124,5 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
     return add_fusing_type::binary_per_oc;
 }
-
 
 }  // namespace cldnn

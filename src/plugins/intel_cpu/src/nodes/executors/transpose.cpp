@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include "openvino/core/parallel.hpp"
 #include "transpose.hpp"
+
+#include <vector>
+
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,27 +35,27 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     }
 
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
-        int pos = std::distance(std::find(
-                src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]), src_block_order.rend() - 1);
+        int pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
+                                src_block_order.rend() - 1);
         if (pos != -1) {
             new_src_block_strides[i] = src_block_strides[pos];
             src_block_order.erase(src_block_order.begin() + pos);
             src_block_strides.erase(src_block_strides.begin() + pos);
             mask[i] = 0;
         } else {
-            new_src_block_strides[i] = new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
+            new_src_block_strides[i] =
+                new_src_block_strides[tmp_order.size() - 1] * params.dst_block_dims[tmp_order.size() - 1];
             mask[i] = 1;
             mask[tmp_order.size() - 1] = 1;
         }
     }
     if (!src_block_order.empty()) {
         int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
-        new_src_block_strides.insert(new_src_block_strides.begin() + pos,
-                                     src_block_strides[0]);
-        new_dst_block_strides.insert(new_dst_block_strides.begin() + pos,
-                                  new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
-        new_dst_block_order.insert(new_dst_block_order.begin() + pos,
-                                   new_dst_block_order[pos]);
+        new_src_block_strides.insert(new_src_block_strides.begin() + pos, src_block_strides[0]);
+        new_dst_block_strides.insert(
+            new_dst_block_strides.begin() + pos,
+            new_dst_block_strides[pos] * params.src_block_dims[params.src_block_dims.size() - 1]);
+        new_dst_block_order.insert(new_dst_block_order.begin() + pos, new_dst_block_order[pos]);
         new_dst_block_dims.insert(new_dst_block_dims.begin() + pos + 1,
                                   params.src_block_dims[params.src_block_dims.size() - 1]);
         new_dst_block_dims[pos] = div_up(new_dst_block_dims[pos], new_dst_block_dims[pos + 1]);
@@ -107,12 +109,12 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     }
 
     int max_threads = parallel_get_max_threads();
-    const int n_max = 3;    //  max count dims for parallel
+    const int n_max = 3;  //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];
     for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
         n++;
-        if (work_amount >= 4 * max_threads) {   //  4 * max_threads is a specially selected value for best performance
+        if (work_amount >= 4 * max_threads) {  //  4 * max_threads is a specially selected value for best performance
             break;
         }
         work_amount *= sorted_dst_dims[i];
@@ -128,5 +130,5 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     return jcp;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

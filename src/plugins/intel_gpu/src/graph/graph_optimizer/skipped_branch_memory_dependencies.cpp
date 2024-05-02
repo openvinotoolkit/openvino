@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "program_node.h"
-#include "layout_optimizer.h"
-#include "intel_gpu/graph/program.hpp"
-#include "program_helpers.h"
-#include "intel_gpu/runtime/itt.hpp"
-#include <vector>
-#include <memory>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
+#include <vector>
+
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "layout_optimizer.h"
+#include "pass_manager.h"
+#include "program_helpers.h"
+#include "program_node.h"
 
 using namespace cldnn;
 

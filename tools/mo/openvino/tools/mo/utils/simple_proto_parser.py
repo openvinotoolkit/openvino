@@ -28,14 +28,16 @@ class SimpleProtoParser(object):
         :param value: string representation to be converted.
         :return: converted to a correct data type value.
         """
-        if value == 'true':
+        if value == "true":
             return True
-        if value == 'false':
+        if value == "false":
             return False
         try:
             result = ast.literal_eval(value)
             return result
-        except Exception:  # if it is not possible to evaluate the value then consider it as a string
+        except (
+            Exception
+        ):  # if it is not possible to evaluate the value then consider it as a string
             return value
 
     @staticmethod
@@ -49,7 +51,9 @@ class SimpleProtoParser(object):
             if isinstance(value, dict):
                 __class__._convert_values_to_correct_datatypes(value)
             elif isinstance(value, list):
-                d[key] = [__class__._convert_value_to_correct_datatype(item) for item in value]
+                d[key] = [
+                    __class__._convert_value_to_correct_datatype(item) for item in value
+                ]
             else:
                 d[key] = __class__._convert_value_to_correct_datatype(value)
 
@@ -63,21 +67,23 @@ class SimpleProtoParser(object):
             self._tokens.append(token)
 
     def _parse_list(self, result: list, token_ind: int):
-        prev_token = '['
+        prev_token = "["
         while token_ind < len(self._tokens):
             cur_token = self._tokens[token_ind]
-            if cur_token == ']':
+            if cur_token == "]":
                 return token_ind + 1
-            if cur_token == ',':
-                if prev_token == ',' or prev_token == '[':
-                    raise Error('Missing value in the list at position {}'.format(token_ind))
+            if cur_token == ",":
+                if prev_token == "," or prev_token == "[":
+                    raise Error(
+                        "Missing value in the list at position {}".format(token_ind)
+                    )
             else:
                 result.append(cur_token)
             token_ind += 1
             prev_token = cur_token
         return token_ind
 
-    def _parse_tokens(self, result: dict, token_ind: int, depth: int=0):
+    def _parse_tokens(self, result: dict, token_ind: int, depth: int = 0):
         """
         Internal function that parses tokens.
         :param result: current dictionary where to store parse result.
@@ -86,18 +92,22 @@ class SimpleProtoParser(object):
         """
         while token_ind < len(self._tokens):
             cur_token = self._tokens[token_ind]
-            if cur_token == ',':  # redundant commas that we simply ignore everywhere except list "[x, y, z...]"
+            if (
+                cur_token == ","
+            ):  # redundant commas that we simply ignore everywhere except list "[x, y, z...]"
                 token_ind += 1
                 continue
-            if cur_token == '}':
+            if cur_token == "}":
                 return token_ind + 1
             next_token = self._tokens[token_ind + 1]
-            if next_token == '{':
+            if next_token == "{":
                 result[cur_token] = dict()
-                token_ind = self._parse_tokens(result[cur_token], token_ind + 2, depth + 1)
-            elif next_token == ':':
+                token_ind = self._parse_tokens(
+                    result[cur_token], token_ind + 2, depth + 1
+                )
+            elif next_token == ":":
                 next_next_token = self._tokens[token_ind + 2]
-                if next_next_token == '[':
+                if next_next_token == "[":
                     result[cur_token] = list()
                     token_ind = self._parse_list(result[cur_token], token_ind + 3)
                 else:
@@ -110,9 +120,11 @@ class SimpleProtoParser(object):
                         result[cur_token].append(self._tokens[token_ind + 2])
                     token_ind += 3
             else:
-                raise Error('Wrong character "{}" in position {}'.format(next_token, token_ind))
+                raise Error(
+                    'Wrong character "{}" in position {}'.format(next_token, token_ind)
+                )
         if depth != 0:
-            raise Error('Input/output braces mismatch.')
+            raise Error("Input/output braces mismatch.")
         return token_ind
 
     def _convert_tokens_to_dict(self):
@@ -125,7 +137,7 @@ class SimpleProtoParser(object):
         try:
             self._parse_tokens(self._result, 0)
         except Exception as ex:
-            log.error('Failed to convert tokens to dictionary: {}'.format(str(ex)))
+            log.error("Failed to convert tokens to dictionary: {}".format(str(ex)))
             return False
         self._convert_values_to_correct_datatypes(self._result)
         return True
@@ -135,32 +147,32 @@ class SimpleProtoParser(object):
         The function gets file content as string and converts it to the list of tokens (all tokens are still strings).
         :param file_content: file content as a string
         """
-        cur_token = ''
+        cur_token = ""
         string_started = False
-        for line in file_content.split('\n'):
-            cur_token = ''
+        for line in file_content.split("\n"):
+            cur_token = ""
             line = line.strip()
-            if line.startswith('#'):  # skip comments
+            if line.startswith("#"):  # skip comments
                 continue
             for char in line:
                 if string_started:
                     if char == '"':  # string ended
                         self._add_non_empty_token(cur_token)
-                        cur_token = ''  # start of a new string
+                        cur_token = ""  # start of a new string
                         string_started = False
                     else:
                         cur_token += char
                 elif char == '"':
                     self._add_non_empty_token(cur_token)
-                    cur_token = ''  # start of a new string
+                    cur_token = ""  # start of a new string
                     string_started = True
-                elif (char == " " and not string_started) or char == '\n':
+                elif (char == " " and not string_started) or char == "\n":
                     self._add_non_empty_token(cur_token)
-                    cur_token = ''
-                elif char in [':', '{', '}', '[', ']', ',']:
+                    cur_token = ""
+                elif char in [":", "{", "}", "[", "]", ","]:
                     self._add_non_empty_token(cur_token)
                     self._tokens.append(char)
-                    cur_token = ''
+                    cur_token = ""
                 else:
                     cur_token += char
             self._add_non_empty_token(cur_token)
@@ -174,7 +186,7 @@ class SimpleProtoParser(object):
         """
         self._split_to_tokens(file_content)
         if not self._convert_tokens_to_dict():
-            log.error('Failed to generate dictionary representation of file.')
+            log.error("Failed to generate dictionary representation of file.")
             return None
         return self._result
 
@@ -185,12 +197,12 @@ class SimpleProtoParser(object):
         :return: dictionary with file content or None if the file cannot be parsed.
         """
         if not os.path.exists(file_name):
-            log.error('File {} does not exist'.format(file_name))
+            log.error("File {} does not exist".format(file_name))
             return None
         try:
             with open(file_name) as file:
                 file_content = file.readlines()
         except Exception as ex:
-            log.error('Failed to read file {}: {}'.format(file_name, str(ex)))
+            log.error("Failed to read file {}: {}".format(file_name, str(ex)))
             return None
-        return self.parse_from_string(''.join(file_content))
+        return self.parse_from_string("".join(file_content))

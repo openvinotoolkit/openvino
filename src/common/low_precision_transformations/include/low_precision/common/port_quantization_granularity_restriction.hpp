@@ -17,9 +17,9 @@ namespace low_precision {
 
 class LP_TRANSFORMATIONS_API PortQuantizationGranularityRestriction {
 public:
-    PortQuantizationGranularityRestriction(const size_t port, QuantizationGranularityAttribute::Granularity granularity) :
-        port(port),
-        granularity(granularity) {}
+    PortQuantizationGranularityRestriction(const size_t port, QuantizationGranularityAttribute::Granularity granularity)
+        : port(port),
+          granularity(granularity) {}
 
     size_t port;
     QuantizationGranularityAttribute::Granularity granularity;

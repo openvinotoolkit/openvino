@@ -16,14 +16,24 @@ class TopKNormalize(FrontReplacementPattern):
         2. If one of TopK ports isn't connected - adds output on this port to keep this port in IR.
 
     """
+
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for topk_node in graph.get_op_nodes(op='TopK'):
+        for topk_node in graph.get_op_nodes(op="TopK"):
             if topk_node.in_port(1).disconnected():
-                assert topk_node.has_valid('k'), 'The TopK node "{}" misses "k" attribute'.format(topk_node.name)
-                k_node = Const(graph, {'name': topk_node.id + '/Dims', 'value': int64_array(topk_node.k)}).create_node()
+                assert topk_node.has_valid(
+                    "k"
+                ), 'The TopK node "{}" misses "k" attribute'.format(topk_node.name)
+                k_node = Const(
+                    graph,
+                    {"name": topk_node.id + "/Dims", "value": int64_array(topk_node.k)},
+                ).create_node()
                 topk_node.in_port(1).connect(k_node.out_port(0))
-                del topk_node['k']
+                del topk_node["k"]
             else:
-                log.debug('The TopK node input "{}" is already normalized'.format(topk_node.name))
+                log.debug(
+                    'The TopK node input "{}" is already normalized'.format(
+                        topk_node.name
+                    )
+                )

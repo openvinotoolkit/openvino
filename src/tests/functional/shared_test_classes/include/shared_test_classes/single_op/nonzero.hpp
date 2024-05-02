@@ -4,19 +4,19 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-using NonZeroLayerTestParamsSet = typename std::tuple<
-    std::vector<InputShape>,             // Input shapes
-    ov::element::Type,                   // Model shape
-    std::string,                         // Device name
-    std::map<std::string, std::string>>; // Additional network configuration
+using NonZeroLayerTestParamsSet =
+    typename std::tuple<std::vector<InputShape>,              // Input shapes
+                        ov::element::Type,                    // Model shape
+                        std::string,                          // Device name
+                        std::map<std::string, std::string>>;  // Additional network configuration
 
 class NonZeroLayerTest : public testing::WithParamInterface<NonZeroLayerTestParamsSet>,
                          virtual public ov::test::SubgraphBaseTest {

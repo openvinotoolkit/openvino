@@ -16,6 +16,8 @@ def first_func(x, y):
     return second_func(x - y)
 
 
-graph_def = first_func.get_concrete_function(tf.constant([1, 2, 3, 4, 5], dtype=tf.int32),
-                                             tf.constant([0, 1, 1, 1, 1], dtype=tf.int32)).graph.as_graph_def()
-tf.io.write_graph(graph_def, '.', 'partitioned_call2.pbtxt', as_text=True)
+graph_def = first_func.get_concrete_function(
+    tf.constant([1, 2, 3, 4, 5], dtype=tf.int32),
+    tf.constant([0, 1, 1, 1, 1], dtype=tf.int32),
+).graph.as_graph_def()
+tf.io.write_graph(graph_def, ".", "partitioned_call2.pbtxt", as_text=True)

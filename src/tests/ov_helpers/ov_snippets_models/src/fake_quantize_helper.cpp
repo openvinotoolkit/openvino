@@ -3,9 +3,11 @@
 //
 
 #include "fake_quantize_helper.hpp"
-#include "common_test_utils/data_utils.hpp"
-#include <snippets/snippets_isa.hpp>
+
 #include <snippets/op/subgraph.hpp>
+#include <snippets/snippets_isa.hpp>
+
+#include "common_test_utils/data_utils.hpp"
 #include "function_helper.hpp"
 
 namespace ov {
@@ -13,12 +15,11 @@ namespace test {
 namespace snippets {
 
 namespace {
-std::shared_ptr<ov::op::v0::FakeQuantize> makeFakeQuantize(
-    const Output<Node>& parent,
-    const ov::Shape& inputShape,
-    const element::Type inputType,
-    const std::vector<ov::Shape>& fakeQuantizeShapes,
-    const float zeroPoint) {
+std::shared_ptr<ov::op::v0::FakeQuantize> makeFakeQuantize(const Output<Node>& parent,
+                                                           const ov::Shape& inputShape,
+                                                           const element::Type inputType,
+                                                           const std::vector<ov::Shape>& fakeQuantizeShapes,
+                                                           const float zeroPoint) {
     auto generate = [](const ov::element::Type precision,
                        const ov::Shape& shape,
                        const float initialValue,
@@ -33,40 +34,38 @@ std::shared_ptr<ov::op::v0::FakeQuantize> makeFakeQuantize(
         return constant;
     };
 
-    const auto fakeQuantize = std::make_shared<ov::opset1::FakeQuantize>(
-        parent,
-        generate(inputType, fakeQuantizeShapes[0], zeroPoint, "inputLow"),
-        generate(inputType, fakeQuantizeShapes[1], 20.f, "inputHigh"),
-        generate(inputType, fakeQuantizeShapes[2], zeroPoint, "outputLow"),
-        generate(inputType, fakeQuantizeShapes[3], 20.f, "outputHigh"),
-        256ul);
+    const auto fakeQuantize =
+        std::make_shared<ov::opset1::FakeQuantize>(parent,
+                                                   generate(inputType, fakeQuantizeShapes[0], zeroPoint, "inputLow"),
+                                                   generate(inputType, fakeQuantizeShapes[1], 20.f, "inputHigh"),
+                                                   generate(inputType, fakeQuantizeShapes[2], zeroPoint, "outputLow"),
+                                                   generate(inputType, fakeQuantizeShapes[3], 20.f, "outputHigh"),
+                                                   256ul);
     fakeQuantize->set_friendly_name("fakeQuantize");
 
     return fakeQuantize;
 }
 
 std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& parent) {
-    const auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 3, 3, 1, 1 }, { 1.f });
-    const auto convolution = std::make_shared<ov::opset1::Convolution>(
-        parent,
-        weights,
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    const auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 3, 1, 1}, {1.f});
+    const auto convolution = std::make_shared<ov::opset1::Convolution>(parent,
+                                                                       weights,
+                                                                       ov::Strides{1, 1},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::Strides{1, 1});
     convolution->set_friendly_name("Convolution");
     return convolution;
 }
 
 std::shared_ptr<ov::opset1::GroupConvolution> makeGroupConvolution(const Output<Node>& parent) {
-    const auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 1, 3, 3, 1, 1 }, { 1.f });
-    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(
-        parent,
-        weights,
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    const auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 3, 3, 1, 1}, {1.f});
+    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(parent,
+                                                                            weights,
+                                                                            ov::Strides{1, 1},
+                                                                            ov::CoordinateDiff{0, 0},
+                                                                            ov::CoordinateDiff{0, 0},
+                                                                            ov::Strides{1, 1});
     convolution->set_friendly_name("GroupConvolution");
     return convolution;
 }
@@ -110,7 +109,7 @@ std::shared_ptr<Node> getOperations(const std::vector<std::shared_ptr<Node>>& op
     return currentParent.get_node_shared_ptr();
 }
 
-} // namespace
+}  // namespace
 
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getOperationAndFakeQuantize(
     const ov::Shape& inputShape,
@@ -126,19 +125,19 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOperationAndFakeQuantize(
 
     auto parent = FunctionHelper::applyPrerequisites(parameter, prerequisites);
 
-    const auto fakeQuantize = makeFakeQuantize(
-        operation == nullptr ? parent : initOperation(operation, { parent }),
-        inputShape,
-        inputType,
-        fakeQuantizeShapes,
-        zeroPoint);
+    const auto fakeQuantize = makeFakeQuantize(operation == nullptr ? parent : initOperation(operation, {parent}),
+                                               inputShape,
+                                               inputType,
+                                               fakeQuantizeShapes,
+                                               zeroPoint);
 
     fakeQuantize->set_friendly_name("fakeQuantize");
 
     const auto result = std::make_shared<ov::opset1::Result>(fakeQuantize);
     result->set_friendly_name("result");
 
-    auto function = std::make_shared<ov::Model>(ov::ResultVector{ result }, ParameterVector{ parameter }, "FakeQuantizeFunction");
+    auto function =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ParameterVector{parameter}, "FakeQuantizeFunction");
     function->validate_nodes_and_infer_types();
 
     return function;
@@ -153,22 +152,26 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
     const std::vector<std::shared_ptr<Node>>& beforeFakeQuantizeOperations) {
     assert(fakeQuantizeShapes.size() == 4ul);
 
-    auto getSubgraphBody = [](
-        const ov::Shape& inputShape,
-        const element::Type inputType,
-        const std::vector<ov::Shape>& fakeQuantizeShapes,
-        const float zeroPoint,
-        const std::vector<std::shared_ptr<Node>>& beforeFakeQuantizeOperations) {
+    auto getSubgraphBody = [](const ov::Shape& inputShape,
+                              const element::Type inputType,
+                              const std::vector<ov::Shape>& fakeQuantizeShapes,
+                              const float zeroPoint,
+                              const std::vector<std::shared_ptr<Node>>& beforeFakeQuantizeOperations) {
         const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
         parameter->set_friendly_name("parameter");
 
-        const auto fakeQuantize = makeFakeQuantize(
-            getOperations(beforeFakeQuantizeOperations, {parameter}), inputShape, inputType, fakeQuantizeShapes, zeroPoint);
+        const auto fakeQuantize = makeFakeQuantize(getOperations(beforeFakeQuantizeOperations, {parameter}),
+                                                   inputShape,
+                                                   inputType,
+                                                   fakeQuantizeShapes,
+                                                   zeroPoint);
 
         const auto result = std::make_shared<ov::opset1::Result>(fakeQuantize);
         result->set_friendly_name("result");
 
-        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter}, "SubgraphWithFakeQuantizeBody");
+        return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                           ov::ParameterVector{parameter},
+                                           "SubgraphWithFakeQuantizeBody");
     };
 
     const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
@@ -177,14 +180,15 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
     auto parent = FunctionHelper::applyPrerequisites(parameter, prerequisites);
 
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        ov::OutputVector{ parent },
+        ov::OutputVector{parent},
         getSubgraphBody(inputShape, inputType, fakeQuantizeShapes, zeroPoint, beforeFakeQuantizeOperations));
     subgraph->set_friendly_name("subgraph");
 
     const auto result = std::make_shared<ov::opset1::Result>(subgraph);
     result->set_friendly_name("result");
 
-    auto function = std::make_shared<ov::Model>(ov::ResultVector{ result }, ParameterVector{ parameter }, "SubgraphWithFakeQuantize");
+    auto function =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ParameterVector{parameter}, "SubgraphWithFakeQuantize");
     function->validate_nodes_and_infer_types();
     return function;
 }
@@ -196,11 +200,10 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
     const float zeroPoint) {
     assert(fakeQuantizeShapes.size() == 4ul);
 
-    auto getSubgraphBody = [](
-        const ov::Shape& inputShape,
-        const element::Type inputType,
-        const std::vector<ov::Shape>& fakeQuantizeShapes,
-        const float zeroPoint) {
+    auto getSubgraphBody = [](const ov::Shape& inputShape,
+                              const element::Type inputType,
+                              const std::vector<ov::Shape>& fakeQuantizeShapes,
+                              const float zeroPoint) {
         const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
         parameter->set_friendly_name("parameter");
 
@@ -240,22 +243,25 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
         const auto result = std::make_shared<ov::opset1::Result>(add);
         result->set_friendly_name("result");
 
-        return std::make_shared<ov::Model>(
-            ov::ResultVector{result}, ov::ParameterVector{parameter}, "SubgraphWithDecomposedFakeQuantizeBody");
+        return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                           ov::ParameterVector{parameter},
+                                           "SubgraphWithDecomposedFakeQuantizeBody");
     };
 
     const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
     parameter->set_friendly_name("parameter");
 
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        ov::OutputVector {parameter},
+        ov::OutputVector{parameter},
         getSubgraphBody(inputShape, inputType, fakeQuantizeShapes, zeroPoint));
     subgraph->set_friendly_name("subgraph");
 
     const auto result = std::make_shared<ov::opset1::Result>(subgraph);
     result->set_friendly_name("result");
 
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter}, "SubgraphWithDecomposedFakeQuantize");
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       ov::ParameterVector{parameter},
+                                       "SubgraphWithDecomposedFakeQuantize");
 }
 
 }  // namespace snippets

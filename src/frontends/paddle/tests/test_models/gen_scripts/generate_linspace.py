@@ -1,25 +1,26 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import random
+import sys
+
 #
 # linspace paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import random
-import sys
+from save_model import saveModel
 
 data_type = "float32"
 
 
-def linspace(name: str, start, stop, num, type='float32'):
+def linspace(name: str, start, stop, num, type="float32"):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data_start = paddle.static.data(name="Start", shape=[1], dtype=start.dtype)
         data_stop = paddle.static.data(name="Stop", shape=[1], dtype=stop.dtype)
-        data_num = paddle.static.data(name="Num", shape=[1], dtype='int32')
+        data_num = paddle.static.data(name="Num", shape=[1], dtype="int32")
 
         out = paddle.linspace(data_start, data_stop, data_num, dtype=type)
 
@@ -28,10 +29,19 @@ def linspace(name: str, start, stop, num, type='float32'):
 
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(feed={"Start": start, "Stop": stop, "Num": num}, fetch_list=[out])
+        outs = exe.run(
+            feed={"Start": start, "Stop": stop, "Num": num}, fetch_list=[out]
+        )
 
-        saveModel(name, exe, feedkeys=["Start", "Stop", "Num"], fetchlist=[out], inputs=[start, stop, num],
-                  outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["Start", "Stop", "Num"],
+            fetchlist=[out],
+            inputs=[start, stop, num],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 

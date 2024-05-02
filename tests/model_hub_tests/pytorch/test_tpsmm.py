@@ -9,7 +9,6 @@ import tempfile
 import pytest
 import torch
 import yaml
-
 from torch_utils import TestTorchConvertModel
 
 # To make tests reproducible we seed the random generator
@@ -20,16 +19,19 @@ class TestThinPlateSplineMotionModel(TestTorchConvertModel):
     def setup_class(self):
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
-            f"git clone https://github.com/yoyo-nb/Thin-Plate-Spline-Motion-Model.git {self.repo_dir.name}")
+            f"git clone https://github.com/yoyo-nb/Thin-Plate-Spline-Motion-Model.git {self.repo_dir.name}"
+        )
         subprocess.check_call(
-            ["git", "checkout", "c616878812c9870ed81ac72561be2676fd7180e2"], cwd=self.repo_dir.name)
+            ["git", "checkout", "c616878812c9870ed81ac72561be2676fd7180e2"],
+            cwd=self.repo_dir.name,
+        )
         # verify model on random weights
 
     def load_model(self, model_name, model_link):
         sys.path.append(self.repo_dir.name)
+        from modules.dense_motion import DenseMotionNetwork
         from modules.inpainting_network import InpaintingNetwork
         from modules.keypoint_detector import KPDetector
-        from modules.dense_motion import DenseMotionNetwork
 
         class Mixer(torch.nn.Module):
             def __init__(self, config_path):
@@ -38,24 +40,31 @@ class TestThinPlateSplineMotionModel(TestTorchConvertModel):
                 with open(config_path) as f:
                     config = yaml.full_load(f)
 
-                self.inpainting_network = InpaintingNetwork(**config['model_params']['generator_params'],
-                                                            **config['model_params']['common_params'])
-                self.kp_detector = KPDetector(
-                    **config['model_params']['common_params'])
-                self.dense_motion_network = DenseMotionNetwork(**config['model_params']['common_params'],
-                                                               **config['model_params']['dense_motion_params'])
+                self.inpainting_network = InpaintingNetwork(
+                    **config["model_params"]["generator_params"],
+                    **config["model_params"]["common_params"],
+                )
+                self.kp_detector = KPDetector(**config["model_params"]["common_params"])
+                self.dense_motion_network = DenseMotionNetwork(
+                    **config["model_params"]["common_params"],
+                    **config["model_params"]["dense_motion_params"],
+                )
 
             def forward(self, source, driving):
                 kp_source = self.kp_detector(source)
                 kp_driving = self.kp_detector(driving)
 
                 dense_motion = self.dense_motion_network(
-                    source_image=source, kp_driving=kp_driving, kp_source=kp_source, bg_param=None, dropout_flag=False)
+                    source_image=source,
+                    kp_driving=kp_driving,
+                    kp_source=kp_source,
+                    bg_param=None,
+                    dropout_flag=False,
+                )
                 out = self.inpainting_network(source, dense_motion)
                 return out["prediction"]
 
-        config_path = os.path.join(
-            self.repo_dir.name, "config", "vox-256.yaml")
+        config_path = os.path.join(self.repo_dir.name, "config", "vox-256.yaml")
         m = Mixer(config_path)
         self.example = (torch.rand(1, 3, 256, 256), torch.rand(1, 3, 256, 256))
         self.inputs = (torch.rand(1, 3, 256, 256), torch.rand(1, 3, 256, 256))

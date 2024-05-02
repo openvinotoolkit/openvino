@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from snippets import get_model
+
 import openvino as ov
 
 
 def init_preproc():
     model = get_model()
     #! [init_preproc]
+    from openvino.preprocess import ColorFormat, PrePostProcessor
+
     import openvino as ov
-    from openvino.preprocess import PrePostProcessor, ColorFormat
 
     core = ov.Core()
 
@@ -28,4 +30,3 @@ def main():
     if "GPU" not in core.available_devices:
         return 0
     init_preproc()
-

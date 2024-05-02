@@ -3,14 +3,14 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief generate proposals
-struct generate_proposals
-        : public primitive_base<generate_proposals> {
+struct generate_proposals : public primitive_base<generate_proposals> {
     CLDNN_DECLARE_PRIMITIVE(generate_proposals)
 
     generate_proposals() : primitive_base("", {}) {}
@@ -39,17 +39,17 @@ struct generate_proposals
                        bool normalized,
                        float nms_eta,
                        const data_types roi_num_type,
-                       const padding& output_padding = {}) :
-            primitive_base{id, inputs, {output_padding}},
-            output_rois_scores{inputs[4].pid},
-            output_rois_num{inputs[5].pid},
-            min_size{min_size},
-            nms_threshold{nms_threshold},
-            pre_nms_count{pre_nms_count},
-            post_nms_count{post_nms_count},
-            normalized{normalized},
-            nms_eta{nms_eta},
-            roi_num_type{roi_num_type} {}
+                       const padding& output_padding = {})
+        : primitive_base{id, inputs, {output_padding}},
+          output_rois_scores{inputs[4].pid},
+          output_rois_num{inputs[5].pid},
+          min_size{min_size},
+          nms_threshold{nms_threshold},
+          pre_nms_count{pre_nms_count},
+          post_nms_count{post_nms_count},
+          normalized{normalized},
+          nms_eta{nms_eta},
+          roi_num_type{roi_num_type} {}
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
@@ -81,17 +81,12 @@ struct generate_proposals
 
         auto rhs_casted = downcast<const generate_proposals>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(min_size) &&
-               cmp_fields(nms_threshold) &&
-               cmp_fields(pre_nms_count) &&
-               cmp_fields(post_nms_count) &&
-               cmp_fields(normalized) &&
-               cmp_fields(nms_eta) &&
-               cmp_fields(roi_num_type) &&
-               cmp_fields(output_rois_scores.empty()) &&
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(min_size) && cmp_fields(nms_threshold) && cmp_fields(pre_nms_count) &&
+               cmp_fields(post_nms_count) && cmp_fields(normalized) && cmp_fields(nms_eta) &&
+               cmp_fields(roi_num_type) && cmp_fields(output_rois_scores.empty()) &&
                cmp_fields(output_rois_num.empty());
-        #undef cmp_fields
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

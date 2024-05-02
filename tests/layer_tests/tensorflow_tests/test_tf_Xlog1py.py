@@ -11,16 +11,17 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestXlog1py(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info
-        assert 'y:0' in inputs_info
-        x_shape = inputs_info['x:0']
-        y_shape = inputs_info['y:0']
+        assert "x:0" in inputs_info
+        assert "y:0" in inputs_info
+        x_shape = inputs_info["x:0"]
+        y_shape = inputs_info["y:0"]
         inputs_data = {}
         # x = [-3 ,3] y = [1, 2]
         # generate x in way to have zeros
-        inputs_data['x:0'] = (6 * np.random.random(size=x_shape).astype(np.float32) - 3) * \
-                            np.random.randint(2, size=x_shape).astype(np.float32)
-        inputs_data['y:0'] = np.random.random(size=y_shape).astype(np.float32) + 1
+        inputs_data["x:0"] = (
+            6 * np.random.random(size=x_shape).astype(np.float32) - 3
+        ) * np.random.randint(2, size=x_shape).astype(np.float32)
+        inputs_data["y:0"] = np.random.random(size=y_shape).astype(np.float32) + 1
         return inputs_data
 
     def create_xlog1py_net(self, input_shape, input_type):
@@ -28,8 +29,8 @@ class TestXlog1py(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
+            x = tf.compat.v1.placeholder(input_type, input_shape, "x")
+            y = tf.compat.v1.placeholder(input_type, input_shape, "y")
             tf.raw_ops.Xlog1py(x=x, y=y)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -44,10 +45,18 @@ class TestXlog1py(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_xlog1py_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        self._test(*self.create_xlog1py_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_xlog1py_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_xlog1py_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

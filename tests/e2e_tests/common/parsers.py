@@ -12,19 +12,21 @@ def mapping_parser(file):
     :return: Dictionary with framework layers as keys and IR layers as values
     """
     mapping_dict = {}
-    if os.path.splitext(file)[1] == '.mapping' and os.path.isfile(file):
+    if os.path.splitext(file)[1] == ".mapping" and os.path.isfile(file):
         xml_tree = xml.etree.ElementTree.parse(file)
         xml_root = xml_tree.getroot()
         for child in xml_root:
-            framework_info = child.find('.//framework')
-            ir_info = child.find('.//IR')
+            framework_info = child.find(".//framework")
+            ir_info = child.find(".//IR")
             if framework_info is None:
                 continue
-            framework_name = framework_info.attrib['name']
-            ir_name = ir_info.attrib['name'] if ir_info is not None else None
+            framework_name = framework_info.attrib["name"]
+            ir_name = ir_info.attrib["name"] if ir_info is not None else None
             mapping_dict[framework_name] = ir_name
     else:
-        raise FileNotFoundError("Mapping file was not found at path {}!".format(os.path.dirname(file)))
+        raise FileNotFoundError(
+            "Mapping file was not found at path {}!".format(os.path.dirname(file))
+        )
     return mapping_dict
 
 

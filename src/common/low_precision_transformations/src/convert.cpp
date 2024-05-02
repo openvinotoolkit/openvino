@@ -12,11 +12,10 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -38,7 +37,7 @@ ConvertTransformation::ConvertTransformation(const Params& params) : LayerTransf
     this->register_matcher(m, callback);
 }
 
-bool ConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool ConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<ov::opset1::Convert> convert = ov::as_type_ptr<ov::opset1::Convert>(m.get_match_root());
     if (!convert) {
         return false;
@@ -52,7 +51,7 @@ bool ConvertTransformation::transform(TransformationContext& context, ov::pass::
 
     std::shared_ptr<ov::opset1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
         convert->input_value(0),
-        std::make_shared<ov::opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
+        std::make_shared<ov::opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({0})));
     NetworkHelper::setOutDataPrecision(subtract, convert->get_output_element_type(0));
 
     replace_node(convert, subtract);
@@ -67,6 +66,6 @@ bool ConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

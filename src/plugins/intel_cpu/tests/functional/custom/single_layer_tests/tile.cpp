@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -125,7 +125,9 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i],
+                                                                     in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
                                                                      targetInputStaticShapes[i]);
@@ -223,24 +225,24 @@ const std::vector<CPUSpecificParams> CPUParams5D = {
 
 /* INSTANCES */
 INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4D,
-                        TileLayerCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes4D),
-                                                              ::testing::ValuesIn(repeats4D),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(true),
-                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(CPUParams4D)),
-                        TileLayerCPUTest::getTestCaseName);
+                         TileLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes4D),
+                                                               ::testing::ValuesIn(repeats4D),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(true),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(CPUParams4D)),
+                         TileLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape4D,
-                        TileLayerCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes4D),
-                                                              ::testing::ValuesIn(repeats4D),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(true, false),
-                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                           ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
-                        TileLayerCPUTest::getTestCaseName);
+                         TileLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes4D),
+                                                               ::testing::ValuesIn(repeats4D),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(true, false),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
+                         TileLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<ov::test::InputShape>> dynBatchInputShapes4D = {{// Origin dynamic shapes
                                                                                {{{1, 20}, 16, 3, 4},
@@ -250,34 +252,34 @@ const std::vector<std::vector<ov::test::InputShape>> dynBatchInputShapes4D = {{/
                                                                                  {3, 16, 3, 4}}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynBatch4D,
-                        TileLayerCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynBatchInputShapes4D),
-                                                              ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(true),
-                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                           ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
-                        TileLayerCPUTest::getTestCaseName);
+                         TileLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynBatchInputShapes4D),
+                                                               ::testing::Values(std::vector<int64_t>{1, 2, 1, 3}),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(true),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
+                         TileLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_StaticShape5D,
-                        TileLayerCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes5D),
-                                                              ::testing::ValuesIn(repeats5D),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(true),
-                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                           ::testing::ValuesIn(CPUParams5D)),
-                        TileLayerCPUTest::getTestCaseName);
+                         TileLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes5D),
+                                                               ::testing::ValuesIn(repeats5D),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(true),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(CPUParams5D)),
+                         TileLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape5D,
-                        TileLayerCPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes5D),
-                                                              ::testing::ValuesIn(repeats5D),
-                                                              ::testing::ValuesIn(netPrecisions),
-                                                              ::testing::Values(true, false),
-                                                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                           ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
-                        TileLayerCPUTest::getTestCaseName);
+                         TileLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes5D),
+                                                               ::testing::ValuesIn(repeats5D),
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(true, false),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
+                         TileLayerCPUTest::getTestCaseName);
 /* ========= */
 
 }  // namespace

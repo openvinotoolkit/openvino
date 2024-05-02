@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
-#include <intel_gpu/primitives/permute.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -38,30 +36,18 @@ TEST(optimized_out_execution_test, concat_blocked_format) {
     auto input3 = engine.allocate_memory(input3_layout);
     auto input4 = engine.allocate_memory(input4_layout);
 
-    set_values<ov::float16>(input1, {
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f,
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f
-    });
-    set_values<ov::float16>(input2, {
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f,
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f
-    });
-    set_values<ov::float16>(input3, {
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f,
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f
-    });
-    set_values<ov::float16>(input4, {
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f,
-            1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f
-    });
+    set_values<ov::float16>(input1, {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  10.0f, 20.0f, 30.0f,
+                                     40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,
+                                     7.0f,  8.0f,  10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f});
+    set_values<ov::float16>(input2, {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  10.0f, 20.0f, 30.0f,
+                                     40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,
+                                     7.0f,  8.0f,  10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f});
+    set_values<ov::float16>(input3, {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  10.0f, 20.0f, 30.0f,
+                                     40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,
+                                     7.0f,  8.0f,  10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f});
+    set_values<ov::float16>(input4, {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  10.0f, 20.0f, 30.0f,
+                                     40.0f, 50.0f, 60.0f, 70.0f, 80.0f, 1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,
+                                     7.0f,  8.0f,  10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f});
 
     topology topology(input_layout("input1", input1_layout_dyn),
                       input_layout("input2", input2_layout_dyn),
@@ -69,7 +55,7 @@ TEST(optimized_out_execution_test, concat_blocked_format) {
                       input_layout("input4", input4_layout_dyn),
                       eltwise("eltwise1", input_info("input1"), input_info("input2"), eltwise_mode::sum),
                       eltwise("eltwise2", input_info("input3"), input_info("input4"), eltwise_mode::sum),
-                      concatenation("concat", { input_info("eltwise1"), input_info("eltwise2") }, 1),
+                      concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1),
                       permute("permute", input_info("concat"), {0, 2, 3, 1}),
                       reorder("output", input_info("permute"), format::bfyx, data_types::f16));
 
@@ -84,23 +70,14 @@ TEST(optimized_out_execution_test, concat_blocked_format) {
     network.set_input_data("input4", input4);
 
     std::vector<ov::float16> ref = {
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
-            2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f,
-            20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f
-    };
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f,
+        2.0f, 4.0f, 6.0f, 8.0f, 10.0f, 12.0f, 14.0f, 16.0f, 20.0f, 40.0f, 60.0f, 80.0f, 100.0f, 120.0f, 140.0f, 160.0f};
 
     auto outputs = network.execute();
     auto output_mem = outputs.begin()->second.get_memory();
@@ -110,4 +87,4 @@ TEST(optimized_out_execution_test, concat_blocked_format) {
         ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }
-}  // is_valid_fusion_tests
+}  // namespace optimized_out_execution_test

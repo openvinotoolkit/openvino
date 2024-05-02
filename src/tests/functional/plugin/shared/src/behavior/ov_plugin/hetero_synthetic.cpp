@@ -6,12 +6,12 @@
 
 #include <random>
 
-#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {
@@ -19,14 +19,25 @@ namespace test {
 namespace behavior {
 
 static std::vector<std::function<std::shared_ptr<ov::Model>()>> builders = {
-    [] {return ov::test::utils::make_split_multi_conv_concat();},
-    [] {return ov::test::utils::make_nested_split_conv_concat();},
-    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch();},
-    [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out();},
-    [] {return ov::test::utils::make_nested_branch_conv_concat();},
+    [] {
+        return ov::test::utils::make_split_multi_conv_concat();
+    },
+    [] {
+        return ov::test::utils::make_nested_split_conv_concat();
+    },
+    [] {
+        return ov::test::utils::make_cplit_conv_concat_nested_in_branch();
+    },
+    [] {
+        return ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out();
+    },
+    [] {
+        return ov::test::utils::make_nested_branch_conv_concat();
+    },
 };
 
-std::string OVHeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInfo<OVHeteroSyntheticTestParameters>& obj) {
+std::string OVHeteroSyntheticTest::getTestCaseName(
+    const ::testing::TestParamInfo<OVHeteroSyntheticTestParameters>& obj) {
     std::vector<PluginParameter> pluginParameters;
     FunctionParameter functionParamter;
     std::tie(pluginParameters, functionParamter) = obj.param;
@@ -34,13 +45,13 @@ std::string OVHeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInf
     name += "_layers=";
     std::size_t num = functionParamter._majorPluginNodeIds.size() - 1;
     for (auto&& id : functionParamter._majorPluginNodeIds) {
-        name += id + ((num !=0) ? "," : "");
+        name += id + ((num != 0) ? "," : "");
         num--;
     }
     name += "_targetDevice=HETERO:";
     num = pluginParameters.size() - 1;
     for (auto&& pluginParameter : pluginParameters) {
-        name += pluginParameter._name + ((num !=0) ? "," : "");
+        name += pluginParameter._name + ((num != 0) ? "," : "");
         num--;
     }
     return name;
@@ -56,15 +67,15 @@ void OVHeteroSyntheticTest::SetUp() {
         bool registred = true;
         try {
             if (pluginParameter._location == "openvino_template_plugin") {
-                core->register_plugin(ov::util::make_plugin_library_name(
-                    ov::test::utils::getExecutableDirectory(), pluginParameter._location + OV_BUILD_POSTFIX), pluginParameter._name);
+                core->register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                                         pluginParameter._location + OV_BUILD_POSTFIX),
+                                      pluginParameter._name);
             } else {
                 core->register_plugin(pluginParameter._location + OV_BUILD_POSTFIX, pluginParameter._name);
             }
         } catch (ov::Exception& ex) {
-            if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
-                                             + "\"  is already registered in the OpenVINO Runtime")
-                == std::string::npos) {
+            if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name +
+                                            "\"  is already registered in the OpenVINO Runtime") == std::string::npos) {
                 throw ex;
             } else {
                 registred = false;
@@ -74,7 +85,7 @@ void OVHeteroSyntheticTest::SetUp() {
             _registredPlugins.push_back(pluginParameter._name);
         }
         targetDevice += pluginParameter._name;
-        targetDevice += ((num !=0) ? "," : "");
+        targetDevice += ((num != 0) ? "," : "");
         --num;
     }
     function = std::get<Function>(param)._function;
@@ -138,9 +149,8 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::singleMajorNodeFunctions(
     for (auto&& builder : builders) {
         auto function = builder();
         for (auto&& node : function->get_ordered_ops()) {
-            if (!ov::op::util::is_constant(node) &&
-                    !(ov::op::util::is_parameter(node)) &&
-                    !(ov::op::util::is_output(node))) {
+            if (!ov::op::util::is_constant(node) && !(ov::op::util::is_parameter(node)) &&
+                !(ov::op::util::is_output(node))) {
                 result.push_back(FunctionParameter{{node->get_friendly_name()}, function, dynamic_batch, 0});
             }
         }
@@ -148,15 +158,14 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::singleMajorNodeFunctions(
     return result;
 }
 
-
 std::vector<FunctionParameter> OVHeteroSyntheticTest::randomMajorNodeFunctions(
     const std::vector<std::function<std::shared_ptr<ov::Model>()>>& builders,
     bool dynamic_batch,
     uint32_t seed) {
     std::vector<FunctionParameter> results;
-    for (auto p = 0.2; p < 1.; p+=0.2) {
+    for (auto p = 0.2; p < 1.; p += 0.2) {
         while (seed == 0) {
-            seed = std::random_device {}();
+            seed = std::random_device{}();
         }
         std::mt19937 e{seed};
         std::bernoulli_distribution d{p};
@@ -166,15 +175,14 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::randomMajorNodeFunctions(
             for (std::size_t i = 0; i < ordered_ops.size(); ++i) {
                 std::unordered_set<std::string> majorPluginNodeIds;
                 for (auto&& node : ordered_ops) {
-                    if (!(ov::op::util::is_constant(node)) &&
-                            !(ov::op::util::is_parameter(node)) &&
-                            !(ov::op::util::is_output(node)) && d(e)) {
+                    if (!(ov::op::util::is_constant(node)) && !(ov::op::util::is_parameter(node)) &&
+                        !(ov::op::util::is_output(node)) && d(e)) {
                         majorPluginNodeIds.emplace(node->get_friendly_name());
                     }
                 }
-                if (std::any_of(std::begin(results), std::end(results), [&] (const FunctionParameter& param) {
-                    return majorPluginNodeIds == param._majorPluginNodeIds;
-                })) {
+                if (std::any_of(std::begin(results), std::end(results), [&](const FunctionParameter& param) {
+                        return majorPluginNodeIds == param._majorPluginNodeIds;
+                    })) {
                     continue;
                 }
                 results.push_back(FunctionParameter{majorPluginNodeIds, function, dynamic_batch, seed});
@@ -184,20 +192,21 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::randomMajorNodeFunctions(
     return results;
 }
 
-std::vector<FunctionParameter> OVHeteroSyntheticTest::withMajorNodesFunctions(const std::function<std::shared_ptr<ov::Model>()>& builder,
-                                                                              const std::unordered_set<std::string>& majorNodes,
-                                                                              bool dynamic_batch) {
+std::vector<FunctionParameter> OVHeteroSyntheticTest::withMajorNodesFunctions(
+    const std::function<std::shared_ptr<ov::Model>()>& builder,
+    const std::unordered_set<std::string>& majorNodes,
+    bool dynamic_batch) {
     auto function = builder();
     std::vector<FunctionParameter> result;
     result.push_back(FunctionParameter{majorNodes, function, dynamic_batch, 0});
     return result;
 }
 
-std::vector<FunctionParameter> OVHeteroSyntheticTest::_singleMajorNodeFunctions
-    = OVHeteroSyntheticTest::singleMajorNodeFunctions(builders);
+std::vector<FunctionParameter> OVHeteroSyntheticTest::_singleMajorNodeFunctions =
+    OVHeteroSyntheticTest::singleMajorNodeFunctions(builders);
 
-std::vector<FunctionParameter> OVHeteroSyntheticTest::_randomMajorNodeFunctions
-    = OVHeteroSyntheticTest::randomMajorNodeFunctions(builders);
+std::vector<FunctionParameter> OVHeteroSyntheticTest::_randomMajorNodeFunctions =
+    OVHeteroSyntheticTest::randomMajorNodeFunctions(builders);
 
 }  // namespace behavior
 }  // namespace test

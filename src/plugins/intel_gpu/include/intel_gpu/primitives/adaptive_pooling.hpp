@@ -3,33 +3,27 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
-enum class adaptive_pooling_mode : int32_t {
-    max,
-    average
-};
+enum class adaptive_pooling_mode : int32_t { max, average };
 
 struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     CLDNN_DECLARE_PRIMITIVE(adaptive_pooling)
 
-    adaptive_pooling() : primitive_base("", {}),
-                         mode{adaptive_pooling_mode::average},
-                         output_size{} {}
+    adaptive_pooling() : primitive_base("", {}), mode{adaptive_pooling_mode::average}, output_size{} {}
 
     /// @brief Constructs AdaptiveAvgPooling primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param output_size Output data size of the primitive
-    adaptive_pooling(const primitive_id &id,
-                     const input_info &input,
-                     tensor output_size)
-            : primitive_base(id, {input}),
-              mode{adaptive_pooling_mode::average},
-              output_size{output_size} {}
+    adaptive_pooling(const primitive_id& id, const input_info& input, tensor output_size)
+        : primitive_base(id, {input}),
+          mode{adaptive_pooling_mode::average},
+          output_size{output_size} {}
 
     /// @brief Constructs AdaptiveMaxPooling primitive.
     /// @param id This primitive id.
@@ -38,45 +32,47 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     /// @param output_size Output data size of the primitive
     /// @param indices_output Indices output primitive id.
     /// @param index_element_type Data type of indices output.
-    adaptive_pooling(const primitive_id &id,
-                     const input_info &input,
+    adaptive_pooling(const primitive_id& id,
+                     const input_info& input,
                      tensor output_size,
-                     const primitive_id &indices_output,
+                     const primitive_id& indices_output,
                      data_types index_element_type)
-            : primitive_base(id, {input, indices_output}),
-              mode{adaptive_pooling_mode::max},
-              output_size{output_size},
-              indices_output{indices_output},
-              index_element_type{index_element_type} {}
+        : primitive_base(id, {input, indices_output}),
+          mode{adaptive_pooling_mode::max},
+          output_size{output_size},
+          indices_output{indices_output},
+          index_element_type{index_element_type} {}
 
     /// @brief Constructs AdaptiveAvgPooling primitive for dynamic shape.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param output_shape Output shape (pooled vector) primitive id.
-    adaptive_pooling(const primitive_id &id,
-                     const input_info &input,
-                     const input_info &output_shape)
-            : primitive_base(id, {input, output_shape}),
-              mode{adaptive_pooling_mode::average},
-              output_size{tensor(0)} {}
+    adaptive_pooling(const primitive_id& id, const input_info& input, const input_info& output_shape)
+        : primitive_base(id, {input, output_shape}),
+          mode{adaptive_pooling_mode::average},
+          output_size{tensor(0)} {}
 
     /// @brief Constructs AdaptiveMaxPooling primitive for dynamic shape.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param output_shape Output shape (pooled vector) primitive id.
     /// @param index_element_type Data type of indices output.
-    adaptive_pooling(const primitive_id &id,
-                     const input_info &input,
-                     const input_info &output_shape,
+    adaptive_pooling(const primitive_id& id,
+                     const input_info& input,
+                     const input_info& output_shape,
                      data_types index_element_type,
                      const padding& output_padding = padding(),
                      data_types output_data_type = data_types::i32,
                      const size_t num_outputs = 1)
-            : primitive_base(id, {input, output_shape}, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
-              mode{adaptive_pooling_mode::max},
-              output_size{tensor(0)},
-              indices_output{""},
-              index_element_type{index_element_type} {}
+        : primitive_base(id,
+                         {input, output_shape},
+                         {output_padding},
+                         {optional_data_type{output_data_type}},
+                         num_outputs),
+          mode{adaptive_pooling_mode::max},
+          output_size{tensor(0)},
+          indices_output{""},
+          index_element_type{index_element_type} {}
 
     adaptive_pooling_mode mode;
     tensor output_size;
@@ -97,8 +93,7 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
 
         auto rhs_casted = downcast<const adaptive_pooling>(rhs);
 
-        return mode == rhs_casted.mode &&
-               indices_output == rhs_casted.indices_output &&
+        return mode == rhs_casted.mode && indices_output == rhs_casted.indices_output &&
                index_element_type == rhs_casted.index_element_type;
     }
 

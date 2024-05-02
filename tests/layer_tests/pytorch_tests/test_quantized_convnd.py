@@ -3,10 +3,9 @@
 
 import platform
 
-import pytest
 import numpy as np
+import pytest
 import torch
-
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
@@ -16,7 +15,18 @@ class TestQuantizedConv2D(PytorchLayerTest):
     def _prepare_input(self):
         return (np.round(np.random.rand(2, 3, 25, 25).astype(np.float32), 4),)
 
-    def create_model(self, weights_shape, strides, pads, dilations, groups, bias, relu, scale, zero_point):
+    def create_model(
+        self,
+        weights_shape,
+        strides,
+        pads,
+        dilations,
+        groups,
+        bias,
+        relu,
+        scale,
+        zero_point,
+    ):
         class quantized_conv2d(torch.nn.Module):
             def __init__(self):
                 super(quantized_conv2d, self).__init__()
@@ -40,8 +50,7 @@ class TestQuantizedConv2D(PytorchLayerTest):
                 self.conv.zero_point = int(zero_point)
 
             def forward(self, x):
-                x_quantized = torch.quantize_per_tensor(
-                    x, 1.0, 0, torch.quint8)
+                x_quantized = torch.quantize_per_tensor(x, 1.0, 0, torch.quint8)
                 conv = self.conv(x_quantized)
                 return torch.dequantize(conv)
 
@@ -56,22 +65,62 @@ class TestQuantizedConv2D(PytorchLayerTest):
     @pytest.mark.parametrize(
         "params",
         [
-            {"weights_shape": [1, 3, 3, 3], "strides": 1,
-                "pads": 0, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1,
-                "pads": 0, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 2,
-                "pads": 0, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1,
-                "pads": 1, "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1,
-                "pads": 0, "dilations": 2, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1,
-                "pads": [0, 1], "dilations": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3, 3], "strides": 1,
-                "pads": [1, 0], "dilations": 1, "groups": 1},
-            {"weights_shape": [3, 1, 3, 3], "strides": 1,
-                "pads": 0, "dilations": 1, "groups": 3},
+            {
+                "weights_shape": [1, 3, 3, 3],
+                "strides": 1,
+                "pads": 0,
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 1,
+                "pads": 0,
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 2,
+                "pads": 0,
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 1,
+                "pads": 1,
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 1,
+                "pads": 0,
+                "dilations": 2,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 1,
+                "pads": [0, 1],
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [2, 3, 3, 3],
+                "strides": 1,
+                "pads": [1, 0],
+                "dilations": 1,
+                "groups": 1,
+            },
+            {
+                "weights_shape": [3, 1, 3, 3],
+                "strides": 1,
+                "pads": 0,
+                "dilations": 1,
+                "groups": 3,
+            },
         ],
     )
     @pytest.mark.parametrize("bias", [True, False])
@@ -80,11 +129,22 @@ class TestQuantizedConv2D(PytorchLayerTest):
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122715')
-    def test_quantized_conv2d(self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version):
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122715",
+    )
+    def test_quantized_conv2d(
+        self, params, bias, relu, scale, zero_point, ie_device, precision, ir_version
+    ):
         self._test(
-            *self.create_model(**params, bias=bias, relu=relu,
-                               scale=scale, zero_point=zero_point),
-            ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale
+            *self.create_model(
+                **params, bias=bias, relu=relu, scale=scale, zero_point=zero_point
+            ),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True,
+            freeze_model=False,
+            quantized_ops=True,
+            quant_size=scale
         )

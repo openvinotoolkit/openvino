@@ -2,44 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "multiclass_nms_inst.h"
 #include "multiclass_nms/multiclass_nms_kernel_ref.h"
 #include "multiclass_nms/multiclass_nms_kernel_selector.h"
+#include "multiclass_nms_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
 namespace {
 kernel_selector::SortResultType get_sort_result_type(const cldnn::multiclass_nms::sort_result_type sort_result_type) {
     switch (sort_result_type) {
-        case cldnn::multiclass_nms::sort_result_type::classid:
-            return kernel_selector::SortResultType::CLASSID;
-            break;
-        case cldnn::multiclass_nms::sort_result_type::score:
-            return kernel_selector::SortResultType::SCORE;
-            break;
-        case cldnn::multiclass_nms::sort_result_type::none:
-            return kernel_selector::SortResultType::NONE;
-            break;
-        default:
-            throw std::runtime_error{"Not supported sort result type"};
+    case cldnn::multiclass_nms::sort_result_type::classid:
+        return kernel_selector::SortResultType::CLASSID;
+        break;
+    case cldnn::multiclass_nms::sort_result_type::score:
+        return kernel_selector::SortResultType::SCORE;
+        break;
+    case cldnn::multiclass_nms::sort_result_type::none:
+        return kernel_selector::SortResultType::NONE;
+        break;
+    default:
+        throw std::runtime_error{"Not supported sort result type"};
     }
     return kernel_selector::SortResultType::NONE;
 }
 
 kernel_selector::Datatype get_indices_output_type(const data_types indices_output_type) {
     switch (indices_output_type) {
-        case cldnn::data_types::i32: {
-            return kernel_selector::Datatype::INT32;
-            break;
-        }
-        case cldnn::data_types::i64: {
-            return kernel_selector::Datatype::INT64;
-            break;
-        }
-        default:
-            throw std::runtime_error{"Not supported index element type"};
+    case cldnn::data_types::i32: {
+        return kernel_selector::Datatype::INT32;
+        break;
+    }
+    case cldnn::data_types::i64: {
+        return kernel_selector::Datatype::INT64;
+        break;
+    }
+    default:
+        throw std::runtime_error{"Not supported index element type"};
     }
     return kernel_selector::Datatype::INT32;
 }
@@ -66,7 +65,7 @@ protected:
     }
 
 public:
-   static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<multiclass_nms>();
         auto params = get_default_params<kernel_selector::multiclass_nms_params>(impl_param);
 
@@ -107,7 +106,10 @@ attach_multiclass_nms_impl::attach_multiclass_nms_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<multiclass_nms>::add(impl_types::ocl, typed_primitive_impl_ocl<multiclass_nms>::create<multiclass_nms_impl>, types, formats);
+    implementation_map<multiclass_nms>::add(impl_types::ocl,
+                                            typed_primitive_impl_ocl<multiclass_nms>::create<multiclass_nms_impl>,
+                                            types,
+                                            formats);
 }
 }  // namespace detail
 }  // namespace ocl

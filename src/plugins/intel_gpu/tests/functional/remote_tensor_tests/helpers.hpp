@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
 
 #ifdef _WIN32
-# include "openvino/runtime/intel_gpu/ocl/dx.hpp"
+#    include "openvino/runtime/intel_gpu/ocl/dx.hpp"
 #elif defined ENABLE_LIBVA
-# include "openvino/runtime/intel_gpu/ocl/va.hpp"
+#    include "openvino/runtime/intel_gpu/ocl/va.hpp"
 #endif
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 
@@ -23,16 +23,18 @@ template <typename T>
 T load_entrypoint(const cl_platform_id platform, const std::string name) {
 #if defined(__GNUC__) && __GNUC__ < 5
 // OCL spec says:
-// "The function clGetExtensionFunctionAddressForPlatform returns the address of the extension function named by funcname for a given platform.
-//  The pointer returned should be cast to a function pointer type matching the extension function's definition defined in the appropriate extension
-//  specification and header file."
-// So the pointer-to-object to pointer-to-function cast below is supposed to be valid, thus we suppress warning from old GCC versions.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
+// "The function clGetExtensionFunctionAddressForPlatform returns the address of the extension function named by
+// funcname for a given platform.
+//  The pointer returned should be cast to a function pointer type matching the extension function's definition defined
+//  in the appropriate extension specification and header file."
+// So the pointer-to-object to pointer-to-function cast below is supposed to be valid, thus we suppress warning from old
+// GCC versions.
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wpedantic"
 #endif
     T p = reinterpret_cast<T>(clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
 #if defined(__GNUC__) && __GNUC__ < 5
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
     if (!p) {
         throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
@@ -120,11 +122,8 @@ struct OpenCL {
     }
 
     bool supports_usm() const {
-        return _host_mem_alloc_fn != nullptr &&
-               _device_mem_alloc_fn != nullptr &&
-               _mem_free_fn != nullptr &&
-               _enqueue_memcpy_fn != nullptr &&
-               _get_mem_alloc_info_fn != nullptr;
+        return _host_mem_alloc_fn != nullptr && _device_mem_alloc_fn != nullptr && _mem_free_fn != nullptr &&
+               _enqueue_memcpy_fn != nullptr && _get_mem_alloc_info_fn != nullptr;
     }
 
     void* allocate_usm_host_buffer(size_t size) const {
@@ -154,20 +153,25 @@ struct OpenCL {
         _mem_free_fn(_context.get(), usm_ptr);
     }
 
-    cl_int memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
-                  size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) const {
+    cl_int memcpy(const cl::CommandQueue& cpp_queue,
+                  void* dst_ptr,
+                  const void* src_ptr,
+                  size_t bytes_count,
+                  bool blocking = true,
+                  const std::vector<cl::Event>* wait_list = nullptr,
+                  cl::Event* ret_event = nullptr) const {
         if (!_enqueue_memcpy_fn)
             throw std::runtime_error("[GPU] clEnqueueMemcpyINTEL is nullptr");
         cl_event tmp;
-        cl_int err = _enqueue_memcpy_fn(
-            cpp_queue.get(),
-            static_cast<cl_bool>(blocking),
-            dst_ptr,
-            src_ptr,
-            bytes_count,
-            wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
-            wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
-            ret_event == nullptr ? nullptr : &tmp);
+        cl_int err =
+            _enqueue_memcpy_fn(cpp_queue.get(),
+                               static_cast<cl_bool>(blocking),
+                               dst_ptr,
+                               src_ptr,
+                               bytes_count,
+                               wait_list == nullptr ? 0 : static_cast<cl_uint>(wait_list->size()),
+                               wait_list == nullptr ? nullptr : reinterpret_cast<const cl_event*>(&wait_list->front()),
+                               ret_event == nullptr ? nullptr : &tmp);
 
         if (ret_event != nullptr && err == CL_SUCCESS)
             *ret_event = tmp;
@@ -182,7 +186,12 @@ struct OpenCL {
 
         cl_unified_shared_memory_type_intel ret_val;
         size_t ret_val_size;
-        _get_mem_alloc_info_fn(_context.get(), usm_ptr, CL_MEM_ALLOC_TYPE_INTEL, sizeof(cl_unified_shared_memory_type_intel), &ret_val, &ret_val_size);
+        _get_mem_alloc_info_fn(_context.get(),
+                               usm_ptr,
+                               CL_MEM_ALLOC_TYPE_INTEL,
+                               sizeof(cl_unified_shared_memory_type_intel),
+                               &ret_val,
+                               &ret_val_size);
         return ret_val;
     }
 };

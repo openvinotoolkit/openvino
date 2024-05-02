@@ -17,8 +17,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
     ov::element::Type input_type, convert_type;
     std::string device_name;
     std::vector<InputShape> shapes;
-    std::tie(conversion_type, shapes, input_type, convert_type, device_name) =
-        obj.param;
+    std::tie(conversion_type, shapes, input_type, convert_type, device_name) = obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversion_type] << "_";
     result << "IS=(";

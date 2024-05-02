@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "nodes/executors/transpose.hpp"
-
-#include "arm_compute/runtime/Tensor.h"
 #include "arm_compute/runtime/NEON/functions/NEPermute.h"
+#include "arm_compute/runtime/Tensor.h"
+#include "nodes/executors/transpose.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -20,9 +19,12 @@ public:
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override { return impl_desc_type::acl; }
+    impl_desc_type implType() const override {
+        return impl_desc_type::acl;
+    }
+
 private:
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEPermute> acl_permute;
@@ -33,13 +35,13 @@ public:
     bool isSupported(const TransposeParams& transposeParams,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
-              dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-              dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEPermute does not support layout:",
-                      " src: ", srcDescs[0]->serializeFormat(),
-                      " dst: ", dstDescs[0]->serializeFormat());
+                      " src: ",
+                      srcDescs[0]->serializeFormat(),
+                      " dst: ",
+                      dstDescs[0]->serializeFormat());
             return false;
         }
         if (srcDescs[0]->getShape().getRank() > 4) {
@@ -51,9 +53,9 @@ public:
             DEBUG_LOG("NEPermute requires the same input and output precisions");
             return false;
         }
-        if (srcDescs[0]->getPrecision() != ov::element::f32 &&
-            srcDescs[0]->getPrecision() != ov::element::i8) {
-            DEBUG_LOG("NEPermute supports 1, 2, 4 bytes data types. FP16 implementation is disabled due to performance issues");
+        if (srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::i8) {
+            DEBUG_LOG("NEPermute supports 1, 2, 4 bytes data types. FP16 implementation is disabled due to performance "
+                      "issues");
             return false;
         }
         return true;
@@ -64,5 +66,5 @@ public:
     }
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

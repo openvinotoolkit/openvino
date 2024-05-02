@@ -6,14 +6,15 @@
 #pragma once
 
 #include <atomic>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <queue>
-#include <unordered_map>
-#include <map>
-#include <vector>
-#include <utility>
-#include <memory>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "plugin.hpp"
 
 namespace ov {
@@ -39,5 +40,5 @@ private:
     SoAsyncInferRequest m_shared_request;
     SoAsyncInferRequest m_scheduled_request;
 };
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

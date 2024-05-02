@@ -7,19 +7,18 @@
 namespace ov {
 namespace test {
 std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj) {
+    const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj) {
     std::vector<InputShape> shapes;
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
     ElementType model_type;
     std::string device_name;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        model_type,
-        device_name) = obj.param;
+    std::tie(shapes,
+             attributes.min_size,
+             attributes.nms_threshold,
+             attributes.post_nms_count,
+             attributes.pre_nms_count,
+             model_type,
+             device_name) = obj.param;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -45,14 +44,13 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
     ElementType model_type;
     std::string targetName;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        model_type,
-        targetName) = this->GetParam();
+    std::tie(shapes,
+             attributes.min_size,
+             attributes.nms_threshold,
+             attributes.post_nms_count,
+             attributes.pre_nms_count,
+             model_type,
+             targetName) = this->GetParam();
 
     inType = outType = model_type;
     targetDevice = targetName;
@@ -63,16 +61,16 @@ void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
     }
-    auto experimental_detectron = std::make_shared<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(
-        params[0], // im_info
-        params[1], // anchors
-        params[2], // deltas
-        params[3], // scores
-        attributes);
+    auto experimental_detectron =
+        std::make_shared<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(params[0],  // im_info
+                                                                                        params[1],  // anchors
+                                                                                        params[2],  // deltas
+                                                                                        params[3],  // scores
+                                                                                        attributes);
     function = std::make_shared<ov::Model>(
         ov::OutputVector{experimental_detectron->output(0), experimental_detectron->output(1)},
         params,
         "ExperimentalDetectronGenerateProposalsSingleImage");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

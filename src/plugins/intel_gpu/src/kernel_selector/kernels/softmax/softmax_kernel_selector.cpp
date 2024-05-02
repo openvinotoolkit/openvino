@@ -3,10 +3,11 @@
 //
 
 #include "softmax_kernel_selector.h"
-#include "softmax_kernel_ref.h"
+
 #include "softmax_kernel_bf.h"
 #include "softmax_kernel_fb.h"
 #include "softmax_kernel_items_class_optimized.h"
+#include "softmax_kernel_ref.h"
 
 namespace kernel_selector {
 

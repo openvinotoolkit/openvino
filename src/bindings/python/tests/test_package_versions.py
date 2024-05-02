@@ -2,11 +2,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.preprocess as ov_pre
-import openvino.runtime as ov_run
-import openvino.frontend as ov_front
 import openvino._offline_transformations as ov_off_transf
 import openvino._pyopenvino as ov_py
+import openvino.frontend as ov_front
+import openvino.preprocess as ov_pre
+import openvino.runtime as ov_run
 
 
 def test_get_version_match():

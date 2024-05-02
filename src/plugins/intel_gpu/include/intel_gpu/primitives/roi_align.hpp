@@ -3,8 +3,9 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -77,12 +78,9 @@ struct roi_align : public primitive_base<roi_align> {
 
         auto rhs_casted = downcast<const roi_align>(rhs);
 
-        return pooled_h == rhs_casted.pooled_h &&
-               pooled_w == rhs_casted.pooled_w &&
-               sampling_ratio == rhs_casted.sampling_ratio &&
-               spatial_scale == rhs_casted.spatial_scale &&
-               pooling_mode == rhs_casted.pooling_mode &&
-               aligned_mode == rhs_casted.aligned_mode;
+        return pooled_h == rhs_casted.pooled_h && pooled_w == rhs_casted.pooled_w &&
+               sampling_ratio == rhs_casted.sampling_ratio && spatial_scale == rhs_casted.spatial_scale &&
+               pooling_mode == rhs_casted.pooling_mode && aligned_mode == rhs_casted.aligned_mode;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

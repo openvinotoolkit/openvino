@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reverse_sequence_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "reverse_sequence_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse_sequence)
 
-layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param) {
+layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node,
+                                                 kernel_impl_params const& impl_param) {
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 

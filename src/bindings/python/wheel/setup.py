@@ -2,26 +2,26 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os.path
-import sys
 import errno
-import subprocess  # nosec
-import typing
+import logging as log
+import multiprocessing
+import os.path
 import platform
 import re
 import shutil
-import multiprocessing
-import logging as log
+import subprocess  # nosec
+import sys
+import typing
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
-from setuptools import setup, find_namespace_packages, Extension, Command
-from setuptools.command.build_ext import build_ext
-from setuptools.command.build_clib import build_clib
-from setuptools.command.install import install
-from setuptools.command.build import build
-from setuptools.errors import SetupError
 
+from setuptools import Command, Extension, find_namespace_packages, setup
+from setuptools.command.build import build
+from setuptools.command.build_clib import build_clib
+from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
+from setuptools.errors import SetupError
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -49,12 +49,16 @@ OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
-OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
+OV_RUNTIME_LIBS_DIR = os.getenv(
+    "OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}"
+)
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
-PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
+PYTHON_EXTENSIONS_ONLY = (
+    True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
+)
 SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
 CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "TGZ")
 
@@ -206,7 +210,9 @@ class PrebuiltExtension(Extension):
     def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
             nln = "\n"
-            raise SetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
+            raise SetupError(
+                f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}"
+            )
         super().__init__(name, sources, *args, **kwargs)
         self._needs_stub = False
 
@@ -257,29 +263,57 @@ class CustomBuild(build):
                 comp_data["install_dir"] = os.path.join(prefix, install_dir)
 
                 # even perform a build in case of binary directory does not exist
-                binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
+                binary_dir = (
+                    binary_dir
+                    if os.path.isabs(binary_dir)
+                    else os.path.join(self.build_temp, binary_dir)
+                )
                 if not os.path.exists(binary_dir):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
-                    self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
-                                         f"-DPython3_EXECUTABLE={sys.executable}",
-                                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                                         "-DENABLE_WHEEL=OFF",
-                                         self.cmake_args,
-                                         "-S", source_dir,
-                                         "-B", binary_dir])
+                    self.spawn(
+                        [
+                            "cmake",
+                            f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
+                            f"-DPython3_EXECUTABLE={sys.executable}",
+                            f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                            f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                            "-DENABLE_WHEEL=OFF",
+                            self.cmake_args,
+                            "-S",
+                            source_dir,
+                            "-B",
+                            binary_dir,
+                        ]
+                    )
 
                     self.announce(f"Building {comp} project", level=3)
-                    self.spawn(["cmake", "--build", binary_dir,
-                                         "--config", CONFIG,
-                                         "--parallel", str(self.jobs)])
+                    self.spawn(
+                        [
+                            "cmake",
+                            "--build",
+                            binary_dir,
+                            "--config",
+                            CONFIG,
+                            "--parallel",
+                            str(self.jobs),
+                        ]
+                    )
 
                 self.announce(f"Installing {comp}", level=3)
-                self.spawn(["cmake", "--install", binary_dir,
-                                     "--prefix", prefix,
-                                     "--config", CONFIG,
-                                     "--component", cpack_comp_name])
+                self.spawn(
+                    [
+                        "cmake",
+                        "--install",
+                        binary_dir,
+                        "--prefix",
+                        prefix,
+                        "--config",
+                        CONFIG,
+                        "--component",
+                        cpack_comp_name,
+                    ]
+                )
 
     def run(self):
         # build and install clib into temporary directories
@@ -334,8 +368,12 @@ class PrepareLibs(build_clib):
                     continue
 
                 for path in filter(
-                    lambda x: any(item in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
-                                  for item in x.suffixes), install_dir_path.glob("*"),
+                    lambda x: any(
+                        item
+                        in ([".so"] if sys.platform == "linux" else [".dylib", ".so"])
+                        for item in x.suffixes
+                    ),
+                    install_dir_path.glob("*"),
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
@@ -374,11 +412,17 @@ class PrepareLibs(build_clib):
                     link_file_name_new = os.path.basename(symlink)
                     if len(link_file_name_new) > len(link_file_name_old):
                         # replace libX.so/libX.dylib with libX.so.Y/libX.Y.dylib
-                        self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=3)
+                        self.announce(
+                            f"Unlink symlink {file_dict[real_name]}, use {symlink} instead",
+                            level=3,
+                        )
                         os.unlink(file_dict[real_name])
                         file_dict[real_name] = symlink
                     else:
-                        self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=3)
+                        self.announce(
+                            f"Unlink symlink {symlink}, use {file_dict[real_name]} instead",
+                            level=3,
+                        )
                         os.unlink(symlink)
                 else:
                     file_dict[real_name] = symlink
@@ -399,18 +443,25 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             # additional blacklist filter, just to fix cmake install issues
             blacklist_patterns = [  # static libraries and PBD files
-                                    "^.*\\.a$", "^.*\\.lib$", "^.*\\.pdb$",
-                                    # TBB debug libraries
-                                    "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
-                                    # hwloc static libs on Windows
-                                    "^.*\\.la$"]
+                "^.*\\.a$",
+                "^.*\\.lib$",
+                "^.*\\.pdb$",
+                # TBB debug libraries
+                "^.*_debug\\.dll$",
+                "^.*_debug\\.\\d*\\.dylib$",
+                "^.*_debug\\.so\\.\\d*$",
+                # hwloc static libs on Windows
+                "^.*\\.la$",
+            ]
 
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
             for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
                     # sanity check for self.resolve_symlinks
-                    sys.exit(f"Wheel package content must not contain symlinks {file_path}")
+                    sys.exit(
+                        f"Wheel package content must not contain symlinks {file_path}"
+                    )
                 blacklisted = False
                 for pattern in blacklist_patterns:
                     if re.match(pattern, file_name) is not None:
@@ -439,19 +490,26 @@ def copy_file(src, dst, verbose=False, dry_run=False):
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
+
     def run(self):
         if len(self.extensions) == 1:
-            self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
+            self.extensions = find_prebuilt_extensions(
+                get_install_dirs_list(PY_INSTALL_CFG)
+            )
 
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
-                raise SetupError(f"build_ext can accept PrebuiltExtension only, but got {extension.name}")
+                raise SetupError(
+                    f"build_ext can accept PrebuiltExtension only, but got {extension.name}"
+                )
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative RPATH to found dlls
             if sys.platform != "win32" and not SKIP_RPATH:
-                rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
+                rpath = os.path.relpath(
+                    get_package_dir(PY_INSTALL_CFG), os.path.dirname(src)
+                )
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
 
@@ -545,7 +603,10 @@ def set_rpath(rpath, binary):
         sys.exit(f"Unsupported platform: {sys.platform}")
 
     if not is_tool(rpath_tool):
-        sys.exit(f"Could not find {rpath_tool} on the system, " f"please make sure that this tool is installed")
+        sys.exit(
+            f"Could not find {rpath_tool} on the system, "
+            f"please make sure that this tool is installed"
+        )
 
     if sys.platform == "darwin":
         remove_rpath(binary)
@@ -567,7 +628,9 @@ def find_prebuilt_extensions(search_dirs):
     for search_dir in search_dirs:
         for path in Path(search_dir).glob(ext_pattern):
             # ignores usual inference plugins and libraries (clibs)
-            if path.match("openvino/libs/*") or path.match(f"openvino/libs/openvino-{OPENVINO_VERSION}/*"):
+            if path.match("openvino/libs/*") or path.match(
+                f"openvino/libs/openvino-{OPENVINO_VERSION}/*"
+            ):
                 continue
             relpath = path.relative_to(search_dir)
             if relpath.parent != ".":
@@ -601,7 +664,9 @@ def get_install_dirs_list(install_cfg):
     """Collect all available directories with clibs or python extensions."""
     install_dirs = []
     for comp_info in install_cfg.values():
-        full_install_dir = os.path.join(comp_info.get("prefix"), comp_info.get("install_dir"))
+        full_install_dir = os.path.join(
+            comp_info.get("prefix"), comp_info.get("install_dir")
+        )
         if full_install_dir not in install_dirs:
             install_dirs.append(full_install_dir)
     return install_dirs
@@ -650,8 +715,13 @@ package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 
-long_description_md = OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pypi-openvino-rt.md"
-md_files = [long_description_md, OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pre-release-note.md"]
+long_description_md = (
+    OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pypi-openvino-rt.md"
+)
+md_files = [
+    long_description_md,
+    OPENVINO_SOURCE_DIR / "docs" / "dev" / "pypi_publish" / "pre-release-note.md",
+]
 docs_url = "https://docs.openvino.ai/2023.0/index.html"
 
 if os.getenv("CI_BUILD_DEV_TAG"):

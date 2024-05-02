@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/read_value.hpp"
-#include "openvino/op/assign.hpp"
 #include "matchers/subgraph/read_value_assign.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 
 class Model_4 {
 protected:
@@ -75,7 +75,8 @@ public:
         auto concat_0 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{assign_0, readVal_1}, 1);
         concat_0->set_friendly_name("concat_0");
 
-        auto axis_split = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>({1}));
+        auto axis_split =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>({1}));
         auto split_0 = std::make_shared<ov::op::v1::Split>(concat_0, axis_split, 2);
         split_0->set_friendly_name("split_0");
 
@@ -126,7 +127,7 @@ public:
         result_1->set_friendly_name("result_1");
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result_0, result_1},
-                                    ov::ParameterVector{param_0, param_1, param_2, param_3, param_4});
+                                            ov::ParameterVector{param_0, param_1, param_2, param_3, param_4});
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -148,8 +149,7 @@ public:
 
             auto result_1 = std::make_shared<ov::op::v0::Result>(assign_0);
 
-            auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_1},
-                                                        ov::ParameterVector{param_0});
+            auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_1}, ov::ParameterVector{param_0});
             ref_models.push_back(ref_model);
         }
         {
@@ -161,7 +161,8 @@ public:
             auto param_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 80});
             auto concat_0 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{param_2, readVal_1}, 1);
 
-            auto axis_split = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>({1}));
+            auto axis_split =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>({1}));
             auto split_0 = std::make_shared<ov::op::v1::Split>(concat_0, axis_split, 2);
 
             auto variable_info_3 = ov::op::util::VariableInfo{ov::PartialShape{1, 80}, ov::element::f32, "id_3"};
@@ -200,8 +201,8 @@ public:
 
             auto result_0 = std::make_shared<ov::op::v0::Result>(assign_2);
 
-            auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_0},
-                                                        ov::ParameterVector{param_0, param_3});
+            auto ref_model =
+                std::make_shared<ov::Model>(ov::ResultVector{result_0}, ov::ParameterVector{param_0, param_3});
             ref_models.push_back(ref_model);
         }
         {
@@ -217,8 +218,8 @@ public:
 
             auto result_1 = std::make_shared<ov::op::v0::Result>(assign_3);
 
-            auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_1},
-                                                        ov::ParameterVector{param_0, param_4});
+            auto ref_model =
+                std::make_shared<ov::Model>(ov::ResultVector{result_1}, ov::ParameterVector{param_0, param_4});
             ref_models.push_back(ref_model);
         }
 

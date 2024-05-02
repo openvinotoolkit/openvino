@@ -3,6 +3,7 @@
 //
 
 #include "convert_color_kernel_selector.h"
+
 #include "convert_color_kernel_ref.h"
 
 namespace kernel_selector {

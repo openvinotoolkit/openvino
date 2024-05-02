@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
+
+#include "low_precision/network_helper.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_lpt_models/fake_quantize_on_weights_and_unsupported_child.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
-#include "low_precision/network_helper.hpp"
-
 
 namespace ov {
 namespace builder {
@@ -28,18 +28,20 @@ std::shared_ptr<ov::Model> FakeQuantizeOnWeightsAndUnsupportedChildFunction::get
         weightsParent = fakeQuantizeOnWeights;
     }
 
-    auto unsupportedOperation = std::make_shared<ov::opset1::ConvolutionBackpropData>(
-        input, weightsParent, ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 }, ov::CoordinateDiff{ 0, 0 }, ov::Strides{ 1, 1 });
+    auto unsupportedOperation = std::make_shared<ov::opset1::ConvolutionBackpropData>(input,
+                                                                                      weightsParent,
+                                                                                      ov::Strides{1, 1},
+                                                                                      ov::CoordinateDiff{0, 0},
+                                                                                      ov::CoordinateDiff{0, 0},
+                                                                                      ov::Strides{1, 1});
     unsupportedOperation->set_friendly_name("UnsupportedOperation");
 
     const auto result = std::make_shared<ov::opset1::Result>(unsupportedOperation);
     result->set_friendly_name("Result");
 
-    std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(
-        ResultVector{ result },
-        ov::ParameterVector{ input },
-        "FakeQuantizeOnWeightsWithUnsupportedOperations");
+    std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(ResultVector{result},
+                                                                      ov::ParameterVector{input},
+                                                                      "FakeQuantizeOnWeightsWithUnsupportedOperations");
 
     return function;
 }

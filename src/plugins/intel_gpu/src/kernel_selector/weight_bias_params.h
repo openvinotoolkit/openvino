@@ -37,7 +37,9 @@ struct weight_bias_zero_point_params : public weight_bias_params {
     MultiDataTensor activations_zero_points;
     MultiDataTensor compensation;
 
-    bool HasCompensation() const { return !compensation.empty(); }
+    bool HasCompensation() const {
+        return !compensation.empty();
+    }
     std::string to_cache_string_v2() const override;
 };
 

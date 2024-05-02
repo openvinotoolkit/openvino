@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
+#include "gtest/gtest.h"
 #include "set_device_name.hpp"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     ov::test::utils::disable_tests_skipping = false;
     ov::test::utils::is_print_rel_influence_coef = false;
     bool print_custom_help = false;
@@ -47,14 +45,14 @@ int main(int argc, char *argv[]) {
         std::cout << "       Ignore tests skipping rules and run all the test" << std::endl;
         std::cout << "       (except those which are skipped with DISABLED prefix)" << std::endl;
         std::cout << "  --extend_report" << std::endl;
-        std::cout << "       Extend operation coverage report without overwriting the device results. " <<
-                  "Mutually exclusive with --report_unique_name" << std::endl;
+        std::cout << "       Extend operation coverage report without overwriting the device results. "
+                  << "Mutually exclusive with --report_unique_name" << std::endl;
         std::cout << "  --output_folder" << std::endl;
         std::cout << "       Folder path to save the report. Example is --output_folder=/home/user/report_folder"
                   << std::endl;
         std::cout << "  --report_unique_name" << std::endl;
-        std::cout << "       Allow to save report with unique name (report_pid_timestamp.xml). " <<
-                  "Mutually exclusive with --extend_report." << std::endl;
+        std::cout << "       Allow to save report with unique name (report_pid_timestamp.xml). "
+                  << "Mutually exclusive with --extend_report." << std::endl;
         std::cout << "  --save_report_timeout" << std::endl;
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << "  --extract_body" << std::endl;
@@ -64,8 +62,7 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl;
     }
 
-    if (ov::test::utils::OpSummary::getSaveReportWithUniqueName() &&
-            ov::test::utils::OpSummary::getExtendReport()) {
+    if (ov::test::utils::OpSummary::getSaveReportWithUniqueName() && ov::test::utils::OpSummary::getExtendReport()) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 

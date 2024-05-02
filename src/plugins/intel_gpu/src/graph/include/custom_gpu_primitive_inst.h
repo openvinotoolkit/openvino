@@ -3,10 +3,10 @@
 //
 
 #pragma once
+#include <string>
+
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
-
-#include <string>
 
 namespace cldnn {
 

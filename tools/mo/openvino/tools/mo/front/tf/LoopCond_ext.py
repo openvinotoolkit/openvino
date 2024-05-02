@@ -6,14 +6,12 @@ from openvino.tools.mo.front.extractor import FrontExtractorOp
 
 
 class LoopCondFrontExtractor(FrontExtractorOp):
-    op = 'LoopCond'
+    op = "LoopCond"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        node['infer'] = lambda node: single_output_infer(
-            node,
-            lambda node: node.in_node(0).shape,
-            lambda node: node.in_node(0).value
+        node["infer"] = lambda node: single_output_infer(
+            node, lambda node: node.in_node(0).shape, lambda node: node.in_node(0).value
         )
         return cls.enabled

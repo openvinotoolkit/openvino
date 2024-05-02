@@ -42,12 +42,12 @@ JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchDat
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = { "b", "f", "y", "x" };
+            idx_order = {"b", "f", "y", "x"};
         } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = { "b", "f", "z", "y", "x" };
+            idx_order = {"b", "f", "z", "y", "x"};
         }
         auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt);
-        jits.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jits.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jits;
 }

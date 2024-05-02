@@ -29,6 +29,6 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

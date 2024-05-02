@@ -28,7 +28,7 @@ private:
     static size_t get_max_dim(const std::vector<size_t>& last_dims);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

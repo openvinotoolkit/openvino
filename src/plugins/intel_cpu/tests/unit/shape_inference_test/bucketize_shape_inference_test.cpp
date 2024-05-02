@@ -3,6 +3,7 @@
 //
 
 #include "bucketize_shape_inference.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
 

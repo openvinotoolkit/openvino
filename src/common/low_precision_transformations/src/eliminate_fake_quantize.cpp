@@ -6,24 +6,22 @@
 
 #include <memory>
 
-
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
 
-EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const Params& params) : CleanupTransformation(params) {
+EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const Params& params)
+    : CleanupTransformation(params) {
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
-    const auto matcher = pattern::wrap_type<ov::opset1::FakeQuantize>({
-            pattern::any_input(),
-            pattern::wrap_type<ov::opset1::Constant>(),
-            pattern::wrap_type<ov::opset1::Constant>(),
-            pattern::wrap_type<ov::opset1::Constant>(),
-            pattern::wrap_type<ov::opset1::Constant>()
-        });
+    const auto matcher = pattern::wrap_type<ov::opset1::FakeQuantize>({pattern::any_input(),
+                                                                       pattern::wrap_type<ov::opset1::Constant>(),
+                                                                       pattern::wrap_type<ov::opset1::Constant>(),
+                                                                       pattern::wrap_type<ov::opset1::Constant>(),
+                                                                       pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         const auto op = m.get_match_root();
@@ -67,12 +65,12 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
     }
 
     if (need_to_check_intervals) {
-        auto tmp_fq = as_type_ptr<ov::opset1::FakeQuantize>(fq->clone_with_new_inputs({
-            constant,
-            fq->get_input_node_shared_ptr(1),
-            fq->get_input_node_shared_ptr(2),
-            fq->get_input_node_shared_ptr(3),
-            fq->get_input_node_shared_ptr(4)}));
+        auto tmp_fq =
+            as_type_ptr<ov::opset1::FakeQuantize>(fq->clone_with_new_inputs({constant,
+                                                                             fq->get_input_node_shared_ptr(1),
+                                                                             fq->get_input_node_shared_ptr(2),
+                                                                             fq->get_input_node_shared_ptr(3),
+                                                                             fq->get_input_node_shared_ptr(4)}));
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false);
         const auto result_constant = as_type_ptr<ov::opset1::Constant>(result);
         if (result_constant == nullptr) {
@@ -99,19 +97,31 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
     // input intervals can be not equal with type intervals for low precision only
     const auto exact_comparison = !element_type.is_integral();
 
-    return
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)),
-                       min_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)),
-                       max_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)),
-                       min_value, max_diff, true) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4)),
-                       max_value, max_diff, true);
+    return check_interval(fakeQuantize,
+                          ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)),
+                          min_value,
+                          max_diff,
+                          exact_comparison) &&
+           check_interval(fakeQuantize,
+                          ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)),
+                          max_value,
+                          max_diff,
+                          exact_comparison) &&
+           check_interval(fakeQuantize,
+                          ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)),
+                          min_value,
+                          max_diff,
+                          true) &&
+           check_interval(fakeQuantize,
+                          ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4)),
+                          max_value,
+                          max_diff,
+                          true);
 }
-} // namespace
+}  // namespace
 
-bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context,
+                                                           std::shared_ptr<Node> operation) const {
     if (!CleanupTransformation::canBeTransformed(context, operation)) {
         return false;
     }
@@ -132,6 +142,6 @@ bool EliminateFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<N
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

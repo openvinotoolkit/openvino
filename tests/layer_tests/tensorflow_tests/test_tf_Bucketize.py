@@ -11,22 +11,26 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestBucketize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
-        input_shape = inputs_info['input:0']
+        assert "input:0" in inputs_info, "Test error: inputs_info must contain `input`"
+        input_shape = inputs_info["input:0"]
         input_type = self.input_type
         inputs_data = {}
         input_data = np.random.randint(-20, 20, input_shape).astype(input_type)
-        inputs_data['input:0'] = input_data
+        inputs_data["input:0"] = input_data
         return inputs_data
 
     def create_bucketize_net(self, input_shape, input_type, boundaries_size):
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(input_type, input_shape, 'input')
+            input = tf.compat.v1.placeholder(input_type, input_shape, "input")
             # generate boundaries list
             # use wider range for boundaries than input data in order to cover all bucket indices cases
-            boundaries = np.sort(np.unique(np.random.randint(-200, 200, [boundaries_size]).astype(np.float32))).tolist()
+            boundaries = np.sort(
+                np.unique(
+                    np.random.randint(-200, 200, [boundaries_size]).astype(np.float32)
+                )
+            ).tolist()
             tf.raw_ops.Bucketize(input=input, boundaries=boundaries)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -42,12 +46,19 @@ class TestBucketize(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
-                       reason='Ticket - 122716')
-    def test_bucketize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        if ie_device == 'GPU':
+    @pytest.mark.xfail(
+        platform.machine() in ["aarch64", "arm64", "ARM64"], reason="Ticket - 122716"
+    )
+    def test_bucketize_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU":
             pytest.skip("accuracy mismatch on GPU")
-        self._test(*self.create_bucketize_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_bucketize_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

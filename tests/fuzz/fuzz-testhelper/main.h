@@ -18,6 +18,6 @@ Microsoft linker only resolve libary functions which are referenced,
 extern "C" int main(int argc, char* argv[]);
 // make a reference to main so linker resolve it from static library
 void* main_ptr_ = (void*)main;
-#endif  // !defined(WITH_LIBFUZZER)
+#endif // !defined(WITH_LIBFUZZER)
 
-#endif  // TESTS_FUZZ_TESTHELPER_MAIN_H_
+#endif // TESTS_FUZZ_TESTHELPER_MAIN_H_

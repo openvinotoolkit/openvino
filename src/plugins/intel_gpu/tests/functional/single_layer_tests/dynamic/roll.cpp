@@ -2,31 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roll.hpp"
+
 #include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/roll.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
 namespace {
 using ov::test::InputShape;
 
-using RollGPUTestParams = typename std::tuple<
-        InputShape,                  // Input shape
-        ov::element::Type,           // Input precision
-        std::vector<int64_t>,        // Shift
-        std::vector<int64_t>,        // Axes
-        std::string>;                // Device name
+using RollGPUTestParams = typename std::tuple<InputShape,            // Input shape
+                                              ov::element::Type,     // Input precision
+                                              std::vector<int64_t>,  // Shift
+                                              std::vector<int64_t>,  // Axes
+                                              std::string>;          // Device name
 
-class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>,
-                         virtual public SubgraphBaseTest {
+class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RollGPUTestParams> obj) {
         InputShape inputShape;
@@ -95,62 +93,63 @@ const std::vector<InputShape> data3DShapes = {{{}, {{2, 300, 320}}},
                                               {{2, {100, 500}, -1}, {{2, 320, 420}, {2, 500, 200}}}};
 const std::vector<InputShape> data4DNegativeAxesShapes = {{{}, {{3, 11, 6, 4}}},
                                                           {{-1, -1, {5, 6}, -1}, {{5, 10, 6, 15}, {10, 20, 5, 7}}}};
-const std::vector<InputShape> data5DRepeatingAxesNegativeShiftShapes = {{{}, {{2, 7, 32, 32, 5}}},
-                                                                       {{2, -1, -1, -1, {2, 7}}, {{2, 5, 20, 17, 3}, {2, 10, 18, 40, 7}}}};
+const std::vector<InputShape> data5DRepeatingAxesNegativeShiftShapes = {
+    {{}, {{2, 7, 32, 32, 5}}},
+    {{2, -1, -1, -1, {2, 7}}, {{2, 5, 20, 17, 3}, {2, 10, 18, 40, 7}}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_2DZeroShift, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data2DZeroShiftShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{0, 0}),  // Shift
-                            ::testing::Values(std::vector<int64_t>{0, 1}),  // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_2DZeroShift,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data2DZeroShiftShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{0, 0}),  // Shift
+                                            ::testing::Values(std::vector<int64_t>{0, 1}),  // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_1D, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data1DShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{5}),     // Shift
-                            ::testing::Values(std::vector<int64_t>{0}),     // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_1D,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data1DShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{5}),  // Shift
+                                            ::testing::Values(std::vector<int64_t>{0}),  // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_2D, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data2DShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{50, 150}), // Shift
-                            ::testing::Values(std::vector<int64_t>{0, 1}),    // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_2D,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data2DShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{50, 150}),  // Shift
+                                            ::testing::Values(std::vector<int64_t>{0, 1}),     // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3D, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data3DShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{160, 150}), // Shift
-                            ::testing::Values(std::vector<int64_t>{1, 2}),     // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3D,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data3DShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{160, 150}),  // Shift
+                                            ::testing::Values(std::vector<int64_t>{1, 2}),      // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_4DNegativeAxes, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data4DNegativeAxesShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{7, 3}),   // Shift
-                            ::testing::Values(std::vector<int64_t>{-3, -2}), // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_4DNegativeAxes,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data4DNegativeAxesShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{7, 3}),    // Shift
+                                            ::testing::Values(std::vector<int64_t>{-3, -2}),  // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_5DRepeatingAxesNegativeShift, RollLayerGPUTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(data5DRepeatingAxesNegativeShiftShapes),
-                            ::testing::ValuesIn(inputPrecisions),
-                            ::testing::Values(std::vector<int64_t>{4, -1, 7, 2, -5}),  // Shift
-                            ::testing::Values(std::vector<int64_t>{-1, 0, 3, 3, 2}),   // Axes
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        RollLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_5DRepeatingAxesNegativeShift,
+                         RollLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(data5DRepeatingAxesNegativeShiftShapes),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::Values(std::vector<int64_t>{4, -1, 7, 2, -5}),  // Shift
+                                            ::testing::Values(std::vector<int64_t>{-1, 0, 3, 3, 2}),   // Axes
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RollLayerGPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

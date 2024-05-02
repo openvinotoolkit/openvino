@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "utils/cpu_test_utils.hpp"
-#include "utils/fusing_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/pooling.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -16,18 +16,16 @@ namespace test {
 
 using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
-                                             ElementType, //inPrc
-                                             bool, // isInt8
+                                             ElementType,  // inPrc
+                                             bool,         // isInt8
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
-using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams,
-        InputShape,
-        ElementType,
-        CPUSpecificParams>;
+using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams, InputShape, ElementType, CPUSpecificParams>;
 
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                            virtual public SubgraphBaseTest,
+                            public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
 
@@ -36,7 +34,8 @@ protected:
 };
 
 class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
-                                 virtual public SubgraphBaseTest, public CPUTestsBase {
+                                 virtual public SubgraphBaseTest,
+                                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
 

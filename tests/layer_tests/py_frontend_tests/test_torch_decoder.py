@@ -2,8 +2,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
 import pytest
+import torch
 
 
 class AtenDiv(torch.nn.Module):
@@ -37,12 +37,11 @@ def get_traced_model(model, inputs=[], frozen=True):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_str():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(AtenDiv("trunc"))
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
     str_const = consts[0]
@@ -53,12 +52,11 @@ def test_pytorch_decoder_get_output_type_str():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_none():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(AtenDiv(None))
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
     none_const = consts[0]
@@ -69,8 +67,8 @@ def test_pytorch_decoder_get_output_type_none():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_input_type_str():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(AtenDiv("trunc"))
     divs = [n for n in model.inlined_graph.nodes() if n.kind() == "aten::div"]
@@ -83,8 +81,8 @@ def test_pytorch_decoder_get_input_type_str():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_input_type_none():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = get_scripted_model(AtenDiv(None))
     divs = [n for n in model.inlined_graph.nodes() if n.kind() == "aten::div"]
@@ -105,8 +103,7 @@ def test_pytorch_decoder_can_convert_fp16_tensor():
             return torch.tensor([1, 2], dtype=torch.float16)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -127,8 +124,7 @@ def test_pytorch_decoder_can_convert_bf16_tensor():
             return torch.tensor([1, 2], dtype=torch.bfloat16)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -149,8 +145,7 @@ def test_pytorch_decoder_can_convert_fp32_tensor():
             return torch.tensor([1, 2], dtype=torch.float32)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -171,8 +166,7 @@ def test_pytorch_decoder_can_convert_fp64_tensor():
             return torch.tensor([1, 2], dtype=torch.float64)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -193,8 +187,7 @@ def test_pytorch_decoder_can_convert_bool_tensor():
             return torch.tensor([1, 0], dtype=torch.bool)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -215,8 +208,7 @@ def test_pytorch_decoder_can_convert_u8_tensor():
             return torch.tensor([1, 2], dtype=torch.uint8)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -237,8 +229,7 @@ def test_pytorch_decoder_can_convert_i8_tensor():
             return torch.tensor([1, 2], dtype=torch.int8)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -259,8 +250,7 @@ def test_pytorch_decoder_can_convert_i16_tensor():
             return torch.tensor([1, 2], dtype=torch.int16)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -281,8 +271,7 @@ def test_pytorch_decoder_can_convert_i32_tensor():
             return torch.tensor([1, 2], dtype=torch.int)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -303,8 +292,7 @@ def test_pytorch_decoder_can_convert_i64_tensor():
             return torch.tensor([1, 2], dtype=torch.int64)
 
     model = get_scripted_model(SomeTensor())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     nc_decoder = TorchScriptPythonDecoder(model, some_const)
@@ -324,8 +312,7 @@ def test_pytorch_decoder_can_convert_int64_max():
             return 9223372036854775807
 
     model = get_scripted_model(I64MaxConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     int64_const = consts[0]
     print(int64_const)
@@ -343,8 +330,7 @@ def test_pytorch_decoder_can_convert_int_list():
             return [1, 2]
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -366,8 +352,7 @@ def test_pytorch_decoder_can_convert_float_list():
             return [float(1), float(2)]
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -389,8 +374,7 @@ def test_pytorch_decoder_can_convert_bool_list():
             return [True, False]
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -412,8 +396,7 @@ def test_pytorch_decoder_can_convert_int_tuple():
             return (1, 2)
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -435,8 +418,7 @@ def test_pytorch_decoder_can_convert_float_tuple():
             return (float(1), float(2))
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -458,8 +440,7 @@ def test_pytorch_decoder_can_convert_bool_tuple():
             return (True, False)
 
     model = get_scripted_model(ListConst())
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[0]
     print(some_const)
@@ -486,8 +467,7 @@ def test_pytorch_decoder_can_convert_empty_list():
             return torch.roll(x, self.shifts)
 
     model = get_scripted_model(aten_roll(1))
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 1
     empty_const = consts[1]
     print(empty_const)
@@ -515,8 +495,7 @@ def test_pytorch_decoder_can_convert_int_scalar_tensor():
             return torch.add(torch.tensor([1], dtype=torch.int32), self.value + 1)
 
     model = get_traced_model(SomeTensor(), frozen=False)
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[6]
     node_output = list(some_const.outputs())[0]
@@ -538,16 +517,15 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
     class SomeTensor(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.value: float = 1.
+            self.value: float = 1.0
 
         def forward(self):
             # Reproduce specific case where prim::Constant for `self.value + 1`
             # would create nore with output being Tensor with IValue  of type float.
-            return torch.add(torch.tensor([1.], dtype=torch.float), self.value + 1)
+            return torch.add(torch.tensor([1.0], dtype=torch.float), self.value + 1)
 
     model = get_traced_model(SomeTensor(), frozen=False)
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
-              "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     assert len(consts) > 0
     some_const = consts[6]
     node_output = list(some_const.outputs())[0]
@@ -563,14 +541,19 @@ def test_pytorch_decoder_can_convert_float_scalar_tensor():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_tensor_list():
+    from typing import List, Optional
+
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.runtime import PartialShape, Type
-    from typing import List, Optional
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
-            l = torch.jit.annotate(List[Optional[torch.Tensor]], [
-                                   torch.ones((1, 3, 3), dtype=torch.float),])
+            l = torch.jit.annotate(
+                List[Optional[torch.Tensor]],
+                [
+                    torch.ones((1, 3, 3), dtype=torch.float),
+                ],
+            )
             return l
 
     model = get_scripted_model(SomeTensor())
@@ -579,12 +562,10 @@ def test_pytorch_decoder_can_convert_tensor_list():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    converted_listconstruct_nodes = list(
-        graph.findAllNodes("prim::ListConstruct"))
+    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
     # # Assert that replaced const exist and is not used
     assert len(converted_const_nodes) == 2
-    assert len(
-        [node for node in converted_const_nodes if not node.hasUses()]) == 1
+    assert len([node for node in converted_const_nodes if not node.hasUses()]) == 1
     # Assert that prim::ListConstruct exist and has uses
     assert len(converted_listconstruct_nodes) == 1
     assert converted_listconstruct_nodes[0].kind() == "prim::ListConstruct"
@@ -592,17 +573,16 @@ def test_pytorch_decoder_can_convert_tensor_list():
     assert len(list(converted_listconstruct_nodes[0].inputs())) == 1
     created_const = converted_listconstruct_nodes[0].input().node()
     assert created_const in converted_const_nodes
-    created_const_decoder = TorchScriptPythonDecoder(
-        model, created_const).as_constant()
+    created_const_decoder = TorchScriptPythonDecoder(model, created_const).as_constant()
     assert created_const_decoder[0].get_element_type() == Type.f32
-    assert created_const_decoder[0].get_partial_shape() == PartialShape([
-        1, 3, 3])
+    assert created_const_decoder[0].get_partial_shape() == PartialShape([1, 3, 3])
 
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_tensor_list_empty():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from typing import List, Optional
+
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
@@ -615,8 +595,7 @@ def test_pytorch_decoder_can_convert_tensor_list_empty():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    converted_listconstruct_nodes = list(
-        graph.findAllNodes("prim::ListConstruct"))
+    converted_listconstruct_nodes = list(graph.findAllNodes("prim::ListConstruct"))
     # Assert that replaced const exist and is not used
     assert len(converted_const_nodes) == 1
     assert not converted_const_nodes[0].hasUses()
@@ -629,8 +608,9 @@ def test_pytorch_decoder_can_convert_tensor_list_empty():
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_optional_tensor_none():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from typing import Optional
+
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class SomeTensor(torch.nn.Module):
         def forward(self):
@@ -643,8 +623,7 @@ def test_pytorch_decoder_can_convert_optional_tensor_none():
     nc_decoder = TorchScriptPythonDecoder(model)
     graph = nc_decoder.graph_element
     converted_const_nodes = list(graph.findAllNodes("prim::Constant"))
-    removed_consts = [
-        node for node in converted_const_nodes if not node.hasUses()]
+    removed_consts = [node for node in converted_const_nodes if not node.hasUses()]
     created_consts = [node for node in converted_const_nodes if node.hasUses()]
     assert len(removed_consts) == len(created_consts) == 1
     # Assert that unused const has torch.OptionalType dtype
@@ -663,7 +642,8 @@ def f(x, y):
 
 @pytest.mark.precommit
 def test_pytorch_decoder_can_convert_scripted_function():
-    from openvino import convert_model, Type
+    from openvino import Type, convert_model
+
     scripted = torch.jit.script(f)
     model = convert_model(scripted, input=[Type.f32, Type.f32])
     assert model is not None

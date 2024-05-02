@@ -5,20 +5,27 @@ import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape  # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
+from openvino._pyopenvino import (  # pylint: disable=no-name-in-module,import-error
+    PartialShape,
+    Place,
+)
+from openvino.frontend import (  # pylint: disable=no-name-in-module,import-error
+    InputModel,
+)
 from openvino.tools.ovc.error import Error
 
 
 def raise_no_node(node_name: str):
-    raise Error('No node with name {}'.format(node_name))
+    raise Error("No node with name {}".format(node_name))
 
 
 def raise_node_name_collision(node_name: str, found_nodes: list):
-    raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
-                'If your intention was to specify port for node, please instead specify node names connected to '
-                'this port. If your intention was to specify the node name, please add port to the node '
-                'name'.format(node_name, found_nodes))
+    raise Error(
+        'Name collision was found, there are several nodes for mask "{}": {}. '
+        "If your intention was to specify port for node, please instead specify node names connected to "
+        "this port. If your intention was to specify the node name, please add port to the node "
+        "name".format(node_name, found_nodes)
+    )
 
 
 class IOType(Enum):
@@ -27,7 +34,7 @@ class IOType(Enum):
 
 
 def decode_name_with_port(
-        input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
+    input_model: InputModel, node_name: str, framework="", io_type=IOType.Input
 ) -> Place or None:
     """
     Decode name with optional port specification w/o traversing all the nodes in the graph
@@ -151,11 +158,11 @@ def decode_name_with_port(
 
 
 def fe_input_user_data_repack(
-        input_model: InputModel,
-        input_user_shapes: [None, list, dict, np.ndarray],
-        freeze_placeholder: dict,
-        framework: str,
-        input_user_data_types=None,
+    input_model: InputModel,
+    input_user_shapes: [None, list, dict, np.ndarray],
+    freeze_placeholder: dict,
+    framework: str,
+    input_user_data_types=None,
 ):
     """
     Restructures user input cutting request. Splits ports out of node names.
@@ -198,10 +205,15 @@ def fe_input_user_data_repack(
     _input_names = []
     model_inputs = input_model.get_inputs()
 
-    if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0],
-                                                                                         PartialShape):
+    if (
+        isinstance(input_user_shapes, list)
+        and len(input_user_shapes) > 1
+        and isinstance(input_user_shapes[0], PartialShape)
+    ):
         for shape in input_user_shapes:
-            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes."
+            assert isinstance(
+                shape, PartialShape
+            ), "Got incorrect format of input shapes."
         assert len(model_inputs) == len(input_user_shapes)
         for idx, model_input in enumerate(model_inputs):
             _input_shapes.append({"node": model_input, "shape": input_user_shapes[idx]})
@@ -219,7 +231,10 @@ def fe_input_user_data_repack(
                 if isinstance(input_user_shapes, list)
                 else input_user_shapes[input_name]
             )
-            if isinstance(input_user_data_types, dict) and input_user_data_types.get(input_name) is not None:
+            if (
+                isinstance(input_user_data_types, dict)
+                and input_user_data_types.get(input_name) is not None
+            ):
                 data_type = input_user_data_types[input_name]
                 _input_shapes.append(
                     {
@@ -231,11 +246,7 @@ def fe_input_user_data_repack(
                 )
             else:
                 _input_shapes.append(
-                    {
-                        "node": node,
-                        "shape": shape,
-                        "input_name": input_name
-                    }
+                    {"node": node, "shape": shape, "input_name": input_name}
                 )
             _input_names.append(input_name)
     elif isinstance(input_user_shapes, PartialShape):
@@ -245,25 +256,24 @@ def fe_input_user_data_repack(
         # means the model has two inputs: one is is_training to be frozen, the other to re-write the shape
         # NOTE: the logic relies on parameters with the single name
         frozen_names = freeze_placeholder.keys()
-        assert len(model_inputs) == len(frozen_names) + 1, \
-            "Please check the conversion command-line. Total number of model inputs ({} detected) " \
+        assert len(model_inputs) == len(frozen_names) + 1, (
+            "Please check the conversion command-line. Total number of model inputs ({} detected) "
             "must match to a number of input shapes along with frozen inputs ({} in total).".format(
-                len(model_inputs),
-                len(frozen_names) + 1)
+                len(model_inputs), len(frozen_names) + 1
+            )
+        )
         for node in model_inputs:
-            assert len(node.get_names()) > 0, "Original model inputs must have tensor names."
+            assert (
+                len(node.get_names()) > 0
+            ), "Original model inputs must have tensor names."
             input_name = node.get_names()[0]
             if input_name not in frozen_names:
                 _input_shapes.append(
-                    {
-                        "node": node,
-                        "shape": input_user_shapes,
-                        "input_name": input_name
-                    }
+                    {"node": node, "shape": input_user_shapes, "input_name": input_name}
                 )
                 # case when single unnamed input shape and type was specified
                 if input_name in input_user_data_types:
-                    _input_shapes[-1]['data_type'] = input_user_data_types[input_name]
+                    _input_shapes[-1]["data_type"] = input_user_data_types[input_name]
                 _input_names.append(input_name)
                 break
     else:
@@ -272,17 +282,14 @@ def fe_input_user_data_repack(
         # NOTE: the logic relies on parameters with the single name
         assert input_user_shapes is None
         for node in model_inputs:
-            assert len(node.get_names()) > 0, "Original model inputs must have tensor names."
+            assert (
+                len(node.get_names()) > 0
+            ), "Original model inputs must have tensor names."
             input_name = node.get_names()[0]
-            _input_shapes.append(
-                {
-                    "node": node,
-                    "input_name": input_name
-                }
-            )
+            _input_shapes.append({"node": node, "input_name": input_name})
             # case when types were specified for unnamed inputs
             if input_name in input_user_data_types:
-                _input_shapes[-1]['data_type'] = input_user_data_types[input_name]
+                _input_shapes[-1]["data_type"] = input_user_data_types[input_name]
             # mark-up Place names we already put into the _input_names
             # to avoid duplicates in updates by freeze_placeholder below
             _input_names.append(input_name)
@@ -295,12 +302,7 @@ def fe_input_user_data_repack(
             node = decode_name_with_port(
                 input_model, input_name, framework, IOType.Input
             )
-            _input_shapes.append(
-                {
-                    "node": node,
-                    "input_name": input_name
-                }
-            )
+            _input_shapes.append({"node": node, "input_name": input_name})
         return _input_shapes, freeze_placeholder
     return _input_shapes, dict()
 
@@ -359,12 +361,14 @@ def find_first_unused_input(model_inputs: list, param_dict: dict, param_name: st
         if name_found:
             continue
         return input_names[0]
-    raise Error("Could not set {}, as model does not have enough inputs.".format(param_name))
+    raise Error(
+        "Could not set {}, as model does not have enough inputs.".format(param_name)
+    )
 
 
-def convert_params_lists_to_dicts(input_model,
-                                  input_user_shapes: [list, dict],
-                                  input_user_data_types: [list, dict]):
+def convert_params_lists_to_dicts(
+    input_model, input_user_shapes: [list, dict], input_user_data_types: [list, dict]
+):
     """
     Convert lists of unnamed params to dicts using input names from input_model.
 
@@ -377,7 +381,10 @@ def convert_params_lists_to_dicts(input_model,
     input_user_data_types_dict - dictionary where key is input name, value is type from user;
     freeze_placeholder - dictionary where key is input name, value is input value from user;
     """
-    from openvino.runtime import PartialShape  # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import (  # pylint: disable=no-name-in-module,import-error
+        PartialShape,
+    )
+
     model_inputs = input_model.get_inputs()
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
@@ -387,27 +394,37 @@ def convert_params_lists_to_dicts(input_model,
 
         # this cycle adds each unnamed shape to dictionary using name from model_inputs
         for idx, shape in enumerate(input_user_shapes):
-            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes {}.".format(type(shape))
+            assert isinstance(
+                shape, PartialShape
+            ), "Got incorrect format of input shapes {}.".format(type(shape))
 
-            inp_name = find_first_unused_input(model_inputs, input_user_shapes_dict, "shape")
+            inp_name = find_first_unused_input(
+                model_inputs, input_user_shapes_dict, "shape"
+            )
             input_user_shapes_dict[inp_name] = shape
     else:
         input_user_shapes_dict = input_user_shapes
 
     # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
-        from openvino.runtime import Type  # pylint: disable=no-name-in-module,import-error
+        from openvino.runtime import (  # pylint: disable=no-name-in-module,import-error
+            Type,
+        )
 
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}
 
         # this cycle adds each unnamed type to dictionary using name from model_inputs
         for idx, node_type in enumerate(input_user_data_types):
-            assert isinstance(node_type, (type, np.dtype, Type)), "Got incorrect format of input types. " \
-                                                                  "Expected numpy type or openvino.runtime.Type, " \
-                                                                  "got {}.".format(type(node_type))
+            assert isinstance(node_type, (type, np.dtype, Type)), (
+                "Got incorrect format of input types. "
+                "Expected numpy type or openvino.runtime.Type, "
+                "got {}.".format(type(node_type))
+            )
 
-            inp_name = find_first_unused_input(model_inputs, input_user_data_types_dict, "type")
+            inp_name = find_first_unused_input(
+                model_inputs, input_user_data_types_dict, "type"
+            )
             input_user_data_types_dict[inp_name] = node_type
             # FE postprocessing expects input_user_shapes_dict to always have shapes for corresponding types.
             # If shape is not set it is expected to have None shape in input_user_shapes_dict dictionary.
@@ -420,12 +437,12 @@ def convert_params_lists_to_dicts(input_model,
 
 
 def fe_user_data_repack(
-        input_model: InputModel,
-        input_user_shapes: [None, list, dict, np.array],
-        input_user_data_types: dict,
-        outputs: list,
-        freeze_placeholder: dict,
-        framework: str,
+    input_model: InputModel,
+    input_user_shapes: [None, list, dict, np.array],
+    input_user_data_types: dict,
+    outputs: list,
+    freeze_placeholder: dict,
+    framework: str,
 ):
     """
     :param input_model: Input Model to operate on

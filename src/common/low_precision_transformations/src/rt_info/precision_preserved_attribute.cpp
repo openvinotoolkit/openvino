@@ -10,9 +10,7 @@
 using namespace ov;
 using namespace ov;
 
-PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) :
-    SharedAttribute(value) {
-}
+PrecisionPreservedAttribute::PrecisionPreservedAttribute(const bool value) : SharedAttribute(value) {}
 
 std::string PrecisionPreservedAttribute::to_string() const {
     std::stringstream ss;

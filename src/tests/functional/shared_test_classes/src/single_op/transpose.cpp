@@ -43,9 +43,8 @@ void TransposeLayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     const auto in_order_shape = input_order.empty() ? ov::Shape({0}) : ov::Shape({inputDynamicShapes.front().size()});
-    const auto input_order_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                         in_order_shape,
-                                                                         input_order);
+    const auto input_order_const =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, in_order_shape, input_order);
     const auto transpose = std::make_shared<ov::op::v1::Transpose>(param, input_order_const);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose)};
     function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "Transpose");

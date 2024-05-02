@@ -21,6 +21,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

@@ -7,9 +7,9 @@ from openvino.tools.mo.front.common.partial_infer.batch_norm import batch_norm_4
 
 def scale_shift_ext(attrs):
     node_attrs = {
-        'type': 'ScaleShift',
-        'fix_gamma': attrs.bool("fix_gamma", True),
-        'infer': batch_norm_4_infer
+        "type": "ScaleShift",
+        "fix_gamma": attrs.bool("fix_gamma", True),
+        "infer": batch_norm_4_infer,
     }
     node_attrs.update(layout_attrs())
     return node_attrs

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,16 +21,14 @@ public:
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);
 
-typedef std::tuple<
-    ov::element::Type,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    SqueezeTransformationParam
-> SqueezeTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   SqueezeTransformationParam>
+    SqueezeTransformationParams;
 
-class SqueezeTransformation :
-    public testing::WithParamInterface<SqueezeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class SqueezeTransformation : public testing::WithParamInterface<SqueezeTransformationParams>,
+                              public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj);
 

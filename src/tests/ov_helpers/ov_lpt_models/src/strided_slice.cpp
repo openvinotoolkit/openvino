@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/network_helper.hpp"
-#include "low_precision/layer_transformation.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-
-#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/strided_slice.hpp"
+
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -32,24 +31,27 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     input->set_friendly_name("input");
     const auto deq = makeDequantization(input, dequantization);
 
-    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ begin.size() }, begin);
+    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{begin.size()}, begin);
     beginParam->set_friendly_name("begin");
-    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ end.size() }, end);
+    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{end.size()}, end);
     endParam->set_friendly_name("end");
-    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ strides.size() }, strides);
+    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{strides.size()}, strides);
     stridesParam->set_friendly_name("strides");
 
-    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(
-        deq, beginParam, endParam, stridesParam,
-        beginMask, endMask, newAxisMask,
-        shrinkAxisMask, elipsisMask);
+    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(deq,
+                                                                         beginParam,
+                                                                         endParam,
+                                                                         stridesParam,
+                                                                         beginMask,
+                                                                         endMask,
+                                                                         newAxisMask,
+                                                                         shrinkAxisMask,
+                                                                         elipsisMask);
     stridedSlice->set_friendly_name("StridedSlice");
 
     const auto res = std::make_shared<ov::opset1::Result>(stridedSlice);
-    const auto function = std::make_shared<ov::Model>(
-        ov::ResultVector{ res },
-        ov::ParameterVector{ input },
-        "StridedSliceTransformation");
+    const auto function =
+        std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input}, "StridedSliceTransformation");
 
     return function;
 }
@@ -70,24 +72,27 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getOriginal(
     input->set_friendly_name("input");
     const auto fqOnData = makeFakeQuantize(input, inputPrecision, fakeQuantize);
 
-    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ begin.size() }, begin);
+    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{begin.size()}, begin);
     beginParam->set_friendly_name("begin");
-    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ end.size() }, end);
+    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{end.size()}, end);
     endParam->set_friendly_name("end");
-    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ strides.size() }, strides);
+    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{strides.size()}, strides);
     stridesParam->set_friendly_name("strides");
 
-    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(
-        fqOnData, beginParam, endParam, stridesParam,
-        beginMask, endMask, newAxisMask,
-        shrinkAxisMask, elipsisMask);
+    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(fqOnData,
+                                                                         beginParam,
+                                                                         endParam,
+                                                                         stridesParam,
+                                                                         beginMask,
+                                                                         endMask,
+                                                                         newAxisMask,
+                                                                         shrinkAxisMask,
+                                                                         elipsisMask);
     stridedSlice->set_friendly_name("StridedSlice");
 
     const auto res = std::make_shared<ov::opset1::Result>(stridedSlice);
-    const auto function = std::make_shared<ov::Model>(
-        ov::ResultVector{ res },
-        ov::ParameterVector{ input },
-        "StridedSliceTransformation");
+    const auto function =
+        std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input}, "StridedSliceTransformation");
 
     return function;
 }
@@ -110,26 +115,29 @@ std::shared_ptr<ov::Model> StridedSliceFunction::getReference(
     input->set_friendly_name("input");
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
-    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ begin.size() }, begin);
+    const auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{begin.size()}, begin);
     beginParam->set_friendly_name("begin");
-    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ end.size() }, end);
+    const auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{end.size()}, end);
     endParam->set_friendly_name("end");
-    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ strides.size() }, strides);
+    const auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{strides.size()}, strides);
     stridesParam->set_friendly_name("strides");
 
-    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(
-        deqBefore, beginParam, endParam, stridesParam,
-        beginMask, endMask, newAxisMask,
-        shrinkAxisMask, elipsisMask);
+    const auto stridedSlice = std::make_shared<ov::opset1::StridedSlice>(deqBefore,
+                                                                         beginParam,
+                                                                         endParam,
+                                                                         stridesParam,
+                                                                         beginMask,
+                                                                         endMask,
+                                                                         newAxisMask,
+                                                                         shrinkAxisMask,
+                                                                         elipsisMask);
 
     const auto deqAfter = makeDequantization(stridedSlice, dequantizationAfter);
     deqAfter->set_friendly_name("StridedSlice");
 
     const auto res = std::make_shared<ov::opset1::Result>(deqAfter);
-    const auto function = std::make_shared<ov::Model>(
-        ov::ResultVector{ res },
-        ov::ParameterVector{ input },
-        "StridedSliceTransformation");
+    const auto function =
+        std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input}, "StridedSliceTransformation");
 
     return function;
 }

@@ -4,16 +4,16 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino import Model, Shape
-
 from openvino.runtime.op.util import (
-    InvariantInputDescription,
     BodyOutputDescription,
-    SliceInputDescription,
-    MergedInputDescription,
     ConcatOutputDescription,
+    InvariantInputDescription,
+    MergedInputDescription,
+    SliceInputDescription,
 )
 from tests.utils.helpers import compare_models
+
+from openvino import Model, Shape
 
 
 def test_simple_tensor_iterator():
@@ -129,7 +129,9 @@ def test_tensor_iterator_basic():
     input_desc = ti.get_input_descriptions()
     output_desc = ti.get_output_descriptions()
 
-    assert len(input_desc) == len(ti_slice_input_desc) + len(ti_merged_input_desc) + len(ti_invariant_input_desc)
+    assert len(input_desc) == len(ti_slice_input_desc) + len(
+        ti_merged_input_desc
+    ) + len(ti_invariant_input_desc)
     assert len(output_desc) == len(ti_body_output_desc) + len(ti_concat_output_desc)
 
     for i in range(len(ti_slice_input_desc)):

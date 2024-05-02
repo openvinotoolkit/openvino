@@ -4,19 +4,19 @@
 
 #include "shared_test_classes/single_op/gru_sequence.hpp"
 
-#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
-using ov::test::utils::SequenceTestsMode;
 using ov::test::utils::is_tensor_iterator_exist;
+using ov::test::utils::SequenceTestsMode;
 
-std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
+std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams>& obj) {
     std::vector<InputShape> shapes;
     SequenceTestsMode mode;
     std::vector<std::string> activations;
@@ -28,8 +28,7 @@ std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSeq
     InputLayerType WRBType;
     ov::element::Type type;
     std::string targetDevice;
-    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, WRBType,
-                type, targetDevice) = obj.param;
+    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, WRBType, type, targetDevice) = obj.param;
     std::ostringstream result;
     result << "mode=" << mode << "_";
     result << "IS=(";
@@ -62,8 +61,8 @@ void GRUSequenceTest::SetUp() {
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType wbr_type;
     ov::test::utils::SequenceTestsMode mode;
-    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type,
-            inType, targetDevice) = this->GetParam();
+    std::tie(mode, shapes, activations, clip, linear_before_reset, direction, wbr_type, inType, targetDevice) =
+        this->GetParam();
     outType = inType;
     init_input_shapes(shapes);
     if (inType == ElementType::bf16 || inType == ElementType::f16) {
@@ -74,10 +73,11 @@ void GRUSequenceTest::SetUp() {
     const size_t hidden_size = targetStaticShapes.front()[1][2];
     const size_t input_size = targetStaticShapes.front()[0][2];
     const size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
-    const size_t batch = inputDynamicShapes[0][0].is_static() ? inputDynamicShapes[0][0].get_length() :
-        inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
-        inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
-        1lu;
+    const size_t batch = inputDynamicShapes[0][0].is_static()   ? inputDynamicShapes[0][0].get_length()
+                         : inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length()
+                         : inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static()
+                             ? inputDynamicShapes[2][0].get_length()
+                             : 1lu;
     max_seq_lengths = seq_lengths;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]),
@@ -129,15 +129,26 @@ void GRUSequenceTest::SetUp() {
         b = std::make_shared<ov::op::v0::Constant>(tensor_B);
     }
 
-    auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0], params[1], seq_lengths_node, w, r, b, hidden_size, direction,
-                                                            activations, activations_alpha, activations_beta, clip, linear_before_reset);
+    auto gru_sequence = std::make_shared<ov::op::v5::GRUSequence>(params[0],
+                                                                  params[1],
+                                                                  seq_lengths_node,
+                                                                  w,
+                                                                  r,
+                                                                  b,
+                                                                  hidden_size,
+                                                                  direction,
+                                                                  activations,
+                                                                  activations_alpha,
+                                                                  activations_beta,
+                                                                  clip,
+                                                                  linear_before_reset);
     ov::OutputVector results{std::make_shared<ov::op::v0::Result>(gru_sequence->output(0)),
                              std::make_shared<ov::op::v0::Result>(gru_sequence->output(1))};
     function = std::make_shared<ov::Model>(results, params, "gru_sequence");
 
-    bool is_pure_sequence = (mode == SequenceTestsMode::PURE_SEQ ||
-                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
-                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+    bool is_pure_sequence =
+        (mode == SequenceTestsMode::PURE_SEQ || mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+         mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
     if (!is_pure_sequence) {
         ov::pass::Manager manager;
         if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
@@ -163,9 +174,11 @@ void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputS
             in_data.range = max_seq_lengths;
         }
 
-        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(),
+                                                         targetInputStaticShapes[i],
+                                                         in_data);
         inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
     }
 }
-} //  namespace test
-} //  namespace ov
+}  //  namespace test
+}  //  namespace ov

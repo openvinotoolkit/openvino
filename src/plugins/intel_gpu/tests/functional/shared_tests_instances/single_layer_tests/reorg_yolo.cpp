@@ -3,6 +3,7 @@
 //
 
 #include "single_op_tests/reorg_yolo.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using ov::test::ReorgYoloLayerTest;
@@ -19,9 +20,7 @@ const std::vector<std::vector<size_t>> inShapes = {
     {2, 8, 4, 4},
 };
 
-const std::vector<size_t> strides = {
-    2, 3
-};
+const std::vector<size_t> strides = {2, 3};
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_caffe_YoloV2,
                          ReorgYoloLayerTest,

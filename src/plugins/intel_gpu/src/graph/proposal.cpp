@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "proposal_inst.h"
-#include "proposal_shape_inference.hpp"
-#include "primitive_type_base.h"
-#include "json_object.h"
-
 #include <cmath>
 #include <string>
 #include <vector>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "proposal_inst.h"
+#include "proposal_shape_inference.hpp"
 
 namespace cldnn {
 
@@ -34,8 +34,9 @@ layout proposal_inst::calc_output_layout(proposal_node const& node, kernel_impl_
                   {input_layout.batch() * desc->post_nms_topn, CLDNN_ROI_VECTOR_SIZE, 1, 1});
 }
 
-template<typename ShapeType>
-std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node,
+                                                       kernel_impl_params const& impl_param) {
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<proposal>();
@@ -51,11 +52,7 @@ std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node
 
     ShapeType bbox_deltas_shape = impl_param.get_input_layout(1).get<ShapeType>();
     ShapeType image_shape_shape = impl_param.get_input_layout(2).get<ShapeType>();
-    std::vector<ShapeType> input_shapes = {
-        class_probs_shape,
-        bbox_deltas_shape,
-        image_shape_shape
-    };
+    std::vector<ShapeType> input_shapes = {class_probs_shape, bbox_deltas_shape, image_shape_shape};
 
     const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes);
 
@@ -66,7 +63,8 @@ std::vector<layout> proposal_inst::calc_output_layouts(proposal_node const& node
     return layouts;
 }
 
-template std::vector<layout> proposal_inst::calc_output_layouts<ov::PartialShape>(proposal_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> proposal_inst::calc_output_layouts<ov::PartialShape>(proposal_node const& node,
+                                                                                  const kernel_impl_params& impl_param);
 
 static inline std::string stringify_vector(std::vector<float> v) {
     std::stringstream s;

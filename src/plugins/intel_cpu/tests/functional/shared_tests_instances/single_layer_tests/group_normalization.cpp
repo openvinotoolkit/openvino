@@ -33,17 +33,14 @@ const std::vector<ov::test::InputShape> DynamicInputShapes = {
 };
 
 const std::vector<int64_t> numGroups = {
-    2, 4,
+    2,
+    4,
 };
 
-const std::vector<double> epsilon = {
-    0.0001
-};
+const std::vector<double> epsilon = {0.0001};
 
-std::vector<ov::AnyMap> additionalConfig = {
-    {{ov::hint::inference_precision(ov::element::f32)}},
-    {{ov::hint::inference_precision(ov::element::bf16)}}
-};
+std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
+                                            {{ov::hint::inference_precision(ov::element::bf16)}}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_GroupNormalizationStatic,
@@ -56,19 +53,18 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_CPU),
                      testing::ValuesIn(additionalConfig)),
-                     GroupNormalizationTest::getTestCaseName);
+    GroupNormalizationTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_GroupNormalizationDyn,
-    GroupNormalizationTest,
-    testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
-                     testing::ValuesIn(DynamicInputShapes),
-                     testing::ValuesIn(numGroups),
-                     testing::ValuesIn(epsilon),
-                     testing::Values(ov::test::utils::DEVICE_CPU),
-                     testing::ValuesIn(additionalConfig)),
-                     GroupNormalizationTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupNormalizationDyn,
+                         GroupNormalizationTest,
+                         testing::Combine(testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ov::element::undefined),
+                                          ::testing::Values(ov::element::undefined),
+                                          testing::ValuesIn(DynamicInputShapes),
+                                          testing::ValuesIn(numGroups),
+                                          testing::ValuesIn(epsilon),
+                                          testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::ValuesIn(additionalConfig)),
+                         GroupNormalizationTest::getTestCaseName);
 
-} // anonymous namespace
+}  // anonymous namespace

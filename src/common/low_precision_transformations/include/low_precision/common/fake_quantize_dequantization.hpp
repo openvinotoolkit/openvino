@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <tuple>
+
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -20,14 +21,13 @@ class LP_TRANSFORMATIONS_API FakeQuantizeDequantization {
 public:
     FakeQuantizeDequantization();
 
-    FakeQuantizeDequantization(
-        const Output<Node>& data,
-        const std::shared_ptr<ov::opset1::Convert>& convert,
-        const std::shared_ptr<ov::opset1::Subtract>& subtract,
-        const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
-        const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
-        const std::shared_ptr<ov::opset1::Multiply>& multiply,
-        const std::shared_ptr<ov::opset1::Constant>& multiplyConstant);
+    FakeQuantizeDequantization(const Output<Node>& data,
+                               const std::shared_ptr<ov::opset1::Convert>& convert,
+                               const std::shared_ptr<ov::opset1::Subtract>& subtract,
+                               const std::shared_ptr<ov::opset1::Convert>& subtractConvert,
+                               const std::shared_ptr<ov::opset1::Constant>& subtractConstant,
+                               const std::shared_ptr<ov::opset1::Multiply>& multiply,
+                               const std::shared_ptr<ov::opset1::Constant>& multiplyConstant);
 
     bool empty() const noexcept;
     bool multiplyHasZeroOrDenormal() const;
@@ -40,14 +40,12 @@ public:
 
     static bool checkShape(const std::shared_ptr<ov::Node>& elementwise);
 
-    static int fillDequantizationParams(
-        const std::shared_ptr<ov::Node>& elementwise,
-        std::shared_ptr<ov::opset1::Convert>& convert,
-        std::shared_ptr<ov::opset1::Constant>& constant);
+    static int fillDequantizationParams(const std::shared_ptr<ov::Node>& elementwise,
+                                        std::shared_ptr<ov::opset1::Convert>& convert,
+                                        std::shared_ptr<ov::opset1::Constant>& constant);
 
-    static int fillDequantizationParams(
-        const std::shared_ptr<ov::Node>& elementwise,
-        std::shared_ptr<ov::opset1::Constant>& constant);
+    static int fillDequantizationParams(const std::shared_ptr<ov::Node>& elementwise,
+                                        std::shared_ptr<ov::opset1::Constant>& constant);
 
     size_t channelDimIndex;
     Output<Node> data;
@@ -59,6 +57,6 @@ public:
     std::shared_ptr<ov::opset1::Constant> multiplyConstant;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

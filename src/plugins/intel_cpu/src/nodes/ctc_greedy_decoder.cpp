@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_greedy_decoder.hpp"
+
 #include <string>
 #include <vector>
 
-#include "openvino/op/ctc_greedy_decoder.hpp"
-#include "openvino/core/parallel.hpp"
 #include "ctc_greedy_decoder.h"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                            std::string& errorMessage) noexcept {
     try {
         const auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
         if (!greedyDecOp) {
@@ -61,8 +63,7 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
     if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
         OPENVINO_THROW(errorPrefix, "has unsupported 'sequence_length' input precision: ", seqLenPrecision);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
@@ -141,7 +142,7 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
             }
             tStart = 0lu;
         }
-    }; // thread body
+    };  // thread body
 
     parallel_nt(0, threadBody);
 
@@ -151,8 +152,7 @@ void CTCGreedyDecoder::execute(dnnl::stream strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex &&
-                !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut < blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;
@@ -174,6 +174,6 @@ bool CTCGreedyDecoder::needPrepareParams() const {
     return false;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

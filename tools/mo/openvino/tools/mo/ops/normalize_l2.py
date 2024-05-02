@@ -10,25 +10,29 @@ from openvino.tools.mo.ops.op import Op
 
 
 class NormalizeL2Op(Op):
-    op = 'NormalizeL2'
+    op = "NormalizeL2"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': self.op,
-            'op': self.op,
-            'version': 'opset1',
-            'eps': None,
-            'p': None,
-            'eps_mode': None,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
-            'infer': self.infer,
-            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": self.op,
+                "op": self.op,
+                "version": "opset1",
+                "eps": None,
+                "p": None,
+                "eps_mode": None,
+                "in_ports_count": 2,
+                "out_ports_count": 1,
+                "infer": self.infer,
+                "reverse_infer": lambda node: reverse_bypass_infer(node, in_ports=[0]),
+            },
+            attrs,
+        )
 
     def supported_attrs(self):
-        return ['eps', 'eps_mode']
+        return ["eps", "eps_mode"]
 
     @staticmethod
     def infer(node: Node):
@@ -40,9 +44,9 @@ class NormalizeL2Op(Op):
         axes = node.in_port(1).data.get_value()
         if input_value is not None and axes is not None:
             norm_value = np.linalg.norm(input_value, node.p, axes, keepdims=True)
-            if node.eps_mode == 'add':
+            if node.eps_mode == "add":
                 norm_value = norm_value + node.eps
-            elif node.eps_mode == 'max':
+            elif node.eps_mode == "max":
                 norm_value = np.max(norm_value, node.eps)
             else:
                 assert False, 'Unsupported "eps_mode" = {}'.format(node.eps_mode)
@@ -50,4 +54,4 @@ class NormalizeL2Op(Op):
         else:
             node.out_port(0).data.set_shape(input_shape)
 
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        PermuteInputs().set_input_permutation(node.in_node(1), node, "input:0", "axis")

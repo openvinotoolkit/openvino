@@ -4,25 +4,20 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple <
-    ov::element::Type,
-    std::pair<ov::PartialShape, ov::Shape>,
-    std::string,
-    std::vector<uint64_t>,
-    bool,
-    bool> NormalizeL2TransformationParams;
+typedef std::
+    tuple<ov::element::Type, std::pair<ov::PartialShape, ov::Shape>, std::string, std::vector<uint64_t>, bool, bool>
+        NormalizeL2TransformationParams;
 
-class NormalizeL2Transformation :
-    public testing::WithParamInterface<NormalizeL2TransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class NormalizeL2Transformation : public testing::WithParamInterface<NormalizeL2TransformationParams>,
+                                  public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj);
 

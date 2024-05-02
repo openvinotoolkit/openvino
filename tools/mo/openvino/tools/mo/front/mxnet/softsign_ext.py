@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.activation_ops import SoftSign
 
 
 class SoftSignExtractor(FrontExtractorOp):
-    op = 'softsign'
+    op = "softsign"
     enabled = True
 
     @classmethod

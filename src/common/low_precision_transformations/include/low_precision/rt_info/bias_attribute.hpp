@@ -18,4 +18,4 @@ public:
     OPENVINO_RTTI("LowPrecision::Bias", "", ov::RuntimeAttribute);
     bool is_copyable(const std::shared_ptr<Node>& to) const override;
 };
-} // namespace ov
+}  // namespace ov

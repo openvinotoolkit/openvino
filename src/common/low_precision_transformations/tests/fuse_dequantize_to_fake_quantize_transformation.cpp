@@ -4,21 +4,21 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/fake_quantize.hpp"
-#include "low_precision/fake_quantize_decomposition.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/fake_quantize.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 

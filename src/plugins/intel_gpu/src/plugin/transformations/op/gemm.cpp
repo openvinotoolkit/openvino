@@ -3,14 +3,15 @@
 //
 
 #include "intel_gpu/op/gemm.hpp"
+
+#include "broadcast_shape_inference.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "matmul_shape_inference.hpp"
-#include "broadcast_shape_inference.hpp"
-#include "reshape_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
+#include "reshape_shape_inference.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -22,11 +23,11 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_b,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
-    : ov::op::v0::MatMul()
-    , m_order_a(order_a)
-    , m_order_b(order_b)
-    , m_order_c(order_c)
-    , m_output_type(output_type) {
+    : ov::op::v0::MatMul(),
+      m_order_a(order_a),
+      m_order_b(order_b),
+      m_order_c(order_c),
+      m_output_type(output_type) {
     set_arguments({A, B});
     set_transpose_a(false);
     set_transpose_b(false);
@@ -42,10 +43,10 @@ std::shared_ptr<ov::Node> Gemm::clone_with_new_inputs(const ov::OutputVector& ne
 void Gemm::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-        input_size == 2,
-        "Number of inputs is incorrect. Current value is: ",
-        input_size,
-        ", expected 2.");
+                          input_size == 2,
+                          "Number of inputs is incorrect. Current value is: ",
+                          input_size,
+                          ", expected 2.");
 
     auto out_shapes = shape_infer(this,
                                   std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
@@ -57,7 +58,7 @@ void Gemm::validate_and_infer_types() {
     set_output_type(0, output_type, out_shapes[0]);
 }
 
-bool Gemm::visit_attributes(ov::AttributeVisitor &visitor) {
+bool Gemm::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("order_a", m_order_a);
     visitor.on_attribute("order_b", m_order_b);
     visitor.on_attribute("order_c", m_order_c);
@@ -87,10 +88,8 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     auto shape_b_t = (order_b.size() > 1) ? transpose_pshape(shape_b, order_b) : shape_b;
 
     // broadcast all batch dimensions
-    const auto is_broadcastable = shape_a_t.rank().is_static() &&
-                                  shape_a_t.rank().is_static() &&
-                                  shape_a_t.size() > 1 &&
-                                  shape_b_t.size() > 1 &&
+    const auto is_broadcastable = shape_a_t.rank().is_static() && shape_a_t.rank().is_static() &&
+                                  shape_a_t.size() > 1 && shape_b_t.size() > 1 &&
                                   (shape_a_t.size() == shape_b_t.size());
     if (is_broadcastable) {
         size_t max_rank = shape_a_t.size();
@@ -104,12 +103,13 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     }
 
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
-    auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
+    auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op),
+                                              std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {
-        return { transpose_pshape(out_shapes[0], order_c) };
+        return {transpose_pshape(out_shapes[0], order_c)};
     } else {
-        return { out_shapes[0] };
+        return {out_shapes[0]};
     }
 }
 

@@ -8,20 +8,25 @@ from openvino.tools.mo.ops.pooling import Pooling
 
 
 class AdaptiveAvgPooling(Op):
-    '''
+    """
     Non-reshape-able op.
-    '''
+    """
+
     enabled = False
-    op = 'AdaptiveAvgPooling'
+    op = "AdaptiveAvgPooling"
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'infer': __class__.infer,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "infer": __class__.infer,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )
 
     @classmethod
     def infer(cls, node: Node):
@@ -37,19 +42,19 @@ class AdaptiveAvgPooling(Op):
         kernel_w = input_w - (output_w - 1) * stride_w
 
         data = {
-            'window': int64_array([1, 1, kernel_h, kernel_w]),
-            'stride': int64_array([1, 1, stride_h, stride_w]),
-            'pad': int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
-            'pad_spatial_shape': int64_array([[0, 0], [0, 0]]),
-            'pool_method': 'avg',
-            'exclude_pad': False,
-            'output_spatial_shape': None,
-            'spatial_dims': None,
-            'channel_dims': int64_array([1]),
-            'batch_dims': int64_array([0]),
-            'layout': 'NCHW',
-            'rounding_type': 'floor',
-            'pooling_convention': 'valid'
+            "window": int64_array([1, 1, kernel_h, kernel_w]),
+            "stride": int64_array([1, 1, stride_h, stride_w]),
+            "pad": int64_array([[0, 0], [0, 0], [0, 0], [0, 0]]),
+            "pad_spatial_shape": int64_array([[0, 0], [0, 0]]),
+            "pool_method": "avg",
+            "exclude_pad": False,
+            "output_spatial_shape": None,
+            "spatial_dims": None,
+            "channel_dims": int64_array([1]),
+            "batch_dims": int64_array([0]),
+            "layout": "NCHW",
+            "rounding_type": "floor",
+            "pooling_convention": "valid",
         }
 
         # update the attributes of the node

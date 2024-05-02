@@ -11,7 +11,7 @@ from copy import copy
 
 # WA for abseil bug that affects logging while importing TF starting 1.14 version
 # Link to original issue: https://github.com/abseil/abseil-py/issues/99
-if importlib.util.find_spec('absl') is not None:
+if importlib.util.find_spec("absl") is not None:
     import absl.logging
 
     log.root.removeHandler(absl.logging._absl_handler)
@@ -26,8 +26,8 @@ class LvlFormatter(log.Formatter):
         log.WARNING: "[ WARNING ]  %(msg)s",
         log.ERROR: "[ %(levelname)s ]  %(msg)s",
         log.CRITICAL: "[ %(levelname)s ]  %(msg)s",
-        'framework_error': "[ FRAMEWORK ERROR ]  %(msg)s",
-        'analysis_info': "[ ANALYSIS INFO ]  %(msg)s"
+        "framework_error": "[ FRAMEWORK ERROR ]  %(msg)s",
+        "analysis_info": "[ ANALYSIS INFO ]  %(msg)s",
     }
 
     def __init__(self, lvl, fmt=None):
@@ -35,16 +35,16 @@ class LvlFormatter(log.Formatter):
         self.lvl = lvl
 
     def format(self, record: log.LogRecord):
-        if self.lvl == 'DEBUG':
+        if self.lvl == "DEBUG":
             self._style._fmt = self.format_dict[log.DEBUG]
         else:
             self._style._fmt = self.format_dict[record.levelno]
-        if 'is_warning' in record.__dict__.keys():
+        if "is_warning" in record.__dict__.keys():
             self._style._fmt = self.format_dict[log.WARNING]
-        if 'framework_error' in record.__dict__.keys():
-            self._style._fmt = self.format_dict['framework_error']
-        if 'analysis_info' in record.__dict__.keys():
-            self._style._fmt = self.format_dict['analysis_info']
+        if "framework_error" in record.__dict__.keys():
+            self._style._fmt = self.format_dict["framework_error"]
+        if "analysis_info" in record.__dict__.keys():
+            self._style._fmt = self.format_dict["analysis_info"]
         return log.Formatter.format(self, record)
 
 
@@ -53,11 +53,13 @@ class TagFilter(log.Filter):
         self.regex = regex
 
     def filter(self, record: log.LogRecord):
-        if record.__dict__['funcName'] == 'load_grammar':  # for nx not to log into our logs
+        if (
+            record.__dict__["funcName"] == "load_grammar"
+        ):  # for nx not to log into our logs
             return False
         if self.regex:
-            if 'tag' in record.__dict__.keys():
-                tag = record.__dict__['tag']
+            if "tag" in record.__dict__.keys():
+                tag = record.__dict__["tag"]
                 return re.findall(self.regex, tag)
             else:
                 return False
@@ -66,9 +68,9 @@ class TagFilter(log.Filter):
 
 def init_logger(lvl: str, silent: bool):
     global handler_num
-    log_exp = os.environ.get('MO_LOG_PATTERN')
+    log_exp = os.environ.get("MO_LOG_PATTERN")
     if silent:
-        lvl = 'ERROR'
+        lvl = "ERROR"
     fmt = LvlFormatter(lvl=lvl)
     handler = log.StreamHandler()
     handler.setFormatter(fmt)
@@ -79,9 +81,11 @@ def init_logger(lvl: str, silent: bool):
         logger.addHandler(handler)
         handler_num += 1
 
+
 def get_logger_state():
     logger = log.getLogger()
     return logger.level, copy(logger.filters), copy(logger.handlers)
+
 
 def restore_logger_state(state: tuple):
     level, filters, handlers = state
@@ -98,16 +102,21 @@ def progress_bar(function: callable):
     """
 
     def wrapper(*args, **kwargs):
-        for arg in ['graph', 'curr_transform_num', 'num_transforms']:
-            msg = 'Progress bar decorator is enabled for Model Conversion API transformation applying cycle only. ' \
-                  'Argument `{}` {}'
+        for arg in ["graph", "curr_transform_num", "num_transforms"]:
+            msg = (
+                "Progress bar decorator is enabled for Model Conversion API transformation applying cycle only. "
+                "Argument `{}` {}"
+            )
 
-            assert arg in kwargs, msg.format(arg, 'is missing')
-            assert kwargs[arg] is not None, msg.format(arg, 'should not be None')
+            assert arg in kwargs, msg.format(arg, "is missing")
+            assert kwargs[arg] is not None, msg.format(arg, "should not be None")
 
-        if 'progress' in kwargs['graph'].graph['cmd_params'] and kwargs['graph'].graph['cmd_params'].progress:
+        if (
+            "progress" in kwargs["graph"].graph["cmd_params"]
+            and kwargs["graph"].graph["cmd_params"].progress
+        ):
             bar_len = 20
-            total_replacers_count = kwargs['num_transforms']
+            total_replacers_count = kwargs["num_transforms"]
 
             def progress(i):
                 return int((i + 1) / total_replacers_count * bar_len)
@@ -115,9 +124,14 @@ def progress_bar(function: callable):
             def percent(i):
                 return (i + 1) / total_replacers_count * 100
 
-            end = '' if not kwargs['graph'].graph['cmd_params'].stream_output else '\n'
-            curr_i = kwargs['curr_transform_num']
-            print('\rProgress: [{:{}}]{:>7.2f}% done'.format('.' * progress(curr_i), bar_len, percent(curr_i)), end=end)
+            end = "" if not kwargs["graph"].graph["cmd_params"].stream_output else "\n"
+            curr_i = kwargs["curr_transform_num"]
+            print(
+                "\rProgress: [{:{}}]{:>7.2f}% done".format(
+                    "." * progress(curr_i), bar_len, percent(curr_i)
+                ),
+                end=end,
+            )
 
             sys.stdout.flush()
 
@@ -125,31 +139,36 @@ def progress_bar(function: callable):
 
     return wrapper
 
+
 def progress_printer(argv: Namespace):
     """
     A higher-order factory function returning a configurable callback displaying a progress bar
     Depending on the configuration stored in 'argv' the progress bar can be one-line, multi-line, or silent.
     """
+
     def _progress_bar(progress, total, completed, endline):
         bar_len = 20
 
         def dots():
-            return '.' * int(progress * bar_len)
+            return "." * int(progress * bar_len)
 
-        print('\rProgress: [{:{}}]{:>7.2f}% done'.format(dots(), bar_len, progress*100), end=endline)
+        print(
+            "\rProgress: [{:{}}]{:>7.2f}% done".format(dots(), bar_len, progress * 100),
+            end=endline,
+        )
         sys.stdout.flush()
 
     def no_progress_bar(progress, total, completed):
-        """ A 'dummy' progressbar which doesn't print anything """
+        """A 'dummy' progressbar which doesn't print anything"""
         pass
 
     def oneline_progress_bar(progress, total, completed):
-        """ A callback that always prints the progress in the same line (mimics real GUI progress bar)"""
-        _progress_bar(progress, total, completed, '')
+        """A callback that always prints the progress in the same line (mimics real GUI progress bar)"""
+        _progress_bar(progress, total, completed, "")
 
     def newline_progress_bar(progress, total, completed):
-        """ A callback that prints an updated progress bar in separate lines """
-        _progress_bar(progress, total, completed, '\n')
+        """A callback that prints an updated progress bar in separate lines"""
+        _progress_bar(progress, total, completed, "\n")
 
     if "progress" in argv and argv.progress:
         if "stream_output" in argv and argv.stream_output:

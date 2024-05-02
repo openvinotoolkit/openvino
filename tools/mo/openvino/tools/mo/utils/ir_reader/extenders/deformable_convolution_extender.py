@@ -7,11 +7,11 @@ from openvino.tools.mo.utils.ir_reader.extenders.conv_extender import Conv_exten
 
 
 class DeformableConv_extender(Extender):
-    op = 'DeformableConvolution'
+    op = "DeformableConvolution"
 
     @staticmethod
     def extend(op: Node):
         Conv_extender.extend(op)
-        op['bias_addable'] = False,
-        op['bias_term'] = False,
-        op['weights_index'] = 2
+        op["bias_addable"] = (False,)
+        op["bias_term"] = (False,)
+        op["weights_index"] = 2

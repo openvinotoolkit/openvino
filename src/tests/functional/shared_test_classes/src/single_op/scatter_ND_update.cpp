@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterNDUpdateParamsTuple> &obj) {
+std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterNDUpdateParamsTuple>& obj) {
     auto shapes_ss = [](const InputShape& shape) {
         std::stringstream ss;
         ss << "_IS=(" << ov::test::utils::partialShape2str({shape.first}) << ")_TS=";
@@ -50,8 +50,8 @@ void ScatterNDUpdateLayerTest::SetUp() {
     auto update_param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.at(1));
     auto indices_const = std::make_shared<ov::op::v0::Constant>(indices_type, indices_shape, indices_value);
     auto scatter_nd = std::make_shared<ov::op::v3::ScatterNDUpdate>(param, indices_const, update_param);
-    function = std::make_shared<ov::Model>(scatter_nd->outputs(), ov::ParameterVector{param, update_param}, "ScatterNDUpdate");
+    function =
+        std::make_shared<ov::Model>(scatter_nd->outputs(), ov::ParameterVector{param, update_param}, "ScatterNDUpdate");
 }
 }  // namespace test
 }  // namespace ov
-

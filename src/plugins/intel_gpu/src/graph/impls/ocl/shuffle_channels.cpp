@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "shuffle_channels_inst.h"
-#include "shuffle_channels/shuffle_channels_kernel_selector.h"
 #include "shuffle_channels/shuffle_channels_kernel_ref.h"
+#include "shuffle_channels/shuffle_channels_kernel_selector.h"
+#include "shuffle_channels_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -43,8 +42,7 @@ struct shuffle_channels_impl : typed_primitive_impl_ocl<shuffle_channels> {
 namespace detail {
 
 attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
-    auto types =
-        {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
     auto formats = {
         format::bfyx,
         format::b_fs_yx_fsv4,
@@ -57,7 +55,10 @@ attach_shuffle_channels_impl::attach_shuffle_channels_impl() {
         format::bs_fs_yx_bsv32_fsv16,
     };
 
-    implementation_map<shuffle_channels>::add(impl_types::ocl, typed_primitive_impl_ocl<shuffle_channels>::create<shuffle_channels_impl>, types, formats);
+    implementation_map<shuffle_channels>::add(impl_types::ocl,
+                                              typed_primitive_impl_ocl<shuffle_channels>::create<shuffle_channels_impl>,
+                                              types,
+                                              formats);
 }
 }  // namespace detail
 }  // namespace ocl

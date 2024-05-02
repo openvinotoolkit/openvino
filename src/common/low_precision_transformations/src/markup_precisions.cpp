@@ -5,55 +5,52 @@
 #include "low_precision/markup_precisions.hpp"
 
 #include <memory>
-#include <unordered_set>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
+#include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 
-ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(
-    const std::vector<PrecisionsRestriction>& restrictions,
-    const std::vector<ov::element::Type>& defaultPrecisions) : defaultPrecisions(defaultPrecisions) {
+ov::pass::low_precision::MarkupPrecisions::MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions,
+                                                            const std::vector<ov::element::Type>& defaultPrecisions)
+    : defaultPrecisions(defaultPrecisions) {
     for (const auto& restriction : restrictions) {
         const auto it = restrictionsByOperation.find(restriction.operationType.name);
         if (it == restrictionsByOperation.end()) {
             Restriction r(restriction.specifyVersion);
-            r.precisionsByVersion.emplace(
-                restriction.operationType.version_id,
-                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
+            r.precisionsByVersion.emplace(restriction.operationType.version_id,
+                                          Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction,
+                                                                            restriction.precisionsByPorts));
             restrictionsByOperation.emplace(restriction.operationType.name, r);
         } else {
-            it->second.add(
-                restriction.operationType.version_id,
-                Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction, restriction.precisionsByPorts));
+            it->second.add(restriction.operationType.version_id,
+                           Restriction::RestrictionByVersion(restriction.precisionsByPortsFunction,
+                                                             restriction.precisionsByPorts));
         }
     }
 }
 
 namespace {
-void setRestriction(
-    const std::shared_ptr<Node>& node,
-    const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts) {
+void setRestriction(const std::shared_ptr<Node>& node,
+                    const pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisionsByPorts) {
     if (precisionsByPorts.empty()) {
         // if available precisions for any port is empty then mark all input ports
         for (auto& input : node->inputs()) {
             auto& rt = input.get_rt_info();
-            rt.emplace(
-                    PrecisionsAttribute::get_type_info_static(),
-                    PrecisionsAttribute(std::vector<element::Type>()));
+            rt.emplace(PrecisionsAttribute::get_type_info_static(), PrecisionsAttribute(std::vector<element::Type>()));
         }
     } else {
         for (const auto& item : precisionsByPorts) {
@@ -70,7 +67,7 @@ void setRestriction(
         }
     }
 }
-} // namespace
+}  // namespace
 
 bool ov::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPrecisions);
@@ -102,9 +99,8 @@ bool ov::pass::low_precision::MarkupPrecisions::run_on_model(const std::shared_p
         const bool precisionPreserved = isPrecisionPreserved(node);
         if (precisionPreserved) {
             auto& rt = node->get_rt_info();
-            rt.emplace(
-                PrecisionPreservedAttribute::get_type_info_static(),
-                PrecisionPreservedAttribute(precisionPreserved));
+            rt.emplace(PrecisionPreservedAttribute::get_type_info_static(),
+                       PrecisionPreservedAttribute(precisionPreserved));
         }
 
         const auto& typeInfo = node->get_type_info();
@@ -142,28 +138,26 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
 
     // TODO: think how to handle conditions <= not mandatory for PoC
     // TODO: operation set version is not affected <= not mandatory for PoC
-    static std::unordered_set<std::string> precisionPreservedOps = {
-        { name<opset1::Concat>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::Interpolate>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::Relu>() },
-        // TODO: there are conditions
-        { name<opset2::BatchToSpace>() },
-        { name<opset1::Pad>() },
-        { name<ov::opset12::Pad>() },
-        { name<opset1::Reshape>() },
-        { name<opset1::Squeeze>() },
-        { name<opset2::SpaceToBatch>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
-    };
+    static std::unordered_set<std::string> precisionPreservedOps = {{name<opset1::Concat>()},
+                                                                    {name<opset1::DepthToSpace>()},
+                                                                    {name<opset1::Interpolate>()},
+                                                                    {name<opset1::MaxPool>()},
+                                                                    {name<opset1::ReduceMax>()},
+                                                                    {name<opset1::ReduceMin>()},
+                                                                    {name<opset1::Relu>()},
+                                                                    // TODO: there are conditions
+                                                                    {name<opset2::BatchToSpace>()},
+                                                                    {name<opset1::Pad>()},
+                                                                    {name<ov::opset12::Pad>()},
+                                                                    {name<opset1::Reshape>()},
+                                                                    {name<opset1::Squeeze>()},
+                                                                    {name<opset2::SpaceToBatch>()},
+                                                                    {name<opset1::Split>()},
+                                                                    {name<opset1::StridedSlice>()},
+                                                                    {name<opset1::ShuffleChannels>()},
+                                                                    {name<opset1::Transpose>()},
+                                                                    {name<opset1::Unsqueeze>()},
+                                                                    {name<opset1::VariadicSplit>()}};
 
     const bool precisionPreserved = precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
     if (precisionPreserved) {
@@ -189,48 +183,48 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
 
 bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_ptr<Node>& node) {
     static std::unordered_set<std::string> supportedOps = {
-        { name<opset1::Add>() },
-        { name<opset1::AvgPool>() },
-        { name<opset2::BatchToSpace>() },
-        { name<opset1::Clamp>() },
-        { name<opset1::Concat>() },
+        {name<opset1::Add>()},
+        {name<opset1::AvgPool>()},
+        {name<opset2::BatchToSpace>()},
+        {name<opset1::Clamp>()},
+        {name<opset1::Concat>()},
         // ?
-        { name<opset1::Convert>() },
-        { name<opset1::Convolution>() },
-        { name<opset1::ConvolutionBackpropData>() },
-        { name<opset1::DepthToSpace>() },
-        { name<opset1::FakeQuantize>() },
-        { name<opset1::Interpolate>() },
-        { name<opset4::Interpolate>() },
-        { name<opset1::GroupConvolution>() },
-        { name<opset1::MatMul>() },
-        { name<opset1::MaxPool>() },
-        { name<opset1::Multiply>() },
-        { name<ov::op::v0::MVN>() },
-        { name<opset6::MVN>() },
-        { name<opset1::NormalizeL2>() },
-        { name<opset1::Pad>() },
-        { name<ov::opset12::Pad>() },
-        { name<opset1::PRelu>() },
-        { name<opset1::ReduceMax>() },
-        { name<opset1::ReduceMean>() },
-        { name<opset1::ReduceMin>() },
-        { name<opset1::ReduceSum>() },
-        { name<opset1::Relu>() },
+        {name<opset1::Convert>()},
+        {name<opset1::Convolution>()},
+        {name<opset1::ConvolutionBackpropData>()},
+        {name<opset1::DepthToSpace>()},
+        {name<opset1::FakeQuantize>()},
+        {name<opset1::Interpolate>()},
+        {name<opset4::Interpolate>()},
+        {name<opset1::GroupConvolution>()},
+        {name<opset1::MatMul>()},
+        {name<opset1::MaxPool>()},
+        {name<opset1::Multiply>()},
+        {name<ov::op::v0::MVN>()},
+        {name<opset6::MVN>()},
+        {name<opset1::NormalizeL2>()},
+        {name<opset1::Pad>()},
+        {name<ov::opset12::Pad>()},
+        {name<opset1::PRelu>()},
+        {name<opset1::ReduceMax>()},
+        {name<opset1::ReduceMean>()},
+        {name<opset1::ReduceMin>()},
+        {name<opset1::ReduceSum>()},
+        {name<opset1::Relu>()},
         // TODO: there are conditions
-        { name<opset1::Reshape>() },
-        { name<opset2::SpaceToBatch>() },
-        { name<opset1::Squeeze>() },
-        { name<opset1::ShuffleChannels>() },
-        { name<opset1::Split>() },
-        { name<opset1::StridedSlice>() },
+        {name<opset1::Reshape>()},
+        {name<opset2::SpaceToBatch>()},
+        {name<opset1::Squeeze>()},
+        {name<opset1::ShuffleChannels>()},
+        {name<opset1::Split>()},
+        {name<opset1::StridedSlice>()},
         // ?
-        { name<opset1::Subtract>() },
-        { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() },
-        { name<opset5::LSTMSequence>() },
-        { name<opset6::GRUSequence>() },
+        {name<opset1::Subtract>()},
+        {name<opset1::Transpose>()},
+        {name<opset1::Unsqueeze>()},
+        {name<opset1::VariadicSplit>()},
+        {name<opset5::LSTMSequence>()},
+        {name<opset6::GRUSequence>()},
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

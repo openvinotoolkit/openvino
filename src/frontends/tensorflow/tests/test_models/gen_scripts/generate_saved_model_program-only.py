@@ -9,8 +9,13 @@ import tensorflow as tf
 # Create the graph and model
 tf.compat.v1.reset_default_graph()
 with tf.compat.v1.Session() as sess:
-    x_value = [[1.,2.,3.],[3.,2.,1.]]
+    x_value = [[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]]
     tf_x = tf.constant(x_value)
-    tf_y = tf.compat.v1.placeholder(dtype=tf.float32, shape=[1], name='y')
+    tf_y = tf.compat.v1.placeholder(dtype=tf.float32, shape=[1], name="y")
     tf_z = tf.add(tf_x, tf_y, name="AddOperation")
-    tf.compat.v1.saved_model.simple_save(sess, os.path.join(sys.argv[1], "saved_model_program-only"), inputs={'x':tf_x, 'y':tf_y}, outputs={'z':tf_z})
+    tf.compat.v1.saved_model.simple_save(
+        sess,
+        os.path.join(sys.argv[1], "saved_model_program-only"),
+        inputs={"x": tf_x, "y": tf_y},
+        outputs={"z": tf_z},
+    )

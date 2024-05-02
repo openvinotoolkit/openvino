@@ -2,8 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime.passes import Manager
-
-from tests.test_transformations.utils.utils import get_relu_model, MyModelPass
+from tests.test_transformations.utils.utils import MyModelPass, get_relu_model
 
 
 def test_model_pass():

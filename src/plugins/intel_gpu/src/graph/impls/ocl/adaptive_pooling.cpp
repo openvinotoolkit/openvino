@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "adaptive_pooling_inst.h"
 #include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
 #include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
+#include "adaptive_pooling_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -33,17 +32,19 @@ public:
             params.mode = kernel_selector::PoolType::MAX;
 
             switch (primitive->index_element_type) {
-                case cldnn::data_types::i32: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
-                    break;
-                }
-                case cldnn::data_types::i64: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
-                    break;
-                }
-                default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
+            case cldnn::data_types::i32: {
+                params.poolIndexElementType = kernel_selector::Datatype::INT32;
+                break;
             }
-            bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            case cldnn::data_types::i64: {
+                params.poolIndexElementType = kernel_selector::Datatype::INT64;
+                break;
+            }
+            default:
+                OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
+            }
+            bool allow_new_shape_infer =
+                impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
             if (allow_new_shape_infer) {
                 params.outputs_num = 2;
                 params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
@@ -59,23 +60,24 @@ public:
 namespace detail {
 attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
     auto types = {data_types::f16, data_types::f32, data_types::i32, data_types::i64};
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16
-    };
+    auto formats = {format::bfyx,
+                    format::bfzyx,
+                    format::b_fs_zyx_fsv16,
+                    format::b_fs_zyx_fsv32,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+                    format::bs_fs_zyx_bsv16_fsv32,
+                    format::bs_fs_zyx_bsv16_fsv16,
+                    format::bs_fs_zyx_bsv32_fsv32,
+                    format::bs_fs_zyx_bsv32_fsv16};
 
-    implementation_map<adaptive_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<adaptive_pooling>::create<adaptive_pooling_impl>, types, formats);
+    implementation_map<adaptive_pooling>::add(impl_types::ocl,
+                                              typed_primitive_impl_ocl<adaptive_pooling>::create<adaptive_pooling_impl>,
+                                              types,
+                                              formats);
 }
 }  // namespace detail
 }  // namespace ocl

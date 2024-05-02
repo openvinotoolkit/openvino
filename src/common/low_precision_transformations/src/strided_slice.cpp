@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/strided_slice.hpp"
+
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
-#include "low_precision/strided_slice.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -18,9 +18,8 @@ namespace low_precision {
 
 namespace {
 
-std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
-    const std::shared_ptr<Node> node,
-    const std::shared_ptr<Node> dequantizaiton_constant) {
+std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(const std::shared_ptr<Node> node,
+                                                              const std::shared_ptr<Node> dequantizaiton_constant) {
     const auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizaiton_constant);
     const auto& original_constant_shape = constant->get_shape();
     if (shape_size(original_constant_shape) == 1ul) {
@@ -40,7 +39,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
         if (original_constant_shape != new_constant_shape) {
             const auto result = fold<ov::opset1::Broadcast>(
                 constant,
-                ov::opset1::Constant::create(ov::element::i32, { new_constant_shape.size() }, new_constant_shape));
+                ov::opset1::Constant::create(ov::element::i32, {new_constant_shape.size()}, new_constant_shape));
             new_constant = ov::as_type_ptr<ov::opset1::Constant>(result);
         }
     }
@@ -84,9 +83,9 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
     // step #3: final step: dequantizatin constant folding
     const auto result = fold<ov::opset1::StridedSlice>(
         new_constant,
-        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ begin.size() }, begin),
-        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ end.size() }, end),
-        std::make_shared<ov::opset1::Constant>(element::i64, Shape{ strides.size() }, strides),
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{begin.size()}, begin),
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{end.size()}, end),
+        std::make_shared<ov::opset1::Constant>(element::i64, Shape{strides.size()}, strides),
         begin_mask,
         end_mask,
         strided_slice->get_new_axis_mask(),
@@ -96,7 +95,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
     return ov::as_type_ptr<ov::opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
 }
 
-} // namespace
+}  // namespace
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(StridedSliceTransformation);
@@ -132,13 +131,17 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ov::p
     replace_node(dequantization.multiplyConstant, new_mul_const);
     dequantization.multiplyConstant = new_mul_const;
 
-    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+    const auto newOperation =
+        moveDequantizationAfter(context,
+                                strided_slice,
+                                NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
-bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool StridedSliceTransformation::canBeTransformed(const TransformationContext& context,
+                                                  std::shared_ptr<Node> operation) const {
     if (!ov::is_type<ov::opset1::StridedSlice>(operation)) {
         return false;
     }
@@ -150,7 +153,7 @@ bool StridedSliceTransformation::canBeTransformed(const TransformationContext& c
 
     const auto is_dequantization_scalar =
         ((dequantization.subtract && shape_size(dequantization.subtractConstant->get_shape()) == 1ull) &&
-        (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_shape()) == 1ull));
+         (dequantization.multiply && shape_size(dequantization.multiplyConstant->get_shape()) == 1ull));
 
     if (operation->get_input_partial_shape(0).rank().is_dynamic() && !is_dequantization_scalar) {
         return false;
@@ -164,6 +167,6 @@ bool StridedSliceTransformation::canBeTransformed(const TransformationContext& c
 bool StridedSliceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return true;
 }
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

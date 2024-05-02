@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/op/convolution.hpp"
 
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/constant.hpp"
-
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace op {
@@ -25,7 +24,6 @@ using Convolution = ov::intel_gpu::op::Convolution;
 
 namespace ov {
 namespace intel_gpu {
-
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
     validate_inputs_count(op, {3, 6});
@@ -90,7 +88,8 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     p.add_primitive(*op, prim);
 }
 
-static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& op) {
+static void CreateConvolutionBackpropDataOp(ProgramBuilder& p,
+                                            const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
@@ -116,9 +115,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
         std::iota(std::begin(permute_order), std::end(permute_order), 0);
         // Should be 1, 0, 2, 3 {, 4} to swap O and I
         std::swap(permute_order[1], permute_order[0]);
-        auto permutePrim = cldnn::permute(permuteName,
-                                          weightsName,
-                                          permute_order);
+        auto permutePrim = cldnn::permute(permuteName, weightsName, permute_order);
 
         p.add_primitive(*op, permutePrim);
 
@@ -163,7 +160,8 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -177,7 +175,8 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     }
 }
 
-static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData>& op) {
+static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p,
+                                                 const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
@@ -205,9 +204,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
         std::iota(std::begin(permute_order), std::end(permute_order), 0);
         // Should be 0, 2, 1, 3, 4 {, 5} to swap O and I
         std::swap(permute_order[2], permute_order[1]);
-        auto permutePrim = cldnn::permute(permuteName,
-                                          weightsName,
-                                          permute_order);
+        auto permutePrim = cldnn::permute(permuteName, weightsName, permute_order);
 
         p.add_primitive(*op, permutePrim);
 
@@ -253,7 +250,8 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -297,11 +295,10 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
                                                   weights_shape[nonSpatialDimsNum + 1],
                                                   weights_shape[nonSpatialDimsNum + 0]));
         } else {
-            kernel = cldnn::tensor(cldnn::batch(1),
-                                   cldnn::feature(1),
-                                   cldnn::spatial(weights_shape[nonSpatialDimsNum + 1],
-                                                  weights_shape[nonSpatialDimsNum + 0],
-                                                  1));
+            kernel = cldnn::tensor(
+                cldnn::batch(1),
+                cldnn::feature(1),
+                cldnn::spatial(weights_shape[nonSpatialDimsNum + 1], weights_shape[nonSpatialDimsNum + 0], 1));
         }
 
         auto defConvPrimInterp = cldnn::deformable_interp(defConvLayerNameInterp,
@@ -317,7 +314,7 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
         p.add_primitive(*op, defConvPrimInterp);
         auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
                                                   defConvLayerNameInterp,
-                                                  { weights },
+                                                  {weights},
                                                   {},
                                                   groups,
                                                   tensor_from_dims(outDims));
@@ -340,7 +337,8 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
     }
 }
 
-static void CreateDeformableConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::DeformableConvolution>& op) {
+static void CreateDeformableConvolutionOp(ProgramBuilder& p,
+                                          const std::shared_ptr<ov::op::v1::DeformableConvolution>& op) {
     validate_inputs_count(op, {3});
     auto strides = op->get_strides();
     auto pads_begin = op->get_pads_begin();
@@ -354,7 +352,8 @@ static void CreateDeformableConvolutionOp(ProgramBuilder& p, const std::shared_p
     DeformableConvolutionImpl(p, op, op->get_group(), strides, dilations, pads_begin, op->get_deformable_group());
 }
 
-static void CreateDeformableConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::DeformableConvolution>& op) {
+static void CreateDeformableConvolutionOp(ProgramBuilder& p,
+                                          const std::shared_ptr<ov::op::v8::DeformableConvolution>& op) {
     validate_inputs_count(op, {3, 4});
     auto strides = op->get_strides();
     auto pads_begin = op->get_pads_begin();

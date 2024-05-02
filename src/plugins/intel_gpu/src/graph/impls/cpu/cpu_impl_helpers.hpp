@@ -20,8 +20,7 @@ struct bounding_box {
     struct two_corners_construct_tag {};
     struct corner_size_construct_tag {};
 
-    bounding_box(float xmin, float ymin, float xmax, float ymax)
-        : xmin(xmin), ymin(ymin), xmax(xmax), ymax(ymax) {}
+    bounding_box(float xmin, float ymin, float xmax, float ymax) : xmin(xmin), ymin(ymin), xmax(xmax), ymax(ymax) {}
 
     bounding_box() : bounding_box(0, 0, 0, 0) {}
 
@@ -35,7 +34,9 @@ struct bounding_box {
         : bounding_box(xmin, ymin, xmin + width, ymin + height) {}
 
     // Computes the area of a bounding box.
-    float area() const { return (xmax - xmin) * (ymax - ymin); }
+    float area() const {
+        return (xmax - xmin) * (ymax - ymin);
+    }
 };
 
 inline float iou(const bounding_box& box1, const bounding_box& box2) {

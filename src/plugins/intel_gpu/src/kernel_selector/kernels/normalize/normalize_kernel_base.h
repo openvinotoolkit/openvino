@@ -42,8 +42,7 @@ protected:
     DispatchData SetDefault(const normalize_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
     bool Validate(const Params& params) const override;
     Datatype GetActivationType(const normalize_params& params) const;

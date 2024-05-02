@@ -6,7 +6,6 @@
 
 #include "snippets/utils.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -125,6 +124,6 @@ void LoopInfo::update_exit_points(const std::function<void(LoopPort&)>& updater)
     std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
 }
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

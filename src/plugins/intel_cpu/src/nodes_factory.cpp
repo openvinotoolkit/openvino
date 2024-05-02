@@ -7,6 +7,7 @@
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
+#include "nodes/causal_mask_preprocess.h"
 #include "nodes/color_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
@@ -96,7 +97,6 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
-#include "nodes/causal_mask_preprocess.h"
 
 namespace ov {
 namespace intel_cpu {

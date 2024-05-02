@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/batch_to_space.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/batch_to_space.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -20,13 +20,13 @@ struct BatchToSpaceParams {
     std::vector<int64_t> end;
 };
 
-typedef std::tuple<
-        InputShape,                        // Input shapes
-        BatchToSpaceParams,
-        ov::element::Type,                       // Element type
-        ov::test::utils::InputLayerType,   // block/begin/end input type
-        std::map<std::string, std::string> // Additional network configuration
-> BatchToSpaceParamsLayerParamSet;
+typedef std::tuple<InputShape,  // Input shapes
+                   BatchToSpaceParams,
+                   ov::element::Type,                  // Element type
+                   ov::test::utils::InputLayerType,    // block/begin/end input type
+                   std::map<std::string, std::string>  // Additional network configuration
+                   >
+    BatchToSpaceParamsLayerParamSet;
 
 class BatchToSpaceLayerGPUTest : public testing::WithParamInterface<BatchToSpaceParamsLayerParamSet>,
                                  virtual public ov::test::SubgraphBaseTest {
@@ -40,7 +40,7 @@ public:
         std::tie(shapes, params, model_type, restInputType, additionalConfig) = obj.param;
 
         std::ostringstream results;
-        results << "IS=" <<  ov::test::utils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& item : shapes.second) {
             results << ov::test::utils::vec2str(item) << "_";
@@ -67,24 +67,25 @@ public:
             ov::Tensor tensor;
             if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                auto *dataPtr = tensor.data<float>();
+                auto* dataPtr = tensor.data<float>();
                 for (size_t i = 0; i < block.size(); i++) {
                     dataPtr[i] = static_cast<float>(block[i]);
                 }
-            } else  if (i == 2) {
+            } else if (i == 2) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                auto *dataPtr = tensor.data<float>();
+                auto* dataPtr = tensor.data<float>();
                 for (size_t i = 0; i < begin.size(); i++) {
                     dataPtr[i] = static_cast<float>(begin[i]);
                 }
             } else if (i == 3) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                auto *dataPtr = tensor.data<float>();
+                auto* dataPtr = tensor.data<float>();
                 for (size_t i = 0; i < end.size(); i++) {
                     dataPtr[i] = static_cast<float>(end[i]);
                 }
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                tensor =
+                    ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -113,9 +114,12 @@ protected:
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
         if (restInputType == ov::test::utils::InputLayerType::PARAMETER) {
-            inputShapes.push_back(InputShape({static_cast<int64_t>(block.size())}, std::vector<ov::Shape>(shapes.second.size(), {block.size()})));
-            inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
-            inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
+            inputShapes.push_back(InputShape({static_cast<int64_t>(block.size())},
+                                             std::vector<ov::Shape>(shapes.second.size(), {block.size()})));
+            inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())},
+                                             std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
+            inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())},
+                                             std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
         }
 
         init_input_shapes(inputShapes);
@@ -156,67 +160,63 @@ TEST_P(BatchToSpaceLayerGPUTest, Inference) {
 
 std::map<std::string, std::string> emptyAdditionalConfig;
 
-const std::vector<ov::element::Type> inputPrecisions = {
-        ov::element::f32
-};
+const std::vector<ov::element::Type> inputPrecisions = {ov::element::f32};
 
-const std::vector<ov::test::utils::InputLayerType> restInputTypes = {
-    ov::test::utils::InputLayerType::CONSTANT,
-    ov::test::utils::InputLayerType::PARAMETER
-};
+const std::vector<ov::test::utils::InputLayerType> restInputTypes = {ov::test::utils::InputLayerType::CONSTANT,
+                                                                     ov::test::utils::InputLayerType::PARAMETER};
 
 const std::vector<InputShape> inputShapesDynamic3D = {
-        {{-1, -1, -1}, {{48, 3, 3}, {24, 4, 5}}},
+    {{-1, -1, -1}, {{48, 3, 3}, {24, 4, 5}}},
 };
 
 const std::vector<BatchToSpaceParams> paramsPlain3D = {
-        BatchToSpaceParams{ { 1, 2, 4 }, { 0, 0, 1 }, { 0, 0, 1 } },
-        BatchToSpaceParams{ { 1, 3, 2 }, { 0, 1, 0 }, { 0, 2, 1 } },
+    BatchToSpaceParams{{1, 2, 4}, {0, 0, 1}, {0, 0, 1}},
+    BatchToSpaceParams{{1, 3, 2}, {0, 1, 0}, {0, 2, 1}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_3D, BatchToSpaceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic3D),
-                             ::testing::ValuesIn(paramsPlain3D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_3D,
+                         BatchToSpaceLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic3D),
+                                            ::testing::ValuesIn(paramsPlain3D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(restInputTypes),
+                                            ::testing::Values(emptyAdditionalConfig)),
                          BatchToSpaceLayerGPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamic4D = {
-        {{-1, -1, -1, -1}, {{48, 3, 3, 1}, {24, 4, 5, 6}}},
+    {{-1, -1, -1, -1}, {{48, 3, 3, 1}, {24, 4, 5, 6}}},
 };
 
 const std::vector<BatchToSpaceParams> paramsPlain4D = {
-        BatchToSpaceParams{ { 1, 2, 4, 3 }, { 0, 0, 1, 0 }, { 0, 0, 1, 0 } },
-        BatchToSpaceParams{ { 1, 3, 2, 4 }, { 0, 1, 0, 1 }, { 0, 2, 1, 3 } },
+    BatchToSpaceParams{{1, 2, 4, 3}, {0, 0, 1, 0}, {0, 0, 1, 0}},
+    BatchToSpaceParams{{1, 3, 2, 4}, {0, 1, 0, 1}, {0, 2, 1, 3}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_4D, BatchToSpaceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic4D),
-                             ::testing::ValuesIn(paramsPlain4D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_4D,
+                         BatchToSpaceLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic4D),
+                                            ::testing::ValuesIn(paramsPlain4D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(restInputTypes),
+                                            ::testing::Values(emptyAdditionalConfig)),
                          BatchToSpaceLayerGPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamic5D = {
-        {{-1, -1, -1, -1, -1}, {{48, 3, 3, 1, 5}, {96, 4, 5, 6, 7}}},
+    {{-1, -1, -1, -1, -1}, {{48, 3, 3, 1, 5}, {96, 4, 5, 6, 7}}},
 };
 
 const std::vector<BatchToSpaceParams> paramsPlain5D = {
-        BatchToSpaceParams{ { 1, 2, 4, 3, 2 }, { 0, 0, 1, 0, 2 }, { 0, 0, 1, 0, 3 } },
-        BatchToSpaceParams{ { 1, 3, 2, 4, 2 }, { 0, 1, 0, 1, 3 }, { 0, 2, 1, 3, 2 } },
+    BatchToSpaceParams{{1, 2, 4, 3, 2}, {0, 0, 1, 0, 2}, {0, 0, 1, 0, 3}},
+    BatchToSpaceParams{{1, 3, 2, 4, 2}, {0, 1, 0, 1, 3}, {0, 2, 1, 3, 2}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_5D, BatchToSpaceLayerGPUTest,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(inputShapesDynamic5D),
-                             ::testing::ValuesIn(paramsPlain5D),
-                             ::testing::ValuesIn(inputPrecisions),
-                             ::testing::ValuesIn(restInputTypes),
-                             ::testing::Values(emptyAdditionalConfig)),
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_5D,
+                         BatchToSpaceLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic5D),
+                                            ::testing::ValuesIn(paramsPlain5D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(restInputTypes),
+                                            ::testing::Values(emptyAdditionalConfig)),
                          BatchToSpaceLayerGPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace

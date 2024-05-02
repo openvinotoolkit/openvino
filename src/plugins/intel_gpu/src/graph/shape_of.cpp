@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_of_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
-#include "to_string_utils.h"
 #include <string>
 #include <vector>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "shape_of_inst.h"
+#include "to_string_utils.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
@@ -32,16 +33,18 @@ layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_
     return layout{dt, format::bfyx, out_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*node*/,
+                                                       const kernel_impl_params& impl_param) {
     const auto dt = get_output_data_type(impl_param);
     const auto in_shape = impl_param.get_input_layout(0).get<ShapeType>();
     const auto output_shape = ShapeType{static_cast<int64_t>(in_shape.size())};
 
-    return { layout{output_shape, dt, format::bfyx} };
+    return {layout{output_shape, dt, format::bfyx}};
 }
 
-template std::vector<layout> shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of_node const& node,
+                                                                                  const kernel_impl_params& impl_param);
 
 std::string shape_of_inst::to_string(shape_of_node const& node) {
     auto node_info = node.desc_to_json();
@@ -58,5 +61,5 @@ std::string shape_of_inst::to_string(shape_of_node const& node) {
     return primitive_description.str();
 }
 
-shape_of_inst::typed_primitive_inst(network& network, shape_of_node const& node) : parent(network, node, true) { }
+shape_of_inst::typed_primitive_inst(network& network, shape_of_node const& node) : parent(network, node, true) {}
 }  // namespace cldnn

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <thread>
 #include <future>
+#include <thread>
 
 #include "base/ov_behavior_test_utils.hpp"
 
@@ -21,11 +21,10 @@ struct OVInferRequestIOTensorTest : public OVInferRequestTests {
     ov::Output<const ov::Node> output;
 };
 
-using OVInferRequestSetPrecisionParams = std::tuple<
-        element::Type,                                                     // element type
-        std::string,                                                       // Device name
-        ov::AnyMap                                              // Config
->;
+using OVInferRequestSetPrecisionParams = std::tuple<element::Type,  // element type
+                                                    std::string,    // Device name
+                                                    ov::AnyMap      // Config
+                                                    >;
 struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterface<OVInferRequestSetPrecisionParams>,
                                                 public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj);
@@ -35,14 +34,15 @@ struct OVInferRequestIOTensorSetPrecisionTest : public testing::WithParamInterfa
     std::shared_ptr<ov::Model> function;
     ov::CompiledModel execNet;
     ov::InferRequest req;
-    ov::AnyMap          config;
-    element::Type       element_type;
+    ov::AnyMap config;
+    element::Type element_type;
 };
 
 using OVInferRequestCheckTensorPrecisionParams = OVInferRequestSetPrecisionParams;
 
-struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
-                                            public OVInferRequestTestBase {
+struct OVInferRequestCheckTensorPrecision
+    : public testing::WithParamInterface<OVInferRequestCheckTensorPrecisionParams>,
+      public OVInferRequestTestBase {
     static std::string getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj);
     void SetUp() override;
     void TearDown() override;
@@ -53,8 +53,8 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
     std::shared_ptr<ov::Model> model;
     CompiledModel compModel;
     InferRequest request;
-    AnyMap  config;
-    element::Type  element_type;
+    AnyMap config;
+    element::Type element_type;
 
     std::vector<ov::element::Type> precisions = {
         ov::element::boolean,
@@ -77,6 +77,6 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
     std::string exp_error_str_ = "The plugin does not support input precision";
 };
 
-} // namespace behavior
+}  // namespace behavior
 }  // namespace test
 }  // namespace ov

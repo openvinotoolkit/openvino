@@ -4,7 +4,10 @@
 import argparse
 import numbers
 import os
-from openvino.runtime import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
+
+from openvino.runtime import (
+    get_version as get_rt_version,  # pylint: disable=no-name-in-module,import-error
+)
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
 from openvino.tools.ovc.utils import check_values_equal
@@ -18,48 +21,54 @@ except ImportError:
 
 def is_optimum():
     import traceback
+
     for frame_summary in traceback.extract_stack():
-        if os.path.join("optimum", "intel") in frame_summary.filename or \
-                os.path.join("optimum", "exporters", "openvino") in frame_summary.filename:
+        if (
+            os.path.join("optimum", "intel") in frame_summary.filename
+            or os.path.join("optimum", "exporters", "openvino")
+            in frame_summary.filename
+        ):
             return True
     return False
 
 
-def init_mo_telemetry(app_name='Model Conversion API', app_version=None):
+def init_mo_telemetry(app_name="Model Conversion API", app_version=None):
     app_version = app_version if app_version is not None else get_rt_version()
-    return init_telemetry_class(tid=get_tid(),
-                                app_name=app_name,
-                                app_version=app_version,
-                                backend='ga4',
-                                enable_opt_in_dialog=False,
-                                disable_in_ci=True
-                                )
+    return init_telemetry_class(
+        tid=get_tid(),
+        app_name=app_name,
+        app_version=app_version,
+        backend="ga4",
+        enable_opt_in_dialog=False,
+        disable_in_ci=True,
+    )
 
 
-def init_telemetry_class(tid,
-                         app_name,
-                         app_version,
-                         backend,
-                         enable_opt_in_dialog,
-                         disable_in_ci):
+def init_telemetry_class(
+    tid, app_name, app_version, backend, enable_opt_in_dialog, disable_in_ci
+):
     # Init telemetry class
-    telemetry = tm.Telemetry(tid=tid,
-                             app_name=app_name,
-                             app_version=app_version,
-                             backend=backend,
-                             enable_opt_in_dialog=enable_opt_in_dialog,
-                             disable_in_ci=disable_in_ci)
+    telemetry = tm.Telemetry(
+        tid=tid,
+        app_name=app_name,
+        app_version=app_version,
+        backend=backend,
+        enable_opt_in_dialog=enable_opt_in_dialog,
+        disable_in_ci=disable_in_ci,
+    )
 
     # Telemetry is a singleton class and if it was already initialized in another tool
     # some parameters will be incorrect, including app_name.
     # In this case we need to force reinitialisation of telemetry.
     if hasattr(telemetry, "backend") and telemetry.backend.app_name != app_name:
-        telemetry.init(tid=tid,
-                       app_name=app_name,
-                       app_version=app_version,
-                       backend=backend,
-                       enable_opt_in_dialog=enable_opt_in_dialog,
-                       disable_in_ci=disable_in_ci)
+        telemetry.init(
+            tid=tid,
+            app_name=app_name,
+            app_version=app_version,
+            backend=backend,
+            enable_opt_in_dialog=enable_opt_in_dialog,
+            disable_in_ci=disable_in_ci,
+        )
     return telemetry
 
 
@@ -69,27 +78,33 @@ def send_framework_info(framework: str):
     :param framework: framework name.
     """
     t = tm.Telemetry()
-    t.send_event('ovc', 'framework', framework)
+    t.send_event("ovc", "framework", framework)
 
 
 def get_tid():
     """
     This function returns the ID of the database to send telemetry.
     """
-    return telemetry_params['TID']
+    return telemetry_params["TID"]
 
 
 def send_conversion_result(conversion_result: str, need_shutdown=False):
     t = tm.Telemetry()
-    t.send_event('ovc', 'conversion_result', conversion_result)
-    t.end_session('ovc')
+    t.send_event("ovc", "conversion_result", conversion_result)
+    t.end_session("ovc")
     if need_shutdown:
         t.force_shutdown(1.0)
 
 
 def arg_to_str(arg):
     # This method converts to string only known types, otherwise returns string with name of the type
-    from openvino.runtime import PartialShape, Shape, Type, Layout  # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import (  # pylint: disable=no-name-in-module,import-error
+        Layout,
+        PartialShape,
+        Shape,
+        Type,
+    )
+
     if isinstance(arg, (PartialShape, Shape, Type, Layout)):
         return str(arg)
     if isinstance(arg, (str, numbers.Number, bool)):
@@ -115,4 +130,4 @@ def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentPars
             else:
                 param_str = arg + ":" + arg_to_str(arg_value)
 
-            t.send_event('ovc', 'cli_parameters', param_str)
+            t.send_event("ovc", "cli_parameters", param_str)

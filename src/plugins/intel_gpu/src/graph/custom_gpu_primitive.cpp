@@ -1,11 +1,12 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "custom_gpu_primitive_inst.h"
-#include "primitive_type_base.h"
 #include <sstream>
-#include "json_object.h"
 #include <string>
+
+#include "custom_gpu_primitive_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(custom_gpu_primitive)

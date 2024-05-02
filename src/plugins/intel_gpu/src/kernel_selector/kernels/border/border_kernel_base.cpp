@@ -3,7 +3,9 @@
 //
 
 #include "border_kernel_base.h"
+
 #include <vector>
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -49,12 +51,16 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
     if (!params.has_dynamic_tensors()) {
         auto in_layout = params.inputs[0].GetLayout();
         auto out_layout = params.outputs[0].GetLayout();
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Z },
-                                                                         { Tensor::DataChannelName::Y, Tensor::DataChannelName::W },
-                                                                         { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::X, Tensor::DataChannelName::Z},
+            {Tensor::DataChannelName::Y, Tensor::DataChannelName::W},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
-        dispatchData.gws = { output.X().v * output.Z().v, output.Y().v * output.W().v, output.Batch().v * output.Feature().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.gws = {output.X().v * output.Z().v,
+                            output.Y().v * output.W().v,
+                            output.Batch().v * output.Feature().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;
@@ -78,8 +84,7 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BORDER);
 
-    const auto& prim_params =
-        static_cast<const border_params&>(params);
+    const auto& prim_params = static_cast<const border_params&>(params);
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<border_params>(params);

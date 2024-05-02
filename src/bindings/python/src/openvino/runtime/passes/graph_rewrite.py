@@ -2,9 +2,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 # type: ignore
-from openvino._pyopenvino.passes import MatcherPass
-from openvino._pyopenvino.passes import GraphRewrite as GraphRewriteBase
 from openvino._pyopenvino.passes import BackwardGraphRewrite as BackwardGraphRewriteBase
+from openvino._pyopenvino.passes import GraphRewrite as GraphRewriteBase
+from openvino._pyopenvino.passes import MatcherPass
 
 
 class GraphRewrite(GraphRewriteBase):

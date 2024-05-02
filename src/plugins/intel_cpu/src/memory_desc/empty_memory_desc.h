@@ -5,7 +5,6 @@
 #pragma once
 
 #include "cpu_memory_desc.h"
-
 #include "cpu_shape.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -23,8 +22,7 @@ namespace intel_cpu {
  */
 class EmptyMemoryDesc : public MemoryDesc {
 public:
-    EmptyMemoryDesc():
-        MemoryDesc(Shape{0}, Empty) {
+    EmptyMemoryDesc() : MemoryDesc(Shape{0}, Empty) {
         /* status never changes for an empty memory desc
          * so "define" beforehand to ensure isDefined() is thread safe */
         status = MemoryDesc::descStatus::Defined;
@@ -90,5 +88,5 @@ private:
 using EmptyMemoryDescPtr = std::shared_ptr<EmptyMemoryDesc>;
 using EmptyMemoryDescCPtr = std::shared_ptr<const EmptyMemoryDesc>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

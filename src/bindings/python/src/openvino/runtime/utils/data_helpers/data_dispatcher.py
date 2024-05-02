@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
-
 from openvino._pyopenvino import ConstOutput, Tensor, Type
-from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
+from openvino.runtime.utils.data_helpers.wrappers import OVDict, _InferRequestWrapper
 
 ContainerTypes = Union[dict, list, tuple, OVDict]
 ScalarTypes = Union[np.number, int, float]
@@ -38,7 +37,9 @@ def get_request_tensor(
     elif isinstance(key, (str, ConstOutput)):
         return request.get_tensor(key)
     else:
-        raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
+        raise TypeError(
+            f"Unsupported key type: {type(key)} for Tensor under key: {key}"
+        )
 
 
 @singledispatch
@@ -84,7 +85,9 @@ def _(
             # the first infer request for dynamic input cannot reshape to 0 shape
             return Tensor(value.astype(tensor_dtype).reshape((1)), shared_memory=False)
         else:
-            return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
+            return Tensor(
+                value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False
+            )
     # WA for FP16-->BF16 edge-case, always copy.
     if tensor_type == Type.bf16:
         tensor = Tensor(tensor_type, value.shape)
@@ -93,7 +96,9 @@ def _(
     # WA for "not writeable" edge-case, always copy.
     if value.flags["WRITEABLE"] is False:
         tensor = Tensor(tensor_type, value.shape)
-        tensor.data[:] = value.astype(tensor_dtype) if tensor_dtype != value.dtype else value
+        tensor.data[:] = (
+            value.astype(tensor_dtype) if tensor_dtype != value.dtype else value
+        )
         return tensor
     # If types are mismatched, convert and always copy.
     if tensor_dtype != value.dtype:
@@ -137,7 +142,11 @@ def _(
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
-            return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
+            return (
+                to_c_style(np.array(value, copy=False), is_shared)
+                if is_shared
+                else np.array(value, copy=True)
+            )
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -152,7 +161,11 @@ def normalize_arrays(
 ) -> Any:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
+        return (
+            to_c_style(np.array(inputs, copy=False), is_shared)
+            if is_shared
+            else np.array(inputs, copy=True)
+        )
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -170,7 +183,10 @@ def _(
     inputs: OVDict,
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v, is_shared) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+    return {
+        i: to_c_style(v, is_shared) if is_shared else v
+        for i, (_, v) in enumerate(inputs.items())
+    }
 
 
 @normalize_arrays.register(list)
@@ -179,7 +195,9 @@ def _(
     inputs: Union[list, tuple],
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v, is_shared) if is_shared else v for i, v in enumerate(inputs)}
+    return {
+        i: to_c_style(v, is_shared) if is_shared else v for i, v in enumerate(inputs)
+    }
 
 
 @normalize_arrays.register(np.ndarray)
@@ -188,6 +206,8 @@ def _(
     is_shared: bool = False,
 ) -> Any:
     return to_c_style(inputs, is_shared) if is_shared else inputs
+
+
 ###
 # End of array normalization.
 ###
@@ -220,7 +240,10 @@ def _(
     request: _InferRequestWrapper,
 ) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
+    return {
+        k: value_to_tensor(v, request=request, is_shared=True, key=k)
+        for k, v in request._inputs_data.items()
+    }
 
 
 # Special override to perform list-related dispatch
@@ -231,8 +254,18 @@ def _(
 ) -> dict:
     # If list is passed to single input model and consists only of simple types
     # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
-    request._inputs_data = normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=True)
-    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
+    request._inputs_data = normalize_arrays(
+        (
+            [inputs]
+            if request._is_single_input() and is_list_simple_type(inputs)
+            else inputs
+        ),
+        is_shared=True,
+    )
+    return {
+        k: value_to_tensor(v, request=request, is_shared=True, key=k)
+        for k, v in request._inputs_data.items()
+    }
 
 
 @create_shared.register(np.ndarray)
@@ -255,6 +288,8 @@ def _(
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=True)
+
+
 ###
 # End of "shared" dispatcher methods.
 ###
@@ -275,7 +310,9 @@ def set_request_tensor(
     elif isinstance(key, (str, ConstOutput)):
         request.set_tensor(key, tensor)
     else:
-        raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
+        raise TypeError(
+            f"Unsupported key type: {type(key)} for Tensor under key: {key}"
+        )
 
 
 @singledispatch
@@ -347,7 +384,9 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
             raise TypeError(f"Incompatible key type for input: {key}")
         # Copy numpy arrays to already allocated Tensors.
         # If value object has __array__ attribute, load it to Tensor using np.array
-        if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(value, "__array__"):
+        if isinstance(value, (np.ndarray, np.number, int, float, str)) or hasattr(
+            value, "__array__"
+        ):
             update_tensor(value, request, key)
         elif isinstance(value, list):
             new_inputs[key] = Tensor(value)
@@ -356,7 +395,9 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
             new_inputs[key] = value
         # Throw error otherwise.
         else:
-            raise TypeError(f"Incompatible inputs of type: {type(value)} under {key} key!")
+            raise TypeError(
+                f"Incompatible inputs of type: {type(value)} under {key} key!"
+            )
     return new_inputs
 
 
@@ -391,7 +432,17 @@ def _(
 ) -> dict:
     # If list is passed to single input model and consists only of simple types
     # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
-    return update_inputs(normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=False), request)
+    return update_inputs(
+        normalize_arrays(
+            (
+                [inputs]
+                if request._is_single_input() and is_list_simple_type(inputs)
+                else inputs
+            ),
+            is_shared=False,
+        ),
+        request,
+    )
 
 
 @create_copied.register(np.ndarray)
@@ -414,6 +465,8 @@ def _(
     request: _InferRequestWrapper,
 ) -> Tensor:
     return value_to_tensor(inputs, request=request, is_shared=False)
+
+
 ###
 # End of "copied" dispatcher methods.
 ###
@@ -426,4 +479,6 @@ def _data_dispatch(
 ) -> Union[dict, Tensor]:
     if inputs is None:
         return {}
-    return create_shared(inputs, request) if is_shared else create_copied(inputs, request)
+    return (
+        create_shared(inputs, request) if is_shared else create_copied(inputs, request)
+    )

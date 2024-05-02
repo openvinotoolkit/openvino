@@ -6,12 +6,10 @@
 
 #include <vector>
 
-#include "openvino/core/node.hpp"
-
+#include "low_precision/common/port_quantization_granularity_restriction.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
-#include "low_precision/common/port_quantization_granularity_restriction.hpp"
-
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,13 +22,12 @@ public:
     std::vector<PortQuantizationGranularityRestriction> restrictions;
 
     QuantizationGranularityRestriction() = default;
-    QuantizationGranularityRestriction(
-        const ov::Node::type_info_t operationType,
-        const bool specifyVersion,
-        const std::vector<PortQuantizationGranularityRestriction>& restrictions) :
-        operationType(operationType),
-        specifyVersion(specifyVersion),
-        restrictions(restrictions) {}
+    QuantizationGranularityRestriction(const ov::Node::type_info_t operationType,
+                                       const bool specifyVersion,
+                                       const std::vector<PortQuantizationGranularityRestriction>& restrictions)
+        : operationType(operationType),
+          specifyVersion(specifyVersion),
+          restrictions(restrictions) {}
 
     template <typename T>
     static QuantizationGranularityRestriction create(
@@ -40,21 +37,21 @@ public:
     }
 
     template <typename T>
-    static QuantizationGranularityRestriction create(
-        const std::vector<size_t>& restrictedPorts = {},
-        const bool specifyVersion = false) {
+    static QuantizationGranularityRestriction create(const std::vector<size_t>& restrictedPorts = {},
+                                                     const bool specifyVersion = false) {
         std::vector<PortQuantizationGranularityRestriction> restrictions;
         restrictions.reserve(restrictedPorts.size());
         for (auto i = 0ul; i < restrictedPorts.size(); ++i) {
-            restrictions.push_back(PortQuantizationGranularityRestriction(
-                restrictedPorts[i],
-                ov::QuantizationGranularityAttribute::Granularity::PerTensor));
+            restrictions.push_back(
+                PortQuantizationGranularityRestriction(restrictedPorts[i],
+                                                       ov::QuantizationGranularityAttribute::Granularity::PerTensor));
         }
         return QuantizationGranularityRestriction(T::get_type_info_static(), specifyVersion, restrictions);
     }
 
     template <typename T>
-    static std::vector<PortQuantizationGranularityRestriction> getPrecisionsByOperationType(std::vector<QuantizationGranularityRestriction>& restrictions) {
+    static std::vector<PortQuantizationGranularityRestriction> getPrecisionsByOperationType(
+        std::vector<QuantizationGranularityRestriction>& restrictions) {
         for (const auto& restriction : restrictions) {
             if (restriction.operationType == T::get_type_info_static()) {
                 return restriction.restrictions;

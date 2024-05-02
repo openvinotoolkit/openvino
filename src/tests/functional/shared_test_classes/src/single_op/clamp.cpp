@@ -46,5 +46,5 @@ void ClampLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(clamp);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{input});
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

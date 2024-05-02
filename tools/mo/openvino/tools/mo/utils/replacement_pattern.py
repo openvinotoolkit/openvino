@@ -11,7 +11,9 @@ class ReplacementPattern(object):
     excluded_replacers = []
 
     def find_and_replace_pattern(self, graph: Graph):
-        apply_pattern(graph, **self.pattern(), action=self.replace_pattern)  # pylint: disable=no-member
+        apply_pattern(
+            graph, **self.pattern(), action=self.replace_pattern
+        )  # pylint: disable=no-member
 
     def run_before(self):
         """

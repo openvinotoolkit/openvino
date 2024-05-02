@@ -3,6 +3,7 @@
 //
 
 #include "weight_bias_params.h"
+
 #include <sstream>
 
 namespace kernel_selector {

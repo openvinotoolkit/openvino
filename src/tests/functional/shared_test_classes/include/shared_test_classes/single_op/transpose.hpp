@@ -4,21 +4,21 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<size_t>,            // Input order
-        ov::element::Type,              // Model type
-        std::vector<InputShape>,        // Input shapes
-        std::string                     // Target device name
-> transposeParams;
+typedef std::tuple<std::vector<size_t>,      // Input order
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shapes
+                   std::string               // Target device name
+                   >
+    transposeParams;
 
 class TransposeLayerTest : public testing::WithParamInterface<transposeParams>,
                            virtual public ov::test::SubgraphBaseTest {

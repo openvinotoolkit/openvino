@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Pytest utility functions."""
+from collections import namedtuple
+from multiprocessing import TimeoutError
+
 # pylint:disable=import-error
 import pytest
-from multiprocessing import TimeoutError
-from collections import namedtuple
 from _pytest.mark import Mark, MarkDecorator
 
 """Mark generator to specify pytest marks in tests in common format
@@ -27,7 +28,7 @@ class XFailMarkWrapper(Mark):
         :param args:
         :param kwargs:
         """
-        super().__init__('xfail', *args, **kwargs)
+        super().__init__("xfail", *args, **kwargs)
         object.__setattr__(self, "regexps", regexps)
         object.__setattr__(self, "match_mode", match_mode)
 
@@ -67,8 +68,12 @@ def xfail(reason, regexps="", match_mode="any"):
     :return: pytest marker
     """
     regexps = [regexps] if not isinstance(regexps, list) else regexps
-    mark = XFailMarkWrapper(regexps=regexps, match_mode=match_mode,
-                            args=(True,), kwargs={"reason": reason, "strict": True})
+    mark = XFailMarkWrapper(
+        regexps=regexps,
+        match_mode=match_mode,
+        args=(True,),
+        kwargs={"reason": reason, "strict": True},
+    )
     return MarkDecorator(mark=mark), reason
 
 

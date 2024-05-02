@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
-
-#include <memory>
-#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -23,23 +23,11 @@ using EdgeWeakPtr = std::weak_ptr<Edge>;
 
 class Edge {
 public:
-    Edge(const std::shared_ptr<Node>& parent,
-         const std::shared_ptr<Node>& child,
-         int pr_port = 0, int ch_port = 0);
+    Edge(const std::shared_ptr<Node>& parent, const std::shared_ptr<Node>& child, int pr_port = 0, int ch_port = 0);
 
-    enum class Status {
-        Uninitialized,
-        NeedAllocation,
-        NotAllocated,
-        Allocated,
-        Validated
-    };
+    enum class Status { Uninitialized, NeedAllocation, NotAllocated, Allocated, Validated };
 
-    enum class ReorderStatus {
-        Regular = 0,
-        Optimized = 1,
-        No = 2
-    };
+    enum class ReorderStatus { Regular = 0, Optimized = 1, No = 2 };
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
 
@@ -71,7 +59,9 @@ public:
     int getInputNum() const;
     int getOutputNum() const;
 
-    void setChildPort(const size_t port) { child_port = port; }
+    void setChildPort(const size_t port) {
+        child_port = port;
+    }
 
     void sharedMemFrom(const EdgePtr& edge);
     EdgePtr getSharedEdge() const;
@@ -110,6 +100,5 @@ private:
     friend class Graph;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
-
+}  // namespace intel_cpu
+}  // namespace ov

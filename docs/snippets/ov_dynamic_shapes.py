@@ -6,6 +6,7 @@ from utils import get_dynamic_model
 
 #! [import]
 import openvino as ov
+
 #! [import]
 
 model = get_dynamic_model()
@@ -61,7 +62,7 @@ input_tensor_name = "input"
 
 #! [set_input_tensor]
 # For first inference call, prepare an input tensor with 1x128 shape and run inference request
-input_data1 = np.ones(shape=[1,128])
+input_data1 = np.ones(shape=[1, 128])
 infer_request.infer({input_tensor_name: input_data1})
 
 # Get resulting outputs
@@ -69,7 +70,7 @@ output_tensor1 = infer_request.get_output_tensor()
 output_data1 = output_tensor1.data[:]
 
 # For second inference call, prepare a 1x200 input tensor and run inference request
-input_data2 = np.ones(shape=[1,200])
+input_data2 = np.ones(shape=[1, 200])
 infer_request.infer({input_tensor_name: input_data2})
 
 # Get resulting outputs

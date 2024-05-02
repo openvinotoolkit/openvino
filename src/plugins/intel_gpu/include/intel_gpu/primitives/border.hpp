@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include "openvino/core/coordinate_diff.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -27,11 +27,7 @@ struct border : public primitive_base<border> {
     border() : primitive_base("", {}) {}
 
     /// @brief whether the input is const or not
-    enum PAD_NON_CONST_INPUT {
-        BEGIN = 0x1,
-        END = (0x1 << 1),
-        VALUE = (0x1 << 2)
-    };
+    enum PAD_NON_CONST_INPUT { BEGIN = 0x1, END = (0x1 << 1), VALUE = (0x1 << 2) };
 
     /// @brief Constructs border primitive / layer
     ///
@@ -93,10 +89,8 @@ struct border : public primitive_base<border> {
 
         auto rhs_casted = downcast<const border>(rhs);
 
-        return pads_begin == rhs_casted.pads_begin &&
-               pads_end == rhs_casted.pads_end &&
-               pad_mode == rhs_casted.pad_mode &&
-               pad_value == rhs_casted.pad_value &&
+        return pads_begin == rhs_casted.pads_begin && pads_end == rhs_casted.pads_end &&
+               pad_mode == rhs_casted.pad_mode && pad_value == rhs_casted.pad_value &&
                allow_negative_pad == rhs_casted.allow_negative_pad;
     }
 

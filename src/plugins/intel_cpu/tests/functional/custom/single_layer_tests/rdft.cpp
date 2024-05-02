@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -22,7 +22,8 @@ using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
                                      CPUSpecificParams>;
 
 class RDFTTestCPU : public testing::WithParamInterface<std::tuple<ov::element::Type, RDFTTestCPUParams>>,
-                           virtual public test::SubgraphBaseTest, public CPUTestsBase {
+                    virtual public test::SubgraphBaseTest,
+                    public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>> obj) {
         ov::element::Type precision;
@@ -63,11 +64,10 @@ public:
                 result << ov::test::utils::vec2str(signalSizes[i]);
                 if (i < signalSizes.size() - 1)
                     result << "_";
-                }
+            }
         }
 
-        result << ")_isInverse=" << inverse
-               << CPUTestsBase::getTestCaseName(cpuParams);
+        result << ")_isInverse=" << inverse << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
     }
 
@@ -126,7 +126,8 @@ protected:
         if (signalSizes.size() > 0) {
             std::shared_ptr<Node> signalSizesNode;
             if (constSignalSizes) {
-                signalSizesNode = ov::op::v0::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
+                signalSizesNode =
+                    ov::op::v0::Constant::create(element::i64, Shape{signalSizes[0].size()}, signalSizes[0]);
             } else {
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
                 auto param = std::make_shared<ov::op::v0::Parameter>(element::i64, *inputShapeIt);
@@ -148,7 +149,7 @@ protected:
         function = std::make_shared<Model>(rdft, inputs);
 
         if (precision == ov::element::f32) {
-           abs_threshold = 1e-4;
+            abs_threshold = 1e-4;
         }
     }
 
@@ -157,7 +158,10 @@ protected:
         auto funcInput = funcInputs.begin();
         inputs.clear();
         ov::Tensor data_tensor = test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
-                                                                                              targetInputStaticShapes[0], 0, 1, 0);
+                                                                                         targetInputStaticShapes[0],
+                                                                                         0,
+                                                                                         1,
+                                                                                         0);
 
         inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
         funcInput++;
@@ -171,7 +175,9 @@ protected:
         if (!constSignalSizes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < signalSizes.size());
             auto tensor = ov::Tensor{funcInput->get_element_type(), Shape{signalSizes[inputIdx].size()}};
-            std::memcpy(tensor.data(), signalSizes[inputIdx].data(), signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
+            std::memcpy(tensor.data(),
+                        signalSizes[inputIdx].data(),
+                        signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
         }
         inputIdx++;
@@ -455,7 +461,13 @@ std::vector<RDFTTestCPUParams> getParams2D() {
             {static_shapes_to_test_representation({{128, 254, 2}}), {{1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{128, 254, 2}}), {{0, 1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{128, 254, 2}}), {{1}}, {{10}}, true, true, true, cpuParams},
-            {static_shapes_to_test_representation({{128, 254, 2}}), {{0, 1}}, {{128, 100}}, true, true, true, cpuParams},
+            {static_shapes_to_test_representation({{128, 254, 2}}),
+             {{0, 1}},
+             {{128, 100}},
+             true,
+             true,
+             true,
+             cpuParams},
         };
     }
     return {};
@@ -476,8 +488,20 @@ std::vector<RDFTTestCPUParams> getParams4D() {
             {static_shapes_to_test_representation({{10, 46, 128, 65}}), {{1, 2}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{46, 10, 128, 65}}), {{-2, -1}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{46, 10, 128, 65}}), {{3, 1}}, {}, false, true, true, cpuParams},
-            {static_shapes_to_test_representation({{46, 10, 128, 65}}), {{0, 1, 2, 3}}, {}, false, true, true, cpuParams},
-            {static_shapes_to_test_representation({{46, 10, 128, 65}}), {{0, 1, 2, 3}}, {{10, 10, 33, 50}}, false, true, true, cpuParams},
+            {static_shapes_to_test_representation({{46, 10, 128, 65}}),
+             {{0, 1, 2, 3}},
+             {},
+             false,
+             true,
+             true,
+             cpuParams},
+            {static_shapes_to_test_representation({{46, 10, 128, 65}}),
+             {{0, 1, 2, 3}},
+             {{10, 10, 33, 50}},
+             false,
+             true,
+             true,
+             cpuParams},
 
             {static_shapes_to_test_representation({{10, 46, 128, 65, 2}}), {{1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{10, 46, 128, 65, 2}}), {{0, 1}}, {}, true, true, true, cpuParams},
@@ -485,9 +509,16 @@ std::vector<RDFTTestCPUParams> getParams4D() {
             {static_shapes_to_test_representation({{10, 46, 128, 65, 2}}), {{1, 2}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{-2, -1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{3, 1}}, {}, true, true, true, cpuParams},
-            {static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{0, 1, 2, 3}}, {}, true, true, true, cpuParams},
+            {static_shapes_to_test_representation({{46, 10, 128, 65, 2}}),
+             {{0, 1, 2, 3}},
+             {},
+             true,
+             true,
+             true,
+             cpuParams},
             // TODO: FIXME
-            //{static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{0, 1, 2, 3}, {12, 15, 130, 40}, true, true, true, cpuParams},
+            //{static_shapes_to_test_representation({{46, 10, 128, 65, 2}}), {{0, 1, 2, 3}, {12, 15, 130, 40}, true,
+            // true, true, cpuParams},
         };
     } else if (ov::with_cpu_x86_avx2()) {
         params = {
@@ -496,17 +527,36 @@ std::vector<RDFTTestCPUParams> getParams4D() {
             {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{1, 2}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{-2, -1}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{3, 1}}, {}, false, true, true, cpuParams},
-            {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{0, 1, 2, 3}}, {}, false, true, true, cpuParams},
-            {static_shapes_to_test_representation({{9, 16, 32, 126}}), {{0, 1, 2, 3}}, {{8, 10, 11, 12}}, false, true, true, cpuParams},
+            {static_shapes_to_test_representation({{9, 16, 32, 126}}),
+             {{0, 1, 2, 3}},
+             {},
+             false,
+             true,
+             true,
+             cpuParams},
+            {static_shapes_to_test_representation({{9, 16, 32, 126}}),
+             {{0, 1, 2, 3}},
+             {{8, 10, 11, 12}},
+             false,
+             true,
+             true,
+             cpuParams},
 
             {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{1, 0}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{1, 2}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{-2, -1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{3, 1}}, {}, true, true, true, cpuParams},
-            {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{0, 1, 2, 3}}, {}, true, true, true, cpuParams},
+            {static_shapes_to_test_representation({{9, 16, 32, 126, 2}}),
+             {{0, 1, 2, 3}},
+             {},
+             true,
+             true,
+             true,
+             cpuParams},
             // TODO: FIXME
-            //{static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{0, 1, 2, 3}}, {{8, 10, 11, 12}}, true, true, true, cpuParams},
+            //{static_shapes_to_test_representation({{9, 16, 32, 126, 2}}), {{0, 1, 2, 3}}, {{8, 10, 11, 12}}, true,
+            // true, true, cpuParams},
         };
     } else {
         params = {
@@ -516,81 +566,250 @@ std::vector<RDFTTestCPUParams> getParams4D() {
             {static_shapes_to_test_representation({{1, 2, 13, 30}}), {{-2, -1}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{1, 2, 13, 30}}), {{3, 2}}, {}, false, true, true, cpuParams},
             {static_shapes_to_test_representation({{1, 2, 13, 30}}), {{0, 1, 2, 3}}, {}, false, true, true, cpuParams},
-            {static_shapes_to_test_representation({{1, 2, 13, 30}}), {{0, 1, 2, 3}}, {{1, 2, 3, 13}}, false, true, true, cpuParams},
+            {static_shapes_to_test_representation({{1, 2, 13, 30}}),
+             {{0, 1, 2, 3}},
+             {{1, 2, 3, 13}},
+             false,
+             true,
+             true,
+             cpuParams},
 
             {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}), {{1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{2, 2, 13, 30, 2}}), {{1, 0}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}), {{1, 2}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}), {{-2, -1}}, {}, true, true, true, cpuParams},
             {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}), {{3, 2}}, {}, true, true, true, cpuParams},
-            {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}), {{0, 1, 2, 3}}, {}, true, true, true, cpuParams},
+            {static_shapes_to_test_representation({{1, 2, 13, 30, 2}}),
+             {{0, 1, 2, 3}},
+             {},
+             true,
+             true,
+             true,
+             cpuParams},
             // TODO: FIXME
             //{{1, 2, 13, 30, 2}, {0, 1, 2, 3}, {1, 2, 3, 13}, true, cpuParams},
         };
     }
 
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{1}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{2}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{3}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0, 1}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{3, 2}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{-2, -1}}, {{36, 64}}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0, 1, 2, 3}}, {}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 64}}), {{-2, -1}}, {{64, 33}}, false, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 96}}), {{-2, -1}}, {{96, 49}}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0}}, {}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{1}}, {}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{2}}, {}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{3}}, {}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0, 1}}, {}, false, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{3, 2}}, {}, false, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 64}}),
+                      {{-2, -1}},
+                      {{36, 64}},
+                      false,
+                      true,
+                      true,
+                      cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 64}}), {{0, 1, 2, 3}}, {}, false, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 64}}),
+                      {{-2, -1}},
+                      {{64, 33}},
+                      false,
+                      true,
+                      true,
+                      cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 96}}),
+                      {{-2, -1}},
+                      {{96, 49}},
+                      false,
+                      true,
+                      true,
+                      cpuParams});
 
-    params.push_back({static_shapes_to_test_representation({{2, 192, 36, 33, 2}}), {{0}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{1}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{2}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{3}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{0, 1}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{3, 2}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{-2, -1}}, {{36, 64}}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{0, 1, 2, 3}}, {}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 33, 2}}), {{-2, -1}}, {{64, 64}}, true, true, true, cpuParams});
-    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 49, 2}}), {{-2, -1}}, {{96, 96}}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{2, 192, 36, 33, 2}}), {{0}}, {}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{1}}, {}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{2}}, {}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{3}}, {}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{0, 1}}, {}, true, true, true, cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{3, 2}}, {}, true, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 192, 36, 33, 2}}),
+                      {{-2, -1}},
+                      {{36, 64}},
+                      true,
+                      true,
+                      true,
+                      cpuParams});
+    params.push_back(
+        {static_shapes_to_test_representation({{1, 192, 36, 33, 2}}), {{0, 1, 2, 3}}, {}, true, true, true, cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 64, 33, 2}}),
+                      {{-2, -1}},
+                      {{64, 64}},
+                      true,
+                      true,
+                      true,
+                      cpuParams});
+    params.push_back({static_shapes_to_test_representation({{1, 120, 96, 49, 2}}),
+                      {{-2, -1}},
+                      {{96, 96}},
+                      true,
+                      true,
+                      true,
+                      cpuParams});
 
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}}, {{0}}, {}, false, true, true, cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}, {3, 192, 36, 64}}},
-            InputShape{{-1}, {{1}, {2}, {3}}}}, {{0}, {0, 1}, {1, 2, 3}}, {}, false, false, true, cpuParams});
+                       InputShape{{-1}, {{1}, {2}, {3}}}},
+                      {{0}, {0, 1}, {1, 2, 3}},
+                      {},
+                      false,
+                      false,
+                      true,
+                      cpuParams});
     params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}, {1, 120, 96, 96}, {2, 120, 96, 96}}},
-            InputShape{{-1}, {{1}, {2}, {3}}}}, {{0}, {2, 3}, {0, 2, 3}}, {}, false, false, true, cpuParams});
+                       InputShape{{-1}, {{1}, {2}, {3}}}},
+                      {{0}, {2, 3}, {0, 2, 3}},
+                      {},
+                      false,
+                      false,
+                      true,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}, {3, 192, 36, 64}}}},
-            {{2}}, {{12}}, false, true, true, cpuParams});
+                      {{2}},
+                      {{12}},
+                      false,
+                      true,
+                      true,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {-3, -1, -2}}, {{36, 34}, {192, 64, 30}}, false, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {3}}},
+                       InputShape{{-1}, {{2}, {3}}}},
+                      {{-2, -1}, {-3, -1, -2}},
+                      {{36, 34}, {192, 64, 30}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}}},
-            InputShape{{-1}, {{1}, {2}}}, InputShape{{-1}, {{1}, {2}}}}, {{1}, {-2, -1}}, {{20}, {36, 34}}, false, false, false, cpuParams});
-    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}}}, InputShape{{-1}, {{1}, {2}}}, InputShape{{-1}, {{1}, {2}}}},
-            {{-1}, {-2, -1}}, {{64}, {36, 34}}, false, false, false, cpuParams});
-    params.push_back({{InputShape{{1, 192, -1, -1}, {{1, 192, 36, 64}, {1, 192, 40, 50}}}, InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}},
-            {{-2, -1}, {2, 1, 3}}, {{36, 34}, {10, 20, 30}}, false, false, false, cpuParams});
-    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}, {1, 120, 96, 96}}}, InputShape{{-1}, {{2}, {2}}}, InputShape{{-1}, {{2}, {2}}}},
-            {{-2, -1}, {2, 3}}, {{36, 34}, {96, 49}}, false, false, false, cpuParams});
+                       InputShape{{-1}, {{1}, {2}}},
+                       InputShape{{-1}, {{1}, {2}}}},
+                      {{1}, {-2, -1}},
+                      {{20}, {36, 34}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
+    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}, {2, 192, 36, 64}}},
+                       InputShape{{-1}, {{1}, {2}}},
+                       InputShape{{-1}, {{1}, {2}}}},
+                      {{-1}, {-2, -1}},
+                      {{64}, {36, 34}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
+    params.push_back({{InputShape{{1, 192, -1, -1}, {{1, 192, 36, 64}, {1, 192, 40, 50}}},
+                       InputShape{{-1}, {{2}, {3}}},
+                       InputShape{{-1}, {{2}, {3}}}},
+                      {{-2, -1}, {2, 1, 3}},
+                      {{36, 34}, {10, 20, 30}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
+    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}, {1, 120, 96, 96}}},
+                       InputShape{{-1}, {{2}, {2}}},
+                       InputShape{{-1}, {{2}, {2}}}},
+                      {{-2, -1}, {2, 3}},
+                      {{36, 34}, {96, 49}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{{1, 2}, -1, -1, {1, 100}}, {{1, 192, 36, 64}, {2, 120, 96, 100}}},
-            InputShape{{-1}, {{4}, {3}}}, InputShape{{-1}, {{4}, {3}}}},
-            {{0, 1, 2, 3}, {-3, -1, -2}}, {{1, 192, 36, 34}, {1, 100, 20}}, false, false, false, cpuParams});
+                       InputShape{{-1}, {{4}, {3}}},
+                       InputShape{{-1}, {{4}, {3}}}},
+                      {{0, 1, 2, 3}, {-3, -1, -2}},
+                      {{1, 192, 36, 34}, {1, 100, 20}},
+                      false,
+                      false,
+                      false,
+                      cpuParams});
 
-    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}, {3, 192, 36, 64, 2}}}}, {{0}}, {}, true, true, true, cpuParams});
+    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}, {3, 192, 36, 64, 2}}}},
+                      {{0}},
+                      {},
+                      true,
+                      true,
+                      true,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 33, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}}},
-            {{-2, -1}}, {{36, 64}}, true, true, true, cpuParams});
+                      {{-2, -1}},
+                      {{36, 64}},
+                      true,
+                      true,
+                      true,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 33, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {2}}}, InputShape{{-1}, {{2}, {2}}}}, {{-2, -1}, {-3, -2}}, {{36, 64}, {192, 40}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {2}}},
+                       InputShape{{-1}, {{2}, {2}}}},
+                      {{-2, -1}, {-3, -2}},
+                      {{36, 64}, {192, 40}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 33, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {3}}}, InputShape{{-1}, {{2}, {3}}}}, {{-2, -1}, {0, 2, 3}}, {{36, 64}, {1, 36, 64}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {3}}},
+                       InputShape{{-1}, {{2}, {3}}}},
+                      {{-2, -1}, {0, 2, 3}},
+                      {{36, 64}, {1, 36, 64}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, 36, 33, 2}, {{1, 192, 36, 33, 2}, {2, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{2}, {1}}}, InputShape{{-1}, {{2}, {1}}}},
-            {{-2, -1}, {2}}, {{36, 64}, {40}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {1}}},
+                       InputShape{{-1}, {{2}, {1}}}},
+                      {{-2, -1}, {2}},
+                      {{36, 64}, {40}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{-1, 192, -1, -1, 2}, {{1, 192, 36, 33, 2}, {2, 192, 42, 24, 2}}},
-            InputShape{{-1}, {{2}, {1}}}, InputShape{{-1}, {{2}, {1}}}},
-            {{-2, -1}, {-1}}, {{36, 64}, {30}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {1}}},
+                       InputShape{{-1}, {{2}, {1}}}},
+                      {{-2, -1}, {-1}},
+                      {{36, 64}, {30}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}, {2, 120, 44, 23, 2}}},
-            InputShape{{-1}, {{2}, {1}}}, InputShape{{-1}, {{2}, {1}}}},
-            {{-2, -1}, {-2}}, {{36, 64}, {50}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {1}}},
+                       InputShape{{-1}, {{2}, {1}}}},
+                      {{-2, -1}, {-2}},
+                      {{36, 64}, {50}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     params.push_back({{InputShape{{{1, 2}, -1, -1, {1, 100}, 2}, {{1, 192, 36, 33, 2}, {2, 120, 10, 100, 2}}},
-            InputShape{{-1}, {{2}, {1}}}, InputShape{{-1}, {{2}, {1}}}},
-            {{-2, -1}, {-1}}, {{36, 64}, {50}}, true, false, false, cpuParams});
+                       InputShape{{-1}, {{2}, {1}}},
+                       InputShape{{-1}, {{2}, {1}}}},
+                      {{-2, -1}, {-1}},
+                      {{36, 64}, {50}},
+                      true,
+                      false,
+                      false,
+                      cpuParams});
     return params;
 }
 

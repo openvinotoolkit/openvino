@@ -6,18 +6,18 @@
 
 #include <memory>
 
-#include "openvino/core/model.hpp"
-
-#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 class TransformationsPipeline {
 public:
-    explicit TransformationsPipeline(const ExecutionConfig &conf, const cldnn::device_info &device_info)
-        : config(conf), device_info(device_info) {}
+    explicit TransformationsPipeline(const ExecutionConfig& conf, const cldnn::device_info& device_info)
+        : config(conf),
+          device_info(device_info) {}
     void apply(std::shared_ptr<ov::Model> func);
 
 private:

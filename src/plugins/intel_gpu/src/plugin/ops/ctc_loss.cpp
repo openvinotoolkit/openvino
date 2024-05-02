@@ -3,8 +3,9 @@
 //
 
 #include "openvino/op/ctc_loss.hpp"
-#include "intel_gpu/primitives/ctc_loss.hpp"
+
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/ctc_loss.hpp"
 
 namespace ov {
 namespace intel_gpu {

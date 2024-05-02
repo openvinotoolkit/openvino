@@ -6,9 +6,9 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class RNNCell_extender(Extender):
-    op = 'RNNCell'
+    op = "RNNCell"
 
     @staticmethod
     def extend(op: Node):
-        if not op.has_valid('activations'):
-            op['activations'] = None
+        if not op.has_valid("activations"):
+            op["activations"] = None

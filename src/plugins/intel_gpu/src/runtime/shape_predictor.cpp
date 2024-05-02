@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/shape_predictor.hpp"
+
 #include "intel_gpu/runtime/engine.hpp"
 
 namespace cldnn {

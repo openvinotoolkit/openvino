@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/device.hpp"
-#include "ocl_common.hpp"
-
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "ocl_common.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -20,13 +20,25 @@ struct ocl_device : public device {
 public:
     ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform);
 
-    device_info get_info() const override { return _info; }
-    memory_capabilities get_mem_caps() const override { return _mem_caps; }
+    device_info get_info() const override {
+        return _info;
+    }
+    memory_capabilities get_mem_caps() const override {
+        return _mem_caps;
+    }
 
-    const cl::Device& get_device() const { return _device; }
-    cl::Device& get_device() { return _device; }
-    const cl::Context& get_context() const { return _context; }
-    const cl::Platform& get_platform() const { return _platform; }
+    const cl::Device& get_device() const {
+        return _device;
+    }
+    cl::Device& get_device() {
+        return _device;
+    }
+    const cl::Context& get_context() const {
+        return _context;
+    }
+    const cl::Platform& get_platform() const {
+        return _platform;
+    }
 
     bool is_same(const device::ptr other) override;
 

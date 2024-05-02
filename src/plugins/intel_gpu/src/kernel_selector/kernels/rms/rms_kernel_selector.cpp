@@ -3,8 +3,9 @@
 //
 
 #include "rms_kernel_selector.h"
-#include "rms_kernel_ref.h"
+
 #include "rms_kernel_bfyx_opt.h"
+#include "rms_kernel_ref.h"
 
 namespace kernel_selector {
 rms_kernel_selector::rms_kernel_selector() {

@@ -13,9 +13,9 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct depth_to_space_params : public base_params {
     depth_to_space_params()
-    : base_params(KernelType::DEPTH_TO_SPACE)
-    , block_size(0)
-    , mode(DepthToSpaceMode::DEPTH_FIRST) {}
+        : base_params(KernelType::DEPTH_TO_SPACE),
+          block_size(0),
+          mode(DepthToSpaceMode::DEPTH_FIRST) {}
     size_t block_size;
     DepthToSpaceMode mode;
 };
@@ -32,8 +32,7 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~DepthToSpaceKernelBase() {}
 
-    struct DispatchData : public CommonDispatchData {
-    };
+    struct DispatchData : public CommonDispatchData {};
 
 protected:
     bool Validate(const Params&) const override;

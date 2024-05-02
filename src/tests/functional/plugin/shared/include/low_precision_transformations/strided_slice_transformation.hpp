@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class StridedSliceTransformationParam {
@@ -22,17 +22,15 @@ public:
     std::vector<int64_t> elipsisMask;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    StridedSliceTransformationParam
-> StridedSliceTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   StridedSliceTransformationParam>
+    StridedSliceTransformationParams;
 
-class StridedSliceTransformation :
-    public testing::WithParamInterface<StridedSliceTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class StridedSliceTransformation : public testing::WithParamInterface<StridedSliceTransformationParams>,
+                                   public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj);
 

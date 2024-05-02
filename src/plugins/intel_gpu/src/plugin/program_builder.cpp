@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/loop.hpp"
-
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/data.hpp"
+
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 #ifdef __linux__
-# include <dlfcn.h>
+#    include <dlfcn.h>
 #endif
 
 #if defined(__unix__) && !defined(__ANDROID__)
-#include <malloc.h>
+#    include <malloc.h>
 #endif
-
 
 namespace ov {
 namespace intel_gpu {
@@ -37,8 +36,9 @@ std::mutex ProgramBuilder::m_mutex = {};
 
 std::string layer_type_lower(const ov::Node* op) {
     std::string layerType = op->get_type_name();
-    std::transform(layerType.begin(), layerType.end(), layerType.begin(),
-        [](unsigned char c) -> unsigned char { return std::tolower(c); });
+    std::transform(layerType.begin(), layerType.end(), layerType.begin(), [](unsigned char c) -> unsigned char {
+        return std::tolower(c);
+    });
     return layerType;
 }
 
@@ -54,18 +54,20 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
     return layer_type_name_ID(op.get());
 }
 
-ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
+ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model,
+                               cldnn::engine& engine,
+                               const ExecutionConfig& config,
                                bool partial_build,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program)
-    : m_model(model)
-    , m_config(config)
-    , m_engine(engine)
-    , queryMode(false)
-    , m_task_executor(task_executor)
-    , m_compilation_context(compilation_context)
-    , m_is_inner_program(is_inner_program) {
+    : m_model(model),
+      m_config(config),
+      m_engine(engine),
+      queryMode(false),
+      m_task_executor(task_executor),
+      m_compilation_context(compilation_context),
+      m_is_inner_program(is_inner_program) {
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
@@ -78,15 +80,15 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CHAR mpath[MAX_PATH + 1];
     HMODULE nModule;
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)CustomLayer::LoadFromFile,
-        &nModule);
+                      (LPCSTR)CustomLayer::LoadFromFile,
+                      &nModule);
     GetModuleFileName(nModule, mpath, sizeof(mpath));
 #elif __linux__
     Dl_info dl_info;
-    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    dladdr(reinterpret_cast<void*>(CustomLayer::LoadFromFile), &dl_info);
     const char* mpath = dl_info.dli_fname;
 #else
-#error "Intel GPU plugin: unknown target system"
+#    error "Intel GPU plugin: unknown target system"
 #endif
     std::string configFile(mpath);
     std::size_t dir_split_pos = configFile.find_last_of("/\\");
@@ -116,9 +118,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
-        : m_config(config)
-        , m_engine(engine)
-        , queryMode(false) {
+    : m_config(config),
+      m_engine(engine),
+      queryMode(false) {
     m_task_executor = cldnn::program::make_task_executor(m_config);
 }
 
@@ -132,17 +134,18 @@ void ProgramBuilder::prepare_build() {
 
 void ProgramBuilder::cleanup_build() {
     m_topology.reset();
-    #if defined(__unix__) && !defined(__ANDROID__)
-    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
-    //  (It is at least 500 MB when we perform parallel compilation)
-    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
-    //  Also, this is not happening in Windows.
-    //  So, added malloc_trim for linux build until we figure out a better solution.
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system
+    //  thought they are freed. (It is at least 500 MB when we perform parallel compilation) It is observed that freeing
+    //  the memory manually with malloc_trim saves significant amount of the memory. Also, this is not happening in
+    //  Windows. So, added malloc_trim for linux build until we figure out a better solution.
     malloc_trim(0);
-    #endif
+#endif
 }
 
-std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {
+std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops,
+                                                      bool partial_build,
+                                                      bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
     // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
     // So, do not check allow_new_shape_infer for inner program build
@@ -220,8 +223,8 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
 
 void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateSingleLayerPrimitive");
-    GPU_DEBUG_LOG << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
-                  << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+    GPU_DEBUG_LOG << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name()
+                  << " operation " << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
     const ov::NodeTypeInfo* op_type_info = &op->get_type_info();
@@ -242,9 +245,13 @@ void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>&
     }
 
     if (!is_created) {
-        OPENVINO_THROW("Operation: ", op->get_friendly_name(),
-                       " of type ", op->get_type_name(),
-                       "(", op->get_type_info().version_id, ") is not supported");
+        OPENVINO_THROW("Operation: ",
+                       op->get_friendly_name(),
+                       " of type ",
+                       op->get_type_name(),
+                       "(",
+                       op->get_type_info().version_id,
+                       ") is not supported");
     }
 }
 
@@ -262,10 +269,9 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
-        bool is_legacy_multiple_outputs = !allow_new_shape_infer
-                                          || ov::is_type<ov::op::v1::Split>(prevOp)
-                                          || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
-                                          || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
+        bool is_legacy_multiple_outputs = !allow_new_shape_infer || ov::is_type<ov::op::v1::Split>(prevOp) ||
+                                          ov::is_type<ov::op::v1::VariadicSplit>(prevOp) ||
+                                          ov::is_type<ov::op::v4::LSTMCell>(prevOp);
         if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
@@ -278,10 +284,13 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 OPENVINO_THROW("Input ", prevName, " hasn't been found in primitive_ids map");
             }
-            inputInfo.push_back(
-                cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: static_cast<int>(op->get_input_source_output(i).get_index())));
+            inputInfo.push_back(cldnn::input_info(
+                primitive_ids.at(prevName),
+                is_legacy_multiple_outputs ? 0 : static_cast<int>(op->get_input_source_output(i).get_index())));
         } else {
-            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : static_cast<int>(op->get_input_source_output(i).get_index())));
+            inputInfo.push_back(cldnn::input_info(
+                prevName,
+                is_legacy_multiple_outputs ? 0 : static_cast<int>(op->get_input_source_output(i).get_index())));
         }
     }
     return inputInfo;
@@ -297,20 +306,22 @@ void ProgramBuilder::init_profile_info(const cldnn::primitive& prim) {
     perfEntry.parentPrimitive = prim.origin_op_name;
 }
 
-void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases) {
+void ProgramBuilder::add_primitive(const ov::Node& op,
+                                   std::shared_ptr<cldnn::primitive> prim,
+                                   std::vector<std::string> aliases) {
     OPENVINO_ASSERT(m_topology != nullptr, "[GPU] Invalid ProgramBuilder builder state: topology is nullptr");
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
-                          prim->type != cldnn::data::type_id();
+    bool should_profile = prim->type != cldnn::mutable_data::type_id() && prim->type != cldnn::data::type_id();
 
     auto prim_id = prim->id;
     auto id = layer_type_name_ID(&op);
     primitive_ids[id] = prim_id;
 
-    bool multi_output_case = ends_with(prim_id, ".out0") && prim_id.length() > 5 && prim_id.substr(0, prim_id.length() - 5) == id;
+    bool multi_output_case =
+        ends_with(prim_id, ".out0") && prim_id.length() > 5 && prim_id.substr(0, prim_id.length() - 5) == id;
     if (id != prim_id) {
         primitive_ids[prim_id] = prim_id;
 
@@ -366,7 +377,7 @@ int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Pa
 }
 
 int64_t ProgramBuilder::get_result_index(const ov::Output<ov::Node>& value) const {
-    return  m_model->get_result_index(value);
+    return m_model->get_result_index(value);
 }
 
 int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value) const {
@@ -380,9 +391,15 @@ void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size
         }
     }
 
-    OPENVINO_THROW("Invalid inputs count (", op->get_input_size(), ") in )",
-                   op->get_friendly_name(), " (", op->get_type_name(),
-                   " ", op->get_type_info().version_id, ")");
+    OPENVINO_THROW("Invalid inputs count (",
+                   op->get_input_size(),
+                   ") in )",
+                   op->get_friendly_name(),
+                   " (",
+                   op->get_type_name(),
+                   " ",
+                   op->get_type_info().version_id,
+                   ")");
 }
 
 }  // namespace intel_gpu

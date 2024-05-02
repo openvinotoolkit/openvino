@@ -3,6 +3,7 @@
 //
 
 #include "softmax_kernel_fb.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -41,7 +42,8 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
     dispatchData.lws[0] = std::min(dispatchData.dataSetsCount, max_lws);
     // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
     // reads.
-    while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+    while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) &&
+           (2 * dispatchData.lws[0] <= max_lws)) {
         dispatchData.lws[0] *= 2;
         dispatchData.itemsNum /= 2;
     }
@@ -77,14 +79,14 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
 
     const auto& input = softmax_params.inputs[0];
     switch (softmax_params.dim) {
-        case SoftmaxDim::X:
-            return input.Y().v == 1 && input.Feature().v == 1;
-        case SoftmaxDim::Y:
-            return input.X().v == 1 && input.Feature().v == 1;
-        case SoftmaxDim::FEATURE:
-            return input.X().v == 1 && input.Y().v == 1;
-        default:
-            return false;
+    case SoftmaxDim::X:
+        return input.Y().v == 1 && input.Feature().v == 1;
+    case SoftmaxDim::Y:
+        return input.X().v == 1 && input.Feature().v == 1;
+    case SoftmaxDim::FEATURE:
+        return input.X().v == 1 && input.Y().v == 1;
+    default:
+        return false;
     }
 }
 
@@ -110,10 +112,7 @@ JitConstants SoftmaxKernel_fb::GetJitConstants(const softmax_params& params, Dis
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf_main = {"_MAIN",
-                                           {"global_id", "LWS * i", "0", "0"},
-                                           "dequantized",
-                                           activation_dt};
+        FusedOpsConfiguration conf_main = {"_MAIN", {"global_id", "LWS * i", "0", "0"}, "dequantized", activation_dt};
         FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",
                                                 {"global_id", "LWS * ITEMS_NUM", "0", "0"},
                                                 "dequantized",

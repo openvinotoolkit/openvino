@@ -3,9 +3,12 @@
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, is_fully_defined
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension_value,
+    int64_array,
+    is_fully_defined,
+)
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
@@ -25,17 +28,18 @@ class SparseFillEmptyRows(Op):
         - [1, optional] values of the filled sparse tensor (1D)
         - [2, optional] indicator of whether the dense row was missing in the input sparse tensor (1D)
     """
-    op = 'SparseFillEmptyRows'
+
+    op = "SparseFillEmptyRows"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'op': self.op,
-            'version': 'experimental',
-            'infer': self.infer,
-            'in_ports_count': 4,
-            'out_ports_count': 3
+            "type": None,
+            "op": self.op,
+            "version": "experimental",
+            "infer": self.infer,
+            "in_ports_count": 4,
+            "out_ports_count": 3,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -48,15 +52,17 @@ class SparseFillEmptyRows(Op):
 
         # check that shape value is defined that is needed for shape inference
         shape = node.in_node(2)
-        assert shape.value is not None and shape.value.size == 2, \
-            "SparseFillEmptyRows is supported only with constant shape value"
+        assert (
+            shape.value is not None and shape.value.size == 2
+        ), "SparseFillEmptyRows is supported only with constant shape value"
 
         shape_value = int64_array(shape.value)
 
         # check that default value is scalar
         default_value = node.in_node(3)
-        assert default_value.shape is not None and len(default_value.shape) == 0, \
-            "Default value for SparseFillEmptyRows must be scalar"
+        assert (
+            default_value.shape is not None and len(default_value.shape) == 0
+        ), "Default value for SparseFillEmptyRows must be scalar"
 
         if node.is_out_port_connected(0):  # set a shape for output indices
             if is_fully_defined(shape_value):

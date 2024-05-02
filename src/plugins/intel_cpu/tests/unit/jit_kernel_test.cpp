@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <kernels/x64/jit_kernel.hpp>
 #include <random>
 
@@ -15,14 +16,13 @@ namespace {
 
 #define TEST_JIT_SCALAR_EXPRESSION (c << 5) * b | ((a & b) - c) | (b - a) >> 2
 
-template<typename Params>
+template <typename Params>
 struct jit_test_kernel : public jit_kernel {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_test_kernel)
 
-    jit_test_kernel()
-    : jit_kernel(jit_name()) {}
+    jit_test_kernel() : jit_kernel(jit_name()) {}
 
-    typedef void (*function_t)(const Params *);
+    typedef void (*function_t)(const Params*);
 
     void init() {
         if (create_kernel() != status::success)
@@ -30,7 +30,7 @@ struct jit_test_kernel : public jit_kernel {
         _fn = (function_t)jit_ker();
     }
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _fn(&args);
     }
 
@@ -38,16 +38,16 @@ private:
     function_t _fn;
 };
 
-template<typename T>
+template <typename T>
 struct jit_scalar_variable_test_kernel {
     struct Params {
         T a;
         T b;
         T c;
-        T *result;
+        T* result;
     };
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _kernel(args);
     }
 
@@ -74,47 +74,39 @@ private:
     kernel_impl _kernel;
 };
 
-template<typename T>
+template <typename T>
 T scalar_variable_jit_expression(T a, T b, T c) {
     T result = 0;
     jit_scalar_variable_test_kernel<T> kernel;
-    typename jit_scalar_variable_test_kernel<T>::Params args = { a, b, c, &result };
+    typename jit_scalar_variable_test_kernel<T>::Params args = {a, b, c, &result};
     kernel(args);
     return result;
 }
 
-template<typename T>
+template <typename T>
 T scalar_variable_ref_expression(T a, T b, T c) {
     return TEST_JIT_SCALAR_EXPRESSION;
 }
 
 TEST(JitKernel, scalar_variable) {
-    ASSERT_EQ(scalar_variable_jit_expression<uint64_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint64_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int64_t>(1, 2, 3),
-              scalar_variable_ref_expression<int64_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint32_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint32_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int32_t>(1, 2, 3),
-              scalar_variable_ref_expression<int32_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint16_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint16_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int16_t>(1, 2, 3),
-              scalar_variable_ref_expression<int16_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<uint8_t>(1, 2, 3),
-              scalar_variable_ref_expression<uint8_t>(1, 2, 3));
-    ASSERT_EQ(scalar_variable_jit_expression<int8_t>(1, 2, 3),
-              scalar_variable_ref_expression<int8_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint64_t>(1, 2, 3), scalar_variable_ref_expression<uint64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int64_t>(1, 2, 3), scalar_variable_ref_expression<int64_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint32_t>(1, 2, 3), scalar_variable_ref_expression<uint32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int32_t>(1, 2, 3), scalar_variable_ref_expression<int32_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint16_t>(1, 2, 3), scalar_variable_ref_expression<uint16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int16_t>(1, 2, 3), scalar_variable_ref_expression<int16_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<uint8_t>(1, 2, 3), scalar_variable_ref_expression<uint8_t>(1, 2, 3));
+    ASSERT_EQ(scalar_variable_jit_expression<int8_t>(1, 2, 3), scalar_variable_ref_expression<int8_t>(1, 2, 3));
 }
 
 struct jit_variable_test_kernel {
     struct Params {
-        const float *a;
-        const float *b;
-        float *result;
+        const float* a;
+        const float* b;
+        float* result;
     };
 
-    template<size_t N>
+    template <size_t N>
     void test() {
         kernel_impl<N> kernel;
         kernel.init();
@@ -122,7 +114,7 @@ struct jit_variable_test_kernel {
         std::array<float, N> a;
         std::array<float, N> b;
         std::array<float, N> result = {};
-        Params args = { a.data(), b.data(), result.data() };
+        Params args = {a.data(), b.data(), result.data()};
 
         for (size_t i = 0; i < N; ++i) {
             a[i] = static_cast<float>(i);
@@ -145,7 +137,7 @@ struct jit_variable_test_kernel {
     }
 
 private:
-    template<size_t N>
+    template <size_t N>
     class kernel_impl : public jit_test_kernel<Params> {
     public:
         uint8_t order[N];
@@ -202,10 +194,10 @@ struct jit_loop_and_condition_test_kernel {
     struct Params {
         size_t n;
         size_t a;
-        size_t *result;
+        size_t* result;
     };
 
-    void operator()(const Params & args) const {
+    void operator()(const Params& args) const {
         _kernel(args);
     }
 
@@ -224,15 +216,16 @@ private:
 
             auto s = var<size_t>(0);
 
-            foreach(0, n, [&](const variable<size_t> & idx) {
+            foreach (0, n, [&](const variable<size_t>& idx) {
                 _if((idx & 3) != a)
-                ._then([&] {
-                    s += idx + 3;
-                })
-                ._else([&] {
-                    s -= idx - 2;
-                });
-            });
+                    ._then([&] {
+                        s += idx + 3;
+                    })
+                    ._else([&] {
+                        s -= idx - 2;
+                    });
+            })
+                ;
 
             *result = s;
 
@@ -249,7 +242,7 @@ TEST(JitKernel, loop_and_condition) {
     size_t n = 100;
     size_t a = 2;
     size_t result = 0;
-    jit_loop_and_condition_test_kernel::Params args = { n, a, &result };
+    jit_loop_and_condition_test_kernel::Params args = {n, a, &result};
 
     kernel(args);
 
@@ -264,24 +257,24 @@ TEST(JitKernel, loop_and_condition) {
     ASSERT_EQ(result, s);
 }
 
-template<typename SrcT, typename DstT>
+template <typename SrcT, typename DstT>
 struct jit_variable_load_store_test_kernel {
     struct Params {
-        const SrcT *src;
-        DstT *dst;
+        const SrcT* src;
+        DstT* dst;
         size_t size;
     };
 
-    template<size_t N, size_t M, bool is_src>
+    template <size_t N, size_t M, bool is_src>
     void test() {
         kernel_impl<N, is_src> kernel;
         kernel.init();
         ASSERT_GE(N, M);
 
-        std::array<SrcT, N> src {};
-        std::array<DstT, N> result {};
+        std::array<SrcT, N> src{};
+        std::array<DstT, N> result{};
 
-        Params args = { src.data(), result.data(), M };
+        Params args = {src.data(), result.data(), M};
 
         src.fill(static_cast<SrcT>(42));
         for (size_t i = 0; i < M; ++i) {
@@ -290,7 +283,7 @@ struct jit_variable_load_store_test_kernel {
 
         kernel(args);
 
-        std::array<DstT, N> expected_result {};
+        std::array<DstT, N> expected_result{};
 
         for (size_t i = 0; i < M; ++i) {
             expected_result[i] = static_cast<DstT>(i);
@@ -300,7 +293,7 @@ struct jit_variable_load_store_test_kernel {
     }
 
 private:
-    template<size_t N, bool is_src>
+    template <size_t N, bool is_src>
     class kernel_impl : public jit_test_kernel<Params> {
     public:
         void generate() override {
@@ -407,4 +400,4 @@ TEST(JitKernel, variable_load_and_store) {
     }
 }
 
-}   // namespace
+}  // namespace

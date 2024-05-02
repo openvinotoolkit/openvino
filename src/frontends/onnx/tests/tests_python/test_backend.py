@@ -2,13 +2,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
 import logging
+import platform
 
 import onnx.backend.test
+from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
+
 from tests import (
     BACKEND_NAME,
+    skip_bitwise_ui64,
+    skip_dynamic_model,
+    skip_issue_39658,
+    skip_issue_58676,
+    skip_issue_124587,
+    skip_issue_125487,
+    skip_issue_125489,
+    skip_misalignment,
     skip_rng_tests,
+    skip_segfault,
     xfail_issue_33488,
     xfail_issue_33581,
     xfail_issue_33596,
@@ -23,13 +34,9 @@ from tests import (
     xfail_issue_38724,
     xfail_issue_38734,
     xfail_issue_38735,
-    skip_issue_39658,
-    skip_issue_39658,
-    skip_issue_58676,
     xfail_issue_44858,
     xfail_issue_44965,
     xfail_issue_47323,
-    xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_52463,
     xfail_issue_58033,
@@ -38,12 +45,11 @@ from tests import (
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
+    xfail_issue_73538,
     xfail_issue_81976,
-    skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
     xfail_issue_90649,
-    skip_bitwise_ui64,
     xfail_issue_99949,
     xfail_issue_99950,
     xfail_issue_99952,
@@ -58,7 +64,6 @@ from tests import (
     xfail_issue_99973,
     xfail_issue_101965,
     xfail_issue_113506,
-    skip_dynamic_model,
     xfail_issue_119896,
     xfail_issue_119900,
     xfail_issue_119903,
@@ -67,19 +72,14 @@ from tests import (
     xfail_issue_119922,
     xfail_issue_119925,
     xfail_issue_119926,
+    xfail_issue_122775,
+    xfail_issue_122776,
     xfail_issue_125485,
     xfail_issue_125488,
-    skip_issue_125487,
-    skip_issue_125489,
     xfail_issue_125491,
     xfail_issue_125492,
     xfail_issue_125493,
-    xfail_issue_122775,
-    xfail_issue_122776,
-    skip_misalignment,
-    skip_issue_124587,
 )
-from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -90,7 +90,8 @@ def expect_fail(test_case_path, xfail):  # type: (str) -> None
         xfail(getattr(module, test_name))
     else:
         logging.getLogger().warning(
-            "Could not mark test as XFAIL, not found: %s", test_case_path,
+            "Could not mark test as XFAIL, not found: %s",
+            test_case_path,
         )
 
 
@@ -701,27 +702,32 @@ tests_expected_to_fail = [
     ),
 ]
 
-if platform.system() == 'Darwin':
-    tests_expected_to_fail.extend([
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_mish_expanded_cpu"
-        ),
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"
-        ),
-        (
-            skip_issue_58676,
-            "OnnxBackendNodeModelTest.test_div_uint8_cpu"
-        )]
-    )
-
-if platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+if platform.system() == "Darwin":
     tests_expected_to_fail.extend(
         [
-            (xfail_issue_122775, "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu"),
-            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu")
+            (skip_issue_58676, "OnnxBackendNodeModelTest.test_mish_expanded_cpu"),
+            (
+                skip_issue_58676,
+                "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu",
+            ),
+            (skip_issue_58676, "OnnxBackendNodeModelTest.test_div_uint8_cpu"),
+        ]
+    )
+
+if platform.system() == "Linux" and platform.machine() in [
+    "arm",
+    "armv7l",
+    "aarch64",
+    "arm64",
+    "ARM64",
+]:
+    tests_expected_to_fail.extend(
+        [
+            (
+                xfail_issue_122775,
+                "OnnxBackendNodeModelTest.test_resize_downsample_scales_linear_cpu",
+            ),
+            (xfail_issue_122776, "OnnxBackendNodeModelTest.test_mish_expanded_cpu"),
         ]
     )
 

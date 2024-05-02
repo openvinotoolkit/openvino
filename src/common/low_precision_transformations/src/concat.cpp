@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/concat.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
 #include "low_precision/common/fake_quantize_dequantization.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
-#include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -39,7 +39,7 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
     this->register_matcher(m, callback);
 }
 
-bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<ov::opset1::Concat> concat = ov::as_type_ptr<ov::opset1::Concat>(m.get_match_root());
     if (!canBeTransformed(context, concat)) {
         return false;
@@ -48,7 +48,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {
-        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, parentIndex);
+        FakeQuantizeDequantization dequantization =
+            NetworkHelper::getDequantization(concat, defaultPrecisions, parentIndex);
         if (dequantization.empty()) {
             return false;
         }
@@ -84,20 +85,23 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
 
     // constant shape must be broadcastable to the shape on data.
     auto broadcastElementWiseConst = [](std::shared_ptr<opset1::Constant> operation, const Shape targetShape) {
-        auto targetShapeConst = std::make_shared<opset1::Constant>(element::i64, Shape{ targetShape.size() }, targetShape);
+        auto targetShapeConst =
+            std::make_shared<opset1::Constant>(element::i64, Shape{targetShape.size()}, targetShape);
         auto broadcast = fold<ov::opset1::Broadcast>(operation, targetShapeConst);
         return broadcast;
     };
 
-    bool someDqInLowPrecision = std::any_of(
-        layerDequantizations.begin(),
-        layerDequantizations.end(),
-        [](const FakeQuantizeDequantization& value) { return value.isLowPrecision(); });
+    bool someDqInLowPrecision = std::any_of(layerDequantizations.begin(),
+                                            layerDequantizations.end(),
+                                            [](const FakeQuantizeDequantization& value) {
+                                                return value.isLowPrecision();
+                                            });
 
-    bool someDqInFpPrecision = std::any_of(
-        layerDequantizations.begin(),
-        layerDequantizations.end(),
-        [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
+    bool someDqInFpPrecision = std::any_of(layerDequantizations.begin(),
+                                           layerDequantizations.end(),
+                                           [](const FakeQuantizeDequantization& value) {
+                                               return !value.isLowPrecision();
+                                           });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
     const auto axis = ov::util::normalize_axis(concat->get_friendly_name(),
@@ -126,14 +130,13 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
         targetShape[axis] = concat->get_input_partial_shape(i)[axis].get_length();
 
         if (!allDequantizationShiftAreZero) {
-            auto subtractInput = dequantization.subtract == nullptr ?
-                    std::make_shared<ov::opset1::Constant>(
-                        (allDequantizationShiftConvertAreNotZero ?
-                            PrecisionBeforeConvert :
-                            deqPrecision),
-                        targetShape,
-                        std::vector<float>({ 0.f })) :
-                broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
+            auto subtractInput =
+                dequantization.subtract == nullptr
+                    ? std::make_shared<ov::opset1::Constant>(
+                          (allDequantizationShiftConvertAreNotZero ? PrecisionBeforeConvert : deqPrecision),
+                          targetShape,
+                          std::vector<float>({0.f}))
+                    : broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
             if (allDequantizationShiftConvertAreNotZero) {
                 if (subtractConvert == nullptr && dequantization.subtractConvert != nullptr) {
                     subtractConvert = dequantization.subtractConvert;
@@ -146,9 +149,10 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
         }
 
         if (!allDequantizationMultiplyAreZero) {
-            mulConstants.push_back(dequantization.multiply == nullptr ?
-                std::make_shared<ov::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 1.0f })) :
-                broadcastElementWiseConst(dequantization.multiplyConstant, targetShape));
+            mulConstants.push_back(
+                dequantization.multiply == nullptr
+                    ? std::make_shared<ov::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({1.0f}))
+                    : broadcastElementWiseConst(dequantization.multiplyConstant, targetShape));
         }
     }
 
@@ -156,38 +160,37 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
 
     std::shared_ptr<ov::Node> lastDequantization = newConcat;
     if (!convertNodes.empty()) {
-        const auto convert = convertNodes[0]->clone_with_new_inputs({ newConcat });
+        const auto convert = convertNodes[0]->clone_with_new_inputs({newConcat});
 
-        NetworkHelper::copyInfo({ concat, convert }, convert);
+        NetworkHelper::copyInfo({concat, convert}, convert);
         convert->set_friendly_name(concat->get_friendly_name() + "/DequantizationConvert");
         lastDequantization = convert;
     }
 
     if (!subConstants.empty()) {
-        std::shared_ptr<ov::Node> subtractNode = subConstants.size() == 1ul ?
-            subConstants[0] :
-            ov::pass::low_precision::fold<ov::opset1::Concat>(subConstants, axis);
+        std::shared_ptr<ov::Node> subtractNode =
+            subConstants.size() == 1ul ? subConstants[0]
+                                       : ov::pass::low_precision::fold<ov::opset1::Concat>(subConstants, axis);
         if (subtractConvert != nullptr)
             subtractNode = subtractConvert->clone_with_new_inputs({subtractNode});
-        const auto subtract = std::make_shared<opset1::Subtract>(
-            lastDequantization,
-            NetworkHelper::toScalarIfPossible(subtractNode));
+        const auto subtract =
+            std::make_shared<opset1::Subtract>(lastDequantization, NetworkHelper::toScalarIfPossible(subtractNode));
 
-        NetworkHelper::copyInfo({ concat, subtract }, subtract);
+        NetworkHelper::copyInfo({concat, subtract}, subtract);
         subtract->set_friendly_name(concat->get_friendly_name() + "/DequantizationSubtract");
         lastDequantization = subtract;
     }
 
     if (!mulConstants.empty()) {
         const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
-            opset1::Multiply(
-                lastDequantization,
-                NetworkHelper::toScalarIfPossible(mulConstants.size() == 1ul ?
-                    mulConstants[0] :
-                    ov::pass::low_precision::fold<ov::opset1::Concat>(mulConstants, axis))),
+            opset1::Multiply(lastDequantization,
+                             NetworkHelper::toScalarIfPossible(
+                                 mulConstants.size() == 1ul
+                                     ? mulConstants[0]
+                                     : ov::pass::low_precision::fold<ov::opset1::Concat>(mulConstants, axis))),
             layerDequantizations[0].multiply->get_output_element_type(0));
 
-        NetworkHelper::copyInfo({ concat, multiply }, multiply);
+        NetworkHelper::copyInfo({concat, multiply}, multiply);
         multiply->set_friendly_name(concat->get_friendly_name() + "/DequantizationMultyply");
         lastDequantization = multiply;
     }
@@ -230,15 +233,17 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
             constantShape.insert(constantShape.begin(), 1ul);
         }
 
-        const auto dqDimensionsCount = std::count_if(constantShape.begin(), constantShape.end(), [](size_t elem) { return elem > 1; });
-        const bool dqOnlyByConcatAxis = (dqDimensionsCount == 0) || (dqDimensionsCount == 1 && constantShape[normalizedAxis] != 1ul);
+        const auto dqDimensionsCount = std::count_if(constantShape.begin(), constantShape.end(), [](size_t elem) {
+            return elem > 1;
+        });
+        const bool dqOnlyByConcatAxis =
+            (dqDimensionsCount == 0) || (dqDimensionsCount == 1 && constantShape[normalizedAxis] != 1ul);
         return dqOnlyByConcatAxis;
     };
 
-    const auto check_const_precision = [](
-        const FakeQuantizeDequantization& dequantization,
-        const std::shared_ptr<Node>& constant,
-        ov::element::Type& const_precision) {
+    const auto check_const_precision = [](const FakeQuantizeDequantization& dequantization,
+                                          const std::shared_ptr<Node>& constant,
+                                          ov::element::Type& const_precision) {
         if (constant == nullptr) {
             return true;
         }
@@ -253,7 +258,8 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
     element::Type const_precision;
 
     for (size_t i = 0ul; i < concat->get_input_size(); i++) {
-        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(concat, defaultPrecisions, i);
+        const FakeQuantizeDequantization dequantization =
+            NetworkHelper::getDequantization(concat, defaultPrecisions, i);
         if (dequantization.empty() || (updatePrecisions && !dequantization.isLowPrecision())) {
             return false;
         }
@@ -270,7 +276,8 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         }
 
         if (!check_const_precision(dequantization, dequantization.subtractConvert, const_precision) ||
-            ((dequantization.subtractConvert == nullptr) && !check_const_precision(dequantization, dequantization.subtractConstant, const_precision)) ||
+            ((dequantization.subtractConvert == nullptr) &&
+             !check_const_precision(dequantization, dequantization.subtractConstant, const_precision)) ||
             !check_const_precision(dequantization, dequantization.multiplyConstant, const_precision)) {
             return false;
         }
@@ -285,6 +292,6 @@ bool ConcatTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& 
     return concat->get_output_partial_shape(0).rank().is_static();
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

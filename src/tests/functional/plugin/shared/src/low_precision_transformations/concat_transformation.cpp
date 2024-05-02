@@ -5,12 +5,12 @@
 #include "low_precision_transformations/concat_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/concat.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -24,11 +24,8 @@ std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<C
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
-           testValues.fqOnData1 <<
-        testValues.dequantization1 <<
-        testValues.fqOnData2 <<
-        testValues.dequantization2;
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) << testValues.fqOnData1
+           << testValues.dequantization1 << testValues.fqOnData2 << testValues.dequantization2;
     return result.str();
 }
 
@@ -47,15 +44,14 @@ void ConcatTransformation::SetUp() {
     }
     init_input_shapes(inputs);
 
-    function = ov::builder::subgraph::ConcatFunction::getOriginal(
-        precision,
-        inputShape,
-        testValues.input_constant1,
-        testValues.fqOnData1,
-        testValues.dequantization1,
-        testValues.input_constant2,
-        testValues.fqOnData2,
-        testValues.dequantization2);
+    function = ov::builder::subgraph::ConcatFunction::getOriginal(precision,
+                                                                  inputShape,
+                                                                  testValues.input_constant1,
+                                                                  testValues.fqOnData1,
+                                                                  testValues.dequantization1,
+                                                                  testValues.input_constant2,
+                                                                  testValues.fqOnData2,
+                                                                  testValues.dequantization2);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

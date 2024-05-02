@@ -2,22 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/extractimagepatches.hpp"
-
 #include "intel_gpu/primitives/extract_image_patches.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 static inline std::string PadToString(ov::op::PadType pad) {
     switch (pad) {
-        case ov::op::PadType::SAME_UPPER: return "same_upper";
-        case ov::op::PadType::SAME_LOWER: return "same_lower";
-        case ov::op::PadType::VALID: return "valid";
-        default: OPENVINO_THROW("Unsupported pad type in ExtractImagePatches primitive ", pad);
+    case ov::op::PadType::SAME_UPPER:
+        return "same_upper";
+    case ov::op::PadType::SAME_LOWER:
+        return "same_lower";
+    case ov::op::PadType::VALID:
+        return "valid";
+    default:
+        OPENVINO_THROW("Unsupported pad type in ExtractImagePatches primitive ", pad);
     }
 
     return "";

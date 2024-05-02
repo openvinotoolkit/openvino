@@ -8,14 +8,25 @@ from defusedxml import ElementTree
 
 from openvino.tools.mo.front.caffe.collect_attributes import collect_attributes
 from openvino.tools.mo.front.caffe.extractor import node_pb_arg
-from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates, add_or_override_extractor
+from openvino.tools.mo.front.common.register_custom_ops import (
+    add_or_override_extractor,
+    check_for_duplicates,
+)
 
 
 def expected_attribs(layer_attrs: list, attrs: list, fileName: str):
     missing = [attr for attr in attrs if attr not in layer_attrs]
     if len(missing):
-        layer = "layer {}".format(layer_attrs['NativeType']) if 'NativeType' in layer_attrs else "one of the layers"
-        log.error('Missing required attribute(s) {} for {} in {}. Skipped.'.format(', '.join(missing), layer, fileName))
+        layer = (
+            "layer {}".format(layer_attrs["NativeType"])
+            if "NativeType" in layer_attrs
+            else "one of the layers"
+        )
+        log.error(
+            "Missing required attribute(s) {} for {} in {}. Skipped.".format(
+                ", ".join(missing), layer, fileName
+            )
+        )
         return False
     return True
 
@@ -28,27 +39,51 @@ def load_layers_xml(fileName: str):
 
     layers_map = {}
     for child in xml:
-        if child.tag == 'CustomLayer':
-            if expected_attribs(child.attrib, ['NativeType', 'hasParam'], fileName):
-                layer = child.attrib['NativeType']
+        if child.tag == "CustomLayer":
+            if expected_attribs(child.attrib, ["NativeType", "hasParam"], fileName):
+                layer = child.attrib["NativeType"]
                 if layer in layers_map:
-                    log.error('Duplicated layer definition in {} for NativeType = {}. Skipped.'.format(fileName, layer))
+                    log.error(
+                        "Duplicated layer definition in {} for NativeType = {}. Skipped.".format(
+                            fileName, layer
+                        )
+                    )
                 else:
-                    has_param = child.attrib['hasParam'].lower()
-                    if has_param == 'true' and expected_attribs(child.attrib, ['protoParamName'],
-                                                                fileName) or has_param == 'false':
+                    has_param = child.attrib["hasParam"].lower()
+                    if (
+                        has_param == "true"
+                        and expected_attribs(child.attrib, ["protoParamName"], fileName)
+                        or has_param == "false"
+                    ):
                         layers_map[layer] = child.attrib
                     else:
                         log.error(
-                            'Cannot recognize {} value for hasParam for layer {}. Should be true or false. Skipped.'.format(
-                                child.attrib['hasParam'], layer))
+                            "Cannot recognize {} value for hasParam for layer {}. Should be true or false. Skipped.".format(
+                                child.attrib["hasParam"], layer
+                            )
+                        )
 
         else:
-            log.error('Unexpected "{}" tag in {}. Should be CustomLayer. Skipped.'.format(child.tag, fileName))
+            log.error(
+                'Unexpected "{}" tag in {}. Should be CustomLayer. Skipped.'.format(
+                    child.tag, fileName
+                )
+            )
     return layers_map
 
 
-special_keys = ['id', 'name', 'precision', 'type', 'layer', 'value', 'shape', 'op', 'kind', 'infer']
+special_keys = [
+    "id",
+    "name",
+    "precision",
+    "type",
+    "layer",
+    "value",
+    "shape",
+    "op",
+    "kind",
+    "infer",
+]
 
 obfuscation_counter = 0
 
@@ -77,7 +112,7 @@ def obfuscate_attr_key(attrs: dict, key: str, keys: list):
     del attrs[key]
     key_index = keys.index(key)
     keys[key_index] = (key, new_key)
-    log.debug('Obfuscated attribute name {} to {}'.format(key, new_key))
+    log.debug("Obfuscated attribute name {} to {}".format(key, new_key))
 
 
 def obfuscate_special_attrs(attrs: dict, keys: list):
@@ -85,41 +120,50 @@ def obfuscate_special_attrs(attrs: dict, keys: list):
         obfuscate_attr_key(attrs, key, keys)
 
 
-def proto_extractor(pb, model_pb, mapping, disable_omitting_optional, enable_flattening_nested_params):
+def proto_extractor(
+    pb, model_pb, mapping, disable_omitting_optional, enable_flattening_nested_params
+):
     log.info("Custom extractor for layer {} with mapping {}".format(pb.type, mapping))
-    log.debug('Found custom layer {}. Params are processed'.format(pb.name))
-    if mapping['hasParam'].lower() != 'true':
+    log.debug("Found custom layer {}. Params are processed".format(pb.name))
+    if mapping["hasParam"].lower() != "true":
         return {}
     try:
-        native_attr = collect_attributes(getattr(pb, mapping['protoParamName']),
-                                         disable_omitting_optional=disable_omitting_optional,
-                                         enable_flattening_nested_params=enable_flattening_nested_params)
+        native_attr = collect_attributes(
+            getattr(pb, mapping["protoParamName"]),
+            disable_omitting_optional=disable_omitting_optional,
+            enable_flattening_nested_params=enable_flattening_nested_params,
+        )
     except AttributeError as e:
-        error_message = 'Layer {} has no attribute {}'.format(pb.type, str(e).split(' ')[-1])
+        error_message = "Layer {} has no attribute {}".format(
+            pb.type, str(e).split(" ")[-1]
+        )
         log.error(error_message)
         raise ValueError(error_message)
     keys = list(native_attr.keys())
     obfuscate_special_attrs(native_attr, keys)
     # avoid 'mo_caffe' appearing in param
     for attr in native_attr:
-        if 'mo_caffe' in native_attr[attr]:
-            native_attr[attr] = native_attr[attr].replace('mo_caffe', 'caffe')
+        if "mo_caffe" in native_attr[attr]:
+            native_attr[attr] = native_attr[attr].replace("mo_caffe", "caffe")
     log.debug(str(keys))
     log.debug(str(native_attr))
 
     attrs = {
-        'IE': [(
-            'layer',
-            [('id', lambda node: node.id), 'name', 'type'],
-            [
-                ('data', keys, []),
-                '@ports',
-                '@consts'])]}
+        "IE": [
+            (
+                "layer",
+                [("id", lambda node: node.id), "name", "type"],
+                [("data", keys, []), "@ports", "@consts"],
+            )
+        ]
+    }
     attrs.update(native_attr)
     return attrs
 
 
-def update_extractors(extractors, layers_map, disable_omitting_optional, enable_flattening_nested_params):
+def update_extractors(
+    extractors, layers_map, disable_omitting_optional, enable_flattening_nested_params
+):
     keys = check_for_duplicates(extractors)
     for layer, attrs in layers_map.items():
         add_or_override_extractor(
@@ -129,10 +173,14 @@ def update_extractors(extractors, layers_map, disable_omitting_optional, enable_
             (
                 lambda l: node_pb_arg(
                     lambda pb, model_pb: proto_extractor(
-                        pb, model_pb, l, disable_omitting_optional, enable_flattening_nested_params
+                        pb,
+                        model_pb,
+                        l,
+                        disable_omitting_optional,
+                        enable_flattening_nested_params,
                     )
                 )
             )(layers_map[layer]),
-            'custom layer {} from custom layers mapping xml file'.format(layer)
+            "custom layer {} from custom layers mapping xml file".format(layer),
         )
     check_for_duplicates(extractors)

@@ -14,8 +14,12 @@ struct typed_program_node<roll> : public typed_program_node_base<roll> {
 public:
     using parent::parent;
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    program_node& input(size_t idx = 0) const {
+        return get_dependency(idx);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using roll_node = typed_program_node<roll>;
@@ -26,7 +30,7 @@ public:
     using parent = typed_primitive_inst_base<roll>;
     using parent::parent;
 
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(roll_node const& /*node*/, const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }

@@ -6,9 +6,8 @@
 
 #include <future>
 
-#include "openvino/runtime/exception.hpp"
-
 #include "base/ov_behavior_test_utils.hpp"
+#include "openvino/runtime/exception.hpp"
 
 namespace ov {
 namespace test {
@@ -50,7 +49,9 @@ TEST_P(OVInferRequestCancellationTests, canCancelBeforeAsyncRequest) {
 TEST_P(OVInferRequestCancellationTests, canCancelInferRequest) {
     ov::InferRequest req;
     OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-    auto infer = std::async(std::launch::async, [&req]{req.infer();});
+    auto infer = std::async(std::launch::async, [&req] {
+        req.infer();
+    });
     while (!req.wait_for({})) {
     }
     OV_ASSERT_NO_THROW(req.cancel());

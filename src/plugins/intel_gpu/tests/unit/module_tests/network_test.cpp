@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
-#include "intel_gpu/primitives/data.hpp"
+
+#include <memory>
+
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/fully_connected.hpp"
 #include "primitive_inst.h"
-
 #include "runtime/ocl/ocl_event.hpp"
-
-#include <memory>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -45,7 +44,7 @@ TEST(network_test, model_with_empty_input_is_not_dynamic) {
     topology topology;
     topology.add(input_layout("input0", in_layout));
     topology.add(data("input1", const_mem));
-    topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
+    topology.add(concatenation("output", {input_info("input0"), input_info("input1")}, 1));
 
     network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
 
@@ -61,7 +60,7 @@ TEST(network_test, model_with_dynamic_input_is_dynamic) {
     topology topology;
     topology.add(input_layout("input0", in_layout));
     topology.add(data("input1", const_mem));
-    topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
+    topology.add(concatenation("output", {input_info("input0"), input_info("input1")}, 1));
 
     network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
 
@@ -78,7 +77,7 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
     topology.add(input_layout("input1", in_layout));
     topology.add(data("input2", const_mem));
     topology.add(activation("activation1", input_info("input1"), activation_func::clamp, {-10.f, 10.f}));
-    topology.add(concatenation("concat", { input_info("activation1"), input_info("input2") }, 1));
+    topology.add(concatenation("concat", {input_info("activation1"), input_info("input2")}, 1));
     topology.add(reorder("reorder", input_info("concat"), in_layout));
     topology.add(activation("activation2", input_info("concat"), activation_func::relu));
 
@@ -123,7 +122,7 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     topology topology;
     topology.add(input_layout("input1", in_layout));
     topology.add(data("input2", const_mem));
-    topology.add(concatenation("concat", { input_info("input1"), input_info("input2") }, 1));
+    topology.add(concatenation("concat", {input_info("input1"), input_info("input2")}, 1));
     topology.add(reshape("reshape", input_info("concat"), false, {1, 2, 4, 4}, {1, 2, 4, 4}));
     topology.add(reorder("reorder", input_info("reshape"), in_layout));
     topology.add(activation("activation", input_info("reshape"), activation_func::relu));
@@ -217,7 +216,8 @@ TEST(network_test, scratchpad_test) {
         return;
 
     // benchdnn parameters:
-    // --ip --engine=gpu:0 --dir=FWD_B --dt=f16:f16:f16 --stag=abcd --wtag=any --dtag=ab --attr-scratchpad=user mb16384ic768ih1iw1oc3072
+    // --ip --engine=gpu:0 --dir=FWD_B --dt=f16:f16:f16 --stag=abcd --wtag=any --dtag=ab --attr-scratchpad=user
+    // mb16384ic768ih1iw1oc3072
     layout in_layout{{16384, 768}, data_types::f16, format::bfyx};
     auto input_mem = engine.allocate_memory(in_layout);
     auto weights = engine.allocate_memory({{3072, 768}, data_types::f16, format::oiyx});
@@ -247,7 +247,8 @@ TEST(network_test, scratchpad_test) {
     auto fc1 = net1.get_primitive("fc_prim");
     auto fc2 = net2.get_primitive("fc_prim");
 
-    ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() != fc2->get_intermediates_memories()[0]->buffer_ptr());
+    ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() !=
+                fc2->get_intermediates_memories()[0]->buffer_ptr());
 }
 
 #endif

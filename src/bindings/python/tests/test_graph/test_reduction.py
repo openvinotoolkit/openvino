@@ -3,9 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest
-
 import openvino.runtime.opset10 as ov
+import pytest
 
 
 @pytest.mark.parametrize(
@@ -106,7 +105,9 @@ def test_roi_align():
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
-    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+    batch_indices_parameter = ov.parameter(
+        batch_indices, name="Batch_indices", dtype=np.int32
+    )
     pooled_h = 6
     pooled_w = 6
     sampling_ratio = 2

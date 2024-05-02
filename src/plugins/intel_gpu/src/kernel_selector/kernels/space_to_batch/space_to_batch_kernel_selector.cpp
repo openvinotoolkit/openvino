@@ -3,6 +3,7 @@
 //
 
 #include "space_to_batch_kernel_selector.h"
+
 #include "space_to_batch_kernel_ref.h"
 
 namespace kernel_selector {

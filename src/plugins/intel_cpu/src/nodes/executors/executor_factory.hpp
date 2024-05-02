@@ -9,10 +9,10 @@
 #include <unordered_map>
 
 #include "executor.hpp"
-#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/printers.hpp"
 #include "openvino/core/except.hpp"
@@ -205,11 +205,10 @@ private:
      * @note If an implementation is shape agnostic, no further implementations with lower
      *       priority are considered.
      */
-    static std::vector<ExecutorImplementationRef> filter(
-        const Attrs& attrs,
-        const PostOps& postOps,
-        const MemoryDescArgs& descs,
-        const std::string& implementationPriority = {}) {
+    static std::vector<ExecutorImplementationRef> filter(const Attrs& attrs,
+                                                         const PostOps& postOps,
+                                                         const MemoryDescArgs& descs,
+                                                         const std::string& implementationPriority = {}) {
         const auto& implementations = getImplementations<Attrs>();
         std::vector<ExecutorImplementationRef> suitableImplementations;
         const executor::Config<Attrs> config{descs, attrs, postOps};
@@ -246,8 +245,10 @@ private:
 
     size_t select(const MemoryArgs& memory, const size_t startIdx) const {
         OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
-            "Failed to find an implementation since start indx: ", startIdx,
-            " is out of range of the suitable implementations array: ", m_suitableImplementations.size());
+                        "Failed to find an implementation since start indx: ",
+                        startIdx,
+                        " is out of range of the suitable implementations array: ",
+                        m_suitableImplementations.size());
         auto startIt = m_suitableImplementations.begin();
         std::advance(startIt, startIdx);
         const auto selectedImplementation =
@@ -261,9 +262,7 @@ private:
         return std::distance(m_suitableImplementations.begin(), selectedImplementation);
     }
 
-    ExecutorPtr create(const size_t implId,
-                       const MemoryArgs& memory,
-                       const ExecutorContext::CPtr context) {
+    ExecutorPtr create(const size_t implId, const MemoryArgs& memory, const ExecutorContext::CPtr context) {
         assert(implId < m_executors.size() && implId < m_suitableImplementations.size());
 
         if (!m_executors[implId]) {

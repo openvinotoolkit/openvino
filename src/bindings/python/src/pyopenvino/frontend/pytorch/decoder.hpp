@@ -118,11 +118,11 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(bool, TorchDecoder, is_input_inlined, index);
     }
 
-    ov::Any get_attribute(const std::string &name) const override{
+    ov::Any get_attribute(const std::string& name) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_attribute, name);
     }
 
-    size_t get_named_input(const std::string &name) const override{
+    size_t get_named_input(const std::string& name) const override {
         PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, get_named_input, name);
     }
 

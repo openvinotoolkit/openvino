@@ -54,20 +54,29 @@ public:
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments: ", new_args.size(), ". 2 is expected.");
+        OPENVINO_ASSERT(new_args.size() == 2,
+                        "Incorrect number of new arguments: ",
+                        new_args.size(),
+                        ". 2 is expected.");
         return std::make_shared<CustomOpStringString>(new_args);
     }
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) override { return true; }
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         for (size_t i = 0lu; i < inputs.size(); i++) {
-            OPENVINO_ASSERT(inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
-                "Invalid input shape rank: ", inputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
+                "Invalid input shape rank: ",
+                inputs[i].get_shape().size());
         }
         for (size_t i = 0lu; i < outputs.size(); i++) {
-            OPENVINO_ASSERT(outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
-                "Invalid outputs shape rank: ", outputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
+                "Invalid outputs shape rank: ",
+                outputs[i].get_shape().size());
         }
 
         auto in_data_0 = inputs[0].data<ov::element_type_traits<ov::element::string>::value_type>();
@@ -94,7 +103,9 @@ public:
         return evaluate(output_values, input_values);
     }
 
-    bool has_evaluate() const override { return true; }
+    bool has_evaluate() const override {
+        return true;
+    }
 };
 
 class CustomOpStringU8 : public ov::op::Op {
@@ -116,18 +127,25 @@ public:
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments: ", new_args.size(), ". 1 is expected.");
+        OPENVINO_ASSERT(new_args.size() == 1,
+                        "Incorrect number of new arguments: ",
+                        new_args.size(),
+                        ". 1 is expected.");
         return std::make_shared<CustomOpStringU8>(new_args);
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
         for (size_t i = 0lu; i < inputs.size(); i++) {
-            OPENVINO_ASSERT(inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
-                "Invalid input shape rank: ", inputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                inputs[i].get_shape().size() == static_cast<size_t>(get_input_partial_shape(i).rank().get_length()),
+                "Invalid input shape rank: ",
+                inputs[i].get_shape().size());
         }
         for (size_t i = 0lu; i < outputs.size(); i++) {
-            OPENVINO_ASSERT(outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
-                "Invalid outputs shape rank: ", outputs[i].get_shape().size());
+            OPENVINO_ASSERT(
+                outputs[i].get_shape().size() == static_cast<size_t>(get_output_partial_shape(i).rank().get_length()),
+                "Invalid outputs shape rank: ",
+                outputs[i].get_shape().size());
         }
 
         auto in_data_0 = inputs[0].data<ov::element_type_traits<ov::element::string>::value_type>();
@@ -145,13 +163,17 @@ public:
         return true;
     }
 
-    bool has_evaluate() const override { return true; }
-    bool visit_attributes(ov::AttributeVisitor& visitor) override { return true; }
+    bool has_evaluate() const override {
+        return true;
+    }
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        return true;
+    }
 };
 
 class CustomOpStringCPUTest : public testing::WithParamInterface<CustomOpStringCPUTestParams>,
-                                  virtual public SubgraphBaseTest,
-                                  public CPUTestsBase {
+                              virtual public SubgraphBaseTest,
+                              public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpStringCPUTestParams>& obj) {
         ElementType in_type;
@@ -175,7 +197,7 @@ protected:
         init_input_shapes({inputShape});
 
         auto in_0 = std::make_shared<ov::op::v0::Parameter>(in_type, inputDynamicShapes[0]);
-        auto in_1 = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(in_type, { 1, 3, 5 }));
+        auto in_1 = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(in_type, {1, 3, 5}));
         auto str_str_op = std::make_shared<CustomOpStringString>(ov::OutputVector{in_0, in_1});
         auto str_u8_op_0 = std::make_shared<CustomOpStringU8>(ov::OutputVector{str_str_op});
         auto str_u8_op_1 = std::make_shared<CustomOpStringU8>(ov::OutputVector{in_0});
@@ -211,8 +233,14 @@ protected:
         const auto size_0 = expected[0].get_size();
 
         for (size_t i = 0lu; i < size_0; i++) {
-            OPENVINO_ASSERT(expected_data_0[i] == actual_data_0[i], "At index ", i,
-                " expected: '", expected_data_0[i], "' actual: '", actual_data_0[i], "'");
+            OPENVINO_ASSERT(expected_data_0[i] == actual_data_0[i],
+                            "At index ",
+                            i,
+                            " expected: '",
+                            expected_data_0[i],
+                            "' actual: '",
+                            actual_data_0[i],
+                            "'");
         }
 
         auto expected_data_1 = expected[1].data<ov::element_type_traits<ov::element::string>::value_type>();
@@ -220,8 +248,14 @@ protected:
         const auto size_1 = expected[1].get_size();
 
         for (size_t i = 0lu; i < size_1; i++) {
-            OPENVINO_ASSERT(expected_data_1[i] == actual_data_1[i], "At index ", i,
-                " expected: '", expected_data_1[i], "' actual: '", actual_data_1[i], "'");
+            OPENVINO_ASSERT(expected_data_1[i] == actual_data_1[i],
+                            "At index ",
+                            i,
+                            " expected: '",
+                            expected_data_1[i],
+                            "' actual: '",
+                            actual_data_1[i],
+                            "'");
         }
     }
 };
@@ -230,16 +264,14 @@ TEST_P(CustomOpStringCPUTest, CompareWithRefs) {
     run();
 }
 
-const std::vector<InputShape> inputShapes = {
-    {{}, {{2, 5}}},
-    {{}, {{17, 9}}},
-    {{-1, -1}, {{1, 3}, {5, 17}, {99, 51}}},
-    {{}, {{}}}
-};
+const std::vector<InputShape> inputShapes = {{{}, {{2, 5}}},
+                                             {{}, {{17, 9}}},
+                                             {{-1, -1}, {{1, 3}, {5, 17}, {99, 51}}},
+                                             {{}, {{}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          CustomOpStringCPUTest,
                          ::testing::Combine(::testing::Values(ElementType::string), ::testing::ValuesIn(inputShapes)),
                          CustomOpStringCPUTest::getTestCaseName);
 
-} // namespace SubgraphTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

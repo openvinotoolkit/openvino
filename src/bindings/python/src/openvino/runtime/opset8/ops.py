@@ -7,9 +7,9 @@ from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
+from openvino.runtime import Node
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.op import Constant, Parameter, if_op
-from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.input_validation import (
@@ -17,12 +17,7 @@ from openvino.runtime.utils.input_validation import (
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.runtime.utils.types import (
-    NodeInput,
-    TensorShape,
-    as_node,
-    as_nodes,
-)
+from openvino.runtime.utils.types import NodeInput, TensorShape, as_node, as_nodes
 
 _get_node_factory_opset8 = partial(_get_node_factory, "opset8")
 
@@ -531,7 +526,9 @@ def prior_box(
 
     check_valid_attributes("PriorBox", attrs, requirements)
 
-    return _get_node_factory_opset8().create("PriorBox", [layer_shape, as_node(image_shape, name=name)], attrs)
+    return _get_node_factory_opset8().create(
+        "PriorBox", [layer_shape, as_node(image_shape, name=name)], attrs
+    )
 
 
 @nameable_op
@@ -780,4 +777,6 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param name: Optional name for the node.
     :return: The new node with softmax operation applied on each element.
     """
-    return _get_node_factory_opset8().create("Softmax", [as_node(data, name=name)], {"axis": axis})
+    return _get_node_factory_opset8().create(
+        "Softmax", [as_node(data, name=name)], {"axis": axis}
+    )

@@ -3,11 +3,12 @@
 //
 
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
-#include "common_tools.h"
 
-#include <string>
 #include <algorithm>
 #include <iostream>
+#include <string>
+
+#include "common_tools.h"
 
 namespace kernel_selector {
 
@@ -94,13 +95,14 @@ Datatype MVNKernel_b_fs_yx_fsv16_imad::GetAccumulatorType(const mvn_params& para
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
-        case Datatype::F32:
-        case Datatype::F16:
-            return Datatype::F32;
-        case Datatype::INT8:
-        case Datatype::UINT8:
-            return Datatype::INT32;
-        default: return Datatype::F32;
+    case Datatype::F32:
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 
@@ -120,10 +122,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& par
         std::vector<std::string> idx_order;
 
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = {"b",
-                         "(f + set_idx)",
-                         "(output_spatial / OUTPUT_SIZE_X)",
-                         "(output_spatial % OUTPUT_SIZE_X)"};
+            idx_order = {"b", "(f + set_idx)", "(output_spatial / OUTPUT_SIZE_X)", "(output_spatial % OUTPUT_SIZE_X)"};
         } else if (params.inputs[0].GetDims().size() == 5) {
             idx_order = {"b",
                          "(f + set_idx)",

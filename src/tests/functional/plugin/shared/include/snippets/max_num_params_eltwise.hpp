@@ -10,12 +10,12 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        InputShape,                  // Input Shape All shapes are replicated
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> MaxNumParamsEltwiseParams;
+typedef std::tuple<InputShape,  // Input Shape All shapes are replicated
+                   size_t,      // Expected num nodes
+                   size_t,      // Expected num subgraphs
+                   std::string  // Target Device
+                   >
+    MaxNumParamsEltwiseParams;
 
 class MaxNumParamsEltwise : public testing::WithParamInterface<ov::test::snippets::MaxNumParamsEltwiseParams>,
                             virtual public ov::test::SnippetsTestsCommon {
@@ -26,6 +26,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

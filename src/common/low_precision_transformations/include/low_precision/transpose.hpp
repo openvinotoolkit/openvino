@@ -24,11 +24,11 @@ class LP_TRANSFORMATIONS_API TransposeTransformation : public LayerTransformatio
 public:
     OPENVINO_RTTI("TransposeTransformation", "0");
     TransposeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

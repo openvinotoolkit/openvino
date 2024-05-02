@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/gather_tree.hpp"
-
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "openvino/op/gather_tree.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -26,12 +24,11 @@ static void CreateGatherTreeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         if (inputDataType == cldnn::data_types::i64) {
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
-            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
+            auto reorderPrimName =
+                inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
             auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
-            auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputs[portIndex],
-                                                 targetFormat,
-                                                 cldnn::data_types::i32);
+            auto preprocessPrim =
+                cldnn::reorder(reorderPrimName, inputs[portIndex], targetFormat, cldnn::data_types::i32);
             p.add_primitive(*op, preprocessPrim);
             reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
         } else {

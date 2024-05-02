@@ -3,7 +3,11 @@
 
 import unittest
 
-from openvino.tools.mo.back.ReduceTransposeDimensions import sequential_dims, merge_permute_order_dimensions, merge_dims
+from openvino.tools.mo.back.ReduceTransposeDimensions import (
+    merge_dims,
+    merge_permute_order_dimensions,
+    sequential_dims,
+)
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
@@ -15,7 +19,9 @@ class SequentialDimsTest(unittest.TestCase):
         self.assertListEqual(sequential_dims(int64_array([4, 0, 3, 1, 2])), [3, 4])
 
     def test_returns_full_list(self):
-        self.assertListEqual(sequential_dims(int64_array([0, 1, 2, 3, 4])), [0, 1, 2, 3, 4])
+        self.assertListEqual(
+            sequential_dims(int64_array([0, 1, 2, 3, 4])), [0, 1, 2, 3, 4]
+        )
 
     def test_returns_from_the_beginning(self):
         self.assertListEqual(sequential_dims(int64_array([1, 2, 3, 0, 4])), [0, 1, 2])
@@ -32,36 +38,62 @@ class SequentialDimsTest(unittest.TestCase):
 
 class MergeTransposeOrderDimensionsTest(unittest.TestCase):
     def test_merge_last_dims(self):
-        self.assertListEqual(list(merge_permute_order_dimensions([1, 2], int64_array([0, 3, 4, 1, 2]))), [0, 3, 1, 2])
+        self.assertListEqual(
+            list(merge_permute_order_dimensions([1, 2], int64_array([0, 3, 4, 1, 2]))),
+            [0, 3, 1, 2],
+        )
 
     def test_merge_last_indices(self):
-        self.assertListEqual(list(merge_permute_order_dimensions([3, 4], int64_array([0, 3, 4, 1, 2]))), [0, 2, 3, 1])
+        self.assertListEqual(
+            list(merge_permute_order_dimensions([3, 4], int64_array([0, 3, 4, 1, 2]))),
+            [0, 2, 3, 1],
+        )
 
     def test_merge_start_indices(self):
-        self.assertListEqual(list(merge_permute_order_dimensions([0, 1], int64_array([1, 2, 4, 3, 0]))), [1, 3, 2, 0])
+        self.assertListEqual(
+            list(merge_permute_order_dimensions([0, 1], int64_array([1, 2, 4, 3, 0]))),
+            [1, 3, 2, 0],
+        )
 
     def test_merge_all_dims(self):
-        self.assertListEqual(list(merge_permute_order_dimensions([0, 1, 2], int64_array([0, 1, 2]))), [0])
+        self.assertListEqual(
+            list(merge_permute_order_dimensions([0, 1, 2], int64_array([0, 1, 2]))), [0]
+        )
 
     def test_merge_3_dims(self):
-        self.assertListEqual(list(merge_permute_order_dimensions([1, 2, 3], int64_array([3, 0, 1, 2, 4]))), [1, 0, 2])
+        self.assertListEqual(
+            list(
+                merge_permute_order_dimensions([1, 2, 3], int64_array([3, 0, 1, 2, 4]))
+            ),
+            [1, 0, 2],
+        )
 
 
 class MergeDimsTest(unittest.TestCase):
     def test_merge_middle_dims(self):
-        self.assertListEqual(list(merge_dims([1, 2], int64_array([3, 2, 5, 7]))), [3, 10, 7])
+        self.assertListEqual(
+            list(merge_dims([1, 2], int64_array([3, 2, 5, 7]))), [3, 10, 7]
+        )
 
     def test_merge_first_dim(self):
-        self.assertListEqual(list(merge_dims([0, 1], int64_array([3, 2, 5, 7]))), [6, 5, 7])
+        self.assertListEqual(
+            list(merge_dims([0, 1], int64_array([3, 2, 5, 7]))), [6, 5, 7]
+        )
 
     def test_merge_last_dim(self):
-        self.assertListEqual(list(merge_dims([2, 3], int64_array([3, 2, 5, 7]))), [3, 2, 35])
+        self.assertListEqual(
+            list(merge_dims([2, 3], int64_array([3, 2, 5, 7]))), [3, 2, 35]
+        )
 
     def test_merge_all_dims(self):
-        self.assertListEqual(list(merge_dims([0, 1, 2, 3], int64_array([3, 2, 5, 7]))), [210])
+        self.assertListEqual(
+            list(merge_dims([0, 1, 2, 3], int64_array([3, 2, 5, 7]))), [210]
+        )
 
     def test_reduce_with_minus_one(self):
-        self.assertListEqual(list(merge_dims([1, 2], int64_array([3, -1, 5, 7]))), [3, -1, 7])
+        self.assertListEqual(
+            list(merge_dims([1, 2], int64_array([3, -1, 5, 7]))), [3, -1, 7]
+        )
 
     def test_merge_with_0_being_merged(self):
         with self.assertRaisesRegex(AssertionError, ".*The value 0 is not supported.*"):

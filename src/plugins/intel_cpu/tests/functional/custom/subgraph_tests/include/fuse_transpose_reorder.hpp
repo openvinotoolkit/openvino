@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,8 +20,9 @@ using FuseTransposeAndReorderParams = std::tuple<ov::Shape,         // Input sha
                                                  ov::element::Type  // Input precision
                                                  >;
 
-class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>, public CPUTestsBase,
-        virtual public ov::test::SubgraphBaseStaticTest {
+class FuseTransposeAndReorderTest : public testing::WithParamInterface<FuseTransposeAndReorderParams>,
+                                    public CPUTestsBase,
+                                    virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj);
 
@@ -59,5 +60,5 @@ protected:
     void create_model() override;
 };
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

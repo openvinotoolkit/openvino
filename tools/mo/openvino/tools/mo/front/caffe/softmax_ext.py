@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxFrontExtractor(FrontExtractorOp):
-    op = 'Softmax'
+    op = "Softmax"
     enabled = True
 
     @classmethod
@@ -14,9 +14,7 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
         proto_layer = node.pb
         param = proto_layer.softmax_param
 
-        attrs = {
-            'axis': param.axis
-        }
+        attrs = {"axis": param.axis}
 
         # update the attributes of the node
         Softmax.update_node_stat(node, attrs)

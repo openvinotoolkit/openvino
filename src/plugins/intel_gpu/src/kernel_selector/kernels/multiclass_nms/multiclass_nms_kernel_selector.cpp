@@ -11,14 +11,12 @@ multiclass_nms_kernel_selector::multiclass_nms_kernel_selector() {
     Attach<MulticlassNmsKernelRef>();
 }
 
-multiclass_nms_kernel_selector&
-multiclass_nms_kernel_selector::Instance() {
+multiclass_nms_kernel_selector& multiclass_nms_kernel_selector::Instance() {
     static multiclass_nms_kernel_selector instance_;
     return instance_;
 }
 
-KernelsData multiclass_nms_kernel_selector::GetBestKernels(
-    const Params& params) const {
+KernelsData multiclass_nms_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::MULTICLASS_NMS);
 }
 }  // namespace kernel_selector

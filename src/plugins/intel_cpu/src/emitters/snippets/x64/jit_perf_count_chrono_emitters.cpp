@@ -3,7 +3,7 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "jit_perf_count_chrono_emitters.hpp"
+#    include "jit_perf_count_chrono_emitters.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -15,8 +15,10 @@ using namespace Xbyak::util;
 namespace ov {
 namespace intel_cpu {
 
-jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                                            const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
+jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                                                                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                                                         const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(host, host_isa) {
     m_start_node = ov::as_type_ptr<snippets::op::PerfCountBegin>(n);
 }
 
@@ -28,10 +30,11 @@ void jit_perf_count_chrono_start_emitter::set_start_time(snippets::op::PerfCount
     start_node->set_start_time();
 }
 
-void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& in_idxs,
+                                                    const std::vector<size_t>& out_idxs) const {
     internal_call_preamble();
 
-    const auto &set_start_time_overload = static_cast<void (*)(snippets::op::PerfCountBegin*)>(set_start_time);
+    const auto& set_start_time_overload = static_cast<void (*)(snippets::op::PerfCountBegin*)>(set_start_time);
     h->mov(h->rax, reinterpret_cast<size_t>(set_start_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_start_node.get()));
     internal_call_rsp_align();
@@ -42,8 +45,10 @@ void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t> &i
 }
 
 ///////////////////jit_perf_count_chrono_end_emitter////////////////////////////////////
-jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-    const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa) {
+jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+                                                                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                                                                     const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(host, host_isa) {
     m_end_node = ov::as_type_ptr<snippets::op::PerfCountEnd>(n);
 }
 
@@ -55,10 +60,12 @@ void jit_perf_count_chrono_end_emitter::set_accumulated_time(snippets::op::PerfC
     end_node->set_accumulated_time();
 }
 
-void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_idxs,
+                                                  const std::vector<size_t>& out_idxs) const {
     internal_call_preamble();
 
-    const auto &set_accumulated_time_overload = static_cast<void (*)(snippets::op::PerfCountEnd*)>(set_accumulated_time);
+    const auto& set_accumulated_time_overload =
+        static_cast<void (*)(snippets::op::PerfCountEnd*)>(set_accumulated_time);
     h->mov(h->rax, reinterpret_cast<size_t>(set_accumulated_time_overload));
     h->mov(abi_param1, reinterpret_cast<size_t>(m_end_node.get()));
     internal_call_rsp_align();
@@ -68,6 +75,6 @@ void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t> &in_
     internal_call_postamble();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
-#endif // SNIPPETS_DEBUG_CAPS
+}  // namespace intel_cpu
+}  // namespace ov
+#endif  // SNIPPETS_DEBUG_CAPS

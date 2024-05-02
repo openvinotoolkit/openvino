@@ -3,16 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset13 as ops
 import pytest
 
-import openvino.runtime.opset13 as ops
-from openvino import (
-    CompiledModel,
-    InferRequest,
-    Model,
-    Type,
-    compile_model,
-)
+from openvino import CompiledModel, InferRequest, Model, Type, compile_model
 
 
 def create_string_compiled_model(shape):
@@ -83,7 +77,10 @@ def test_default_decode_flag(class_defaults, expected_value):
 def test_infer_request_infer(string_data, data_shape, decode_strings):
     infer_request = create_string_infer_request(data_shape)
     res = infer_request.infer(string_data, decode_strings=decode_strings)
-    assert np.array_equal(res[0], as_string_array(string_data) if decode_strings else as_bytes_array(string_data))
+    assert np.array_equal(
+        res[0],
+        as_string_array(string_data) if decode_strings else as_bytes_array(string_data),
+    )
 
 
 @pytest.mark.parametrize(
@@ -107,4 +104,7 @@ def test_infer_request_infer(string_data, data_shape, decode_strings):
 def test_compiled_model_infer(string_data, data_shape, decode_strings):
     compiled_model = create_string_compiled_model(data_shape)
     res = compiled_model(string_data, decode_strings=decode_strings)
-    assert np.array_equal(res[0], as_string_array(string_data) if decode_strings else as_bytes_array(string_data))
+    assert np.array_equal(
+        res[0],
+        as_string_array(string_data) if decode_strings else as_bytes_array(string_data),
+    )

@@ -16,9 +16,7 @@ struct count_nonzero : public primitive_base<count_nonzero> {
     /// @brief Constructs count_nonzero primitive.
     /// @param id This primitive id.
     /// @param data Input data primitive id.
-    count_nonzero(const primitive_id& id,
-                  const input_info& data,
-                  const padding& output_padding = padding())
+    count_nonzero(const primitive_id& id, const input_info& data, const padding& output_padding = padding())
         : primitive_base(id, {data}, {output_padding}) {}
 
     bool operator==(const primitive& rhs) const override {

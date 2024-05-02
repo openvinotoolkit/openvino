@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_gpu_int8_ref.h"
+
 #include <string>
 
 namespace kernel_selector {
@@ -75,7 +76,7 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
             idx_order = {"b", "f", "z", "y", "x"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "pool_result", input_dt, 1 };
+        FusedOpsConfiguration conf = {"", idx_order, "pool_result", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
@@ -93,11 +94,11 @@ bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
         if (p.poolType == PoolType::MAX && p.outputs[0].GetDType() != p.inputs[0].GetDType() &&
             p.quantization == QuantizationType::NONE)
             return false;
-//         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
-//        if (p.poolType == PoolType::AVG &&
-//            !((p.outputs[0].GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||
-//              (p.outputs[0].GetDType() == Datatype::F32 || p.outputs[0].GetDType() == Datatype::F16)))
-//            return false;
+        //         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
+        //        if (p.poolType == PoolType::AVG &&
+        //            !((p.outputs[0].GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||
+        //              (p.outputs[0].GetDType() == Datatype::F32 || p.outputs[0].GetDType() == Datatype::F16)))
+        //            return false;
     }
 
     return true;

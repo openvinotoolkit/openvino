@@ -32,23 +32,23 @@ struct ReadModelArgs {
                 size_t bin_size = weights.Length();
                 weight_tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
                 std::memcpy(weight_tensor.data(), bin, bin_size);
-            }
-            else {
+            } else {
                 weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});
             }
         } else {
             model_path = std::string(info[0].ToString());
 
-            if (argsLength == 2) bin_path = info[1].ToString();
+            if (argsLength == 2)
+                bin_path = info[1].ToString();
         }
     }
 
     bool is_valid_read_model_input(const Napi::CallbackInfo& info) {
         const size_t argsLength = info.Length();
-        const size_t is_buffers_input = info[0].IsBuffer()
-            && (argsLength == 1 || info[1].IsBuffer());
+        const size_t is_buffers_input = info[0].IsBuffer() && (argsLength == 1 || info[1].IsBuffer());
 
-        if (is_buffers_input) return true;
+        if (is_buffers_input)
+            return true;
 
         return info[0].IsString() && (argsLength == 1 || info[1].IsString());
     }

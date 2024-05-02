@@ -27,7 +27,8 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_1x1_gemm_buf::get_required_device_featu
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params,
+                                                                                    int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
@@ -61,7 +62,8 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
 
     const auto& input = params.inputs[0];
 
-    const bool bPad = input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Feature().pad.Total() != 0 || input.Batch().pad.Total() != 0;
+    const bool bPad = input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Feature().pad.Total() != 0 ||
+                      input.Batch().pad.Total() != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
     const bool bIFMSize = input.Feature().v % 32 != 0;
@@ -76,7 +78,8 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_bfyx_1x1_gemm_buf::GetJitConstants(const convolution_params& params,
+                                                                  const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto& out = params.outputs[0];

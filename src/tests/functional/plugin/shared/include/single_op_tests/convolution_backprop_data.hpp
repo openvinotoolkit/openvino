@@ -12,5 +12,5 @@ namespace test {
 TEST_P(ConvolutionBackpropDataLayerTest, Inference) {
     run();
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

@@ -6,8 +6,8 @@
 """
 The module contains helper class for working with TensorFlow version dependencies
 """
-import os
 import logging as log
+import os
 from distutils.version import LooseVersion
 
 import yaml
@@ -61,12 +61,14 @@ class TFVersionHelper:
 
     @property
     def tf_models_version(self):
-        """ Return defined TF models version """
+        """Return defined TF models version"""
         if self.__tf_models_version is None:
             raise AttributeError("attribute 'tf_models_version' is not defined!")
         return self.__tf_models_version
 
-    def _get_transformations_config_file_name(self, model_type: str, config_versions: list):
+    def _get_transformations_config_file_name(
+        self, model_type: str, config_versions: list
+    ):
         """
         Return sub-graph replacement config file name for models based on TF version and models type
         """
@@ -78,7 +80,9 @@ class TFVersionHelper:
             return "ssd_v2_support.json"
         return f"{model_type}_support.json"
 
-    def resolve_tf_transformations_config(self, config_alias: str, relative_mo: bool = False):
+    def resolve_tf_transformations_config(
+        self, config_alias: str, relative_mo: bool = False
+    ):
         """Return name of sub-graph replacement config file or its path relative MO root folder"""
         config_info = self._configs_map.get(config_alias)
         if config_info:

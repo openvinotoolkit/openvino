@@ -3,9 +3,11 @@
 //
 
 #include "space_to_batch_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey SpaceToBatchKernelRef::GetSupportedKey() const {
@@ -47,21 +49,21 @@ JitConstants SpaceToBatchKernelRef::GetJitConstants(const space_to_batch_params&
         auto input_dt = params.inputs[0].GetDType();
 
         switch (params.inputs[0].GetDims().size()) {
-            case 5: {
-                idx_order = { "batch", "feature", "z", "y", "x" };
-                break;
-            }
-            case 6: {
-                idx_order = { "batch", "feature", "w", "z", "y", "x" };
-                break;
-            }
-            default: {
-                idx_order = { "batch", "feature", "y", "x" };
-                break;
-            }
+        case 5: {
+            idx_order = {"batch", "feature", "z", "y", "x"};
+            break;
+        }
+        case 6: {
+            idx_order = {"batch", "feature", "w", "z", "y", "x"};
+            break;
+        }
+        default: {
+            idx_order = {"batch", "feature", "y", "x"};
+            break;
+        }
         }
         auto conf = FusedOpsConfiguration("", idx_order, "in", input_dt);
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;
 }

@@ -5,25 +5,29 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import logging
 import os
-import torch
-import torch.overrides
-
 from hashlib import sha256
-from torch.fx import GraphModule
-
-from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-from openvino.runtime import Core, Type, PartialShape, serialize
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
-
 from typing import Callable, Optional
 
-import logging
+import torch
+import torch.overrides
+from openvino.frontend import FrontEndManager
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+from openvino.frontend.pytorch.torchdynamo.backend_utils import (
+    _get_cache_dir,
+    _get_config,
+    _get_device,
+    _is_cache_dir_in_config,
+)
+from openvino.runtime import Core, PartialShape, Type, serialize
+from torch.fx import GraphModule
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
+
+def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):
     if model_hash_str is None:
         return None
 
@@ -33,19 +37,31 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         os.makedirs(model_cache_dir, exist_ok=True)
         file_name = model_cache_dir + model_hash_str + "_" + device
     except OSError as error:
-        logger.warning(f"Cache directory {cache_root} cannot be created. Model caching is disabled. Error: {error }")
+        logger.warning(
+            f"Cache directory {cache_root} cannot be created. Model caching is disabled. Error: {error }"
+        )
         return None
 
     inputs_str = ""
     for idx, input_data in enumerate(args):
         if reversed:
-            inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
+            inputs_str = (
+                "_"
+                + str(input_data.type())
+                + str(input_data.size())[11:-1].replace(" ", "")
+                + inputs_str
+            )
         else:
-            inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
-    inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
+            inputs_str += (
+                "_"
+                + str(input_data.type())
+                + str(input_data.size())[11:-1].replace(" ", "")
+            )
+    inputs_str = sha256(inputs_str.encode("utf-8")).hexdigest()
     file_name += inputs_str
 
     return file_name
+
 
 def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
@@ -59,12 +75,14 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
         torch.int8: Type.i8,
-        torch.bool: Type.boolean
+        torch.bool: Type.boolean,
     }
 
     for idx, input_data in enumerate(example_inputs):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
+        om.inputs[idx].get_node().set_partial_shape(
+            PartialShape(list(input_data.shape))
+        )
     om.validate_nodes_and_infer_types()
 
     config = {}
@@ -78,6 +96,7 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
     return compiled_model
 
+
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
     core = Core()
 
@@ -85,7 +104,11 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
-    if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
+    if (
+        file_name is not None
+        and os.path.isfile(file_name + ".xml")
+        and os.path.isfile(file_name + ".bin")
+    ):
         om = core.read_model(file_name + ".xml")
     else:
         fe_manager = FrontEndManager()
@@ -97,7 +120,9 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 
-        decoder = TorchFXPythonDecoder(gm, input_shapes=input_shapes, input_types=input_types)
+        decoder = TorchFXPythonDecoder(
+            gm, input_shapes=input_shapes, input_types=input_types
+        )
 
         im = fe.load(decoder)
 
@@ -114,12 +139,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
         torch.int8: Type.i8,
-        torch.bool: Type.boolean
+        torch.bool: Type.boolean,
     }
 
     for idx, input_data in enumerate(args):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
+        om.inputs[idx].get_node().set_partial_shape(
+            PartialShape(list(input_data.shape))
+        )
     om.validate_nodes_and_infer_types()
 
     config = _get_config(options)

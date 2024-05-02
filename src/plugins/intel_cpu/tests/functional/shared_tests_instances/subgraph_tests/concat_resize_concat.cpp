@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
+
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {

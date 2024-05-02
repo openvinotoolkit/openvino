@@ -4,20 +4,20 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
-#include <memory>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "layer_transformation.hpp"
 #include "ov_lpt_models/align_concat_quantization_parameters.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -82,8 +82,7 @@ public:
         SimpleLowPrecisionTransformer transform(supportedPrecisions, perTensorQuantization);
         transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
         transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
-            testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);

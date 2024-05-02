@@ -3,14 +3,14 @@
 //
 
 #pragma once
+#include <algorithm>
+#include <memory>
+#include <ostream>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <ostream>
-#include <memory>
-#include <vector>
 #include <utility>
-#include <algorithm>
+#include <vector>
 
 namespace cldnn {
 class json_base;
@@ -32,7 +32,9 @@ private:
 public:
     explicit json_leaf(const Type& val) : value(val) {}
     explicit json_leaf(Type&& val) : value(std::move(val)) {}
-    void dump(std::ostream& out, int) const override { out << value << ",\n"; }
+    void dump(std::ostream& out, int) const override {
+        out << value << ",\n";
+    }
 };
 
 template <class Type>
@@ -75,7 +77,9 @@ public:
     void add(json_key key, Type value) {
         children[key] = std::make_shared<json_leaf<Type>>(value);
     }
-    void add(json_key key, json_composite comp) { children[key] = std::make_shared<json_composite>(comp); }
+    void add(json_key key, json_composite comp) {
+        children[key] = std::make_shared<json_composite>(comp);
+    }
     template <class Type>
     void add(json_key key, std::vector<Type> array) {
         children[key] = std::make_shared<json_basic_array<Type>>(array);

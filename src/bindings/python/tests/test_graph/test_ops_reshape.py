@@ -2,12 +2,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
 import numpy as np
+import openvino.runtime.opset8 as ov
 import pytest
+from openvino.runtime.utils.types import get_element_type
 
 from openvino import Type
-from openvino.runtime.utils.types import get_element_type
 
 
 @pytest.mark.parametrize("op_name", ["ABC", "concat", "123456"])
@@ -26,7 +26,8 @@ def test_concat(op_name):
 
 
 @pytest.mark.parametrize(
-    ("val_type", "value", "output_shape"), [(bool, False, []), (bool, np.empty((2, 2), dtype=bool), [2, 2])],
+    ("val_type", "value", "output_shape"),
+    [(bool, False, []), (bool, np.empty((2, 2), dtype=bool), [2, 2])],
 )
 def test_constant_from_bool(val_type, value, output_shape):
     node = ov.constant(value, val_type)
@@ -92,7 +93,8 @@ def test_constant_from_float_array(val_type):
 def test_constant_from_integer_array(val_type, range_start, range_end):
     np.random.seed(133391)
     input_data = np.array(
-        np.random.randint(range_start, range_end, size=(2, 2)), dtype=val_type,
+        np.random.randint(range_start, range_end, size=(2, 2)),
+        dtype=val_type,
     )
     node = ov.constant(input_data, val_type)
     assert node.get_type_name() == "Constant"
@@ -108,7 +110,9 @@ def test_broadcast_numpy(op_name):
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     target_shape_parameter = ov.parameter(
-        target_shape_shape, name="Target_shape", dtype=np.int64,
+        target_shape_shape,
+        name="Target_shape",
+        dtype=np.int64,
     )
 
     node = ov.broadcast(data_parameter, target_shape_parameter, name=op_name)
@@ -125,7 +129,9 @@ def test_broadcast_bidirectional(op_name):
 
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     target_shape_parameter = ov.parameter(
-        target_shape_shape, name="Target_shape", dtype=np.int64,
+        target_shape_shape,
+        name="Target_shape",
+        dtype=np.int64,
     )
 
     node = ov.broadcast(data_parameter, target_shape_parameter, name=op_name)

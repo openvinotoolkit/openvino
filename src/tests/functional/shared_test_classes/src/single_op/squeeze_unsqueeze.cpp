@@ -24,12 +24,14 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamI
     for (size_t i = 0lu; i < shape_item.first.front().second.size(); i++) {
         result << "{";
         for (size_t j = 0lu; j < shape_item.first.size(); j++) {
-            result << ov::test::utils::vec2str(shape_item.first[j].second[i]) << (j < shape_item.first.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(shape_item.first[j].second[i])
+                   << (j < shape_item.first.size() - 1lu ? "_" : "");
         }
         result << "}_";
     }
     result << "OpType=" << op_type << separator;
-    result << "Axes=" << (shape_item.second.empty() ? "default" : ov::test::utils::vec2str(shape_item.second)) << separator;
+    result << "Axes=" << (shape_item.second.empty() ? "default" : ov::test::utils::vec2str(shape_item.second))
+           << separator;
     result << "modelType=" << model_type.to_string() << separator;
     result << "trgDev=" << targetDevice;
     return result.str();
@@ -63,5 +65,5 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
 
     function = std::make_shared<ov::Model>(op->outputs(), ov::ParameterVector{param}, name);
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "device.hpp"
-#include "engine_configuration.hpp"
-
+#include <algorithm>
 #include <map>
 #include <string>
-#include <algorithm>
+
+#include "device.hpp"
+#include "engine_configuration.hpp"
 
 namespace cldnn {
 
@@ -29,6 +29,7 @@ public:
     }
 
     ~device_query() = default;
+
 private:
     std::map<std::string, device::ptr> _available_devices;
 };

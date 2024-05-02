@@ -7,8 +7,6 @@ Refer to conftest.py on the test usage.
 
 
 def test_documentation_page(errors):
-    """ Test documentation page has no errors generating
-    """
+    """Test documentation page has no errors generating"""
     if errors:
-        assert False, '\n'.join(['documentation has issues:'] +
-                                sorted(errors))
+        assert False, "\n".join(["documentation has issues:"] + sorted(errors))

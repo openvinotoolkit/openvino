@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include "utils/cpu_test_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/runtime/core.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -22,8 +22,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Model>
-    create_test_function(const ov::Shape & shape) {
+    std::shared_ptr<ov::Model> create_test_function(const ov::Shape& shape) {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
 
         float shift = 1.0f;
@@ -37,7 +36,7 @@ protected:
     }
 
     void Run() {
-        const ov::Shape & shape = GetParam();
+        const ov::Shape& shape = GetParam();
         auto shape_size = ov::shape_size(shape);
 
         std::vector<float> input_data(shape_size, 2);
@@ -74,9 +73,9 @@ TEST_P(AnyLayoutOnInputsAndOutputs, CheckExpectedResult) {
 }
 
 static AnyLayoutOnInputsAndOutputs::ParamType AnyLayoutOnInputsAndOutputsParams[] = {
-    ov::Shape{ 1, 2, 3, 4 },
-    ov::Shape{ 1, 2, 3, 4, 5 },
-    ov::Shape{ 1, 2, 3, 4, 5, 6 },
+    ov::Shape{1, 2, 3, 4},
+    ov::Shape{1, 2, 3, 4, 5},
+    ov::Shape{1, 2, 3, 4, 5, 6},
 };
 
 INSTANTIATE_TEST_SUITE_P(AnyLayoutOnInputsAndOutputs,

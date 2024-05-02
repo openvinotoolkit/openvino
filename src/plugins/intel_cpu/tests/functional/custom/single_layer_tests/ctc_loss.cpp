@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random>
 #include <gtest/gtest.h>
+
+#include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -47,8 +48,7 @@ public:
                 size_t N = shape[0];
                 size_t T = shape[1];
                 size_t C = shape[2];
-                results << "{" << N << "," << T << "," << C << "}"
-                        << "_";
+                results << "{" << N << "," << T << "," << C << "}" << "_";
             }
         }
         results << "blank=" << blank << "_";

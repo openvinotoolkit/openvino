@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -34,7 +33,20 @@ class TestReshapeAs(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op", ["reshape_as", "view_as"])
-    @pytest.mark.parametrize('input_tensor_shapes',( ((3, 6), (2, 9)), ((2, 2, 3), (6, 2)), ((6, 2), (2, 2, 3))))
-    def test_reshape_as(self, op, input_tensor_shapes, ie_device, precision, ir_version):
-        self._test(*self.create_model(op), ie_device, precision, ir_version, 
-                   kwargs_to_prepare_input={"shape1": input_tensor_shapes[0], "shape2": input_tensor_shapes[1]})
+    @pytest.mark.parametrize(
+        "input_tensor_shapes",
+        (((3, 6), (2, 9)), ((2, 2, 3), (6, 2)), ((6, 2), (2, 2, 3))),
+    )
+    def test_reshape_as(
+        self, op, input_tensor_shapes, ie_device, precision, ir_version
+    ):
+        self._test(
+            *self.create_model(op),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={
+                "shape1": input_tensor_shapes[0],
+                "shape2": input_tensor_shapes[1],
+            },
+        )

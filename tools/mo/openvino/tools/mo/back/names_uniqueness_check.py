@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from collections import defaultdict
+
 from openvino.tools.mo.back.pass_separator import BackFinish
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.graph.graph import Graph, rename_node
@@ -13,7 +14,7 @@ def nodes_with_equal_names(graph: Graph):
     """
     names_dict = defaultdict(list)
     for node in graph.get_op_nodes():
-        node_name = node.soft_get('name', node.id)
+        node_name = node.soft_get("name", node.id)
         names_dict[node_name].append(node)
     return names_dict
 
@@ -29,16 +30,16 @@ def make_node_names_unique(nodes: list, node_names: set):
     If the "nodes" list does not contain Result nodes, then all nodes starting from the second one will be renamed.
     All new names are added to the "node_names" set.
     """
-    results_pos = [idx for idx, node in enumerate(nodes) if node.op == 'Result']
+    results_pos = [idx for idx, node in enumerate(nodes) if node.op == "Result"]
     node_position_to_keep = 0
     if len(results_pos) != 0:
         node_position_to_keep = results_pos[0]
     for idx, node in enumerate(nodes):
         if idx != node_position_to_keep:
-            new_node_name = node.soft_get('name', node.id) + '_' + str(idx)
+            new_node_name = node.soft_get("name", node.id) + "_" + str(idx)
             # preparing a new unique name for the node
             while new_node_name in node_names:
-                new_node_name += '_' + str(idx)
+                new_node_name += "_" + str(idx)
             node_names.add(new_node_name)
             rename_node(node, new_node_name)
 
@@ -51,6 +52,7 @@ class NamesUniquenessCheck(BackReplacementPattern):
     save framework names for the output nodes, nodes with op=Result will not be renamed, except the case when there are
     several Result nodes with the same name.
     """
+
     enabled = True
 
     def run_after(self):

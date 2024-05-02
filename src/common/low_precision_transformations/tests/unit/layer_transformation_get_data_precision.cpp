@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <gtest/gtest.h>
+
+#include <memory>
+
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -17,7 +19,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_U8_to_U8) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -33,7 +36,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_65535_to_U8) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_TRUE(precisionDetails.empty());
 }
 
@@ -62,7 +66,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_I8_to_U8zp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -78,7 +83,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqI8_U8_to_I8zp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
     ASSERT_EQ(-128.f, precisionDetails.min);
     ASSERT_EQ(127.f, precisionDetails.max);
@@ -94,7 +100,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_I8zp_to_U8zp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(255.f, precisionDetails.max);
@@ -110,7 +117,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqI8_U8zp_to_I8zp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
     ASSERT_EQ(-128.f, precisionDetails.min);
     ASSERT_EQ(127.f, precisionDetails.max);
@@ -126,7 +134,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqNone_I8zp_to_undefzp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(0.f, precisionDetails.max);
@@ -142,7 +151,8 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqNone_U8zp_to_undefzp) {
 
     auto const dequantization = ov::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
-    auto const precisionDetails = ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
+    auto const precisionDetails =
+        ov::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);
     ASSERT_EQ(0.f, precisionDetails.min);
     ASSERT_EQ(0.f, precisionDetails.max);

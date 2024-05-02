@@ -3,10 +3,13 @@
 //
 
 #include "swiglu_kernel_selector.h"
+
 #include "swiglu_kernel_ref.h"
 
 namespace kernel_selector {
-swiglu_kernel_selector::swiglu_kernel_selector() { Attach<SwiGLUKernelRef>(); }
+swiglu_kernel_selector::swiglu_kernel_selector() {
+    Attach<SwiGLUKernelRef>();
+}
 
 KernelsData swiglu_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::SWIGLU);

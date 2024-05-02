@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
+
 #include <vector>
 
-#include "low_precision_transformations/groupconvolution_qdq_transformation.hpp"
-#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "low_precision_transformations/convolution_with_incorrect_weights.hpp"
 
 using namespace LayerTestsDefinitions;
 

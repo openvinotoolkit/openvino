@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # tile paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import sys
+from save_model import saveModel
 
 
 def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
@@ -23,10 +24,12 @@ def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
         repeat_times_list = []
         if tensor_list:
             for i in repeat_times:
-                if paddle.__version__ >= '2.0.0':
+                if paddle.__version__ >= "2.0.0":
                     temp_out = paddle.full([1], i, "int32").cpu()
                 else:
-                    temp_out = paddle.fluid.layers.tensor.fill_constant([1], "int32", i, force_cpu=True)
+                    temp_out = paddle.fluid.layers.tensor.fill_constant(
+                        [1], "int32", i, force_cpu=True
+                    )
 
                 repeat_times_list.append(temp_out)
         else:

@@ -3,27 +3,29 @@
 //
 
 #pragma once
+#include <vector>
+
 #include "pooling.hpp"
 #include "primitive.hpp"
-#include <vector>
 
 namespace cldnn {
 struct roi_pooling : public primitive_base<roi_pooling> {
     CLDNN_DECLARE_PRIMITIVE(roi_pooling)
 
-    roi_pooling() : primitive_base("", {}),
-                    mode(pooling_mode::max),
-                    position_sensitive(false),
-                    pooled_width(0),
-                    pooled_height(0),
-                    spatial_scale(0.0f),
-                    trans_std(0.0f),
-                    no_trans(false),
-                    output_dim(0),
-                    part_size(0),
-                    group_size(0),
-                    spatial_bins_x(1),
-                    spatial_bins_y(1) {}
+    roi_pooling()
+        : primitive_base("", {}),
+          mode(pooling_mode::max),
+          position_sensitive(false),
+          pooled_width(0),
+          pooled_height(0),
+          spatial_scale(0.0f),
+          trans_std(0.0f),
+          no_trans(false),
+          output_dim(0),
+          part_size(0),
+          group_size(0),
+          spatial_bins_x(1),
+          spatial_bins_y(1) {}
 
     roi_pooling(const primitive_id& id,
                 const input_info& input_data,
@@ -115,20 +117,12 @@ struct roi_pooling : public primitive_base<roi_pooling> {
 
         auto rhs_casted = downcast<const roi_pooling>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(mode) &&
-               cmp_fields(position_sensitive) &&
-               cmp_fields(pooled_width) &&
-               cmp_fields(pooled_height) &&
-               cmp_fields(spatial_scale) &&
-               cmp_fields(trans_std) &&
-               cmp_fields(no_trans) &&
-               cmp_fields(output_dim) &&
-               cmp_fields(part_size) &&
-               cmp_fields(group_size) &&
-               cmp_fields(spatial_bins_x) &&
-               cmp_fields(spatial_bins_y);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(mode) && cmp_fields(position_sensitive) && cmp_fields(pooled_width) &&
+               cmp_fields(pooled_height) && cmp_fields(spatial_scale) && cmp_fields(trans_std) &&
+               cmp_fields(no_trans) && cmp_fields(output_dim) && cmp_fields(part_size) && cmp_fields(group_size) &&
+               cmp_fields(spatial_bins_x) && cmp_fields(spatial_bins_y);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

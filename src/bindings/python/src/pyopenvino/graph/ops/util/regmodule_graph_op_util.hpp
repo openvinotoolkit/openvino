@@ -11,9 +11,9 @@
 #include "pyopenvino/graph/ops/util/binary_elementwise_comparison.hpp"
 #include "pyopenvino/graph/ops/util/binary_elementwise_logical.hpp"
 #include "pyopenvino/graph/ops/util/index_reduction.hpp"
+#include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 #include "pyopenvino/graph/ops/util/unary_elementwise_arithmetic.hpp"
 #include "pyopenvino/graph/ops/util/variable.hpp"
-#include "pyopenvino/graph/ops/util/multisubgraph.hpp"
 
 namespace py = pybind11;
 

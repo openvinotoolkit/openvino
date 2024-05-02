@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_assertions.hpp"
 #include <gtest/gtest.h>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include "openvino/op/ops.hpp"
 namespace ov {
@@ -15,13 +16,13 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-using SqueezeTestParams = std::tuple<unit_test::ShapeVector, // Input shapes
-                                     std::vector<int64_t>,   // Squeeze axes
-                                     StaticShape             // Expected shape
+using SqueezeTestParams = std::tuple<unit_test::ShapeVector,  // Input shapes
+                                     std::vector<int64_t>,    // Squeeze axes
+                                     StaticShape              // Expected shape
                                      >;
 
-class SqueezeCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v0::Squeeze>,
-                                      public WithParamInterface<SqueezeTestParams> {
+class SqueezeCpuShapeInferenceTest : public unit_test::OpCpuShapeInferenceTest<op::v0::Squeeze>,
+                                     public WithParamInterface<SqueezeTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTestParams>& obj) {
         unit_test::ShapeVector tmp_input_shapes;
@@ -47,13 +48,13 @@ protected:
     std::shared_ptr<op::v0::Parameter> arg;
 };
 
-TEST_P(SqueezeCpuShapeInferenceTest , shape_inference_empty_const_map) {
+TEST_P(SqueezeCpuShapeInferenceTest, shape_inference_empty_const_map) {
     const auto axes_node = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{axes.size()}, axes);
     const auto op = make_op(arg, axes_node);
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_P(SqueezeCpuShapeInferenceTest , shape_inference_with_const_map) {
+TEST_P(SqueezeCpuShapeInferenceTest, shape_inference_with_const_map) {
     const auto axes_node = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(arg, axes_node);
 
@@ -66,25 +67,30 @@ TEST_P(SqueezeCpuShapeInferenceTest , shape_inference_with_const_map) {
 
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
-    SqueezeCpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{1}, {1}}, std::vector<int64_t>{-1}, StaticShape({})),
-           make_tuple(unit_test::ShapeVector{{1}, {1}}, std::vector<int64_t>{0}, StaticShape({})),
-           make_tuple(unit_test::ShapeVector{{1, 2, 3, 1}, {2}}, std::vector<int64_t>{0, 3}, StaticShape({2, 3})),
-           make_tuple(unit_test::ShapeVector{{2, 1, 1, 4}, {2}}, std::vector<int64_t>{2, 1}, StaticShape({2, 4})),
-           make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{0, 2, 4}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{4, 2, 0}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{2, 0, 4}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {4}},
-                      std::vector<int64_t>{1, -1, 3, -2},
-                      StaticShape({10, 0, 3})),
-           make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
-           make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
-           make_tuple(unit_test::ShapeVector{{2, 1, 7, 8, 3}, {1}}, std::vector<int64_t>{1}, StaticShape({2, 7, 8, 3})),
-           make_tuple(unit_test::ShapeVector{{2, 1, 3}, {2}}, std::vector<int64_t>{1, 1}, StaticShape({2, 3})),
-           make_tuple(unit_test::ShapeVector{{3, 1, 2, 1}, {3}}, std::vector<int64_t>{1, -1, 1}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{3, 1, 2, 1}, {4}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {5}}, std::vector<int64_t>{2, -1, 2, -1, 0}, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{2, 6, 7, 8, 1}, {2}}, std::vector<int64_t>{-1, -1}, StaticShape({2, 6, 7, 8}))),
+    SqueezeCpuShapeInferenceTest,
+    Values(
+        make_tuple(unit_test::ShapeVector{{1}, {1}}, std::vector<int64_t>{-1}, StaticShape({})),
+        make_tuple(unit_test::ShapeVector{{1}, {1}}, std::vector<int64_t>{0}, StaticShape({})),
+        make_tuple(unit_test::ShapeVector{{1, 2, 3, 1}, {2}}, std::vector<int64_t>{0, 3}, StaticShape({2, 3})),
+        make_tuple(unit_test::ShapeVector{{2, 1, 1, 4}, {2}}, std::vector<int64_t>{2, 1}, StaticShape({2, 4})),
+        make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{0, 2, 4}, StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{4, 2, 0}, StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {3}}, std::vector<int64_t>{2, 0, 4}, StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {4}},
+                   std::vector<int64_t>{1, -1, 3, -2},
+                   StaticShape({10, 0, 3})),
+        make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
+        make_tuple(unit_test::ShapeVector{{10, 1, 0, 1, 3, 1, 1}, {}}, std::vector<int64_t>{}, StaticShape({10, 0, 3})),
+        make_tuple(unit_test::ShapeVector{{2, 1, 7, 8, 3}, {1}}, std::vector<int64_t>{1}, StaticShape({2, 7, 8, 3})),
+        make_tuple(unit_test::ShapeVector{{2, 1, 3}, {2}}, std::vector<int64_t>{1, 1}, StaticShape({2, 3})),
+        make_tuple(unit_test::ShapeVector{{3, 1, 2, 1}, {3}}, std::vector<int64_t>{1, -1, 1}, StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{3, 1, 2, 1}, {4}}, std::vector<int64_t>{1, -1, 1, -1}, StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{1, 3, 1, 2, 1}, {5}},
+                   std::vector<int64_t>{2, -1, 2, -1, 0},
+                   StaticShape({3, 2})),
+        make_tuple(unit_test::ShapeVector{{2, 6, 7, 8, 1}, {2}},
+                   std::vector<int64_t>{-1, -1},
+                   StaticShape({2, 6, 7, 8}))),
     SqueezeCpuShapeInferenceTest::getTestCaseName);
 
 using SqueezeCpuShapeInferenceThrowExceptionTest = SqueezeCpuShapeInferenceTest;
@@ -130,7 +136,7 @@ INSTANTIATE_TEST_SUITE_P(
            make_tuple(unit_test::ShapeVector{{1, 2, 3, 8}, {2}}, std::vector<int64_t>{-1, -2}, StaticShape({}))),
     SqueezeCpuShapeInferenceThrowExceptionTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

@@ -48,11 +48,16 @@ def prepare_inputs(inputs_info):
 
 def get_inputs_info(model_obj):
     inputs_info = []
-    assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
+    assert (
+        len(model_obj.structured_input_signature) > 1
+    ), "incorrect model or test issue"
     for input_name, input_info in model_obj.structured_input_signature[1].items():
         input_shape = []
         try:
-            if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
+            if (
+                input_info.shape.as_list() == [None, None, None, 3]
+                and input_info.dtype == tf.float32
+            ):
                 # image classification case, let us imitate an image
                 # that helps to avoid compute output size issue
                 input_shape = [1, 200, 200, 3]
@@ -68,7 +73,9 @@ def get_inputs_info(model_obj):
         if input_info.dtype == tf.resource:
             # skip inputs corresponding to variables
             continue
-        assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
+        assert input_info.dtype in type_map, "Unsupported input type: {}".format(
+            input_info.dtype
+        )
         inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
     return inputs_info

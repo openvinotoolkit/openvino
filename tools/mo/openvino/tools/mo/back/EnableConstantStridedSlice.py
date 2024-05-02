@@ -7,17 +7,21 @@ from openvino.tools.mo.graph.graph import Graph
 
 class EnableConstantStridedSlice(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
+    graph_condition = [lambda graph: not graph.graph["cmd_params"].static_shape]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('const_strided_slice', {'op': 'StridedSlice', 'type': lambda type: type != 'StridedSlice'}),
-                   ('data', {'kind': 'data', 'value': lambda value: value is not None})
-                   ],
-            edges=[('const_strided_slice', 'data')],
+            nodes=[
+                (
+                    "const_strided_slice",
+                    {"op": "StridedSlice", "type": lambda type: type != "StridedSlice"},
+                ),
+                ("data", {"kind": "data", "value": lambda value: value is not None}),
+            ],
+            edges=[("const_strided_slice", "data")],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        graph.node[match['const_strided_slice'].id]['type'] = 'StridedSlice'
+        graph.node[match["const_strided_slice"].id]["type"] = "StridedSlice"

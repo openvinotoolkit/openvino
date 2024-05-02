@@ -7,15 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/node.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "rt_info/precision_preserved_attribute.hpp"
-#include "network_helper.hpp"
 #include "lpt_itt.hpp"
+#include "network_helper.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "rt_info/precision_preserved_attribute.hpp"
 
 namespace ov {
 namespace pass {
@@ -51,26 +50,25 @@ public:
 
             {
                 OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "CreatePrecisionsDependentAttribute");
-                auto &rt = node->get_rt_info();
+                auto& rt = node->get_rt_info();
 
-                // The goal is definition if an operation precision preserved or not. As result here we should make 3 steps:
-                // Step #1: create PrecisionPreservedAttribute instance obviously,
-                // which will be used as result (will be used for future precision propagation)
+                // The goal is definition if an operation precision preserved or not. As result here we should make 3
+                // steps: Step #1: create PrecisionPreservedAttribute instance obviously, which will be used as result
+                // (will be used for future precision propagation)
                 const auto precisionPreservedAttribute = PrecisionPreservedAttribute(false);
                 rt[PrecisionPreservedAttribute::get_type_info_static()] = precisionPreservedAttribute;
-                const auto &targetSharedValue = precisionPreservedAttribute.attribute->sharedValue;
+                const auto& targetSharedValue = precisionPreservedAttribute.attribute->sharedValue;
 
-                // Step #2: create AttributeType attribute instance for OperationType operation to propagate the instance
+                // Step #2: create AttributeType attribute instance for OperationType operation to propagate the
+                // instance
                 const auto attribute = AttributeType{};
                 rt[AttributeType::get_type_info_static()] = attribute;
 
-                // Step #3: assign the same shared value to enable PrecisionPreservedAttribute update during AttributeType propagation
+                // Step #3: assign the same shared value to enable PrecisionPreservedAttribute update during
+                // AttributeType propagation
                 ov::pass::low_precision::NetworkHelper::reassign<AttributeType>(
                     targetSharedValue,
-                    {
-                        attribute.attribute,
-                        precisionPreservedAttribute.attribute
-                    });
+                    {attribute.attribute, precisionPreservedAttribute.attribute});
             }
             return true;
         };

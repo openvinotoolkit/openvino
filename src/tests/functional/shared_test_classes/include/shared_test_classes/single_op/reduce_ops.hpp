@@ -4,25 +4,24 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-using reduceOpsParams = std::tuple<
-    std::vector<int>,               // Axis to reduce order
-    ov::test::utils::OpType,        // Scalar or vector type axis
-    bool,                           // Keep dims
-    ov::test::utils::ReductionType, // Reduce operation type
-    ov::element::Type,              // Model type
-    std::vector<size_t>,            // Input shape
-    ov::test::TargetDevice          // Device name
->;
+using reduceOpsParams = std::tuple<std::vector<int>,                // Axis to reduce order
+                                   ov::test::utils::OpType,         // Scalar or vector type axis
+                                   bool,                            // Keep dims
+                                   ov::test::utils::ReductionType,  // Reduce operation type
+                                   ov::element::Type,               // Model type
+                                   std::vector<size_t>,             // Input shape
+                                   ov::test::TargetDevice           // Device name
+                                   >;
 
 class ReduceOpsLayerTest : public testing::WithParamInterface<reduceOpsParams>,
                            virtual public ov::test::SubgraphBaseStaticTest {

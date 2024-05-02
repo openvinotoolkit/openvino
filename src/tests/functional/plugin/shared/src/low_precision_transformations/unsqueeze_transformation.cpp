@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/unsqueeze_transformation.hpp"
+
 #include <memory>
 #include <queue>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <queue>
 
-#include "transformations/init_node_info.hpp"
-#include "low_precision_transformations/unsqueeze_transformation.hpp"
 #include "ov_lpt_models/unsqueeze.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -28,7 +27,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
-
 std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -37,11 +35,9 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, unsqueezeParam.shape, targetDevice, params) << "_" <<
-           unsqueezeParam.fakeQuantize << "_" <<
-        unsqueezeParam.unsqueezeAxes << "_" <<
-        params.updatePrecisions << "_" <<
-        unsqueezeParam.shape;
+    result << get_test_case_name_by_params(netPrecision, unsqueezeParam.shape, targetDevice, params) << "_"
+           << unsqueezeParam.fakeQuantize << "_" << unsqueezeParam.unsqueezeAxes << "_" << params.updatePrecisions
+           << "_" << unsqueezeParam.shape;
 
     return result.str();
 }
@@ -54,11 +50,10 @@ void UnsqueezeTransformation::SetUp() {
 
     init_input_shapes(unsqueezeParam.shape);
 
-    function = ov::builder::subgraph::UnsqueezeFunction::getOriginal(
-        netPrecision,
-        unsqueezeParam.shape,
-        unsqueezeParam.fakeQuantize,
-        unsqueezeParam.unsqueezeAxes);
+    function = ov::builder::subgraph::UnsqueezeFunction::getOriginal(netPrecision,
+                                                                     unsqueezeParam.shape,
+                                                                     unsqueezeParam.fakeQuantize,
+                                                                     unsqueezeParam.unsqueezeAxes);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

@@ -4,9 +4,9 @@
 
 import os
 import sys
-from functools import wraps
-from typing import Callable, Any
 import warnings
+from functools import wraps
+from typing import Any, Callable
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -21,17 +21,25 @@ def _add_openvino_libs_to_search_path() -> None:
         if os.path.isdir(os.path.join(os.path.dirname(__file__), "libs")):
             # looking for the libs in the pip installation path.
             openvino_libs.append(os.path.join(os.path.dirname(__file__), "libs"))
-        elif os.path.isdir(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Library", "bin")):
+        elif os.path.isdir(
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "Library", "bin")
+        ):
             # looking for the libs in the conda installation path
-            openvino_libs.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Library", "bin"))
+            openvino_libs.append(
+                os.path.join(
+                    os.path.dirname(__file__), "..", "..", "..", "Library", "bin"
+                )
+            )
         else:
             # setupvars.bat script set all libs paths to OPENVINO_LIB_PATHS environment variable.
             openvino_libs_installer = os.getenv("OPENVINO_LIB_PATHS")
             if openvino_libs_installer:
                 openvino_libs.extend(openvino_libs_installer.split(";"))
             else:
-                sys.exit("Error: Please set the OPENVINO_LIB_PATHS environment variable. "
-                         "If you use an install package, please, run setupvars.bat")
+                sys.exit(
+                    "Error: Please set the OPENVINO_LIB_PATHS environment variable. "
+                    "If you use an install package, please, run setupvars.bat"
+                )
         for lib in openvino_libs:
             lib_path = os.path.join(os.path.dirname(__file__), lib)
             if os.path.isdir(lib_path):
@@ -40,12 +48,18 @@ def _add_openvino_libs_to_search_path() -> None:
 
 
 def add_openvino_libs_to_path() -> None:
-    warnings.warn("add_openvino_libs_to_path function was implemented for internal usage only "
-                  "and will be removed in the 2023.2 release.", DeprecationWarning, stacklevel=2)
+    warnings.warn(
+        "add_openvino_libs_to_path function was implemented for internal usage only "
+        "and will be removed in the 2023.2 release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     _add_openvino_libs_to_search_path()
 
 
-def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
+def deprecated(
+    name: Any = None, version: str = "", message: str = "", stacklevel: int = 2
+) -> Callable[..., Any]:
     """Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}" and runs the function.
 
     :param version: The version in which the code will be removed.
@@ -58,7 +72,9 @@ def deprecated(name: Any = None, version: str = "", message: str = "", stackleve
             # it must be imported here; otherwise, there are errors with no loaded DLL for Windows
             from openvino._pyopenvino.util import deprecation_warning
 
-            deprecation_warning(wrapped.__name__ if name is None else name, version, message, stacklevel)
+            deprecation_warning(
+                wrapped.__name__ if name is None else name, version, message, stacklevel
+            )
             return wrapped(*args, **kwargs)
 
         return wrapper
@@ -84,12 +100,16 @@ def classproperty(func: Any) -> _ClassPropertyDescriptor:
     return _ClassPropertyDescriptor(func)
 
 
-def deprecatedclassproperty(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[[Any], _ClassPropertyDescriptor]:
+def deprecatedclassproperty(
+    name: Any = None, version: str = "", message: str = "", stacklevel: int = 2
+) -> Callable[[Any], _ClassPropertyDescriptor]:
     def decorator(wrapped: Any) -> _ClassPropertyDescriptor:
         func = classproperty(wrapped)
 
         # Override specific instance
-        def _patch(instance: _ClassPropertyDescriptor, func: Callable[..., Any]) -> None:
+        def _patch(
+            instance: _ClassPropertyDescriptor, func: Callable[..., Any]
+        ) -> None:
             cls_: Any = type(instance)
 
             class _(cls_):  # noqa: N801
@@ -102,4 +122,5 @@ def deprecatedclassproperty(name: Any = None, version: str = "", message: str = 
         # Add `deprecated` decorator on the top of `__get__`
         _patch(func, deprecated(name, version, message, stacklevel))
         return func
+
     return decorator

@@ -4,12 +4,13 @@
 
 #include "shared_test_classes/single_op/binary_convolution.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/binary_convolution.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
-std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
+std::string BinaryConvolutionLayerTest::getTestCaseName(
+    const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
     binConvSpecificParams bin_conv_params;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
@@ -63,17 +64,25 @@ void BinaryConvolutionLayerTest::SetUp() {
     std::vector<ptrdiff_t> pads_begin, pads_end;
     size_t num_out_channels;
     float pad_value;
-    std::tie(kernel_size, strides, pads_begin, pads_end, dilations, num_out_channels, pad_type, pad_value) = bin_conv_params;
+    std::tie(kernel_size, strides, pads_begin, pads_end, dilations, num_out_channels, pad_type, pad_value) =
+        bin_conv_params;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
     params[0]->set_friendly_name("a_data_batch");
 
     // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
-    auto bin_conv =
-        ov::test::utils::make_binary_convolution(params[0], kernel_size, strides, pads_begin, pads_end, dilations, pad_type, num_out_channels, pad_value);
+    auto bin_conv = ov::test::utils::make_binary_convolution(params[0],
+                                                             kernel_size,
+                                                             strides,
+                                                             pads_begin,
+                                                             pads_end,
+                                                             dilations,
+                                                             pad_type,
+                                                             num_out_channels,
+                                                             pad_value);
     auto result = std::make_shared<ov::op::v0::Result>(bin_conv);
     function = std::make_shared<ov::Model>(ov::OutputVector{result}, params, "BinaryConvolution");
 }
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

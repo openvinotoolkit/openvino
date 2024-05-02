@@ -7,7 +7,7 @@
 namespace ov {
 namespace test {
 
-std::string TransposeMatMulFusion::getTestCaseName(const testing::TestParamInfo<const char*> &obj) {
+std::string TransposeMatMulFusion::getTestCaseName(const testing::TestParamInfo<const char*>& obj) {
     return "device=" + std::string(obj.param);
 }
 
@@ -44,7 +44,7 @@ void TransposeMatMulFusion::TearDown() {
         EXPECT_NE(layer_type, "Transpose");
         EXPECT_NE(layer_type, "Permute");
     }
-    ASSERT_EQ(num_ops, 5); // two Inputs, one Eltwise, one MatMul and one Output
+    ASSERT_EQ(num_ops, 5);  // two Inputs, one Eltwise, one MatMul and one Output
 }
 
 }  // namespace test

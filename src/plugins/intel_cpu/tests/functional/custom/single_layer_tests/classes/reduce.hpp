@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -26,16 +26,15 @@ typedef std::tuple<std::vector<int>,         // Axis to reduce order
                    >
     basicReduceParams;
 
-typedef std::tuple<
-        basicReduceParams,
-        CPUSpecificParams,
-        fusingSpecificParams,
-        std::map<std::string, ov::element::Type>> ReduceLayerCPUTestParamSet;
+typedef std::tuple<basicReduceParams, CPUSpecificParams, fusingSpecificParams, std::map<std::string, ov::element::Type>>
+    ReduceLayerCPUTestParamSet;
 
 class ReduceCPULayerTest : public testing::WithParamInterface<ReduceLayerCPUTestParamSet>,
-                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                           virtual public SubgraphBaseTest,
+                           public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj);
+
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

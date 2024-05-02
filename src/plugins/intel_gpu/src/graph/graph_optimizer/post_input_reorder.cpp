@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "impls/ocl/primitive_base.hpp"
-#include "fully_connected_inst.h"
-#include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
+
+#include "fully_connected/fully_connected_params.h"
+#include "fully_connected_inst.h"
+#include "impls/ocl/primitive_base.hpp"
+#include "pass_manager.h"
 
 using namespace cldnn;
 
@@ -27,12 +28,14 @@ program_node& post_input_reorder::add_reorder(program& p,
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
-    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
-    [&](const std::pair<program_node*, int32_t>& dep) {
-        return node == dep.first;
-    });
+    auto it = std::find_if(usr->get_dependencies().begin(),
+                           usr->get_dependencies().end(),
+                           [&](const std::pair<program_node*, int32_t>& dep) {
+                               return node == dep.first;
+                           });
     if (it == usr->get_dependencies().end()) {
-        throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
+        throw std::runtime_error(
+            "Inconcistency in topology description: user of a node is not present among its dependecies.");
     }
     auto idx = it - usr->get_dependencies().begin();
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {

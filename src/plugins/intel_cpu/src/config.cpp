@@ -4,19 +4,19 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <map>
+#include <string>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
-#include "utils/cpu_utils.hpp"
-
-#include <algorithm>
-#include <map>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -148,10 +148,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 logLevel = val.as<ov::log::Level>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                        val.as<std::string>(),
-                        " for property key ",
-                        key,
-                        ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
             }
         } else if (key == ov::hint::num_requests.name()) {
             try {
@@ -239,8 +239,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
-                                ov::hint::dynamic_quantization_group_size.name(),
-                                ". Expected only unsinged integer numbers");
+                               ov::hint::dynamic_quantization_group_size.name(),
+                               ". Expected only unsinged integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
             try {
@@ -361,7 +361,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
-                     OPENVINO_THROW("invalid value");
+                    OPENVINO_THROW("invalid value");
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",

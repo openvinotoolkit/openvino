@@ -6,12 +6,20 @@
 
 import tensorflow as tf
 from openvino.frontend.tensorflow.node_decoder import TFGraphNodeDecoder
-from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
+from openvino.frontend.tensorflow.py_tensorflow_frontend import (
+    _FrontEndPyGraphIterator as GraphIterator,
+)
 
 
 class GraphIteratorTFGraph(GraphIterator):
-    def __init__(self, tf_graph: tf.Graph, share_weights: bool, inner_graph: bool = False,
-                 input_names_map: dict = None, output_names_map: dict = None):
+    def __init__(
+        self,
+        tf_graph: tf.Graph,
+        share_weights: bool,
+        inner_graph: bool = False,
+        input_names_map: dict = None,
+        output_names_map: dict = None,
+    ):
         GraphIterator.__init__(self)
         self.m_graph = tf_graph
         self.m_node_index = 0
@@ -38,16 +46,21 @@ class GraphIteratorTFGraph(GraphIterator):
         # Note: used only for the library functions
         if not self.m_inner_graph:
             return []
-        inp_ops = filter(lambda op: op.type == "Placeholder", self.m_graph.get_operations())
+        inp_ops = filter(
+            lambda op: op.type == "Placeholder", self.m_graph.get_operations()
+        )
         inp_names = []
-        if hasattr(self.m_graph, 'inputs') and self.m_graph.inputs:
+        if hasattr(self.m_graph, "inputs") and self.m_graph.inputs:
             for inp in self.m_graph.inputs:
                 inp_names.append(inp.name)
             return inp_names
         for inp in inp_ops:
-            assert isinstance(inp, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(inp))
-            assert hasattr(inp, "node_def") and isinstance(inp.node_def, tf.compat.v1.NodeDef), \
-                "Could not find node_def in node {}".format(inp.name)
+            assert isinstance(
+                inp, tf.Operation
+            ), "Unknown node type. Expected tf.Operation, got {}".format(type(inp))
+            assert hasattr(inp, "node_def") and isinstance(
+                inp.node_def, tf.compat.v1.NodeDef
+            ), "Could not find node_def in node {}".format(inp.name)
             type_attr = inp.node_def.attr["dtype"].type
 
             # Placeholders with type "resource" have exact values in "variables" field,
@@ -63,7 +76,7 @@ class GraphIteratorTFGraph(GraphIterator):
         if not self.m_inner_graph:
             return []
 
-        if hasattr(self.m_graph, 'outputs') and self.m_graph.outputs:
+        if hasattr(self.m_graph, "outputs") and self.m_graph.outputs:
             outputs = []
             for out in self.m_graph.outputs:
                 outputs.append(out.name)
@@ -72,7 +85,9 @@ class GraphIteratorTFGraph(GraphIterator):
         # The order of outputs is important and wrong order may lead to conversion error.
         non_outputs = set()
         for op in self.m_graph.get_operations():
-            assert isinstance(op, tf.Operation), "Unknown node type. Expected tf.Operation, got {}".format(type(op))
+            assert isinstance(
+                op, tf.Operation
+            ), "Unknown node type. Expected tf.Operation, got {}".format(type(op))
             for inp in op.inputs:
                 non_outputs.add(inp.op.name)
 
@@ -110,7 +125,7 @@ class GraphIteratorTFGraph(GraphIterator):
         if func_name not in self.m_iterators:
             return None
         if self.m_iterators[func_name] is None:
-            self.m_iterators[func_name] = GraphIteratorTFGraph(self.m_graph._functions[func_name].graph,
-                                                               self.m_share_weights,
-                                                               True)
+            self.m_iterators[func_name] = GraphIteratorTFGraph(
+                self.m_graph._functions[func_name].graph, self.m_share_weights, True
+            )
         return self.m_iterators[func_name]

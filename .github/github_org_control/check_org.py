@@ -8,13 +8,13 @@ Check GitHub organization and invite members
 # pylint: disable=fixme,no-member,too-many-locals
 
 import sys
-from pathlib import Path
 from argparse import ArgumentParser
+from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from github_org_control.configs import Config
 from github_org_control.github_api import GithubOrgApi, get_dev_emails, print_users
-from github_org_control.ldap_api import LdapApi, print_user_info, InfoLevel
+from github_org_control.ldap_api import InfoLevel, LdapApi, print_user_info
 
 
 def remove_members(gh_api, cfg_emails, org_emails, dev_emails, org_emails_no_in_ldap):
@@ -50,7 +50,9 @@ def remove_members(gh_api, cfg_emails, org_emails, dev_emails, org_emails_no_in_
     )
 
     print("\nOrg members - no real name:")
-    members_to_fix_name = sorted(gh_api.members_to_fix_name, key=lambda member: member.email)
+    members_to_fix_name = sorted(
+        gh_api.members_to_fix_name, key=lambda member: member.email
+    )
     print_users(members_to_fix_name)
     print(
         "\nOrg member emails - no real name:",
@@ -73,7 +75,9 @@ def main():
         help=f"Path to json configuration file, e.g. {Config.default_cfg_path}",
     )
     arg_parser.add_argument("--teams", action="store_true", help="Check GitHub teams")
-    arg_parser.add_argument("--no-ldap", action="store_true", help="Don't use LDAP info")
+    arg_parser.add_argument(
+        "--no-ldap", action="store_true", help="Don't use LDAP info"
+    )
     args, unknown_args = arg_parser.parse_known_args()
 
     Config(args.cfg_file, unknown_args)
@@ -93,7 +97,10 @@ def main():
         ldap_api = LdapApi()
         ldap_emails = ldap_api.get_user_emails()
         dev_emails.update(ldap_emails)
-        print(f"\nLDAP developer emails {len(ldap_emails)}:", "; ".join(sorted(ldap_emails)))
+        print(
+            f"\nLDAP developer emails {len(ldap_emails)}:",
+            "; ".join(sorted(ldap_emails)),
+        )
 
         cfg_emails_no_in_ldap = ldap_api.get_absent_emails(cfg_emails)
         print(
@@ -126,7 +133,9 @@ def main():
                 org_emails_no_in_ldap.add(email)
 
     org_pendig_invitation_emails = gh_api.get_org_invitation_emails()
-    invite_emails = dev_emails.difference(org_emails).difference(org_pendig_invitation_emails)
+    invite_emails = dev_emails.difference(org_emails).difference(
+        org_pendig_invitation_emails
+    )
     print(f"\nInvite emails {len(invite_emails)}:", "; ".join(sorted(invite_emails)))
 
     valid_github_users = gh_api.get_valid_github_users(invite_emails)

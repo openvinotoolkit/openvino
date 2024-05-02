@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/op/placeholder.hpp"
+
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 

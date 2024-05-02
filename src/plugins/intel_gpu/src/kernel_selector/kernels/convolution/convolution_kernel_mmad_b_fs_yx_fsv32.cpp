@@ -3,11 +3,12 @@
 //
 
 #include "convolution_kernel_mmad_b_fs_yx_fsv32.h"
-#include <vector>
-#include <utility>
-#include <string>
+
 #include <algorithm>
 #include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 
@@ -57,8 +58,9 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
-        && !params.HasCompensation()) {
+    if ((params.quantization == QuantizationType::ASYMMETRIC_DATA ||
+         params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) &&
+        !params.HasCompensation()) {
         return false;
     }
 
@@ -71,8 +73,9 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
     return true;
 }
 
-ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs_yx_fsv32::GetAutoTuneOptions(const Params& p,
-                                                                                                              int autoTuneIndex) const {
+ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs_yx_fsv32::GetAutoTuneOptions(
+    const Params& p,
+    int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
@@ -110,7 +113,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDef
     }
 
     dispatchData.gws[0] = Align(cp.outputs[0].Feature().v, 32) / 4;
-    dispatchData.gws[1] = Align(CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.outputs[0].Y().v * cp.outputs[0].Z().v;
+    dispatchData.gws[1] = Align(CeilDiv(cp.outputs[0].X().v, dispatchData.cldnnStyle.blockWidth), ow_group) *
+                          cp.outputs[0].Y().v * cp.outputs[0].Z().v;
     dispatchData.gws[2] = cp.outputs[0].Batch().v;
 
     dispatchData.lws[0] = 8;
@@ -137,7 +141,7 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
     auto input = params.inputs[0];
     auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
-    size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1;
+    size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
@@ -164,10 +168,10 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
             idx_order3 = {"b", "(fg*32 + 4*lid+3)", "z", "y", "(x+i)"};
         }
 
-        FusedOpsConfiguration conf0 = {"_0", idx_order0, "res0", input_dt, 1 };
-        FusedOpsConfiguration conf1 = {"_1", idx_order1, "res1", input_dt, 1 };
-        FusedOpsConfiguration conf2 = {"_2", idx_order2, "res2", input_dt, 1 };
-        FusedOpsConfiguration conf3 = {"_3", idx_order3, "res3", input_dt, 1 };
+        FusedOpsConfiguration conf0 = {"_0", idx_order0, "res0", input_dt, 1};
+        FusedOpsConfiguration conf1 = {"_1", idx_order1, "res1", input_dt, 1};
+        FusedOpsConfiguration conf2 = {"_2", idx_order2, "res2", input_dt, 1};
+        FusedOpsConfiguration conf3 = {"_3", idx_order3, "res3", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf0, conf1, conf2, conf3}));
     }
 

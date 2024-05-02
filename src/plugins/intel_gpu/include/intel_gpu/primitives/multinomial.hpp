@@ -18,23 +18,22 @@ struct multinomial : public primitive_base<multinomial> {
     /// @param cdf Cumulative distribution of probabilties.
     //  @param random_probabilities Random probability samples.
     multinomial(const primitive_id& id,
-          const input_info& cdf,
-          const input_info& random_probabilities,
-          data_types output_data_type,
-          bool with_replacement,
-          bool log_probs,
-          std::uint64_t global_seed,
-          std::uint64_t op_seed,
-          std::int64_t num_samples,
-          const padding& output_padding = padding())
+                const input_info& cdf,
+                const input_info& random_probabilities,
+                data_types output_data_type,
+                bool with_replacement,
+                bool log_probs,
+                std::uint64_t global_seed,
+                std::uint64_t op_seed,
+                std::int64_t num_samples,
+                const padding& output_padding = padding())
         : primitive_base{id, {cdf, random_probabilities}, {output_padding}},
-          output_data_type {output_data_type},
-          with_replacement {with_replacement},
-          log_probs {log_probs},
-          global_seed {global_seed},
-          op_seed {global_seed},
-          num_samples {num_samples}
-    {}
+          output_data_type{output_data_type},
+          with_replacement{with_replacement},
+          log_probs{log_probs},
+          global_seed{global_seed},
+          op_seed{global_seed},
+          num_samples{num_samples} {}
 
     data_types output_data_type;
     bool with_replacement;
@@ -57,12 +56,9 @@ struct multinomial : public primitive_base<multinomial> {
         if (!compare_common_params(rhs))
             return false;
         const multinomial& rhs_casted = downcast<const multinomial>(rhs);
-        return output_data_type == rhs_casted.output_data_type &&
-            with_replacement == rhs_casted.with_replacement &&
-            log_probs == rhs_casted.log_probs &&
-            global_seed == rhs_casted.global_seed &&
-            op_seed == rhs_casted.op_seed &&
-            num_samples == rhs_casted.num_samples;
+        return output_data_type == rhs_casted.output_data_type && with_replacement == rhs_casted.with_replacement &&
+               log_probs == rhs_casted.log_probs && global_seed == rhs_casted.global_seed &&
+               op_seed == rhs_casted.op_seed && num_samples == rhs_casted.num_samples;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

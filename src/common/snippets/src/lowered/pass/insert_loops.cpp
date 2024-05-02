@@ -4,11 +4,11 @@
 
 #include "snippets/lowered/pass/insert_loops.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -49,8 +49,13 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     std::shared_ptr<op::LoopEnd> loop_end = nullptr;
     if (is_dynamic_loop) {
         loop_begin = std::make_shared<op::LoopBeginDynamic>();
-        loop_end = std::make_shared<op::LoopEndDynamic>(loop_begin, work_amount_increment, is_incremented, io_data_sizes,
-                                                        loop_entries.size(), loop_exits.size(), loop_id);
+        loop_end = std::make_shared<op::LoopEndDynamic>(loop_begin,
+                                                        work_amount_increment,
+                                                        is_incremented,
+                                                        io_data_sizes,
+                                                        loop_entries.size(),
+                                                        loop_exits.size(),
+                                                        loop_id);
 
     } else {
         std::vector<int64_t> ptr_increments, finalization_offsets;
@@ -67,13 +72,22 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
         init_data_ptr_shifts(loop_exits);
 
         loop_begin = std::make_shared<op::LoopBeginStatic>();
-        loop_end = std::make_shared<op::LoopEndStatic>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                       finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
+        loop_end = std::make_shared<op::LoopEndStatic>(loop_begin,
+                                                       work_amount,
+                                                       work_amount_increment,
+                                                       is_incremented,
+                                                       ptr_increments,
+                                                       finalization_offsets,
+                                                       io_data_sizes,
+                                                       loop_entries.size(),
+                                                       loop_exits.size(),
+                                                       loop_id);
     }
 
     const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);
 
-    const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
+    const auto loop_begin_expr =
+        *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
@@ -98,8 +112,7 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type<op::LoopBase>(node) ||
-            ov::is_type<ov::op::v0::Parameter>(node) ||
+        if (ov::is_type<op::LoopBase>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
             ov::is_type<ov::op::v0::Result>(node))
             continue;
 
@@ -118,7 +131,7 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

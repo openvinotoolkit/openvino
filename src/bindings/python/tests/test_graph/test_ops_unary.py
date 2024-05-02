@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset13 as ops
 import pytest
 
-import openvino.runtime.opset13 as ops
 from openvino import Shape, Type
 
 R_TOLERANCE = 1e-6  # global relative tolerance
@@ -49,27 +49,30 @@ def test_unary_op_array(graph_api_fn, type_name):
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
-@pytest.mark.parametrize("graph_api_fn", [
-    ops.absolute,
-    ops.abs,
-    ops.acos,
-    ops.asin,
-    ops.atan,
-    ops.ceiling,
-    ops.ceil,
-    ops.cos,
-    ops.cosh,
-    ops.exp,
-    ops.floor,
-    ops.log,
-    ops.relu,
-    ops.sign,
-    ops.sin,
-    ops.sinh,
-    ops.sqrt,
-    ops.tan,
-    ops.tanh,
-])
+@pytest.mark.parametrize(
+    "graph_api_fn",
+    [
+        ops.absolute,
+        ops.abs,
+        ops.acos,
+        ops.asin,
+        ops.atan,
+        ops.ceiling,
+        ops.ceil,
+        ops.cos,
+        ops.cosh,
+        ops.exp,
+        ops.floor,
+        ops.log,
+        ops.relu,
+        ops.sign,
+        ops.sin,
+        ops.sinh,
+        ops.sqrt,
+        ops.tan,
+        ops.tanh,
+    ],
+)
 def test_unary_op_scalar(graph_api_fn):
     node = graph_api_fn(np.float32(-0.5))
 
@@ -142,7 +145,9 @@ def test_round():
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
 
-    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    input_tensor = np.array(
+        [-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32
+    )
 
     node = ops.round(input_tensor, "HALF_TO_EVEN")
     assert node.get_output_size() == 1

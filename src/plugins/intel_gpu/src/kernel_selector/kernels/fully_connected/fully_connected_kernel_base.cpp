@@ -3,11 +3,13 @@
 //
 
 #include "fully_connected_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_params& params,
@@ -16,7 +18,8 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
         DimensionAccessHelper dims(input);
-        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f()})));
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT",
+                                        toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f()})));
     } else {
         const auto x_size = input.LogicalSize() / input.Batch().v;
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
@@ -55,11 +58,12 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 }
 
 FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
-                                                                            int, int /*kernel_number*/) const {
+                                                                            int,
+                                                                            int /*kernel_number*/) const {
     DispatchData dispatchData;
 
     // Determine global work sizes.
-    dispatchData.gws = { params.outputs[0].LogicalSize(), 1, 1 };
+    dispatchData.gws = {params.outputs[0].LogicalSize(), 1, 1};
 
     // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
@@ -82,7 +86,7 @@ void FullyConnectedKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
+KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
                                                            const std::string exeMode,
@@ -109,10 +113,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
         kd.reorderInput = true;
     }
 
-    bool succeed = UpdateWeightsParams(newParams,
-                                       wl,
-                                       kd.weightsReorderParams,
-                                       GetSupportedKey());
+    bool succeed = UpdateWeightsParams(newParams, wl, kd.weightsReorderParams, GetSupportedKey());
 
     if (!succeed) {
         return {};
@@ -161,19 +162,15 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
     return EXE_MODE_DEFAULT;
 }
 
-KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,
+KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params& params,
                                                                  DataLayout dl,
                                                                  WeightsLayout wl,
                                                                  const int autoTuneIndex) const {
-    return GetCommonKernelsData(params,
-                                dl,
-                                wl,
-                                GetAutoTuneOptions(autoTuneIndex),
-                                autoTuneIndex);
+    return GetCommonKernelsData(params, dl, wl, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
 
-
-JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params&, const DispatchData&) const {
+JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params&,
+                                                                      const DispatchData&) const {
     return {};
 }
 

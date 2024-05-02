@@ -4,8 +4,8 @@
 #pragma once
 
 #include <functional>
-#include <ostream>
 #include <memory>
+#include <ostream>
 #include <string>
 
 #include "openvino/core/model.hpp"
@@ -34,5 +34,5 @@ private:
     model_builder _model_builder;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

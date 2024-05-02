@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import onnx
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 from openvino.tools.mo.front.onnx.normalize_ext import NormalizeFrontExtractor
-from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class TestNormalize(BaseExtractorsTestingClass):
@@ -17,14 +17,14 @@ class TestNormalize(BaseExtractorsTestingClass):
         if eps is None:
             eps = 0.1
         pb = onnx.helper.make_node(
-            'Normalize',
+            "Normalize",
             across_spatial=across_spatial,
             channel_shared=channel_shared,
             eps=eps,
-            inputs=['a'],
-            outputs=['b']
+            inputs=["a"],
+            outputs=["b"],
         )
-        node = PB({'pb': pb})
+        node = PB({"pb": pb})
         return node
 
     def test_ok(self):
@@ -32,10 +32,6 @@ class TestNormalize(BaseExtractorsTestingClass):
         NormalizeFrontExtractor.extract(node)
         self.res = node
 
-        self.expected = {
-            'across_spatial': False,
-            'channel_shared': False,
-            'eps': 0.1
-        }
+        self.expected = {"across_spatial": False, "channel_shared": False, "eps": 0.1}
 
         self.compare()

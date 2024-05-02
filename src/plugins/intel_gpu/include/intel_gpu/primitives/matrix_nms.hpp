@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include "openvino/op/matrix_nms.hpp"
 #include "primitive.hpp"
-#include <vector>
 
 namespace cldnn {
 
@@ -167,18 +168,13 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
         auto rhs_casted = downcast<const matrix_nms>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(attribs.sort_type) &&
-               cmp_fields(attribs.sort_result_across_batch) &&
-               cmp_fields(attribs.score_threshold) &&
-               cmp_fields(attribs.nms_top_k) &&
-               cmp_fields(attribs.keep_top_k) &&
-               cmp_fields(attribs.background_class) &&
-               cmp_fields(attribs.decay) &&
-               cmp_fields(attribs.gaussian_sigma) &&
-               cmp_fields(attribs.post_threshold) &&
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(attribs.sort_type) && cmp_fields(attribs.sort_result_across_batch) &&
+               cmp_fields(attribs.score_threshold) && cmp_fields(attribs.nms_top_k) && cmp_fields(attribs.keep_top_k) &&
+               cmp_fields(attribs.background_class) && cmp_fields(attribs.decay) &&
+               cmp_fields(attribs.gaussian_sigma) && cmp_fields(attribs.post_threshold) &&
                cmp_fields(attribs.normalized);
-        #undef cmp_fields
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.identity import Identity
 
 
 class IdentityFrontExtractor(FrontExtractorOp):
-    op = 'Identity'
+    op = "Identity"
     enabled = True
 
     @classmethod

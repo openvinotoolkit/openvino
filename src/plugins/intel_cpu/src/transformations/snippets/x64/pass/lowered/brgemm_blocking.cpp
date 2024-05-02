@@ -14,7 +14,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
-
 namespace ov {
 namespace intel_cpu {
 namespace pass {
@@ -25,7 +24,8 @@ using namespace ov::snippets::lowered;
 
 BrgemmBlocking::BrgemmBlocking() : RangedPass() {}
 
-LinearIR::constExprIt BrgemmBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
+LinearIR::constExprIt BrgemmBlocking::move_new_memory_buffer(LinearIR& linear_ir,
+                                                             const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::op::NewMemoryBuffer>(wsp_expr->get_node());
@@ -59,7 +59,8 @@ LinearIR::constExprIt BrgemmBlocking::get_loop_begin_pos(LinearIR& linear_ir, co
 bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmBlocking")
     const auto& loop_manager = linear_ir.get_loop_manager();
-    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr, const std::shared_ptr<snippets::op::Brgemm>& brgemm) {
+    auto blocking_loop_exists = [&](const ExpressionPtr& brgemm_expr,
+                                    const std::shared_ptr<snippets::op::Brgemm>& brgemm) {
         auto check_port = [&](const LoopPort& p) {
             return p.expr_port->get_expr() == brgemm_expr && ov::snippets::utils::one_of(p.dim_idx, 0ul, 1ul);
         };
@@ -83,16 +84,20 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto brgemm_cpu = ov::as_type_ptr<intel_cpu::BrgemmCPU>(node);
         if (!brgemm || blocking_loop_exists(brgemm_expr, brgemm))
             continue;
-        OPENVINO_ASSERT(ov::is_type<intel_cpu::BrgemmCPU>(node) || ov::is_type<intel_cpu::tpp::op::BrgemmTPP>(node),
-                        "Detected invalid Brgemm operation: ops must be assigned to a backend when blocking is performed.");
+        OPENVINO_ASSERT(
+            ov::is_type<intel_cpu::BrgemmCPU>(node) || ov::is_type<intel_cpu::tpp::op::BrgemmTPP>(node),
+            "Detected invalid Brgemm operation: ops must be assigned to a backend when blocking is performed.");
 
         const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
         const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
         const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
 
-        const auto& in_0_planar_dims = ov::snippets::utils::get_planar_vdims(in_0_desc->get_shape(), in_0_desc->get_layout());
-        const auto& in_1_planar_dims = ov::snippets::utils::get_planar_vdims(in_1_desc->get_shape(), in_1_desc->get_layout());
-        const auto& out_preordered_dims = ov::snippets::utils::get_preordered_vdims(out_desc->get_shape(), out_desc->get_layout());
+        const auto& in_0_planar_dims =
+            ov::snippets::utils::get_planar_vdims(in_0_desc->get_shape(), in_0_desc->get_layout());
+        const auto& in_1_planar_dims =
+            ov::snippets::utils::get_planar_vdims(in_1_desc->get_shape(), in_1_desc->get_layout());
+        const auto& out_preordered_dims =
+            ov::snippets::utils::get_preordered_vdims(out_desc->get_shape(), out_desc->get_layout());
 
         auto in_0_subtensor = in_0_desc->get_subtensor();
         auto in_1_subtensor = in_1_desc->get_subtensor();
@@ -101,11 +106,15 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto& m = *++out_preordered_dims.rbegin();
         const auto& n = *out_preordered_dims.rbegin();
         const auto& k = *in_0_planar_dims.rbegin();
-        OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(), "Brgemm input descriptors have different K dimension value.");
+        OPENVINO_ASSERT(k == *++in_1_planar_dims.rbegin(),
+                        "Brgemm input descriptors have different K dimension value.");
 
-        const auto block_size_m = snippets::utils::is_dynamic_value(m) ? brgemm->get_m_block_size() : std::min(brgemm->get_m_block_size(), m);
-        const auto block_size_n = snippets::utils::is_dynamic_value(n) ? brgemm->get_n_block_size() : std::min(brgemm->get_n_block_size(), n);
-        const auto block_size_k = snippets::utils::is_dynamic_value(k) ? brgemm->get_k_block_size() : std::min(brgemm->get_k_block_size(), k);
+        const auto block_size_m =
+            snippets::utils::is_dynamic_value(m) ? brgemm->get_m_block_size() : std::min(brgemm->get_m_block_size(), m);
+        const auto block_size_n =
+            snippets::utils::is_dynamic_value(n) ? brgemm->get_n_block_size() : std::min(brgemm->get_n_block_size(), n);
+        const auto block_size_k =
+            snippets::utils::is_dynamic_value(k) ? brgemm->get_k_block_size() : std::min(brgemm->get_k_block_size(), k);
 
         *++in_0_subtensor.rbegin() = block_size_m;
         *++out_subtensor.rbegin() = block_size_m;
@@ -144,7 +153,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             const std::vector<LoopPort> entries{
                 LoopPort(brgemm_expr->get_input_port(0), true),
-                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), false)};
+                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0)
+                                                                            : brgemm_expr->get_input_port(1),
+                         false)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
         };
@@ -155,7 +166,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             const std::vector<LoopPort> entries{
                 LoopPort(brgemm_expr->get_input_port(0), false),
-                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true)};
+                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0)
+                                                                            : brgemm_expr->get_input_port(1),
+                         true)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
             loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
         };
@@ -166,10 +179,14 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             const std::vector<LoopPort> entries{
                 LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true, 1)};
+                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0)
+                                                                            : brgemm_expr->get_input_port(1),
+                         true,
+                         1)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
             const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
-            loop_manager->get_loop_info(id)->register_handler<SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
+            loop_manager->get_loop_info(id)
+                ->register_handler<SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
         };
 
         if (block_size_k != k) {

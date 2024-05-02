@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gemm_inst.h"
-#include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
-
-#include <oneapi/dnnl/dnnl.hpp>
-
 #include <algorithm>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+
+#include "gemm_inst.h"
+#include "implementation_map.hpp"
+#include "kernel_selector_common.h"
+#include "primitive_onednn_base.h"
 namespace cldnn {
 namespace onednn {
 
@@ -33,13 +31,15 @@ protected:
 
         {
             auto& weights = instance.input_memory(1);
-            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            auto offset =
+                onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
             args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.inputs_memory_count() == 3) {
             auto& weights = instance.input_memory(2);
-            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            auto offset =
+                onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
             args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
@@ -48,10 +48,14 @@ protected:
 
     static dnnl::memory::format_tag transpose_format(dnnl::memory::format_tag fmt) {
         switch (fmt) {
-            case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
-            case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
-            case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
-            default: throw std::runtime_error("Unsupported fmt in transpose_format gemm function");
+        case dnnl::memory::format_tag::ab:
+            return dnnl::memory::format_tag::ba;
+        case dnnl::memory::format_tag::abc:
+            return dnnl::memory::format_tag::acb;
+        case dnnl::memory::format_tag::abcd:
+            return dnnl::memory::format_tag::abdc;
+        default:
+            throw std::runtime_error("Unsupported fmt in transpose_format gemm function");
         }
     }
 
@@ -72,7 +76,7 @@ protected:
         auto prim = impl_params.typed_desc<gemm>();
         auto out_l = impl_params.get_output_layout();
 
-        std::vector<layout> in_layouts { impl_params.get_input_layout(0), impl_params.get_input_layout(1) };
+        std::vector<layout> in_layouts{impl_params.get_input_layout(0), impl_params.get_input_layout(1)};
         if (gemm_with_bias) {
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
@@ -127,8 +131,9 @@ protected:
         }
     }
 
-    static std::shared_ptr<dnnl::matmul::primitive_desc> get_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                       const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+    static std::shared_ptr<dnnl::matmul::primitive_desc> get_gemm_primitive_descriptor(
+        const kernel_impl_params& impl_params,
+        const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<gemm>();
         auto gemm_with_bias = prim->dependencies().size() == 3;
@@ -148,8 +153,20 @@ protected:
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        get_gemm_primitive_md(impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, out_dims, in0_fmt, in1_fmt, out_fmt,
-                              gemm_with_bias, bias_dt, bias_dims, bias_fmt);
+        get_gemm_primitive_md(impl_params,
+                              in0_dt,
+                              in1_dt,
+                              out_dt,
+                              in0_dims,
+                              in1_dims,
+                              out_dims,
+                              in0_fmt,
+                              in1_fmt,
+                              out_fmt,
+                              gemm_with_bias,
+                              bias_dt,
+                              bias_dims,
+                              bias_fmt);
 
         dnnl::memory::desc in0_md(in0_dims, in0_dt, in0_fmt);
         dnnl::memory::desc in1_md(in1_dims, in1_dt, in1_fmt);
@@ -158,20 +175,18 @@ protected:
         if (gemm_with_bias) {
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                in0_md,
-                in1_md,
-                bias_md,
-                out_md,
-                attr);
+            return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(),
+                                                                  in0_md,
+                                                                  in1_md,
+                                                                  bias_md,
+                                                                  out_md,
+                                                                  attr);
         } else {
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                in0_md,
-                in1_md,
-                out_md,
-                attr);
+            return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(),
+                                                                  in0_md,
+                                                                  in1_md,
+                                                                  out_md,
+                                                                  attr);
         }
     }
 
@@ -201,8 +216,20 @@ public:
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, out_dims, in0_fmt, in1_fmt, out_fmt,
-                              gemm_with_bias, bias_dt, bias_dims, bias_fmt);
+        get_gemm_primitive_md(*impl_params,
+                              in0_dt,
+                              in1_dt,
+                              out_dt,
+                              in0_dims,
+                              in1_dims,
+                              out_dims,
+                              in0_fmt,
+                              in1_fmt,
+                              out_fmt,
+                              gemm_with_bias,
+                              bias_dt,
+                              bias_dims,
+                              bias_fmt);
 
         ob << make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ob << make_data(&in1_dt, sizeof(dnnl::memory::data_type));
@@ -275,22 +302,20 @@ public:
         if (gemm_with_bias) {
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
-            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(
-                ib.get_engine().get_onednn_engine(),
-                in0_md,
-                in1_md,
-                bias_md,
-                out_md,
-                *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                            in0_md,
+                                                                            in1_md,
+                                                                            bias_md,
+                                                                            out_md,
+                                                                            *_attrs.get());
 
             _pd = *prim_desc;
         } else {
-            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(
-                ib.get_engine().get_onednn_engine(),
-                in0_md,
-                in1_md,
-                out_md,
-                *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::matmul::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                            in0_md,
+                                                                            in1_md,
+                                                                            out_md,
+                                                                            *_attrs.get());
 
             _pd = *prim_desc;
         }

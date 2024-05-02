@@ -1,34 +1,43 @@
-const { addon: ov } = require('openvino-node');
+const {addon : ov} = require('openvino-node');
 
 const args = require('args');
-const { cv } = require('opencv-wasm');
-const { getImageData } = require('../helpers.js');
+const {cv} = require('opencv-wasm');
+const {getImageData} = require('../helpers.js');
 
-args.options([{
-  name: 'img',
-  defaultValue: [],
-}, {
-  name: 'model',
-}, {
-  name: 'device',
-}]);
-const { model: modelPath, device: deviceName, img: images } =
-  args.parse(process.argv);
+args.options([
+  {
+    name : 'img',
+    defaultValue : [],
+  },
+  {
+    name : 'model',
+  },
+  {
+    name : 'device',
+  }
+]);
+const {model : modelPath, device : deviceName, img : images} =
+    args.parse(process.argv);
 
 main(modelPath, images, deviceName);
 
 function completionCallback(result, imagePath) {
-  const predictions = Array.from(result.data)
-    .map((prediction, classId) => ({ prediction, classId }))
-    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
-      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+  const predictions =
+      Array.from(result.data)
+          .map((prediction, classId) => ({prediction, classId}))
+          .sort(
+              ({prediction : predictionA}, {prediction : predictionB}) =>
+                  predictionA === predictionB ? 0
+                  : predictionA > predictionB ? -1
+                                              : 1);
 
   console.log(`Image path: ${imagePath}`);
   console.log('Top 10 results:');
   console.log('class_id probability');
   console.log('--------------------');
-  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
+  predictions.slice(0, 10).forEach(
+      ({classId, prediction}) =>
+          console.log(`${classId}\t ${prediction.toFixed(7)}`),
   );
   console.log();
 }
@@ -43,7 +52,7 @@ async function main(modelPath, images, deviceName) {
   // (.xml and .bin files) or (.onnx file)
   const model = await core.readModel(modelPath);
   const [h, w] = model.inputs[0].shape.slice(-2);
-  const tensorShape = [1, h, w, 3];
+  const tensorShape = [ 1, h, w, 3 ];
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -88,12 +97,11 @@ async function main(modelPath, images, deviceName) {
   const inferRequest = compiledModel.createInferRequest();
 
   const promises = preprocessedImages.map((tensorData, i) => {
-    const inferPromise = inferRequest.inferAsync([
-      new ov.Tensor(ov.element.u8, tensorShape, tensorData)
-    ]);
+    const inferPromise = inferRequest.inferAsync(
+        [ new ov.Tensor(ov.element.u8, tensorShape, tensorData) ]);
 
-    inferPromise.then(result =>
-      completionCallback(result[outputName], images[i]));
+    inferPromise.then(
+        result => completionCallback(result[outputName], images[i]));
 
     return inferPromise;
   });
@@ -102,6 +110,7 @@ async function main(modelPath, images, deviceName) {
   await Promise.all(promises);
   console.log('All inferences executed');
 
-  console.log('\nThis sample is an API example, for any performance '
-    + 'measurements please use the dedicated benchmark_app tool');
+  console.log(
+      '\nThis sample is an API example, for any performance ' +
+      'measurements please use the dedicated benchmark_app tool');
 }

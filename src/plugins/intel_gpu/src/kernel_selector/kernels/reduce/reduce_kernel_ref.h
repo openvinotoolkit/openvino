@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "reduce_kernel_base.h"
 #include <vector>
+
+#include "reduce_kernel_base.h"
 
 namespace kernel_selector {
 class ReduceKernelRef : public ReduceKernelBase {
@@ -18,9 +19,7 @@ public:
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reduce_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <vector>
-
 #include <pybind11/pybind11.h>
+
+#include <vector>
 
 #include "openvino/op/constant.hpp"
 

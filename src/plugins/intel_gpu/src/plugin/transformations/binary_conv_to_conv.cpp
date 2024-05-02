@@ -3,20 +3,21 @@
 //
 
 #include "binary_conv_to_conv.hpp"
+
 #include <memory>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -48,26 +49,33 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
     auto in_hi_m = wrap_type<ov::op::v0::Constant>();
     auto out_lo_m = wrap_type<ov::op::v0::Constant>();
     auto out_hi_m = wrap_type<ov::op::v0::Constant>();
-    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({activations_input_m, in_lo_m, in_hi_m, out_lo_m, out_hi_m}, binary_fq);
+    auto fq_m =
+        wrap_type<ov::op::v0::FakeQuantize>({activations_input_m, in_lo_m, in_hi_m, out_lo_m, out_hi_m}, binary_fq);
     auto weights_input_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u1));
     auto binary_conv_m = wrap_type<ov::op::v1::BinaryConvolution>({fq_m, weights_input_m});
-
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto binary_conv = std::dynamic_pointer_cast<ov::op::v1::BinaryConvolution>(pattern_map.at(binary_conv_m).get_node_shared_ptr());
+        auto binary_conv = std::dynamic_pointer_cast<ov::op::v1::BinaryConvolution>(
+            pattern_map.at(binary_conv_m).get_node_shared_ptr());
         auto activations = pattern_map.at(activations_input_m);
-        auto weights = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_input_m).get_node_shared_ptr());
+        auto weights =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(weights_input_m).get_node_shared_ptr());
         auto fp_element_type = activations.get_element_type();
 
         ov::Tensor new_weights_data(fp_element_type, weights->get_output_shape(0));
         auto src_ptr = static_cast<const uint8_t*>(weights->get_data_ptr());
         auto size = ov::shape_size(weights->get_shape());
         switch (fp_element_type) {
-            case ov::element::f16: convert_packed_bin_to_fp(src_ptr, static_cast<ov::float16*>(new_weights_data.data()), size); break;
-            case ov::element::f32: convert_packed_bin_to_fp(src_ptr, static_cast<float*>(new_weights_data.data()), size); break;
-            default: return false;
+        case ov::element::f16:
+            convert_packed_bin_to_fp(src_ptr, static_cast<ov::float16*>(new_weights_data.data()), size);
+            break;
+        case ov::element::f32:
+            convert_packed_bin_to_fp(src_ptr, static_cast<float*>(new_weights_data.data()), size);
+            break;
+        default:
+            return false;
         }
 
         auto new_weights_const = std::make_shared<ov::op::v0::Constant>(new_weights_data);
@@ -75,11 +83,13 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
 
         auto in_lo = pattern_map.at(in_lo_m);
         auto in_hi = pattern_map.at(in_hi_m);
-        auto out_lo = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{-1.0f});
-        auto out_hi = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{1.0f});
+        auto out_lo =
+            std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{-1.0f});
+        auto out_hi =
+            std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{1.0f});
 
         auto new_fq = std::make_shared<ov::op::v0::FakeQuantize>(activations, in_lo, in_hi, out_lo, out_hi, 2);
-        std::vector<std::shared_ptr<ov::Node>> result_nodes = { new_fq };
+        std::vector<std::shared_ptr<ov::Node>> result_nodes = {new_fq};
 
         std::shared_ptr<ov::Node> conv_input = new_fq;
         auto pb = binary_conv->get_pads_begin();
@@ -89,7 +99,9 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
             pe.insert(pe.begin(), rank - pe.size(), 0);
             auto pad_b = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{pb.size()}, pb);
             auto pad_e = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{pe.size()}, pe);
-            auto pad_v = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape{}, std::vector<float>{binary_conv->get_pad_value()});
+            auto pad_v = std::make_shared<ov::op::v0::Constant>(fp_element_type,
+                                                                ov::Shape{},
+                                                                std::vector<float>{binary_conv->get_pad_value()});
             auto pad = std::make_shared<ov::op::v1::Pad>(new_fq, pad_b, pad_e, pad_v, ov::op::PadMode::CONSTANT);
             conv_input = pad;
 

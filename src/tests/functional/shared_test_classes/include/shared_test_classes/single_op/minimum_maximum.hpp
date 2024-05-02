@@ -4,27 +4,26 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-using MaxMinParamsTuple = typename std::tuple<
-        std::vector<InputShape>,          // Input shapes
-        ov::test::utils::MinMaxOpType,    // Operation type
-        ov::element::Type,                // Model type
-        ov::test::utils::InputLayerType,  // Secondary input type
-        std::string>;                     // Device name
+using MaxMinParamsTuple = typename std::tuple<std::vector<InputShape>,          // Input shapes
+                                              ov::test::utils::MinMaxOpType,    // Operation type
+                                              ov::element::Type,                // Model type
+                                              ov::test::utils::InputLayerType,  // Secondary input type
+                                              std::string>;                     // Device name
 
-class MaxMinLayerTest:
-        public testing::WithParamInterface<MaxMinParamsTuple>,
-        virtual public ov::test::SubgraphBaseTest {
+class MaxMinLayerTest : public testing::WithParamInterface<MaxMinParamsTuple>,
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple>& obj);
+
 protected:
     void SetUp() override;
 };

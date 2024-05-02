@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/core/visibility.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_gpu {

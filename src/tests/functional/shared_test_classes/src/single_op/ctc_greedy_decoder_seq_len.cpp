@@ -4,33 +4,29 @@
 
 #include "shared_test_classes/single_op/ctc_greedy_decoder_seq_len.hpp"
 
-#include <string>
-#include <vector>
 #include <memory>
 #include <random>
+#include <string>
+#include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderSeqLenParams>& obj) {
+std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
+    const testing::TestParamInfo<ctcGreedyDecoderSeqLenParams>& obj) {
     std::vector<InputShape> shapes;
     int sequenceLengths;
     ov::element::Type dataPrecision, indicesPrecision;
     int blankIndex;
     bool mergeRepeated;
     std::string targetDevice;
-    std::tie(shapes,
-             sequenceLengths,
-             dataPrecision,
-             indicesPrecision,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = obj.param;
+    std::tie(shapes, sequenceLengths, dataPrecision, indicesPrecision, blankIndex, mergeRepeated, targetDevice) =
+        obj.param;
 
     std::ostringstream result;
 
@@ -62,16 +58,10 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     ov::element::Type model_type, indices_type;
     int blankIndex;
     bool mergeRepeated;
-    std::tie(shapes,
-             sequenceLengths,
-             model_type,
-             indices_type,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = GetParam();
+    std::tie(shapes, sequenceLengths, model_type, indices_type, blankIndex, mergeRepeated, targetDevice) = GetParam();
     init_input_shapes(shapes);
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     const auto sequenceLenNode = [&] {
         const size_t B = targetStaticShapes[0][0][0];

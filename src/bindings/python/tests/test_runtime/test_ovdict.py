@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Mapping
-import numpy as np
-import pytest
 
+import numpy as np
 import openvino.runtime.opset13 as ops
-from openvino import Core, CompiledModel, InferRequest, Model
+import pytest
 from openvino.runtime import ConstOutput
 from openvino.runtime.ie_api import OVDict
+
+from openvino import CompiledModel, Core, InferRequest, Model
 
 
 def _get_ovdict(
@@ -38,7 +39,8 @@ def _get_ovdict(
         assert len(output_names) == split_num
     param = ops.parameter(input_shape, data_type, name=input_names[0])
     model = Model(
-        ops.split(param, 1, split_num) if multi_output else ops.abs(param), [param],
+        ops.split(param, 1, split_num) if multi_output else ops.abs(param),
+        [param],
     )
     # Manually name outputs
     for i in range(len(output_names)):
@@ -100,7 +102,9 @@ def _check_dict(result, obj, output_names=None):
     assert _check_keys(result.keys(), outs)
     assert _check_values(result)
     assert _check_items(result, outs, output_names)
-    assert all(output_names[i] in result.names()[i] for i in range(0, len(output_names)))
+    assert all(
+        output_names[i] in result.names()[i] for i in range(0, len(output_names))
+    )
 
     return True
 

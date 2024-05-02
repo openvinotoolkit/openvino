@@ -3,11 +3,12 @@
 //
 
 #pragma once
+#include <vector>
+
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "primitive.hpp"
-#include <vector>
 
 namespace cldnn {
 
@@ -23,11 +24,11 @@ struct kv_cache : public primitive_base<kv_cache> {
              const int64_t gather_axis,
              const bool indirect,
              const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding})
-        , variable_info(variable_info)
-        , concat_axis(concat_axis)
-        , gather_axis(gather_axis)
-        , indirect(indirect) {}
+        : primitive_base(id, inputs, {output_padding}),
+          variable_info(variable_info),
+          concat_axis(concat_axis),
+          gather_axis(gather_axis),
+          indirect(indirect) {}
 
     ov::op::util::VariableInfo variable_info;
     int64_t concat_axis = 0;
@@ -48,10 +49,8 @@ struct kv_cache : public primitive_base<kv_cache> {
 
         auto rhs_casted = downcast<const kv_cache>(rhs);
 
-        return variable_info == rhs_casted.variable_info &&
-               concat_axis == rhs_casted.concat_axis &&
-               gather_axis == rhs_casted.gather_axis &&
-               indirect == rhs_casted.indirect;
+        return variable_info == rhs_casted.variable_info && concat_axis == rhs_casted.concat_axis &&
+               gather_axis == rhs_casted.gather_axis && indirect == rhs_casted.indirect;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -73,7 +72,7 @@ struct kv_cache : public primitive_base<kv_cache> {
         ib >> variable_id;
         ib >> data_shape;
         ib >> make_data(&data_type, sizeof(ov::element::Type_t));
-        variable_info = { data_shape, data_type, variable_id };
+        variable_info = {data_shape, data_type, variable_id};
         ib >> concat_axis;
         ib >> gather_axis;
         ib >> indirect;

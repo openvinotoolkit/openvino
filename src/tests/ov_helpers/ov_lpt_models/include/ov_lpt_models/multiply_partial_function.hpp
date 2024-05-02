@@ -34,22 +34,22 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyPartialValues& values) {
-    return out << "_" << values.branch1 << "_" << values.branch2 << (values.isDequantization ? "_isDequantization" : "");
+    return out << "_" << values.branch1 << "_" << values.branch2
+               << (values.isDequantization ? "_isDequantization" : "");
 }
 
 class MultiplyPartialFunction : public ElementwiseFunction {
 public:
     static std::shared_ptr<ov::Model> get(const ov::element::Type precision, const MultiplyPartialValues& actualValues);
 
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const bool broadcast1,
-        const ov::builder::subgraph::FakeQuantizeOnData& fq1,
-        const bool broadcast2,
-        const ov::builder::subgraph::FakeQuantizeOnData& fq2,
-        const ov::builder::subgraph::FakeQuantizeOnData& fqAfter,
-        const bool secondInputIsConstant = false);
+    static std::shared_ptr<ov::Model> get(const ov::element::Type precision,
+                                          const ov::PartialShape& inputShape,
+                                          const bool broadcast1,
+                                          const ov::builder::subgraph::FakeQuantizeOnData& fq1,
+                                          const bool broadcast2,
+                                          const ov::builder::subgraph::FakeQuantizeOnData& fq2,
+                                          const ov::builder::subgraph::FakeQuantizeOnData& fqAfter,
+                                          const bool secondInputIsConstant = false);
 };
 
 }  // namespace subgraph

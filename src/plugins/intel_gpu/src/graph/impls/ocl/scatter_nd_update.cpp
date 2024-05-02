@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
 #include "scatter_nd_update_inst.h"
-#include "scatter_update/scatter_nd_update_kernel_selector.h"
 #include "scatter_update/scatter_nd_update_kernel_ref.h"
+#include "scatter_update/scatter_nd_update_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -45,52 +44,48 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_scatter_nd_update_impl::attach_scatter_nd_update_impl() {
-    auto types = { data_types::f32, data_types::f16, data_types::i32, data_types::i8, data_types::u8 };
-    auto formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv4,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv4_fsv2,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
+    auto types = {data_types::f32, data_types::f16, data_types::i32, data_types::i8, data_types::u8};
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv4,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv4_fsv2,
+                    format::bs_fs_yx_bsv4_fsv4,
+                    format::bs_fs_yx_bsv8_fsv2,
+                    format::bs_fs_yx_bsv8_fsv4,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
 
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
+                    format::bfzyx,
+                    format::b_fs_zyx_fsv16,
+                    format::b_fs_zyx_fsv32,
 
-        format::bfwzyx
-    };
+                    format::bfwzyx};
 
-    implementation_map<scatter_nd_update>::add(impl_types::ocl,
-                                               shape_types::static_shape,
-                                               typed_primitive_impl_ocl<scatter_nd_update>::create<scatter_nd_update_impl>,
-                                               types,
-                                               formats);
+    implementation_map<scatter_nd_update>::add(
+        impl_types::ocl,
+        shape_types::static_shape,
+        typed_primitive_impl_ocl<scatter_nd_update>::create<scatter_nd_update_impl>,
+        types,
+        formats);
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
-    implementation_map<scatter_nd_update>::add(impl_types::ocl,
-                                               shape_types::dynamic_shape,
-                                               typed_primitive_impl_ocl<scatter_nd_update>::create<scatter_nd_update_impl>,
-                                               types,
-                                               dyn_formats);
+    implementation_map<scatter_nd_update>::add(
+        impl_types::ocl,
+        shape_types::dynamic_shape,
+        typed_primitive_impl_ocl<scatter_nd_update>::create<scatter_nd_update_impl>,
+        types,
+        dyn_formats);
 }
 
 }  // namespace detail

@@ -7,11 +7,11 @@
 
 import logging as log
 import sys
-from packaging.version import parse, Version
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import numpy as np
-from openvino.runtime import PartialShape, Dimension, Type
+from openvino.runtime import Dimension, PartialShape, Type
+from packaging.version import Version, parse
 
 
 # TODO: reuse this method in ovc and remove duplication
@@ -70,7 +70,9 @@ def get_imported_module_version(imported_module):
             installed_version = None
 
     if installed_version is None:
-        raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+        raise AttributeError(
+            "{} module doesn't have version attribute".format(imported_module)
+        )
     else:
         return installed_version
 
@@ -83,31 +85,46 @@ def get_environment_setup(framework):
     :return: a dictionary of environment variables
     """
     env_setup = dict()
-    python_version = "{}.{}.{}".format(sys.version_info.major,
-                                       sys.version_info.minor,
-                                       sys.version_info.micro)
-    env_setup['python_version'] = python_version
+    python_version = "{}.{}.{}".format(
+        sys.version_info.major, sys.version_info.minor, sys.version_info.micro
+    )
+    env_setup["python_version"] = python_version
     try:
-        if framework == 'tf':
+        if framework == "tf":
             exec("import tensorflow")
-            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
+            env_setup["tensorflow"] = get_imported_module_version(
+                sys.modules["tensorflow"]
+            )
             exec("del tensorflow")
     except (AttributeError, ImportError):
         pass
-    env_setup['sys_platform'] = sys.platform
+    env_setup["sys_platform"] = sys.platform
     return env_setup
 
 
-def trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input):
+def trace_tf_model_if_needed(
+    input_model, placeholder_shapes, placeholder_data_types, example_input
+):
     import tensorflow as tf
-    if not isinstance(input_model,
-                      (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
+
+    if not isinstance(
+        input_model,
+        (
+            tf.keras.layers.Layer,
+            tf.Module,
+            tf.keras.Model,
+            tf.types.experimental.GenericFunction,
+        ),
+    ):
         return input_model
-    return trace_tf_model(input_model, placeholder_shapes, placeholder_data_types, example_input)
+    return trace_tf_model(
+        input_model, placeholder_shapes, placeholder_data_types, example_input
+    )
 
 
 def get_input_spec_from_model(model):
     import tensorflow as tf
+
     if hasattr(model, "_build_input_shape") and model._build_input_shape is not None:
         if isinstance(model._build_input_shape, list):
             input_spec = [[tf.TensorSpec(shape) for shape in model._build_input_shape]]
@@ -118,7 +135,13 @@ def get_input_spec_from_model(model):
     return input_spec
 
 
-def get_concrete_func(tf_function, example_input, input_needs_packing, error_message, use_example_input=True):
+def get_concrete_func(
+    tf_function,
+    example_input,
+    input_needs_packing,
+    error_message,
+    use_example_input=True,
+):
     """
     Runs tracing of TF function and returns a concrete function.
 
@@ -152,21 +175,26 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
 
 
 def get_signature_from_input(keras_model):
-    if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
+    if not hasattr(keras_model, "input") or getattr(keras_model, "input") is None:
         return None
-    return getattr(keras_model, 'input')
+    return getattr(keras_model, "input")
 
 
 def get_signature_from_input_signature(keras_model):
-    if not hasattr(keras_model, 'input_signature') or getattr(keras_model, 'input_signature') is None:
+    if (
+        not hasattr(keras_model, "input_signature")
+        or getattr(keras_model, "input_signature") is None
+    ):
         return None
-    return getattr(keras_model, 'input_signature')
+    return getattr(keras_model, "input_signature")
 
 
 def create_generic_function_from_keras_model(keras_model):
     import tensorflow as tf
-    assert isinstance(keras_model, (tf.keras.Model, tf.Module)), \
-        "[TensorFlow Frontend] internal error: the input model must be of tf.keras.Model or tf.Module model type"
+
+    assert isinstance(
+        keras_model, (tf.keras.Model, tf.Module)
+    ), "[TensorFlow Frontend] internal error: the input model must be of tf.keras.Model or tf.Module model type"
 
     keras_input_signature = get_signature_from_input(keras_model)
     if keras_input_signature is None:
@@ -178,25 +206,36 @@ def create_generic_function_from_keras_model(keras_model):
     if isinstance(keras_input_signature, dict):
         tf_input_signature = []
         for tensor_name, tensor_spec in keras_input_signature.items():
-            tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
-                                                    dtype=tensor_spec.dtype,
-                                                    name=tensor_name))
+            tf_input_signature.append(
+                tf.TensorSpec(
+                    shape=tensor_spec.shape, dtype=tensor_spec.dtype, name=tensor_name
+                )
+            )
     elif isinstance(keras_input_signature, list):
         tf_input_signature = []
         for tensor_spec in keras_input_signature:
-            tf_input_signature.append(tf.TensorSpec(shape=tensor_spec.shape,
-                                                    dtype=tensor_spec.dtype,
-                                                    name=tensor_spec.name))
+            tf_input_signature.append(
+                tf.TensorSpec(
+                    shape=tensor_spec.shape,
+                    dtype=tensor_spec.dtype,
+                    name=tensor_spec.name,
+                )
+            )
     else:
         try:
             # single KerasTensor case
             tf_input_signature = []
-            tf_input_signature.append(tf.TensorSpec(shape=keras_input_signature.shape,
-                                                    dtype=keras_input_signature.dtype,
-                                                    name=keras_input_signature.name))
+            tf_input_signature.append(
+                tf.TensorSpec(
+                    shape=keras_input_signature.shape,
+                    dtype=keras_input_signature.dtype,
+                    name=keras_input_signature.name,
+                )
+            )
         except:
             tf_input_signature = None
     if tf_input_signature is not None:
+
         @tf.function(input_signature=tf_input_signature)
         def wrapper_function_dict(*args):
             input_dict = {}
@@ -211,9 +250,14 @@ def create_generic_function_from_keras_model(keras_model):
                     post_outputs[output_name] = output_value
             else:
                 try:
-                    if isinstance(outputs, list) and isinstance(keras_model.outputs, list) and \
-                            len(outputs) == len(keras_model.outputs):
-                        for output_value, output_tensor in zip(outputs, keras_model.outputs):
+                    if (
+                        isinstance(outputs, list)
+                        and isinstance(keras_model.outputs, list)
+                        and len(outputs) == len(keras_model.outputs)
+                    ):
+                        for output_value, output_tensor in zip(
+                            outputs, keras_model.outputs
+                        ):
                             post_outputs[output_tensor.name] = output_value
                     else:
                         post_outputs[keras_model.output.name] = outputs
@@ -227,6 +271,7 @@ def create_generic_function_from_keras_model(keras_model):
 
 def trace_tf_model(model, input_shapes, input_types, example_input):
     import tensorflow as tf
+
     if isinstance(model.__call__, tf.types.experimental.GenericFunction):
         tf_function = model.__call__
         input_needs_packing = False
@@ -257,7 +302,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     def are_shapes_defined(shape: Union[List, Dict]):
         if shape is None:
             return False
-        assert hasattr(shape, '__len__')
+        assert hasattr(shape, "__len__")
         if len(shape) == 0:
             return False
 
@@ -267,28 +312,50 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
             return np.all([shape is not None for name, shape in input_shapes.items()])
 
     if example_input is not None:
-        concrete_func = get_concrete_func(tf_function, example_input, input_needs_packing,
-                                          "Could not trace the TF model with the following error: {}")
+        concrete_func = get_concrete_func(
+            tf_function,
+            example_input,
+            input_needs_packing,
+            "Could not trace the TF model with the following error: {}",
+        )
     else:
-        if isinstance(tf_function, tf.types.experimental.GenericFunction) and \
-                tf_function.input_signature is not None:
-            concrete_func = get_concrete_func(tf_function, None, input_needs_packing,
-                                              "Could not trace the TF model with the following error: {}",
-                                              use_example_input=False)
+        if (
+            isinstance(tf_function, tf.types.experimental.GenericFunction)
+            and tf_function.input_signature is not None
+        ):
+            concrete_func = get_concrete_func(
+                tf_function,
+                None,
+                input_needs_packing,
+                "Could not trace the TF model with the following error: {}",
+                use_example_input=False,
+            )
         else:
             input_spec = get_input_spec_from_model(model)
-            concrete_func = get_concrete_func(tf_function, input_spec, input_needs_packing,
-                                              "Could not trace the TF model with the following error: {}.\n"
-                                              "Please provide 'example_input'.")
+            concrete_func = get_concrete_func(
+                tf_function,
+                input_spec,
+                input_needs_packing,
+                "Could not trace the TF model with the following error: {}.\n"
+                "Please provide 'example_input'.",
+            )
 
     return concrete_func
 
 
 def type_supported_by_tf_fe(input_model):
     import tensorflow as tf
+
     # Types that require tracing
-    if isinstance(input_model,
-                  (tf.keras.layers.Layer, tf.Module, tf.keras.Model, tf.types.experimental.GenericFunction)):
+    if isinstance(
+        input_model,
+        (
+            tf.keras.layers.Layer,
+            tf.Module,
+            tf.keras.Model,
+            tf.types.experimental.GenericFunction,
+        ),
+    ):
         return True
     # Types that do not require tracing
     if isinstance(input_model, (tf.Graph, tf.types.experimental.ConcreteFunction)):
@@ -301,6 +368,7 @@ def type_supported_by_tf_fe(input_model):
 
 def is_variable(func_input, captures):
     import tensorflow as tf
+
     if func_input.dtype == tf.resource:
         return True
     for capture in captures:
@@ -309,11 +377,20 @@ def is_variable(func_input, captures):
     return False
 
 
-def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input, share_weights):
-    input_model = trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input)
+def create_tf_graph_iterator(
+    input_model,
+    placeholder_shapes,
+    placeholder_data_types,
+    example_input,
+    share_weights,
+):
+    input_model = trace_tf_model_if_needed(
+        input_model, placeholder_shapes, placeholder_data_types, example_input
+    )
 
     import tensorflow as tf
     from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
+
     if model_is_graph_iterator(input_model):
         return input_model
     if isinstance(input_model, tf.Graph):
@@ -322,30 +399,43 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
         # create a map for inputs to map internal tensor name to external one
         # collect all internal tensor names in a given order
         input_names_map = None
-        if hasattr(input_model, 'inputs') and hasattr(input_model, 'structured_input_signature'):
+        if hasattr(input_model, "inputs") and hasattr(
+            input_model, "structured_input_signature"
+        ):
             internal_tensor_names = []
             for func_input in input_model.inputs:
                 if is_variable(func_input, input_model.graph.captures):
                     continue
                 internal_tensor_names.append(func_input.name)
-            if len(input_model.structured_input_signature) > 0 and \
-                    len(internal_tensor_names) == len(input_model.structured_input_signature[0]):
-                for internal_name, tensor_spec in zip(internal_tensor_names, input_model.structured_input_signature[0]):
+            if len(input_model.structured_input_signature) > 0 and len(
+                internal_tensor_names
+            ) == len(input_model.structured_input_signature[0]):
+                for internal_name, tensor_spec in zip(
+                    internal_tensor_names, input_model.structured_input_signature[0]
+                ):
                     input_names_map = input_names_map or {}
                     if not isinstance(tensor_spec, tf.TensorSpec):
                         input_names_map = None
                         break
                     input_names_map[internal_name] = tensor_spec.name
-            elif len(input_model.structured_input_signature) > 1 and \
-                    len(internal_tensor_names) == len(input_model.structured_input_signature[1]):
-                external_tensor_names = sorted(input_model.structured_input_signature[1].keys())
-                for internal_name, external_name in zip(internal_tensor_names, external_tensor_names):
+            elif len(input_model.structured_input_signature) > 1 and len(
+                internal_tensor_names
+            ) == len(input_model.structured_input_signature[1]):
+                external_tensor_names = sorted(
+                    input_model.structured_input_signature[1].keys()
+                )
+                for internal_name, external_name in zip(
+                    internal_tensor_names, external_tensor_names
+                ):
                     input_names_map = input_names_map or {}
                     input_names_map[internal_name] = external_name
 
         output_names_map = None
-        if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs') and \
-                isinstance(input_model.structured_outputs, dict):
+        if (
+            hasattr(input_model, "outputs")
+            and hasattr(input_model, "structured_outputs")
+            and isinstance(input_model.structured_outputs, dict)
+        ):
             external_names = sorted(list(input_model.structured_outputs.keys()))
             internal_names = [tensor.name for tensor in input_model.outputs]
             if len(external_names) == len(internal_names):
@@ -353,49 +443,70 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
                     output_names_map = output_names_map or {}
                     output_names_map[internal_name] = external_name
             else:
-                for external_name, internal_tensor in input_model.structured_outputs.items():
+                for (
+                    external_name,
+                    internal_tensor,
+                ) in input_model.structured_outputs.items():
                     internal_tf_tensor = None
                     if isinstance(internal_tensor, tf.Tensor):
                         internal_tf_tensor = internal_tensor
-                    if isinstance(internal_tensor, list) and len(internal_tensor) > 0 and \
-                            isinstance(internal_tensor[0], tf.Tensor):
+                    if (
+                        isinstance(internal_tensor, list)
+                        and len(internal_tensor) > 0
+                        and isinstance(internal_tensor[0], tf.Tensor)
+                    ):
                         internal_tf_tensor = internal_tensor[0]
                     if internal_tf_tensor is None:
                         output_names_map = None
                         break
                     output_names_map = output_names_map or {}
                     output_names_map[internal_tf_tensor.name] = external_name
-        return GraphIteratorTFGraph(input_model.graph, share_weights, False, input_names_map, output_names_map)
-    raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
+        return GraphIteratorTFGraph(
+            input_model.graph, share_weights, False, input_names_map, output_names_map
+        )
+    raise Exception(
+        "Could not wrap model of type {} to GraphIteratorTFGraph.".format(
+            type(input_model)
+        )
+    )
 
 
 def extract_model_graph(argv):
     model = argv["input_model"]
     import tensorflow as tf
+
     trackable_is_imported = False
     try:
-        from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
+        from tensorflow.python.training.tracking.base import (  # pylint: disable=no-name-in-module,import-error
+            Trackable,
+        )
+
         trackable_is_imported = True
     except:
         try:
             from tensorflow.python.trackable.base import Trackable
+
             trackable_is_imported = True
         except:
-            log.warning("Could not import tensorflow.python.training.tracking.base.Trackable type.")
+            log.warning(
+                "Could not import tensorflow.python.training.tracking.base.Trackable type."
+            )
     env_setup = get_environment_setup("tf")
     if isinstance(model, tf.Graph):
         return True
     if isinstance(model, tf.compat.v1.GraphDef):
         graph = tf.Graph()
         with graph.as_default():
-            tf.graph_util.import_graph_def(model, name='')
+            tf.graph_util.import_graph_def(model, name="")
         argv["input_model"] = graph
         return True
     if isinstance(model, tf.compat.v1.Session):
         argv["input_model"] = model.graph
         return True
-    if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
-                                                                                 tf.types.experimental.ConcreteFunction)):
+    if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(
+        model,
+        (tf.types.experimental.GenericFunction, tf.types.experimental.ConcreteFunction),
+    ):
         return True
     if isinstance(model, tf.train.Checkpoint):
         if isinstance(model.root, tf.keras.Model):
@@ -415,8 +526,12 @@ def extract_model_graph(argv):
             else:
                 for signature_name, signature in model.signatures.items():
                     argv["input_model"] = model.signatures[signature_name]
-                    log.warning("Could not find the default signature. "
-                                "The following signature was used for conversion: {}".format(signature_name))
+                    log.warning(
+                        "Could not find the default signature. "
+                        "The following signature was used for conversion: {}".format(
+                            signature_name
+                        )
+                    )
                     break
 
         elif hasattr(model, "graph"):
@@ -439,6 +554,7 @@ def model_is_graph_iterator(model):
 
 def tf_type_to_ov_type(val):
     import tensorflow as tf  # pylint: disable=import-error
+
     if not isinstance(val, tf.dtypes.DType):
         raise Exception("The provided type is not a TF type {}.".format(val))
 
@@ -453,8 +569,10 @@ def tf_type_to_ov_type(val):
         tf.int32: Type.i32,
         tf.int64: Type.i64,
         tf.bool: Type.boolean,
-        tf.string: Type.string
+        tf.string: Type.string,
     }
     if val not in tf_to_ov_type:
-        raise Exception("The provided data type is not supported by OpenVino {}.".format(val))
+        raise Exception(
+            "The provided data type is not supported by OpenVino {}.".format(val)
+        )
     return tf_to_ov_type[val]

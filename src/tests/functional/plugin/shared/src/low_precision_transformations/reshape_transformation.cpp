@@ -7,8 +7,8 @@
 #include <memory>
 #include <tuple>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/reshape.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,8 +20,8 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
     std::tie(netPrecision, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
-           "_" << param.inputShape << "_" << param.fakeQuantize << "_{";
+    result << netPrecision << "_" << targetDevice << "_" << to_string(params) << "_" << param.inputShape << "_"
+           << param.fakeQuantize << "_{";
     for (size_t i = 0; i < param.reshapeConstValues.size(); ++i) {
         result << param.reshapeConstValues[i];
         if (i != (param.reshapeConstValues.size() - 1ul)) {
@@ -40,11 +40,10 @@ void ReshapeTransformation::SetUp() {
 
     init_input_shapes(param.inputShape);
 
-    function = ov::builder::subgraph::ReshapeFunction::getOriginal(
-        param.inputShape,
-        param.reshapeConstValues,
-        netPrecision,
-        param.fakeQuantize);
+    function = ov::builder::subgraph::ReshapeFunction::getOriginal(param.inputShape,
+                                                                   param.reshapeConstValues,
+                                                                   netPrecision,
+                                                                   param.fakeQuantize);
 }
 
 void ReshapeTransformation::run() {

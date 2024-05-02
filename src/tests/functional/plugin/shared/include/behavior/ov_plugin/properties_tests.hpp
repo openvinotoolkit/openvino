@@ -71,10 +71,14 @@ public:
     static std::vector<ov::AnyMap> getROOptionalProperties(bool is_sw_device = false);
     static std::vector<ov::AnyMap> configureProperties(std::vector<std::string> props);
 
-    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
-    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(const std::vector<std::string>& props = {}, bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
+                                                                  bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getWrongRWMandatoryPropertiesValues(const std::vector<std::string>& props = {},
+                                                                       bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
+                                                                 bool is_sw_device = false);
+    static std::vector<ov::AnyMap> getWrongRWOptionalPropertiesValues(const std::vector<std::string>& props = {},
+                                                                      bool is_sw_device = false);
 
     static std::vector<ov::AnyMap> getModelDependcePropertiesValues();
 };
@@ -100,7 +104,6 @@ public:
     }
 };
 
-
 using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
@@ -116,10 +119,11 @@ using OVSetEnableHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceTestSetConfig = OVClassBaseTestP;
 
 class OVBasicPropertiesTestsP : public OVPluginTestBase,
-                               public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
+                                public ::testing::WithParamInterface<std::pair<std::string, std::string>> {
 protected:
     std::string deviceName;
     std::string pluginName;
+
 public:
     void SetUp() override {
         std::tie(pluginName, target_device) = GetParam();

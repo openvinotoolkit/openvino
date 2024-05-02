@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.flatten import Flatten
 
 
 class FlattenFrontExtractor(FrontExtractorOp):
-    op = 'Flatten'
+    op = "Flatten"
     enabled = True
 
     @classmethod
@@ -15,8 +15,8 @@ class FlattenFrontExtractor(FrontExtractorOp):
         param = proto_layer.flatten_param
 
         attrs = {
-            'axis': param.axis,
-            'end_axis': param.end_axis,
+            "axis": param.axis,
+            "end_axis": param.end_axis,
         }
 
         Flatten.update_node_stat(node, attrs)

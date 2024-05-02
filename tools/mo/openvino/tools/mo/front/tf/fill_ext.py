@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.fill import Fill
 
 
 class FillExtractor(FrontExtractorOp):
-    op = 'Fill'
+    op = "Fill"
     enabled = True
 
     @classmethod

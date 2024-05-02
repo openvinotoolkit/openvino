@@ -3,6 +3,7 @@
 //
 
 #include "fully_connected_kernel_fb_io_b8_f8.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -43,7 +44,8 @@ size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_p
 }
 
 FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(const fully_connected_params& arg,
-                                                                                int, int /*kernel_number*/) const {
+                                                                                int,
+                                                                                int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     const auto& output = arg.outputs[0];
@@ -99,8 +101,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params) con
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd =
-            GetTunedKernelsDataByIndex(params,  DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
@@ -113,6 +114,6 @@ KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& par
     const auto& p = static_cast<const fully_connected_params&>(params);
 
     return p.inputs[0].GetDType() == Datatype::F16 && p.outputs[0].Batch().v >= 16 ? FORCE_PRIORITY_3
-                                                                               : FORCE_PRIORITY_5;
+                                                                                   : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

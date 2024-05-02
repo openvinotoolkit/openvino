@@ -6,10 +6,10 @@ from openvino.tools.mo.ops.GRUBlockCell import GRUBlockCell
 
 
 class GRUBlockCellExtractor(FrontExtractorOp):
-    op = 'GRUBlockCell'
+    op = "GRUBlockCell"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        GRUBlockCell.update_node_stat(node, {'format': 'tf'})
+        GRUBlockCell.update_node_stat(node, {"format": "tf"})
         return cls.enabled

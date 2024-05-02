@@ -3,6 +3,7 @@
 //
 
 #include "jit_tpp_emitter.hpp"
+
 #include "snippets/lowered/port_descriptor.hpp"
 #include "transformations/tpp/x64/op/eltwise.hpp"
 
@@ -33,7 +34,7 @@ VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDesc
 TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr)
-                       : jit_emitter(h, isa) {
+    : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& node = expr->get_node();
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(node);
@@ -56,8 +57,8 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     for (size_t i = 0; i < num_ins; i++) {
         io_dtypes[i] = ov_to_xsmm_dtype(node->get_input_element_type(i));
         io_offsets[i] = tpp_mod->get_input_offset(i);
-        io_strides[i] = replace_full_dim(tpp_mod->get_input_stride(i),
-                                         expr->get_input_port_descriptor(i)->get_shape().back());
+        io_strides[i] =
+            replace_full_dim(tpp_mod->get_input_stride(i), expr->get_input_port_descriptor(i)->get_shape().back());
         io_port_descriptors[i] = expr->get_input_port_descriptor(i);
     }
 
@@ -65,13 +66,13 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
         const auto i_off = i + num_ins;
         io_dtypes[i_off] = ov_to_xsmm_dtype(node->get_output_element_type(i));
         io_offsets[i_off] = tpp_mod->get_output_offset(i);
-        io_strides[i_off] = replace_full_dim(tpp_mod->get_output_stride(i),
-                                             expr->get_output_port_descriptor(i)->get_shape().back());
+        io_strides[i_off] =
+            replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
         io_port_descriptors[i_off] = expr->get_output_port_descriptor(i);
     }
 }
 
-void TppEmitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void TppEmitter::emit_code(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
@@ -86,16 +87,18 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     h->mov(h->rbp, get_execute_function_ptr());
     int aux_xmm_count = 0;
     for (auto reg_idx : in)
-        h->uni_vmovq(Xmm(aux_xmm_count++),  Reg64(static_cast<int>(reg_idx)));
+        h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
     for (auto reg_idx : out)
-        h->uni_vmovq(Xmm(aux_xmm_count++),  Reg64(static_cast<int>(reg_idx)));
+        h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
 
     OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count == num_kernel_args, "offsets for some inputs/outputs were not set");
-    OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()), "too many input/output arguments. More abi params required");
+    OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()),
+                              "too many input/output arguments. More abi params required");
 
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
-        if (bytes_offset) h->add(reg, bytes_offset);
+        if (bytes_offset)
+            h->add(reg, bytes_offset);
     };
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
@@ -113,13 +116,17 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
 
 libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
     switch (elemet_type) {
-        case ov::element::Type_t::f32 : return LIBXSMM_DATATYPE_F32;
-        case ov::element::Type_t::bf16 : return LIBXSMM_DATATYPE_BF16;
-        case ov::element::Type_t::i8 : return LIBXSMM_DATATYPE_I8;
-        case ov::element::Type_t::u8 : return LIBXSMM_DATATYPE_U8;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
-            return LIBXSMM_DATATYPE_IMPLICIT;
+    case ov::element::Type_t::f32:
+        return LIBXSMM_DATATYPE_F32;
+    case ov::element::Type_t::bf16:
+        return LIBXSMM_DATATYPE_BF16;
+    case ov::element::Type_t::i8:
+        return LIBXSMM_DATATYPE_I8;
+    case ov::element::Type_t::u8:
+        return LIBXSMM_DATATYPE_U8;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
+        return LIBXSMM_DATATYPE_IMPLICIT;
     }
 }
 

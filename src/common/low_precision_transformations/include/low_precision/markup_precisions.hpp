@@ -8,8 +8,8 @@
 #include <set>
 #include <vector>
 
-#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
@@ -42,10 +42,11 @@ public:
         public:
             RestrictionByVersion() = default;
             RestrictionByVersion(
-                const std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)>& precisionsFunction,
-                const PrecisionsRestriction::PrecisionsByPorts& precisions) :
-                precisionsFunction(precisionsFunction),
-                precisions(precisions) {}
+                const std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)>&
+                    precisionsFunction,
+                const PrecisionsRestriction::PrecisionsByPorts& precisions)
+                : precisionsFunction(precisionsFunction),
+                  precisions(precisions) {}
 
             PrecisionsRestriction::PrecisionsByPorts get(const std::shared_ptr<Node>& node) const {
                 return (precisionsFunction != nullptr) ? precisionsFunction(node) : precisions;
@@ -67,7 +68,8 @@ public:
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
     explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
-        const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 });
+                              const std::vector<ov::element::Type>& defaultPrecisions = {ov::element::u8,
+                                                                                         ov::element::i8});
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

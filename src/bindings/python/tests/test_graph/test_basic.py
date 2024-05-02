@@ -4,14 +4,18 @@
 
 
 import numpy as np
-import pytest
-
-import openvino.runtime.opset8 as ops
 import openvino.runtime as ov
+import openvino.runtime.opset8 as ops
+import pytest
+from openvino._pyopenvino import DescriptorTensor
+from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
+from openvino.runtime.op import Constant, Parameter
+from openvino.runtime.utils.types import get_element_type
+from tests.utils.helpers import generate_model_with_memory
 
 from openvino import (
-    Model,
     Layout,
+    Model,
     PartialShape,
     Shape,
     Strides,
@@ -19,13 +23,6 @@ from openvino import (
     Type,
     layout_helpers,
 )
-
-from openvino.runtime.op import Parameter, Constant
-from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
-from openvino._pyopenvino import DescriptorTensor
-
-from openvino.runtime.utils.types import get_element_type
-from tests.utils.helpers import generate_model_with_memory
 
 
 def test_graph_api():
@@ -46,7 +43,14 @@ def test_graph_api():
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
-    assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
+    assert op_types == [
+        "Parameter",
+        "Parameter",
+        "Parameter",
+        "Add",
+        "Multiply",
+        "Result",
+    ]
     assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert ["A", "B", "C"] == [input.get_node().friendly_name for input in model.inputs]
@@ -127,7 +131,10 @@ def test_broadcast(input_shape, dtype, new_shape, axis_mapping, mode):
 
 @pytest.mark.parametrize(
     ("destination_type", "input_data"),
-    [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],
+    [
+        (bool, np.zeros((2, 2), dtype=np.int32)),
+        ("boolean", np.zeros((2, 2), dtype=np.int32)),
+    ],
 )
 def test_convert_to_bool(destination_type, input_data):
     node = ops.convert(input_data, destination_type)
@@ -228,7 +235,10 @@ def test_constant_get_data_floating_point(data_type):
 def test_constant_get_data_signed_integer(data_type):
     np.random.seed(133391)
     input_data = np.random.randint(
-        np.iinfo(data_type).min, np.iinfo(data_type).max, size=[2, 3, 4], dtype=data_type,
+        np.iinfo(data_type).min,
+        np.iinfo(data_type).max,
+        size=[2, 3, 4],
+        dtype=data_type,
     )
     node = ops.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
@@ -240,7 +250,9 @@ def test_constant_get_data_unsigned_integer(data_type):
     np.random.seed(133391)
     input_data = np.random.randn(2, 3, 4).astype(data_type)
     input_data = (
-        np.iinfo(data_type).min + input_data * np.iinfo(data_type).max + input_data * np.iinfo(data_type).max
+        np.iinfo(data_type).min
+        + input_data * np.iinfo(data_type).max
+        + input_data * np.iinfo(data_type).max
     )
     node = ops.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
@@ -310,6 +322,7 @@ def test_set_argument():
 
 def test_clone_model():
     from copy import deepcopy
+
     # Create an original model
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -328,9 +341,15 @@ def test_clone_model():
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy3.reshape({"A": [3, 3], "B": [3, 3]})
 
-    original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
-    model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
-    model_copy3_shapes = [single_input.get_shape() for single_input in model_copy3.inputs]
+    original_model_shapes = [
+        single_input.get_shape() for single_input in model_original.inputs
+    ]
+    model_copy2_shapes = [
+        single_input.get_shape() for single_input in model_copy2.inputs
+    ]
+    model_copy3_shapes = [
+        single_input.get_shape() for single_input in model_copy3.inputs
+    ]
 
     assert original_model_shapes != model_copy2_shapes
     assert original_model_shapes != model_copy3_shapes
@@ -349,15 +368,15 @@ def test_result():
 def test_node_friendly_name():
     dummy_node = ops.parameter(shape=[1], name="dummy_name")
 
-    assert (dummy_node.friendly_name == "dummy_name")
+    assert dummy_node.friendly_name == "dummy_name"
 
     dummy_node.set_friendly_name("changed_name")
 
-    assert (dummy_node.get_friendly_name() == "changed_name")
+    assert dummy_node.get_friendly_name() == "changed_name"
 
     dummy_node.friendly_name = "new_name"
 
-    assert (dummy_node.get_friendly_name() == "new_name")
+    assert dummy_node.get_friendly_name() == "new_name"
 
 
 def test_node_output():
@@ -423,7 +442,10 @@ def test_node_input_values():
     )
 
     assert np.allclose(
-        [node.input_value(i).get_node().get_vector() for i in range(node.get_input_size())],
+        [
+            node.input_value(i).get_node().get_vector()
+            for i in range(node.get_input_size())
+        ],
         [data1, data2],
     )
 
@@ -437,8 +459,8 @@ def test_node_input_tensor():
     input_tensor1 = node.get_input_tensor(0)
     input_tensor2 = node.get_input_tensor(1)
 
-    assert (isinstance(input_tensor1, DescriptorTensor))
-    assert (isinstance(input_tensor2, DescriptorTensor))
+    assert isinstance(input_tensor1, DescriptorTensor)
+    assert isinstance(input_tensor2, DescriptorTensor)
     assert np.equal(input_tensor1.get_shape(), data1.shape).all()
     assert np.equal(input_tensor2.get_shape(), data2.shape).all()
 
@@ -481,7 +503,8 @@ def test_node_input():
         model.get_element_type(),
     ).all()
     assert np.equal(
-        [input_node.get_shape() for input_node in model_inputs], Shape(shape),
+        [input_node.get_shape() for input_node in model_inputs],
+        Shape(shape),
     ).all()
     assert np.equal(
         [input_node.get_partial_shape() for input_node in model_inputs],
@@ -560,7 +583,9 @@ def test_sink_model_ctor():
     assert len(model.get_ops()) == 6
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
-    assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
+    assert (
+        model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
+    )
     assert list(model.get_output_shape(0)) == [2, 2]
     assert (model.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(model.get_parameters()) == 1
@@ -574,7 +599,9 @@ def test_sink_model_ctor_without_init_subgraph():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
+    model = Model(
+        results=[res], sinks=[node], parameters=[input_data], name="TestModel"
+    )
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -732,11 +759,11 @@ def test_layout():
 
 def test_layout_helpers():
     layout = Layout("NCHWD")
-    assert (layout_helpers.has_batch(layout))
-    assert (layout_helpers.has_channels(layout))
-    assert (layout_helpers.has_depth(layout))
-    assert (layout_helpers.has_height(layout))
-    assert (layout_helpers.has_width(layout))
+    assert layout_helpers.has_batch(layout)
+    assert layout_helpers.has_channels(layout)
+    assert layout_helpers.has_depth(layout)
+    assert layout_helpers.has_height(layout)
+    assert layout_helpers.has_width(layout)
 
     assert layout_helpers.batch_idx(layout) == 0
     assert layout_helpers.channels_idx(layout) == 1
@@ -745,8 +772,8 @@ def test_layout_helpers():
     assert layout_helpers.depth_idx(layout) == 4
 
     layout = Layout("N...C")
-    assert (layout_helpers.has_batch(layout))
-    assert (layout_helpers.has_channels(layout))
+    assert layout_helpers.has_batch(layout)
+    assert layout_helpers.has_channels(layout)
     assert not (layout_helpers.has_depth(layout))
     assert not (layout_helpers.has_height(layout))
     assert not (layout_helpers.has_width(layout))
@@ -764,8 +791,8 @@ def test_layout_helpers():
         layout_helpers.depth_idx(layout)
 
     layout = Layout("NC?")
-    assert (layout_helpers.has_batch(layout))
-    assert (layout_helpers.has_channels(layout))
+    assert layout_helpers.has_batch(layout)
+    assert layout_helpers.has_channels(layout)
     assert not (layout_helpers.has_depth(layout))
     assert not (layout_helpers.has_height(layout))
     assert not (layout_helpers.has_width(layout))

@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/node.hpp"
-
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-template<typename T>
+template <typename T>
 static inline std::string vecToString(std::vector<T> vec) {
     if (vec.empty())
         return "";
@@ -26,7 +25,7 @@ static inline std::string vecToString(std::vector<T> vec) {
     return res;
 }
 
-template<>
+template <>
 inline std::string vecToString<std::string>(std::vector<std::string> vec) {
     if (vec.empty())
         return "";
@@ -40,7 +39,7 @@ inline std::string vecToString<std::string>(std::vector<std::string> vec) {
 
 class CustomLayerAttributeVisitor : public ov::AttributeVisitor {
 public:
-    CustomLayerAttributeVisitor() : m_values({}) { }
+    CustomLayerAttributeVisitor() : m_values({}) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         OPENVINO_THROW("Attribute ", name, " can't be processed\n");
@@ -131,21 +130,25 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     for (const auto& param : customLayer->KernelParams()) {
         switch (param.type) {
         case CustomLayer::ParamType::Input: {
-            kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
+            kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1)
+                                        ? kernelParameters.size()
+                                        : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_input;
-            kernelParameters[param.paramIndex].index =
-                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= static_cast<int>(inputs.size())) ? -1 : param.portIndex);
+            kernelParameters[param.paramIndex].index = static_cast<cldnn::custom_gpu_primitive::arg_index>(
+                (param.portIndex >= static_cast<int>(inputs.size())) ? -1 : param.portIndex);
 
             // Handle input reorder
             if (param.portIndex < static_cast<int>(inputs.size()) && reordered_inputs[param.portIndex].pid.empty()) {
-                // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for another)
+                // todo: add support for multiple reorders of the same input? (read as bfyx for one arg and yxfb for
+                // another)
                 if (param.format != cldnn::format::any) {
-                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preCustomLayerTag;
-                    auto preprocessPrim = cldnn::reorder(
-                        reorderPrimName,
-                        inputs[param.portIndex],
-                        param.format,
-                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)));
+                    auto reorderPrimName = inputs[param.portIndex].pid + "_" + op->get_friendly_name() +
+                                           ProgramBuilder::m_preCustomLayerTag;
+                    auto preprocessPrim =
+                        cldnn::reorder(reorderPrimName,
+                                       inputs[param.portIndex],
+                                       param.format,
+                                       cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)));
 
                     p.add_primitive(*op, preprocessPrim);
                     reordered_inputs[param.portIndex] = cldnn::input_info(reorderPrimName);
@@ -156,10 +159,12 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             break;
         }
         case CustomLayer::ParamType::Output: {
-            kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
+            kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1)
+                                        ? kernelParameters.size()
+                                        : size_t(param.paramIndex + 1));
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_output;
-            kernelParameters[param.paramIndex].index =
-                static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= static_cast<int>(inputs.size())) ? -1 : param.portIndex);
+            kernelParameters[param.paramIndex].index = static_cast<cldnn::custom_gpu_primitive::arg_index>(
+                (param.portIndex >= static_cast<int>(inputs.size())) ? -1 : param.portIndex);
             outputFormat = param.format;
             break;
         }
@@ -167,7 +172,8 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }
     }
-    const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
+    const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " +
+                                 customLayer->Name() + "\n");
     const std::string defineTitle("// Custom Layer User Defines\n");
 
     auto dims = op->get_output_shape(0);
@@ -177,7 +183,8 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     size_t W = (dims.size() > 3) ? dims[3] : 1;
     cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
 
-    cldnn::layout outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
+    cldnn::layout outputLayout =
+        cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
 
     // evaluate work sizes rules
     std::vector<size_t> gws, lws;
@@ -202,10 +209,14 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         batchDim = dims.size() > 3 ? static_cast<int>(inputDims[inputDims.size() - 4]) : 0;
     }
     const std::map<char, int> vars = {
-        { 'b', batchDim }  , { 'B', batchDim },
-        { 'f', featureDim }, { 'F', featureDim },
-        { 'y', yDim },       { 'Y', yDim },
-        { 'x', xDim },       { 'X', xDim },
+        {'b', batchDim},
+        {'B', batchDim},
+        {'f', featureDim},
+        {'F', featureDim},
+        {'y', yDim},
+        {'Y', yDim},
+        {'x', xDim},
+        {'X', xDim},
     };
     for (const auto& rule : customLayer->GlobalSizeRules()) {
         SimpleMathExpression expr;
@@ -222,7 +233,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
     auto customPrim = cldnn::custom_gpu_primitive(genericLayerName,
                                                   reordered_inputs,
-                                                  { layerTitle, defineTitle, layerDefines, customLayer->KernelSource() },
+                                                  {layerTitle, defineTitle, layerDefines, customLayer->KernelSource()},
                                                   customLayer->KernelEntry(),
                                                   kernelParameters,
                                                   customLayer->CompilerOptions(),
@@ -235,10 +246,11 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     if (outputLayout.format != cldnn::format::any) {
         // Handle output reorder
         auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag;
-        p.add_primitive(*op, cldnn::reorder(reorderPrimName,
-                                            cldnn::input_info(genericLayerName),
-                                            cldnn::format::get_default_format(op->get_output_shape(0).size()),
-                                            customPrim.output_layout.data_type));
+        p.add_primitive(*op,
+                        cldnn::reorder(reorderPrimName,
+                                       cldnn::input_info(genericLayerName),
+                                       cldnn::format::get_default_format(op->get_output_shape(0).size()),
+                                       customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }
 }

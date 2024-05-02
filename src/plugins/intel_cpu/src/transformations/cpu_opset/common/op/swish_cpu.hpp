@@ -15,11 +15,11 @@ public:
 
     SwishNode() = default;
 
-    explicit SwishNode(const ov::Output<Node> &input, float alpha = 1.0);
+    explicit SwishNode(const ov::Output<Node>& input, float alpha = 1.0);
 
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector &new_args) const override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     float get_alpha() const;
 
@@ -27,5 +27,5 @@ protected:
     float m_alpha;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

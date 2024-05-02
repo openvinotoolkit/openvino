@@ -2,33 +2,59 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from utils.file_utils import prepare_filelist, find_latest_dir
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from utils.conformance_utils import get_logger
 from utils.constants import SUPPORTED_MODEL_EXTENSION
+from utils.file_utils import find_latest_dir, prepare_filelist
 
 logger = get_logger("prepare_model_list")
 
-def get_default_re_path(is_take_all_models = False):
+
+def get_default_re_path(is_take_all_models=False):
     SCRIPT_DIR_PATH, _ = os.path.split(os.path.abspath(__file__))
-    return os.path.join(SCRIPT_DIR_PATH, "..", "data", "custom_re_to_find_models.lst") if is_take_all_models else os.path.join(SCRIPT_DIR_PATH, "..", "data", "default_re_to_find_models.lst")
+    return (
+        os.path.join(SCRIPT_DIR_PATH, "..", "data", "custom_re_to_find_models.lst")
+        if is_take_all_models
+        else os.path.join(
+            SCRIPT_DIR_PATH, "..", "data", "default_re_to_find_models.lst"
+        )
+    )
+
 
 def parse_arguments():
     parser = ArgumentParser()
 
-    model_help = "Path to model directories path file to prepare filelist. Separator is `,`"
+    model_help = (
+        "Path to model directories path file to prepare filelist. Separator is `,`"
+    )
     output_help = "Path to output dir to save model list file"
     filename_help = "Output filename to save model list file"
     latest_only_help = "Use only latest directory matched reg exp. In other case all directories will be taken from the dir"
 
     parser.add_argument("-m", "--model_dirs", type=str, help=model_help, required=True)
-    parser.add_argument("-o", "--output_dir", type=str, help=output_help, required=False, default=".")
-    parser.add_argument("-f", "--filename", type=str, help=filename_help, required=False, default="model_filelist")
-    parser.add_argument("-l", "--latest_only", type=bool, help=latest_only_help, required=False, default=False)
+    parser.add_argument(
+        "-o", "--output_dir", type=str, help=output_help, required=False, default="."
+    )
+    parser.add_argument(
+        "-f",
+        "--filename",
+        type=str,
+        help=filename_help,
+        required=False,
+        default="model_filelist",
+    )
+    parser.add_argument(
+        "-l",
+        "--latest_only",
+        type=bool,
+        help=latest_only_help,
+        required=False,
+        default=False,
+    )
 
     return parser.parse_args()
 
@@ -36,7 +62,7 @@ def parse_arguments():
 def str_to_dir_list(input_str: str):
     dir_path_list = []
     while True:
-        separator_pos = input_str.find(',')
+        separator_pos = input_str.find(",")
         dir_path = ""
         if separator_pos == -1:
             if len(input_str) > 0:
@@ -46,8 +72,8 @@ def str_to_dir_list(input_str: str):
                 break
         else:
             dir_path = input_str[:separator_pos:]
-            input_str = input_str[separator_pos+1::]
-            separator_pos = input_str.find(',')
+            input_str = input_str[separator_pos + 1 : :]
+            separator_pos = input_str.find(",")
         if os.path.isdir(dir_path):
             dir_path_list.append(dir_path)
     logger.info(f"Model dir list: {dir_path_list}")
@@ -61,15 +87,20 @@ def read_dir_re_exp(re_exp_file_path: str):
             for line in re_exp_file.readlines():
                 if "#" in line:
                     continue
-                dir_re_exps.append(line.replace('\n', ''))
+                dir_re_exps.append(line.replace("\n", ""))
     if len(dir_re_exps) == 0:
-        dir_re_exps.append('*')
+        dir_re_exps.append("*")
     logger.info(f"Model dir re exp list: {dir_re_exps}")
     return dir_re_exps
 
 
-def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_path: os.path, is_latest_only: bool):
-    with open(output_file_path, 'w', newline='\n') as output_file:
+def generate_model_list_file(
+    input_str: str,
+    re_exp_file_path: str,
+    output_file_path: os.path,
+    is_latest_only: bool,
+):
+    with open(output_file_path, "w", newline="\n") as output_file:
         model_dir_paths = str_to_dir_list(input_str)
         dir_re_exps = read_dir_re_exp(re_exp_file_path)
         model_list = list()
@@ -87,7 +118,13 @@ def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_
                 for dir in dirs:
                     try:
                         logger.info(f"Processing dir: {dir}")
-                        model_list.extend(prepare_filelist(str(dir), SUPPORTED_MODEL_EXTENSION, is_save_to_file=False))
+                        model_list.extend(
+                            prepare_filelist(
+                                str(dir),
+                                SUPPORTED_MODEL_EXTENSION,
+                                is_save_to_file=False,
+                            )
+                        )
                         if is_latest_only:
                             break
                     except:
@@ -98,6 +135,7 @@ def generate_model_list_file(input_str: str, re_exp_file_path: str, output_file_
                 continue
             output_file.write(f"{line}\n")
         output_file.close()
+
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -110,5 +148,7 @@ if __name__ == "__main__":
     if not args.latest_only:
         logger.warning(f"{re_file} will be taken to get all models from the dirs")
     output_model_list_file = os.path.join(args.output_dir, f"{args.filename}.lst")
-    generate_model_list_file(args.model_dirs, re_file, output_model_list_file, args.latest_only)
+    generate_model_list_file(
+        args.model_dirs, re_file, output_model_list_file, args.latest_only
+    )
     logger.info(f"Model file list is saved to {output_model_list_file}")

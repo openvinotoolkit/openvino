@@ -3,7 +3,7 @@
 
 import collections
 
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 
 
 class UnsupportedOps(object):
@@ -13,8 +13,8 @@ class UnsupportedOps(object):
         self.unsupported = collections.defaultdict(list)
 
     def add(self, node: Node):
-        op = node.op if node.has_valid('op') else '<UNKNOWN OP>'
-        name = node.name if node.has_valid('name') else '<UNKNOWN NAME>'
+        op = node.op if node.has_valid("op") else "<UNKNOWN OP>"
+        name = node.name if node.has_valid("name") else "<UNKNOWN NAME>"
         self.unsupported[op].append(name)
 
     def report(self, reporter, header=None):
@@ -22,6 +22,6 @@ class UnsupportedOps(object):
             if header:
                 reporter(header)
             for k, v in self.unsupported.items():
-                reporter(' ' * 4 + str(k) + ' (' + str(len(v)) + ')')
+                reporter(" " * 4 + str(k) + " (" + str(len(v)) + ")")
                 for node_name in v:
-                    reporter(' ' * 8 + node_name)
+                    reporter(" " * 8 + node_name)

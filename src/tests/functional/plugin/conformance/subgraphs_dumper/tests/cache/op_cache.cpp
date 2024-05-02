@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cache/op_cache.hpp"
+
 #include <memory>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/util/file_util.hpp"
-
+#include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "cache/op_cache.hpp"
-#include "utils/node.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/cache.hpp"
-
-#include "base_test.hpp"
+#include "utils/node.hpp"
 
 namespace {
 
@@ -34,7 +32,7 @@ protected:
         test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
-            auto params = ov::ParameterVector {
+            auto params = ov::ParameterVector{
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
             };
             auto convert = std::make_shared<ov::op::v0::Convert>(params.front(), ov::element::f16);
@@ -77,8 +75,7 @@ TEST_F(OpCacheFuncTest, serialize_cache) {
 
 // ====================== Operation Cache Unit tests ==============================
 
-class OpCacheUnitTest : public OpCacheFuncTest,
-                        public virtual OpCache {
+class OpCacheUnitTest : public OpCacheFuncTest, public virtual OpCache {
 protected:
     std::shared_ptr<ov::op::v0::Convert> convert_node;
     ov::conformance::MetaInfo test_meta;
@@ -162,8 +159,8 @@ TEST_F(OpCacheUnitTest, serialize_op) {
     this->set_serialization_dir(test_artifacts_dir);
     ASSERT_TRUE(this->serialize_op({convert_node, test_meta}));
     ASSERT_TRUE(ov::util::directory_exists(test_artifacts_dir));
-    auto serialized_model_path = ov::util::path_join({test_artifacts_dir,
-        "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
+    auto serialized_model_path =
+        ov::util::path_join({test_artifacts_dir, "operation", "static", "Convert-1", "f16", "Convert-1_0.xml"});
     ASSERT_TRUE(ov::util::file_exists(serialized_model_path));
     auto serialized_model = ov::util::core->read_model(serialized_model_path);
     auto res = compare_functions(test_model, serialized_model, true, false, true, true, true, false);

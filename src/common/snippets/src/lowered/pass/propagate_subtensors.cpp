@@ -4,11 +4,11 @@
 
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -22,7 +22,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                                               bool most_outer_loop,
                                               const size_t new_dim_value = SIZE_MAX) {
     OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != SIZE_MAX),
-                    "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be equal to default value");
+                    "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be "
+                    "equal to default value");
     std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
     // First step: set new dim value to the corresponding entry_points' dimensions
     if (most_outer_loop) {
@@ -37,7 +38,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                     desc->set_subtensor(subtensor);
                 }
 
-                const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
+                const auto parent_desc =
+                    expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
                 const auto& parent_shape = parent_desc->get_shape();
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = parent_shape;
@@ -54,7 +56,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
             const auto desc = port.expr_port->get_descriptor_ptr();
             const auto expr = port.expr_port->get_expr();
-            const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
+            const auto parent_desc =
+                expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
 
             const auto& parent_shape = parent_desc->get_shape();
             const auto& desc_subtensor = desc->get_subtensor();
@@ -73,8 +76,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         for (const auto& desc : descs) {
             const auto& subtensor = desc->get_subtensor();
             if (!subtensor.empty()) {
-                auto planar_dims = is_input ? snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout())
-                                            : snippets::utils::get_preordered_vdims(desc->get_shape(), desc->get_layout());
+                auto planar_dims = is_input
+                                       ? snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout())
+                                       : snippets::utils::get_preordered_vdims(desc->get_shape(), desc->get_layout());
                 const size_t subtensor_start = planar_dims.size() - subtensor.size();
                 VectorDims new_subtensor(planar_dims.begin() + subtensor_start, planar_dims.end());
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
@@ -109,7 +113,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             continue;
         }
         if ((ov::is_type<snippets::op::BroadcastMove>(expr_it->get()->get_node()) ||
-            ov::is_type<snippets::op::BroadcastLoad>(expr_it->get()->get_node())) &&
+             ov::is_type<snippets::op::BroadcastLoad>(expr_it->get()->get_node())) &&
             loop_by_last_dim) {
             // WA: we have to break subtensor propagation if we try to propagate new last dim through Broadcast nodes
             // which broadcast last dim in original dimension value anyway
@@ -154,8 +158,7 @@ std::shared_ptr<pass::PassBase> UpdateSubtensors::merge(const std::shared_ptr<pa
     return merged_pass;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

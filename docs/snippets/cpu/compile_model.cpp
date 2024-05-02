@@ -1,6 +1,5 @@
 #include <openvino/runtime/core.hpp>
 
-
 int main() {
     {
         //! [compile_model_default]

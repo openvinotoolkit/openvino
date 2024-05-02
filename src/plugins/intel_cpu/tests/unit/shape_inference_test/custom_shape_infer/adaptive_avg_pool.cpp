@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
 #include "openvino/op/ops.hpp"
@@ -14,13 +15,13 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-using AdaptiveAvgPoolV8TestParams = std::tuple<unit_test::ShapeVector, // Input shapes
-                                               std::vector<int32_t>,   // output_shapes
-                                               StaticShape             // Expected shape
+using AdaptiveAvgPoolV8TestParams = std::tuple<unit_test::ShapeVector,  // Input shapes
+                                               std::vector<int32_t>,    // output_shapes
+                                               StaticShape              // Expected shape
                                                >;
 
-class AdaptiveAvgPoolV8CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v8::AdaptiveAvgPool>,
-                                                public WithParamInterface<AdaptiveAvgPoolV8TestParams> {
+class AdaptiveAvgPoolV8CpuShapeInferenceTest : public unit_test::OpCpuShapeInferenceTest<op::v8::AdaptiveAvgPool>,
+                                               public WithParamInterface<AdaptiveAvgPoolV8TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AdaptiveAvgPoolV8TestParams>& obj) {
         unit_test::ShapeVector tmp_input_shapes;
@@ -46,14 +47,14 @@ protected:
     bool specalZero;
 };
 
-TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest , shape_inference_empty_const_map) {
+TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest, shape_inference_empty_const_map) {
     const auto axes_node = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{axes.size()}, axes);
     const auto op = make_op(arg, axes_node);
 
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) {
+TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest, shape_inference_with_const_map) {
     const auto axes_node = std::make_shared<op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(arg, axes_node);
 
@@ -65,11 +66,13 @@ TEST_P(AdaptiveAvgPoolV8CpuShapeInferenceTest , shape_inference_with_const_map) 
 
 INSTANTIATE_TEST_SUITE_P(
     CpuShapeInfer,
-    AdaptiveAvgPoolV8CpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{1, 3, 1, 2}, {2}}, std::vector<int32_t>{10, 20}, StaticShape({1, 3, 10, 20})),
+    AdaptiveAvgPoolV8CpuShapeInferenceTest,
+    Values(make_tuple(unit_test::ShapeVector{{1, 3, 1, 2}, {2}},
+                      std::vector<int32_t>{10, 20},
+                      StaticShape({1, 3, 10, 20})),
            make_tuple(unit_test::ShapeVector{{1, 2, 10}, {1}}, std::vector<int32_t>{17}, StaticShape({1, 2, 17}))),
     AdaptiveAvgPoolV8CpuShapeInferenceTest::getTestCaseName);
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

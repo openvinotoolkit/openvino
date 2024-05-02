@@ -8,9 +8,9 @@
 #include "test_utils/test_utils.h"
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-    #define RUN_CACHING_TEST false, true
+#    define RUN_CACHING_TEST false, true
 #else
-    #define RUN_CACHING_TEST false
+#    define RUN_CACHING_TEST false
 #endif
 
 using namespace cldnn;
@@ -72,10 +72,12 @@ public:
         topology.add(input_layout("grid", grid->get_layout()));
         topology.add(reorder("reordered_data", input_info("data"), fmt, data_data_type));
         topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_data_type));
-        topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
+        topology.add(
+            grid_sample("grid_sample", {input_info("reordered_data"), input_info("reordered_grid")}, p.attributes));
         topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("data", data);
         network->set_input_data("grid", grid);
         const auto outputs = network->execute();
@@ -694,12 +696,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
-INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
-                         grid_sample_gpu_test_FLOAT16_FLOAT16,
-                         testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<ov::float16, ov::float16>()),
-                                          testing::Values(format::bfyx),
-                                          testing::Values(true)),
-                         grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
+    grid_sample_gpu_test_FLOAT16_FLOAT16,
+    testing::Combine(testing::ValuesIn(getNearestParamsOddDimensionsOuterGrids<ov::float16, ov::float16>()),
+                     testing::Values(format::bfyx),
+                     testing::Values(true)),
+    grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 #endif
 
 class grid_sample_gpu_dynamic : public ::testing::TestWithParam<grid_sample_test_params<float, float>> {};
@@ -736,7 +739,8 @@ TEST_P(grid_sample_gpu_dynamic, basic) {
     topology.add(input_layout("grid", in1_layout));
     topology.add(reorder("reordered_data", input_info("data"), fmt, data_data_type));
     topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_data_type));
-    topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
+    topology.add(
+        grid_sample("grid_sample", {input_info("reordered_data"), input_info("reordered_grid")}, p.attributes));
     topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -757,21 +761,17 @@ TEST_P(grid_sample_gpu_dynamic, basic) {
     }
 }
 
-const std::vector<format::type> dynamic_layout_formats = {
-    format::bfyx
-};
+const std::vector<format::type> dynamic_layout_formats = {format::bfyx};
 
 std::vector<grid_sample_test_inputs<float, float>> dynamicGridSampleTestInputs() {
     return {
-        {
-            {1, 1, 3, 5},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-            {1, 1, 7, 2},
-            {-10.1f, -9.7f, -7.55f, 0.37f, -77.f, 11.56f, 0.5f, 2.55f, 1.7f, 1.1f, 3.f, -0.17f, 1.301f, -1.001f},
-            {true, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::BORDER},
-            {1, 6, 11, 14, 15, 10, 5},
-            "nearest_border_align_odd_dims_outer"
-        },
+        {{1, 1, 3, 5},
+         {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+         {1, 1, 7, 2},
+         {-10.1f, -9.7f, -7.55f, 0.37f, -77.f, 11.56f, 0.5f, 2.55f, 1.7f, 1.1f, 3.f, -0.17f, 1.301f, -1.001f},
+         {true, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::BORDER},
+         {1, 6, 11, 14, 15, 10, 5},
+         "nearest_border_align_odd_dims_outer"},
     };
 }
 

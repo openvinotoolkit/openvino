@@ -4,11 +4,12 @@
 import unittest
 from unittest.mock import patch
 
+from unit_tests.utils.extractors import FakeMultiParam
+from unit_tests.utils.graph import FakeNode
+
 from openvino.tools.mo.front.caffe.normalize_ext import NormalizeFrontExtractor
 from openvino.tools.mo.ops.normalize import NormalizeOp
 from openvino.tools.mo.ops.op import Op
-from unit_tests.utils.extractors import FakeMultiParam
-from unit_tests.utils.graph import FakeNode
 
 
 class FakeNormalizeProtoLayer:
@@ -19,21 +20,15 @@ class FakeNormalizeProtoLayer:
 class TestNormalizeExt(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['Normalize'] = NormalizeOp
+        Op.registered_ops["Normalize"] = NormalizeOp
 
     def test_normalize_no_pb_no_ml(self):
         self.assertRaises(AttributeError, NormalizeFrontExtractor.extract, None)
 
-    @patch('openvino.tools.mo.front.caffe.normalize_ext.collect_attributes')
+    @patch("openvino.tools.mo.front.caffe.normalize_ext.collect_attributes")
     def test_normalize_ext_ideal_numbers(self, collect_attributes_mock):
-        params = {
-            'across_spatial': 1,
-            'channel_shared': 0,
-            'eps': 0.00001
-        }
-        collect_attributes_mock.return_value = {
-            **params
-        }
+        params = {"across_spatial": 1, "channel_shared": 0, "eps": 0.00001}
+        collect_attributes_mock.return_value = {**params}
 
         fake_pl = FakeNormalizeProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
@@ -41,10 +36,10 @@ class TestNormalizeExt(unittest.TestCase):
         NormalizeFrontExtractor.extract(fake_node)
 
         exp_res = {
-            'type': "Normalize",
-            'across_spatial': 1,
-            'channel_shared': 0,
-            'eps': 0.00001,
+            "type": "Normalize",
+            "across_spatial": 1,
+            "channel_shared": 0,
+            "eps": 0.00001,
         }
 
         for key in exp_res.keys():

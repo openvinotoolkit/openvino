@@ -2,30 +2,34 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import datetime
+import os
 from contextlib import nullcontext as does_not_raise
 from copy import deepcopy
-import numpy as np
-import os
-import pytest
-import datetime
-import openvino.properties as props
 
+import numpy as np
+import openvino.properties as props
 import openvino.runtime.opset13 as ops
+import pytest
+from openvino.preprocess import PrePostProcessor
+from openvino.runtime import ProfilingInfo
+from tests.utils.helpers import (
+    generate_image,
+    generate_model_with_memory,
+    get_relu_model,
+)
+
 from openvino import (
-    Core,
     CompiledModel,
-    Model,
+    Core,
     Layout,
+    Model,
     PartialShape,
     Shape,
-    Type,
     Tensor,
+    Type,
     compile_model,
 )
-from openvino.runtime import ProfilingInfo
-from openvino.preprocess import PrePostProcessor
-
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
 
 
 def create_simple_request_and_inputs(device):
@@ -249,7 +253,10 @@ def test_batched_tensors(device):
 
     with pytest.raises(RuntimeError) as e:
         req.get_tensor("tensor_input0")
-    assert "get_tensor shall not be used together with batched set_tensors/set_input_tensors" in str(e.value)
+    assert (
+        "get_tensor shall not be used together with batched set_tensors/set_input_tensors"
+        in str(e.value)
+    )
 
     actual_tensor = req.get_tensor("tensor_output0")
     actual = actual_tensor.data
@@ -260,7 +267,9 @@ def test_batched_tensors(device):
         req.infer()  # Adds '1' to each element
 
         # Reference values for each batch:
-        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape([2, 2, 2])
+        _tmp = np.array([test_num + 11] * one_shape_size, dtype=np.float32).reshape(
+            [2, 2, 2]
+        )
 
         for idx in range(0, batch):
             assert np.array_equal(actual[idx], _tmp)
@@ -298,7 +307,9 @@ def test_infer_list_as_inputs(device, share_inputs):
 
     def check_fill_inputs(request, inputs):
         for input_idx in range(len(inputs)):
-            assert np.array_equal(request.get_input_tensor(input_idx).data, inputs[input_idx])
+            assert np.array_equal(
+                request.get_input_tensor(input_idx).data, inputs[input_idx]
+            )
 
     request = compiled_model.create_infer_request()
 
@@ -330,41 +341,49 @@ def test_infer_mixed_keys(device, share_inputs):
     assert np.argmax(res[compiled_model.output()]) == 531
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.bf16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.u32, np.uint32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-    (Type.u64, np.uint64),
-    (Type.boolean, bool),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.bf16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.u32, np.uint32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+        (Type.u64, np.uint64),
+        (Type.boolean, bool),
+    ],
+)
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(
+        request.output_tensors[0].data, np.concatenate((tensor1.data, array1))
+    )
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+    ],
+)
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_single_input(device, ov_type, numpy_dtype, share_inputs):
     _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)
@@ -392,11 +411,16 @@ def test_get_compiled_model(device):
     assert np.allclose(ref[0], test[0])
 
 
-@pytest.mark.parametrize("data_type",
-                         [np.float32,
-                          np.int32,
-                          np.float16])
-@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal", "reset_via_infer_request"])
+@pytest.mark.parametrize("data_type", [np.float32, np.int32, np.float16])
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "set_init_memory_state",
+        "reset_memory_state",
+        "normal",
+        "reset_via_infer_request",
+    ],
+)
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
 @pytest.mark.skipif(
     os.environ.get("TEST_DEVICE", "CPU") not in ["CPU", "GPU"],
@@ -406,8 +430,9 @@ def test_get_compiled_model(device):
 def test_query_state_write_buffer(device, input_shape, data_type, mode):
     core = Core()
 
-    from openvino import Tensor
     from openvino.runtime.utils.types import get_dtype
+
+    from openvino import Tensor
 
     model = generate_model_with_memory(input_shape, data_type)
     model.validate_nodes_and_infer_types()
@@ -423,7 +448,9 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
         if mode == "set_init_memory_state":
             # create initial value
             const_init = 5
-            init_array = np.full(input_shape, const_init, dtype=get_dtype(mem_state.state.element_type))
+            init_array = np.full(
+                input_shape, const_init, dtype=get_dtype(mem_state.state.element_type)
+            )
             tensor = Tensor(init_array)
             mem_state.state = tensor
 
@@ -445,7 +472,9 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
+        assert np.allclose(
+            res[list(res)[0]], expected_res, atol=1e-6
+        ), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -526,7 +555,8 @@ def test_infer_float16(device, share_inputs):
     <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
     <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     core = Core()
     model = core.read_model(model=model)
     ppp = PrePostProcessor(model)
@@ -619,7 +649,7 @@ def test_inputs_tuple_not_replaced(device, share_inputs):
 def test_invalid_inputs(device, share_inputs):
     request, _, _ = create_simple_request_and_inputs(device)
 
-    class InvalidInput():
+    class InvalidInput:
         pass
 
     inputs = InvalidInput()
@@ -690,14 +720,17 @@ def test_convert_infer_request(device):
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.parametrize("input_data", [
-    np.array(1.0, dtype=np.float32),
-    np.array(1, dtype=np.int32),
-    np.float32(1.0),
-    np.int32(1.0),
-    1.0,
-    1,
-])
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        np.array(1.0, dtype=np.float32),
+        np.array(1, dtype=np.int32),
+        np.float32(1.0),
+        np.int32(1.0),
+        1.0,
+        1,
+    ],
+)
 def test_only_scalar_infer(device, share_inputs, input_data):
     core = Core()
     param = ops.parameter([], np.float32, name="data")
@@ -712,21 +745,28 @@ def test_only_scalar_infer(device, share_inputs, input_data):
     assert res[request.model_outputs[0]] == np.maximum(input_data, 0)
 
     input_tensor = request.get_input_tensor()
-    if share_inputs and isinstance(input_data, np.ndarray) and input_data.dtype == input_tensor.data.dtype:
+    if (
+        share_inputs
+        and isinstance(input_data, np.ndarray)
+        and input_data.dtype == input_tensor.data.dtype
+    ):
         assert np.shares_memory(input_data, input_tensor.data)
     else:
         assert not np.shares_memory(input_data, input_tensor.data)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.parametrize("input_data", [
-    {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
-    {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
-    {0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
-    {0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
-    {0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
-    {0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
-])
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
+        {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
+        {0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
+        {0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
+        {0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
+        {0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
+    ],
+)
 def test_mixed_scalar_infer(device, share_inputs, input_data):
     core = Core()
     param0 = ops.parameter([], np.float32, name="data0")
@@ -739,17 +779,25 @@ def test_mixed_scalar_infer(device, share_inputs, input_data):
 
     res = request.infer(input_data, share_inputs=share_inputs)
 
-    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+    assert np.allclose(
+        res[request.model_outputs[0]], np.add(input_data[0], input_data[1])
+    )
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
 
     if share_inputs:
-        if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
+        if (
+            isinstance(input_data[0], np.ndarray)
+            and input_data[0].dtype == input_tensor0.data.dtype
+        ):
             assert np.shares_memory(input_data[0], input_tensor0.data)
         else:
             assert not np.shares_memory(input_data[0], input_tensor0.data)
-        if isinstance(input_data[1], np.ndarray) and input_data[1].dtype == input_tensor1.data.dtype:
+        if (
+            isinstance(input_data[1], np.ndarray)
+            and input_data[1].dtype == input_tensor1.data.dtype
+        ):
             assert np.shares_memory(input_data[1], input_tensor1.data)
         else:
             assert not np.shares_memory(input_data[1], input_tensor1.data)
@@ -759,10 +807,16 @@ def test_mixed_scalar_infer(device, share_inputs, input_data):
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.parametrize("input_data", [
-    {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0], dtype=np.float32)},
-    {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0, 3.0, 3.0], dtype=np.float32)},
-])
+@pytest.mark.parametrize(
+    "input_data",
+    [
+        {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0], dtype=np.float32)},
+        {
+            0: np.array(1.0, dtype=np.float32),
+            1: np.array([3.0, 3.0, 3.0], dtype=np.float32),
+        },
+    ],
+)
 def test_mixed_dynamic_infer(device, share_inputs, input_data):
     core = Core()
     param0 = ops.parameter([], np.float32, name="data0")
@@ -775,17 +829,25 @@ def test_mixed_dynamic_infer(device, share_inputs, input_data):
 
     res = request.infer(input_data, share_inputs=share_inputs)
 
-    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+    assert np.allclose(
+        res[request.model_outputs[0]], np.add(input_data[0], input_data[1])
+    )
 
     input_tensor0 = request.get_input_tensor(0)
     input_tensor1 = request.get_input_tensor(1)
 
     if share_inputs:
-        if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
+        if (
+            isinstance(input_data[0], np.ndarray)
+            and input_data[0].dtype == input_tensor0.data.dtype
+        ):
             assert np.shares_memory(input_data[0], input_tensor0.data)
         else:
             assert not np.shares_memory(input_data[0], input_tensor0.data)
-        if isinstance(input_data[1], np.ndarray) and input_data[1].dtype == input_tensor1.data.dtype:
+        if (
+            isinstance(input_data[1], np.ndarray)
+            and input_data[1].dtype == input_tensor1.data.dtype
+        ):
             assert np.shares_memory(input_data[1], input_tensor1.data)
         else:
             assert not np.shares_memory(input_data[1], input_tensor1.data)
@@ -795,10 +857,13 @@ def test_mixed_dynamic_infer(device, share_inputs, input_data):
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-@pytest.mark.parametrize(("input_data", "change_flags"), [
-    ({0: np.frombuffer(b"\x01\x02\x03\x04", np.uint8)}, False),
-    ({0: np.array([1, 2, 3, 4], dtype=np.uint8)}, True),
-])
+@pytest.mark.parametrize(
+    ("input_data", "change_flags"),
+    [
+        ({0: np.frombuffer(b"\x01\x02\x03\x04", np.uint8)}, False),
+        ({0: np.array([1, 2, 3, 4], dtype=np.uint8)}, True),
+    ],
+)
 def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flags):
     if change_flags is True:
         input_data[0].setflags(write=0)
@@ -827,23 +892,31 @@ def test_not_writable_inputs_infer(device, share_inputs, input_data, change_flag
 @pytest.mark.parametrize("share_inputs", [True, False])
 @pytest.mark.parametrize("share_outputs", [True, False])
 @pytest.mark.parametrize("is_positional", [True, False])
-def test_compiled_model_share_memory(device, share_inputs, share_outputs, is_positional):
+def test_compiled_model_share_memory(
+    device, share_inputs, share_outputs, is_positional
+):
     compiled, _, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
 
     if is_positional:
-        results = compiled(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+        results = compiled(
+            input_data, share_inputs=share_inputs, share_outputs=share_outputs
+        )
     else:
         results = compiled(input_data, share_inputs, share_outputs)
 
     assert np.array_equal(results[0], np.abs(input_data))
 
-    in_tensor_shares = np.shares_memory(compiled._infer_request.get_input_tensor(0).data, input_data)
+    in_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_input_tensor(0).data, input_data
+    )
     if share_inputs:
         assert in_tensor_shares
     else:
         assert not in_tensor_shares
 
-    out_tensor_shares = np.shares_memory(compiled._infer_request.get_output_tensor(0).data, results[0])
+    out_tensor_shares = np.shares_memory(
+        compiled._infer_request.get_output_tensor(0).data, results[0]
+    )
     if share_outputs:
         assert out_tensor_shares
         assert results[0].flags["OWNDATA"] is False
@@ -859,7 +932,9 @@ def test_infer_request_share_memory(device, share_inputs, share_outputs, is_posi
     _, request, _, input_data = abs_model_with_data(device, Type.f32, np.float32)
 
     if is_positional:
-        results = request.infer(input_data, share_inputs=share_inputs, share_outputs=share_outputs)
+        results = request.infer(
+            input_data, share_inputs=share_inputs, share_outputs=share_outputs
+        )
     else:
         results = request.infer(input_data, share_inputs, share_outputs)
 

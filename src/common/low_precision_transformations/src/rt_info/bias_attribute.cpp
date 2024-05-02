@@ -3,14 +3,15 @@
 //
 
 #include "low_precision/rt_info/bias_attribute.hpp"
-#include "low_precision/network_helper.hpp"
 
 #include <iterator>
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 void ov::mark_as_bias(const std::shared_ptr<ov::Node>& node) {
     auto& rt = node->get_rt_info();

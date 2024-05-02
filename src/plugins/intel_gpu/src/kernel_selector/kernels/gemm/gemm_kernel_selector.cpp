@@ -3,10 +3,11 @@
 //
 
 #include "gemm_kernel_selector.h"
-#include "gemm_kernel_ref.h"
-#include "gemm_kernel_tiled_opt.h"
+
 #include "gemm_kernel_mmad_int8.h"
 #include "gemm_kernel_mmad_int8_slm.h"
+#include "gemm_kernel_ref.h"
+#include "gemm_kernel_tiled_opt.h"
 
 namespace kernel_selector {
 gemm_kernel_selector::gemm_kernel_selector() {

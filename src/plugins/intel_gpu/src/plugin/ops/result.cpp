@@ -3,14 +3,14 @@
 //
 
 #include "openvino/op/result.hpp"
-#include "openvino/op/nv12_to_rgb.hpp"
-#include "openvino/op/nv12_to_bgr.hpp"
-#include "openvino/op/i420_to_rgb.hpp"
-#include "openvino/op/i420_to_bgr.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -30,13 +30,11 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     auto out_format = cldnn::format::get_default_format(out_rank);
 
     auto out_primitive_name = layer_type_name_ID(op);
-    auto out_data_type = cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_input_element_type(0)));
+    auto out_data_type =
+        cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_input_element_type(0)));
 
-    auto reorder_primitive = cldnn::reorder(out_primitive_name,
-                                            inputs[0],
-                                            out_format,
-                                            out_data_type);
-    p.add_primitive(*op, reorder_primitive, { input_id, op->get_friendly_name() });
+    auto reorder_primitive = cldnn::reorder(out_primitive_name, inputs[0], out_format, out_data_type);
+    p.add_primitive(*op, reorder_primitive, {input_id, op->get_friendly_name()});
 
     if (!p.is_query_mode()) {
         int64_t port_index = p.get_result_index(op);

@@ -14,17 +14,17 @@ kaldi_type_extractors = {}
 def common_kaldi_fields(node: Node) -> dict:
     layer_type = node.op
     return {
-        'kind': 'op',
-        'name': node.id,
-        'op': layer_type,
+        "kind": "op",
+        "name": node.id,
+        "op": layer_type,
         # generic code relies on op; it should be overridden by specific op extractor
-        'infer': None,
+        "infer": None,
     }
 
 
 def kaldi_extractor(node: Node) -> (bool, dict):
     result = common_kaldi_fields(node)
-    layer_type = result['op']
+    layer_type = result["op"]
     if layer_type not in kaldi_type_extractors:
         supported = False
         return supported, result

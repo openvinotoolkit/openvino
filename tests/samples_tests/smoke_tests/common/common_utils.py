@@ -10,8 +10,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import subprocess
 import sys
+
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """
@@ -22,17 +24,19 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
     :param out_format: 'plain' or 'html'. If 'html' all '\n; symbols are replaced by '<br>' tag
     :return:
     """
-    if sys.platform.startswith('linux') or sys.platform == 'darwin':
-        cmd = ['/bin/bash', '-c', " ".join(cmd)]
+    if sys.platform.startswith("linux") or sys.platform == "darwin":
+        cmd = ["/bin/bash", "-c", " ".join(cmd)]
     else:
         cmd = " ".join(cmd)
 
     sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
-    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(
+        cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     (stdout, stderr) = p.communicate()
-    stdout = str(stdout.decode('utf-8'))
-    stderr = str(stderr.decode('utf-8'))
+    stdout = str(stdout.decode("utf-8"))
+    stderr = str(stderr.decode("utf-8"))
     if out_format == "html":
-        stdout = "<br>\n".join(stdout.split('\n'))
-        stderr = "<br>\n".join(stderr.split('\n'))
+        stdout = "<br>\n".join(stdout.split("\n"))
+        stderr = "<br>\n".join(stderr.split("\n"))
     return p.returncode, stdout, stderr

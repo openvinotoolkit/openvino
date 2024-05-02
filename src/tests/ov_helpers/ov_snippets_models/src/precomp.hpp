@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "openvino/openvino.hpp"
-#include "openvino/op/ops.hpp"
-
 #include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -22,7 +23,5 @@
 #include <utility>
 #include <vector>
 
-#include <cassert>
-#include <cctype>
-#include <cmath>
-#include <cstdlib>
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"

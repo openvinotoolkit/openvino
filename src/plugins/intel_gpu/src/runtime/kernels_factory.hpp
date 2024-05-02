@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/kernel.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "ocl/ocl_common.hpp"
-
 #include <memory>
+
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/kernel.hpp"
+#include "ocl/ocl_common.hpp"
 
 namespace cldnn {
 

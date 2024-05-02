@@ -4,12 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include "snippets/snippets_isa.hpp"
-#include "snippets/pass/insert_movebroadcast.hpp"
-
-#include "transformations/init_node_info.hpp"
-
 #include "common_test_utils/ov_test_utils.hpp"
+#include "snippets/pass/insert_movebroadcast.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

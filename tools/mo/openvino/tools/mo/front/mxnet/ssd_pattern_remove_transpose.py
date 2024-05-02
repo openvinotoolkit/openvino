@@ -1,10 +1,16 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.mxnet.ssd_pattern_flatten_softmax_activation import SsdPatternFlattenSoftmaxActivation
-from openvino.tools.mo.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
-from openvino.tools.mo.front.mxnet.ssd_pattern_remove_reshape import SsdPatternRemoveReshape
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.mxnet.ssd_pattern_flatten_softmax_activation import (
+    SsdPatternFlattenSoftmaxActivation,
+)
+from openvino.tools.mo.front.mxnet.ssd_pattern_remove_flatten import (
+    SsdPatternRemoveFlatten,
+)
+from openvino.tools.mo.front.mxnet.ssd_pattern_remove_reshape import (
+    SsdPatternRemoveReshape,
+)
 from openvino.tools.mo.graph.graph import Graph
 
 
@@ -12,19 +18,23 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
-        return [SsdPatternFlattenSoftmaxActivation, SsdPatternRemoveFlatten, SsdPatternRemoveReshape]
+        return [
+            SsdPatternFlattenSoftmaxActivation,
+            SsdPatternRemoveFlatten,
+            SsdPatternRemoveReshape,
+        ]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('transpose', dict(op='Transpose')),
-                ('softmax_activation', dict(op='SoftMax')),
-                ('multi_box_detection', dict(op='_contrib_MultiBoxDetection'))
+                ("transpose", dict(op="Transpose")),
+                ("softmax_activation", dict(op="SoftMax")),
+                ("multi_box_detection", dict(op="_contrib_MultiBoxDetection")),
             ],
             edges=[
-                ('transpose', 'softmax_activation', {'in': 0}),
-                ('softmax_activation', 'multi_box_detection', {'in': 1}),
-            ]
+                ("transpose", "softmax_activation", {"in": 0}),
+                ("softmax_activation", "multi_box_detection", {"in": 1}),
+            ],
         )
 
     def replace_sub_graph(self, graph: Graph, match: dict):
@@ -42,8 +52,8 @@ class SsdPatternRemoveTranspose(FrontReplacementSubgraph):
          match : dict
            Patterns which were found in graph structure.
         """
-        transpose_node = match['transpose']
-        softmax_activation = match['softmax_activation']
+        transpose_node = match["transpose"]
+        softmax_activation = match["softmax_activation"]
         transpose_in_node = transpose_node.in_node(0)
 
         graph.remove_edge(transpose_in_node.id, transpose_node.id)

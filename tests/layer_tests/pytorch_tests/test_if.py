@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 
-import pytest
 import numpy as np
-
+import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -31,12 +30,16 @@ class TestIf(PytorchLayerTest):
 
         return prim_if(), ref_net, "prim::If"
 
-    @pytest.mark.parametrize("y", [np.array(1),
-                                   np.array(-1)
-                                   ])
+    @pytest.mark.parametrize("y", [np.array(1), np.array(-1)])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 114818")
+    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Ticket - 114818")
     def test_if(self, y, ie_device, precision, ir_version):
         self.y = y
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
+        self._test(
+            *self.create_model(),
+            ie_device,
+            precision,
+            ir_version,
+            use_convert_model=True
+        )

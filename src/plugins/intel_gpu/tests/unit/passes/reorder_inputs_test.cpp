@@ -2,29 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <memory>
 
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/network.hpp"
-
-#include "data_inst.h"
-#include "eltwise_inst.h"
-#include "dft_inst.h"
-#include "gather_inst.h"
+#include "batch_to_space_inst.h"
 #include "border_inst.h"
+#include "concatenation_inst.h"
+#include "data_inst.h"
+#include "dft_inst.h"
+#include "eltwise_inst.h"
+#include "gather_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "program_wrapper.h"
+#include "random_generator.hpp"
 #include "reshape_inst.h"
 #include "strided_slice_inst.h"
-#include "batch_to_space_inst.h"
-#include "permute_inst.h"
-#include "concatenation_inst.h"
-#include "pass_manager.h"
+#include "test_utils.h"
 #include "to_string_utils.h"
-
-#include "program_wrapper.h"
-
-#include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -41,14 +38,14 @@ TEST(reorder_inputs, propagation) {
     // At most single reorder should be inserted before first convolution.
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 2, 32, 1, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f16, format::yxfb, {2, 32, 1, 1}});
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {32, 32, 1, 1}});
 
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
     topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-    topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
+    topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, {1, 1}, {1, 1}));
     topology.add(convolution("conv2", input_info("pool"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -86,10 +83,11 @@ TEST(reorder_inputs, mixed_ranks_irdft) {
     auto& engine = get_test_engine();
 
     topology topology;
-    topology.add(input_layout("input", layout{ { 1, 120, 2, 64, 33 }, data_types::f16, format::bfzyx }));
-    topology.add(input_layout("eltw_input", layout{ { 1, 120, 64, 64 }, data_types::f16, format::bfyx }));
-    topology.add(permute("permute", input_info("input"), { 0, 1, 3, 4, 2 }));
-    topology.add(dft("dft", input_info("permute"), {2, 3}, {64, 64}, {1, 120, 64, 64}, dft_direction::inverse, dft_mode::real));
+    topology.add(input_layout("input", layout{{1, 120, 2, 64, 33}, data_types::f16, format::bfzyx}));
+    topology.add(input_layout("eltw_input", layout{{1, 120, 64, 64}, data_types::f16, format::bfyx}));
+    topology.add(permute("permute", input_info("input"), {0, 1, 3, 4, 2}));
+    topology.add(
+        dft("dft", input_info("permute"), {2, 3}, {64, 64}, {1, 120, 64, 64}, dft_direction::inverse, dft_mode::real));
     topology.add(eltwise("eltwise", input_info("dft"), input_info("eltw_input"), eltwise_mode::sum));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -116,12 +114,12 @@ TEST(reorder_inputs, mixed_ranks_gather) {
     // So here we expect that input format for gather is aligned with actual output rank and format
 
     auto& engine = get_test_engine();
-    auto data1_mem = engine.allocate_memory(layout{ { 3, 128, 1, 1 }, data_types::i32, format::bfyx });
-    auto data2_mem = engine.allocate_memory(layout{ { 3, 55, 1, 1 }, data_types::i32, format::bfyx });
-    auto weights_mem = engine.allocate_memory(layout{ { 2, 256, 3, 3 }, data_types::f16, format::bfyx });
+    auto data1_mem = engine.allocate_memory(layout{{3, 128, 1, 1}, data_types::i32, format::bfyx});
+    auto data2_mem = engine.allocate_memory(layout{{3, 55, 1, 1}, data_types::i32, format::bfyx});
+    auto weights_mem = engine.allocate_memory(layout{{2, 256, 3, 3}, data_types::f16, format::bfyx});
 
     topology topology;
-    topology.add(input_layout("input", layout{ { 1, 256, 128, 55 }, data_types::f16, format::bfyx }));
+    topology.add(input_layout("input", layout{{1, 256, 128, 55}, data_types::f16, format::bfyx}));
     topology.add(data("weights", weights_mem));
     topology.add(data("data1", data1_mem));
     topology.add(data("data2", data2_mem));
@@ -135,16 +133,18 @@ TEST(reorder_inputs, mixed_ranks_gather) {
                              ov::CoordinateDiff{0, 0},
                              ov::CoordinateDiff{0, 0},
                              false));
-    topology.add(border("pad", { input_info("conv") }, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
-    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, 4, { 1, 2, 3, 128, 57 }, 0, false));
-    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, 5, { 1, 2, 3, 128, 3, 55 }, 0, false));
+    topology.add(
+        border("pad", {input_info("conv")}, 0, ov::CoordinateDiff{0, 0, 1, 1}, ov::CoordinateDiff{0, 0, 1, 1}));
+    topology.add(gather("gather1", input_info("pad"), input_info("data1"), 2, 4, {1, 2, 3, 128, 57}, 0, false));
+    topology.add(gather("gather2", input_info("gather1"), input_info("data2"), 4, 5, {1, 2, 3, 128, 3, 55}, 0, false));
     topology.add(permute("permute", input_info("gather2"), {0, 1, 2, 4, 3, 5}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "" };
-    ov::intel_gpu::ImplementationDesc permute_impl = { format::bfwzyx, "" };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", conv_impl}, { "permute", permute_impl} }));
+    ov::intel_gpu::ImplementationDesc conv_impl = {format::byxf, ""};
+    ov::intel_gpu::ImplementationDesc permute_impl = {format::bfwzyx, ""};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}, {"permute", permute_impl}}));
 
     program::ptr prog = nullptr;
     prog = program::build_program(engine, topology, config);
@@ -164,21 +164,20 @@ TEST(reorder_inputs, mixed_ranks_gather) {
 
 TEST(reorder_inputs, impl_forcing_basic_format) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 4, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
+    topology.add(pooling("pool", input_info("input"), pooling_mode::max, {1, 2}, {1, 2}));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "" };
+    ov::intel_gpu::ImplementationDesc pool_impl = {format::yxfb, ""};
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool", pool_impl}}));
 
     network network(engine, topology, config);
 
-    set_values(input, { 1.f, 2.f, 3.f, 2.f,
-                        7.f, 3.f, -2.f, -1.f });
+    set_values(input, {1.f, 2.f, 3.f, 2.f, 7.f, 3.f, -2.f, -1.f});
 
     network.set_input_data("input", input);
     network.execute();
@@ -202,37 +201,36 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
 TEST(reorder_inputs, impl_forcing_not_existing) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 4, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
+    topology.add(pooling("pool", input_info("input"), pooling_mode::max, {1, 2}, {1, 2}));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING" };
+    ov::intel_gpu::ImplementationDesc pool_impl = {format::any, "NOT_EXISTING"};
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool", pool_impl}}));
 
     ASSERT_ANY_THROW(network network(engine, topology, config));
 }
 
 TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 4, 1}});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(activation("actv", input_info("input"), activation_func::relu));
 
-    ov::intel_gpu::ImplementationDesc actv_impl = { format::yxfb, "activation_ref" };
+    ov::intel_gpu::ImplementationDesc actv_impl = {format::yxfb, "activation_ref"};
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"actv", actv_impl}}));
 
     network network(engine, topology, config);
 
-    set_values(input, { -1.f, 2.f, -3.f, 0.5f,
-                        7.f, 3.f, -2.f, -1.f });
+    set_values(input, {-1.f, 2.f, -3.f, 0.5f, 7.f, 3.f, -2.f, -1.f});
 
     network.set_input_data("input", input);
     network.execute();
@@ -265,8 +263,9 @@ TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ ov::PartialShape{-1, -1, 2, 7, 7, 384}, data_types::f32, format::bfwzyx };
-    auto in_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 7, 7, 384}, data_types::f32, format::bfwzyx });
+    auto in_layout = layout{ov::PartialShape{-1, -1, 2, 7, 7, 384}, data_types::f32, format::bfwzyx};
+    auto in_memory =
+        engine.allocate_memory(layout{ov::PartialShape{1, 2, 2, 7, 7, 384}, data_types::f32, format::bfwzyx});
 
     auto in = rg.generate_random_1d<float>(in_memory->count(), -10, 10);
 
@@ -304,8 +303,8 @@ TEST(reorder_inputs, no_add_reorder_infront_of_reshape) {
 TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    auto in_layout1 = layout{ ov::PartialShape{1080, 1920, 1, 2}, data_types::f32, format::bfyx };
-    auto in_layout2 = layout{ ov::PartialShape{4, 540, 960, 1, 1}, data_types::f32, format::bfzyx };
+    auto in_layout1 = layout{ov::PartialShape{1080, 1920, 1, 2}, data_types::f32, format::bfyx};
+    auto in_layout2 = layout{ov::PartialShape{4, 540, 960, 1, 1}, data_types::f32, format::bfzyx};
     auto data_1 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
     auto data_2 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
     auto data_3 = engine.allocate_memory({ov::PartialShape{5}, data_types::i32, format::bfyx});
@@ -315,35 +314,46 @@ TEST(reorder_inputs, no_need_of_reorder_for_strided_slice) {
         input_layout("input2", in_layout2),
         permute("permute1", input_info("input1"), {0, 1, 2, 3}),
         batch_to_space("batch_to_space1",
-            input_info("input2"),
-            tensor{1, 1, 4, 1, 1},
-            tensor{0, 0, 1, 0, 0},
-            tensor{0, 0, 1, 0, 0},
-            tensor{1, 1080, 1920, 1, 2}),
+                       input_info("input2"),
+                       tensor{1, 1, 4, 1, 1},
+                       tensor{0, 0, 1, 0, 0},
+                       tensor{0, 0, 1, 0, 0},
+                       tensor{1, 1080, 1920, 1, 2}),
         batch_to_space("batch_to_space2",
-            input_info("input2"),
-            tensor{1, 1, 4, 1, 1},
-            tensor{0, 0, 1, 0, 0},
-            tensor{0, 0, 1, 0, 0},
-            tensor{1, 1080, 1920, 1, 2}),
+                       input_info("input2"),
+                       tensor{1, 1, 4, 1, 1},
+                       tensor{0, 0, 1, 0, 0},
+                       tensor{0, 0, 1, 0, 0},
+                       tensor{1, 1080, 1920, 1, 2}),
         data("data_1", data_1),
         data("data_2", data_2),
         data("data_3", data_3),
         strided_slice("strided_slice1",
-            input_info("batch_to_space1"),
-            input_info("data_1"),
-            input_info("data_2"),
-            input_info("data_3"),
-            {}, {}, {}, {}, {}, {1080, 1920, 1, 2}),
+                      input_info("batch_to_space1"),
+                      input_info("data_1"),
+                      input_info("data_2"),
+                      input_info("data_3"),
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {1080, 1920, 1, 2}),
         strided_slice("strided_slice2",
-            input_info("batch_to_space2"),
-            input_info("data_1"),
-            input_info("data_2"),
-            input_info("data_3"),
-            {}, {}, {}, {}, {}, {1080, 1920, 1, 2}),
-        concatenation("concat", {input_info("permute1"), input_info("strided_slice1"), input_info("strided_slice2")}, 2),
-        permute("result", input_info("concat"), {3, 0, 1, 2})
-    );
+                      input_info("batch_to_space2"),
+                      input_info("data_1"),
+                      input_info("data_2"),
+                      input_info("data_3"),
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {1080, 1920, 1, 2}),
+        concatenation("concat",
+                      {input_info("permute1"), input_info("strided_slice1"), input_info("strided_slice2")},
+                      2),
+        permute("result", input_info("concat"), {3, 0, 1, 2}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -369,10 +379,10 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
 
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    auto in_layout1 = layout{ ov::PartialShape{1, 240, 96, 96}, data_types::f16, format::b_fs_yx_fsv16 };
-    auto in_layout2 = layout{ ov::PartialShape{1, 120, 96, 96}, data_types::f16, format::bfyx };
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {120, 240, 1, 1} });
-    auto bias = engine.allocate_memory({ data_types::f16, format::bfyx, {1, 120, 1, 1} });
+    auto in_layout1 = layout{ov::PartialShape{1, 240, 96, 96}, data_types::f16, format::b_fs_yx_fsv16};
+    auto in_layout2 = layout{ov::PartialShape{1, 120, 96, 96}, data_types::f16, format::bfyx};
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {120, 240, 1, 1}});
+    auto bias = engine.allocate_memory({data_types::f16, format::bfyx, {1, 120, 1, 1}});
 
     topology topology(
         input_layout("input1", in_layout1),
@@ -382,8 +392,7 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
         convolution("conv", input_info("input1"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         eltwise("eltwise", input_info("input2"), input_info("conv"), eltwise_mode::sum),
         dft("rdft", input_info("conv"), {1, 1}, {1, 1}, {1, 120, 96, 49, 2}, dft_direction::forward, dft_mode::real),
-        reorder("reorder", input_info("rdft"), format::bfzyx, data_types::f16)
-    );
+        reorder("reorder", input_info("rdft"), format::bfzyx, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -400,7 +409,7 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
 }
 
 // TODO Not yet implemented
-//TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
+// TEST(reorder_inputs, impl_forcing_conv_format_kernel) {
 //    auto& engine = get_test_engine();
 //    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {1, 2, 2, 2} });
 //    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, {2, 2, 1, 1} });
@@ -460,48 +469,50 @@ TEST(reorder_inputs, has_reshape_user) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
-       return;
+        return;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 4, 4, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 1, 2, 2, 2 } });
-    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 4, 4, 4}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 1, 2, 2, 2}});
+    auto biases = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1, 1}});
 
-    set_values(input, {
-        1.0f,  0.0f,  1.0f,  0.0f,
-        1.0f,  1.0f,  3.0f,  1.0f,
-        1.0f,  1.0f,  0.0f,  2.0f,
-        0.0f,  2.0f,  1.0f,  1.0f,
-        1.0f,  0.0f,  0.0f,  1.0f,
-        2.0f,  0.0f,  1.0f,  2.0f,
-        3.0f,  1.0f,  1.0f,  1.0f,
-        0.0f,  0.0f,  3.0f,  1.0f,
-        2.0f,  0.0f,  1.0f,  1.0f,
-        3.0f,  3.0f,  1.0f,  0.0f,
-        2.0f,  1.0f,  1.0f,  0.0f,
-        3.0f,  2.0f,  1.0f,  2.0f,
-        1.0f,  0.0f,  2.0f,  0.0f,
-        1.0f,  0.0f,  3.0f,  3.0f,
-        3.0f,  1.0f,  0.0f,  0.0f,
-        1.0f,  1.0f,  0.0f,  2.0f,
-    });
+    set_values(input,
+               {
+                   1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 3.0f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f, 0.0f, 2.0f, 1.0f, 1.0f,
+                   1.0f, 0.0f, 0.0f, 1.0f, 2.0f, 0.0f, 1.0f, 2.0f, 3.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 3.0f, 1.0f,
+                   2.0f, 0.0f, 1.0f, 1.0f, 3.0f, 3.0f, 1.0f, 0.0f, 2.0f, 1.0f, 1.0f, 0.0f, 3.0f, 2.0f, 1.0f, 2.0f,
+                   1.0f, 0.0f, 2.0f, 0.0f, 1.0f, 0.0f, 3.0f, 3.0f, 3.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 2.0f,
+               });
 
-    set_values(weights, {
-        0.0f,  1.0f,
-        0.0f,  0.0f,
-        2.0f,  1.0f,
-        0.0f,  0.0f,
-    });
+    set_values(weights,
+               {
+                   0.0f,
+                   1.0f,
+                   0.0f,
+                   0.0f,
+                   2.0f,
+                   1.0f,
+                   0.0f,
+                   0.0f,
+               });
 
-    set_values(biases, { 1.0f });
+    set_values(biases, {1.0f});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("weights", weights)),
-    topology.add(data("biases", biases)),
-    topology.add(convolution("conv", input_info("input"), "weights", "biases", 1, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, false));
-    topology.add(reshape("reshape1", input_info("conv"), false, { 1, 1, 3, 3, 3 }, { 1, 1, 3, 3, 3 }));
-    topology.add(permute("permute", input_info("reshape1"), { 0, 1, 2, 3, 4 }));
-    topology.add(reshape("reshape2", input_info("permute"), false, { 1, 3, 3, 3 }, { 1, 3, 3, 3 }));
+    topology.add(data("weights", weights)), topology.add(data("biases", biases)),
+        topology.add(convolution("conv",
+                                 input_info("input"),
+                                 "weights",
+                                 "biases",
+                                 1,
+                                 {1, 1, 1},
+                                 {1, 1, 1},
+                                 {0, 0, 0},
+                                 {0, 0, 0},
+                                 false));
+    topology.add(reshape("reshape1", input_info("conv"), false, {1, 1, 3, 3, 3}, {1, 1, 3, 3, 3}));
+    topology.add(permute("permute", input_info("reshape1"), {0, 1, 2, 3, 4}));
+    topology.add(reshape("reshape2", input_info("permute"), false, {1, 3, 3, 3}, {1, 3, 3, 3}));
     topology.add(reorder("output", input_info("reshape2"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -517,11 +528,7 @@ TEST(reorder_inputs, has_reshape_user) {
     auto out_mem = output.at(out_id).get_memory();
     cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
 
-    std::vector<int> ref_output = {
-        3, 2, 2, 6,  5,  6, 9, 4, 6,
-        5, 2, 5, 10, 9,  5, 7, 5, 4,
-        3, 4, 6, 6,  5, 10, 9, 4, 1
-    };
+    std::vector<int> ref_output = {3, 2, 2, 6, 5, 6, 9, 4, 6, 5, 2, 5, 10, 9, 5, 7, 5, 4, 3, 4, 6, 6, 5, 10, 9, 4, 1};
 
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(static_cast<float>(ref_output[x]), output_ptr[x]);

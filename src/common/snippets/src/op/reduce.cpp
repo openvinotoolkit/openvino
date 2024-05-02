@@ -34,8 +34,12 @@ void ReduceBase::compute_and_set_reduce_subtensors(const std::shared_ptr<ReduceB
     std::vector<size_t> subtensor(reduce_rank, 1);
     for (size_t i = axis; i < reduce_rank; ++i)
         subtensor[i] = lowered::PortDescriptor::ServiceDimensions::FULL_DIM;
-    lowered::PortDescriptorUtils::set_port_descriptor_ptr(reduce->input(0), std::make_shared<lowered::PortDescriptor>(reduce->input(0), subtensor));
-    lowered::PortDescriptorUtils::set_port_descriptor_ptr(reduce->output(0), std::make_shared<lowered::PortDescriptor>(reduce->output(0), subtensor));
+    lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+        reduce->input(0),
+        std::make_shared<lowered::PortDescriptor>(reduce->input(0), subtensor));
+    lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+        reduce->output(0),
+        std::make_shared<lowered::PortDescriptor>(reduce->output(0), subtensor));
 }
 
 std::shared_ptr<Node> ReduceSum::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -50,6 +54,6 @@ std::shared_ptr<Node> ReduceMax::clone_with_new_inputs(const OutputVector& new_a
     return std::make_shared<ReduceMax>(new_args.at(0), m_axis);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -2,22 +2,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
-import pytest
-import numpy as np
 
-from openvino import Model, PartialShape, Shape, Core
+import numpy as np
+import pytest
 from openvino.runtime import opset13 as ops
 from openvino.runtime.passes import (
-    Manager,
     ConstantFolding,
-    MakeStateful,
     ConvertFP32ToFP16,
     LowLatency2,
+    MakeStateful,
+    Manager,
     Serialize,
 )
-
 from tests.test_transformations.utils.utils import count_ops, get_relu_model
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import compare_models, create_filename_for_test
+
+from openvino import Core, Model, PartialShape, Shape
 
 
 def get_model():
@@ -123,19 +123,20 @@ def test_low_latency2():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
-    (True, True),
-    (True, False),
-    (False, True),
-    (False, False),
-],
+@pytest.mark.parametrize(
+    "is_path_xml, is_path_bin",
+    [  # noqa: PT006
+        (True, True),
+        (True, False),
+        (False, True),
+        (False, False),
+    ],
 )
 def test_serialize_pass(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  tmp_path,
-                                                  is_path_xml,
-                                                  is_path_bin)
+    xml_path, bin_path = create_filename_for_test(
+        request.node.name, tmp_path, is_path_xml, is_path_bin
+    )
 
     model = get_relu_model()
 

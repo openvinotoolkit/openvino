@@ -4,12 +4,12 @@
 
 import os
 
-from openvino.runtime import Input, RTMap
-from openvino._pyopenvino import DescriptorTensor
 import openvino.runtime.opset13 as ops
-
-from openvino import Core, OVAny, Shape, PartialShape, Type
+from openvino._pyopenvino import DescriptorTensor
+from openvino.runtime import Input, RTMap
 from tests.utils.helpers import get_relu_model
+
+from openvino import Core, OVAny, PartialShape, Shape, Type
 
 
 def test_input_type(device):

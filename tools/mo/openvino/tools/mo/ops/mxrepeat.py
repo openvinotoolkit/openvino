@@ -6,20 +6,26 @@ from openvino.tools.mo.ops.op import Op
 
 
 class MXRepeat(Op):
-    op = 'MXRepeat'
+    op = "MXRepeat"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        assert 'axis' in attrs, 'MXRepeat operation should have `axis` parameter set during creation'
-        assert 'repeats' in attrs, 'MXRepeat operation should have `repeats` parameter set during creation'
+        assert (
+            "axis" in attrs
+        ), "MXRepeat operation should have `axis` parameter set during creation"
+        assert (
+            "repeats" in attrs
+        ), "MXRepeat operation should have `repeats` parameter set during creation"
 
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-
-            # operation should be resolved on the front phase, partial inference is not needed
-            'infer': None,
-
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": self.op,
+                "type": None,
+                # operation should be resolved on the front phase, partial inference is not needed
+                "infer": None,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )

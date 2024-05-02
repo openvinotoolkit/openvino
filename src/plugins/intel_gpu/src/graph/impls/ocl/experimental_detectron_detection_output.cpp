@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "experimental_detectron_detection_output_inst.hpp"
 #include "ed_do/detection_output_kernel_ref.h"
 #include "ed_do/detection_output_kernel_selector.h"
+#include "experimental_detectron_detection_output_inst.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -24,7 +23,8 @@ struct experimental_detectron_detection_output_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_detection_output>& instance) const override {
+    kernel_arguments_data get_arguments(
+        const typed_primitive_inst<experimental_detectron_detection_output>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         args.inputs.push_back(instance.output_classes_memory());
         args.inputs.push_back(instance.output_scores_memory());
@@ -56,18 +56,20 @@ public:
 
 namespace detail {
 attach_experimental_detectron_detection_output_impl::attach_experimental_detectron_detection_output_impl() {
-    const std::vector<data_types> types {data_types::f16, data_types::f32};
+    const std::vector<data_types> types{data_types::f16, data_types::f32};
     const std::vector<format::type> formats = {format::bfyx,
-                        format::b_fs_yx_fsv16,
-                        format::b_fs_yx_fsv32,
-                        format::bs_fs_yx_bsv16_fsv16,
-                        format::bs_fs_yx_bsv32_fsv32,
-                        format::bs_fs_yx_bsv32_fsv16};
+                                               format::b_fs_yx_fsv16,
+                                               format::b_fs_yx_fsv32,
+                                               format::bs_fs_yx_bsv16_fsv16,
+                                               format::bs_fs_yx_bsv32_fsv32,
+                                               format::bs_fs_yx_bsv32_fsv16};
 
     implementation_map<experimental_detectron_detection_output>::add(
         impl_types::ocl,
-        typed_primitive_impl_ocl<experimental_detectron_detection_output>::create<experimental_detectron_detection_output_impl>,
-        types, formats);
+        typed_primitive_impl_ocl<experimental_detectron_detection_output>::create<
+            experimental_detectron_detection_output_impl>,
+        types,
+        formats);
 }
 }  // namespace detail
 }  // namespace ocl

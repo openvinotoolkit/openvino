@@ -3,13 +3,13 @@
 //
 #pragma once
 
-#include "common.hpp"
-#include "openvino/core/type/element_type.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
+#include "common.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -515,33 +515,44 @@ inline void attn_softmax_kernel(float* a,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision) {
     using func_fp32_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float&);
-    using func_bf16_type = void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float&);
-    static func_fp32_type funcs_fp32[] = {
-        scale_add2_reduce_max<false, false, false>,
-        scale_add2_reduce_max<false, false, true>,
-        scale_add2_reduce_max<false, true, false>,
-        scale_add2_reduce_max<false, true, true>,
-        scale_add2_reduce_max<true, false, false>,
-        scale_add2_reduce_max<true, false, true>,
-        scale_add2_reduce_max<true, true, false>,
-        scale_add2_reduce_max<true, true, true>
-    };
-    static func_bf16_type funcs_bf16[] = {
-        scale_add2_reduce_max<false, false, false>,
-        scale_add2_reduce_max<false, false, true>,
-        scale_add2_reduce_max<false, true, false>,
-        scale_add2_reduce_max<false, true, true>,
-        scale_add2_reduce_max<true, false, false>,
-        scale_add2_reduce_max<true, false, true>,
-        scale_add2_reduce_max<true, true, false>,
-        scale_add2_reduce_max<true, true, true>
-    };
+    using func_bf16_type =
+        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float&);
+    static func_fp32_type funcs_fp32[] = {scale_add2_reduce_max<false, false, false>,
+                                          scale_add2_reduce_max<false, false, true>,
+                                          scale_add2_reduce_max<false, true, false>,
+                                          scale_add2_reduce_max<false, true, true>,
+                                          scale_add2_reduce_max<true, false, false>,
+                                          scale_add2_reduce_max<true, false, true>,
+                                          scale_add2_reduce_max<true, true, false>,
+                                          scale_add2_reduce_max<true, true, true>};
+    static func_bf16_type funcs_bf16[] = {scale_add2_reduce_max<false, false, false>,
+                                          scale_add2_reduce_max<false, false, true>,
+                                          scale_add2_reduce_max<false, true, false>,
+                                          scale_add2_reduce_max<false, true, true>,
+                                          scale_add2_reduce_max<true, false, false>,
+                                          scale_add2_reduce_max<true, false, true>,
+                                          scale_add2_reduce_max<true, true, false>,
+                                          scale_add2_reduce_max<true, true, true>};
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
     float max = std::numeric_limits<float>::lowest();
     if (attn_mask_prec == ov::element::f32) {
-        funcs_fp32[dispatch](a, scale, alibi, static_cast<const float*>(attn_mask), causal_mask, select_nfltmax_at_0, len, max);
+        funcs_fp32[dispatch](a,
+                             scale,
+                             alibi,
+                             static_cast<const float*>(attn_mask),
+                             causal_mask,
+                             select_nfltmax_at_0,
+                             len,
+                             max);
     } else {
-        funcs_bf16[dispatch](a, scale, alibi, static_cast<const ov::bfloat16*>(attn_mask), causal_mask, select_nfltmax_at_0, len, max);
+        funcs_bf16[dispatch](a,
+                             scale,
+                             alibi,
+                             static_cast<const ov::bfloat16*>(attn_mask),
+                             causal_mask,
+                             select_nfltmax_at_0,
+                             len,
+                             max);
     }
 
     float sum = 0.0f;

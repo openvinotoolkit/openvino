@@ -3,17 +3,17 @@
 //
 
 #include "intel_gpu/plugin/common_utils.hpp"
+
+#include <algorithm>
+#include <memory>
+
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
-
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/tensor.hpp"
 #include "openvino/op/util/op_types.hpp"
-
-#include <algorithm>
-#include <memory>
+#include "openvino/runtime/tensor.hpp"
 
 namespace {
 
@@ -42,7 +42,12 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
     }
 }
 
-void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, cldnn::layout layout) {
+void convert_and_copy(const void* src_ptr,
+                      ov::element::Type src_et,
+                      void* dst_ptr,
+                      ov::element::Type dst_et,
+                      size_t size,
+                      cldnn::layout layout) {
     if (size == 0)
         return;
 
@@ -51,14 +56,16 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
         return;
     }
 
-    #define CASE(s_et, d_et, s_type, d_type)                                                                                       \
-        if (src_et == s_et && dst_et == d_et) {                                                                                    \
-            if (static_cast<bool>(layout.data_padding)) {                                                                          \
-                return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout); \
-            } else {                                                                                                               \
-                return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);          \
-            }                                                                                                                      \
-        }
+#define CASE(s_et, d_et, s_type, d_type)                                                                              \
+    if (src_et == s_et && dst_et == d_et) {                                                                           \
+        if (static_cast<bool>(layout.data_padding)) {                                                                 \
+            return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr),                                \
+                                                  static_cast<d_type*>(dst_ptr),                                      \
+                                                  layout);                                                            \
+        } else {                                                                                                      \
+            return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size); \
+        }                                                                                                             \
+    }
 
     // For unsupported inputs
     CASE(ov::element::f64, ov::element::f32, double, float);
@@ -96,32 +103,58 @@ namespace intel_gpu {
 
 bool is_supported(ov::element::Type_t et) {
     switch (et) {
-        case ov::element::Type_t::undefined: return true;
-        case ov::element::Type_t::dynamic: return false;
-        case ov::element::Type_t::boolean: return true; // converted to u8
-        case ov::element::Type_t::bf16: return false;
-        case ov::element::Type_t::f16: return true;
-        case ov::element::Type_t::f32: return true;
-        case ov::element::Type_t::f64: return true; // converted to inference precision
-        case ov::element::Type_t::i4: return true;
-        case ov::element::Type_t::i8: return true;
-        case ov::element::Type_t::i16: return false;
-        case ov::element::Type_t::i32: return true;
-        case ov::element::Type_t::i64: return true; // converted to i32
-        case ov::element::Type_t::u1: return true;
-        case ov::element::Type_t::u2: return false;
-        case ov::element::Type_t::u3: return false;
-        case ov::element::Type_t::u4: return true;
-        case ov::element::Type_t::u6: return true;
-        case ov::element::Type_t::u8: return true;
-        case ov::element::Type_t::u16: return true; // converted to i32
-        case ov::element::Type_t::u32: return true; // converted to i32
-        case ov::element::Type_t::u64: return true; // converted to i32
-        case ov::element::Type_t::nf4: return false;
-        case ov::element::Type_t::f8e4m3: return false;
-        case ov::element::Type_t::f8e5m2: return false;
-        case ov::element::Type_t::string: return false;
-        default: return false;
+    case ov::element::Type_t::undefined:
+        return true;
+    case ov::element::Type_t::dynamic:
+        return false;
+    case ov::element::Type_t::boolean:
+        return true;  // converted to u8
+    case ov::element::Type_t::bf16:
+        return false;
+    case ov::element::Type_t::f16:
+        return true;
+    case ov::element::Type_t::f32:
+        return true;
+    case ov::element::Type_t::f64:
+        return true;  // converted to inference precision
+    case ov::element::Type_t::i4:
+        return true;
+    case ov::element::Type_t::i8:
+        return true;
+    case ov::element::Type_t::i16:
+        return false;
+    case ov::element::Type_t::i32:
+        return true;
+    case ov::element::Type_t::i64:
+        return true;  // converted to i32
+    case ov::element::Type_t::u1:
+        return true;
+    case ov::element::Type_t::u2:
+        return false;
+    case ov::element::Type_t::u3:
+        return false;
+    case ov::element::Type_t::u4:
+        return true;
+    case ov::element::Type_t::u6:
+        return true;
+    case ov::element::Type_t::u8:
+        return true;
+    case ov::element::Type_t::u16:
+        return true;  // converted to i32
+    case ov::element::Type_t::u32:
+        return true;  // converted to i32
+    case ov::element::Type_t::u64:
+        return true;  // converted to i32
+    case ov::element::Type_t::nf4:
+        return false;
+    case ov::element::Type_t::f8e4m3:
+        return false;
+    case ov::element::Type_t::f8e5m2:
+        return false;
+    case ov::element::Type_t::string:
+        return false;
+    default:
+        return false;
     }
 
     return false;
@@ -158,7 +191,12 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
 
     size_t size = ov::shape_size(src->get_shape());
     ov::Tensor tmp_tensor(dst_et, src->get_shape());
-    ::convert_and_copy(src->data(), src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    ::convert_and_copy(src->data(),
+                       src_et,
+                       tmp_tensor.data(),
+                       dst_et,
+                       size,
+                       cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
     dst->copy_from(stream, tmp_tensor.data(), blocking);
 }
 
@@ -227,7 +265,12 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldn
         dst_ptr = dst->data();
     }
 
-    return ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
+    return ::convert_and_copy(src_ptr,
+                              src_et,
+                              dst_ptr,
+                              dst_et,
+                              size,
+                              cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
 }
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {

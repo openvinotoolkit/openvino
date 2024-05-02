@@ -6,14 +6,14 @@ from openvino.tools.mo.ops.concat import Concat
 
 
 class ConcatFrontExtractor(FrontExtractorOp):
-    op = 'concat'
+    op = "concat"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         pb = node.pb
         mapping_rule = {
-           'axis': pb.concat_param.axis,
+            "axis": pb.concat_param.axis,
         }
         Concat.update_node_stat(node, mapping_rule)
         return cls.enabled

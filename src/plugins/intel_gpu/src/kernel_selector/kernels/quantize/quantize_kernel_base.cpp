@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "quantize_kernel_base.h"
-#include "kernel_selector_utils.h"
+
+#include <iostream>
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -17,7 +19,8 @@ bool QuantizeKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params,
+                                                 const CommonDispatchData& dispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("LEVELS", static_cast<float>(params.levels)));
@@ -62,7 +65,8 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params) const {
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.has_dynamic_tensors());
+    kernel.params.arguments =
+        GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.has_dynamic_tensors());
 
     return {kd};
 }

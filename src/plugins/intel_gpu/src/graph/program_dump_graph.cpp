@@ -3,15 +3,15 @@
 //
 
 #include "program_dump_graph.h"
-#include "to_string_utils.h"
-#include "data_inst.h"
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include "condition_inst.h"
 #include "data_inst.h"
 #include "json_object.h"
-
-#include <algorithm>
-#include <vector>
-#include <string>
+#include "to_string_utils.h"
 
 namespace cldnn {
 namespace {
@@ -134,15 +134,19 @@ static const std::vector<std::string> colors = {
     "yellowgreen",
 };
 
-void close_stream(std::ofstream& graph) { graph.close(); }
+void close_stream(std::ofstream& graph) {
+    graph.close();
+}
 
-std::string get_node_id(const program_node* ptr) { return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr)); }
+std::string get_node_id(const program_node* ptr) {
+    return "node_" + std::to_string(reinterpret_cast<uintptr_t>(ptr));
+}
 
 void dump_full_node(std::ofstream& out, const program_node* node) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     try {
         out << node->type()->to_string(*node);
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         auto node_info = std::shared_ptr<json_composite>(new json_composite());
         node_info->add("id", node->id());
         node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(node)));
@@ -188,7 +192,8 @@ void dump_graph_init(std::ofstream& graph,
                 out += "\n" + std::to_string(i) + ": " + out_layout.to_string();
             }
             if (get_primitive_inst) {
-                out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout(i).get_partial_shape().to_string();
+                out +=
+                    "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout(i).get_partial_shape().to_string();
             }
         }
 
@@ -218,12 +223,11 @@ void dump_graph_init(std::ofstream& graph,
     graph << "digraph cldnn_program {\n";
     for (auto& node : program.get_processing_order()) {
 #ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
 #endif
         std::string node_type_name = node->get_primitive()->type_string();
-        graph << "    " << get_node_id(node) << "[label=\"" << node->id() << ":"
-              << "\\ntype: " << node_type_name
+        graph << "    " << get_node_id(node) << "[label=\"" << node->id() << ":" << "\\ntype: " << node_type_name
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
               << (node->can_be_optimized() ? "\\n optimized out" : "");
@@ -231,9 +235,11 @@ void dump_graph_init(std::ofstream& graph,
         if (!node->is_type<data>()) {
             graph << "\\n Selected kernel: "
                   << (node->get_selected_impl() == nullptr ? "none"
-                        : (node->get_preferred_impl_type() == impl_types::ocl && node->get_selected_impl()->get_kernels_dump_info().second.size())
-                        ?  node->get_selected_impl()->get_kernels_dump_info().second
-                        : node->get_selected_impl()->get_kernel_name()) + " / "
+                      : (node->get_preferred_impl_type() == impl_types::ocl &&
+                         node->get_selected_impl()->get_kernels_dump_info().second.size())
+                          ? node->get_selected_impl()->get_kernels_dump_info().second
+                          : node->get_selected_impl()->get_kernel_name()) +
+                         " / "
                   << node->get_preferred_impl_type();
             if (node->get_selected_impl()) {
                 auto dump_info = node->get_selected_impl()->get_kernels_dump_info();
@@ -246,7 +252,7 @@ void dump_graph_init(std::ofstream& graph,
         graph << "\n" + dump_mem_preferred_info(node);
         graph << "\"";
 #ifdef __clang__
-#pragma clang diagnostic pop
+#    pragma clang diagnostic pop
 #endif
 
         if (node->is_type<condition>()) {
@@ -272,9 +278,8 @@ void dump_graph_init(std::ofstream& graph,
             }
             if (it == user->get_dependencies().end())
                 doubled = false;
-            graph << "    " << get_node_id(node) << " -> " << get_node_id(user)
-                  << " [label=\"" << it->second << " -> " << std::distance(user->get_dependencies().begin(), it) << "\"]";
-
+            graph << "    " << get_node_id(node) << " -> " << get_node_id(user) << " [label=\"" << it->second << " -> "
+                  << std::distance(user->get_dependencies().begin(), it) << "\"]";
 
             bool data_flow = node->is_in_data_flow() && user->is_in_data_flow();
             if (data_flow) {
@@ -290,7 +295,8 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         for (auto& dep : node->get_dependencies()) {
-            if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) != dep.first->get_users().end()) {
+            if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) !=
+                dep.first->get_users().end()) {
                 continue;
             }
 
@@ -310,7 +316,8 @@ void dump_graph_processing_order(std::ofstream& graph, const program& program) {
 }
 
 void dump_graph_optimized(std::ofstream& graph, const program& program) {
-    for (auto& prim_id : program.get_optimized_out()) graph << prim_id << "\n";
+    for (auto& prim_id : program.get_optimized_out())
+        graph << prim_id << "\n";
     graph << '\n';
     close_stream(graph);
 }

@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -26,7 +25,13 @@ class TestSquareTypes(PytorchLayerTest):
         return aten_square(type), None, "aten::square"
 
     @pytest.mark.parametrize(("type"), [torch.int32, torch.int64, torch.float32])
-    @pytest.mark.parametrize(("shape"), [[2, 3], [],])
+    @pytest.mark.parametrize(
+        ("shape"),
+        [
+            [2, 3],
+            [],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_square_types(self, ie_device, precision, ir_version, type, shape):
@@ -34,5 +39,4 @@ class TestSquareTypes(PytorchLayerTest):
             pytest.xfail(reason="square is not supported on GPU for integer types")
         self.type = type
         self.shape = shape
-        self._test(*self.create_model(type),
-                   ie_device, precision, ir_version)
+        self._test(*self.create_model(type), ie_device, precision, ir_version)

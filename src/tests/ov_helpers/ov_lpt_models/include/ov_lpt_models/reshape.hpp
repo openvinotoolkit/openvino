@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
@@ -21,11 +22,10 @@ public:
         const ov::element::Type precisionBeforeDequantization,
         const ov::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::PartialShape& inputShape,
-        const std::vector<int>& reshapeConstValues,
-        const ov::element::Type precisionBeforeFq,
-        const FakeQuantizeOnData& fqOnData);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::PartialShape& inputShape,
+                                                  const std::vector<int>& reshapeConstValues,
+                                                  const ov::element::Type precisionBeforeFq,
+                                                  const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,

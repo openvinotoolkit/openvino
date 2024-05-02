@@ -15,7 +15,7 @@ gen_folder = sys.argv[1]
 out_folder = sys.argv[2]
 mark_file = os.path.join(out_folder, "generate_done.txt")
 
-gen_files = glob.glob(os.path.join(gen_folder, '**/generate_*.py'), recursive=True)
+gen_files = glob.glob(os.path.join(gen_folder, "**/generate_*.py"), recursive=True)
 
 for gen_script in gen_files:
     print("Processing: {} ".format(gen_script))

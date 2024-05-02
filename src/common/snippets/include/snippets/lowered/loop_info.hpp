@@ -7,7 +7,6 @@
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/specific_loop_iter_handlers.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -18,14 +17,16 @@ namespace lowered {
  */
 class LoopInfo {
 public:
-    enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
+    enum { UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max() };
 
     LoopInfo() = default;
-    LoopInfo(size_t work_amount, size_t increment,
+    LoopInfo(size_t work_amount,
+             size_t increment,
              const std::vector<LoopPort>& entries,
              const std::vector<LoopPort>& exits,
              const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
-    LoopInfo(size_t work_amount, size_t increment,
+    LoopInfo(size_t work_amount,
+             size_t increment,
              const std::vector<ExpressionPort>& entries,
              const std::vector<ExpressionPort>& exits,
              const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
@@ -135,6 +136,6 @@ private:
 };
 using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

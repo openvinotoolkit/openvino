@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/gather_elements.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/gather_elements.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "gather_elements_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -27,7 +24,7 @@ struct gather_elements_test_params {
     layout expected_layout;
 };
 
-class gather_elements_test : public testing::TestWithParam<gather_elements_test_params> { };
+class gather_elements_test : public testing::TestWithParam<gather_elements_test_params> {};
 
 TEST_P(gather_elements_test, shape_infer) {
     auto p = GetParam();
@@ -45,38 +42,32 @@ TEST_P(gather_elements_test, shape_infer) {
     auto& gather_elements_node = prog.get_or_create(gather_prim);
     program_wrapper::add_connection(prog, data_layout_node, gather_elements_node);
     program_wrapper::add_connection(prog, indices_layout_node, gather_elements_node);
-    auto res = gather_elements_inst::calc_output_layouts<ov::PartialShape>(gather_elements_node, *gather_elements_node.get_kernel_impl_params());
+    auto res =
+        gather_elements_inst::calc_output_layouts<ov::PartialShape>(gather_elements_node,
+                                                                    *gather_elements_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, gather_elements_test,
-    testing::ValuesIn(std::vector<gather_elements_test_params>{
-        {
-            layout{ov::PartialShape{3, 7, 5}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx},
-            1,
-            layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx},
-            1,
-            layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape{3, 7, 5}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            1,
-            layout{ov::PartialShape{3, -1, 5}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            1,
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}
-        }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gather_elements_test,
+                         testing::ValuesIn(std::vector<gather_elements_test_params>{
+                             {layout{ov::PartialShape{3, 7, 5}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx},
+                              1,
+                              layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx},
+                              1,
+                              layout{ov::PartialShape{3, 10, 5}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape{3, 7, 5}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              1,
+                              layout{ov::PartialShape{3, -1, 5}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              1,
+                              layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

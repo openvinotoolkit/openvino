@@ -4,10 +4,10 @@
 
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -29,7 +29,8 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
             OPENVINO_ASSERT(consumers.size() == 1, "Scalar expression is expected to have a single consumer");
 
             const auto& consumer_expr = consumers.begin()->get_expr();
-            // Move something only if consumer is not already the next one (previous since the iterator is a reverse one)
+            // Move something only if consumer is not already the next one (previous since the iterator is a reverse
+            // one)
             auto forward_it = std::prev(expr_it.base());
             if (consumer_expr != *std::next(forward_it)) {
                 expr_it = std::prev(expr_it);  // save iterator before moving
@@ -45,7 +46,7 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

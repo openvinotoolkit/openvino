@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-#! [import]
-import openvino as ov
+
 #! [import]
 import openvino.runtime.opset12 as ops
+
 #! [import]
 import openvino.runtime.passes as passes
+
+#! [import]
+import openvino as ov
 
 
 # ! [ov:create_simple_model]
@@ -24,7 +27,10 @@ def create_simple_model():
     add = ops.add(mul, add_constant)
     res = ops.result(add)
     return ov.Model([res], [data], "model")
+
+
 # ! [ov:create_simple_model]
+
 
 # ! [ov:create_advanced_model]
 def create_advanced_model():
@@ -45,36 +51,56 @@ def create_advanced_model():
 
     # Results operations will be created automatically based on provided OutputVector
     return ov.Model([split.output(0), relu.output(0), split.output(2)], [data], "model")
+
+
 # ! [ov:create_advanced_model]
+
 
 def ov_api_examples():
     # Doesn't work
     # node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), 3, 64, 64]), np.float32)
-    node = ops.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
+    node = ops.parameter(
+        ov.PartialShape(
+            [
+                ov.Dimension.dynamic(),
+                ov.Dimension(3),
+                ov.Dimension(64),
+                ov.Dimension(64),
+            ]
+        ),
+        np.float32,
+    )
 
     # it doesn't work:
     # static_shape = ov.Shape()
     # ! [ov:partial_shape]
-    partial_shape = node.output(0).get_partial_shape() # get zero output partial shape
-    if not partial_shape.is_dynamic: # or partial_shape.is_static
+    partial_shape = node.output(0).get_partial_shape()  # get zero output partial shape
+    if not partial_shape.is_dynamic:  # or partial_shape.is_static
         static_shape = partial_shape.get_shape()
     # ! [ov:partial_shape]
 
+
 # ! [ov:serialize]
-def serialize_example(m : ov.Model):
-    ov.serialize(m, xml_path='model.xml', bin_path='model.bin')
+def serialize_example(m: ov.Model):
+    ov.serialize(m, xml_path="model.xml", bin_path="model.bin")
+
+
 # ! [ov:serialize]
 
+
 # ! [ov:visualize]
-def visualize_example(m : ov.Model):
+def visualize_example(m: ov.Model):
     # Need import:
     # * import openvino.runtime.passes as passes
     pass_manager = passes.Manager()
-    pass_manager.register_pass(passes.VisualizeTree(file_name='image.svg'))
+    pass_manager.register_pass(passes.VisualizeTree(file_name="image.svg"))
     pass_manager.run_passes(m)
+
+
 # ! [ov:visualize]
 
-def model_inputs_outputs(model : ov.Model):
+
+def model_inputs_outputs(model: ov.Model):
     #! [all_inputs_ouputs]
     inputs = model.inputs
     outputs = model.outputs

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
 #include "fusing_test_utils.hpp"
+
+#include <gtest/gtest.h>
 
 namespace CPUTestUtils {
 
@@ -24,8 +24,9 @@ std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
     return result.str();
 }
 
-std::shared_ptr<ov::Node>
-CpuTestWithFusing::modifyGraph(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+std::shared_ptr<ov::Node> CpuTestWithFusing::modifyGraph(const ov::element::Type& ngPrc,
+                                                         ov::ParameterVector& params,
+                                                         const std::shared_ptr<ov::Node>& lastNode) {
     CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
     std::shared_ptr<ov::Node> retNode = lastNode;
     if (postOpMgrPtr) {
@@ -35,13 +36,14 @@ CpuTestWithFusing::modifyGraph(const ov::element::Type &ngPrc, ov::ParameterVect
     return retNode;
 }
 
-void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
+void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model>& function,
+                                           const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
     bool isNodeFound = false;
-    for (const auto & op : function->get_ops()) {
-        const auto &rtInfo = op->get_rt_info();
+    for (const auto& op : function->get_ops()) {
+        const auto& rtInfo = op->get_rt_info();
 
-        auto getExecValue = [](const std::string &paramName, const ov::Node::RTMap& rtInfo) -> std::string {
+        auto getExecValue = [](const std::string& paramName, const ov::Node::RTMap& rtInfo) -> std::string {
             auto it = rtInfo.find(paramName);
             OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
@@ -70,13 +72,15 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
     ASSERT_TRUE(isNodeFound) << error_message.str();
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function,
+                                                      const std::set<std::string>& nodeType) const {
     CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
     CheckFusingResults(function, nodeType);
 }
 
-std::shared_ptr<ov::Node>
-postFunctionMgr::addPostOps(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) const {
+std::shared_ptr<ov::Node> postFunctionMgr::addPostOps(const ov::element::Type& ngPrc,
+                                                      ov::ParameterVector& params,
+                                                      const std::shared_ptr<ov::Node>& lastNode) const {
     auto clonedPostFunction = _pFunction->clone();
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
@@ -89,8 +93,9 @@ std::string postFunctionMgr::getFusedOpsNames() const {
 
 postNodesMgr::postNodesMgr(std::vector<postNodeBuilder> postNodes) : _postNodes(std::move(postNodes)) {}
 
-std::shared_ptr<ov::Node>
-postNodesMgr::addPostOps(const ov::element::Type &ngPrc, ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) const {
+std::shared_ptr<ov::Node> postNodesMgr::addPostOps(const ov::element::Type& ngPrc,
+                                                   ov::ParameterVector& params,
+                                                   const std::shared_ptr<ov::Node>& lastNode) const {
     std::shared_ptr<ov::Node> tmpNode = lastNode;
 
     postNodeConfig cfg{lastNode, tmpNode, ngPrc, params};
@@ -111,4 +116,4 @@ std::string postNodesMgr::getFusedOpsNames() const {
     }
     return result.str();
 }
-} // namespace CPUTestUtils
+}  // namespace CPUTestUtils

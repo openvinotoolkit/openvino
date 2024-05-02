@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -12,28 +12,24 @@ namespace ov {
 namespace test {
 using ROIAlignShapes = std::vector<InputShape>;
 
-using ROIAlignSpecificParams =  std::tuple<
-        int,                                                 // bin's column count
-        int,                                                 // bin's row count
-        float,                                               // scale for given region considering actual input size
-        int,                                                 // pooling ratio
-        std::string,                                         // pooling mode
-        std::string,                                         // aligned mode
-        ROIAlignShapes
->;
+using ROIAlignSpecificParams = std::tuple<int,          // bin's column count
+                                          int,          // bin's row count
+                                          float,        // scale for given region considering actual input size
+                                          int,          // pooling ratio
+                                          std::string,  // pooling mode
+                                          std::string,  // aligned mode
+                                          ROIAlignShapes>;
 
-using ROIAlignLayerTestParams = std::tuple<
-        ROIAlignSpecificParams,
-        ElementType,                    // Net precision
-        ov::test::TargetDevice   // Device name
->;
+using ROIAlignLayerTestParams = std::tuple<ROIAlignSpecificParams,
+                                           ElementType,            // Net precision
+                                           ov::test::TargetDevice  // Device name
+                                           >;
 
-using ROIAlignLayerCPUTestParamsSet = std::tuple<
-        ROIAlignLayerTestParams,
-        CPUSpecificParams>;
+using ROIAlignLayerCPUTestParamsSet = std::tuple<ROIAlignLayerTestParams, CPUSpecificParams>;
 
 class ROIAlignLayerCPUTest : public testing::WithParamInterface<ROIAlignLayerCPUTestParamsSet>,
-                             public SubgraphBaseTest, public CPUTestsBase {
+                             public SubgraphBaseTest,
+                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ROIAlignLayerCPUTestParamsSet> obj) {
         ROIAlignLayerTestParams basicParamsSet;
@@ -56,7 +52,7 @@ public:
 
         result << netPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -77,6 +73,7 @@ public:
 
         return result.str();
     }
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -92,7 +89,7 @@ protected:
         data_tensor = ov::test::utils::create_and_fill_tensor(dataPrecision, dataShape, in_data);
 
         const auto& coordsET = funcInputs[1].get_element_type();
-        auto coordsTensor = ov::Tensor{ coordsET, targetInputStaticShapes[1] };
+        auto coordsTensor = ov::Tensor{coordsET, targetInputStaticShapes[1]};
         if (coordsET == ElementType::f32) {
             auto coordsTensorData = static_cast<float*>(coordsTensor.data());
             for (size_t i = 0; i < coordsTensor.get_size(); i += 4) {
@@ -113,7 +110,7 @@ protected:
             OPENVINO_THROW("roi align. Unsupported precision: ", coordsET);
         }
 
-        auto roisIdxTensor = ov::Tensor{ funcInputs[2].get_element_type(), targetInputStaticShapes[2] };
+        auto roisIdxTensor = ov::Tensor{funcInputs[2].get_element_type(), targetInputStaticShapes[2]};
         auto roisIdxTensorData = static_cast<std::int32_t*>(roisIdxTensor.data());
         std::int32_t batchIdx = 0;
         for (size_t i = 0; i < roisIdxTensor.get_size(); i++) {
@@ -121,9 +118,9 @@ protected:
             batchIdx = (batchIdx + 1) % targetInputStaticShapes[0][0];
         }
 
-        inputs.insert({ funcInputs[0].get_node_shared_ptr(), data_tensor });
-        inputs.insert({ funcInputs[1].get_node_shared_ptr(), coordsTensor });
-        inputs.insert({ funcInputs[2].get_node_shared_ptr(), roisIdxTensor });
+        inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), coordsTensor});
+        inputs.insert({funcInputs[2].get_node_shared_ptr(), roisIdxTensor});
     }
 
     void SetUp() override {
@@ -148,7 +145,7 @@ protected:
         init_input_shapes(inputShapes);
 
         ov::ParameterVector float_params;
-        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[1] }) {
+        for (auto&& shape : {inputDynamicShapes[0], inputDynamicShapes[1]}) {
             float_params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
         }
         auto int_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, inputDynamicShapes[2]);
@@ -170,7 +167,7 @@ protected:
             rel_threshold = 1e-2;
         }
 
-        ov::ParameterVector params{ float_params[0], float_params[1], int_param };
+        ov::ParameterVector params{float_params[0], float_params[1], int_param};
         function = makeNgraphFunction(inputPrecision, params, roialign, "ROIAlign");
     }
 };
@@ -203,75 +200,58 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     return resCPUParams;
 }
 
-const std::vector<ElementType> netPrecisions = {
-        ElementType::f32,
-        ElementType::bf16
-};
+const std::vector<ElementType> netPrecisions = {ElementType::f32, ElementType::bf16};
 
-const std::vector<int> spatialBinXVector = { 2 };
+const std::vector<int> spatialBinXVector = {2};
 
-const std::vector<int> spatialBinYVector = { 2 };
+const std::vector<int> spatialBinYVector = {2};
 
-const std::vector<float> spatialScaleVector = { 1.0f };
+const std::vector<float> spatialScaleVector = {1.0f};
 
-const std::vector<int> poolingRatioVector = { 7 };
+const std::vector<int> poolingRatioVector = {7};
 
-const std::vector<std::string> modeVector = {
-        "avg",
-        "max"
-};
+const std::vector<std::string> modeVector = {"avg", "max"};
 
-const std::vector<std::string> alignedModeVector = {
-        "asymmetric",
-        "half_pixel_for_nn",
-        "half_pixel"
-};
+const std::vector<std::string> alignedModeVector = {"asymmetric", "half_pixel_for_nn", "half_pixel"};
 
 const std::vector<ROIAlignShapes> inputShapeVector = {
-    ROIAlignShapes{{{}, {{ 2, 22, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
-    ROIAlignShapes{{{}, {{ 2, 18, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
-    ROIAlignShapes{{{}, {{ 2, 4, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
-    ROIAlignShapes{{{}, {{ 2, 4, 20, 40 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
-    ROIAlignShapes{{{}, {{ 10, 1, 20, 20 }}}, {{}, {{2, 4}}}, {{}, {{2}}}},
-    ROIAlignShapes{{{}, {{ 2, 18, 20, 20 }}}, {{}, {{1, 4}}}, {{}, {{1}}}},
-    ROIAlignShapes{{{}, {{ 2, 4, 20, 20 }}}, {{}, {{1, 4}}}, {{}, {{1}}}},
-    ROIAlignShapes{{{}, {{ 2, 4, 20, 40 }}}, {{}, {{1, 4}}}, {{}, {{1}}}},
-    ROIAlignShapes{{{}, {{ 10, 1, 20, 20 }}}, {{}, {{1, 4}}}, {{}, {{1}}}},
-    ROIAlignShapes{
-        {{-1, -1, -1, -1}, {{ 10, 1, 20, 20 }, { 2, 4, 20, 20 }, { 2, 18, 20, 20 }}},
-        {{-1, 4}, {{1, 4}, {2, 4}, {1, 4}}},
-        {{-1}, {{1}, {2}, {1}}}
-    },
-    ROIAlignShapes{
-        {{{2, 10}, { 1, 5 }, -1, -1}, {{ 2, 1, 20, 20 }, { 10, 5, 30, 20 }, { 4, 4, 40, 40 }}},
-        {{-1, 4}, {{2, 4}, {2, 4}, {1, 4}}},
-        {{-1}, {{2}, {2}, {1}}}
-    },
-    ROIAlignShapes{
-        {{{2, 10}, {1, 18}, {10, 30}, {15, 25}}, {{ 10, 1, 10, 15 }, { 2, 4, 20, 20 }, { 7, 18, 30, 25 }}},
-        {{{1, 2}, 4}, {{1, 4}, {2, 4}, {1, 4}}},
-        {{{1, 2}}, {{1}, {2}, {1}}}
-    },
+    ROIAlignShapes{{{}, {{2, 22, 20, 20}}}, {{}, {{2, 4}}}, {{}, {{2}}}},
+    ROIAlignShapes{{{}, {{2, 18, 20, 20}}}, {{}, {{2, 4}}}, {{}, {{2}}}},
+    ROIAlignShapes{{{}, {{2, 4, 20, 20}}}, {{}, {{2, 4}}}, {{}, {{2}}}},
+    ROIAlignShapes{{{}, {{2, 4, 20, 40}}}, {{}, {{2, 4}}}, {{}, {{2}}}},
+    ROIAlignShapes{{{}, {{10, 1, 20, 20}}}, {{}, {{2, 4}}}, {{}, {{2}}}},
+    ROIAlignShapes{{{}, {{2, 18, 20, 20}}}, {{}, {{1, 4}}}, {{}, {{1}}}},
+    ROIAlignShapes{{{}, {{2, 4, 20, 20}}}, {{}, {{1, 4}}}, {{}, {{1}}}},
+    ROIAlignShapes{{{}, {{2, 4, 20, 40}}}, {{}, {{1, 4}}}, {{}, {{1}}}},
+    ROIAlignShapes{{{}, {{10, 1, 20, 20}}}, {{}, {{1, 4}}}, {{}, {{1}}}},
+    ROIAlignShapes{{{-1, -1, -1, -1}, {{10, 1, 20, 20}, {2, 4, 20, 20}, {2, 18, 20, 20}}},
+                   {{-1, 4}, {{1, 4}, {2, 4}, {1, 4}}},
+                   {{-1}, {{1}, {2}, {1}}}},
+    ROIAlignShapes{{{{2, 10}, {1, 5}, -1, -1}, {{2, 1, 20, 20}, {10, 5, 30, 20}, {4, 4, 40, 40}}},
+                   {{-1, 4}, {{2, 4}, {2, 4}, {1, 4}}},
+                   {{-1}, {{2}, {2}, {1}}}},
+    ROIAlignShapes{{{{2, 10}, {1, 18}, {10, 30}, {15, 25}}, {{10, 1, 10, 15}, {2, 4, 20, 20}, {7, 18, 30, 25}}},
+                   {{{1, 2}, 4}, {{1, 4}, {2, 4}, {1, 4}}},
+                   {{{1, 2}}, {{1}, {2}, {1}}}},
 };
 
-const auto roiAlignParams = ::testing::Combine(
-        ::testing::ValuesIn(spatialBinXVector),       // bin's column count
-        ::testing::ValuesIn(spatialBinYVector),       // bin's row count
-        ::testing::ValuesIn(spatialScaleVector),      // scale for given region considering actual input size
-        ::testing::ValuesIn(poolingRatioVector),      // pooling ratio for bin
-        ::testing::ValuesIn(modeVector),              // pooling mode
-        ::testing::ValuesIn(alignedModeVector),       // aligned mode
-        ::testing::ValuesIn(inputShapeVector)         // feature map shape
-);
+const auto roiAlignParams =
+    ::testing::Combine(::testing::ValuesIn(spatialBinXVector),   // bin's column count
+                       ::testing::ValuesIn(spatialBinYVector),   // bin's row count
+                       ::testing::ValuesIn(spatialScaleVector),  // scale for given region considering actual input size
+                       ::testing::ValuesIn(poolingRatioVector),  // pooling ratio for bin
+                       ::testing::ValuesIn(modeVector),          // pooling mode
+                       ::testing::ValuesIn(alignedModeVector),   // aligned mode
+                       ::testing::ValuesIn(inputShapeVector)     // feature map shape
+    );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest, ROIAlignLayerCPUTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        roiAlignParams,
-                        ::testing::ValuesIn(netPrecisions),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                ::testing::ValuesIn(filterCPUInfoForDevice())),
-                ROIAlignLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ROIAlignLayoutTest,
+                         ROIAlignLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(roiAlignParams,
+                                                               ::testing::ValuesIn(netPrecisions),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice())),
+                         ROIAlignLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

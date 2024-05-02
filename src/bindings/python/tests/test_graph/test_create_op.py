@@ -3,16 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest
-
-from openvino import PartialShape, Dimension, Model, Type
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime.utils.types import make_constant_node
-
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
 import openvino.runtime.opset10 as ov_opset10
 import openvino.runtime.opset11 as ov
+import pytest
+from openvino.runtime.exceptions import UserInputError
+from openvino.runtime.utils.types import make_constant_node
+
+from openvino import Dimension, Model, PartialShape, Type
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -55,7 +54,9 @@ def test_adaptive_max_pool(dtype, ind_type, op_name):
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
     assert list(node.get_output_shape(1)) == [2, 24, 16, 16]
-    assert node.get_output_element_type(1) == Type.i32 if ind_type == "i32" else Type.i64
+    assert (
+        node.get_output_element_type(1) == Type.i32 if ind_type == "i32" else Type.i64
+    )
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -71,7 +72,14 @@ def test_binary_convolution(dtype):
     parameter_input1 = ov.parameter([1, 1, 3, 3], name="Input1", dtype=dtype)
 
     node = ov.binary_convolution(
-        parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
+        parameter_input0,
+        parameter_input1,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
+        mode,
+        pad_value,
     )
 
     assert node.get_type_name() == "BinaryConvolution"
@@ -115,7 +123,9 @@ def test_ctc_greedy_decoder(dtype):
         (np.float64, np.int64, "i64", "i64", False, False),
     ],
 )
-def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
+def test_ctc_greedy_decoder_seq_len(
+    fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index
+):
 
     parameter_input0 = ov.parameter([8, 20, 128], name="Input0", dtype=fp_dtype)
     parameter_input1 = ov.parameter([8], name="Input1", dtype=int_dtype)
@@ -124,7 +134,12 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
         parameter_input2 = ov.parameter([1], name="Input2", dtype=int_dtype)
 
     node = ov.ctc_greedy_decoder_seq_len(
-        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl,
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        merge_repeated,
+        int_ci,
+        int_sl,
     )
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
@@ -145,7 +160,14 @@ def test_deformable_convolution_opset1(dtype, op_name):
     parameter_input2 = ov.parameter([1, 1, 3, 3], name="Input2", dtype=dtype)
 
     node = ov_opset1.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations, name=op_name,
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
+        name=op_name,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -166,7 +188,13 @@ def test_deformable_convolution(dtype):
     parameter_input2 = ov.parameter([1, 1, 3, 3], name="Input2", dtype=dtype)
 
     node = ov.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -187,8 +215,14 @@ def test_deformable_convolution_mask(dtype):
     parameter_input3 = ov.parameter([1, 9, 7, 7], name="Input3", dtype=dtype)
 
     node = ov.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides,
-        pads_begin, pads_end, dilations, parameter_input3,
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
+        parameter_input3,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -252,7 +286,9 @@ def test_gather_tree(dtype):
     parameter_input2 = ov.parameter([1], name="Input2", dtype=dtype)
     parameter_input3 = ov.parameter([], name="Input3", dtype=dtype)
 
-    node = ov.gather_tree(parameter_input0, parameter_input1, parameter_input2, parameter_input3)
+    node = ov.gather_tree(
+        parameter_input0, parameter_input1, parameter_input2, parameter_input3
+    )
 
     assert node.get_type_name() == "GatherTree"
     assert node.get_output_size() == 1
@@ -280,7 +316,13 @@ def test_lstm_cell_operator(dtype):
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     node_default = ov.lstm_cell(
-        parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
+        hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -335,7 +377,14 @@ def test_lstm_cell_operator_opset1(dtype, op_name):
     parameter_b = ov.parameter(b_shape, name="B", dtype=dtype)
 
     node_default = ov_opset1.lstm_cell(
-        parameter_x, parameter_h_t, parameter_c_t, parameter_w, parameter_r, parameter_b, hidden_size, name=op_name,
+        parameter_x,
+        parameter_h_t,
+        parameter_c_t,
+        parameter_w,
+        parameter_r,
+        parameter_b,
+        hidden_size,
+        name=op_name,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -586,7 +635,9 @@ def test_gru_cell_operator():
     parameter_r = ov.parameter(r_shape, name="R", dtype=np.float32)
     parameter_b = ov.parameter(b_shape, name="B", dtype=np.float32)
 
-    node_default = ov.gru_cell(parameter_x, parameter_h_t, parameter_w, parameter_r, parameter_b, hidden_size)
+    node_default = ov.gru_cell(
+        parameter_x, parameter_h_t, parameter_w, parameter_r, parameter_b, hidden_size
+    )
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
@@ -785,8 +836,11 @@ def test_loop():
     iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
     body_const_condition = ov.constant(bool_val)
 
-    graph_body = Model([curr_cma, cma_hist, body_const_condition], [body_timestep,
-                       body_data_in, body_prev_cma, body_const_one], "body_function")
+    graph_body = Model(
+        [curr_cma, cma_hist, body_const_condition],
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        "body_function",
+    )
 
     node = ov.loop(trip_count, condition)
     node.set_function(graph_body)
@@ -831,16 +885,27 @@ def test_roi_pooling_deprecation():
 
     with pytest.raises(AttributeError) as e:
         _ = ov.roi_pooling(inputs, coords=coords, spatial_scale=0.0625, method="Max")
-    assert "One of the following arguments must be defined: `output_roi`, `output_size`!" in str(e.value)
+    assert (
+        "One of the following arguments must be defined: `output_roi`, `output_size`!"
+        in str(e.value)
+    )
 
     with pytest.raises(AttributeError) as e:
         _ = ov.roi_pooling(inputs, coords=coords, output_roi=[6, 6])
     assert "The following arguments must be defined: `spatial_scale`!" in str(e.value)
 
     with pytest.warns(DeprecationWarning) as w:
-        node = ov.roi_pooling(inputs, coords=coords, output_size=[6, 6], spatial_scale=0.0625, method="Max")
+        node = ov.roi_pooling(
+            inputs,
+            coords=coords,
+            output_size=[6, 6],
+            spatial_scale=0.0625,
+            method="Max",
+        )
     assert issubclass(w[0].category, DeprecationWarning)
-    assert "`output_size` is deprecated and will be removed in future" in str(w[0].message)
+    assert "`output_size` is deprecated and will be removed in future" in str(
+        w[0].message
+    )
 
     assert node.get_type_name() == "ROIPooling"
     assert node.get_output_roi() == [6, 6]
@@ -853,18 +918,64 @@ def test_roi_pooling_deprecation():
 
 
 @pytest.mark.parametrize(
-    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
+    (
+        "data_shape",
+        "rois",
+        "batch_indices",
+        "pooled_h",
+        "pooled_w",
+        "sampling_ratio",
+        "spatial_scale",
+        "mode",
+        "aligned_mode",
+        "expected_shape",
+    ),
     [
         ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
-        ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "half_pixel_for_nn", [7, 3, 3, 4]),
+        (
+            [10, 3, 5, 5],
+            [7, 4],
+            [7],
+            3,
+            4,
+            1,
+            1.0,
+            "avg",
+            "half_pixel_for_nn",
+            [7, 3, 3, 4],
+        ),
         ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, "avg", "half_pixel", [3, 3, 3, 4]),
-        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, float(1), "avg", "half_pixel", [3, 3, 3, 4]),
+        (
+            [10, 3, 5, 5],
+            [3, 4],
+            [3],
+            3,
+            4,
+            1,
+            float(1),
+            "avg",
+            "half_pixel",
+            [3, 3, 3, 4],
+        ),
     ],
 )
-def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
+def test_roi_align(
+    data_shape,
+    rois,
+    batch_indices,
+    pooled_h,
+    pooled_w,
+    sampling_ratio,
+    spatial_scale,
+    mode,
+    aligned_mode,
+    expected_shape,
+):
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
-    batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
+    batch_indices_parameter = ov.parameter(
+        batch_indices, name="Batch_indices", dtype=np.int32
+    )
 
     node = ov.roi_align(
         data_parameter,
@@ -931,7 +1042,9 @@ def test_region_yolo():
     end_axis = 3
     do_softmax = False
 
-    node = ov.region_yolo(data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis)
+    node = ov.region_yolo(
+        data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis
+    )
 
     assert node.get_type_name() == "RegionYolo"
     assert node.get_output_size() == 1
@@ -974,7 +1087,12 @@ def test_embedding_segments_sum_all_inputs():
     per_sample_weights = ov.parameter([4], name="per_sample_weights", dtype=np.float32)
 
     node = ov.embedding_segments_sum(
-        emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights,
+        emb_table,
+        indices,
+        segment_ids,
+        num_segments,
+        default_index,
+        per_sample_weights,
     )
 
     assert node.get_type_name() == "EmbeddingSegmentsSum"
@@ -1001,7 +1119,9 @@ def test_embedding_segments_sum_with_some_opt_inputs():
 def test_embedding_bag_packed_sum():
     emb_table = ov.parameter([5, 2], name="emb_table", dtype=np.float32)
     indices = ov.parameter([3, 3], name="indices", dtype=np.int64)
-    per_sample_weights = ov.parameter([3, 3], name="per_sample_weights", dtype=np.float32)
+    per_sample_weights = ov.parameter(
+        [3, 3], name="per_sample_weights", dtype=np.float32
+    )
 
     # only 1 out of 3 optional inputs
     node = ov.embedding_bag_packed_sum(emb_table, indices, per_sample_weights)
@@ -1135,7 +1255,10 @@ def test_proposal(int_dtype, fp_dtype, op_name):
     assert node.get_type_name() == "Proposal"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
+    assert list(node.get_output_shape(0)) == [
+        batch_size * attributes["post_nms_topn"],
+        5,
+    ]
 
 
 def test_tensor_iterator():
@@ -1160,8 +1283,11 @@ def test_tensor_iterator():
     initial_cma = ov.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ov.range(zero, np.int32(16), np.int32(1))
 
-    graph_body = Model([curr_cma, cma_hist], [body_timestep, body_data_in,
-                                              body_prev_cma, body_const_one], "body_function")
+    graph_body = Model(
+        [curr_cma, cma_hist],
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        "body_function",
+    )
 
     node = ov.tensor_iterator()
     node.set_function(graph_body)
@@ -1835,50 +1961,101 @@ def test_rnn_sequence_operator_forward(dtype):
 
 
 def test_multiclass_nms():
-    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
+    boxes_data = np.array(
+        [
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            0.1,
+            1.0,
+            1.1,
+            0.0,
+            -0.1,
+            1.0,
+            0.9,
+            0.0,
+            10.0,
+            1.0,
+            11.0,
+            0.0,
+            10.1,
+            1.0,
+            11.1,
+            0.0,
+            100.0,
+            1.0,
+            101.0,
+        ],
+        dtype="float32",
+    )
     boxes_data = boxes_data.reshape([1, 6, 4])
     box = ov.constant(boxes_data, dtype=float)
-    scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
+    scores_data = np.array(
+        [0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3],
+        dtype="float32",
+    )
     scores_data = scores_data.reshape([1, 2, 6])
     score = ov.constant(scores_data, dtype=float)
 
-    nms_node = ov.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
-                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
-                                 nms_eta=1.0)
+    nms_node = ov.multiclass_nms(
+        box,
+        score,
+        None,
+        output_type="i32",
+        nms_top_k=3,
+        iou_threshold=0.5,
+        score_threshold=0.0,
+        sort_result_type="classid",
+        nms_eta=1.0,
+    )
 
     assert nms_node.get_type_name() == "MulticlassNms"
     assert nms_node.get_output_size() == 3
-    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
-    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(6)]
+    )
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(1)]
+    )
     assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
     assert nms_node.get_output_element_type(2) == Type.i32
 
-    boxes_data = np.array([[[7.55, 1.10, 18.28, 14.47],
-                            [7.25, 0.47, 12.28, 17.77]],
-                           [[4.06, 5.15, 16.11, 18.40],
-                            [9.66, 3.36, 18.57, 13.26]],
-                           [[6.50, 7.00, 13.33, 17.63],
-                            [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
+    boxes_data = np.array(
+        [
+            [[7.55, 1.10, 18.28, 14.47], [7.25, 0.47, 12.28, 17.77]],
+            [[4.06, 5.15, 16.11, 18.40], [9.66, 3.36, 18.57, 13.26]],
+            [[6.50, 7.00, 13.33, 17.63], [0.73, 5.34, 19.97, 19.97]],
+        ]
+    ).astype("float32")
     box = ov.constant(boxes_data, dtype=float)
-    scores_data = np.array([[0.34, 0.66],
-                            [0.45, 0.61],
-                            [0.39, 0.59]]).astype("float32")
+    scores_data = np.array([[0.34, 0.66], [0.45, 0.61], [0.39, 0.59]]).astype("float32")
     score = ov.constant(scores_data, dtype=float)
     rois_num_data = np.array([3]).astype("int32")
     roisnum = ov.constant(rois_num_data, dtype=int)
-    nms_node = ov.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
-                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
-                                 nms_eta=1.0)
+    nms_node = ov.multiclass_nms(
+        box,
+        score,
+        roisnum,
+        output_type="i32",
+        nms_top_k=3,
+        iou_threshold=0.5,
+        score_threshold=0.0,
+        sort_result_type="classid",
+        nms_eta=1.0,
+    )
 
     assert nms_node.get_type_name() == "MulticlassNms"
     assert nms_node.get_output_size() == 3
-    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
-    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(6)]
+    )
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(1)]
+    )
     assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
@@ -1886,24 +2063,65 @@ def test_multiclass_nms():
 
 
 def test_matrix_nms():
-    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
+    boxes_data = np.array(
+        [
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            0.1,
+            1.0,
+            1.1,
+            0.0,
+            -0.1,
+            1.0,
+            0.9,
+            0.0,
+            10.0,
+            1.0,
+            11.0,
+            0.0,
+            10.1,
+            1.0,
+            11.1,
+            0.0,
+            100.0,
+            1.0,
+            101.0,
+        ],
+        dtype="float32",
+    )
     boxes_data = boxes_data.reshape([1, 6, 4])
     box = ov.constant(boxes_data, dtype=float)
-    scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
+    scores_data = np.array(
+        [0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3],
+        dtype="float32",
+    )
     scores_data = scores_data.reshape([1, 2, 6])
     score = ov.constant(scores_data, dtype=float)
 
-    nms_node = ov.matrix_nms(box, score, output_type="i32", nms_top_k=3,
-                             score_threshold=0.0, sort_result_type="score", background_class=0,
-                             decay_function="linear", gaussian_sigma=2.0, post_threshold=0.0)
+    nms_node = ov.matrix_nms(
+        box,
+        score,
+        output_type="i32",
+        nms_top_k=3,
+        score_threshold=0.0,
+        sort_result_type="score",
+        background_class=0,
+        decay_function="linear",
+        gaussian_sigma=2.0,
+        post_threshold=0.0,
+    )
 
     assert nms_node.get_type_name() == "MatrixNms"
     assert nms_node.get_output_size() == 3
-    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
-    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
+    assert nms_node.outputs()[0].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(6)]
+    )
+    assert nms_node.outputs()[1].get_partial_shape() == PartialShape(
+        [Dimension(0, 6), Dimension(1)]
+    )
     assert list(nms_node.outputs()[2].get_shape()) == [1]
     assert nms_node.get_output_element_type(0) == Type.f32
     assert nms_node.get_output_element_type(1) == Type.i32
@@ -1913,17 +2131,48 @@ def test_matrix_nms():
 @pytest.mark.parametrize(
     ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
     [
-        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
-        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
-        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+        (
+            [1, 1000, 4],
+            [1, 1, 1000],
+            [1000],
+            [
+                PartialShape([Dimension(0, 1000), Dimension(3)]),
+                PartialShape([Dimension(0, 1000), Dimension(3)]),
+            ],
+        ),
+        (
+            [1, 700, 4],
+            [1, 1, 700],
+            [600],
+            [
+                PartialShape([Dimension(0, 600), Dimension(3)]),
+                PartialShape([Dimension(0, 600), Dimension(3)]),
+            ],
+        ),
+        (
+            [1, 300, 4],
+            [1, 1, 300],
+            [300],
+            [
+                PartialShape([Dimension(0, 300), Dimension(3)]),
+                PartialShape([Dimension(0, 300), Dimension(3)]),
+            ],
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["NonMaxSuppression", "NonMaxSuppressionV3"])
-def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expected_shape, op_name):
+def test_non_max_suppression(
+    boxes_shape, scores_shape, max_output_boxes, expected_shape, op_name
+):
     boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ov.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64), name=op_name)
+    node = ov.non_max_suppression(
+        boxes_parameter,
+        scores_parameter,
+        make_constant_node(max_output_boxes, np.int64),
+        name=op_name,
+    )
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3
@@ -1933,16 +2182,65 @@ def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expect
 
 
 @pytest.mark.parametrize(
-    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "soft_nms_sigma", "expected_shape"),
+    (
+        "boxes_shape",
+        "scores_shape",
+        "max_output_boxes",
+        "iou_threshold",
+        "score_threshold",
+        "soft_nms_sigma",
+        "expected_shape",
+    ),
     [
-        ([1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
-        ([1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
-        ([1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+        (
+            [1, 100, 4],
+            [1, 1, 100],
+            [100],
+            0.1,
+            0.4,
+            0.5,
+            [
+                PartialShape([Dimension(0, 100), Dimension(3)]),
+                PartialShape([Dimension(0, 100), Dimension(3)]),
+            ],
+        ),
+        (
+            [1, 700, 4],
+            [1, 1, 700],
+            [600],
+            0.1,
+            0.4,
+            0.5,
+            [
+                PartialShape([Dimension(0, 600), Dimension(3)]),
+                PartialShape([Dimension(0, 600), Dimension(3)]),
+            ],
+        ),
+        (
+            [1, 300, 4],
+            [1, 1, 300],
+            [300],
+            0.1,
+            0.4,
+            0.5,
+            [
+                PartialShape([Dimension(0, 300), Dimension(3)]),
+                PartialShape([Dimension(0, 300), Dimension(3)]),
+            ],
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["NonMaxSuppression", "NonMaxSuppressionV3"])
-def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold,
-                                              score_threshold, soft_nms_sigma, expected_shape, op_name):
+def test_non_max_suppression_non_default_args(
+    boxes_shape,
+    scores_shape,
+    max_output_boxes,
+    iou_threshold,
+    score_threshold,
+    soft_nms_sigma,
+    expected_shape,
+    op_name,
+):
     boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -1951,7 +2249,15 @@ def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_out
     score_threshold = make_constant_node(score_threshold, np.float32)
     soft_nms_sigma = make_constant_node(soft_nms_sigma, np.float32)
 
-    node = ov.non_max_suppression(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, name=op_name)
+    node = ov.non_max_suppression(
+        boxes_parameter,
+        scores_parameter,
+        max_output_boxes,
+        iou_threshold,
+        score_threshold,
+        soft_nms_sigma,
+        name=op_name,
+    )
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3
@@ -1973,7 +2279,10 @@ def test_slice():
     assert node_default_axes.get_type_name() == "Slice"
     assert node_default_axes.get_output_size() == 1
     assert node_default_axes.get_output_element_type(0) == Type.f32
-    assert tuple(node_default_axes.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+    assert (
+        tuple(node_default_axes.get_output_shape(0))
+        == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+    )
 
     start = ov.constant(np.array([0, 2], dtype=np.int32))
     stop = ov.constant(np.array([2, 9], dtype=np.int32))
@@ -1985,7 +2294,9 @@ def test_slice():
     assert node.get_type_name() == "Slice"
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == Type.f32
-    assert tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+    assert (
+        tuple(node.get_output_shape(0)) == np.zeros(data_shape)[2:9:2, ::, 0:2:1].shape
+    )
 
 
 def test_i420_to_bgr():
@@ -2146,17 +2457,19 @@ def test_generate_proposals():
     deltas_param = ov.parameter(deltas_shape, name="deltas")
     scores_param = ov.parameter(scores_shape, name="scores")
 
-    node = ov.generate_proposals(im_info_param,
-                                 anchors_param,
-                                 deltas_param,
-                                 scores_param,
-                                 min_size=1.0,
-                                 nms_threshold=0.5,
-                                 pre_nms_count=200,
-                                 post_nms_count=100,
-                                 normalized=False,
-                                 nms_eta=1.0,
-                                 roi_num_type="i32")
+    node = ov.generate_proposals(
+        im_info_param,
+        anchors_param,
+        deltas_param,
+        scores_param,
+        min_size=1.0,
+        nms_threshold=0.5,
+        pre_nms_count=200,
+        post_nms_count=100,
+        normalized=False,
+        nms_eta=1.0,
+        roi_num_type="i32",
+    )
 
     assert node.get_type_name() == "GenerateProposals"
     assert node.get_output_size() == 3
@@ -2221,8 +2534,15 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode, op_n
     axes = [2, 3]
     mode = "cubic"
 
-    node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                  axes=axes, mode=mode, shape_calculation_mode=shape_calculation_mode, name=op_name)
+    node = ov_opset10.interpolate(
+        image=image_node,
+        output_shape=output_shape,
+        scales=scales,
+        axes=axes,
+        mode=mode,
+        shape_calculation_mode=shape_calculation_mode,
+        name=op_name,
+    )
     assert node.get_type_name() == "Interpolate"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
@@ -2238,15 +2558,22 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode, op_n
     ],
 )
 @pytest.mark.parametrize("dtype", np_types)
-def test_interpolate_opset11(dtype, expected_shape, shape_calculation_mode, input_value):
+def test_interpolate_opset11(
+    dtype, expected_shape, shape_calculation_mode, input_value
+):
 
     image_shape = [1, 3, 1024, 1024]
     image_node = ov.parameter(image_shape, dtype, name="Image")
     axes = [2, 3]
     mode = "bilinear_pillow"
 
-    node = ov.interpolate(image=image_node, scales_or_sizes=input_value, axes=axes, mode=mode,
-                          shape_calculation_mode=shape_calculation_mode)
+    node = ov.interpolate(
+        image=image_node,
+        scales_or_sizes=input_value,
+        axes=axes,
+        mode=mode,
+        shape_calculation_mode=shape_calculation_mode,
+    )
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape

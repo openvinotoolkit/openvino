@@ -3,11 +3,14 @@
 //
 
 #include "shuffle_channels_kernel_selector.h"
+
 #include "shuffle_channels_kernel_ref.h"
 
 namespace kernel_selector {
 
-shuffle_channels_kernel_selector::shuffle_channels_kernel_selector() { Attach<ShuffleChannelsKernelRef>(); }
+shuffle_channels_kernel_selector::shuffle_channels_kernel_selector() {
+    Attach<ShuffleChannelsKernelRef>();
+}
 
 KernelsData shuffle_channels_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::SHUFFLE_CHANNELS);

@@ -7,8 +7,8 @@
 #include <string>
 
 #include "ov_lpt_models/common/add.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
@@ -26,15 +26,15 @@ public:
     Actual actual;
 };
 
-typedef std::tuple<
-    std::string,
-    FuseMultiplyToFakeQuantizeTransformationTestValues> FuseMultiplyToFakeQuantizeTransformationParams;
+typedef std::tuple<std::string, FuseMultiplyToFakeQuantizeTransformationTestValues>
+    FuseMultiplyToFakeQuantizeTransformationParams;
 
-class FuseMultiplyToFakeQuantizeTransformation :
-    public testing::WithParamInterface<FuseMultiplyToFakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FuseMultiplyToFakeQuantizeTransformation
+    : public testing::WithParamInterface<FuseMultiplyToFakeQuantizeTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationParams>& obj);
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -28,6 +28,7 @@ public:
     ov::element::Type outPrecision;
     ov::Shape shape;
     bool shapeIsDefined;
+
 private:
     bool isEmpty;
 };

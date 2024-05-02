@@ -11,8 +11,7 @@ namespace kernel_selector {
 // reverse_sequence_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reverse_sequence_params : public base_params {
-    reverse_sequence_params() : base_params(KernelType::REVERSE_SEQUENCE),
-    seq_axis(0), batch_axis(0) {}
+    reverse_sequence_params() : base_params(KernelType::REVERSE_SEQUENCE), seq_axis(0), batch_axis(0) {}
 
     int32_t seq_axis;
     int32_t batch_axis;

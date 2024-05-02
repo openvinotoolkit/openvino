@@ -666,7 +666,7 @@ const auto createU1ConstantFunc = [](const Shape& s, const uint8_t* data) {
 
     return std::make_shared<ov::Model>(NodeVector{c}, ParameterVector{});
 };
-}
+}  // namespace
 
 TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_1stbit) {
     const Shape shape{1};

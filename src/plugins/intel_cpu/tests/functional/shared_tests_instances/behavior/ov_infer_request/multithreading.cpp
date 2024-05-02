@@ -12,9 +12,9 @@ const std::vector<ov::AnyMap> configs = {{},
                                          {{ov::num_streams(ov::streams::AUTO)}},
                                          {{ov::num_streams(ov::streams::Num(0))}, {ov::inference_num_threads(1)}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestMultithreadingTests,
-                        ::testing::Combine(
-                                ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                ::testing::ValuesIn(configs)),
-                            OVInferRequestMultithreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestMultithreadingTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(configs)),
+                         OVInferRequestMultithreadingTests::getTestCaseName);
 }  // namespace

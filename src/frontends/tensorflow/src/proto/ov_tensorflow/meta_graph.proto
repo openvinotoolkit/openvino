@@ -200,12 +200,12 @@ message CollectionDef {
 
   // Int64List is used for collecting int, int64 and long values.
   message Int64List {
-    repeated int64 value = 1 [packed = true];
+    repeated int64 value = 1 [ packed = true ];
   }
 
   // FloatList is used for collecting float values.
   message FloatList {
-    repeated float value = 1 [packed = true];
+    repeated float value = 1 [ packed = true ];
   }
 
   // AnyList is used for collecting Any protos.

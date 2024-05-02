@@ -14,9 +14,12 @@ import sys
 from pathlib import Path
 
 import numpy as np
+
 from openvino import Core
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
 
 
 def input_preparation(model):
@@ -58,13 +61,31 @@ def cli_parser():
     Function for parsing arguments from command line.
     :return: ir path, device and output folder path variables.
     """
-    parser = argparse.ArgumentParser(description='Arguments for python API inference')
-    parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR',  action="append")
-    parser.add_argument('-d', dest='device', required=True, help='Target device to infer on')
-    parser.add_argument('-r', dest='out_path', required=True, type=Path,
-                        help='Dumps results to the output file')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
-                        help='Increase output verbosity')
+    parser = argparse.ArgumentParser(description="Arguments for python API inference")
+    parser.add_argument(
+        "-m",
+        dest="ir_path",
+        required=True,
+        help="Path to XML file of IR",
+        action="append",
+    )
+    parser.add_argument(
+        "-d", dest="device", required=True, help="Target device to infer on"
+    )
+    parser.add_argument(
+        "-r",
+        dest="out_path",
+        required=True,
+        type=Path,
+        help="Dumps results to the output file",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Increase output verbosity",
+    )
     args = parser.parse_args()
     ir_path = args.ir_path
     device = args.device

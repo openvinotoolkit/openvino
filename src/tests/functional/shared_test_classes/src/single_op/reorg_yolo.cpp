@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple> &obj) {
+std::string ReorgYoloLayerTest::getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple>& obj) {
     std::vector<size_t> input_shape;
     ov::element::Type model_type;
     size_t stride;

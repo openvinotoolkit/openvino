@@ -3,8 +3,10 @@
 //
 
 #include "subgraph_lowered.hpp"
-#include "common_test_utils/data_utils.hpp"
+
 #include <snippets/snippets_isa.hpp>
+
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -28,7 +30,7 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     }
     auto add = std::make_shared<op::v1::Add>(add_input0, add_input1);
     auto store = std::make_shared<ov::snippets::op::Store>(add);
-    ParameterVector input_params {data0, data1};
+    ParameterVector input_params{data0, data1};
     return std::make_shared<ov::Model>(NodeVector{store}, input_params);
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
@@ -40,14 +42,15 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
         // user specified that no broadcasting is required
         if (broadcast_shapes[i].empty()) {
             return std::make_shared<ov::snippets::op::Load>(input_params[i]);
-        // broadcasting is required: could be Load + BroadcastMove or BroiadcastLoad
+            // broadcasting is required: could be Load + BroadcastMove or BroiadcastLoad
         } else {
             // The last dim is processed by vector Tile, so BroadcastLoad is required if the last dim being broadcasted
             if (input_shapes[i].rbegin()->get_length() == 1 && broadcast_shapes[i].back() != 1) {
-                return std::make_shared<ov::snippets::op::BroadcastLoad>(input_params[i], *broadcast_shapes[i].rbegin());
-            // Todo: Cover this logics with functional tests, Review FakeBroadcast Emitter
-            // Broadcasting of other dims is handled by BroadcastMove. Strictly speaking, broadcasting is achieved via
-            // appropriate pointer arithmetics in this case.
+                return std::make_shared<ov::snippets::op::BroadcastLoad>(input_params[i],
+                                                                         *broadcast_shapes[i].rbegin());
+                // Todo: Cover this logics with functional tests, Review FakeBroadcast Emitter
+                // Broadcasting of other dims is handled by BroadcastMove. Strictly speaking, broadcasting is achieved
+                // via appropriate pointer arithmetics in this case.
             } else {
                 auto load = std::make_shared<ov::snippets::op::Load>(input_params[i]);
                 return std::make_shared<ov::snippets::op::BroadcastMove>(load, *broadcast_shapes[i].rbegin());
@@ -82,29 +85,32 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
     }
-    auto matmul = std::make_shared<ov::snippets::op::Brgemm>(data[0], data[1], 0, 0, 0, transpose_position == 0 ? layout : std::vector<size_t>{},
-                                                                                        transpose_position == 1 ? layout : std::vector<size_t>{},
-                                                                                        transpose_position == 2 ? layout : std::vector<size_t>{});
+    auto matmul = std::make_shared<ov::snippets::op::Brgemm>(data[0],
+                                                             data[1],
+                                                             0,
+                                                             0,
+                                                             0,
+                                                             transpose_position == 0 ? layout : std::vector<size_t>{},
+                                                             transpose_position == 1 ? layout : std::vector<size_t>{},
+                                                             transpose_position == 2 ? layout : std::vector<size_t>{});
     auto result = std::make_shared<ov::op::v0::Result>(matmul);
     if (transpose_position == 2) {
         const auto& anchor = matmul->output(0);
         const auto& td = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(anchor);
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(anchor,
-                                                                        std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor,
-                                                                                                                                subtensor,
-                                                                                                                                layout));
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+            anchor,
+            std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor, subtensor, layout));
     }
     if (transpose_position < 2) {
         const auto& anchor = data[transpose_position]->output(0);
         const auto& td = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(anchor);
         const auto& tensor = td->get_shape();
         const auto& subtensor = td->get_subtensor();
-        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(matmul->input(transpose_position),
-                                                                        std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor,
-                                                                                                                                subtensor,
-                                                                                                                                layout));
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+            matmul->input(transpose_position),
+            std::make_shared<ov::snippets::lowered::PortDescriptor>(tensor, subtensor, layout));
     }
     matmul->validate_and_infer_types();
     return std::make_shared<ov::Model>(NodeVector{matmul}, data);
@@ -114,7 +120,8 @@ std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     ov::NodeVector datas = {data0, data1};
-    auto last_dim = std::max(input_shapes[0].get_shape().back(), std::max(input_shapes[1].get_shape().back(), m_target_shape.get_shape().back()));
+    auto last_dim = std::max(input_shapes[0].get_shape().back(),
+                             std::max(input_shapes[1].get_shape().back(), m_target_shape.get_shape().back()));
     ov::NodeVector loads(datas.size(), nullptr);
     for (auto i = 0; i < datas.size(); i++) {
         if (input_shapes[i].get_shape().back() != last_dim) {

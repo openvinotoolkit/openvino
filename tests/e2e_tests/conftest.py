@@ -5,10 +5,10 @@ import pathlib
 import sys
 
 from cpuinfo import get_cpu_info
-
 from e2e_tests.common.logger import get_logger
-from .common.sys_info_utils import get_sys_info
 from e2e_tests.test_utils.tf_helper import TFVersionHelper
+
+from .common.sys_info_utils import get_sys_info
 
 try:
     # In user_config.py, user might export custom environment variables
@@ -42,28 +42,41 @@ def pytest_configure(config):
 
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
-    pytest_html = item.config.pluginmanager.getplugin('html')
+    pytest_html = item.config.pluginmanager.getplugin("html")
     report = (yield).get_result()
-    extra = getattr(report, 'extra', [])
+    extra = getattr(report, "extra", [])
     ir_links = []
-    if report.when == 'call':
-        ir_link = next((p[1] for p in report.user_properties if p[0] == "ir_link"), None)
+    if report.when == "call":
+        ir_link = next(
+            (p[1] for p in report.user_properties if p[0] == "ir_link"), None
+        )
         if ir_link:
             extra.append(pytest_html.extras.url(ir_link, name="xml"))
-            extra.append(pytest_html.extras.url(ir_link.replace(".xml", ".bin"), name="bin"))
-            extra.append(pytest_html.extras.url(ir_link.replace(".xml", ".mo_log.txt"), name="mo_log"))
+            extra.append(
+                pytest_html.extras.url(ir_link.replace(".xml", ".bin"), name="bin")
+            )
+            extra.append(
+                pytest_html.extras.url(
+                    ir_link.replace(".xml", ".mo_log.txt"), name="mo_log"
+                )
+            )
 
-            ir_links.append(f"<a class=\"url\" href=\"{ir_link}\" target=\"_blank\">xml</a>")
-            ir_links.append(f"<a class=\"url\" href=\"{ir_link.replace('.xml', '.bin')}\" target=\"_blank\">bin</a>")
-            ir_links.append(f"<a class=\"url\" href=\"{ir_link.replace('.xml', '.mo_log.txt')}\" "
-                            f"target=\"_blank\">mo_log</a>")
-        if getattr(item._request, 'test_info', None):
+            ir_links.append(f'<a class="url" href="{ir_link}" target="_blank">xml</a>')
+            ir_links.append(
+                f"<a class=\"url\" href=\"{ir_link.replace('.xml', '.bin')}\" target=\"_blank\">bin</a>"
+            )
+            ir_links.append(
+                f"<a class=\"url\" href=\"{ir_link.replace('.xml', '.mo_log.txt')}\" "
+                f'target="_blank">mo_log</a>'
+            )
+        if getattr(item._request, "test_info", None):
             item._request.test_info.update(
-                {"links": " ".join(ir_links),
-                 "log": "\n\n\n".join([report.caplog, report.longreprtext]),
-                 "insertTime": report.duration,
-                 "duration": report.duration,
-                 "result": report.outcome}
+                {
+                    "links": " ".join(ir_links),
+                    "log": "\n\n\n".join([report.caplog, report.longreprtext]),
+                    "insertTime": report.duration,
+                    "duration": report.duration,
+                    "result": report.outcome,
+                }
             )
     report.extra = extra
-

@@ -130,7 +130,6 @@ private:
 
     Vmm vmm_data_result = vmm_data_odd_2;
 
-
     template <typename T>
     void loop_process(int step);
 
@@ -138,5 +137,5 @@ private:
     void move_data(const Xbyak::Xmm& x, const Xbyak::Address& addr, int count);
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

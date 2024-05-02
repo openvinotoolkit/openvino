@@ -239,7 +239,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     NodeConfig nodeConfig;
     nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_SRC));
     nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_WEI));
-    if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
+    if (attrs.withBias)
+        nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
 
     const int inPlace = canBeInPlace() ? 0 : -1;
     nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);

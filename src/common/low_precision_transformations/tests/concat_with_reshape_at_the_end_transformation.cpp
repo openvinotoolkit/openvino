@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/max_pool.hpp"
 #include "low_precision/reshape.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "ov_lpt_models/concat.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/concat.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -50,7 +48,8 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationResultValues& values) {
-    return out << "_" << values.fakeQuantize1 << "_" << values.fakeQuantize2 << "_" << values.fakeQuantize3 << "_" << values.dequantizationOperations;
+    return out << "_" << values.fakeQuantize1 << "_" << values.fakeQuantize2 << "_" << values.fakeQuantize3 << "_"
+               << values.dequantizationOperations;
 }
 
 class ConcatTransformationTestValues {
@@ -64,13 +63,10 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
     return out << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple <
-    ov::element::Type,
-    ov::Shape,
-    ConcatTransformationTestValues
-> ConcatTransformationParams;
+typedef std::tuple<ov::element::Type, ov::Shape, ConcatTransformationTestValues> ConcatTransformationParams;
 
-class ConcatWithReshapeAtTheEndTransformation : public LayerTransformation, public testing::WithParamInterface<ConcatTransformationParams> {
+class ConcatWithReshapeAtTheEndTransformation : public LayerTransformation,
+                                                public testing::WithParamInterface<ConcatTransformationParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
@@ -86,7 +82,8 @@ public:
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
-        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            testValues.params);
         transform.add<ov::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
         transform.transform(actualFunction);
@@ -108,10 +105,8 @@ public:
         const ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
-        result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_" <<
-            testValues.actual << "_" <<
-            testValues.result << "_";
+        result << LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params) << "_"
+               << testValues.actual << "_" << testValues.result << "_";
         return result.str();
     }
 };
@@ -127,91 +122,81 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-        },
-        {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            ov::element::u8,
-            ov::element::u8,
-            { ov::element::f32, {}, { 0.01f } }
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-        {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
-        },
-        {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
-            ov::element::f32,
-            ov::element::f32,
-            { {}, {}, { 0.01f } }
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
-            },
-        },
-        {
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
-            },
-            {
-                256ul,
-                {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
-                {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}, {0.f}, {255.f}
-            },
-            ov::element::u8,
-            ov::element::u8,
-            { ov::element::f32, {}, {{ 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f }} }
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+     },
+     {{256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      ov::element::u8,
+      ov::element::u8,
+      {ov::element::f32, {}, {0.01f}}}},
+    {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+     {
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+     },
+     {{256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
+      ov::element::f32,
+      ov::element::f32,
+      {{}, {}, {0.01f}}}},
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {256ul,
+          {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}},
+         {256ul,
+          {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}},
+         {256ul,
+          {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+          {0.f, 0.f, 0.f},
+          {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}},
+     },
+     {{256ul,
+       {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+       {0.f, 0.f, 0.f},
+       {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+       {0.f},
+       {255.f}},
+      {256ul,
+       {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+       {0.f, 0.f, 0.f},
+       {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+       {0.f},
+       {255.f}},
+      {256ul,
+       {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+       {0.f, 0.f, 0.f},
+       {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
+       {0.f},
+       {255.f}},
+      ov::element::u8,
+      ov::element::u8,
+      {ov::element::f32,
+       {},
+       {{0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f, 0.01f, 0.01f / 2.f, 0.01f / 3.f}}}}}};
 
-const std::vector<ov::Shape> shapes = {
-    { 1, 3, 9, 9 },
-    { 4, 3, 9, 9 }
-};
+const std::vector<ov::Shape> shapes = {{1, 3, 9, 9}, {4, 3, 9, 9}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConcatWithReshapeAtTheEndTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    ConcatWithReshapeAtTheEndTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConcatWithReshapeAtTheEndTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         ConcatWithReshapeAtTheEndTransformation::getTestCaseName);
 }  // namespace

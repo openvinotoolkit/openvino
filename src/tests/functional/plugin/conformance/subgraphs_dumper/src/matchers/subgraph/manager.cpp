@@ -6,12 +6,11 @@
 
 using namespace ov::tools::subgraph_dumper;
 
-std::vector<SubgraphExtractor::ExtractedPattern>
-ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
-                           bool is_extract_body,
-                           bool is_copy_constants) {
+std::vector<SubgraphExtractor::ExtractedPattern> ExtractorsManager::extract(const std::shared_ptr<ov::Model>& model,
+                                                                            bool is_extract_body,
+                                                                            bool is_copy_constants) {
     std::vector<SubgraphExtractor::ExtractedPattern> result;
-    for (const auto &it : m_extractors) {
+    for (const auto& it : m_extractors) {
         // extract patterns from original models
         auto start = std::chrono::high_resolution_clock::now();
         it.second->set_extractor_name(it.first);
@@ -21,7 +20,8 @@ ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
         result.insert(result.end(), extracted_patterns.begin(), extracted_patterns.end());
         auto end = std::chrono::high_resolution_clock::now();
         auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "[ INFO ][ EXTRACTOR DURATION ][ ORIGINAL MODEL ] " << it.first << " " << delta << "ms" << std::endl;
+        std::cout << "[ INFO ][ EXTRACTOR DURATION ][ ORIGINAL MODEL ] " << it.first << " " << delta << "ms"
+                  << std::endl;
 
         // todo: enable it after validation
         // if (!is_dynamic_model(model)) {
@@ -34,7 +34,8 @@ ExtractorsManager::extract(const std::shared_ptr<ov::Model> &model,
 
         //     end = std::chrono::high_resolution_clock::now();
         //     delta = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        //     std::cout << "[ INFO ][ EXTRACTOR DURATION ][ CONSTANT FOLDING ] " << it.first << " " << delta << "ms" << std::endl;
+        //     std::cout << "[ INFO ][ EXTRACTOR DURATION ][ CONSTANT FOLDING ] " << it.first << " " << delta << "ms" <<
+        //     std::endl;
         // }
     }
     return result;

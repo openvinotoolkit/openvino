@@ -5,16 +5,16 @@
 #include "shared_test_classes/single_op/mat_mul.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 
-std::string MatMulLayerTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
+std::string MatMulLayerTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet>& obj) {
     std::vector<InputShape> shapes;
     std::pair<bool, bool> transpose;
     ov::element::Type model_type;
@@ -59,8 +59,8 @@ void MatMulLayerTest::SetUp() {
     init_input_shapes(shapes);
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
-    ov::NodeVector inputs {params[0]};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
+    ov::NodeVector inputs{params[0]};
 
     if (InputLayerType::PARAMETER == secondary_input_type) {
         auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1]);

@@ -5,15 +5,14 @@
 #include "behavior/compiled_model/properties.hpp"
 
 namespace {
+using ov::test::behavior::OVClassCompiledModelGetConfigTest;
+using ov::test::behavior::OVClassCompiledModelGetIncorrectPropertyTest;
 using ov::test::behavior::OVClassCompiledModelGetPropertyTest;
 using ov::test::behavior::OVClassCompiledModelGetPropertyTest_EXEC_DEVICES;
-using ov::test::behavior::OVClassCompiledModelGetIncorrectPropertyTest;
-using ov::test::behavior::OVClassCompiledModelGetConfigTest;
-using ov::test::behavior::OVClassCompiledModelSetIncorrectConfigTest;
 using ov::test::behavior::OVClassCompiledModelPropertiesIncorrectTests;
+using ov::test::behavior::OVClassCompiledModelSetIncorrectConfigTest;
 using ov::test::behavior::OVClassCompileModelWithCorrectPropertiesTest;
 using ov::test::behavior::OVCompiledModelIncorrectDevice;
-
 
 //
 // Executable Network GetMetric
@@ -21,7 +20,6 @@ using ov::test::behavior::OVCompiledModelIncorrectDevice;
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest,
                          ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU"));
-
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GPU = {
     {"GPU", std::make_pair(ov::AnyMap{}, "GPU.0")},
@@ -31,7 +29,6 @@ const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> G
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
                          ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GPU));
-
 
 //
 // Executable Network GetConfig / SetConfig
@@ -48,9 +45,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelSetIncorrectConfigTest,
                          OVClassCompiledModelSetIncorrectConfigTest,
                          ::testing::Values("GPU"));
 
-
 // OV Class Load network
-INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
+                         OVCompiledModelIncorrectDevice,
+                         ::testing::Values("GPU"));
 
 const std::vector<ov::AnyMap> incorrect_device_priorities_properties = {{ov::device::priorities("NONE")},
                                                                         {ov::device::priorities("NONE", "GPU")},

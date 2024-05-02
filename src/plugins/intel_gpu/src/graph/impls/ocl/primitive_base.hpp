@@ -4,28 +4,27 @@
 
 #pragma once
 
+#include <list>
+#include <utility>
+#include <vector>
+
+#include "broadcast_inst.h"
+#include "concatenation_inst.h"
+#include "gather_inst.h"
+#include "implementation_map.hpp"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-#include "primitive_inst.h"
 #include "kernel_selector_helper.h"
-#include "register.hpp"
-#include "implementation_map.hpp"
-#include "concatenation_inst.h"
-#include "gather_inst.h"
 #include "permute_inst.h"
+#include "primitive_inst.h"
+#include "register.hpp"
 #include "strided_slice_inst.h"
-#include "broadcast_inst.h"
-
-#include <vector>
-#include <list>
-#include <utility>
 
 namespace cldnn {
 namespace ocl {
@@ -45,9 +44,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl() : _kernel_data({}), _kernels({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
-    : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
-    , _kernel_data(other._kernel_data)
-    , _kernels({}) {
+        : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic),
+          _kernel_data(other._kernel_data),
+          _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
@@ -61,7 +60,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
-    bool is_cpu() const override { return false; }
+    bool is_cpu() const override {
+        return false;
+    }
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]
@@ -82,15 +83,15 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> _kernel_data.kernelName;
     }
 
-    template<typename ImplType>
-    static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
-        // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
+    template <typename ImplType>
+    static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg,
+                                                  const kernel_impl_params& impl_param) {
+        // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at
+        // build time.
         if (impl_param.can_be_optimized() &&
-            !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<gather>() ||
-               impl_param.is_type<permute>() ||
-               impl_param.is_type<strided_slice>() ||
-               impl_param.is_type<broadcast>()) && impl_param.is_dynamic())) {
+            !((impl_param.is_type<concatenation>() || impl_param.is_type<gather>() || impl_param.is_type<permute>() ||
+               impl_param.is_type<strided_slice>() || impl_param.is_type<broadcast>()) &&
+              impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -126,15 +127,17 @@ protected:
         return args;
     }
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
+    event::ptr aggregate_events(const std::vector<event::ptr>& events,
+                                stream& stream,
+                                bool group = false,
+                                bool is_output = false) const {
         if (events.size() == 1 && !is_output)
             return events[0];
 
         if (group && !is_output)
             return stream.group_events(events);
 
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
+        return events.empty() ? stream.create_user_event(true) : stream.enqueue_marker(events, is_output);
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
@@ -148,13 +151,14 @@ protected:
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
-                                          _kernel_data.kernels[0].code.kernelString->entry_point);
+                                              _kernel_data.kernels[0].code.kernelString->entry_point);
             for (size_t i = 1; i < _kernel_data.kernels.size(); ++i)
                 kernel_dump_info.second += " " + _kernel_data.kernels[i].code.kernelString->entry_point;
         }
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+    void init_by_cached_kernels(const kernels_cache& kernels_cache,
+                                std::vector<std::string>& cached_kernel_ids) override {
         if (is_cpu()) {
             return;
         }
@@ -182,8 +186,9 @@ protected:
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
         const auto bpp = data_type_traits::size_of(dtype);
         for (auto size : _kernel_data.internalBufferSizes) {
-            layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                    {1, 1, 1, (tensor::value_type)(size / bpp)}};
+            layout inbuf_layout = {dtype,
+                                   format::bfyx,  // simple linear format (flattern to x channel)
+                                   {1, 1, 1, (tensor::value_type)(size / bpp)}};
             layouts.push_back(inbuf_layout);
         }
         return layouts;
@@ -194,10 +199,15 @@ protected:
             return;
         }
 
-        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
-                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
-                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
-                                                                        "[GPU] Likely some issue with empty tensor handling happened");
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(),
+                        "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                        "[GPU] Compiled kernels count: ",
+                        _kernels.size(),
+                        "\n",
+                        "[GPU] KernelData count: ",
+                        _kernel_data.kernels.size(),
+                        "\n",
+                        "[GPU] Likely some issue with empty tensor handling happened");
 
         stream& stream = instance.get_network().get_stream();
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
@@ -231,22 +241,27 @@ protected:
         }
     }
 
-    event::ptr execute_impl(const std::vector<event::ptr>& events,
-                            typed_primitive_inst<PType>& instance) override {
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
-                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
-                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
-                                                                        "[GPU] Likely some issue with empty tensor handling happened");
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(),
+                        "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                        "[GPU] Compiled kernels count: ",
+                        _kernels.size(),
+                        "\n",
+                        "[GPU] KernelData count: ",
+                        _kernel_data.kernels.size(),
+                        "\n",
+                        "[GPU] Likely some issue with empty tensor handling happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
-            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
+            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event
+            // (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
             auto& params = _kernel_data.kernels[kd_idx].params;
@@ -260,8 +275,8 @@ protected:
             const auto& gws = params.workGroups.global;
             const auto& lws = params.workGroups.local;
 
-            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
-                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", "
+                                   << gws[2] << "] " << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);

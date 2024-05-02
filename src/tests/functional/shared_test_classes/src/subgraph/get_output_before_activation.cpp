@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {

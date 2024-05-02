@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "dnnl_types.h"
 #include "graph_context.h"
+
+#include "dnnl_types.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -12,5 +13,5 @@ const dnnl::engine& GraphContext::getEngine() {
     return eng;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

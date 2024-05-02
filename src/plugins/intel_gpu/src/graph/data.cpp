@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "data_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
-
-#include "json_object.h"
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <memory>
+#include <string>
+
+#include "data_inst.h"
+#include "intel_gpu/runtime/memory.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
@@ -27,8 +27,7 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
 }
 }  // namespace
 
-data_node::typed_program_node(const std::shared_ptr<data> dprim, program& prog)
-    : parent(dprim, prog), mem(dprim->mem) {
+data_node::typed_program_node(const std::shared_ptr<data> dprim, program& prog) : parent(dprim, prog), mem(dprim->mem) {
     constant = true;
     can_share_buffer(false);
     recalc_output_layout(false);

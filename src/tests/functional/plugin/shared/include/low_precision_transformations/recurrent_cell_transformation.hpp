@@ -4,16 +4,14 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include <string>
 
 #include "low_precision/recurrent_cell.hpp"
-
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/recurrent_cell.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -36,18 +34,16 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    std::vector<ov::PartialShape>,
-    std::vector<ov::Shape>,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    RecurrentCellTransformationParam
->RecurrentCellTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   std::vector<ov::PartialShape>,
+                   std::vector<ov::Shape>,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   RecurrentCellTransformationParam>
+    RecurrentCellTransformationParams;
 
-class RecurrentCellTransformation :
-    public testing::WithParamInterface<RecurrentCellTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class RecurrentCellTransformation : public testing::WithParamInterface<RecurrentCellTransformationParams>,
+                                    public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj);
 

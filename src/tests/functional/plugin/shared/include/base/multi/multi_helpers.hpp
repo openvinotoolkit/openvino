@@ -6,18 +6,18 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/util/common_util.hpp"
-#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
 using namespace ::testing;
 
 static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
     std::string allDevices = "MULTI:";
-    for (auto && device : names) {
+    for (auto&& device : names) {
         allDevices += device;
-        allDevices += ((device == names[names.size()-1]) ? "" : ",");
+        allDevices += ((device == names[names.size() - 1]) ? "" : ",");
     }
     return allDevices;
 }
@@ -56,7 +56,8 @@ protected:
     std::shared_ptr<ov::Model> fn_ptr;
 };
 
-class MultiDevice_SupportTest : public ov::test::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
+class MultiDevice_SupportTest : public ov::test::TestsCommon,
+                                public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
     void SetUp() override {
         std::vector<DeviceName> deviceNameList;
         std::tie(deviceNameList, expected_status, _properties) = this->GetParam();
@@ -94,18 +95,20 @@ class MultiDeviceMultipleGPU_Test : public ov::test::TestsCommon, public testing
         device_lists = this->GetParam();
         fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
     }
+
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames>& obj) {
         auto s = getDeviceStringWithMulti(obj.param);
         std::replace(s.begin(), s.end(), ',', '_');
         std::replace(s.begin(), s.end(), ':', '_');
         return "device_names_" + s;
     }
+
 protected:
     std::string device_names;
     std::vector<std::string> device_lists;
     std::shared_ptr<ov::Model> fn_ptr;
 };
-#define MULTI  ov::test::utils::DEVICE_MULTI
-#define CPU    ov::test::utils::DEVICE_CPU
-#define GPU    ov::test::utils::DEVICE_GPU
+#define MULTI ov::test::utils::DEVICE_MULTI
+#define CPU   ov::test::utils::DEVICE_CPU
+#define GPU   ov::test::utils::DEVICE_GPU

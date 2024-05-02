@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/reshape.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/constant.hpp"
-
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reshape::reshape_mode mode, bool special_zero = false) {
+static void CreateCommonReshapeOp(ProgramBuilder& p,
+                                  const std::shared_ptr<ov::Node>& op,
+                                  cldnn::reshape::reshape_mode mode,
+                                  bool special_zero = false) {
     validate_inputs_count(op, {1, 2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -26,13 +28,17 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
 
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         std::shared_ptr<cldnn::reshape> reshape_prim = nullptr;
-        auto second_const_input = op->get_input_size() == 2 ? std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1)) : nullptr;
+        auto second_const_input =
+            op->get_input_size() == 2
+                ? std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1))
+                : nullptr;
         std::vector<int64_t> output_pattern = {};
         if (second_const_input != nullptr) {
             output_pattern = second_const_input->cast_vector<int64_t>();
         }
 
-        // If second input is absent (it's optional in Squeeze op) or it's constant, create reshape with single input and compile time out pattern
+        // If second input is absent (it's optional in Squeeze op) or it's constant, create reshape with single input
+        // and compile time out pattern
         if (op->get_input_size() == 1 || second_const_input != nullptr) {
             reshape_prim = std::make_shared<cldnn::reshape>(layerName,
                                                             inputs[0],
@@ -41,17 +47,14 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
                                                             output_pshape,
                                                             mode);
         } else {
-            reshape_prim = std::make_shared<cldnn::reshape>(layerName,
-                                                            inputs[0],
-                                                            inputs[1],
-                                                            special_zero,
-                                                            output_pshape,
-                                                            mode);
+            reshape_prim =
+                std::make_shared<cldnn::reshape>(layerName, inputs[0], inputs[1], special_zero, output_pshape, mode);
         }
 
         p.add_primitive(*op, reshape_prim);
     } else {
-        OPENVINO_ASSERT(input_pshape.is_static() && output_pshape.is_static(), "Dynamic shapes are not supported for Reshape operation yet");
+        OPENVINO_ASSERT(input_pshape.is_static() && output_pshape.is_static(),
+                        "Dynamic shapes are not supported for Reshape operation yet");
 
         auto outTensor = tensor_from_dims(output_pshape.to_shape());
 
@@ -62,22 +65,24 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
             cldnn::format outputFormat = cldnn::format::bfyx;
 
             switch (output_pshape.size()) {
-            case 5: outputFormat = cldnn::format::bfzyx; break;
-            case 6: outputFormat = cldnn::format::bfwzyx; break;
-            default: break;
+            case 5:
+                outputFormat = cldnn::format::bfzyx;
+                break;
+            case 6:
+                outputFormat = cldnn::format::bfwzyx;
+                break;
+            default:
+                break;
             }
 
-            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
-            p.add_primitive(*op, cldnn::reorder(reorderId,
-                                                reshape_input,
-                                                outputLayout));
+            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                       outputFormat,
+                                       outTensor);
+            p.add_primitive(*op, cldnn::reorder(reorderId, reshape_input, outputLayout));
             reshape_input = cldnn::input_info(reorderId);
         }
 
-        auto reshapePrim = cldnn::reshape(layerName,
-                                        reshape_input,
-                                        outTensor,
-                                        mode);
+        auto reshapePrim = cldnn::reshape(layerName, reshape_input, outTensor, mode);
 
         p.add_primitive(*op, reshapePrim);
     }

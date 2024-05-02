@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 using query_model_params = std::tuple<ov::AnyMap,  // Set Property
                                       bool>;
@@ -66,7 +66,8 @@ const std::vector<query_model_params> query_model_params_test = {
     query_model_params{{{}}, true},
     query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, true},
     query_model_params{{{ov::device::priorities("CPU(4)")}}, false},
-    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
+    query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}},
+                       false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

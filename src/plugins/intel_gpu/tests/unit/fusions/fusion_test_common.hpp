@@ -4,19 +4,18 @@
 
 #pragma once
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/graph/network.hpp>
-
 #include <cmath>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
-template<typename T>
+template <typename T>
 class BaseFusingTest : public ::testing::TestWithParam<T> {
 public:
     cldnn::engine& engine = get_test_engine();
@@ -51,9 +50,11 @@ public:
             for (auto& pi : net.get_primitives_info()) {
                 if (pi.type_id == "reorder") {
                     auto exec_prims = net.get_executed_primitives();
-                    auto it = std::find_if(exec_prims.begin(), exec_prims.end(), [&](const std::pair<primitive_id, event::ptr>& e) -> bool {
-                        return e.first == pi.original_id;
-                    });
+                    auto it = std::find_if(exec_prims.begin(),
+                                           exec_prims.end(),
+                                           [&](const std::pair<primitive_id, event::ptr>& e) -> bool {
+                                               return e.first == pi.original_id;
+                                           });
                     // We count executed reorders only
                     if (it != exec_prims.end())
                         count++;
@@ -75,9 +76,12 @@ public:
             description << "  " << i.original_id << " " << i.kernel_id << std::endl;
         }
         SCOPED_TRACE(description.str());
-        // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
-        ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
-        ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
+        // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in
+        // the graph
+        ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused),
+                  p.expected_fused_primitives);
+        ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused),
+                  p.expected_not_fused_primitives);
         ASSERT_EQ(outputs_ref.size(), outputs_fused.size());
         ASSERT_EQ(outputs_ref.size(), size_t(1));
 
@@ -86,23 +90,26 @@ public:
         ASSERT_EQ(val_ref.size(), val_opt.size());
         for (size_t i = 0; i < val_ref.size(); i++) {
             ASSERT_NEAR(val_ref[i], val_opt[i], tolerance)
-                << "tolerance = " << tolerance
-                << "\ni = " << i
-                << "\nref[i] = " << val_ref[i]
+                << "tolerance = " << tolerance << "\ni = " << i << "\nref[i] = " << val_ref[i]
                 << "\nopt[i] = " << val_opt[i];
         }
     }
 
-    void check_fusions_correctness(network& network_fused, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+    void check_fusions_correctness(network& network_fused,
+                                   std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         if (expected_fused_primitives_ids.size()) {
             auto primitives_info = network_fused.get_primitives_info();
             for (auto& prim : expected_fused_primitives_ids) {
-                auto info = std::find_if(primitives_info.begin(), primitives_info.end(),
-                                         [&prim](const primitive_info& info) -> bool { return info.original_id == prim.first; });
+                auto info = std::find_if(primitives_info.begin(),
+                                         primitives_info.end(),
+                                         [&prim](const primitive_info& info) -> bool {
+                                             return info.original_id == prim.first;
+                                         });
                 if (info != primitives_info.end()) {
                     auto fused_primitives = info->c_fused_ids;
                     for (auto& expected_fused_prim : prim.second)
-                        if (std::find(fused_primitives.begin(), fused_primitives.end(), expected_fused_prim) == fused_primitives.end())
+                        if (std::find(fused_primitives.begin(), fused_primitives.end(), expected_fused_prim) ==
+                            fused_primitives.end())
                             FAIL() << "Couldn't find requested fused primitive id " + prim.first;
                 } else {
                     FAIL() << "Couldn't find requested primitive id " + prim.first;
@@ -191,16 +198,19 @@ public:
     }
 
     layout get_output_layout(T& p) {
-        return layout{ p.data_type, p.input_format, p.out_shape };
+        return layout{p.data_type, p.input_format, p.out_shape};
     }
 
     layout get_weights_layout(T& p) {
         cldnn::tensor weights_tensor;
         if (p.groups == 1) {
-            weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
+            weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]),
+                                           feature(p.in_shape.feature[0]),
                                            spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
         } else {
-            weights_tensor = cldnn::tensor(group(p.groups), batch(p.out_shape.feature[0] / p.groups), feature(p.in_shape.feature[0] / p.groups),
+            weights_tensor = cldnn::tensor(group(p.groups),
+                                           batch(p.out_shape.feature[0] / p.groups),
+                                           feature(p.in_shape.feature[0] / p.groups),
                                            spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
         }
         return layout{p.weights_type, p.weights_format, weights_tensor};
@@ -208,25 +218,26 @@ public:
 
     layout get_weights_layout(T& p, cldnn::format f) {
         cldnn::tensor weights_tensor;
-        weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(static_cast<int32_t>(p.in_shape.feature[0] / p.groups)),
+        weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]),
+                                       feature(static_cast<int32_t>(p.in_shape.feature[0] / p.groups)),
                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
         return layout{p.weights_type, f, weights_tensor};
     }
 
     layout get_bias_layout(T& p) {
-        return layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+        return layout{p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1}};
     }
 
     layout get_weights_zp_layout(T& p) {
-        return layout{ p.weights_type, p.default_format, tensor{p.out_shape.feature[0], 1, 1, 1} };
+        return layout{p.weights_type, p.default_format, tensor{p.out_shape.feature[0], 1, 1, 1}};
     }
 
     layout get_activations_zp_layout(T& p) {
-        return layout{ p.data_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1} };
+        return layout{p.data_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1}};
     }
 
     layout get_single_element_layout(T& p) {
-        return layout{ p.default_type, p.default_format, tensor{1, 1, 1, 1} };
+        return layout{p.default_type, p.default_format, tensor{1, 1, 1, 1}};
     }
 
     template <class... Args>

@@ -3,10 +3,12 @@
 //
 
 #include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
+
 #include <iostream>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 //
 // Kernel specific constants
@@ -41,7 +43,8 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetSupportedKey() co
     return k;
 }
 
-DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::get_required_device_features_key(const Params&) const {
+DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::get_required_device_features_key(
+    const Params&) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -53,7 +56,8 @@ KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsData(con
     return GetCommonKernelsData(params);
 }
 
-JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params,
+                                                                               const DispatchData& dispatchData) const {
     auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
@@ -64,7 +68,7 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(c
                                              input_dt,
                                              1,
                                              LoadType::FEATURE_SHUFFLE};
-        conf_scalar.SetLoopAxes({ Tensor::DataChannelName::BATCH }, true);
+        conf_scalar.SetLoopAxes({Tensor::DataChannelName::BATCH}, true);
         conf_scalar.SetShuffleVarName("i");
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
@@ -72,12 +76,14 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(c
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::SetDefault(
+    const convolution_params& params,
+    int) const {
     DispatchData dispatchData;
     const auto& output = params.outputs[0];
 
-    dispatchData.gws = { output.X().v, output.Y().v, output.Feature().v / 16 * output.Batch().v };
-    dispatchData.lws = { 1, 1, SIMD_SIZE };
+    dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v / 16 * output.Batch().v};
+    dispatchData.lws = {1, 1, SIMD_SIZE};
 
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
@@ -97,8 +103,7 @@ bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& pa
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if ((newParams.filterSize.x != newParams.filterSize.y) ||
-        newParams.filterSize.x != 3) {
+    if ((newParams.filterSize.x != newParams.filterSize.y) || newParams.filterSize.x != 3) {
         // Fitler size needs to be 3x3
         return false;
     }

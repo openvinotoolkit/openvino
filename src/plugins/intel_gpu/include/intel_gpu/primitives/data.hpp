@@ -3,9 +3,9 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -22,8 +22,7 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem)
-        : primitive_base(id, {}, {padding()}), mem(std::move(mem)) {}
+    data(const primitive_id& id, memory::ptr mem) : primitive_base(id, {}, {padding()}), mem(std::move(mem)) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
@@ -89,7 +88,8 @@ struct data : public primitive_base<data> {
 
                 size_t dst_offset = 0;
                 while (dst_offset < data_size) {
-                    size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                    size_t copy_size =
+                        (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                     if (buf_flag) {
                         ib >> make_data(_buf1.data(), copy_size);
                         if (ev2 != nullptr) {

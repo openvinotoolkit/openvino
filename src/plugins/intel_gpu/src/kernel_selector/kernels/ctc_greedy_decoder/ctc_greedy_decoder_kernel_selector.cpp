@@ -3,6 +3,7 @@
 //
 
 #include "ctc_greedy_decoder_kernel_selector.h"
+
 #include "ctc_greedy_decoder_kernel_ref.h"
 
 namespace kernel_selector {

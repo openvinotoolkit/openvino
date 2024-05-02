@@ -78,7 +78,8 @@ TEST_P(FQScaleshiftWithConstantShiftTest, CompareWithRefs) {
 }
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_Check, FQScaleshiftWithConstantShiftTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Check,
+                         FQScaleshiftWithConstantShiftTest,
                          ::testing::Values(ov::element::f32),
                          FQScaleshiftWithConstantShiftTest::getTestCaseName);
 }  // namespace

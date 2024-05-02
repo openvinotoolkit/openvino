@@ -132,7 +132,7 @@ message SavedUserObject {
   // Deprecated! At the time of deprecation, Keras was the only user of this
   // field, and its saving and loading code will be updated shortly.
   // Please save your application-specific metadata to a separate file.
-  string metadata = 3 [deprecated = true];
+  string metadata = 3 [ deprecated = true ];
 }
 
 // A SavedAsset points to an asset in the MetaGraph.

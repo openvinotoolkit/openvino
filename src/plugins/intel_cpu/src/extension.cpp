@@ -34,8 +34,7 @@ namespace {
 template <typename Op>
 class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
 public:
-    TypeRelaxedExtension()
-        : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
+    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
     ~TypeRelaxedExtension() override = default;
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
@@ -71,7 +70,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
-    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                             \
+    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::GatherCompressed)                        \

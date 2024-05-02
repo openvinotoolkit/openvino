@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/reduce_ops.hpp"
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 
@@ -22,7 +23,8 @@ std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<red
     result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << op_type << "_";
     result << "type=" << reduction_type << "_";
-    if (keep_dims) result << "KeepDims_";
+    if (keep_dims)
+        result << "KeepDims_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "trgDev=" << target_device;
     return result.str();
@@ -41,17 +43,17 @@ void ReduceOpsLayerTest::SetUp() {
 
     std::vector<size_t> shape_axes;
     switch (op_type) {
-        case ov::test::utils::OpType::SCALAR: {
-            if (axes.size() > 1)
-                FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
-            break;
-        }
-        case ov::test::utils::OpType::VECTOR: {
-            shape_axes.push_back(axes.size());
-            break;
-        }
-        default:
-            FAIL() << "Reduce op doesn't support operation type: " << op_type;
+    case ov::test::utils::OpType::SCALAR: {
+        if (axes.size() > 1)
+            FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
+        break;
+    }
+    case ov::test::utils::OpType::VECTOR: {
+        shape_axes.push_back(axes.size());
+        break;
+    }
+    default:
+        FAIL() << "Reduce op doesn't support operation type: " << op_type;
     }
     auto reduction_axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape(shape_axes), axes);
 

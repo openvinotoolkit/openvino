@@ -4,6 +4,7 @@
 
 #pragma once
 #include <vector>
+
 #include "lrn_kernel_base.h"
 
 namespace kernel_selector {
@@ -21,9 +22,7 @@ public:
 protected:
     DispatchData SetDefault(const lrn_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::ACTIVATION};
     }
     JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };

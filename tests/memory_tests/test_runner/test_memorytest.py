@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 
 # add utils folder to imports
-UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+UTILS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "utils",
+)
 sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import expand_env_vars
@@ -30,7 +33,15 @@ from scripts.run_memorytest import run_memorytest
 from test_runner.utils import compare_with_references
 
 
-def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_test_case, prepare_db_info):
+def test(
+    instance,
+    executable,
+    niter,
+    temp_dir,
+    omz_models_conversion,
+    validate_test_case,
+    prepare_db_info,
+):
     """Parameterized test.
     :param instance: test instance. Should not be changed during test run
     :param executable: test executable to run
@@ -41,7 +52,7 @@ def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_
     :param omz_models_conversion: custom pytest fixture. Should be declared as test argument to be enabled
     """
     # Prepare model to get model_path
-    model_path = ''
+    model_path = ""
     cache_model_path = instance["instance"]["model"].get("cache_path")
     irs_model_path = instance["instance"]["model"].get("irs_out_path")
 
@@ -63,7 +74,7 @@ def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_
         "executable": Path(executable),
         "model": Path(model_path),
         "device": instance["instance"]["device"]["name"],
-        "niter": niter
+        "niter": niter,
     }
     retcode, msg, aggr_stats, raw_stats = run_memorytest(exe_args, log=logging)
     assert retcode == 0, f"Run of executable failed: {msg}"
@@ -73,5 +84,7 @@ def test(instance, executable, niter, temp_dir, omz_models_conversion, validate_
     instance["raw_results"] = raw_stats
 
     # Compare with references
-    metrics_comparator_status = compare_with_references(aggr_stats, instance["orig_instance"]["references"])
+    metrics_comparator_status = compare_with_references(
+        aggr_stats, instance["orig_instance"]["references"]
+    )
     assert metrics_comparator_status == 0, "Comparison with references failed"

@@ -3,43 +3,43 @@
 //
 
 #include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ocl/ocl_engine_factory.hpp"
-
-#include <string>
-#include <vector>
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <stdexcept>
-#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/event.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "ocl/ocl_engine_factory.hpp"
 
 #if defined(_WIN32)
-# ifndef NOMINMAX
-#  define NOMINMAX
-# endif
-# include <windows.h>
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
 
 static size_t get_cpu_ram_size() {
-    MEMORYSTATUSEX s {};
+    MEMORYSTATUSEX s{};
     s.dwLength = sizeof(s);
     GlobalMemoryStatusEx(&s);
     return s.ullTotalPhys;
 }
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
-# include <unistd.h>
-# include <sys/sysctl.h>
+#    include <sys/sysctl.h>
+#    include <unistd.h>
 
 static size_t get_cpu_ram_size() {
-# ifdef __APPLE__
+#    ifdef __APPLE__
     int query_ram[] = {CTL_HW, HW_MEMSIZE};
-# else
+#    else
     int query_ram[] = {CTL_HW, HW_PHYSMEM};
-# endif
+#    endif
     int query_ram_len = sizeof(query_ram) / sizeof(*query_ram);
     size_t totalram = 0;
     size_t length = sizeof(totalram);
@@ -48,7 +48,7 @@ static size_t get_cpu_ram_size() {
     return totalram;
 }
 #else
-# include <sys/sysinfo.h>
+#    include <sys/sysinfo.h>
 
 static size_t get_cpu_ram_size() {
     struct sysinfo s {};
@@ -59,8 +59,7 @@ static size_t get_cpu_ram_size() {
 
 namespace cldnn {
 
-engine::engine(const device::ptr device)
-    : _device(device) {}
+engine::engine(const device::ptr device) : _device(device) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -120,7 +119,9 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     if (support_usm_host)
         return allocation_type::usm_host;
 
-    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
+    OPENVINO_ASSERT(
+        false,
+        "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
 }
 
 allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layout) const {
@@ -147,58 +148,67 @@ memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
 }
 
 memory_ptr engine::share_buffer(const layout& layout, shared_handle buf) {
-    shared_mem_params params = { shared_mem_type::shared_mem_buffer, nullptr, nullptr, buf,
+    shared_mem_params params = {shared_mem_type::shared_mem_buffer,
+                                nullptr,
+                                nullptr,
+                                buf,
 #ifdef _WIN32
-        nullptr,
+                                nullptr,
 #else
-        0,
+                                0,
 #endif
-        0 };
+                                0};
     return reinterpret_handle(layout, params);
 }
 
 memory_ptr engine::share_usm(const layout& layout, shared_handle usm_ptr) {
-    shared_mem_params params = { shared_mem_type::shared_mem_usm, nullptr, nullptr, usm_ptr,
+    shared_mem_params params = {shared_mem_type::shared_mem_usm,
+                                nullptr,
+                                nullptr,
+                                usm_ptr,
 #ifdef _WIN32
-        nullptr,
+                                nullptr,
 #else
-        0,
+                                0,
 #endif
-        0 };
+                                0};
     return reinterpret_handle(layout, params);
 }
 
 memory::ptr engine::share_image(const layout& layout, shared_handle img) {
-    shared_mem_params params = { shared_mem_type::shared_mem_image, nullptr, nullptr, img,
+    shared_mem_params params = {shared_mem_type::shared_mem_image,
+                                nullptr,
+                                nullptr,
+                                img,
 #ifdef _WIN32
-        nullptr,
+                                nullptr,
 #else
-        0,
+                                0,
 #endif
-        0 };
+                                0};
     return reinterpret_handle(layout, params);
 }
 
 #ifdef _WIN32
 memory_ptr engine::share_surface(const layout& layout, shared_handle surf, uint32_t plane) {
-    shared_mem_params params = { shared_mem_type::shared_mem_vasurface, nullptr, nullptr, nullptr, surf, plane };
+    shared_mem_params params = {shared_mem_type::shared_mem_vasurface, nullptr, nullptr, nullptr, surf, plane};
     return reinterpret_handle(layout, params);
 }
 
 memory_ptr engine::share_dx_buffer(const layout& layout, shared_handle res) {
-    shared_mem_params params = { shared_mem_type::shared_mem_dxbuffer, nullptr, nullptr, res, nullptr, 0 };
+    shared_mem_params params = {shared_mem_type::shared_mem_dxbuffer, nullptr, nullptr, res, nullptr, 0};
     return reinterpret_handle(layout, params);
 }
 #else
 memory_ptr engine::share_surface(const layout& layout, shared_surface surf, uint32_t plane) {
-    shared_mem_params params = { shared_mem_type::shared_mem_vasurface, nullptr, nullptr, nullptr, surf, plane };
+    shared_mem_params params = {shared_mem_type::shared_mem_vasurface, nullptr, nullptr, nullptr, surf, plane};
     return reinterpret_handle(layout, params);
 }
 #endif  // _WIN32
 
 uint64_t engine::get_max_used_device_memory() const {
     std::lock_guard<std::mutex> guard(_mutex);
-    uint64_t total_peak_memory_usage {0};
+    uint64_t total_peak_memory_usage{0};
     for (auto const& m : _peak_memory_usage_map) {
         total_peak_memory_usage += m.second.load();
     }
@@ -207,7 +217,7 @@ uint64_t engine::get_max_used_device_memory() const {
 
 uint64_t engine::get_max_used_device_memory(allocation_type type) const {
     std::lock_guard<std::mutex> guard(_mutex);
-    uint64_t peak_memory_usage {0};
+    uint64_t peak_memory_usage{0};
     auto iter = _peak_memory_usage_map.find(type);
     if (iter != _peak_memory_usage_map.end()) {
         peak_memory_usage = iter->second.load();
@@ -217,7 +227,7 @@ uint64_t engine::get_max_used_device_memory(allocation_type type) const {
 
 uint64_t engine::get_used_device_memory(allocation_type type) const {
     std::lock_guard<std::mutex> guard(_mutex);
-    uint64_t memory_usage {0};
+    uint64_t memory_usage{0};
     auto iter = _memory_usage_map.find(type);
     if (iter != _memory_usage_map.end()) {
         memory_usage = iter->second.load();
@@ -258,7 +268,9 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     }
 }
 
-std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
+std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
+                                              runtime_types runtime_type,
+                                              const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
     case engine_types::ocl:
@@ -276,8 +288,13 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
 
-    OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"
-                                      "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+    OPENVINO_ASSERT(!devices.empty(),
+                    "[GPU] Can't create ",
+                    engine_type,
+                    " engine for ",
+                    runtime_type,
+                    " runtime as no suitable devices are found\n"
+                    "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;

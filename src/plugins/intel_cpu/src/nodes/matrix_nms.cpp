@@ -3,7 +3,6 @@
 //
 
 #include "matrix_nms.h"
-#include "ov_ops/nms_static_shape_ie.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -13,8 +12,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "utils/general_utils.h"
+#include "ov_ops/nms_static_shape_ie.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -119,12 +119,20 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", m_inType);
 
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES), supportedIntOutputPrecision, "selected_indices", m_outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS), supportedFloatPrecision, "selected_outputs", m_outType);
-    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS), supportedIntOutputPrecision, "valid_outputs", m_outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_INDICES),
+                   supportedIntOutputPrecision,
+                   "selected_indices",
+                   m_outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_SELECTED_OUTPUTS),
+                   supportedFloatPrecision,
+                   "selected_outputs",
+                   m_outType);
+    checkPrecision(getOriginalOutputPrecisionAtPort(NMS_VALID_OUTPUTS),
+                   supportedIntOutputPrecision,
+                   "valid_outputs",
+                   m_outType);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32}},
@@ -170,7 +178,11 @@ static inline float intersectionOverUnion(const float* bbox1, const float* bbox2
 }
 }  // namespace
 
-size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, BoxInfo* filterBoxes, const int64_t batchIdx, const int64_t classIdx) {
+size_t MatrixNms::nmsMatrix(const float* boxesData,
+                            const float* scoresData,
+                            BoxInfo* filterBoxes,
+                            const int64_t batchIdx,
+                            const int64_t classIdx) {
     std::vector<int32_t> candidateIndex(m_numBoxes);
     std::iota(candidateIndex.begin(), candidateIndex.end(), 0);
     auto end = std::remove_if(candidateIndex.begin(), candidateIndex.end(), [&scoresData, this](int32_t idx) {
@@ -185,9 +197,12 @@ size_t MatrixNms::nmsMatrix(const float* boxesData, const float* scoresData, Box
         originalSize = m_nmsTopk;
     }
 
-    std::partial_sort(candidateIndex.begin(), candidateIndex.begin() + originalSize, end, [&scoresData](int32_t a, int32_t b) {
-        return scoresData[a] > scoresData[b];
-    });
+    std::partial_sort(candidateIndex.begin(),
+                      candidateIndex.begin() + originalSize,
+                      end,
+                      [&scoresData](int32_t a, int32_t b) {
+                          return scoresData[a] > scoresData[b];
+                      });
 
     std::vector<float> iouMatrix((originalSize * (originalSize - 1)) >> 1);
     std::vector<float> iouMax(originalSize);
@@ -259,8 +274,9 @@ void MatrixNms::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
-        static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1 : m_numClasses;
+    size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
+                              : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
+                                                                                      : m_numClasses;
     if (m_nmsTopk >= 0)
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     else
@@ -275,7 +291,7 @@ void MatrixNms::prepareParams() {
     m_numPerBatch.resize(m_numBatches);
     m_filteredBoxes.resize(m_numBatches * m_realNumClasses * m_realNumBoxes);
     m_numPerBatchClass.resize(m_numBatches);
-    for (auto &numPerBatch : m_numPerBatchClass) {
+    for (auto& numPerBatch : m_numPerBatchClass) {
         numPerBatch.resize(m_numClasses, 0);
     }
     m_classOffset.resize(m_numClasses, 0);
@@ -312,7 +328,11 @@ void MatrixNms::execute(dnnl::stream strm) {
         const float* scoresPtr = scores + batchIdx * (m_numClasses * m_numBoxes) + classIdx * m_numBoxes;
         size_t classNumDet = 0;
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
-        classNumDet = nmsMatrix(boxesPtr, scoresPtr, m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx], batchIdx, classIdx);
+        classNumDet = nmsMatrix(boxesPtr,
+                                scoresPtr,
+                                m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx],
+                                batchIdx,
+                                classIdx);
         m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
     });
 
@@ -336,10 +356,14 @@ void MatrixNms::execute(dnnl::stream strm) {
                 keepNum = m_keepTopk;
         }
 
-        std::partial_sort(batchFilteredBox, batchFilteredBox + keepNum, batchFilteredBox + numDet, [](const BoxInfo& lhs, const BoxInfo rhs) {
-            return lhs.score > rhs.score || (lhs.score == rhs.score && lhs.classIndex < rhs.classIndex) ||
-                   (lhs.score == rhs.score && lhs.classIndex == rhs.classIndex && lhs.index < rhs.index);
-        });
+        std::partial_sort(
+            batchFilteredBox,
+            batchFilteredBox + keepNum,
+            batchFilteredBox + numDet,
+            [](const BoxInfo& lhs, const BoxInfo rhs) {
+                return lhs.score > rhs.score || (lhs.score == rhs.score && lhs.classIndex < rhs.classIndex) ||
+                       (lhs.score == rhs.score && lhs.classIndex == rhs.classIndex && lhs.index < rhs.index);
+            });
         m_numPerBatch[batchIdx] = keepNum;
     });
 
@@ -354,17 +378,26 @@ void MatrixNms::execute(dnnl::stream strm) {
 
     if (m_sortResultAcrossBatch) { /* sort across batch */
         if (m_sortResultType == MatrixNmsSortResultType::SCORE) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
-                return (l.score > r.score) || (l.score == r.score && l.batchIndex < r.batchIndex) ||
-                       (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex < r.classIndex) ||
-                       (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex == r.classIndex && l.index < r.index);
-            });
+            parallel_sort(
+                m_filteredBoxes.begin(),
+                m_filteredBoxes.begin() + startOffset,
+                [](const BoxInfo& l, const BoxInfo& r) {
+                    return (l.score > r.score) || (l.score == r.score && l.batchIndex < r.batchIndex) ||
+                           (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex < r.classIndex) ||
+                           (l.score == r.score && l.batchIndex == r.batchIndex && l.classIndex == r.classIndex &&
+                            l.index < r.index);
+                });
         } else if (m_sortResultType == MatrixNmsSortResultType::CLASSID) {
-            parallel_sort(m_filteredBoxes.begin(), m_filteredBoxes.begin() + startOffset, [](const BoxInfo& l, const BoxInfo& r) {
-                return (l.classIndex < r.classIndex) || (l.classIndex == r.classIndex && l.batchIndex < r.batchIndex) ||
-                       (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score > r.score) ||
-                       (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score == r.score && l.index < r.index);
-            });
+            parallel_sort(
+                m_filteredBoxes.begin(),
+                m_filteredBoxes.begin() + startOffset,
+                [](const BoxInfo& l, const BoxInfo& r) {
+                    return (l.classIndex < r.classIndex) ||
+                           (l.classIndex == r.classIndex && l.batchIndex < r.batchIndex) ||
+                           (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score > r.score) ||
+                           (l.classIndex == r.classIndex && l.batchIndex == r.batchIndex && l.score == r.score &&
+                            l.index < r.index);
+                });
         }
     }
 
@@ -412,11 +445,14 @@ void MatrixNms::execute(dnnl::stream strm) {
     }
 }
 
-void MatrixNms::checkPrecision(const ov::element::Type prec, const std::vector<ov::element::Type> precList, const std::string name, const std::string type) {
+void MatrixNms::checkPrecision(const ov::element::Type prec,
+                               const std::vector<ov::element::Type> precList,
+                               const std::string name,
+                               const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
         OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

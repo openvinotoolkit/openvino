@@ -34,15 +34,19 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    double get_epsilon() const { return m_epsilon; }
+    double get_epsilon() const {
+        return m_epsilon;
+    }
 
-    void set_epsilon(double epsilon) { m_epsilon = epsilon; }
+    void set_epsilon(double epsilon) {
+        m_epsilon = epsilon;
+    }
 
 private:
     double m_epsilon{0};
     ov::element::Type m_output_type;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

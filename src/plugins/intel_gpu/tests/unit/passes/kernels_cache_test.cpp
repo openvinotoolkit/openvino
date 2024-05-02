@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
+#include <memory>
+#include <regex>
 
-#include "intel_gpu/runtime/engine.hpp"
-
-#include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "pass_manager.h"
+#include "permute_inst.h"
+#include "program_wrapper.h"
+#include "reduce_inst.h"
 #include "reshape_inst.h"
 #include "shape_of_inst.h"
-#include "fully_connected_inst.h"
-#include "permute_inst.h"
-#include "reduce_inst.h"
-#include "intel_gpu/graph/network.hpp"
-#include "pass_manager.h"
+#include "test_utils.h"
 #include "to_string_utils.h"
-#include <regex>
-#include "program_wrapper.h"
-
-#include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -34,31 +32,32 @@ TEST(kernels_cache, reuse_kernel_for_static_model_01) {
     auto input3 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
     auto input4 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
     auto input5 = engine.allocate_memory({{1, 1, 4, 5}, data_types::f16, format::bfyx});
-    auto weights1 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
-    auto weights2 = engine.allocate_memory({{1, 3, 2, 3 }, data_types::f16, format::bfyx});
+    auto weights1 = engine.allocate_memory({{1, 3, 2, 3}, data_types::f16, format::bfyx});
+    auto weights2 = engine.allocate_memory({{1, 3, 2, 3}, data_types::f16, format::bfyx});
 
-    topology topology(input_layout("input0", input0->get_layout()),
-                      input_layout("input1", input1->get_layout()),
-                      input_layout("input2", input2->get_layout()),
-                      input_layout("input3", input3->get_layout()),
-                      input_layout("input4", input4->get_layout()),
-                      input_layout("input5", input5->get_layout()),
-                      data("weights1", weights1),
-                      data("weights2", weights2),
-                      concatenation("concat1",
-                                    { input_info("input0"), input_info("input1"), input_info("input2") },
-                                    1,
-                                    data_types::f16,
-                                    padding{{0, 0, 0, 0}, 0}),
-                      convolution("conv1", input_info("concat1"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
-                      concatenation("concat2",
-                                    { input_info("input3"), input_info("input4"), input_info("input5") },
-                                    1,
-                                    data_types::f16,
-                                    padding{{0, 0, 0, 0}, 0}),
-                      convolution("conv2", input_info("concat2"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
-                      eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
-                      reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
+    topology topology(
+        input_layout("input0", input0->get_layout()),
+        input_layout("input1", input1->get_layout()),
+        input_layout("input2", input2->get_layout()),
+        input_layout("input3", input3->get_layout()),
+        input_layout("input4", input4->get_layout()),
+        input_layout("input5", input5->get_layout()),
+        data("weights1", weights1),
+        data("weights2", weights2),
+        concatenation("concat1",
+                      {input_info("input0"), input_info("input1"), input_info("input2")},
+                      1,
+                      data_types::f16,
+                      padding{{0, 0, 0, 0}, 0}),
+        convolution("conv1", input_info("concat1"), "weights1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        concatenation("concat2",
+                      {input_info("input3"), input_info("input4"), input_info("input5")},
+                      1,
+                      data_types::f16,
+                      padding{{0, 0, 0, 0}, 0}),
+        convolution("conv2", input_info("concat2"), "weights2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        eltwise("sum", {input_info("concat1"), input_info("concat2")}, eltwise_mode::sum),
+        reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -101,7 +100,8 @@ TEST(kernels_cache, sub_kernel_ordering_test) {
     std::vector<std::string> entry_point_list;
     std::vector<std::shared_ptr<kernel_selector::KernelString>> kernel_code_list;
     for (size_t idx = 0; idx < num_kernels; idx++) {
-        std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+        std::shared_ptr<kernel_selector::KernelString> kernel_string =
+            std::make_shared<kernel_selector::KernelString>();
         std::string entry_point = "add_kernel_" + std::to_string(idx);
         std::string kernel_code =
             R"__krnl(

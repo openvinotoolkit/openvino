@@ -2,29 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
-#include "tensor_type.h"
 #include "concatenation_kernel_base.h"
+
 #include <algorithm>
+#include <iostream>
 #include <vector>
+
+#include "tensor_type.h"
 
 namespace kernel_selector {
 Tensor::DataChannelName ConcatenationKernelBase::GetConcatChannel(const concatenation_params& params) const {
     switch (params.axis) {
-        case ConcatAxis::X:
-            return Tensor::DataChannelName::X;
-        case ConcatAxis::Y:
-            return Tensor::DataChannelName::Y;
-        case ConcatAxis::Z:
-            return Tensor::DataChannelName::Z;
-        case ConcatAxis::W:
-            return Tensor::DataChannelName::W;
-        case ConcatAxis::FEATURE:
-            return Tensor::DataChannelName::FEATURE;
-        case ConcatAxis::BATCH:
-            return Tensor::DataChannelName::BATCH;
-        default:
-            return Tensor::DataChannelName::X;
+    case ConcatAxis::X:
+        return Tensor::DataChannelName::X;
+    case ConcatAxis::Y:
+        return Tensor::DataChannelName::Y;
+    case ConcatAxis::Z:
+        return Tensor::DataChannelName::Z;
+    case ConcatAxis::W:
+        return Tensor::DataChannelName::W;
+    case ConcatAxis::FEATURE:
+        return Tensor::DataChannelName::FEATURE;
+    case ConcatAxis::BATCH:
+        return Tensor::DataChannelName::BATCH;
+    default:
+        return Tensor::DataChannelName::X;
     }
 }
 
@@ -53,8 +55,14 @@ bool ConcatenationKernelBase::Validate(const Params& p) const {
 
 JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params& params) const {
     auto& inputs = params.original_input_layouts;
-    bool is_dynamic = std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); }) ||
-                      std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    bool is_dynamic = std::any_of(inputs.begin(),
+                                  inputs.end(),
+                                  [](const DataTensor& t) {
+                                      return t.is_dynamic();
+                                  }) ||
+                      std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& t) {
+                          return t.is_dynamic();
+                      });
     JitConstants jit = MakeBaseParamsJitConstants(params, !is_dynamic);
 
     jit.AddConstants({
@@ -80,10 +88,10 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
     const auto& dims = params.inputs[0].GetDims();
     auto layout = params.inputs[0].GetLayout();
 
-    std::vector<int> idx = { DataTensor::Channelndex(layout, Tensor::DataChannelName::BATCH),
-                             DataTensor::Channelndex(layout, Tensor::DataChannelName::FEATURE),
-                             DataTensor::Channelndex(layout, Tensor::DataChannelName::Y),
-                             DataTensor::Channelndex(layout, Tensor::DataChannelName::X) };
+    std::vector<int> idx = {DataTensor::Channelndex(layout, Tensor::DataChannelName::BATCH),
+                            DataTensor::Channelndex(layout, Tensor::DataChannelName::FEATURE),
+                            DataTensor::Channelndex(layout, Tensor::DataChannelName::Y),
+                            DataTensor::Channelndex(layout, Tensor::DataChannelName::X)};
 
     // Determine global work sizes.
     dispatchData.gws[0] = idx[2] != -1 ? dims[idx[2]].v : 1;  // Y
@@ -174,7 +182,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params) 
         if (is_dynamic) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t) i});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         ScalarDescriptor s;
@@ -182,7 +190,8 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params) 
         s.v.u32 = lastOffset;
         kernel.params.scalars.push_back(s);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-        size_t concatChannelIndex = (size_t)DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
+        size_t concatChannelIndex =
+            (size_t)DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
     }
 

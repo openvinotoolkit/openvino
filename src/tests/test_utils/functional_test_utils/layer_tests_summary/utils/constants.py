@@ -4,16 +4,22 @@
 from sys import platform
 
 TEST_STATUS = {
-    'passed': ["[       OK ]"],
-    'failed': ["[  FAILED  ]"],
-    'hanged': ["Test finished by timeout"],
-    'crashed': ["Unexpected application crash with code", "Segmentation fault", "Crash happens", "core dumped"],
-    'skipped': ["[  SKIPPED ]"],
-    'interapted': ["interapted", "Killed"]}
+    "passed": ["[       OK ]"],
+    "failed": ["[  FAILED  ]"],
+    "hanged": ["Test finished by timeout"],
+    "crashed": [
+        "Unexpected application crash with code",
+        "Segmentation fault",
+        "Crash happens",
+        "core dumped",
+    ],
+    "skipped": ["[  SKIPPED ]"],
+    "interapted": ["interapted", "Killed"],
+}
 RUN = "[ RUN      ]"
 GTEST_FILTER = "Google Test filter = "
 DISABLED_PREFIX = "DISABLED_"
-PG_ERR  = "PG ERROR"
+PG_ERR = "PG ERROR"
 PG_WARN = "PG WARN"
 REF_COEF = "[ CONFORMANCE ] Influence coefficient: "
 TEST_UNIT_NAME = "test"
@@ -30,7 +36,7 @@ PYTHON_NAME = "python" if IS_WIN else "python3"
 PIP_NAME = "pip" if IS_WIN else "pip3"
 LD_LIB_PATH_NAME = "PATH" if IS_WIN else "LD_LIBRARY_PATH"
 
-OPENVINO_NAME = 'openvino'
+OPENVINO_NAME = "openvino"
 PY_OPENVINO = "python"
 
 DEBUG_DIR = "Debug"
@@ -51,7 +57,7 @@ NOT_EXIST_DEVICE = "NOT_EXIST_DEVICE"
 
 MEM_USAGE = "MEM_USAGE="
 
-ENCODING = 'UTF-8'
+ENCODING = "UTF-8"
 
 META_EXTENSION = ".meta"
 XML_EXTENSION = ".xml"
@@ -60,7 +66,7 @@ BIN_EXTENSION = ".bin"
 SUPPORTED_MODEL_EXTENSION = [
     # ONNX
     "*.onnx",
-    #PDPD
+    # PDPD
     "*.pdmodel",
     # TF
     "*.pb",

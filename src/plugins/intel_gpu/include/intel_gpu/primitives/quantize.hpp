@@ -25,16 +25,19 @@ struct quantize : public primitive_base<quantize> {
              const int levels,
              const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, {output_padding}, {optional_data_type{output_data_type}})
-        , levels(levels) {}
+        : primitive_base(id,
+                         {input, input_low, input_high, output_low, output_high},
+                         {output_padding},
+                         {optional_data_type{output_data_type}}),
+          levels(levels) {}
 
     quantize(const primitive_id& id,
              const std::vector<input_info>& inputs,
              const int levels,
              const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}})
-        , levels(levels) {}
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}),
+          levels(levels) {}
 
     quantize() : primitive_base("", {}), levels(0) {}
 
@@ -98,27 +101,18 @@ struct quantize : public primitive_base<quantize> {
 
         auto rhs_casted = downcast<const quantize>(rhs);
 
-        return levels == rhs_casted.levels &&
-               scale_shift_opt == rhs_casted.scale_shift_opt &&
-               need_post_scale == rhs_casted.need_post_scale &&
-               need_post_shift == rhs_casted.need_post_shift &&
-               need_pre_shift == rhs_casted.need_pre_shift &&
-               need_clamp == rhs_casted.need_clamp &&
-               need_min_clamp == rhs_casted.need_min_clamp &&
-               need_max_clamp == rhs_casted.need_max_clamp &&
+        return levels == rhs_casted.levels && scale_shift_opt == rhs_casted.scale_shift_opt &&
+               need_post_scale == rhs_casted.need_post_scale && need_post_shift == rhs_casted.need_post_shift &&
+               need_pre_shift == rhs_casted.need_pre_shift && need_clamp == rhs_casted.need_clamp &&
+               need_min_clamp == rhs_casted.need_min_clamp && need_max_clamp == rhs_casted.need_max_clamp &&
                per_tensor_input_range == rhs_casted.per_tensor_input_range &&
                per_tensor_input_scale == rhs_casted.per_tensor_input_scale &&
                per_tensor_input_shift == rhs_casted.per_tensor_input_shift &&
                per_tensor_output_range == rhs_casted.per_tensor_output_range &&
                per_tensor_output_scale == rhs_casted.per_tensor_output_scale &&
-               per_tensor_output_shift == rhs_casted.per_tensor_output_shift &&
-               in_lo == rhs_casted.in_lo &&
-               in_hi == rhs_casted.in_hi &&
-               in_scale == rhs_casted.in_scale &&
-               in_shift == rhs_casted.in_shift &&
-               out_lo == rhs_casted.out_lo &&
-               out_hi == rhs_casted.out_hi &&
-               out_scale == rhs_casted.out_scale &&
+               per_tensor_output_shift == rhs_casted.per_tensor_output_shift && in_lo == rhs_casted.in_lo &&
+               in_hi == rhs_casted.in_hi && in_scale == rhs_casted.in_scale && in_shift == rhs_casted.in_shift &&
+               out_lo == rhs_casted.out_lo && out_hi == rhs_casted.out_hi && out_scale == rhs_casted.out_scale &&
                out_shift == rhs_casted.out_shift;
     }
 

@@ -7,7 +7,8 @@
 using namespace ov::test;
 
 namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_BroadcastEltwise, BroadcastEltwiseEliminated,
+INSTANTIATE_TEST_SUITE_P(smoke_BroadcastEltwise,
+                         BroadcastEltwiseEliminated,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
                          BroadcastEltwiseEliminated::getTestCaseName);
 

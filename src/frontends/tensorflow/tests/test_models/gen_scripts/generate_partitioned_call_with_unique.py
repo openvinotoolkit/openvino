@@ -24,9 +24,15 @@ def main():
         add = tf.raw_ops.AddV2(x=idx, y=const_one)
         return sigmoid, add
 
-    tf_net = first_func.get_concrete_function(tf.constant([1, 2, 3, 4, 5], dtype=tf.float32)).graph.as_graph_def()
-    tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "partitioned_call_with_unique"),
-                      "partitioned_call_with_unique.pb", False)
+    tf_net = first_func.get_concrete_function(
+        tf.constant([1, 2, 3, 4, 5], dtype=tf.float32)
+    ).graph.as_graph_def()
+    tf.io.write_graph(
+        tf_net,
+        os.path.join(sys.argv[1], "partitioned_call_with_unique"),
+        "partitioned_call_with_unique.pb",
+        False,
+    )
 
 
 if __name__ == "__main__":

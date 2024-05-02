@@ -3,25 +3,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
+import logging
 from functools import partial
 from typing import Literal, Optional, Union
-import logging
 
 import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type, Output
+from openvino.runtime import Node, Output, Shape, Type
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
-    NumericData,
     NodeInput,
+    NumericData,
     NumericType,
-    as_nodes,
     as_node,
+    as_nodes,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -180,8 +180,7 @@ def multinomial(
     inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
-        raise RuntimeError(
-            f"global_seed should be positive or 0. Got: {global_seed}")
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
         raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
@@ -223,8 +222,14 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold,
+        score_threshold,
+        name=name,
+    )
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -263,14 +268,18 @@ def scaled_dot_product_attention(
     if attention_mask is not None:
         inputs.append(as_node(attention_mask, name=name))
     elif scale is not None:
-        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name))
+        inputs.append(
+            as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name)
+        )
     if scale is not None:
         inputs.append(as_node(scale, name=name))
 
     attributes = {
         "causal": causal,
     }
-    return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
+    return _get_node_factory_opset13().create(
+        "ScaledDotProductAttention", inputs, attributes
+    )
 
 
 @nameable_op
@@ -301,39 +310,54 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
-            log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
+            log.warning(
+                f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning."
+            )
 
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
     else:
         _value, _shared_memory = np.array(value), False
-        display_shared_memory_warning(f"Converting scalar to corresponding type of {_value.dtype}")
+        display_shared_memory_warning(
+            f"Converting scalar to corresponding type of {_value.dtype}"
+        )
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
         if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
-            display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
+            display_shared_memory_warning(
+                f"Constant initialized with packed type of {dtype}"
+            )
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
-            display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
+            display_shared_memory_warning(
+                f"Constant initialized with OpenVINO custom {dtype}"
+            )
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
         else:
             _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
             if _dtype is int:
-                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit integer")
+                display_shared_memory_warning(
+                    "Converting scalar type of undefined bitwidth to 32-bit integer"
+                )
                 _value, _shared_memory = _value.astype(np.int32), False
             elif _dtype is float:
-                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit float")
+                display_shared_memory_warning(
+                    "Converting scalar type of undefined bitwidth to 32-bit float"
+                )
                 _value, _shared_memory = _value.astype(np.float32), False
             elif _dtype is bool:
                 display_shared_memory_warning("Converting bool type to numpy bool")
                 _value, _shared_memory = _value.astype(np.bool_), False
             else:
                 if _dtype != _value.dtype:
-                    display_shared_memory_warning(f"Converting value of {_value.dtype} to {_dtype}")
+                    display_shared_memory_warning(
+                        f"Converting value of {_value.dtype} to {_dtype}"
+                    )
                     _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)

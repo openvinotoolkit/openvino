@@ -6,17 +6,16 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
+std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple>& obj) {
     ov::Shape inputShapes;
     std::vector<int> axes;
     ov::test::utils::OpType opType;
@@ -29,7 +28,8 @@ std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<Redu
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "axes=" << ov::test::utils::vec2str(axes) << "_";
     result << "opType=" << opType << "_";
-    if (keepDims) result << "KeepDims_";
+    if (keepDims)
+        result << "KeepDims_";
     result << "netPRC=" << type.get_type_name() << "_";
     result << "targetDevice=" << targetName;
     return result.str();
@@ -47,20 +47,20 @@ void ReduceEltwiseTest::SetUp() {
 
     std::vector<size_t> shapeAxes;
     switch (opType) {
-        case ov::test::utils::OpType::SCALAR: {
-            if (axes.size() > 1)
-                FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
-            break;
-        }
-        case ov::test::utils::OpType::VECTOR: {
-            shapeAxes.push_back(axes.size());
-            break;
-        }
-        default:
-            FAIL() << "Reduce op doesn't support operation type: " << opType;
+    case ov::test::utils::OpType::SCALAR: {
+        if (axes.size() > 1)
+            FAIL() << "In reduce op if op type is scalar, 'axis' input's must contain 1 element";
+        break;
+    }
+    case ov::test::utils::OpType::VECTOR: {
+        shapeAxes.push_back(axes.size());
+        break;
+    }
+    default:
+        FAIL() << "Reduce op doesn't support operation type: " << opType;
     }
     auto reductionAxesNode = std::dynamic_pointer_cast<ov::Node>(
-                             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape(shapeAxes), axes));
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape(shapeAxes), axes));
 
     auto reduce = std::make_shared<ov::op::v1::ReduceSum>(params[0], reductionAxesNode, keepDims);
 
@@ -73,5 +73,5 @@ void ReduceEltwiseTest::SetUp() {
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltw)};
     function = std::make_shared<ov::Model>(results, params, "ReduceEltwise");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

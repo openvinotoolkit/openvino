@@ -11,12 +11,18 @@ from openvino.tools.mo.ops.constant_of_shape import ConstantOfShape
 
 
 class ConstantOfShapeExtractor(FrontExtractorOp):
-    op = 'ConstantOfShape'
+    op = "ConstantOfShape"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        fill_value = onnx_attr(node, 'value', 't', default=mo_array([0.0]), dst_type=lambda x: numpy_helper.to_array(x))
+        fill_value = onnx_attr(
+            node,
+            "value",
+            "t",
+            default=mo_array([0.0]),
+            dst_type=lambda x: numpy_helper.to_array(x),
+        )
 
-        ConstantOfShape.update_node_stat(node, {'fill_value': fill_value})
+        ConstantOfShape.update_node_stat(node, {"fill_value": fill_value})
         return cls.enabled

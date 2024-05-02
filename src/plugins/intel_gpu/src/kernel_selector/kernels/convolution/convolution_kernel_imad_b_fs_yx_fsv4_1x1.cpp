@@ -3,45 +3,46 @@
 //
 
 #include "convolution_kernel_imad_b_fs_yx_fsv4_1x1.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
 namespace {
-    constexpr size_t fsv = 4;
-    constexpr size_t pref_simd = 16;
-    constexpr size_t pref_features_per_wi = 16;
+constexpr size_t fsv = 4;
+constexpr size_t pref_simd = 16;
+constexpr size_t pref_features_per_wi = 16;
 
-    size_t get_preferred_lwg_depth(const DataTensor& output, const WeightsTensor& weights, const EngineInfo& info) {
-        size_t max_simd_number = static_cast<size_t>(info.maxThreadsPerDevice);
+size_t get_preferred_lwg_depth(const DataTensor& output, const WeightsTensor& weights, const EngineInfo& info) {
+    size_t max_simd_number = static_cast<size_t>(info.maxThreadsPerDevice);
 
-        size_t simd_number = CeilDiv(output.X().v * output.Y().v, pref_simd) *
-                             CeilDiv(output.Feature().v, pref_features_per_wi) *
-                             output.Batch().v;
+    size_t simd_number = CeilDiv(output.X().v * output.Y().v, pref_simd) *
+                         CeilDiv(output.Feature().v, pref_features_per_wi) * output.Batch().v;
 
-        constexpr size_t preferred_ifm_multiple = 16 * 4;
+    constexpr size_t preferred_ifm_multiple = 16 * 4;
 
-        size_t ifm = weights.IFM().v;
-        size_t current_lwg_depth = 1;
+    size_t ifm = weights.IFM().v;
+    size_t current_lwg_depth = 1;
 
-        while (simd_number < max_simd_number && ifm % (current_lwg_depth * 2 * preferred_ifm_multiple) == 0 &&
-               current_lwg_depth < 8) {
-            current_lwg_depth *= 2;
-            simd_number *= 2;
-        }
-
-        return current_lwg_depth;
+    while (simd_number < max_simd_number && ifm % (current_lwg_depth * 2 * preferred_ifm_multiple) == 0 &&
+           current_lwg_depth < 8) {
+        current_lwg_depth *= 2;
+        simd_number *= 2;
     }
+
+    return current_lwg_depth;
+}
 }  // namespace
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ConvolutionKernel_imad_b_fs_yx_fsv4_1x1()
     : ConvolutionKernelBase("convolution_gpu_b_fs_yx_fsv4_1x1") {
-    std::vector<size_t> simd_sizes = { 16 };
-    std::vector<size_t> features_per_wi = { 16, 32 };
-    std::vector<size_t> lwg_depth = { 1, 2, 4, 8 };
+    std::vector<size_t> simd_sizes = {16};
+    std::vector<size_t> features_per_wi = {16, 32};
+    std::vector<size_t> lwg_depth = {1, 2, 4, 8};
     std::vector<std::string> exe_modes = ConvolutionKernelBase::autoTuneOptions;
 
     for (auto simd : simd_sizes) {
@@ -49,8 +50,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ConvolutionKernel_imad_b_fs_yx_fsv4_1x1
             if (f_wi % simd == 0) {
                 for (auto l_d : lwg_depth) {
                     for (auto exe_mode : exe_modes) {
-                        all_tune_params.push_back(AutoTuneParams{ simd, f_wi, l_d, false, exe_mode });
-                        all_tune_params.push_back(AutoTuneParams{ simd, f_wi, l_d, true, exe_mode });
+                        all_tune_params.push_back(AutoTuneParams{simd, f_wi, l_d, false, exe_mode});
+                        all_tune_params.push_back(AutoTuneParams{simd, f_wi, l_d, true, exe_mode});
                     }
                 }
             }
@@ -84,7 +85,8 @@ ParamsKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -106,7 +108,8 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) con
     return true;
 }
 
-bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
+bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convolution_params& params,
+                                                                     const AutoTuneParams& tune_params) const {
     auto sel_lwg_d = tune_params.lwg_depth;
     if (CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d != 0) {
         return false;
@@ -115,8 +118,9 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convo
     return true;
 }
 
-ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(const convolution_params& params,
-                                                                                                                   int index) const {
+ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(
+    const convolution_params& params,
+    int index) const {
     AutoTuneParams tune_params;
     bool selected = false;
     if (index >= 0 && index < static_cast<int>(all_tune_params.size())) {
@@ -132,7 +136,7 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b
     // Set default ones
     if (!selected) {
         auto lwg_depth = get_preferred_lwg_depth(params.outputs[0], params.weights, params.engineInfo);
-        tune_params = AutoTuneParams{ pref_simd, pref_features_per_wi, lwg_depth, false, EXE_MODE_DEFAULT };
+        tune_params = AutoTuneParams{pref_simd, pref_features_per_wi, lwg_depth, false, EXE_MODE_DEFAULT};
     }
 
     return tune_params;
@@ -164,14 +168,15 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
                                           BoundaryCheck::ENABLED,
                                           IndexType::TENSOR_COORD,
                                           Tensor::DataChannelName::FEATURE);
-        mem_consts.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
-                                                                                        int autoTuneIndex) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(
+    const convolution_params& params,
+    int autoTuneIndex) const {
     DispatchData dispatchData;
     auto& out = params.outputs[0];
 
@@ -180,10 +185,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Set
     auto simd = autoTuneParam.simd;
     auto features_per_wi = autoTuneParam.features_per_wi;
 
-    dispatchData.gws = { RoundUp(out.X().v * out.Y().v, simd), CeilDiv(out.Feature().v, features_per_wi), out.Batch().v * lwg_depth };
-    dispatchData.lws = { simd, 1, lwg_depth};
+    dispatchData.gws = {RoundUp(out.X().v * out.Y().v, simd),
+                        CeilDiv(out.Feature().v, features_per_wi),
+                        out.Batch().v * lwg_depth};
+    dispatchData.lws = {simd, 1, lwg_depth};
 
-    dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
+    dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
     dispatchData.cldnnStyle.blockHeight = features_per_wi;
     dispatchData.cldnnStyle.blockWidth = simd;

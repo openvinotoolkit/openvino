@@ -13,17 +13,16 @@
 
 namespace ov {
 namespace test {
-using reshapeParams = std::tuple<
-    bool,                           // SpecialZero
-    ov::element::Type,              // Model type
-    std::vector<size_t>,            // Input shapes
-    std::vector<int64_t>,           // OutForm shapes
-    ov::test::TargetDevice          // Device name
->;
+using reshapeParams = std::tuple<bool,                   // SpecialZero
+                                 ov::element::Type,      // Model type
+                                 std::vector<size_t>,    // Input shapes
+                                 std::vector<int64_t>,   // OutForm shapes
+                                 ov::test::TargetDevice  // Device name
+                                 >;
 class ReshapeLayerTest : public testing::WithParamInterface<reshapeParams>,
                          virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<reshapeParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<reshapeParams>& obj);
 
 protected:
     void SetUp() override;

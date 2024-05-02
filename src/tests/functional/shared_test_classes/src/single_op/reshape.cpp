@@ -30,10 +30,10 @@ void ReshapeLayerTest::SetUp() {
     std::tie(special_zero, model_type, input_shape, out_form_shapes, targetDevice) = this->GetParam();
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
-    auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{out_form_shapes.size()}, out_form_shapes);
+    auto const_node =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{out_form_shapes.size()}, out_form_shapes);
     auto reshape = std::make_shared<ov::op::v1::Reshape>(param, const_node, special_zero);
     function = std::make_shared<ov::Model>(reshape->outputs(), ov::ParameterVector{param}, "Reshape");
 }
 }  // namespace test
 }  // namespace ov
-

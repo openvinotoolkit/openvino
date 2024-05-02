@@ -12,8 +12,8 @@ from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
-    as_nodes,
     as_node,
+    as_nodes,
     make_constant_node,
 )
 
@@ -47,7 +47,9 @@ def eye(
     else:
         inputs = as_nodes(num_rows, num_columns, diagonal_index, name=name)
 
-    return _get_node_factory_opset9().create("Eye", inputs, {"output_type": output_type})
+    return _get_node_factory_opset9().create(
+        "Eye", inputs, {"output_type": output_type}
+    )
 
 
 @nameable_op
@@ -78,12 +80,36 @@ def non_max_suppression(
     :param output_type: Output element type.
     :return: The new node which performs NonMaxSuppression
     """
-    max_output_boxes_per_class = max_output_boxes_per_class if max_output_boxes_per_class is not None else make_constant_node(0, np.int64)
-    iou_threshold = iou_threshold if iou_threshold is not None else make_constant_node(0, np.float32)
-    score_threshold = score_threshold if score_threshold is not None else make_constant_node(0, np.float32)
-    soft_nms_sigma = soft_nms_sigma if soft_nms_sigma is not None else make_constant_node(0, np.float32)
+    max_output_boxes_per_class = (
+        max_output_boxes_per_class
+        if max_output_boxes_per_class is not None
+        else make_constant_node(0, np.int64)
+    )
+    iou_threshold = (
+        iou_threshold
+        if iou_threshold is not None
+        else make_constant_node(0, np.float32)
+    )
+    score_threshold = (
+        score_threshold
+        if score_threshold is not None
+        else make_constant_node(0, np.float32)
+    )
+    soft_nms_sigma = (
+        soft_nms_sigma
+        if soft_nms_sigma is not None
+        else make_constant_node(0, np.float32)
+    )
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma, name=name)
+    inputs = as_nodes(
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold,
+        score_threshold,
+        soft_nms_sigma,
+        name=name,
+    )
 
     attributes = {
         "box_encoding": box_encoding,
@@ -338,4 +364,6 @@ def grid_sample(
 
     :return: A new GridSample node.
     """
-    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid, name=name), attributes)
+    return _get_node_factory_opset9().create(
+        "GridSample", as_nodes(data, grid, name=name), attributes
+    )

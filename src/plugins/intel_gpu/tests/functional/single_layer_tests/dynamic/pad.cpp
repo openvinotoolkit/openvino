@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/pad.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/pad.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-using PadLayerGPUTestParamSet = std::tuple<
-        InputShape,                                     // Input shape
-        ov::element::Type,                              // Input element type
-        std::vector<int64_t>,                           // padsBegin
-        std::vector<int64_t>,                           // padsEnd
-        float,                                          // argPadValue
-        std::vector<ov::test::utils::InputLayerType>,   // for {begin, end, padValue}
-        ov::op::PadMode>;                               // padMode
+using PadLayerGPUTestParamSet = std::tuple<InputShape,                                    // Input shape
+                                           ov::element::Type,                             // Input element type
+                                           std::vector<int64_t>,                          // padsBegin
+                                           std::vector<int64_t>,                          // padsEnd
+                                           float,                                         // argPadValue
+                                           std::vector<ov::test::utils::InputLayerType>,  // for {begin, end, padValue}
+                                           ov::op::PadMode>;                              // padMode
 
 class PadLayerGPUTest : public testing::WithParamInterface<PadLayerGPUTestParamSet>,
                         virtual public ov::test::SubgraphBaseTest {
@@ -47,7 +46,8 @@ public:
         if (padMode == ov::op::PadMode::CONSTANT) {
             results << "Value=" << argPadValue << "_";
         }
-        results << "constantInput=" << inputLayerTypes[0] << "/" << inputLayerTypes[1] << "/" << inputLayerTypes[2] << "_";
+        results << "constantInput=" << inputLayerTypes[0] << "/" << inputLayerTypes[1] << "/" << inputLayerTypes[2]
+                << "_";
         results << "PadMode=" << padMode;
 
         return results.str();
@@ -68,10 +68,12 @@ protected:
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
         if (inputLayerTypes[0] == ov::test::utils::InputLayerType::PARAMETER) {
-            inputShapes.push_back(InputShape({static_cast<int64_t>(padsBegin.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsBegin.size()})));
+            inputShapes.push_back(InputShape({static_cast<int64_t>(padsBegin.size())},
+                                             std::vector<ov::Shape>(shapes.second.size(), {padsBegin.size()})));
         }
         if (inputLayerTypes[1] == ov::test::utils::InputLayerType::PARAMETER) {
-            inputShapes.push_back(InputShape({static_cast<int64_t>(padsEnd.size())}, std::vector<ov::Shape>(shapes.second.size(), {padsEnd.size()})));
+            inputShapes.push_back(InputShape({static_cast<int64_t>(padsEnd.size())},
+                                             std::vector<ov::Shape>(shapes.second.size(), {padsEnd.size()})));
         }
 
         init_input_shapes(inputShapes);
@@ -93,20 +95,24 @@ protected:
         std::shared_ptr<ov::Node> pads_begin, pads_end, arg_pad_value;
         // padsBegin
         if (inputLayerTypes[0] == ov::test::utils::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsBegin.size()}));
+            functionParams.push_back(
+                std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsBegin.size()}));
             functionParams.back()->set_friendly_name("padsBegin");
             pads_begin = functionParams.back();
         } else {
-            pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsBegin.size()}, padsBegin.data());
+            pads_begin =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsBegin.size()}, padsBegin.data());
         }
 
         // padsEnd
         if (inputLayerTypes[1] == ov::test::utils::InputLayerType::PARAMETER) {
-            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsEnd.size()}));
+            functionParams.push_back(
+                std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{padsEnd.size()}));
             functionParams.back()->set_friendly_name("padsEnd");
             pads_end = functionParams.back();
         } else {
-            pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsEnd.size()}, padsEnd.data());
+            pads_end =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padsEnd.size()}, padsEnd.data());
         }
 
         // argPadValue
@@ -156,9 +162,12 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i],
+                                                                     in_data);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i]);
                 }
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -170,96 +179,83 @@ TEST_P(PadLayerGPUTest, Inference) {
     run();
 }
 
-const std::vector<ov::element::Type> inputPrecisions = {
-        ov::element::f32
-};
+const std::vector<ov::element::Type> inputPrecisions = {ov::element::f32};
 
 const std::vector<float> argPadValue = {0.f, -1.f};
 
-const std::vector<ov::op::PadMode> padMode = {
-        ov::op::PadMode::EDGE,
-        ov::op::PadMode::REFLECT,
-        ov::op::PadMode::SYMMETRIC
-};
+const std::vector<ov::op::PadMode> padMode = {ov::op::PadMode::EDGE,
+                                              ov::op::PadMode::REFLECT,
+                                              ov::op::PadMode::SYMMETRIC};
 
 const std::vector<std::vector<ov::test::utils::InputLayerType>> isConstantInput = {
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
-    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
-    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER}
-};
+    {ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::PARAMETER,
+     ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT,
+     ov::test::utils::InputLayerType::PARAMETER,
+     ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER,
+     ov::test::utils::InputLayerType::PARAMETER,
+     ov::test::utils::InputLayerType::PARAMETER}};
 
 //====================== Dynamic Shapes Tests 2D ======================
-const std::vector<InputShape> inputShapesDynamic2D = {
-    {{-1, -1}, {{5, 36}, {3, 16}}}
-};
+const std::vector<InputShape> inputShapesDynamic2D = {{{-1, -1}, {{5, 36}, {3, 16}}}};
 
 const std::vector<std::vector<int64_t>> padsBegin2D_Smoke = {{0, 1}, {1, 2}};
-const std::vector<std::vector<int64_t>> padsEnd2D_Smoke   = {{1, 2}, {2, 1}};
+const std::vector<std::vector<int64_t>> padsEnd2D_Smoke = {{1, 2}, {2, 1}};
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_GPUPadDynamic2DConst,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic2D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin2D_Smoke),
-                ::testing::ValuesIn(padsEnd2D_Smoke),
-                ::testing::ValuesIn(argPadValue),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ov::op::PadMode::CONSTANT)),
-        PadLayerGPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_GPUPadDynamic2DConst,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic2D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin2D_Smoke),
+                                            ::testing::ValuesIn(padsEnd2D_Smoke),
+                                            ::testing::ValuesIn(argPadValue),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::Values(ov::op::PadMode::CONSTANT)),
+                         PadLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_GPUPadDynamic2D,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic2D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin2D_Smoke),
-                ::testing::ValuesIn(padsEnd2D_Smoke),
-                ::testing::Values(0),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::ValuesIn(padMode)),
-        PadLayerGPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_GPUPadDynamic2D,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic2D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin2D_Smoke),
+                                            ::testing::ValuesIn(padsEnd2D_Smoke),
+                                            ::testing::Values(0),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::ValuesIn(padMode)),
+                         PadLayerGPUTest::getTestCaseName);
 
 //====================== Dynamic Shapes Tests 4D ======================
-const std::vector<InputShape> inputShapesDynamic4D = {
-    {{-1, -1, -1, -1}, {{5, 36, 5, 5}, {3, 16, 10, 5}}}
-};
+const std::vector<InputShape> inputShapesDynamic4D = {{{-1, -1, -1, -1}, {{5, 36, 5, 5}, {3, 16, 10, 5}}}};
 
 const std::vector<std::vector<int64_t>> padsBegin4D_Smoke = {{1, 2, 3, 4}, {0, 2, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4D_Smoke   = {{2, 1, 4, 3}, {0, 0, 2, 0}};
+const std::vector<std::vector<int64_t>> padsEnd4D_Smoke = {{2, 1, 4, 3}, {0, 0, 2, 0}};
 
-INSTANTIATE_TEST_SUITE_P(
-        GPUPadDynamic4DConst,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic4D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin4D_Smoke),
-                ::testing::ValuesIn(padsEnd4D_Smoke),
-                ::testing::ValuesIn(argPadValue),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ov::op::PadMode::CONSTANT)),
-        PadLayerGPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(GPUPadDynamic4DConst,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic4D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin4D_Smoke),
+                                            ::testing::ValuesIn(padsEnd4D_Smoke),
+                                            ::testing::ValuesIn(argPadValue),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::Values(ov::op::PadMode::CONSTANT)),
+                         PadLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_GPUPadDynamic4D,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic4D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin4D_Smoke),
-                ::testing::ValuesIn(padsEnd4D_Smoke),
-                ::testing::Values(0),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::ValuesIn(padMode)),
-        PadLayerGPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_GPUPadDynamic4D,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic4D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin4D_Smoke),
+                                            ::testing::ValuesIn(padsEnd4D_Smoke),
+                                            ::testing::Values(0),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::ValuesIn(padMode)),
+                         PadLayerGPUTest::getTestCaseName);
 
 //====================== Dynamic Shapes Tests 5D ======================
 const std::vector<InputShape> inputShapesDynamic5D = {
@@ -267,33 +263,27 @@ const std::vector<InputShape> inputShapesDynamic5D = {
 };
 
 const std::vector<std::vector<int64_t>> padsBegin5D_Smoke = {{0, 0, 2, 0, 0}, {1, 2, 3, 1, 2}};
-const std::vector<std::vector<int64_t>> padsEnd5D_Smoke   = {{0, 0, 1, 0, 0}, {3, 2, 1, 2, 1}};
+const std::vector<std::vector<int64_t>> padsEnd5D_Smoke = {{0, 0, 1, 0, 0}, {3, 2, 1, 2, 1}};
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_GPUPadDynamic5DConst,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic5D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin5D_Smoke),
-                ::testing::ValuesIn(padsEnd5D_Smoke),
-                ::testing::ValuesIn(argPadValue),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::Values(ov::op::PadMode::CONSTANT)),
-        PadLayerGPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_GPUPadDynamic5DConst,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic5D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin5D_Smoke),
+                                            ::testing::ValuesIn(padsEnd5D_Smoke),
+                                            ::testing::ValuesIn(argPadValue),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::Values(ov::op::PadMode::CONSTANT)),
+                         PadLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_GPUPadDynamic5D,
-        PadLayerGPUTest,
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapesDynamic5D),
-                ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(padsBegin5D_Smoke),
-                ::testing::ValuesIn(padsEnd5D_Smoke),
-                ::testing::Values(0),
-                ::testing::ValuesIn(isConstantInput),
-                ::testing::ValuesIn(padMode)),
-        PadLayerGPUTest::getTestCaseName
-);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_GPUPadDynamic5D,
+                         PadLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesDynamic5D),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(padsBegin5D_Smoke),
+                                            ::testing::ValuesIn(padsEnd5D_Smoke),
+                                            ::testing::Values(0),
+                                            ::testing::ValuesIn(isConstantInput),
+                                            ::testing::ValuesIn(padMode)),
+                         PadLayerGPUTest::getTestCaseName);
+}  // namespace

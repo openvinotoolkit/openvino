@@ -4,7 +4,9 @@
 import logging as log
 
 from openvino.tools.mo.front.caffe.extractors.utils import embed_input
-from openvino.tools.mo.front.common.partial_infer.caffe_fallback import caffe_native_node_infer
+from openvino.tools.mo.front.common.partial_infer.caffe_fallback import (
+    caffe_native_node_infer,
+)
 
 
 def blob_name(i):
@@ -15,11 +17,11 @@ def blob_name(i):
     then, next blobs are called according to the new default schema
     with 'custom_' prefix: custom_2, custom_3 and so on.
     """
-    predefined_names = ['weights', 'biases']
+    predefined_names = ["weights", "biases"]
     if i < len(predefined_names):
         return predefined_names[i]
     else:
-        return 'custom_{}'.format(i)
+        return "custom_{}".format(i)
 
 
 def extract_custom_blobs(node):
@@ -32,19 +34,22 @@ def extract_custom_blobs(node):
     Update node attributes in-place.
     """
     base_port = len(node.in_nodes())
-    if not hasattr(node.model_pb, 'blobs'):
+    if not hasattr(node.model_pb, "blobs"):
         return
     for i, blob in enumerate(node.model_pb.blobs):
         port = base_port + i
-        internal_name = '_custom_blob_' + str(i)
-        log.debug("Found new custom blob of length {} for node {}. ".format(
-            len(blob.data),
-            node.name if node.has_valid('name') else '<UNKNOWN>'
-        ) +
-                  "It will appear as input {} and internal attribute {}.".format(
-                      port,
-                      internal_name))
-        embed_input(node.graph.node[node.id], port, internal_name, blob.data, blob_name(i))
+        internal_name = "_custom_blob_" + str(i)
+        log.debug(
+            "Found new custom blob of length {} for node {}. ".format(
+                len(blob.data), node.name if node.has_valid("name") else "<UNKNOWN>"
+            )
+            + "It will appear as input {} and internal attribute {}.".format(
+                port, internal_name
+            )
+        )
+        embed_input(
+            node.graph.node[node.id], port, internal_name, blob.data, blob_name(i)
+        )
 
 
 def native_caffe_node_extractor(node):

@@ -4,8 +4,11 @@
 from openvino.runtime import opset8
 from openvino.runtime.passes import Manager, Matcher, MatcherPass, WrapType
 from openvino.runtime.utils import replace_node
-
-from tests.test_transformations.utils.utils import count_ops, get_relu_model, PatternReplacement
+from tests.test_transformations.utils.utils import (
+    PatternReplacement,
+    count_ops,
+    get_relu_model,
+)
 
 
 def test_simple_pattern_replacement():
@@ -21,7 +24,9 @@ def test_simple_pattern_replacement():
             # link pattern nodes with matched graph nodes.
             assert relu in matcher.get_pattern_value_map()
 
-            new_relu = opset8.exp(root.input_value(0))  # ot root.input(0).get_source_output()
+            new_relu = opset8.exp(
+                root.input_value(0)
+            )  # ot root.input(0).get_source_output()
             replace_node(root, new_relu)
             return True
 

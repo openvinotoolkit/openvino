@@ -6,16 +6,20 @@ from openvino.tools.mo.ops.op import Op
 
 
 class LstmNonLinearity(Op):
-    """
-    """
-    op = 'LstmNonLinearity'
+    """ """
+
+    op = "LstmNonLinearity"
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': __class__.op,
-            'use_dropout': False,
-            'type': None,  # type is None because this operation should not appear in IR
-            'infer': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": __class__.op,
+                "use_dropout": False,
+                "type": None,  # type is None because this operation should not appear in IR
+                "infer": None,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )

@@ -10,20 +10,15 @@ namespace ov {
 namespace test {
 namespace op_conformance {
 
-enum ShapeMode {
-    DYNAMIC,
-    STATIC,
-    BOTH
-};
+enum ShapeMode { DYNAMIC, STATIC, BOTH };
 
 extern ShapeMode shapeMode;
 
-using ReadIRParams = std::pair<std::string, std::string>; // { ir_path, ref_tensor_path}
+using ReadIRParams = std::pair<std::string, std::string>;  // { ir_path, ref_tensor_path}
 
-class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
-                   virtual public ov::test::SubgraphBaseTest {
+class ReadIRTest : public testing::WithParamInterface<ReadIRParams>, virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams>& obj);
     std::vector<ov::Tensor> calculate_refs() override;
 
 protected:
@@ -33,6 +28,6 @@ private:
     std::string path_to_model, path_to_ref_tensor;
     std::vector<std::pair<std::string, size_t>> ocurance_in_models;
 };
-} // namespace op_conformance
-} // namespace test
-} // namespace ov
+}  // namespace op_conformance
+}  // namespace test
+}  // namespace ov

@@ -3,8 +3,10 @@
 //
 
 #include "ocl_command_queues_builder.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include <string>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -23,14 +25,14 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
     if (_priority_mode.has_value()) {
         unsigned cl_queue_priority_value = CL_QUEUE_PRIORITY_MED_KHR;
         switch (_priority_mode.value()) {
-            case ov::hint::Priority::HIGH:
-                cl_queue_priority_value = CL_QUEUE_PRIORITY_HIGH_KHR;
-                break;
-            case ov::hint::Priority::LOW:
-                cl_queue_priority_value = CL_QUEUE_PRIORITY_LOW_KHR;
-                break;
-            default:
-                break;
+        case ov::hint::Priority::HIGH:
+            cl_queue_priority_value = CL_QUEUE_PRIORITY_HIGH_KHR;
+            break;
+        case ov::hint::Priority::LOW:
+            cl_queue_priority_value = CL_QUEUE_PRIORITY_LOW_KHR;
+            break;
+        default:
+            break;
         }
 
         properties.insert(properties.end(), {CL_QUEUE_PRIORITY_KHR, cl_queue_priority_value});
@@ -39,14 +41,14 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
     if (_throttle_mode.has_value()) {
         unsigned cl_queue_throttle_value = CL_QUEUE_THROTTLE_MED_KHR;
         switch (_throttle_mode.value()) {
-            case ov::intel_gpu::hint::ThrottleLevel::HIGH:
-                cl_queue_throttle_value = CL_QUEUE_THROTTLE_HIGH_KHR;
-                break;
-            case ov::intel_gpu::hint::ThrottleLevel::LOW:
-                cl_queue_throttle_value = CL_QUEUE_THROTTLE_LOW_KHR;
-                break;
-            default:
-                break;
+        case ov::intel_gpu::hint::ThrottleLevel::HIGH:
+            cl_queue_throttle_value = CL_QUEUE_THROTTLE_HIGH_KHR;
+            break;
+        case ov::intel_gpu::hint::ThrottleLevel::LOW:
+            cl_queue_throttle_value = CL_QUEUE_THROTTLE_LOW_KHR;
+            break;
+        default:
+            break;
         }
 
         properties.insert(properties.end(), {CL_QUEUE_THROTTLE_KHR, cl_queue_throttle_value});
@@ -56,7 +58,8 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
         cl_uint num_queues = 0;
         cl_uint family = 0;
 
-        std::vector<cl_queue_family_properties_intel> qfprops = device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
+        std::vector<cl_queue_family_properties_intel> qfprops =
+            device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
         for (cl_uint q = 0; q < qfprops.size(); q++) {
             if (qfprops[q].capabilities == CL_QUEUE_DEFAULT_CAPABILITIES_INTEL && qfprops[q].count > num_queues) {
                 family = q;
@@ -65,14 +68,15 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
         }
 
         if (num_queues)
-            properties.insert(properties.end(), {CL_QUEUE_FAMILY_INTEL, family,
-                                                 CL_QUEUE_INDEX_INTEL, stream_id % num_queues});
+            properties.insert(properties.end(),
+                              {CL_QUEUE_FAMILY_INTEL, family, CL_QUEUE_INDEX_INTEL, stream_id % num_queues});
     }
 
     bool out_of_order = _out_of_order;
     if (_out_of_order) {
         auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
-        using cmp_t = std::common_type<decltype(queue_properties), typename std::underlying_type<cl::QueueProperties>::type>::type;
+        using cmp_t = std::common_type<decltype(queue_properties),
+                                       typename std::underlying_type<cl::QueueProperties>::type>::type;
         if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
             out_of_order = false;
             GPU_DEBUG_INFO << "Requested out-of-order queue is not supported by current device. Use in-order instead\n";

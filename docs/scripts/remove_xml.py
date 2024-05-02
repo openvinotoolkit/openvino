@@ -4,6 +4,7 @@
 import os
 import shutil
 
+
 def remove_xml_dir(path):
     """
     Remove doxygen xml folder
@@ -14,11 +15,12 @@ def remove_xml_dir(path):
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('xml_dir')
+    parser.add_argument("xml_dir")
     args = parser.parse_args()
     remove_xml_dir(args.xml_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

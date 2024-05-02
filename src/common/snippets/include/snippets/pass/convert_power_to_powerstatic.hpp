@@ -16,11 +16,11 @@ namespace pass {
  * @brief Replace Power with a scalar input with snippets::op::PowerStatic for generation of a more optimal code.
  * @ingroup snippets
  */
-class ConvertPowerToPowerStatic: public ov::pass::MatcherPass {
+class ConvertPowerToPowerStatic : public ov::pass::MatcherPass {
 public:
     ConvertPowerToPowerStatic();
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

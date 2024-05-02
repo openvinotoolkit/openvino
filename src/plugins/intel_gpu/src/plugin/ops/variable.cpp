@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/assign.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/read_value.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
-#include "intel_gpu/op/read_value.hpp"
-#include "intel_gpu/primitives/assign.hpp"
-#include "intel_gpu/primitives/read_value.hpp"
 
 namespace ov {
 namespace op {
@@ -20,27 +20,23 @@ using ReadValue = ov::intel_gpu::op::ReadValue;
 }  // namespace op
 }  // namespace ov
 
-
 namespace ov {
 namespace intel_gpu {
 
 namespace {
-template<typename T_PRIMITIVE>
-void CreateVariableAccessPrimitive(ProgramBuilder &p, const std::shared_ptr<ov::op::Op> &op,
-                                   const std::string &variable_id) {
+template <typename T_PRIMITIVE>
+void CreateVariableAccessPrimitive(ProgramBuilder& p,
+                                   const std::shared_ptr<ov::op::Op>& op,
+                                   const std::string& variable_id) {
     const auto output_pshape = op->get_output_partial_shape(0);
     const auto output_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     const auto output_format = cldnn::format::get_default_format(output_pshape.size());
 
-    const auto variable_layout = cldnn::layout{ output_pshape, output_dtype, output_format };
+    const auto variable_layout = cldnn::layout{output_pshape, output_dtype, output_format};
 
     auto inputs = p.GetInputInfo(op);
     auto user_specified_type = get_original_precision(op);
-    const auto prim = T_PRIMITIVE{layer_type_name_ID(op),
-                                  inputs,
-                                  variable_id,
-                                  variable_layout,
-                                  user_specified_type};
+    const auto prim = T_PRIMITIVE{layer_type_name_ID(op), inputs, variable_id, variable_layout, user_specified_type};
 
     p.add_primitive(*op, prim);
 }
@@ -70,7 +66,7 @@ void CreateAssignOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::Assign>
     CreateVariableAccessPrimitive<cldnn::assign>(p, op, op->get_variable_id());
 }
 
-} // namespace
+}  // namespace
 
 REGISTER_FACTORY_IMPL(v3, Assign);
 REGISTER_FACTORY_IMPL(v6, Assign);

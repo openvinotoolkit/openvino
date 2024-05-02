@@ -5,29 +5,26 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/layer_transformation.hpp"
 #include "low_precision/transformation_context.hpp"
-#include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
 using namespace ov;
 
-typedef std::tuple<
-    element::Type,
-    Shape,
-    ov::pass::low_precision::LayerTransformation::Params> LayerTransformationParams;
+typedef std::tuple<element::Type, Shape, ov::pass::low_precision::LayerTransformation::Params>
+    LayerTransformationParams;
 
 struct TestTransformationParams {
-    TestTransformationParams(
-        bool updatePrecisions = true,
-        std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-        std::vector<element::Type> precisionsOnWeights = { element::i8 },
-        bool supportAsymmetricQuantization = true,
-        element::Type deqPrecision = element::f32,
-        bool deconvolutionSpecificChannelsRatio = false,
-        std::vector<ov::element::Type> defaultPrecisions = { element::u8, element::i8 });
+    TestTransformationParams(bool updatePrecisions = true,
+                             std::vector<element::Type> precisionsOnActivations = {element::u8, element::i8},
+                             std::vector<element::Type> precisionsOnWeights = {element::i8},
+                             bool supportAsymmetricQuantization = true,
+                             element::Type deqPrecision = element::f32,
+                             bool deconvolutionSpecificChannelsRatio = false,
+                             std::vector<ov::element::Type> defaultPrecisions = {element::u8, element::i8});
 
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
@@ -56,10 +53,9 @@ public:
 
     static std::string toString(const TestTransformationParams& params);
 
-    static std::string getTestCaseNameByParams(
-        const ov::element::Type& type,
-        const ov::PartialShape& shape,
-        const TestTransformationParams& params);
+    static std::string getTestCaseNameByParams(const ov::element::Type& type,
+                                               const ov::PartialShape& shape,
+                                               const TestTransformationParams& params);
 
     static ov::builder::subgraph::DequantizationOperations toDequantizationOperations(
         const ov::pass::low_precision::FakeQuantizeDequantization& dequantization);
@@ -94,9 +90,7 @@ public:
         return true;
     }
 
-    static bool compare(
-        const ov::IntervalsAlignmentAttribute& value1,
-        const ov::IntervalsAlignmentAttribute& value2) {
+    static bool compare(const ov::IntervalsAlignmentAttribute& value1, const ov::IntervalsAlignmentAttribute& value2) {
         if ((value1.value().combinedInterval.low != value2.value().combinedInterval.low) ||
             (value1.value().combinedInterval.high != value2.value().combinedInterval.high)) {
             return false;
@@ -124,7 +118,8 @@ public:
                 }
 
                 if (!referenceIt->second.empty() && !actualIt.second.empty()) {
-                    if (!compare(referenceIt->second.template as<Operation>(), actualIt.second.template as<Operation>())) {
+                    if (!compare(referenceIt->second.template as<Operation>(),
+                                 actualIt.second.template as<Operation>())) {
                         return false;
                     }
                 }

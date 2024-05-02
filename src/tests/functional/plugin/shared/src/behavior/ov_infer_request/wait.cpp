@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_infer_request/wait.hpp"
+
 #include "openvino/runtime/exception.hpp"
 
 namespace ov {
@@ -65,18 +66,14 @@ TEST_P(OVInferRequestWaitTests, throwExceptionOnSetTensorAfterAsyncInfer) {
     auto output_tensor = req.get_tensor(input);
     OV_ASSERT_NO_THROW(req.wait_for({}));
     OV_ASSERT_NO_THROW(req.start_async());
-    OV_ASSERT_NO_THROW(try {
-        req.set_tensor(input, output_tensor);
-    } catch (const ov::Busy&) {});
+    OV_ASSERT_NO_THROW(try { req.set_tensor(input, output_tensor); } catch (const ov::Busy&){});
     OV_ASSERT_NO_THROW(req.wait_for({}));
     OV_ASSERT_NO_THROW(req.wait());
 }
 
 TEST_P(OVInferRequestWaitTests, throwExceptionOnGetTensorAfterAsyncInfer) {
     OV_ASSERT_NO_THROW(req.start_async());
-    OV_ASSERT_NO_THROW(try {
-        req.get_tensor(input);
-    } catch (const ov::Busy&) {});
+    OV_ASSERT_NO_THROW(try { req.get_tensor(input); } catch (const ov::Busy&){});
     OV_ASSERT_NO_THROW(req.wait());
 }
 

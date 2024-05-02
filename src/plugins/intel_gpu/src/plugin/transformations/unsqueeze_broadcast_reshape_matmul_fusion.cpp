@@ -6,14 +6,13 @@
 
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -56,10 +55,14 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
-            return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
+            return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) {
+                       return s != 1;
+                   }) == 1;
         };
-        auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
-        auto target_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
+        auto broadcast =
+            std::dynamic_pointer_cast<ov::op::v3::Broadcast>(pattern_map.at(broadcast_m).get_node_shared_ptr());
+        auto target_shape_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
         if (target_shape_constant) {
             auto target_shape_val = target_shape_constant->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val))
@@ -74,11 +77,7 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         auto order_b = matmul->get_input1_transpose_order();
         auto order_c = matmul->get_output_transpose_order();
 
-        auto gemm = std::make_shared<op::Gemm>(input_a,
-                                               input_b,
-                                               order_a,
-                                               order_b,
-                                               order_c);
+        auto gemm = std::make_shared<op::Gemm>(input_a, input_b, order_a, order_b, order_c);
         gemm->set_friendly_name(matmul->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), gemm);
         ov::replace_node(matmul, gemm);

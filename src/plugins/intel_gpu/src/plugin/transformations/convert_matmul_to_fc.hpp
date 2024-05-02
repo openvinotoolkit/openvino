@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_gpu {
 
-class ConvertMatMulToFullyConnected: public ov::pass::MatcherPass {
+class ConvertMatMulToFullyConnected : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatMulToFullyConnected", "0");
     ConvertMatMulToFullyConnected();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

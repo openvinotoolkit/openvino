@@ -7,12 +7,12 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class ExtractImagePatches(Extender):
-    op = 'ExtractImagePatches'
+    op = "ExtractImagePatches"
 
     @staticmethod
     def extend(op: Node):
-        op['sizes'] = int64_array([1, 1] + op.sizes)
-        op['strides'] = int64_array([1, 1] + op.strides)
-        op['rates'] = int64_array([1, 1] + op.rates)
+        op["sizes"] = int64_array([1, 1] + op.sizes)
+        op["strides"] = int64_array([1, 1] + op.strides)
+        op["rates"] = int64_array([1, 1] + op.rates)
 
-        op['spatial_dims'] = int64_array([2, 3])
+        op["spatial_dims"] = int64_array([2, 3])

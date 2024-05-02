@@ -3,9 +3,10 @@
 //
 
 #include "convolution_kernel_bfyx_iyxo.h"
-#include <vector>
-#include <utility>
+
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 // Sub-group size used by "convolution_kernel_bfyx_iyxo" kernel.
@@ -60,9 +61,10 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     if (params.inputs[0].X().v % 64)
         return false;
 
-    bool bFilterSize = (params.filterSize.x == 5 && params.filterSize.y == 5) ||
-                       (params.filterSize.x == 3 && params.filterSize.y == 3 && (params.inputs[0].Feature().v % 4) == 0) ||
-                       (params.filterSize.x == 1 && params.filterSize.y == 1);
+    bool bFilterSize =
+        (params.filterSize.x == 5 && params.filterSize.y == 5) ||
+        (params.filterSize.x == 3 && params.filterSize.y == 3 && (params.inputs[0].Feature().v % 4) == 0) ||
+        (params.filterSize.x == 1 && params.filterSize.y == 1);
 
     bool bStride = (params.stride.x == 1 && params.stride.y == 1);
 
@@ -73,7 +75,8 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_params& params,
+                                                          const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));

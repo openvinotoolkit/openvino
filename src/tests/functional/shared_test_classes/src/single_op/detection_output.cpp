@@ -6,10 +6,10 @@
 
 namespace ov {
 namespace test {
-std::ostream& operator <<(std::ostream& result, const Attributes& attrs) {
+std::ostream& operator<<(std::ostream& result, const Attributes& attrs) {
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
-    result << "topK="  << attrs.top_k << "_";
+    result << "topK=" << attrs.top_k << "_";
     result << "varEnc=" << attrs.variance_encoded_in_target << "_";
     result << "keepTopK=" << ov::test::utils::vec2str(attrs.keep_top_k) << "_";
     result << "codeType=" << attrs.code_type << "_";
@@ -34,13 +34,28 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
     std::string targetDevice;
     std::tie(common_attrs, specific_attrs, batch, attrs.objectness_score, targetDevice) = obj.param;
 
-    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
-             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = common_attrs;
+    std::tie(attrs.num_classes,
+             attrs.background_label_id,
+             attrs.top_k,
+             attrs.keep_top_k,
+             attrs.code_type,
+             attrs.nms_threshold,
+             attrs.confidence_threshold,
+             attrs.clip_after_nms,
+             attrs.clip_before_nms,
+             attrs.decrease_label_id) = common_attrs;
 
     const size_t numInputs = 5;
     std::vector<ov::Shape> input_shapes(numInputs);
-    std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
-             input_shapes[idxLocation], input_shapes[idxConfidence], input_shapes[idxPriors], input_shapes[idxArmConfidence],
+    std::tie(attrs.variance_encoded_in_target,
+             attrs.share_location,
+             attrs.normalized,
+             attrs.input_height,
+             attrs.input_width,
+             input_shapes[idxLocation],
+             input_shapes[idxConfidence],
+             input_shapes[idxPriors],
+             input_shapes[idxArmConfidence],
              input_shapes[idxArmLocation]) = specific_attrs;
 
     if (input_shapes[idxArmConfidence].empty()) {
@@ -76,13 +91,28 @@ void DetectionOutputLayerTest::SetUp() {
     Attributes attrs;
     std::tie(common_attrs, specific_attrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
 
-    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
-             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = common_attrs;
+    std::tie(attrs.num_classes,
+             attrs.background_label_id,
+             attrs.top_k,
+             attrs.keep_top_k,
+             attrs.code_type,
+             attrs.nms_threshold,
+             attrs.confidence_threshold,
+             attrs.clip_after_nms,
+             attrs.clip_before_nms,
+             attrs.decrease_label_id) = common_attrs;
 
     std::vector<ov::Shape> input_shapes;
     input_shapes.resize(numInputs);
-    std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
-             input_shapes[idxLocation], input_shapes[idxConfidence], input_shapes[idxPriors], input_shapes[idxArmConfidence],
+    std::tie(attrs.variance_encoded_in_target,
+             attrs.share_location,
+             attrs.normalized,
+             attrs.input_height,
+             attrs.input_width,
+             input_shapes[idxLocation],
+             input_shapes[idxConfidence],
+             input_shapes[idxPriors],
+             input_shapes[idxArmConfidence],
              input_shapes[idxArmLocation]) = specific_attrs;
 
     if (input_shapes[idxArmConfidence].empty()) {
@@ -103,12 +133,8 @@ void DetectionOutputLayerTest::SetUp() {
     if (params.size() == 3)
         det_out = std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], attrs);
     else if (params.size() == 5)
-        det_out = std::make_shared<ov::op::v0::DetectionOutput>(params[0],
-                                                                params[1],
-                                                                params[2],
-                                                                params[3],
-                                                                params[4],
-                                                                attrs);
+        det_out =
+            std::make_shared<ov::op::v0::DetectionOutput>(params[0], params[1], params[2], params[3], params[4], attrs);
     auto result = std::make_shared<ov::op::v0::Result>(det_out);
     function = std::make_shared<ov::Model>(result, params, "DetectionOutput");
 }

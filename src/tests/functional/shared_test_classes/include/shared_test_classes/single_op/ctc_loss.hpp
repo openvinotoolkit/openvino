@@ -12,28 +12,27 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<int>,                  // logits length
-        std::vector<std::vector<int>>,     // labels
-        std::vector<int>,                  // labels length
-        int,                               // blank index
-        bool,                              // preprocessCollapseRepeated
-        bool,                              // ctcMergeRepeated
-        bool                               // Unique
-> CTCLossParamsSubset;
+typedef std::tuple<std::vector<int>,               // logits length
+                   std::vector<std::vector<int>>,  // labels
+                   std::vector<int>,               // labels length
+                   int,                            // blank index
+                   bool,                           // preprocessCollapseRepeated
+                   bool,                           // ctcMergeRepeated
+                   bool                            // Unique
+                   >
+    CTCLossParamsSubset;
 
-typedef std::tuple<
-        CTCLossParamsSubset,
-        std::vector<InputShape>,  // Input shapes
-        ov::element::Type,        // Float point precision
-        ov::element::Type,        // Integer precision
-        std::string               // Device name
-> CTCLossParams;
+typedef std::tuple<CTCLossParamsSubset,
+                   std::vector<InputShape>,  // Input shapes
+                   ov::element::Type,        // Float point precision
+                   ov::element::Type,        // Integer precision
+                   std::string               // Device name
+                   >
+    CTCLossParams;
 
-class CTCLossLayerTest : public testing::WithParamInterface<CTCLossParams>,
-                        virtual public ov::test::SubgraphBaseTest {
+class CTCLossLayerTest : public testing::WithParamInterface<CTCLossParams>, virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CTCLossParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<CTCLossParams>& obj);
 
 protected:
     void SetUp() override;

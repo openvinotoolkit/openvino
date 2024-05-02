@@ -3,8 +3,10 @@
 //
 
 #include "convert_color_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -27,7 +29,7 @@ CommonDispatchData ConvertColorKernelBase::SetDefault(const convert_color_params
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
-    dispatchData.gws = { out.Batch().v, out.Feature().v, out.Y().v };
+    dispatchData.gws = {out.Batch().v, out.Feature().v, out.Y().v};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout);
 
     return dispatchData;
@@ -39,36 +41,36 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
     jit.AddConstant(MakeJitConstant("INPUTS_COUNT", params.inputs.size()));
 
     switch (params.input_color_format) {
-        case color_format::NV12:
-            jit.AddConstant(MakeJitConstant("CONVERT_FROM_NV12", ""));
-            break;
-        case color_format::I420:
-            jit.AddConstant(MakeJitConstant("CONVERT_FROM_I420", ""));
-            break;
-        default:
-            OPENVINO_THROW("Not supported input color format");
+    case color_format::NV12:
+        jit.AddConstant(MakeJitConstant("CONVERT_FROM_NV12", ""));
+        break;
+    case color_format::I420:
+        jit.AddConstant(MakeJitConstant("CONVERT_FROM_I420", ""));
+        break;
+    default:
+        OPENVINO_THROW("Not supported input color format");
     }
 
     switch (params.output_color_format) {
-        case color_format::RGB:
-            jit.AddConstant(MakeJitConstant("CONVERT_TO_RGB", ""));
-            break;
-        case color_format::BGR:
-            jit.AddConstant(MakeJitConstant("CONVERT_TO_BGR", ""));
-            break;
-        default:
-            OPENVINO_THROW("Not supported output color format");
+    case color_format::RGB:
+        jit.AddConstant(MakeJitConstant("CONVERT_TO_RGB", ""));
+        break;
+    case color_format::BGR:
+        jit.AddConstant(MakeJitConstant("CONVERT_TO_BGR", ""));
+        break;
+    default:
+        OPENVINO_THROW("Not supported output color format");
     }
 
     switch (params.mem_type) {
-        case memory_type::buffer:
-            jit.AddConstant(MakeJitConstant("BUFFER_MEM", ""));
-            break;
-        case memory_type::image:
-            jit.AddConstant(MakeJitConstant("SURFACE_MEM", ""));
-            break;
-        default:
-            OPENVINO_THROW("Not supported memory type");
+    case memory_type::buffer:
+        jit.AddConstant(MakeJitConstant("BUFFER_MEM", ""));
+        break;
+    case memory_type::image:
+        jit.AddConstant(MakeJitConstant("SURFACE_MEM", ""));
+        break;
+    default:
+        OPENVINO_THROW("Not supported memory type");
     }
     return jit;
 }
@@ -88,9 +90,17 @@ KernelsData ConvertColorKernelBase::GetCommonKernelsData(const Params& params) c
 
     auto& kernel = kd.kernels[0];
     uint32_t number_of_inputs = static_cast<uint32_t>(prim_params.inputs.size());
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, number_of_inputs);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     number_of_inputs);
 
-    return { kd };
+    return {kd};
 }
 }  // namespace kernel_selector

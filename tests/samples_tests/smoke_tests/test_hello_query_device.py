@@ -10,18 +10,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import pytest
-import sys
+
 import logging as log
-from common.samples_common_test_class import get_tests
-from common.samples_common_test_class import SamplesCommonTestClass
+import sys
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+import pytest
+from common.samples_common_test_class import SamplesCommonTestClass, get_tests
 
-test_data = get_tests({'sample_type': ['Python', 'C++']}, use_device=False)
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
+
+test_data = get_tests({"sample_type": ["Python", "C++"]}, use_device=False)
+
 
 class TestHelloQueryDevice(SamplesCommonTestClass):
-    sample_name = 'hello_query_device'
+    sample_name = "hello_query_device"
 
     @pytest.mark.parametrize("param", test_data)
     def test_hello_query_device(self, param, cache):
@@ -34,7 +38,7 @@ class TestHelloQueryDevice(SamplesCommonTestClass):
         stdout = self._test(param, cache, use_preffix=False)
         if not stdout:
             return 0
-        stdout = stdout.split('\n')
+        stdout = stdout.split("\n")
         is_ok = 0
         for line in stdout:
             log.info(line)

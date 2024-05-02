@@ -3,29 +3,40 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.topk import TopK
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.topk import TopK
 
 
 class TopKExtractor(FrontExtractorOp):
-    op = 'TopK'
+    op = "TopK"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k': node.pb.attr['k'].i,
-                                     'index_element_type': np.int32})
+        sort = "value" if node.pb.attr["sorted"] else "none"
+        TopK.update_node_stat(
+            node,
+            {
+                "mode": "max",
+                "axis": -1,
+                "sort": sort,
+                "k": node.pb.attr["k"].i,
+                "index_element_type": np.int32,
+            },
+        )
 
         return cls.enabled
 
 
 class TopKV2Extractor(FrontExtractorOp):
-    op = 'TopKV2'
+    op = "TopKV2"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'index_element_type': np.int32})
+        sort = "value" if node.pb.attr["sorted"] else "none"
+        TopK.update_node_stat(
+            node,
+            {"mode": "max", "axis": -1, "sort": sort, "index_element_type": np.int32},
+        )
         return cls.enabled

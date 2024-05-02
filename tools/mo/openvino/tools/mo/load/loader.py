@@ -14,9 +14,11 @@ class Loader(object):
         self.load(graph)
 
     def load(self, graph: Graph):
-        raise Exception("Define load logic of {} class in its load method".format(
-            self.__class__.__name__
-        ))
+        raise Exception(
+            "Define load logic of {} class in its load method".format(
+                self.__class__.__name__
+            )
+        )
 
     def run_before(self):
         """
@@ -47,4 +49,4 @@ class LoadFinish(Loader):
         return []
 
     def load(self, graph: Graph):
-        graph.check_empty_graph('loading from framework')
+        graph.check_empty_graph("loading from framework")

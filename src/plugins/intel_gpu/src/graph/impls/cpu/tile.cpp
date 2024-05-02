@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tile.hpp"
+
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
 #include "tile_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/tile.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -52,7 +51,8 @@ struct tile_impl : public typed_primitive_impl<tile> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "tile::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -74,7 +74,8 @@ struct tile_impl : public typed_primitive_impl<tile> {
             input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         if (instance.dependencies().size() == 1) {
             if (repeats.empty())
@@ -90,7 +91,8 @@ struct tile_impl : public typed_primitive_impl<tile> {
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute tile primitive with id ", instance.id());
+                        "[GPU] Couldn't execute tile primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -106,7 +108,7 @@ struct tile_impl : public typed_primitive_impl<tile> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -115,7 +117,6 @@ public:
         return make_unique<tile_impl>();
     }
 };
-
 
 namespace detail {
 

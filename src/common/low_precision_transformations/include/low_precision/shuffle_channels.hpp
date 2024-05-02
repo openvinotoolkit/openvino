@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "low_precision/layer_transformation.hpp"
 
 namespace ov {
@@ -28,6 +27,6 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

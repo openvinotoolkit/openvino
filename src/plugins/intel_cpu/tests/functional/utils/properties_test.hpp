@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/compiled_model.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/core.hpp"
 
 class OVClassConfigTestCPU : public ::testing::Test {
 public:

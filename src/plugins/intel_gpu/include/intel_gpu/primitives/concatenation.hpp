@@ -3,14 +3,16 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
 /// @details Concatenation is used to concatenate multiple sources into one destination along specified dimension.
 /// @notes
-/// - all other dimensions (except the one along which concatenation take place) must have the same value in each source.
+/// - all other dimensions (except the one along which concatenation take place) must have the same value in each
+/// source.
 /// - order of arguments in primitive creation has impact on order of feature maps in output primitive.
 ///
 /// @par Alogrithm:
@@ -39,25 +41,25 @@ struct concatenation : public primitive_base<concatenation> {
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.
     /// @param axis Selected dimension for concatenation.
-    concatenation(
-        const primitive_id& id,
-        const std::vector<input_info>& input,
-        const int64_t axis,
-        const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), axis(axis) {}
+    concatenation(const primitive_id& id,
+                  const std::vector<input_info>& input,
+                  const int64_t axis,
+                  const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}),
+          axis(axis) {}
 
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.
     /// @param axis Selected dimension for concatenation.
     /// @param output_dt Data type of output tensor
-    concatenation(
-        const primitive_id& id,
-        const std::vector<input_info>& input,
-        const int64_t axis,
-        const data_types output_dt,
-        const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}), axis(axis) {}
+    concatenation(const primitive_id& id,
+                  const std::vector<input_info>& input,
+                  const int64_t axis,
+                  const data_types output_dt,
+                  const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}),
+          axis(axis) {}
 
     /// @brief Dimension along which concatenation should take place
     int64_t axis = 0;

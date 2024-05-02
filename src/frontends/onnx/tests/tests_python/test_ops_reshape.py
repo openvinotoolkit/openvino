@@ -6,7 +6,6 @@ import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
-
 from tests.runtime import get_runtime
 from tests.tests_python.utils import (
     all_arrays_equal,
@@ -15,14 +14,17 @@ from tests.tests_python.utils import (
     run_model,
     run_node,
 )
-from tests import (xfail_issue_44858,
-                   xfail_dynamic_rank)
+
+from tests import xfail_dynamic_rank, xfail_issue_44858
 
 
 def test_reshape():
     input_data = np.arange(2560, dtype=np.int32).reshape([16, 4, 4, 10])
     reshape_node = onnx.helper.make_node(
-        "Reshape", inputs=["x"], outputs=["y"], shape=(256, 10),
+        "Reshape",
+        inputs=["x"],
+        outputs=["y"],
+        shape=(256, 10),
     )
     expected_output = input_data.reshape([256, 10])
 
@@ -54,7 +56,9 @@ def test_reshape_opset5():
             ),
         )
         reshape_node = onnx.helper.make_node(
-            "Reshape", inputs=["data", "const_shape"], outputs=["reshaped"],
+            "Reshape",
+            inputs=["data", "const_shape"],
+            outputs=["reshaped"],
         )
 
         graph = make_graph(
@@ -118,7 +122,10 @@ def test_transpose():
     assert np.array_equal(graph_results, [expected_output])
 
     node = onnx.helper.make_node(
-        "Transpose", inputs=["x"], outputs=["y"], perm=(3, 1, 0, 2),
+        "Transpose",
+        inputs=["x"],
+        outputs=["y"],
+        perm=(3, 1, 0, 2),
     )
     expected_output = np.transpose(data, axes=(3, 1, 0, 2))
     graph_results = run_node(node, [data])
@@ -330,7 +337,10 @@ def test_unsqueeze():
         # Split into 4 equal parts along axis=1
         (
             onnx.helper.make_node(
-                "Split", inputs=["x"], outputs=["a", "b", "c", "d"], axis=1,
+                "Split",
+                inputs=["x"],
+                outputs=["a", "b", "c", "d"],
+                axis=1,
             ),
             [
                 np.array([[0], [4]], dtype=np.int32),
@@ -351,7 +361,10 @@ def test_split_2d_splits_input():
     data = np.arange(8, dtype=np.int32).reshape(2, 4)
     splits = np.array([3, 1]).astype(np.int64)
     node = onnx.helper.make_node(
-        "Split", inputs=["x", "splits"], outputs=["a", "b"], axis=1,
+        "Split",
+        inputs=["x", "splits"],
+        outputs=["a", "b"],
+        axis=1,
     )
     expected_outputs = [
         np.array([[0, 1, 2], [4, 5, 6]], dtype=np.int32),
@@ -375,7 +388,10 @@ def test_split_1d():
 
     splits = np.array([2, 3, 1]).astype(np.int64)
     node = onnx.helper.make_node(
-        "Split", inputs=["input", "splits"], outputs=["y", "z", "w"], axis=0,
+        "Split",
+        inputs=["input", "splits"],
+        outputs=["y", "z", "w"],
+        axis=0,
     )
     expected_outputs = [
         np.array([1.0, 2.0]).astype(np.float32),
@@ -399,7 +415,9 @@ def test_split_1d():
 
     splits = np.array([2, 4]).astype(np.int64)
     node = onnx.helper.make_node(
-        "Split", inputs=["input", "splits"], outputs=["y", "z"],
+        "Split",
+        inputs=["input", "splits"],
+        outputs=["y", "z"],
     )
     expected_outputs = [
         np.array([1.0, 2.0]).astype(np.float32),
@@ -413,13 +431,16 @@ def test_depth_to_space():
     b, c, h, w = shape = (2, 8, 3, 3)  # noqa: VNE001
     blocksize = 2
     data = np.random.random_sample(shape).astype(np.float32)
-    tmp = np.reshape(data, [b, blocksize, blocksize, c // (blocksize ** 2), h, w])
+    tmp = np.reshape(data, [b, blocksize, blocksize, c // (blocksize**2), h, w])
     tmp = np.transpose(tmp, [0, 3, 4, 1, 5, 2])
     expected_output = np.reshape(
-        tmp, [b, c // (blocksize ** 2), h * blocksize, w * blocksize],
+        tmp,
+        [b, c // (blocksize**2), h * blocksize, w * blocksize],
     )
 
-    node = onnx.helper.make_node("DepthToSpace", inputs=["x"], outputs=["y"], blocksize=blocksize)
+    node = onnx.helper.make_node(
+        "DepthToSpace", inputs=["x"], outputs=["y"], blocksize=blocksize
+    )
     graph_results = run_node(node, [data])
     assert np.array_equal(graph_results, [expected_output])
 

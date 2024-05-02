@@ -13,10 +13,11 @@ class InputCut(FrontReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.front.output_cut import OutputCut
+
         return [OutputCut]
 
     def run_before(self):
         return []
 
     def find_and_replace_pattern(self, graph: Graph):
-        add_input_ops(graph, graph.graph['user_shapes'], True)
+        add_input_ops(graph, graph.graph["user_shapes"], True)

@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/shape_of.hpp>
-#include <intel_gpu/primitives/data.hpp>
+#include <iostream>
+#include <vector>
 
 #include "shape_of_inst.h"
-
-#include <vector>
-#include <iostream>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -76,7 +74,8 @@ TEST(shape_of_cpu_impl, bfyx_i64) {
     topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"shape_of", {format::bfyx, "", impl_types::cpu}} }));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"shape_of", {format::bfyx, "", impl_types::cpu}}}));
 
     network network(engine, topology, config);
 
@@ -215,10 +214,7 @@ TEST(shape_of_gpu, shape_infer_optimization_dynamic) {
     ASSERT_TRUE(impl != nullptr);
     ASSERT_TRUE(impl->is_dynamic());
 
-    std::vector<std::vector<int64_t>> inputs = {{1, 2, 3, 4},
-                                                {4, 3, 2, 1},
-                                                {1, 2, 3, 4},
-                                                {1, 2, 3, 4}};
+    std::vector<std::vector<int64_t>> inputs = {{1, 2, 3, 4}, {4, 3, 2, 1}, {1, 2, 3, 4}, {1, 2, 3, 4}};
     for (const auto& input : inputs) {
         layout in_mem_layout = {input, data_types::f32, format::bfyx};
         auto input_mem = engine.allocate_memory(in_mem_layout);

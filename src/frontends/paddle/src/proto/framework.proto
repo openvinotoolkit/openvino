@@ -22,7 +22,9 @@ option optimize_for = LITE_RUNTIME; // Added by Intel Corporation 2021-2022
 //
 // Serailization and Deserialization codes should be modified in a way
 // that supports old versions following the version and compatibility policy.
-message Version { optional int64 version = 1 [ default = 0 ]; }
+message Version {
+  optional int64 version = 1 [ default = 0 ];
+}
 
 enum AttrType {
   INT = 0;
@@ -44,7 +46,6 @@ enum AttrType {
   SCALAR = 16;
   SCALARS = 17;
 }
-
 
 message Complex {
   required double r = 1;
@@ -69,7 +70,6 @@ message Scalar {
 // OpDesc describes an instance of a C++ framework::OperatorBase
 // derived class type.
 message OpDesc {
-
   message Attr {
     required string name = 1;
     required AttrType type = 2;
@@ -107,7 +107,6 @@ message OpDesc {
 
 // OpProto describes a C++ framework::OperatorBase derived class.
 message OpProto {
-
   // VarProto describes the C++ type framework::Variable.
   message Var {
     required string name = 1;
@@ -131,7 +130,7 @@ message OpProto {
     optional bool generated = 4 [ default = false ];
     optional bool extra = 5 [ default = false ];
     optional bool quant = 6 [ default = false ];
-    optional bool support_tensor = 7 [ default = false];
+    optional bool support_tensor = 7 [ default = false ];
   }
 
   required string type = 1;
@@ -208,10 +207,14 @@ message VarType {
   }
   optional LoDTensorArrayDesc tensor_array = 4;
 
-  message ReaderDesc { repeated LoDTensorDesc lod_tensor = 1; }
+  message ReaderDesc {
+    repeated LoDTensorDesc lod_tensor = 1;
+  }
   optional ReaderDesc reader = 5;
 
-  message Tuple { repeated Type element_type = 1; }
+  message Tuple {
+    repeated Type element_type = 1;
+  }
   optional Tuple tuple = 7;
 
   optional TensorDesc string = 8;
@@ -222,7 +225,6 @@ message VarType {
 }
 
 message VarDesc {
-
   message Attr {
     required string name = 1;
     required AttrType type = 2;
@@ -252,7 +254,9 @@ message BlockDesc {
 
 // In some cases, Paddle may perform operator definition iterations,
 // and the operator uses OpVersionMap for compatibility testing.
-message OpVersion { required int32 version = 1; }
+message OpVersion {
+  required int32 version = 1;
+}
 message OpVersionMap {
   message OpVersionPair {
     required string op_name = 1;

@@ -3,7 +3,6 @@
 
 import numpy as np
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 

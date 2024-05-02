@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -55,14 +55,11 @@ namespace test {
   [I32]" in ticket 129874
 */
 
-using ConvertRangeSubgraphCPUTestParams = std::tuple<
-    std::map<std::string, ov::element::Type>,
-    std::vector<InputShape>,
-    std::vector<ov::Shape>
->;
+using ConvertRangeSubgraphCPUTestParams =
+    std::tuple<std::map<std::string, ov::element::Type>, std::vector<InputShape>, std::vector<ov::Shape>>;
 
-class ConvertRangeSubgraphCPUTest: public testing::WithParamInterface<ConvertRangeSubgraphCPUTestParams>,
-                                 virtual public SubgraphBaseTest {
+class ConvertRangeSubgraphCPUTest : public testing::WithParamInterface<ConvertRangeSubgraphCPUTestParams>,
+                                    virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams> obj) {
         std::map<std::string, ov::element::Type> additionalConfig;
@@ -154,21 +151,16 @@ TEST_P(ConvertRangeSubgraphCPUTest, CompareWithRefs) {
 
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
     {{ov::hint::inference_precision.name(), ov::element::bf16}},
-    {{ov::hint::inference_precision.name(), ov::element::f16}}
-};
+    {{ov::hint::inference_precision.name(), ov::element::f16}}};
 
-const std::vector<std::vector<InputShape>> input_shapes = {
-    {
-        {{1, -1}, {{1, 291}}},  // input 1
-        {{1, -1}, {{1, 291}}},  // input 2
-    }
-};
+const std::vector<std::vector<InputShape>> input_shapes = {{
+    {{1, -1}, {{1, 291}}},  // input 1
+    {{1, -1}, {{1, 291}}},  // input 2
+}};
 
-const std::vector<std::vector<ov::Shape>> target_shapes = {
-    {
-        {1},
-    }
-};
+const std::vector<std::vector<ov::Shape>> target_shapes = {{
+    {1},
+}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvertRangeSubgraphCPUTest,
                          ConvertRangeSubgraphCPUTest,
@@ -177,6 +169,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertRangeSubgraphCPUTest,
                                             ::testing::ValuesIn(target_shapes)),
                          ConvertRangeSubgraphCPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

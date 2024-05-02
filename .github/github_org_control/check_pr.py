@@ -7,12 +7,12 @@ Check GitHub PRs and set labels by type and categories, e.g. 'ExternalPR', 'cate
 
 # pylint: disable=fixme,no-member
 
+import datetime
 import re
 import sys
-import datetime
+from argparse import ArgumentParser
 from enum import Enum
 from pathlib import Path
-from argparse import ArgumentParser
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from github_org_control import github_api
@@ -149,8 +149,12 @@ def get_wrong_commits(pull):
         # import pprint; pprint.pprint(commit.raw_data)
         print("Commit SHA:", commit.sha)
         # Use raw data because commit author can be non GitHub user
-        commit_author_email = (commit.raw_data["commit"]["author"]["email"] or "").lower()
-        commit_committer_email = (commit.raw_data["commit"]["committer"]["email"] or "").lower()
+        commit_author_email = (
+            commit.raw_data["commit"]["author"]["email"] or ""
+        ).lower()
+        commit_committer_email = (
+            commit.raw_data["commit"]["committer"]["email"] or ""
+        ).lower()
         print("    Commit author email:", commit_author_email)
         print("    Commit committer email:", commit_committer_email)
         if not github_api.is_valid_user(commit.author):
@@ -170,8 +174,13 @@ def get_wrong_commits(pull):
                 "    WARNING: The commit is not verified. Reason:",
                 commit.raw_data["commit"]["verification"]["reason"],
             )
-            if pr_author_email != commit_author_email or pr_author_email != commit_committer_email:
-                print("    WARNING: Commit emails and GitHub PR author public email are differnt")
+            if (
+                pr_author_email != commit_author_email
+                or pr_author_email != commit_committer_email
+            ):
+                print(
+                    "    WARNING: Commit emails and GitHub PR author public email are differnt"
+                )
     return wrong_commits
 
 
@@ -223,7 +232,9 @@ def main():
     wrong_pulls = {}
 
     for pull in pulls:
-        pr_created_at = pull.created_at.replace(tzinfo=datetime.timezone.utc).astimezone()
+        pr_created_at = pull.created_at.replace(
+            tzinfo=datetime.timezone.utc
+        ).astimezone()
         if args.newer and pr_created_at <= pr_created_after:
             print(f"\nIGNORE: {get_pr_info_str(pull)}")
             continue

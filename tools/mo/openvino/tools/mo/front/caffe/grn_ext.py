@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.grn import GRNOp
 from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.grn import GRNOp
 
 
 class GRNFrontExtractor(FrontExtractorOp):
-    op = 'GRN'
+    op = "GRN"
     enabled = True
 
     @classmethod
@@ -16,7 +16,7 @@ class GRNFrontExtractor(FrontExtractorOp):
         param = proto_layer.grn_param
 
         update_attrs = {
-            'bias': param.bias,
+            "bias": param.bias,
         }
 
         mapping_rule = merge_attrs(param, update_attrs)

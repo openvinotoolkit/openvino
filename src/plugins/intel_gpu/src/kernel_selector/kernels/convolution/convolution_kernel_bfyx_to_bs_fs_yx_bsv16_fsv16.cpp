@@ -3,10 +3,12 @@
 //
 
 #include "convolution_kernel_bfyx_to_bs_fs_yx_bsv16_fsv16.h"
+
+#include <algorithm>
+#include <vector>
+
 #include "convolution_kernel_bfyx_to_b_fs_yx_fsv16.h"
 #include "kernel_selector_utils.h"
-#include <vector>
-#include <algorithm>
 
 namespace kernel_selector {
 
@@ -34,15 +36,17 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::get_required_device_features_key(
+    const Params& params) const {
     auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::SetDefault(const convolution_params& params,
-                                                                                           int autoTuneIndex) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::SetDefault(
+    const convolution_params& params,
+    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, autoTuneIndex);
 
     return dispatchData;

@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "tile_inst.h"
-#include "tile/tile_kernel_selector.h"
 #include "tile/tile_kernel_ref.h"
+#include "tile/tile_kernel_selector.h"
+#include "tile_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -61,22 +60,20 @@ namespace detail {
 
 attach_tile_impl::attach_tile_impl() {
     auto types = {data_types::i8, data_types::u8, data_types::i32, data_types::f16, data_types::f32};
-    auto static_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16
-    };
+    auto static_formats = {format::bfyx,
+                           format::bfzyx,
+                           format::bfwzyx,
+                           format::b_fs_zyx_fsv16,
+                           format::b_fs_zyx_fsv32,
+                           format::b_fs_yx_fsv16,
+                           format::b_fs_yx_fsv32,
+                           format::bs_fs_yx_bsv16_fsv16,
+                           format::bs_fs_yx_bsv32_fsv16,
+                           format::bs_fs_yx_bsv32_fsv32,
+                           format::bs_fs_zyx_bsv16_fsv32,
+                           format::bs_fs_zyx_bsv16_fsv16,
+                           format::bs_fs_zyx_bsv32_fsv32,
+                           format::bs_fs_zyx_bsv32_fsv16};
 
     implementation_map<tile>::add(impl_types::ocl,
                                   shape_types::static_shape,
@@ -84,11 +81,7 @@ attach_tile_impl::attach_tile_impl() {
                                   types,
                                   static_formats);
 
-    auto dynamic_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dynamic_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<tile>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,

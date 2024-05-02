@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_lpt_models/pad.hpp"
+
 #include <memory>
 #include <vector>
 
+#include "low_precision/network_helper.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_lpt_models/pad.hpp"
-#include "low_precision/network_helper.hpp"
 
 namespace ov {
 namespace builder {
@@ -27,7 +28,8 @@ std::shared_ptr<ov::Model> PadFunction::get(const PartialShape& inputShape,
 
     const auto padsBeginConst = ov::opset1::Constant::create(ov::element::i64, Shape{padsBegin.size()}, padsBegin);
     const auto padsEndConst = ov::opset1::Constant::create(ov::element::i64, Shape{padsEnd.size()}, padsEnd);
-    const auto padsValueConst = ov::opset1::Constant::create(deqBefore->get_output_element_type(0), Shape{}, { padValue });
+    const auto padsValueConst =
+        ov::opset1::Constant::create(deqBefore->get_output_element_type(0), Shape{}, {padValue});
 
     const auto pad = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::Pad>>(
         std::vector<ov::element::Type>{precisionAfterOperation,
@@ -44,9 +46,9 @@ std::shared_ptr<ov::Model> PadFunction::get(const PartialShape& inputShape,
     const auto deqAfter = makeDequantization(pad, dequantizationAfter);
     deqAfter->set_friendly_name("Pad");
 
-    const auto function = std::make_shared<ov::Model>(
-        ResultVector{ std::make_shared<ov::opset1::Result>(deqAfter) },
-        ov::ParameterVector{ input }, "PadTransformation");
+    const auto function = std::make_shared<ov::Model>(ResultVector{std::make_shared<ov::opset1::Result>(deqAfter)},
+                                                      ov::ParameterVector{input},
+                                                      "PadTransformation");
 
     return function;
 }
@@ -63,7 +65,7 @@ std::shared_ptr<ov::Model> PadFunction::get(const PartialShape& inputShape,
 
     const auto padsBeginConst = ov::opset1::Constant::create(ov::element::i64, Shape{padsBegin.size()}, padsBegin);
     const auto padsEndConst = ov::opset1::Constant::create(ov::element::i64, Shape{padsEnd.size()}, padsEnd);
-    const auto padsValueConst = ov::opset1::Constant::create(inputPrecision, Shape{}, { padValue });
+    const auto padsValueConst = ov::opset1::Constant::create(inputPrecision, Shape{}, {padValue});
     const auto pad = std::make_shared<ov::op::v12::Pad>(fqOnData, padsBeginConst, padsEndConst, padsValueConst, mode);
     pad->set_friendly_name("Pad");
 

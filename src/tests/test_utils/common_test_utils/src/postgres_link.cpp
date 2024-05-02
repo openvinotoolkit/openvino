@@ -151,8 +151,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
     GET_PG_IDENTIFIER(request_application_id(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL ON_MISS_APPLICATION('" << get_executable_name() << "');"
-                          << "COMMIT; "
+                          << "CALL ON_MISS_APPLICATION('" << get_executable_name() << "');" << "COMMIT; "
                           << "SELECT GET_APPLICATION('" << get_executable_name() << "');",
                       appId,
                       app_id)
@@ -165,53 +164,44 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     GET_PG_IDENTIFIER(request_host_id(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL ON_MISS_HOST('" << get_hostname() << "', '" << get_os_version() << "');"
-                          << "COMMIT; "
-                          << "SELECT GET_HOST('" << get_hostname() << "', '" << get_os_version() << "');",
+                          << "COMMIT; " << "SELECT GET_HOST('" << get_hostname() << "', '" << get_os_version() << "');",
                       hostId,
                       host_id)
     GET_PG_IDENTIFIER(request_session_id(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL ON_MISS_SESSION('" << this->session_id << "', '" << this->bin_version << "', '"
-                          << this->lib_version << "');"
-                          << "COMMIT;"
-                          << "SELECT GET_SESSION('" << this->session_id << "', '" << this->bin_version << "', '"
-                          << this->lib_version << "');",
+                          << this->lib_version << "');" << "COMMIT;" << "SELECT GET_SESSION('" << this->session_id
+                          << "', '" << this->bin_version << "', '" << this->lib_version << "');",
                       sessionId,
                       session_id)
     GET_PG_IDENTIFIER(request_suite_name_id(const char* test_suite_name),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL ON_MISS_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");"
-                          << "COMMIT; "
-                          << "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");",
+                          << "COMMIT; " << "SELECT GET_TEST_SUITE('" << test_suite_name << "', " << this->appId << ");",
                       testSuiteNameId,
                       sn_id)
     GET_PG_IDENTIFIER(request_test_name_id(std::string query),
-                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL ON_MISS_" << query << "; COMMIT;"
-                          << "SELECT GET_" << query,
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; " << "CALL ON_MISS_" << query << "; COMMIT;"
+                                                                         << "SELECT GET_" << query,
                       testNameId,
                       tn_id)
     GET_PG_IDENTIFIER(request_suite_id(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL ON_MISS_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
-                          << this->testRunId << ");"
-                          << "COMMIT; "
-                          << "SELECT GET_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
-                          << this->testRunId << ");",
+                          << this->testRunId << ");" << "COMMIT; " << "SELECT GET_SUITE_ID(" << this->testSuiteNameId
+                          << ", " << this->sessionId << ", " << this->testRunId << ");",
                       testSuiteId,
                       sr_id)
     GET_PG_IDENTIFIER(request_suite_id(std::string query), query, testSuiteId, sr_id)
     GET_PG_IDENTIFIER(request_test_id(std::string query), query, testId, tr_id)
     GET_PG_IDENTIFIER(request_test_ext_id(std::string query),
-                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL ON_MISS_" << query << "; COMMIT;"
-                          << "SELECT ON_START_" << query,
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; " << "CALL ON_MISS_" << query << "; COMMIT;"
+                                                                         << "SELECT ON_START_" << query,
                       testExtId,
                       t_id)
     GET_PG_IDENTIFIER(update_test_ext_id(std::string query),
-                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL ON_END_MISS_" << query << "; COMMIT;"
-                          << "SELECT ON_END_" << query,
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; " << "CALL ON_END_MISS_" << query << "; COMMIT;"
+                                                                         << "SELECT ON_END_" << query,
                       testExtId,
                       t_id)
 
@@ -474,7 +464,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 std::stringstream sstr;
                 sstr << "DELETE FROM test_results_temp WHERE tr_id=" << this->testId;
                 auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-                CHECK_PGRESULT(pgresult, "Cannot remove waste results", return );
+                CHECK_PGRESULT(pgresult, "Cannot remove waste results", return);
 
                 this->testId = 0;
                 testDictionary.clear();
@@ -557,7 +547,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
              << ", run_count=" << test_suite.test_to_run_count() << ", total_count=" << test_suite.total_test_count()
              << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
+        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return);
         this->testSuiteId = 0;
 
         if (reportingLevel == REPORT_LVL_FAST) {
@@ -641,13 +631,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE runs SET end_time=NOW() WHERE run_id=" << this->testRunId << " AND end_time<NOW()";
         auto pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return );
+        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return);
 
         sstr.str("");
         sstr.clear();
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
         pgresult = connectionKeeper->query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
+        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return);
     }
 
     /* Prohobit creation outsize of class, need to make a Singleton */

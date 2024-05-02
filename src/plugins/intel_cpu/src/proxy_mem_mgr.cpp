@@ -3,6 +3,7 @@
 //
 
 #include "proxy_mem_mgr.h"
+
 #include "utils/debug_capabilities.h"
 
 using namespace ov::intel_cpu;

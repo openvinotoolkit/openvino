@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestUnsqueeze(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(5, 10).astype(np.float32),)
 
     def create_model(self, inplace=False, dim=0):
@@ -32,7 +32,11 @@ class TestUnsqueeze(PytorchLayerTest):
                 return x, x.unsqueeze_(self.dim)
 
         ref_net = None
-        model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else (aten_unsqueeze_, "aten::unsqueeze_")
+        model_class, op = (
+            (aten_unsqueeze, "aten::unsqueeze")
+            if not inplace
+            else (aten_unsqueeze_, "aten::unsqueeze_")
+        )
 
         return model_class(dim), ref_net, op
 

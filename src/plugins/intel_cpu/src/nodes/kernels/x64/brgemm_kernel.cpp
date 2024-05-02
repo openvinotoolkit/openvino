@@ -4,10 +4,11 @@
 
 #include "brgemm_kernel.hpp"
 
-#include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <openvino/core/except.hpp>
+
+#include "dnnl_extension_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl;
@@ -128,8 +129,8 @@ const size_t BrgemmKernel::get_scratch_b_size() const {
 }
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
-                                 std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                                 bool use_amx) {
+                               std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                               bool use_amx) {
     brgemm_t brgDesc;
 
     const bool is_int8 =
@@ -188,7 +189,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.K_tail = K_tail;
     brgCopyKernelConf.K_blk = K_blk;
     brgCopyKernelConf.use_buffer_a_tail_only = false;
-    //padding K tail to K_blk, LDA is the stride for target tensor
+    // padding K tail to K_blk, LDA is the stride for target tensor
     brgCopyKernelConf.LDA = LDA;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
@@ -222,7 +223,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     // B could come from strided tensor, must use copy_B_wei_stride if set.
-    brgCopyKernelConf.wei_tag = copy_B_wei_stride != 0 ? transpose ? dnnl_adbc : dnnl_acbd : transpose ? dnnl_ba : dnnl_ab;
+    brgCopyKernelConf.wei_tag = copy_B_wei_stride != 0 ? transpose ? dnnl_adbc : dnnl_acbd
+                                : transpose            ? dnnl_ba
+                                                       : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
     // LDB here is for the target tensor, not source tensor
     brgCopyKernelConf.LDB = LDB;
@@ -325,12 +328,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
-                callBrgemm(brgemmCtx,
-                        brgKernels[getBrgIdx(mIdx, k, n)],
-                        local_a_ptr,
-                        weight_ptr,
-                        out_ptr,
-                        wsp);
+                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, wsp);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -358,11 +356,11 @@ void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scrat
     }
 }
 void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
-                                std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                                const void* pin0,
-                                const void* pin1,
-                                void* pout,
-                                void* wsp) {
+                              std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                              const void* pin0,
+                              const void* pin1,
+                              void* pout,
+                              void* wsp) {
     if (ctx.is_with_amx)
         amx_tile_configure(ctx.palette);
     if (ctx.is_with_comp) {

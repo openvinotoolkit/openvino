@@ -13,14 +13,15 @@ class NoOpEraser(FrontReplacementSubgraph):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('noop', dict(kind='op', op='NoOp')),
-                   ('output', dict(kind='op', op='Result'))
-                   ],
-            edges=[('noop', 'output')]
+            nodes=[
+                ("noop", dict(kind="op", op="NoOp")),
+                ("output", dict(kind="op", op="Result")),
+            ],
+            edges=[("noop", "output")],
         )
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict):
-        graph.erase_node(match['output'])
-        graph.erase_node(match['noop'])
-        log.info("NoOp node \"{}\" was removed from the graph".format(match['noop'].id))
+        graph.erase_node(match["output"])
+        graph.erase_node(match["noop"])
+        log.info('NoOp node "{}" was removed from the graph'.format(match["noop"].id))

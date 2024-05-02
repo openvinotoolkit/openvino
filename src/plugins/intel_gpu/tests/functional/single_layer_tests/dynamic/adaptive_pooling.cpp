@@ -5,13 +5,12 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -19,11 +18,10 @@ using AdaPoolSpecificParams = std::tuple<std::vector<int>,          // pooled ve
                                          std::vector<InputShape>>;  // feature map shape
 
 using AdaPoolLayerGPUTestParams = std::tuple<AdaPoolSpecificParams,
-                                             std::string,          // mode
-                                             bool,                 // second Input is Constant
-                                             ov::element::Type,    // Net precision
-                                             std::string>;         // Device name
-
+                                             std::string,        // mode
+                                             bool,               // second Input is Constant
+                                             ov::element::Type,  // Net precision
+                                             std::string>;       // Device name
 
 class AdaPoolLayerGPUTest : public testing::WithParamInterface<AdaPoolLayerGPUTestParams>,
                             virtual public ov::test::SubgraphBaseTest {
@@ -159,7 +157,9 @@ protected:
                 in_data.start_from = 0;
                 in_data.range = 2560;
                 in_data.resolution = 256;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -215,76 +215,77 @@ const auto adaPool5DParams = ::testing::Combine(::testing::ValuesIn(pooled5DVect
                                                 ::testing::ValuesIn(input5DShapeVector)  // feature map shape
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg3DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool3DParams,
-                            ::testing::Values("avg"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg3DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool3DParams,
+                                            ::testing::Values("avg"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg4DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool4DParams,
-                            ::testing::Values("avg"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg4DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool4DParams,
+                                            ::testing::Values("avg"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg5DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool5DParams,
-                            ::testing::Values("avg"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg5DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool5DParams,
+                                            ::testing::Values("avg"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax3DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool3DParams,
-                            ::testing::Values("max"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax3DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool3DParams,
+                                            ::testing::Values("max"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax4DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool4DParams,
-                            ::testing::Values("max"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax4DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool4DParams,
+                                            ::testing::Values("max"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax5DLayoutTest, AdaPoolLayerGPUTest,
-                        ::testing::Combine(
-                            adaPool5DParams,
-                            ::testing::Values("max"),
-                            ::testing::Values(false),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        AdaPoolLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax5DLayoutTest,
+                         AdaPoolLayerGPUTest,
+                         ::testing::Combine(adaPool5DParams,
+                                            ::testing::Values("max"),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         AdaPoolLayerGPUTest::getTestCaseName);
 
 const auto staticAdaPool3DParams = ::testing::Combine(
-    ::testing::ValuesIn(pooled3DVector),                                                 // output spatial shape
+    ::testing::ValuesIn(pooled3DVector),  // output spatial shape
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(staticInput3DShapeVector))  // feature map shape
 );
 
 const auto staticAdaPool4DParams = ::testing::Combine(
-    ::testing::ValuesIn(pooled4DVector),                                                 // output spatial shape
+    ::testing::ValuesIn(pooled4DVector),  // output spatial shape
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(staticInput4DShapeVector))  // feature map shape
 );
 
 const auto staticAdaPool5DParams = ::testing::Combine(
-    ::testing::ValuesIn(pooled5DVector),                                                 // output spatial shape
+    ::testing::ValuesIn(pooled5DVector),  // output spatial shape
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(staticInput5DShapeVector))  // feature map shape
 );
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg3DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg3DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool3DParams,
                                             ::testing::Values("avg"),
                                             ::testing::Values(true),
@@ -292,7 +293,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg3DLayoutTest, AdaPoolLay
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg4DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg4DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool4DParams,
                                             ::testing::Values("avg"),
                                             ::testing::Values(true),
@@ -300,7 +302,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg4DLayoutTest, AdaPoolLay
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg5DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg5DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool5DParams,
                                             ::testing::Values("avg"),
                                             ::testing::Values(true),
@@ -308,7 +311,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolAvg5DLayoutTest, AdaPoolLay
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax3DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax3DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool3DParams,
                                             ::testing::Values("max"),
                                             ::testing::Values(true),
@@ -316,7 +320,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax3DLayoutTest, AdaPoolLay
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax4DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax4DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool4DParams,
                                             ::testing::Values("max"),
                                             ::testing::Values(true),
@@ -324,11 +329,12 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax4DLayoutTest, AdaPoolLay
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax5DLayoutTest, AdaPoolLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_StaticAdaPoolMax5DLayoutTest,
+                         AdaPoolLayerGPUTest,
                          ::testing::Combine(staticAdaPool5DParams,
                                             ::testing::Values("max"),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          AdaPoolLayerGPUTest::getTestCaseName);
-} // namespace
+}  // namespace

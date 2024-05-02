@@ -9,7 +9,7 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     if os.path.isfile(filename):
         ops_dict = dict()
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             for line in f.readlines():
                 r = line.split()
                 if r[0] in ops_dict:
@@ -17,11 +17,10 @@ if __name__ == "__main__":
                 else:
                     ops_dict[r[0]] = [r[1]]
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             for op in sorted(ops_dict.keys()):
                 models = ops_dict[op]
-                m_str = ', '.join(models)
-                f.write(
-                    f"{op:<30} appears in {len(models):>2} models: {m_str}\n")
+                m_str = ", ".join(models)
+                f.write(f"{op:<30} appears in {len(models):>2} models: {m_str}\n")
     else:
         print(f"File {filename} doesn't exist.")

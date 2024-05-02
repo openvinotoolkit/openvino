@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
 
 #include "openvino/core/shape.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -24,8 +24,10 @@ struct strided_slice : public primitive_base<strided_slice> {
     /// @param strides_id Step of slicing primitive id.
     /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
     /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
-    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
-    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output
+    /// tensor.
+    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at
+    /// index begin[i].
     /// @param ellipsis_mask Array of bits, that provide inserts missing dimensions on a position of a non-zero bit.
     /// @param out_size Size of output tensor
     strided_slice(const primitive_id& id,
@@ -59,8 +61,10 @@ struct strided_slice : public primitive_base<strided_slice> {
     /// @param strides Strides for input.
     /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
     /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
-    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
-    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output
+    /// tensor.
+    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at
+    /// index begin[i].
     /// @param ellipsis_mask Array of bits, that provide inserts missing dimensions on a position of a non-zero bit.
     /// @param out_size Size of output tensor
     strided_slice(const primitive_id& id,
@@ -94,8 +98,10 @@ struct strided_slice : public primitive_base<strided_slice> {
     /// @param strides Strides for input.
     /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
     /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
-    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
-    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output
+    /// tensor.
+    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at
+    /// index begin[i].
     /// @param ellipsis_mask Array of bits, that provide inserts missing dimensions on a position of a non-zero bit.
     /// @param out_size Size of output tensor
     strided_slice(const primitive_id& id,
@@ -155,13 +161,9 @@ struct strided_slice : public primitive_base<strided_slice> {
 
         auto rhs_casted = downcast<const strided_slice>(rhs);
 
-        return begin == rhs_casted.begin &&
-               end == rhs_casted.end &&
-               strides == rhs_casted.strides &&
-               begin_mask == rhs_casted.begin_mask &&
-               end_mask == rhs_casted.end_mask &&
-               new_axis_mask == rhs_casted.new_axis_mask &&
-               shrink_axis_mask == rhs_casted.shrink_axis_mask &&
+        return begin == rhs_casted.begin && end == rhs_casted.end && strides == rhs_casted.strides &&
+               begin_mask == rhs_casted.begin_mask && end_mask == rhs_casted.end_mask &&
+               new_axis_mask == rhs_casted.new_axis_mask && shrink_axis_mask == rhs_casted.shrink_axis_mask &&
                ellipsis_mask == rhs_casted.ellipsis_mask;
     }
 

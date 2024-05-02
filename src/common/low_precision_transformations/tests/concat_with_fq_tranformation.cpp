@@ -4,6 +4,12 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <sstream>
+#include <vector>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/concat.hpp"
@@ -13,12 +19,6 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include <memory>
-#include <sstream>
-#include <vector>
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "layer_transformation.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/concat.hpp"
@@ -97,8 +97,7 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationTes
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple<ov::element::Type, ov::PartialShape, ConcatTransformationTestValues>
-    ConcatTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, ConcatTransformationTestValues> ConcatTransformationParams;
 
 class ConcatWithFQTransformation : public LayerTransformation,
                                    public testing::WithParamInterface<ConcatTransformationParams> {
@@ -118,18 +117,18 @@ public:
         }
 
         actualFunction = ov::builder::subgraph::ConcatFunction::get(precision,
-                                                                        shape,
-                                                                        testValues.actual.fakeQuantize1,
-                                                                        testValues.actual.convert1,
-                                                                        testValues.actual.dequantization1,
-                                                                        testValues.actual.fakeQuantize2,
-                                                                        testValues.actual.convert2,
-                                                                        testValues.actual.dequantization2,
-                                                                        {},
-                                                                        ov::element::undefined,
-                                                                        {},
-                                                                        testValues.axis,
-                                                                        testValues.addNotPrecisionPreservedOperation);
+                                                                    shape,
+                                                                    testValues.actual.fakeQuantize1,
+                                                                    testValues.actual.convert1,
+                                                                    testValues.actual.dequantization1,
+                                                                    testValues.actual.fakeQuantize2,
+                                                                    testValues.actual.convert2,
+                                                                    testValues.actual.dequantization2,
+                                                                    {},
+                                                                    ov::element::undefined,
+                                                                    {},
+                                                                    testValues.axis,
+                                                                    testValues.addNotPrecisionPreservedOperation);
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
@@ -142,22 +141,20 @@ public:
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transformer.commonGraphRewrite
-            ->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(params);
+        transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(
+            params);
         transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::ConcatTransformation>(params);
         transformer.transform(actualFunction);
 
         {
             ov::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager
-                .register_pass<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
         {
             ov::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager
-                .register_pass<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
@@ -174,22 +171,21 @@ public:
 
         ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
-        referenceFunction =
-            ov::builder::subgraph::ConcatFunction::get(precision,
-                                                           shape,
-                                                           testValues.result.fakeQuantize1,
-                                                           testValues.result.convert1,
-                                                           testValues.result.dequantization1,
-                                                           testValues.result.fakeQuantize2,
-                                                           testValues.result.convert2,
-                                                           testValues.result.dequantization2,
-                                                           {ov::PrecisionPreservedAttribute(true),
-                                                            ov::IntervalsAlignmentAttribute(interval, 256),
-                                                            ov::QuantizationAlignmentAttribute(false)},
-                                                           testValues.result.precisionAfterOperation,
-                                                           testValues.result.dequantizationAfter,
-                                                           testValues.axis,
-                                                           testValues.addNotPrecisionPreservedOperation);
+        referenceFunction = ov::builder::subgraph::ConcatFunction::get(precision,
+                                                                       shape,
+                                                                       testValues.result.fakeQuantize1,
+                                                                       testValues.result.convert1,
+                                                                       testValues.result.dequantization1,
+                                                                       testValues.result.fakeQuantize2,
+                                                                       testValues.result.convert2,
+                                                                       testValues.result.dequantization2,
+                                                                       {ov::PrecisionPreservedAttribute(true),
+                                                                        ov::IntervalsAlignmentAttribute(interval, 256),
+                                                                        ov::QuantizationAlignmentAttribute(false)},
+                                                                       testValues.result.precisionAfterOperation,
+                                                                       testValues.result.dequantizationAfter,
+                                                                       testValues.axis,
+                                                                       testValues.addNotPrecisionPreservedOperation);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
@@ -772,9 +768,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {},
       {},
       ov::element::u8,
-      {ov::element::f32,
-       {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}},
-       {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
+      {ov::element::f32, {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels, concatenation by spatial dimension
     {
         LayerTransformation::createParamsU8I8(),

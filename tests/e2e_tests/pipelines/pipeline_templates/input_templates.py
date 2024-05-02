@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+
 def read_npz_input(path):
     return "read_input", {"npz": {"path": path}}
 

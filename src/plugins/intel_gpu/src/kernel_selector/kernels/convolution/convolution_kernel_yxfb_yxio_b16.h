@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <string>
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -22,7 +23,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override {
         return (params.groups > 1) ? WeightsLayout::gyxio : WeightsLayout::yxio;
     }
     std::string GetKernelName(const convolution_params&) const override;

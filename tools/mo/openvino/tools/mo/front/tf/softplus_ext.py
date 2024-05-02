@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.activation_ops import SoftPlus
 
 
 class SoftPlusExtractor(FrontExtractorOp):
-    op = 'Softplus'
+    op = "Softplus"
     enabled = True
 
     @classmethod

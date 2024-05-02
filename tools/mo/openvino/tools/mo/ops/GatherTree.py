@@ -6,16 +6,16 @@ from openvino.tools.mo.ops.op import Op
 
 
 class GatherTree(Op):
-    op = 'GatherTree'
+    op = "GatherTree"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': self.op,
-            'type': self.op,
-            'version': 'opset1',
-            'infer': copy_shape_infer,
-            'in_ports_count': 4,
-            'out_ports_count': 1,
+            "op": self.op,
+            "type": self.op,
+            "version": "opset1",
+            "infer": copy_shape_infer,
+            "in_ports_count": 4,
+            "out_ports_count": 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 

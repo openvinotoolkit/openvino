@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "kernel_selector_common.h"
 #include "reorder_weights_kernel.h"
+
+#include "kernel_selector_common.h"
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {

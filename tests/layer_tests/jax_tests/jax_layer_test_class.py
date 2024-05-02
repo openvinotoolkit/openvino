@@ -11,8 +11,17 @@ from openvino.runtime import Core
 
 
 class JaxLayerTest:
-    def _test(self, model, ref_net, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
-              **kwargs):
+    def _test(
+        self,
+        model,
+        ref_net,
+        ie_device,
+        precision,
+        ir_version,
+        infer_timeout=60,
+        dynamic_shapes=True,
+        **kwargs,
+    ):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -58,32 +67,37 @@ class JaxLayerTest:
         flatten_fw_res = flattenize_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
-            output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
+            output_list
+        ), f"number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}"
         # check if results dtypes match
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             fw_tensor_type = np.array(fw_tensor).dtype
             ov_tensor_type = ov_tensor.dtype
-            assert ov_tensor_type == fw_tensor_type, f"dtype validation failed: {ov_tensor_type} != {fw_tensor_type}"
+            assert (
+                ov_tensor_type == fw_tensor_type
+            ), f"dtype validation failed: {ov_tensor_type} != {fw_tensor_type}"
 
-        if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
-            custom_eps = kwargs['custom_eps']
+        if "custom_eps" in kwargs and kwargs["custom_eps"] is not None:
+            custom_eps = kwargs["custom_eps"]
         else:
             custom_eps = 1e-4
 
         # compare OpenVINO results with JAX results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
+        fw_eps = custom_eps if precision == "FP32" else 5e-2
         is_ok = True
         for i in range(len(flatten_fw_res)):
             cur_fw_res = np.array(flatten_fw_res[i])
             cur_ov_res = infer_res[compiled.output(i)]
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-            if not np.allclose(cur_ov_res, cur_fw_res,
-                               atol=fw_eps,
-                               rtol=fw_eps, equal_nan=True):
+            if not np.allclose(
+                cur_ov_res, cur_fw_res, atol=fw_eps, rtol=fw_eps, equal_nan=True
+            ):
                 is_ok = False
-                print("Max diff is {}".format(
-                    np.array(
-                        abs(cur_ov_res - cur_fw_res)).max()))
+                print(
+                    "Max diff is {}".format(
+                        np.array(abs(cur_ov_res - cur_fw_res)).max()
+                    )
+                )
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
@@ -96,7 +110,9 @@ class JaxLayerTest:
     def convert_via_tensorflow_function(self, model, inputs):
         import tensorflow as tf
         from jax.experimental import jax2tf
+
         from openvino.tools.ovc import convert_model
+
         # create function signature based on input shapes and types
         function_signature = []
         for _input in inputs:
@@ -105,8 +121,9 @@ class JaxLayerTest:
             input_type = _input.dtype
             function_signature.append(tf.TensorSpec(input_shape, input_type))
 
-        f = tf.function(jax2tf.convert(model), autograph=False,
-                        input_signature=function_signature)
+        f = tf.function(
+            jax2tf.convert(model), autograph=False, input_signature=function_signature
+        )
         converted_model = convert_model(f)
         return converted_model
 
@@ -122,7 +139,7 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
+        if element[0] == "CPU" and element[1] == "FP16":
             continue
         test_args.append(element)
     return test_args

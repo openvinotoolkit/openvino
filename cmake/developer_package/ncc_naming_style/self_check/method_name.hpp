@@ -3,8 +3,8 @@
 //
 
 class name {
-public:
-    name() = default;
+ public:
+  name() = default;
 
-    void Method();
+  void Method();
 };

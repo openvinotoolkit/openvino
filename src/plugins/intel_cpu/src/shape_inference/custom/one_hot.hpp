@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -18,9 +19,8 @@ using Result = IShapeInfer::Result;
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return PortMask(1);
@@ -39,7 +39,6 @@ private:
     std::shared_ptr<ov::Node> m_op;
 };
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

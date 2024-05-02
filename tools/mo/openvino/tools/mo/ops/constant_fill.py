@@ -4,35 +4,33 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
 class ConstantFill(Op):
-    """ Constant blob generation by broadcasting specified value to a given shape.
+    """Constant blob generation by broadcasting specified value to a given shape.
 
-        It is assumed that there is no equivalent of this op in IE,
-        so it is usually relevant to constant folding.
+    It is assumed that there is no equivalent of this op in IE,
+    so it is usually relevant to constant folding.
     """
-    op = 'ConstantFill'
+
+    op = "ConstantFill"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'op': self.op,
-            'input_as_shape': 1,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': self.infer
+            "type": None,
+            "op": self.op,
+            "input_as_shape": 1,
+            "in_ports_count": 1,
+            "out_ports_count": 1,
+            "infer": self.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        return [
-            'input_as_shape',
-            'fill_value'
-        ]
+        return ["input_as_shape", "fill_value"]
 
     @staticmethod
     def infer(node: Node):

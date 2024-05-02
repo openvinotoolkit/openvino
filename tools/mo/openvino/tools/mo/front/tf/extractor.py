@@ -30,19 +30,23 @@ def create_tf_edge(src_node_id: str, dst_node_id: str, in_port: int):
     src_node, src_port = get_tf_node_port(src_node_id)
     tensor_name = src_node + ":" + str(src_port)
     cf_flag = False
-    if src_node[0] == '^':
+    if src_node[0] == "^":
         src_node = src_node[1:]
         cf_flag = True
-    return (src_node, dst_node_id, {
-        'in': in_port,
-        'out': src_port,
-        # debug anchor for a framework name, out port and tensor name
-        'fw_tensor_debug_info': [(src_node_id, tensor_name)],
-        'in_attrs': ['in', 'control_flow_edge', 'permutation'],
-        'out_attrs': ['out', 'permutation'],
-        'data_attrs': ['fw_tensor_debug_info'],
-        'control_flow_edge': cf_flag
-    })
+    return (
+        src_node,
+        dst_node_id,
+        {
+            "in": in_port,
+            "out": src_port,
+            # debug anchor for a framework name, out port and tensor name
+            "fw_tensor_debug_info": [(src_node_id, tensor_name)],
+            "in_attrs": ["in", "control_flow_edge", "permutation"],
+            "out_attrs": ["out", "permutation"],
+            "data_attrs": ["fw_tensor_debug_info"],
+            "control_flow_edge": cf_flag,
+        },
+    )
 
 
 def node_pb_arg(pb_extractor: callable):
@@ -50,32 +54,34 @@ def node_pb_arg(pb_extractor: callable):
 
 
 tf_op_extractors = {
-    'TFCustomSubgraphCall': node_pb_arg(lambda pb: None),
-    'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
-    'FusedBatchNormV2': node_pb_arg(tf_fused_bn_extractor),
-    'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
-    'ConcatV2': node_pb_arg(tf_concat_ext),
-    'Pack': node_pb_arg(tf_pack_ext),
+    "TFCustomSubgraphCall": node_pb_arg(lambda pb: None),
+    "FusedBatchNorm": node_pb_arg(tf_fused_bn_extractor),
+    "FusedBatchNormV2": node_pb_arg(tf_fused_bn_extractor),
+    "FusedBatchNormV3": node_pb_arg(tf_fused_bn_extractor),
+    "ConcatV2": node_pb_arg(tf_concat_ext),
+    "Pack": node_pb_arg(tf_pack_ext),
 }
 
 
 def common_tf_fields(node: Node):
     return {
-        'kind': 'op',
-        'name': node.pb.name,
-        'op': node.pb.op,
+        "kind": "op",
+        "name": node.pb.name,
+        "op": node.pb.op,
     }
 
 
 def tf_op_extractor(node: Node, lowered_keys_map: dict):
     # all required attributes for the 'TFCustomSubgraphCall' are set during their initialization
-    if (node.has('op') and node.op == 'TFCustomSubgraphCall') or (not node.has_valid('pb')):
+    if (node.has("op") and node.op == "TFCustomSubgraphCall") or (
+        not node.has_valid("pb")
+    ):
         return True, node.graph.node[node.id]
 
     result = common_tf_fields(node)
     node.graph.node[node.id].update(result)
     supported = False
-    op = result['op'].lower()
+    op = result["op"].lower()
     if op in lowered_keys_map:
         op = lowered_keys_map[op]
         assert op in tf_op_extractors

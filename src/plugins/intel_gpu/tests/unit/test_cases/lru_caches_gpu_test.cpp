@@ -2,25 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "program_wrapper.h"
+#include <vector>
 
 #include "intel_gpu/runtime/lru_cache.hpp"
+#include "program_wrapper.h"
 #include "shape_of_inst.h"
-
-#include <vector>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(lru_cache, basic_data_type)
-{
+TEST(lru_cache, basic_data_type) {
     const size_t cap = 4;
     LruCache<int, int> ca(cap * sizeof(int));
 
     std::vector<int> inputs = {1, 2, 3, 4, 2, 1, 5};
     std::vector<std::pair<int, int>> input_values;
-    for (auto i :  inputs) {
+    for (auto i : inputs) {
         input_values.push_back(std::make_pair(i, i + 10));
     }
 
@@ -59,11 +57,11 @@ public:
         key = "key_" + std::to_string(a) + "_" + std::to_string(b) + "_" + std::to_string(c);
     }
 
-    bool operator==(const lru_cache_test_data&rhs) {
+    bool operator==(const lru_cache_test_data& rhs) {
         return (this->x == rhs.x && this->y == rhs.y && this->z == rhs.z);
     }
 
-    bool operator!=(const lru_cache_test_data&rhs) {
+    bool operator!=(const lru_cache_test_data& rhs) {
         return (this->x != rhs.x || this->y != rhs.y || this->z != rhs.z);
     }
 
@@ -75,7 +73,6 @@ public:
     int x;
     int y;
     int z;
-
 };
 
 using test_impl_cache = LruCache<std::string, std::shared_ptr<lru_cache_test_data>>;
@@ -126,7 +123,7 @@ TEST(lru_cache, custom_data_type) {
 
 namespace {
 struct ImplHasher {
-    size_t operator()(const kernel_impl_params &k) const {
+    size_t operator()(const kernel_impl_params& k) const {
         return k.hash();
     }
 };
@@ -141,7 +138,8 @@ TEST(lru_cache, collisions) {
     auto shape_of1_prim = std::make_shared<shape_of>("shape_of1", input_info("input1"), data_types::i64);
     auto shape_of2_prim = std::make_shared<shape_of>("shape_of2", input_info("input2"), data_types::i64);
 
-    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
+    using ImplementationsCache =
+        cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
     ImplementationsCache cache(0);
 
     program prog(get_test_engine());

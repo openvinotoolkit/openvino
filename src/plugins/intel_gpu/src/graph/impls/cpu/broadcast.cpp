@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
+#include "openvino/op/broadcast.hpp"
+
 #include "broadcast_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/broadcast.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -62,7 +61,8 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "broadcast::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -79,8 +79,10 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
             op = std::make_shared<ov::op::v3::Broadcast>();
             op->set_broadcast_spec(broadcast_mode);
 
-            OPENVINO_ASSERT(op->has_evaluate(), "[GPU] Couldn't find evaluate() function for broadcast ",
-                                                "primitive with id ", instance.id());
+            OPENVINO_ASSERT(op->has_evaluate(),
+                            "[GPU] Couldn't find evaluate() function for broadcast ",
+                            "primitive with id ",
+                            instance.id());
         }
 
         std::vector<memory::ptr> input_mem_ptrs;
@@ -88,16 +90,23 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
             input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         if (instance.dependencies().size() < 2) {
-            OPENVINO_ASSERT(!target_shape.empty(), "[GPU] Unexpected empty target_shape for broadcast operation with id ", instance.id());
-            input_host_tensors.push_back(ov::Tensor(ov::element::Type_t::i64, {target_shape.size()}, target_shape.data()));
+            OPENVINO_ASSERT(!target_shape.empty(),
+                            "[GPU] Unexpected empty target_shape for broadcast operation with id ",
+                            instance.id());
+            input_host_tensors.push_back(
+                ov::Tensor(ov::element::Type_t::i64, {target_shape.size()}, target_shape.data()));
         }
 
         if (instance.dependencies().size() < 3 && broadcast_mode == ov::op::BroadcastType::EXPLICIT) {
-            OPENVINO_ASSERT(!axes_mapping.empty(), "[GPU] Unexpected empty axes_mapping for broadcast operation with id ", instance.id());
-            input_host_tensors.push_back(ov::Tensor(ov::element::Type_t::i64, {axes_mapping.size()}, axes_mapping.data()));
+            OPENVINO_ASSERT(!axes_mapping.empty(),
+                            "[GPU] Unexpected empty axes_mapping for broadcast operation with id ",
+                            instance.id());
+            input_host_tensors.push_back(
+                ov::Tensor(ov::element::Type_t::i64, {axes_mapping.size()}, axes_mapping.data()));
         }
 
         auto output_mem_ptr = instance.output_memory_ptr();
@@ -106,7 +115,8 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute broadcast primitive with id ", instance.id());
+                        "[GPU] Couldn't execute broadcast primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -122,7 +132,7 @@ struct broadcast_impl : public typed_primitive_impl<broadcast> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -131,7 +141,6 @@ public:
         return make_unique<broadcast_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -151,8 +160,16 @@ attach_broadcast_impl::attach_broadcast_impl() {
         data_types::u8,
     };
 
-    implementation_map<broadcast>::add(impl_types::cpu, shape_types::static_shape, broadcast_impl::create, types, formats);
-    implementation_map<broadcast>::add(impl_types::cpu, shape_types::dynamic_shape, broadcast_impl::create, types, formats);
+    implementation_map<broadcast>::add(impl_types::cpu,
+                                       shape_types::static_shape,
+                                       broadcast_impl::create,
+                                       types,
+                                       formats);
+    implementation_map<broadcast>::add(impl_types::cpu,
+                                       shape_types::dynamic_shape,
+                                       broadcast_impl::create,
+                                       types,
+                                       formats);
 }
 
 }  // namespace detail

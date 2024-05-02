@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/roll.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "roll_inst.hpp"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "roll_inst.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -24,7 +21,7 @@ struct roll_test_params {
     layout input_layout;
 };
 
-class roll_test : public testing::TestWithParam<roll_test_params> { };
+class roll_test : public testing::TestWithParam<roll_test_params> {};
 
 TEST_P(roll_test, shape_infer) {
     auto p = GetParam();
@@ -46,13 +43,13 @@ TEST_P(roll_test, shape_infer) {
     ASSERT_EQ(res[0], expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, roll_test,
-    testing::ValuesIn(std::vector<roll_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx} },
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx} },
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx} },
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx} },
-        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx} }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         roll_test,
+                         testing::ValuesIn(std::vector<roll_test_params>{
+                             {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}},
+                             {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

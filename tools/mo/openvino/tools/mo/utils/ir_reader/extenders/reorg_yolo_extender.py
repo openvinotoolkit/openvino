@@ -7,10 +7,10 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class ReorgYolo_extender(Extender):
-    op = 'ReorgYolo'
+    op = "ReorgYolo"
 
     @staticmethod
     def extend(op: Node):
-        op['batch_dims'] = int64_array([0])
-        op['channel_dims'] = int64_array([1])
-        op['spatial_dims'] = [2, 3]
+        op["batch_dims"] = int64_array([0])
+        op["channel_dims"] = int64_array([1])
+        op["spatial_dims"] = [2, 3]

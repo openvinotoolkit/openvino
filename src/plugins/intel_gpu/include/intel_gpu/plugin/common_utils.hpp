@@ -6,6 +6,7 @@
 
 #include <ostream>
 #include <tuple>
+
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
@@ -33,24 +34,38 @@ enum class TensorType {
 
 inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
     switch (dims.size()) {
-    case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
-    case 1: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
-    case 2: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, def));
-    case 3: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, dims[2]));
-    case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
-    case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
-    case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: OPENVINO_THROW("Invalid dimensions size(", dims.size(), ") for gpu tensor");
+    case 0:
+        return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
+    case 1:
+        return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(def), cldnn::spatial(def, def));
+    case 2:
+        return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, def));
+    case 3:
+        return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(def, dims[2]));
+    case 4:
+        return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
+    case 5:
+        return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
+    case 6:
+        return cldnn::tensor(cldnn::batch(dims[0]),
+                             cldnn::feature(dims[1]),
+                             cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
+    default:
+        OPENVINO_THROW("Invalid dimensions size(", dims.size(), ") for gpu tensor");
     }
 }
 
-template<typename T, typename V>
+template <typename T, typename V>
 std::tuple<V, V, V> get_xyz(const T data, V def) {
     switch (data.size()) {
-        case 1:  return std::make_tuple(def,                     static_cast<V>(data[0]), def);
-        case 2:  return std::make_tuple(static_cast<V>(data[1]), static_cast<V>(data[0]), def);
-        case 3:  return std::make_tuple(static_cast<V>(data[2]), static_cast<V>(data[1]), static_cast<V>(data[0]));
-        default: return std::make_tuple(def,                     def,                     def);
+    case 1:
+        return std::make_tuple(def, static_cast<V>(data[0]), def);
+    case 2:
+        return std::make_tuple(static_cast<V>(data[1]), static_cast<V>(data[0]), def);
+    case 3:
+        return std::make_tuple(static_cast<V>(data[2]), static_cast<V>(data[1]), static_cast<V>(data[0]));
+    default:
+        return std::make_tuple(def, def, def);
     }
 }
 
@@ -62,14 +77,15 @@ inline cldnn::layout make_layout(const ov::element::Type type, const ov::Shape& 
 
 inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) {
     switch (et) {
-        case ov::element::f64:
-        case ov::element::i16:
-        case ov::element::u16:
-            return ov::element::f32;
-        case ov::element::u64:
-        case ov::element::u32:
-            return ov::element::i32;
-        default: return et;
+    case ov::element::f64:
+    case ov::element::i16:
+    case ov::element::u16:
+        return ov::element::f32;
+    case ov::element::u64:
+    case ov::element::u32:
+        return ov::element::i32;
+    default:
+        return et;
     }
 }
 
@@ -81,7 +97,8 @@ using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
 std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
 
-inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
+inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op,
+                                                                    PrecisionMap precision_map = {}) {
     return get_output_data_types(op.get(), precision_map);
 }
 
@@ -98,12 +115,15 @@ inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
     return res;
 }
 
-inline ov::Shape predict_shape(const std::string& name, const cldnn::layout layout, cldnn::ShapePredictor& shape_predictor) {
+inline ov::Shape predict_shape(const std::string& name,
+                               const cldnn::layout layout,
+                               cldnn::ShapePredictor& shape_predictor) {
     auto prealloc_info = shape_predictor.predict_preallocation_shape(name, layout, false);
     const auto& preallocation_shape = prealloc_info.second;
-    auto can_preallocate_buffer = prealloc_info.first &&
-                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) *
-                                    ov::element::Type(layout.data_type).bitwidth(), 8));
+    auto can_preallocate_buffer =
+        prealloc_info.first &&
+        shape_predictor.can_preallocate(
+            cldnn::ceil_div(ov::shape_size(preallocation_shape) * ov::element::Type(layout.data_type).bitwidth(), 8));
     if (can_preallocate_buffer) {
         return preallocation_shape;
     }

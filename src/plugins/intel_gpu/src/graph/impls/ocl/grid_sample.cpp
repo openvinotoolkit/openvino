@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "grid_sample_inst.hpp"
 #include "grid_sample/grid_sample_kernel_ref.hpp"
 #include "grid_sample/grid_sample_kernel_selector.hpp"
+#include "grid_sample_inst.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -45,7 +44,6 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     using kernel_selector_t = kernel_selector::grid_sample_kernel_selector;
     using kernel_params_t = kernel_selector::grid_sample_params;
 
-
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::grid_sample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
@@ -79,7 +77,10 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
                     format::bs_fs_yx_bsv32_fsv32,
                     format::bs_fs_yx_bsv32_fsv16};
 
-    implementation_map<grid_sample>::add(impl_types::ocl, typed_primitive_impl_ocl<grid_sample>::create<grid_sample_impl>, types, formats);
+    implementation_map<grid_sample>::add(impl_types::ocl,
+                                         typed_primitive_impl_ocl<grid_sample>::create<grid_sample_impl>,
+                                         types,
+                                         formats);
 }
 
 }  // namespace detail

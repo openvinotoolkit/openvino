@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "deformable_convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
+#include "deformable_convolution_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -110,9 +109,9 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        params.kernelSize = { (uint32_t)kernel_size.spatial[0],
-                              (uint32_t)kernel_size.spatial[1],
-                              (uint32_t)kernel_size.spatial[2] };
+        params.kernelSize = {(uint32_t)kernel_size.spatial[0],
+                             (uint32_t)kernel_size.spatial[1],
+                             (uint32_t)kernel_size.spatial[2]};
         return params;
     }
 };
@@ -120,17 +119,22 @@ public:
 namespace detail {
 
 attach_deformable_conv_impl::attach_deformable_conv_impl() {
-    implementation_map<deformable_conv>::add(impl_types::ocl, typed_primitive_impl_ocl<deformable_conv>::create<deformable_conv_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    implementation_map<deformable_conv>::add(impl_types::ocl,
+                                             typed_primitive_impl_ocl<deformable_conv>::create<deformable_conv_impl>,
+                                             {
+                                                 std::make_tuple(data_types::f32, format::bfyx),
+                                                 std::make_tuple(data_types::f16, format::bfyx),
+                                             });
 }
 
 attach_deformable_interp_impl::attach_deformable_interp_impl() {
-    implementation_map<deformable_interp>::add(impl_types::ocl, typed_primitive_impl_ocl<deformable_interp>::create<deformable_interp_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    implementation_map<deformable_interp>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<deformable_interp>::create<deformable_interp_impl>,
+        {
+            std::make_tuple(data_types::f32, format::bfyx),
+            std::make_tuple(data_types::f16, format::bfyx),
+        });
 }
 
 }  // namespace detail

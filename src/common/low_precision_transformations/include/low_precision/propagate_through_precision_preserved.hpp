@@ -7,13 +7,12 @@
 #include <memory>
 #include <vector>
 
+#include "low_precision/lpt_itt.hpp"
+#include "low_precision/lpt_visibility.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/lpt_visibility.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/lpt_itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -38,7 +37,8 @@ class PropagateThroughPrecisionPreserved;
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateThroughPrecisionPreserved : public ov::pass::MatcherPass {
 public:
-    PropagateThroughPrecisionPreserved(const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
+    PropagateThroughPrecisionPreserved(
+        const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
         ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
@@ -60,12 +60,14 @@ public:
                 auto& resultAttribute = parentRestrictions[0].template as<AttributeType>();
 
                 std::vector<ov::Any> toMerge = parentRestrictions;
-                // TODO: LPT: handle pointer on itself in IntervalsAlignmentAttribute::merge and remove erase, task #59498
+                // TODO: LPT: handle pointer on itself in IntervalsAlignmentAttribute::merge and remove erase, task
+                // #59498
                 toMerge.erase(toMerge.begin());
                 const_cast<AttributeType&>(resultAttribute).merge_attributes(toMerge);
 
                 for (size_t index = 1ul; index < parentRestrictions.size(); index++) {
-                    auto& attributes = parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();
+                    auto& attributes =
+                        parentRestrictions[index].template as<AttributeType>().attribute->sharedValue->getAttributes();
                     for (auto&& attributeWeakPtr : attributes) {
                         auto attribute = attributeWeakPtr.lock();
                         if (attribute == nullptr) {
@@ -76,13 +78,14 @@ public:
                     }
                 }
 
-                auto &rt = node->get_rt_info();
+                auto& rt = node->get_rt_info();
                 rt[AttributeType::get_type_info_static()] = resultAttribute;
             }
             return true;
         };
 
-        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher =
+            std::make_shared<ov::pass::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
@@ -99,12 +102,11 @@ private:
 
     // TODO: possible duplicate: PropagateToInput::getSourceOutputAttribute
     std::vector<ov::Any> getParentInputRestrictions(const std::shared_ptr<ov::Node> node,
-        const std::vector<ov::element::Type>& defaultPrecisions) {
+                                                    const std::vector<ov::element::Type>& defaultPrecisions) {
         std::vector<ov::Any> parentAttributes;
         auto getInput = [&defaultPrecisions](const std::shared_ptr<ov::Node>& node, const size_t index) -> Input<Node> {
             const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, index);
-            if (!dequantization.empty() &&
-                ov::is_type<ov::opset1::Convert>(dequantization.data.get_node()) &&
+            if (!dequantization.empty() && ov::is_type<ov::opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&
                 ov::is_type<ov::opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 return dequantization.data.get_node()->input(0);

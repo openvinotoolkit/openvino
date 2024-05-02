@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
-#include "snippets/op/broadcastmove.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
-
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/broadcastmove.hpp"
 
 ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
     MATCHER_SCOPE(BroadcastToMoveBroadcast);
 
     auto m_broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>();
 
-    auto callback = [](ov::pass::pattern::Matcher &m) {
+    auto callback = [](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
         auto root = m.get_match_root();
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(root)) {
@@ -30,9 +28,11 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
 
         const auto target_shape = root->get_output_partial_shape(0);
         const auto value_shape = root->get_input_partial_shape(0);
-        OPENVINO_ASSERT(target_shape.is_static() && value_shape.rank().is_static(), "Broadcast with dynamic target shape is not supported in Snippets");
+        OPENVINO_ASSERT(target_shape.is_static() && value_shape.rank().is_static(),
+                        "Broadcast with dynamic target shape is not supported in Snippets");
         // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
-        // will be handled by pointer arithmetics. Note that this behavior should be changed in case of full op::Boradcast support.
+        // will be handled by pointer arithmetics. Note that this behavior should be changed in case of full
+        // op::Boradcast support.
         Output<ov::Node> in_value = root->input_value(0);
         if (*target_shape.rbegin() != *value_shape.rbegin()) {
             auto broadcasted_dim = ov::Dimension(*target_shape.rbegin());

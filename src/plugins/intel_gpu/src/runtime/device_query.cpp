@@ -3,10 +3,11 @@
 //
 
 #include "intel_gpu/runtime/device_query.hpp"
-#include "ocl/ocl_device_detector.hpp"
 
 #include <map>
 #include <string>
+
+#include "ocl/ocl_device_detector.hpp"
 
 namespace cldnn {
 int device_query::device_id = -1;
@@ -22,10 +23,12 @@ device_query::device_query(engine_types engine_type,
             throw std::runtime_error("Unsupported runtime type for ocl engine");
 
         ocl::ocl_device_detector ocl_detector;
-        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        _available_devices =
+            ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
         break;
     }
-    default: throw std::runtime_error("Unsupported engine type in device_query");
+    default:
+        throw std::runtime_error("Unsupported engine type in device_query");
     }
 }
 }  // namespace cldnn

@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/shape_of.hpp>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include <vector>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/shape_of.hpp>
 #include <iostream>
+#include <vector>
 
 #include "primitive_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
-
 
 TEST(multistream_gpu, basic) {
     const int num_streams = 2;
@@ -28,9 +25,9 @@ TEST(multistream_gpu, basic) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    auto input1_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };
-    auto input2_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };
-    auto weights    = engine.allocate_memory({ {512, 512}, data_types::f32, format::bfyx});
+    auto input1_dyn_layout = layout{ov::PartialShape::dynamic(3), data_types::f16, format::bfyx};
+    auto input2_dyn_layout = layout{ov::PartialShape::dynamic(3), data_types::f16, format::bfyx};
+    auto weights = engine.allocate_memory({{512, 512}, data_types::f32, format::bfyx});
 
     topology topology;
     topology.add(input_layout("input1", input1_dyn_layout));
@@ -41,7 +38,7 @@ TEST(multistream_gpu, basic) {
     topology.add(shape_of("shape_of", input_info("fc"), data_types::i32));
 
     auto prog_ptr = program::build_program(engine, topology, config);
-    auto &node = prog_ptr->get_node("shape_of");
+    auto& node = prog_ptr->get_node("shape_of");
     auto strm = node.get_kernel_impl_params()->get_stream_ptr();
     ASSERT_EQ(prog_ptr->get_stream_ptr(), strm);
 
@@ -61,8 +58,10 @@ TEST(multistream_gpu, basic) {
             std::vector<int> various_size = {32, 128, 16, 64};
             for (size_t iter = 0; iter < 8; iter++) {
                 int len = various_size[iter % various_size.size()];
-                auto input1_mem = engine.allocate_memory({ ov::PartialShape{1,len,512}, data_types::f16,format::bfyx });
-                auto input2_mem = engine.allocate_memory({ ov::PartialShape{1,len,512}, data_types::f16,format::bfyx });
+                auto input1_mem =
+                    engine.allocate_memory({ov::PartialShape{1, len, 512}, data_types::f16, format::bfyx});
+                auto input2_mem =
+                    engine.allocate_memory({ov::PartialShape{1, len, 512}, data_types::f16, format::bfyx});
                 net->set_input_data("input1", input1_mem);
                 net->set_input_data("input2", input2_mem);
 

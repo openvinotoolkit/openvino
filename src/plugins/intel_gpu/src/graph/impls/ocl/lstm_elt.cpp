@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "lstm_elt_inst.h"
-#include "lstm/lstm_elt_kernel_selector.h"
 #include "lstm/lstm_elt_kernel_base.h"
+#include "lstm/lstm_elt_kernel_selector.h"
+#include "lstm_elt_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -28,7 +27,7 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
-        args.outputs = { instance.output_memory_ptr() };
+        args.outputs = {instance.output_memory_ptr()};
 
         return args;
     }
@@ -51,16 +50,20 @@ public:
         if (!primitive->activations.empty()) {
             auto a_sz = primitive->activations.size();
             auto param_sz = primitive->activation_params.size();
-            OPENVINO_ASSERT(param_sz == 0|| a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_elt impl: ", param_sz);
+            OPENVINO_ASSERT(param_sz == 0 || a_sz == param_sz,
+                            "[GPU] Unexpected activation params count in lstm_elt impl: ",
+                            param_sz);
             for (size_t i = 0; i < a_sz; i++) {
                 params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
-                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
-                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
+                                                param_sz ? primitive->activation_params[i].a : 0.0f,
+                                                param_sz ? primitive->activation_params[i].b : 0.0f);
             }
         }
 
         if (primitive->clip > 0.0f) {
-            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp),
+                                            -primitive->clip,
+                                            primitive->clip);
         }
 
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
@@ -99,7 +102,7 @@ public:
         input_pshape = {lstm_batch_size, 1, 1, lstm_input_size};
         input_layout.set_partial_shape(input_pshape);
 
-        weights_pshape = {lstm_batch_size, 1, 1, lstm_hidden_size}; // {batch, direction, 1, hidden_size}
+        weights_pshape = {lstm_batch_size, 1, 1, lstm_hidden_size};  // {batch, direction, 1, hidden_size}
         weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());
         weights_layout.set_partial_shape(weights_pshape);
 
@@ -109,7 +112,8 @@ public:
         GPU_DEBUG_LOG << "weights_layout : " << weights_layout.to_short_string() << std::endl;
         GPU_DEBUG_LOG << "output_layout  : " << output_layout.to_short_string() << std::endl;
 
-        OPENVINO_ASSERT(input_pshape.size() == 4 && weights_pshape.size() == 4, "input and weights shape should be rank 4");
+        OPENVINO_ASSERT(input_pshape.size() == 4 && weights_pshape.size() == 4,
+                        "input and weights shape should be rank 4");
         return updated_impl_params;
     }
 
@@ -121,12 +125,14 @@ public:
 namespace detail {
 
 attach_lstm_elt_impl::attach_lstm_elt_impl() {
-    implementation_map<lstm_elt>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_elt>::create<lstm_elt_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f32, format::fyxb),
-        std::make_tuple(data_types::f16, format::fyxb),
-    });
+    implementation_map<lstm_elt>::add(impl_types::ocl,
+                                      typed_primitive_impl_ocl<lstm_elt>::create<lstm_elt_impl>,
+                                      {
+                                          std::make_tuple(data_types::f32, format::bfyx),
+                                          std::make_tuple(data_types::f16, format::bfyx),
+                                          std::make_tuple(data_types::f32, format::fyxb),
+                                          std::make_tuple(data_types::f16, format::fyxb),
+                                      });
 }
 
 }  // namespace detail

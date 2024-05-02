@@ -1,0 +1,16 @@
+repos:
+-   repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.3
+    hooks:
+    -   id: clang-format
+-   repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.3.0
+    hooks:
+    -   id: black
+        exclude: 'tools/mo/openvino/tools/mo/front/mxnet/arange_like_replacer.py' # This file fails black formatting
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+    -   id: isort
+        args:
+            - --profile=black

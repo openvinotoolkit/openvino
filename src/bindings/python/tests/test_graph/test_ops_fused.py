@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset8 as ov
 import pytest
 
-import openvino.runtime.opset8 as ov
 from openvino import Type
 
 
@@ -38,9 +38,15 @@ def test_fake_quantize():
     bound_shape = []
     parameter_data = ov.parameter(data_shape, name="data", dtype=np.float32)
     parameter_input_low = ov.parameter(bound_shape, name="input_low", dtype=np.float32)
-    parameter_input_high = ov.parameter(bound_shape, name="input_high", dtype=np.float32)
-    parameter_output_low = ov.parameter(bound_shape, name="output_low", dtype=np.float32)
-    parameter_output_high = ov.parameter(bound_shape, name="output_high", dtype=np.float32)
+    parameter_input_high = ov.parameter(
+        bound_shape, name="input_high", dtype=np.float32
+    )
+    parameter_output_low = ov.parameter(
+        bound_shape, name="output_low", dtype=np.float32
+    )
+    parameter_output_high = ov.parameter(
+        bound_shape, name="output_high", dtype=np.float32
+    )
 
     model = ov.fake_quantize(
         parameter_data,
@@ -176,12 +182,16 @@ def test_prelu_operator():
     data_shape = [1, 2, 3, 4]
     slope_shape = [2, 3, 1]
     data_value = np.arange(start=1.0, stop=25.0, dtype=np.float32).reshape(data_shape)
-    slope_value = np.arange(start=-10.0, stop=-4.0, dtype=np.float32).reshape(slope_shape)
+    slope_value = np.arange(start=-10.0, stop=-4.0, dtype=np.float32).reshape(
+        slope_shape
+    )
     parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
     parameter_slope = ov.parameter(slope_shape, name="Slope", dtype=np.float32)
 
     model = ov.prelu(parameter_data, parameter_slope)
-    expected = np.clip(data_value, 0, np.inf) + np.clip(data_value, -np.inf, 0) * slope_value
+    expected = (
+        np.clip(data_value, 0, np.inf) + np.clip(data_value, -np.inf, 0) * slope_value
+    )
     assert model.get_type_name() == "PRelu"
     assert model.get_output_size() == 1
     assert model.get_output_element_type(0) == Type.f32
@@ -229,7 +239,9 @@ def test_mvn_operator():
     assert list(model.get_output_shape(0)) == [3, 3, 3, 1]
 
 
-@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95970")
+@pytest.mark.skip(
+    reason="Sporadically failed. Need further investigation. Ticket - 95970"
+)
 def test_space_to_depth_operator():
     data_shape = [1, 2, 4, 4]
     mode = "blocks_first"
@@ -294,7 +306,9 @@ def test_group_convolution_operator():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ov.group_convolution(parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations)
+    model = ov.group_convolution(
+        parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations
+    )
     assert model.get_type_name() == "GroupConvolution"
     assert model.get_output_size() == 1
     assert model.get_output_element_type(0) == Type.f32
@@ -312,7 +326,13 @@ def test_group_convolution_backprop_data():
     data_node = ov.parameter(data_shape, name="Data", dtype=np.float32)
     filters_node = ov.parameter(filters_shape, name="Filters", dtype=np.float32)
     model = ov.group_convolution_backprop_data(
-        data_node, filters_node, strides, None, pads_begin, pads_end, output_padding=output_padding,
+        data_node,
+        filters_node,
+        strides,
+        None,
+        pads_begin,
+        pads_end,
+        output_padding=output_padding,
     )
 
     assert model.get_type_name() == "GroupConvolutionBackpropData"
@@ -331,7 +351,11 @@ def test_group_convolution_backprop_data_output_shape():
     output_shape_node = ov.constant(np.array([1, 14], dtype=np.int64))
 
     model = ov.group_convolution_backprop_data(
-        data_node, filters_node, strides, output_shape_node, auto_pad="same_upper",
+        data_node,
+        filters_node,
+        strides,
+        output_shape_node,
+        auto_pad="same_upper",
     )
 
     assert model.get_type_name() == "GroupConvolutionBackpropData"

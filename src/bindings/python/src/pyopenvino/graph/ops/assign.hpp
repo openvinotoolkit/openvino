@@ -5,6 +5,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+
 #include "openvino/op/assign.hpp"
 
 namespace py = pybind11;

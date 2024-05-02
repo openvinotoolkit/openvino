@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_depthwise.h"
-#include "kernel_selector_utils.h"
+
+#include <iostream>
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 static const size_t sub_group_size = 16;
@@ -38,7 +40,8 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device_features_key(
+    const Params& params) const {
     auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
@@ -55,14 +58,16 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const 
         return false;
 
     // Check that padding features doesn't miss-align the blocks
-    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 ||
+        cp.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::SetDefault(const convolution_params& params,
-                                                                                          int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::SetDefault(
+    const convolution_params& params,
+    int) const {
     DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.outputs[0];
 
@@ -92,23 +97,24 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf_vec = { "_VEC", {"b", "(f_block*16)", "y", "x"},
-                                           "dst",
-                                           input_dt,
-                                           block_width,
-                                           LoadType::LT_ALIGNED_READ,
-                                           BoundaryCheck::ENABLED,
-                                           IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::X };
-        FusedOpsConfiguration conf_scalar = { "_SCALAR",
-                                              {"b", "(f_block*16)", "y", "(x+i)"},
-                                              "dst[i]",
-                                              input_dt,
-                                              1,
-                                              LoadType::LT_ALIGNED_READ,
-                                              BoundaryCheck::ENABLED,
-                                              IndexType::TENSOR_COORD,
-                                              Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_vec = {"_VEC",
+                                          {"b", "(f_block*16)", "y", "x"},
+                                          "dst",
+                                          input_dt,
+                                          block_width,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X};
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             {"b", "(f_block*16)", "y", "(x+i)"},
+                                             "dst[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_ALIGNED_READ,
+                                             BoundaryCheck::ENABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 

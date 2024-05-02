@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/single_op/fake_quantize.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -42,7 +42,8 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
     result << "netPRC=" << model_type.get_type_name() << "_";
     result << "trgDev=" << target_device;
     if (!fq_direct_args.empty()) {
-        result << "_fqArgs=" << fq_direct_args[0] << "_" << fq_direct_args[1] << "_" << fq_direct_args[2] << "_" << fq_direct_args[3];
+        result << "_fqArgs=" << fq_direct_args[0] << "_" << fq_direct_args[1] << "_" << fq_direct_args[2] << "_"
+               << fq_direct_args[3];
     }
     result << "_" << broadcast.m_type;
     return result.str();
@@ -70,15 +71,14 @@ void FakeQuantizeLayerTest::SetUp() {
     if (fq_direct_arg.empty()) {
         fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape, 1);
     } else {
-        fq = ov::test::utils::make_fake_quantize(
-            param,
-            model_type,
-            levels,
-            const_shape,
-            {fq_direct_arg[0]},
-            {fq_direct_arg[1]},
-            {fq_direct_arg[2]},
-            {fq_direct_arg[3]});
+        fq = ov::test::utils::make_fake_quantize(param,
+                                                 model_type,
+                                                 levels,
+                                                 const_shape,
+                                                 {fq_direct_arg[0]},
+                                                 {fq_direct_arg[1]},
+                                                 {fq_direct_arg[2]},
+                                                 {fq_direct_arg[3]});
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(fq);

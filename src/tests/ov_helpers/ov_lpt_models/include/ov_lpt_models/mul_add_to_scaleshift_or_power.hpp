@@ -6,9 +6,10 @@
 
 #include <algorithm>
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
-#include "common/dequantization_operations.hpp"
+
 #include "common/add.hpp"
+#include "common/dequantization_operations.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ov {
 namespace builder {

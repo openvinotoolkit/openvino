@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "deconvolution_kernel_base.h"
 #include <vector>
+
+#include "deconvolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -30,15 +31,8 @@ protected:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
-    enum class weights_preload {
-        none,
-        line,
-        all
-    };
-    enum class input_preload {
-        none,
-        line
-    };
+    enum class weights_preload { none, line, all };
+    enum class input_preload { none, line };
 
     struct dispatch_params {
         size_t block_size_x;
@@ -49,11 +43,7 @@ protected:
     float EstimateRegPressure(const deconvolution_params& params, const dispatch_params& disp_params) const;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

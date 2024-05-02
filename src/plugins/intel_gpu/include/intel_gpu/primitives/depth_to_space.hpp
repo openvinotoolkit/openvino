@@ -32,9 +32,9 @@ struct depth_to_space : public primitive_base<depth_to_space> {
                    const size_t block_size,
                    const depth_to_space_mode mode,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding})
-        , block_size(block_size)
-        , mode(mode) {}
+        : primitive_base(id, {input}, {output_padding}),
+          block_size(block_size),
+          mode(mode) {}
 
     /// @brief Block size.
     size_t block_size = 0;
@@ -54,8 +54,7 @@ struct depth_to_space : public primitive_base<depth_to_space> {
 
         auto rhs_casted = downcast<const depth_to_space>(rhs);
 
-        return block_size == rhs_casted.block_size &&
-               mode == rhs_casted.mode;
+        return block_size == rhs_casted.block_size && mode == rhs_casted.mode;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -4,7 +4,6 @@
 
 import numpy as np
 import pytest
-
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.input_validation import (
     _check_value,
@@ -15,7 +14,9 @@ from openvino.runtime.utils.input_validation import (
 )
 
 
-@pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64, np.float32, np.float64])
+@pytest.mark.parametrize(
+    "dtype", [np.int8, np.int16, np.int32, np.int64, np.float32, np.float64]
+)
 def test_is_positive_value_signed_type(dtype):
     assert is_positive_value(dtype(16))
     assert not is_positive_value(dtype(-16))
@@ -26,7 +27,9 @@ def test_is_positive_value_unsigned_type(dtype):
     assert is_positive_value(dtype(16))
 
 
-@pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64, np.float32, np.float64])
+@pytest.mark.parametrize(
+    "dtype", [np.int8, np.int16, np.int32, np.int64, np.float32, np.float64]
+)
 def test_is_non_negative_value_signed_type(dtype):
     assert is_non_negative_value(dtype(16))
     assert is_non_negative_value(dtype(0))
@@ -119,16 +122,22 @@ def test_check_valid_attribute():
         "coefficients": [1, 2, 3, 4, 5],
     }
 
-    assert check_valid_attribute("TestOp", attr_dict, "width", np.unsignedinteger, required=False)
+    assert check_valid_attribute(
+        "TestOp", attr_dict, "width", np.unsignedinteger, required=False
+    )
     assert check_valid_attribute("TestOp", attr_dict, "mode", np.str_, required=True)
-    assert check_valid_attribute("TestOp", attr_dict, "coefficients", np.integer, required=True)
+    assert check_valid_attribute(
+        "TestOp", attr_dict, "coefficients", np.integer, required=True
+    )
 
     try:
         check_valid_attribute("TestOp", attr_dict, "alpha", np.floating, required=True)
     except UserInputError:
         pass
     else:
-        raise AssertionError("Validation of missing required attribute has unexpectedly passed.")
+        raise AssertionError(
+            "Validation of missing required attribute has unexpectedly passed."
+        )
 
 
 def test_check_valid_attributes():
@@ -155,4 +164,6 @@ def test_check_valid_attributes():
     except UserInputError:
         pass
     else:
-        raise AssertionError("Validation of missing required attribute has unexpectedly passed.")
+        raise AssertionError(
+            "Validation of missing required attribute has unexpectedly passed."
+        )

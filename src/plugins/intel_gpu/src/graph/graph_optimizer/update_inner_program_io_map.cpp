@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iterator>
+#include <memory>
+#include <vector>
+
+#include "condition_inst.h"
+#include "loop_inst.h"
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "loop_inst.h"
-#include "condition_inst.h"
-
-#include <iterator>
-#include <vector>
-#include <memory>
 
 using namespace cldnn;
 
@@ -24,7 +24,7 @@ void update_inner_program_io_map::run(program& p) {
                 const primitive_id& old_primitive_id = info.first;
                 const primitive_id& new_primitive_id = info.second.front();
                 node2.update_primitive_map(old_primitive_id, new_primitive_id);
-                node2.update_primitive_map(old_primitive_id, new_primitive_id, false); // update internal id
+                node2.update_primitive_map(old_primitive_id, new_primitive_id, false);  // update internal id
             }
         } else if (node->is_type<condition>()) {
             condition_node& cond = node->as<condition>();

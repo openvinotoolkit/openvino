@@ -5,24 +5,23 @@
 #pragma once
 
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
 
 #ifdef _WIN32
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #else
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#    include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif
-#include "openvino/runtime/iremote_tensor.hpp"
-
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -30,6 +29,7 @@ class RemoteContextImpl;
 
 class RemoteTensorImpl : public ov::IRemoteTensor {
     friend class RemoteAllocator;
+
 public:
     RemoteTensorImpl(std::shared_ptr<RemoteContextImpl> context,
                      const ov::Shape& shape,

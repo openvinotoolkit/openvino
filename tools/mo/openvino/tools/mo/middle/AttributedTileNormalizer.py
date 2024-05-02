@@ -17,13 +17,21 @@ class AttributedTileNormalizer(MiddleReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('tile', dict(op='AttributedTile', axis=lambda x: x is not None, tiles=lambda x: x is not None))],
-            edges=[]
+                (
+                    "tile",
+                    dict(
+                        op="AttributedTile",
+                        axis=lambda x: x is not None,
+                        tiles=lambda x: x is not None,
+                    ),
+                )
+            ],
+            edges=[],
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        node = match['tile']
-        name = node.soft_get('name', node.id)
+        node = match["tile"]
+        name = node.soft_get("name", node.id)
 
         axis = node.axis
         tiles = node.tiles
@@ -33,8 +41,10 @@ class AttributedTileNormalizer(MiddleReplacementPattern):
         tiles_input_value = int64_array(np.ones(input_shape.size))
         tiles_input_value[axis] = tiles
 
-        const = Const(graph, {'value': tiles_input_value, 'name': name + '/tiles'}).create_node()
-        tile = Tile(graph, {'name': name}).create_node()
+        const = Const(
+            graph, {"value": tiles_input_value, "name": name + "/tiles"}
+        ).create_node()
+        tile = Tile(graph, {"name": name}).create_node()
 
         node.out_port(0).get_connection().set_source(tile.out_port(0))
         node.in_port(0).get_connection().set_destination(tile.in_port(0))

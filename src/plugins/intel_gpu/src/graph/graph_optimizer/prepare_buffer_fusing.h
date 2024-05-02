@@ -2,14 +2,13 @@
 // spdx-license-identifier: apache-2.0
 //
 
-#include "pass_manager.h"
-#include "program_helpers.h"
+#include <list>
+#include <utility>
+#include <vector>
 
 #include "concatenation_inst.h"
-
-#include <utility>
-#include <list>
-#include <vector>
+#include "pass_manager.h"
+#include "program_helpers.h"
 
 using namespace cldnn;
 namespace cldnn {
@@ -27,7 +26,8 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     // Padding of predecessors is updated to use single buffer by all, which is output from concatenation.
     // Then concatenation can be optimized out, as memory will be correctly filled by previous nodes.
     // If one of the dependencies is also optimized-out concatenation, then cascade adjusment is performed to update it.
-    // This optimization is expected to be executed in some topological order, as cascade adjustment is performed backwards.
+    // This optimization is expected to be executed in some topological order, as cascade adjustment is performed
+    // backwards.
     using base = pattern_match_optimization_typed<concat_in_place_optimization, concatenation>;
     using base::base;
 
@@ -35,9 +35,9 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     // `needs_reoptimization`.
     void optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization);
     static void update_in_place_concat_paddings(layout& concat_layout,
-                                 std::vector<layout>& preds_layouts,
-                                 size_t concat_axis,
-                                 bool is_runtime);
+                                                std::vector<layout>& preds_layouts,
+                                                size_t concat_axis,
+                                                bool is_runtime);
     bool match(concatenation_node& node);
     static bool match(const program_node& concat_node,
                       kernel_impl_params concat_params,
@@ -59,4 +59,4 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
     }
 };
 
-} // namespace cldnn
+}  // namespace cldnn

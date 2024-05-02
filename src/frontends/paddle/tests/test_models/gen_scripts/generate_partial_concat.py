@@ -1,13 +1,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # partial_concat paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import sys
+from save_model import saveModel
+
 
 def partial_concat(name: str, x, y, start_index=0, length=-1):
     paddle.enable_static()
@@ -16,13 +18,13 @@ def partial_concat(name: str, x, y, start_index=0, length=-1):
         x_data = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
         y_data = paddle.static.data(name="y", shape=x.shape, dtype=y.dtype)
 
-        if paddle.__version__ >= '2.5.1':
+        if paddle.__version__ >= "2.5.1":
             out = paddle.incubate.layers.nn.partial_concat(
                 [x_data, y_data], start_index=start_index, length=length
             )
         else:
             out = paddle.fluid.contrib.layers.partial_concat(
-            [x_data, y_data], start_index=start_index, length=length
+                [x_data, y_data], start_index=start_index, length=length
             )
 
         cpu = paddle.static.cpu_places(1)
@@ -46,21 +48,21 @@ def partial_concat(name: str, x, y, start_index=0, length=-1):
 
 
 def main():
-    dtype = 'float32'
+    dtype = "float32"
     x = np.random.randn(6, 4).astype(dtype)
     y = np.random.randn(6, 4).astype(dtype)
     partial_concat("partial_concat_1", x, y, start_index=2, length=2)
 
-
-    dtype = 'int32'
+    dtype = "int32"
     x = np.random.randint(-10, 10, [5, 3]).astype(dtype)
     y = np.random.randint(-10, 10, [5, 3]).astype(dtype)
     partial_concat("partial_concat_2", x, y, start_index=1, length=-1)
 
-    dtype = 'int64'
+    dtype = "int64"
     x = np.random.randint(-10, 10, [8, 10]).astype(dtype)
     y = np.random.randint(-10, 10, [8, 10]).astype(dtype)
     partial_concat("partial_concat_3", x, y, start_index=1, length=5)
+
 
 if __name__ == "__main__":
     main()

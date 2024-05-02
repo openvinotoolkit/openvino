@@ -3,8 +3,10 @@
 //
 
 #include "reorg_yolo_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
@@ -16,10 +18,9 @@ ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
 
     const auto& input = params.inputs[0];
     dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
-    dims_by_gws = {{Tensor::DataChannelName::X},
-                   {Tensor::DataChannelName::Y},
-                   {Tensor::DataChannelName::FEATURE}};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dims_by_gws = {{Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::FEATURE}};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -82,9 +83,8 @@ bool ReorgYoloKernelRef::Validate(const Params& p) const {
         return false;
     }
 
-    if (!(input.Feature().v >= params.stride * params.stride
-            && input.X().v % params.stride == 0
-            && input.Y().v % params.stride == 0)) {
+    if (!(input.Feature().v >= params.stride * params.stride && input.X().v % params.stride == 0 &&
+          input.Y().v % params.stride == 0)) {
         return false;
     }
 

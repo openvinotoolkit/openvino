@@ -4,10 +4,11 @@
 # flake8: noqa
 # mypy: ignore-errors
 
-import torch
 import numpy as np
-
-from openvino.runtime import op, Type as OVType, Shape, Tensor
+import torch
+from openvino.runtime import Shape, Tensor
+from openvino.runtime import Type as OVType
+from openvino.runtime import op
 from openvino.runtime import opset11 as ops
 
 
@@ -25,12 +26,13 @@ def fetch_attr(self_module, target: str):
     Return:
         Any: The value of the attribute.
     """
-    target_atoms = target.split('.')
+    target_atoms = target.split(".")
     attr_itr = self_module
     for i, atom in enumerate(target_atoms):
         if not hasattr(attr_itr, atom):
             raise RuntimeError(
-                f"Node referenced nonexistent target {'.'.join(target_atoms[:i])}")
+                f"Node referenced nonexistent target {'.'.join(target_atoms[:i])}"
+            )
         attr_itr = getattr(attr_itr, atom)
     return attr_itr
 
@@ -76,7 +78,9 @@ def ivalue_to_constant(ivalue, shared_memory=True):
 
 
 def get_value_from_getattr(getattr_node, self_module):
-    assert getattr_node.kind() == "prim::GetAttr", "Got node of kind not equal to prim::GetAttr"
+    assert (
+        getattr_node.kind() == "prim::GetAttr"
+    ), "Got node of kind not equal to prim::GetAttr"
     # GetAttr nodes can be nested
     stack = []
     while getattr_node.kind() == "prim::GetAttr":
@@ -91,12 +95,14 @@ def get_value_from_getattr(getattr_node, self_module):
         node = stack.pop()
         attr_name = node.s("name")
         assert hasattr(
-            module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+            module, attr_name
+        ), f'No attribute with name "{attr_name}" found in module.'
         path_name = ".".join([path_name, attr_name])
         module = getattr(module, attr_name)
     return module, path_name
 
-def graph_has_ops(graph, op_types:list) -> bool:
+
+def graph_has_ops(graph, op_types: list) -> bool:
     res = False
     for n in graph.nodes():
         if any(kind in n.kind() for kind in op_types):
@@ -106,7 +112,7 @@ def graph_has_ops(graph, op_types:list) -> bool:
         if res:
             return res
     return res
-    
+
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
@@ -134,7 +140,7 @@ pt_to_ov_type_map = {
     "torch.BoolTensor": OVType.boolean,
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
-    "torch.qint32": OVType.i32
+    "torch.qint32": OVType.i32,
 }
 
 
@@ -159,10 +165,14 @@ def process_dict_inputs(inputs, input_params, model):
             ordered_inputs.append(input_name)
 
     input_signature = list(input_params)
-    if ordered_inputs == input_signature[:len(ordered_inputs)]:
+    if ordered_inputs == input_signature[: len(ordered_inputs)]:
         example_inputs = [inputs[input_name] for input_name in ordered_inputs]
         if all([isinstance(inp, torch.Tensor) for inp in example_inputs]):
-            return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, model
+            return (
+                {"example_inputs": [inputs[name] for name in ordered_inputs]},
+                ordered_inputs,
+                model,
+            )
         return {"example_inputs": example_inputs}, ordered_inputs, model
 
     # PyTorch has some difficulties to trace models with named unordered parameters:
@@ -185,14 +195,13 @@ def process_dict_inputs(inputs, input_params, model):
                 if not (is_typing or is_torch or is_builten):
                     continue
                 filter_custom_args.append(arg)
-            input_params[input_name].annotation.__args__ = tuple(
-                filter_custom_args)
-        input_sign_str.append(
-            str(input_params[input_name]).replace("NoneType", "None"))
+            input_params[input_name].annotation.__args__ = tuple(filter_custom_args)
+        input_sign_str.append(str(input_params[input_name]).replace("NoneType", "None"))
         input_params_str.append(f"{input_name}={input_name}")
 
-    wrapper_class = wrapper_template.format(input_sign=', '.join(
-        input_sign_str), example_input=', '.join(input_params_str))
+    wrapper_class = wrapper_template.format(
+        input_sign=", ".join(input_sign_str), example_input=", ".join(input_params_str)
+    )
     result = {}
     try:
         exec(wrapper_class, result)
@@ -203,7 +212,11 @@ def process_dict_inputs(inputs, input_params, model):
     except Exception:
         wrapped_model = model
 
-    return {"example_inputs": [inputs[name] for name in ordered_inputs]}, ordered_inputs, wrapped_model
+    return (
+        {"example_inputs": [inputs[name] for name in ordered_inputs]},
+        ordered_inputs,
+        wrapped_model,
+    )
 
 
 def prepare_example_inputs_and_model(inputs, input_params, model):
@@ -212,14 +225,18 @@ def prepare_example_inputs_and_model(inputs, input_params, model):
     if isinstance(inputs, dict):
         examples, ordered, wrapped = process_dict_inputs(inputs, input_params, model)
         return examples, ordered, wrapped, input_is_list
-    if isinstance(inputs, list) and len(inputs) == 1 and isinstance(inputs[0], torch.Tensor):
+    if (
+        isinstance(inputs, list)
+        and len(inputs) == 1
+        and isinstance(inputs[0], torch.Tensor)
+    ):
         if "typing.List" in str(input_params[input_signature[0]].annotation):
             inputs = inputs[0].unsqueeze(0)
             input_is_list = True
 
     if isinstance(inputs, torch.Tensor):
         inputs = [inputs]
-    input_signature = input_signature[:len(inputs)]
+    input_signature = input_signature[: len(inputs)]
     return {"example_inputs": inputs}, input_signature, model, input_is_list
 
 
@@ -238,8 +255,7 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         zero_point_bc = np.reshape(zero_point, new_shape)
         scale_bc = np.reshape(scale, new_shape)
 
-        int8_const = torch_tensor_to_ov_const(
-            int8_tensor, shared_memory=shared_memory)
+        int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
         convert = ops.convert(int8_const, np.float32)
         sub = ops.subtract(convert, zero_point_bc)
         return ops.multiply(sub, scale_bc).outputs()
@@ -248,8 +264,7 @@ def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         scale = np.float32(qtensor.q_scale())
         zero_point = np.float32(qtensor.q_zero_point())
 
-        int8_const = torch_tensor_to_ov_const(
-            int8_tensor, shared_memory=shared_memory)
+        int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
         convert = ops.convert(int8_const, np.float32)
         sub = ops.subtract(convert, zero_point)
         return ops.multiply(sub, scale).outputs()

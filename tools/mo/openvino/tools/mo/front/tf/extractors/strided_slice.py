@@ -16,7 +16,7 @@ def int_to_array_bit_mask(im):
 
 
 class StridedSliceFrontExtractor(FrontExtractorOp):
-    op = 'StridedSlice'
+    op = "StridedSlice"
     enabled = True
 
     @classmethod
@@ -27,11 +27,11 @@ class StridedSliceFrontExtractor(FrontExtractorOp):
         em = int_to_array_bit_mask(pb.attr["end_mask"].i)
         em = mo_array([1 - b for b in em], dtype=np.int32)
         attrs = {
-            'begin_mask': bm,
-            'end_mask': em,
-            'ellipsis_mask': int_to_array_bit_mask(pb.attr["ellipsis_mask"].i),
-            'new_axis_mask': int_to_array_bit_mask(pb.attr["new_axis_mask"].i),
-            'shrink_axis_mask': int_to_array_bit_mask(pb.attr["shrink_axis_mask"].i),
+            "begin_mask": bm,
+            "end_mask": em,
+            "ellipsis_mask": int_to_array_bit_mask(pb.attr["ellipsis_mask"].i),
+            "new_axis_mask": int_to_array_bit_mask(pb.attr["new_axis_mask"].i),
+            "shrink_axis_mask": int_to_array_bit_mask(pb.attr["shrink_axis_mask"].i),
         }
 
         StridedSlice.update_node_stat(node, attrs)

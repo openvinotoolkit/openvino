@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "openvino/opsets/opset8.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
 #include "behavior/ov_infer_request/inference.hpp"
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
 std::string OVInferRequestInferenceTests::getTestCaseName(
-        const testing::TestParamInfo<OVInferRequestInferenceTestsParams>& obj) {
+    const testing::TestParamInfo<OVInferRequestInferenceTestsParams>& obj) {
     return std::get<0>(obj.param).m_test_name + "_targetDevice=" + std::get<1>(obj.param);
 }
 
@@ -58,12 +60,8 @@ TEST_P(OVInferRequestInferenceTests, Inference_ROI_Tensor) {
     auto actual_out_tensor = req.get_tensor("tensor_output0");
     auto out_ptr = actual_out_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_EQ(out_ptr[i], m_param.m_expected[i]) << "Expected="
-                                                     << m_param.m_expected[i]
-                                                     << ", actual="
-                                                     << out_ptr[i]
-                                                     << " for "
-                                                     << i;
+        EXPECT_EQ(out_ptr[i], m_param.m_expected[i])
+            << "Expected=" << m_param.m_expected[i] << ", actual=" << out_ptr[i] << " for " << i;
     }
 }
 

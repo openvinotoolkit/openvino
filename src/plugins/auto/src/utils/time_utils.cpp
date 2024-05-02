@@ -3,11 +3,12 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "time_utils.hpp"
+
 #include <chrono>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
-#include "time_utils.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -55,12 +56,13 @@ std::string get_current_time() {
 
     auto now = std::chrono::system_clock::now();
 
-    auto microseconds = (std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count() % 1000000) / 100;
+    auto microseconds =
+        (std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count() % 1000000) / 100;
 
     ss << put_time(now, timeFormat) << '.' << std::setfill('0') << std::setw(4) << microseconds;
 
     return ss.str();
 }
-} // namespace time_utils
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace time_utils
+}  // namespace auto_plugin
+}  // namespace ov

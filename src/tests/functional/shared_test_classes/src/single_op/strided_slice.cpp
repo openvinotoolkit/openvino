@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj) {
+std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams>& obj) {
     StridedSliceSpecificParams params;
     ov::element::Type model_type;
     std::string target_device;
@@ -21,7 +21,8 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
     for (size_t i = 0lu; i < params.input_shape.front().second.size(); i++) {
         result << "{";
         for (size_t j = 0lu; j < params.input_shape.size(); j++) {
-            result << ov::test::utils::vec2str(params.input_shape[j].second[i]) << (j < params.input_shape.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(params.input_shape[j].second[i])
+                   << (j < params.input_shape.size() - 1lu ? "_" : "");
         }
         result << "}_";
     }
@@ -31,9 +32,12 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
     result << "stride=" << ov::test::utils::vec2str(params.strides) << "_";
     result << "begin_m=" << ov::test::utils::vec2str(params.begin_mask) << "_";
     result << "end_m=" << ov::test::utils::vec2str(params.end_mask) << "_";
-    result << "new_axis_m=" << (params.new_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.new_axis_mask)) << "_";
-    result << "shrink_m=" << (params.shrink_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.shrink_axis_mask)) << "_";
-    result << "ellipsis_m=" << (params.ellipsis_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.ellipsis_axis_mask)) << "_";
+    result << "new_axis_m=" << (params.new_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.new_axis_mask))
+           << "_";
+    result << "shrink_m="
+           << (params.shrink_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.shrink_axis_mask)) << "_";
+    result << "ellipsis_m="
+           << (params.ellipsis_axis_mask.empty() ? "def" : ov::test::utils::vec2str(params.ellipsis_axis_mask)) << "_";
     result << "trgDev=" << target_device;
     return result.str();
 }

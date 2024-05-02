@@ -3,25 +3,23 @@
 //
 
 #pragma once
-#include <memory>
-#include <string>
-#include <sstream>
-#include <vector>
 #include <map>
-#include "pugixml.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "intel_gpu/runtime/tensor.hpp"
+#include "pugixml.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 using CustomLayerPtr = std::shared_ptr<class CustomLayer>;
 using CustomLayerMap = std::map<std::string, CustomLayerPtr>;
-class CustomLayer{
+class CustomLayer {
 public:
-    static void LoadFromFile(
-        const std::string configFile,
-        CustomLayerMap& customLayers,
-        bool can_be_missed = false);
+    static void LoadFromFile(const std::string configFile, CustomLayerMap& customLayers, bool can_be_missed = false);
 
     typedef enum {
         Input,
@@ -29,8 +27,7 @@ public:
         Data,
     } ParamType;
     struct KerenlParam {
-        KerenlParam() :type(Input), paramIndex(-1), portIndex(-1),
-                       format(cldnn::format::any) {}
+        KerenlParam() : type(Input), paramIndex(-1), portIndex(-1), format(cldnn::format::any) {}
         ParamType type;
         int paramIndex;
         int portIndex;
@@ -46,21 +43,41 @@ public:
         std::string postfix;
     };
 
-    const std::string& Name()const { return m_layerName; }
-    const std::string& KernelSource()const { return m_kernelSource; }
-    const std::string& KernelEntry()const { return m_kernelEntry; }
-    const std::vector<KernelDefine>& Defines()const { return m_defines; }
-    const std::string& CompilerOptions()const { return m_compilerOptions; }
-    const std::vector<std::string>& GlobalSizeRules()const { return m_globalSizeRules; }
-    const std::vector<std::string>& LocalSizeRules()const { return m_localSizeRules; }
-    const std::vector<KerenlParam>& KernelParams()const { return m_kernelParams; }
-    int InputDimSourceIndex() { return m_wgDimInputIdx; }
+    const std::string& Name() const {
+        return m_layerName;
+    }
+    const std::string& KernelSource() const {
+        return m_kernelSource;
+    }
+    const std::string& KernelEntry() const {
+        return m_kernelEntry;
+    }
+    const std::vector<KernelDefine>& Defines() const {
+        return m_defines;
+    }
+    const std::string& CompilerOptions() const {
+        return m_compilerOptions;
+    }
+    const std::vector<std::string>& GlobalSizeRules() const {
+        return m_globalSizeRules;
+    }
+    const std::vector<std::string>& LocalSizeRules() const {
+        return m_localSizeRules;
+    }
+    const std::vector<KerenlParam>& KernelParams() const {
+        return m_kernelParams;
+    }
+    int InputDimSourceIndex() {
+        return m_wgDimInputIdx;
+    }
 
 protected:
     CustomLayer() : m_wgDimInputIdx(0) {}
     explicit CustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
 
-    bool Error() const { return m_ErrorMessage.length() > 0; }
+    bool Error() const {
+        return m_ErrorMessage.length() > 0;
+    }
     void LoadSingleLayer(const pugi::xml_node& node);
     void ProcessKernelNode(const pugi::xml_node& node);
     void ProcessBuffersNode(const pugi::xml_node& node);

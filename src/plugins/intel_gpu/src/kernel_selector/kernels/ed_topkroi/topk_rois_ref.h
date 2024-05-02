@@ -14,7 +14,7 @@ namespace kernel_selector {
 struct experimental_detectron_topk_roi_params : public base_params {
     experimental_detectron_topk_roi_params() : base_params(KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {}
 
-    size_t max_rois = 0; // maximal numbers of output ROIs.
+    size_t max_rois = 0;  // maximal numbers of output ROIs.
 };
 
 /**
@@ -25,13 +25,13 @@ public:
     ExperimentalDetectronTopKROIRef() : KernelBaseOpenCL("experimental_detectron_topk_rois_ref") {}
 
 private:
-    virtual JitConstants GetJitConstants(const experimental_detectron_topk_roi_params &params) const;
+    virtual JitConstants GetJitConstants(const experimental_detectron_topk_roi_params& params) const;
 
-    KernelsData GetKernelsData(const Params &params) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params &params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
-    bool Validate(const Params &params) const override;
+    bool Validate(const Params& params) const override;
 
     ParamsKey GetSupportedKey() const override;
 };

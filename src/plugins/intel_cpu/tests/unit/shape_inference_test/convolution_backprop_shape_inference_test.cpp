@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "convolution_backprop_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "convolution_backprop_shape_inference.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
 

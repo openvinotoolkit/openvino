@@ -4,27 +4,26 @@
 
 #include "low_precision_transformations/eliminate_fake_quantize_transformation.hpp"
 
-#include <tuple>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "transformations/init_node_info.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string EliminateFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<EliminateFakeQuantizeTransformationParams>& obj) {
+std::string EliminateFakeQuantizeTransformation::getTestCaseName(
+    const testing::TestParamInfo<EliminateFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << targetDevice << "_" <<
-        testValues.actual.precisionBefore << "_" <<
-        testValues.actual.fakeQuantizeOnData1 << "_" <<
-        testValues.actual.fakeQuantizeOnData2;
+    result << targetDevice << "_" << testValues.actual.precisionBefore << "_" << testValues.actual.fakeQuantizeOnData1
+           << "_" << testValues.actual.fakeQuantizeOnData2;
     return result.str();
 }
 
@@ -36,13 +35,13 @@ void EliminateFakeQuantizeTransformation::SetUp() {
 
     // Convolution is used in a model as operation with specific precision requirements on data branch
     // to test the transformation place in LPT pipeline:
-    // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
-    function = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
-        testValues.inputShape,
-        testValues.actual.precisionBefore,
-        testValues.actual.fakeQuantizeOnData1,
-        testValues.actual.fakeQuantizeOnData2,
-        {});
+    // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as
+    // usual
+    function = ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
+                                                                    testValues.actual.precisionBefore,
+                                                                    testValues.actual.fakeQuantizeOnData1,
+                                                                    testValues.actual.fakeQuantizeOnData2,
+                                                                    {});
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

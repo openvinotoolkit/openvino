@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "inverse_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
-#include "inverse_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

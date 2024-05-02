@@ -3,9 +3,9 @@
 //
 
 #include "pass_manager.h"
-#include "reorder_inst.h"
 #include "permute_inst.h"
 #include "program_helpers.h"
+#include "reorder_inst.h"
 
 using namespace cldnn;
 
@@ -19,18 +19,14 @@ void reorder_transfer::run(program& p) {
 
         auto& reorder_node = node->as<reorder>();
 
-        bool is_simple_type_conversion_reorder = reorder_node.is_constant() &&
-                                                 !reorder_node.is_output() &&
-                                                 reorder_node.get_users().size() == 1 &&
-                                                 reorder_node.get_dependencies().size() == 1 &&
-                                                 reorder_node.is_type_conversion_only();
+        bool is_simple_type_conversion_reorder =
+            reorder_node.is_constant() && !reorder_node.is_output() && reorder_node.get_users().size() == 1 &&
+            reorder_node.get_dependencies().size() == 1 && reorder_node.is_type_conversion_only();
         if (!is_simple_type_conversion_reorder)
             continue;
 
-        auto transfer_through_node = [](cldnn::program_node* node) -> bool { // Conditions can be extended to other ops
-            return node->is_type<permute>() &&
-                   node->get_users().size() == 1 &&
-                   node->get_dependencies().size() == 1;
+        auto transfer_through_node = [](cldnn::program_node* node) -> bool {  // Conditions can be extended to other ops
+            return node->is_type<permute>() && node->get_users().size() == 1 && node->get_dependencies().size() == 1;
         };
 
         auto change_output_dtype = [](cldnn::program_node* node, cldnn::data_types dtype) {

@@ -72,14 +72,9 @@ struct region_yolo : public primitive_base<region_yolo> {
 
         auto rhs_casted = downcast<const region_yolo>(rhs);
 
-        return coords == rhs_casted.coords &&
-               classes == rhs_casted.classes &&
-               num == rhs_casted.num &&
-               mask == rhs_casted.mask &&
-               mask_size == rhs_casted.mask_size &&
-               axis == rhs_casted.axis &&
-               end_axis == rhs_casted.end_axis &&
-               do_softmax == rhs_casted.do_softmax;
+        return coords == rhs_casted.coords && classes == rhs_casted.classes && num == rhs_casted.num &&
+               mask == rhs_casted.mask && mask_size == rhs_casted.mask_size && axis == rhs_casted.axis &&
+               end_axis == rhs_casted.end_axis && do_softmax == rhs_casted.do_softmax;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

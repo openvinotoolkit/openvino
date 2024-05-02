@@ -11,10 +11,12 @@ class BackReplacementPattern(ReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.back.pass_separator import BackStart
+
         return [BackStart]
 
     def run_before(self):
         from openvino.tools.mo.back.pass_separator import BackFinish
+
         return [BackFinish]
 
     @classmethod

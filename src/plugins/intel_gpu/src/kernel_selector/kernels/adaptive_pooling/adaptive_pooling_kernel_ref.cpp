@@ -3,9 +3,11 @@
 //
 
 #include "adaptive_pooling_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -40,9 +42,9 @@ bool AdaptivePoolingRef::Validate(const Params& p) const {
     const auto& params = dynamic_cast<const adaptive_pooling_params&>(p);
     const auto& inputs = params.inputs;
 
-    if (!((params.mode == PoolType::AVG && inputs.size() == 1)
-          || (params.mode == PoolType::MAX && inputs.size() == 2)
-          || (params.mode == PoolType::MAX && inputs.size() == 1 && params.outputs_num == 2))) {
+    if (!((params.mode == PoolType::AVG && inputs.size() == 1) ||
+          (params.mode == PoolType::MAX && inputs.size() == 2) ||
+          (params.mode == PoolType::MAX && inputs.size() == 1 && params.outputs_num == 2))) {
         return false;
     }
 
@@ -105,18 +107,18 @@ KernelsData AdaptivePoolingRef::GetKernelsData(const Params& params) const {
     auto& kernel = kd.kernels[0];
     KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
     kernel.params.workGroups.global = dispatchData.gws;
-    kernel.params.workGroups.local  = dispatchData.lws;
+    kernel.params.workGroups.local = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
 
     auto& arguments = kernel.params.arguments;
-    arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});     // input data
-    arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});    // output
+    arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});   // input data
+    arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // output
     if (new_params.mode == PoolType::MAX) {
         if (new_params.outputs_num == 2) {
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});     // second output
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // second output
         } else {
             // Legacy code of mutable data
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});     // indices
+            arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});  // indices
         }
     }
 

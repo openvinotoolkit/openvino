@@ -5,12 +5,14 @@ import logging as log
 import os
 import sys
 
-from utils.path_utils import resolve_dir_path
 from e2e_tests.common.ref_collector.provider import ClassProvider
+from utils.path_utils import resolve_dir_path
 
 
 class PytorchBaseRunner:
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(
+        format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+    )
     """
     Base class for inferring models with PyTorch and converting PyTorch models to ONNX format
     """
@@ -29,12 +31,12 @@ class PytorchBaseRunner:
         """
         self.inputs = config["inputs"]
         self.model_name = config.get("model_name")
-        self.torch_model_zoo_path = config.get("torch_model_zoo_path", '')
-        os.environ['TORCH_HOME'] = self.torch_model_zoo_path
+        self.torch_model_zoo_path = config.get("torch_model_zoo_path", "")
+        os.environ["TORCH_HOME"] = self.torch_model_zoo_path
         self.get_model_args = config.get("get_model_args", {})
         self.net = self._get_model()
         self.onnx_dump_path = config.get("onnx_dump_path")
-        if config.get('convert_to_onnx'):
+        if config.get("convert_to_onnx"):
             self._pytorch_to_onnx()
 
     def _get_model(self):
@@ -42,8 +44,11 @@ class PytorchBaseRunner:
         `_get_model` function have to be implemented in inherited classes
         depending on PyTorch models source (pretrained or torchvision)
         """
-        raise NotImplementedError("{}\nDo not use {} class directly!".format(self._get_model.__doc__,
-                                                                             self.__class__.__name__))
+        raise NotImplementedError(
+            "{}\nDo not use {} class directly!".format(
+                self._get_model.__doc__, self.__class__.__name__
+            )
+        )
 
     def get_refs(self):
         """
@@ -57,6 +62,7 @@ class PytorchBaseRunner:
         """
         log.info("Running inference with torch ...")
         import torch
+
         # PyTorch forward method accepts input data without mapping on input tensor
         # All models from pytorch pretrained have only one input, so we will work with 1st numpy array from input dict
         input_array = next(iter(self.inputs.values()))
@@ -72,10 +78,15 @@ class PytorchBaseRunner:
         """
         log.info("Dumping torch model to ONNX ...")
         import torch
+
         dump_dir = os.path.dirname(self.onnx_dump_path)
 
         if not os.path.exists(dump_dir):
-            log.warning("Target dump directory {} doesn't exist! Let's try to create it ...".format(dump_dir))
+            log.warning(
+                "Target dump directory {} doesn't exist! Let's try to create it ...".format(
+                    dump_dir
+                )
+            )
             os.makedirs(dump_dir, mode=0o755, exist_ok=True)
             log.warning("{} directory created!".format(dump_dir))
             dump_dir = resolve_dir_path(os.path.dirname(dump_dir), as_str=True)
@@ -85,20 +96,38 @@ class PytorchBaseRunner:
         if os.path.isdir(self.onnx_dump_path):
             log.warning("Specified ONNX dump path is a directory...")
             self.onnx_dump_path = os.path.join(dump_dir, self.model_name + ".onnx")
-            log.warning("Target model will be saved with specified model name as {}".format(self.onnx_dump_path))
+            log.warning(
+                "Target model will be saved with specified model name as {}".format(
+                    self.onnx_dump_path
+                )
+            )
 
         if os.path.exists(self.onnx_dump_path):
             log.warning(
-                "Specified ONNX model {} already exist and will not be dumped again".format(self.onnx_dump_path))
+                "Specified ONNX model {} already exist and will not be dumped again".format(
+                    self.onnx_dump_path
+                )
+            )
         else:
-            dummy_input = torch.autograd.Variable(torch.randn([1, ] + list(self.net.input_size)), requires_grad=False)
-            torch.onnx.export(self.net, dummy_input, self.onnx_dump_path, export_params=True)
+            dummy_input = torch.autograd.Variable(
+                torch.randn(
+                    [
+                        1,
+                    ]
+                    + list(self.net.input_size)
+                ),
+                requires_grad=False,
+            )
+            torch.onnx.export(
+                self.net, dummy_input, self.onnx_dump_path, export_params=True
+            )
 
 
 class PytorchPretrainedRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch Pretrained models inference class
     """
+
     __action_name__ = "score_pytorch_pretrained"
 
     def _get_model(self):
@@ -108,6 +137,7 @@ class PytorchPretrainedRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch pretrained model ...")
         import pretrainedmodels
+
         return getattr(pretrainedmodels.models, self.model_name)(**self.get_model_args)
 
 
@@ -115,6 +145,7 @@ class PytorchTorchvisionRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch Torchvision models inference class
     """
+
     __action_name__ = "score_pytorch_torchvision"
 
     def __init__(self, config):
@@ -135,7 +166,10 @@ class PytorchTorchvisionRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch torchvision model ...")
         import torchvision
-        net = getattr(torchvision.models, self.model_name)(pretrained=True, **self.get_model_args)
+
+        net = getattr(torchvision.models, self.model_name)(
+            pretrained=True, **self.get_model_args
+        )
         """
         Torchvision models doesn't have information about input size like in pretrained models.
         `input_size` attribute will be set manually to keep` _pytorch_to_onnx` function implementation
@@ -149,6 +183,7 @@ class PytorchTorchvisionDetectionRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch Torchvision models inference class
     """
+
     __action_name__ = "score_pytorch_torchvision_detection"
 
     def __init__(self, config):
@@ -169,7 +204,10 @@ class PytorchTorchvisionDetectionRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch Detection model ...")
         import torchvision
-        net = getattr(torchvision.models.detection, self.model_name)(pretrained=True, **self.get_model_args)
+
+        net = getattr(torchvision.models.detection, self.model_name)(
+            pretrained=True, **self.get_model_args
+        )
         """
         Torchvision Detection models doesn't have information about input size like in pretrained models.
         `input_size` attribute will be set manually to keep` _pytorch_to_onnx` function implementation
@@ -190,6 +228,7 @@ class PytorchTorchvisionDetectionRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Running inference with torch ...")
         import torch
+
         # PyTorch forward method accepts input data without mapping on input tensor
         input_array = next(iter(self.inputs.values()))
         input_variable = torch.autograd.Variable(torch.Tensor(input_array))
@@ -202,6 +241,7 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch Torchvision models inference class
     """
+
     __action_name__ = "score_pytorch_torchvision_optical_flow"
 
     def __init__(self, config):
@@ -223,7 +263,10 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch torchvision model ...")
         import torchvision
-        net = getattr(torchvision.models.optical_flow, self.model_name)(pretrained=True, **self.get_model_args)
+
+        net = getattr(torchvision.models.optical_flow, self.model_name)(
+            pretrained=True, **self.get_model_args
+        )
         """
         Torchvision models doesn't have information about input size like in pretrained models.
         `input_size` attribute will be set manually to keep` _pytorch_to_onnx` function implementation
@@ -243,9 +286,14 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Running inference with torch ...")
         import torch
+
         # PyTorch forward method accepts input data without mapping on input tensor
-        input_variable = [torch.autograd.Variable(torch.Tensor(x)) for x in self.inputs.values()]
-        assert len(input_variable) == 2, "There should be 2 inputs for optical flow models"
+        input_variable = [
+            torch.autograd.Variable(torch.Tensor(x)) for x in self.inputs.values()
+        ]
+        assert (
+            len(input_variable) == 2
+        ), "There should be 2 inputs for optical flow models"
         self.net.eval()
         # We are only interested in the final predicted flows (they are the most accurate ones),
         # so we will just retrieve the last item in the list
@@ -260,10 +308,15 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Dumping torch model to ONNX ...")
         import torch
+
         dump_dir = os.path.dirname(self.onnx_dump_path)
 
         if not os.path.exists(dump_dir):
-            log.warning("Target dump directory {} doesn't exist! Let's try to create it ...".format(dump_dir))
+            log.warning(
+                "Target dump directory {} doesn't exist! Let's try to create it ...".format(
+                    dump_dir
+                )
+            )
             os.makedirs(dump_dir, mode=0o755, exist_ok=True)
             log.warning("{} directory created!".format(dump_dir))
             dump_dir = resolve_dir_path(os.path.dirname(dump_dir), as_str=True)
@@ -273,21 +326,42 @@ class PytorchTorchvisionOpticalFlowRunner(ClassProvider, PytorchBaseRunner):
         if os.path.isdir(self.onnx_dump_path):
             log.warning("Specified ONNX dump path is a directory...")
             self.onnx_dump_path = os.path.join(dump_dir, self.model_name + ".onnx")
-            log.warning("Target model will be saved with specified model name as {}".format(self.onnx_dump_path))
+            log.warning(
+                "Target model will be saved with specified model name as {}".format(
+                    self.onnx_dump_path
+                )
+            )
 
         if os.path.exists(self.onnx_dump_path):
             log.warning(
-                "Specified ONNX model {} already exist and will not be dumped again".format(self.onnx_dump_path))
+                "Specified ONNX model {} already exist and will not be dumped again".format(
+                    self.onnx_dump_path
+                )
+            )
         else:
-            dummy_input = torch.autograd.Variable(torch.randn([1, ] + list(self.net.input_size)), requires_grad=False)
-            torch.onnx.export(self.net, (dummy_input, dummy_input), self.onnx_dump_path, export_params=True,
-                              opset_version=16)
+            dummy_input = torch.autograd.Variable(
+                torch.randn(
+                    [
+                        1,
+                    ]
+                    + list(self.net.input_size)
+                ),
+                requires_grad=False,
+            )
+            torch.onnx.export(
+                self.net,
+                (dummy_input, dummy_input),
+                self.onnx_dump_path,
+                export_params=True,
+                opset_version=16,
+            )
 
 
 class PytorchTimmRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch Torchvision models inference class
     """
+
     __action_name__ = "score_pytorch_timm"
 
     def __init__(self, config):
@@ -308,7 +382,10 @@ class PytorchTimmRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch Timm model ...")
         import timm
-        net = getattr(timm.models, self.model_name)(pretrained=True, **self.get_model_args)
+
+        net = getattr(timm.models, self.model_name)(
+            pretrained=True, **self.get_model_args
+        )
         """
         Timm models doesn't have information about input size like in pretrained models.
         `input_size` attribute will be set manually to keep` _pytorch_to_onnx` function implementation
@@ -322,6 +399,7 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
     """
     PyTorch saved models inference class
     """
+
     __action_name__ = "score_pytorch_saved_model"
 
     def __init__(self, config):
@@ -331,7 +409,7 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
         required and optional config keys are the same as in parent PytorchBaseRunner class
         """
         self.model_path = config["model-path"]
-        self.model_class_path = config.get('model_class_path')
+        self.model_class_path = config.get("model_class_path")
         if self.model_class_path:
             sys.path.insert(0, os.path.abspath(self.model_class_path))
         PytorchBaseRunner.__init__(self, config=config)
@@ -343,6 +421,7 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
         """
         log.info("Getting PyTorch saved model ...")
         import torch
+
         net = torch.load(self.model_path)
 
         return net
@@ -359,8 +438,10 @@ class PytorchSavedModelRunner(ClassProvider, PytorchBaseRunner):
             try:
                 self.res = self.net(**self.inputs)
             except Exception as e:
-                log.info(f"Tried to infer model with unpacking arguments (self.res = self.net(**input_data)), but got "
-                         f"exception: \n{e}")
+                log.info(
+                    f"Tried to infer model with unpacking arguments (self.res = self.net(**input_data)), but got "
+                    f"exception: \n{e}"
+                )
                 self.res = self.net(self.inputs)
         if isinstance(self.inputs, list):
             self.res = self.net(*self.inputs)

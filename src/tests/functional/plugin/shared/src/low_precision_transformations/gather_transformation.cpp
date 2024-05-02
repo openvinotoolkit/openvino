@@ -5,12 +5,12 @@
 #include "low_precision_transformations/gather_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/gather.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -22,11 +22,7 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
     std::tie(precision, targetDevice, testValues, opset_version) = obj.param;
 
     std::ostringstream result;
-    result <<
-        precision << "_" <<
-        targetDevice << "_" <<
-        testValues.inputShape << "_" <<
-        opset_version;
+    result << precision << "_" << targetDevice << "_" << testValues.inputShape << "_" << opset_version;
 
     return result.str();
 }
@@ -39,15 +35,14 @@ void GatherTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ov::builder::subgraph::GatherFunction::getOriginal(
-        testValues.inputShape,
-        testValues.gatherIndicesShape,
-        testValues.gatherIndicesValues,
-        testValues.axis,
-        testValues.batch_dims,
-        testValues.precisionBeforeFq,
-        testValues.fqOnData,
-        opset_version);
+    function = ov::builder::subgraph::GatherFunction::getOriginal(testValues.inputShape,
+                                                                  testValues.gatherIndicesShape,
+                                                                  testValues.gatherIndicesValues,
+                                                                  testValues.axis,
+                                                                  testValues.batch_dims,
+                                                                  testValues.precisionBeforeFq,
+                                                                  testValues.fqOnData,
+                                                                  opset_version);
 }
 
 TEST_P(GatherTransformation, CompareWithRefImpl) {

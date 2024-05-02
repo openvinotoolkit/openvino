@@ -5,32 +5,37 @@ import re
 
 
 class BasicError(Exception):
-    """ Base class for all exceptions in Model Conversion API
+    """Base class for all exceptions in Model Conversion API
 
-        It operates like Exception but when it is converted to str,
-        it formats string as args[0].format(*args[1:]), where
-        args are arguments provided when an exception instance is
-        created.
+    It operates like Exception but when it is converted to str,
+    it formats string as args[0].format(*args[1:]), where
+    args are arguments provided when an exception instance is
+    created.
     """
 
     def __str__(self):
         if len(self.args) <= 1:
             return Exception.__str__(self)
-        return self.args[0].format(*self.args[1:])  # pylint: disable=unsubscriptable-object
+        return self.args[0].format(
+            *self.args[1:]
+        )  # pylint: disable=unsubscriptable-object
 
 
 class FrameworkError(BasicError):
-    """ User-friendly error: raised when the error on the framework side. """
+    """User-friendly error: raised when the error on the framework side."""
+
     pass
 
 
 class Error(BasicError):
-    """ User-friendly error: raised when the error on the user side. """
+    """User-friendly error: raised when the error on the user side."""
+
     pass
 
 
 class InternalError(BasicError):
-    """ Not user-friendly error: user cannot fix it and it points to the bug inside MO. """
+    """Not user-friendly error: user cannot fix it and it points to the bug inside MO."""
+
     pass
 
 
@@ -50,5 +55,7 @@ def classify_error_type(e):
 
 
 def legacy_path_error(functionality_description):
-    raise Exception("{}Please try to install openvino-dev and use convert_model() "
-                    "from openvino.tools.mo.".format(functionality_description))
+    raise Exception(
+        "{}Please try to install openvino-dev and use convert_model() "
+        "from openvino.tools.mo.".format(functionality_description)
+    )

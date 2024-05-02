@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include"slice_kernel_ref.h"
+#include "slice_kernel_ref.h"
+
 #include <kernel_selector_utils.h>
+
 #include <vector>
 
 namespace {
@@ -53,13 +55,12 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
 
 namespace kernel_selector {
 
-KernelsData SliceKernelRef::GetKernelsData(const Params &params) const {
+KernelsData SliceKernelRef::GetKernelsData(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<slice_params>(params);
-    slice_params &new_params =
-            dynamic_cast<slice_params&>(*kernel_data.params.get());
+    slice_params& new_params = dynamic_cast<slice_params&>(*kernel_data.params.get());
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto slice_specific_jit = GetJitConstants(new_params);
@@ -67,14 +68,24 @@ KernelsData SliceKernelRef::GetKernelsData(const Params &params) const {
 
     GetUpdateDispatchDataFunc(kernel_data);
 
-    FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, static_cast<int>(new_params.inputs.size()),
-                     0, 1, new_params.has_dynamic_tensors());
+    FillCLKernelData(kernel_data.kernels[0],
+                     dispatch_data,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     static_cast<int>(new_params.inputs.size()),
+                     0,
+                     1,
+                     new_params.has_dynamic_tensors());
 
     return {kernel_data};
 }
 
-KernelsPriority SliceKernelRef::GetKernelsPriority(const Params&/*params*/) const {
+KernelsPriority SliceKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -102,12 +113,12 @@ ParamsKey SliceKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool SliceKernelRef::Validate(const Params &p) const {
+bool SliceKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SLICE) {
         return false;
     }
 
-    const slice_params &params = dynamic_cast<const slice_params&>(p);
+    const slice_params& params = dynamic_cast<const slice_params&>(p);
     if (params.inputs.empty())
         return false;
 
@@ -145,13 +156,13 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     return jit;
 }
 
-CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params) const {
+CommonDispatchData SliceKernelRef::SetDefault(const slice_params& params) const {
     CommonDispatchData dispatchData;
-    dispatchData.gws = { params.outputs[0].Batch().v, params.outputs[0].Feature().v,
-            params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v};
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws,
-            params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
@@ -167,4 +178,4 @@ void SliceKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <memory>
 
+#include "fully_connected_inst.h"
+#include "graph/impls/ocl/register.hpp"
+#include "implementation_map.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/data.hpp"
-
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "random_generator.hpp"
 #include "reorder_inst.h"
-#include "fully_connected_inst.h"
-#include "implementation_map.hpp"
-#include "graph/impls/ocl/register.hpp"
-
-#include <memory>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -43,23 +41,21 @@ TEST(weights_factory, reorder_test) {
     tests::random_generator rg(GET_SUITE_NAME);
     const int input_f = 32, output_f = 32;
 
-
-    auto weights_layout = layout(ov::PartialShape{ output_f, input_f }, data_types::f32, format::bfyx);
+    auto weights_layout = layout(ov::PartialShape{output_f, input_f}, data_types::f32, format::bfyx);
     auto weights_data_input = engine.allocate_memory(weights_layout);
     auto weights_data_vec = rg.generate_random_1d<float>(output_f * input_f, -1, 1);
     set_values(weights_data_input, weights_data_vec);
 
-    cldnn::topology topology {
-        input_layout("input", layout{ ov::PartialShape{ -1, input_f }, data_types::f32, format::bfyx }),
+    cldnn::topology topology{
+        input_layout("input", layout{ov::PartialShape{-1, input_f}, data_types::f32, format::bfyx}),
         data("weights", weights_data_input),
-        fully_connected("fc", input_info("input"), "weights")
-    };
+        fully_connected("fc", input_info("input"), "weights")};
 
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_impl_desc} })),
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}})),
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cldnn::network network(engine, topology, config);
 
     auto inst = network.get_primitive("fc");
@@ -91,7 +87,7 @@ TEST(weights_factory, reorder_test) {
 
     // Allocate memmory and execute generic_layer
     auto output_weights_layout = weights_reorder_params->get_output_layout();
-    auto weights_data_output = engine.allocate_memory({ output_weights_layout });
+    auto weights_data_output = engine.allocate_memory({output_weights_layout});
 
     kernel_arguments_data args;
     args.inputs.push_back(weights_data_input);

@@ -4,27 +4,23 @@
 
 #pragma once
 
-#include <vector>
 #include <memory>
 #include <unordered_set>
+#include <vector>
 
 // one place to include all Low Precision Transformations from ov::pass::low_precision
-#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "low_precision/rt_info/precisions_attribute.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
-
-#include "low_precision/markup_precisions.hpp"
-#include "low_precision/markup_avg_pool_precision_preserved.hpp"
-#include "low_precision/propagate_precisions.hpp"
 #include "low_precision/align_quantization_intervals.hpp"
-
-
-#include "low_precision/lpt_visibility.hpp"
-#include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
+#include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/lpt_visibility.hpp"
+#include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include "low_precision/markup_precisions.hpp"
+#include "low_precision/propagate_precisions.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/precisions_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -43,11 +39,11 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 class ov::pass::low_precision::MarkupOptimizations : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkupOptimizations", "0");
-    MarkupOptimizations(
-        const std::vector<PrecisionsRestriction>& precisionRestrictions,
-        const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
-        const AttributeParameters& params);
+    MarkupOptimizations(const std::vector<PrecisionsRestriction>& precisionRestrictions,
+                        const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
+                        const AttributeParameters& params);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
 private:
     const std::vector<PrecisionsRestriction> precisionRestrictions;
     const std::vector<QuantizationGranularityRestriction> quantizationRestrictions;
@@ -63,15 +59,13 @@ public:
 class LP_TRANSFORMATIONS_API ov::pass::low_precision::LowPrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("LowPrecision", "0");
-    LowPrecision(
-        const std::vector<PrecisionsRestriction>& precisionRestrictions = {},
-        const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions = {},
-        const LayerTransformation::Params = LayerTransformation::Params());
+    LowPrecision(const std::vector<PrecisionsRestriction>& precisionRestrictions = {},
+                 const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions = {},
+                 const LayerTransformation::Params = LayerTransformation::Params());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    static bool isFunctionQuantized(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::set<levels>& supported_levels = all_levels);
+    static bool isFunctionQuantized(const std::shared_ptr<const ov::Model>& model,
+                                    const std::set<levels>& supported_levels = all_levels);
     static bool isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model, const std::set<size_t>& levels);
 
     template <typename T, class... Args>

@@ -3,9 +3,8 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-
 #include "openvino/core/shape.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -34,12 +33,12 @@ struct gather : public primitive_base<gather> {
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, {output_padding})
-        , axis(axis)
-        , input_rank(input_rank)
-        , output_shape(output_shape)
-        , batch_dim(batch_dim)
-        , support_neg_ind(support_neg_ind) {}
+        : primitive_base(id, {dict, idx}, {output_padding}),
+          axis(axis),
+          input_rank(input_rank),
+          output_shape(output_shape),
+          batch_dim(batch_dim),
+          support_neg_ind(support_neg_ind) {}
 
     /// @brief Constructs gather compressed primitive.
     /// @param id This primitive id.
@@ -64,18 +63,19 @@ struct gather : public primitive_base<gather> {
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, {output_padding})
-        , axis(axis)
-        , input_rank(input_rank)
-        , output_shape(output_shape)
-        , batch_dim(batch_dim)
-        , support_neg_ind(support_neg_ind)
-        , compressed_weights(true)
-        , decompressed_type(decompressed_type)
-        , decompression_scale(decompression_scale)
-        , decompression_zero_point(decompression_zero_point) {
-            OPENVINO_ASSERT(decompression_scale.is_valid(), "[GPU] Compressed gather requires at least decompression scale input");
-        }
+        : primitive_base(id, {dict, idx}, {output_padding}),
+          axis(axis),
+          input_rank(input_rank),
+          output_shape(output_shape),
+          batch_dim(batch_dim),
+          support_neg_ind(support_neg_ind),
+          compressed_weights(true),
+          decompressed_type(decompressed_type),
+          decompression_scale(decompression_scale),
+          decompression_zero_point(decompression_zero_point) {
+        OPENVINO_ASSERT(decompression_scale.is_valid(),
+                        "[GPU] Compressed gather requires at least decompression scale input");
+    }
 
     /// @brief Gathering axis
     int64_t axis = 0;
@@ -114,13 +114,12 @@ struct gather : public primitive_base<gather> {
 
         auto rhs_casted = downcast<const gather>(rhs);
 
-        return axis == rhs_casted.axis &&
-               batch_dim == rhs_casted.batch_dim &&
-               support_neg_ind == rhs_casted.support_neg_ind &&
-               compressed_weights == rhs_casted.compressed_weights &&
+        return axis == rhs_casted.axis && batch_dim == rhs_casted.batch_dim &&
+               support_neg_ind == rhs_casted.support_neg_ind && compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
+               decompression_zero_point_scalar.value_or(0.0f) ==
+                   rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
     void save(BinaryOutputBuffer& ob) const override {

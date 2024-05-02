@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 
@@ -19,10 +20,7 @@ static void CreateShuffleChannelsOp(ProgramBuilder& p, const std::shared_ptr<ov:
     int32_t group = op->get_group();
     int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
 
-    auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
-                                                       inputs[0],
-                                                       group,
-                                                       axis);
+    auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName, inputs[0], group, axis);
 
     p.add_primitive(*op, shuffleChannelsPrim);
 }

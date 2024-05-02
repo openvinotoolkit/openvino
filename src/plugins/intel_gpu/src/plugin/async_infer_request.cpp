@@ -3,8 +3,10 @@
 //
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
-#include "intel_gpu/runtime/itt.hpp"
+
 #include <memory>
+
+#include "intel_gpu/runtime/itt.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -13,17 +15,16 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& in
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
-    : ov::IAsyncInferRequest(infer_request, task_executor, callback_executor)
-    , m_infer_request(infer_request)
-    , m_wait_executor(wait_executor) {
+    : ov::IAsyncInferRequest(infer_request, task_executor, callback_executor),
+      m_infer_request(infer_request),
+      m_wait_executor(wait_executor) {
     m_infer_request->set_task_executor(task_executor);
     if (infer_request->use_external_queue()) {
         m_pipeline.clear();
-        m_pipeline.emplace_back(wait_executor,
-                        [this] {
-                            OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::WaitPipeline");
-                            m_infer_request->wait_notify();
-                        });
+        m_pipeline.emplace_back(wait_executor, [this] {
+            OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "AsyncInferRequest::WaitPipeline");
+            m_infer_request->wait_notify();
+        });
     }
 }
 void AsyncInferRequest::start_async() {

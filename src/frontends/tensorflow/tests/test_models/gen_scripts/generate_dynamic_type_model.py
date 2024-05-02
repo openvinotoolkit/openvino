@@ -16,21 +16,32 @@ def main():
 
     # Create the graph and model
     with tf.compat.v1.Session() as sess:
-        x = tf.compat.v1.placeholder(dtype=tf.float32, shape=[2, 3], name='x')
+        x = tf.compat.v1.placeholder(dtype=tf.float32, shape=[2, 3], name="x")
         relu = tf.raw_ops.Relu(features=x)
         tf.raw_ops.Log1p(x=relu)
 
         tf.compat.v1.global_variables_initializer()
         tf_net = sess.graph_def
 
-    tf.io.write_graph(tf_net, os.path.join(sys.argv[1], "dynamic_type_model"), "dynamic_type_model.pb", False)
+    tf.io.write_graph(
+        tf_net,
+        os.path.join(sys.argv[1], "dynamic_type_model"),
+        "dynamic_type_model.pb",
+        False,
+    )
 
-    with open(os.path.join(sys.argv[1], "dynamic_type_model", "dynamic_type_model.pb"), mode='rb') as file:
+    with open(
+        os.path.join(sys.argv[1], "dynamic_type_model", "dynamic_type_model.pb"),
+        mode="rb",
+    ) as file:
         modelContent = file.read()
 
     modelContent = modelContent.replace(b"Relu", b"Rrrr")
 
-    with open(os.path.join(sys.argv[1], "dynamic_type_model", "dynamic_type_model.pb"), mode='wb') as file:
+    with open(
+        os.path.join(sys.argv[1], "dynamic_type_model", "dynamic_type_model.pb"),
+        mode="wb",
+    ) as file:
         file.write(modelContent)
 
 

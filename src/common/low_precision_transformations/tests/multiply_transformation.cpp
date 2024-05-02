@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/multiply.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/multiply.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -57,7 +57,8 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values) {
-    return out << "_branch1=" << values.branch1 << "_branch2=" << values.branch2 << "_after=" << values.after_dequantization;
+    return out << "_branch1=" << values.branch1 << "_branch2=" << values.branch2
+               << "_after=" << values.after_dequantization;
 }
 
 class MultiplyTransformationTestValues {
@@ -74,25 +75,25 @@ public:
 
     MultiplyTransformationTestValues() = default;
 
-    MultiplyTransformationTestValues(
-        TestTransformationParams transformationParams,
-        MultiplyValues actual,
-        MultiplyValues expected):
-        transformationParams(std::move(transformationParams)),
-        actual(std::move(actual)),
-        expected(std::move(expected)) {}
+    MultiplyTransformationTestValues(TestTransformationParams transformationParams,
+                                     MultiplyValues actual,
+                                     MultiplyValues expected)
+        : transformationParams(std::move(transformationParams)),
+          actual(std::move(actual)),
+          expected(std::move(expected)) {}
 };
 
 const ov::element::Type MultiplyTransformationTestValues::input_precision = ov::element::undefined;
 const ov::element::Type MultiplyTransformationTestValues::model_precision = ov::element::undefined;
 
-typedef std::tuple<
-    ov::element::Type, // model precision
-    std::pair<PartialShape, PartialShape>, // input_shapes
-    std::pair<ov::element::Type, ov::element::Type>, // input precisions
-    MultiplyTransformationTestValues> MultiplyTransformationParams;
+typedef std::tuple<ov::element::Type,                                // model precision
+                   std::pair<PartialShape, PartialShape>,            // input_shapes
+                   std::pair<ov::element::Type, ov::element::Type>,  // input precisions
+                   MultiplyTransformationTestValues>
+    MultiplyTransformationParams;
 
-class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
+class MultiplyTransformation : public LayerTransformation,
+                               public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
         const auto model_precision = std::get<0>(GetParam());
@@ -104,24 +105,33 @@ public:
         update_dequantization_precision(model_precision, testParams);
 
         // output precision has to be defined by model precision
-        if (testParams.expected.after_dequantization.multiply.outPrecision == MultiplyTransformationTestValues::model_precision) {
+        if (testParams.expected.after_dequantization.multiply.outPrecision ==
+            MultiplyTransformationTestValues::model_precision) {
             testParams.expected.after_dequantization.multiply.outPrecision = model_precision;
         }
 
         const auto to_multiply_values = [&input_shapes, &input_precisions](const MultiplyValues& values) {
             return ov::builder::subgraph::MultiplyValues(
-                ov::builder::subgraph::MultiplyBranch(
-                    input_shapes.first, values.branch1.constant, input_precisions.first, values.branch1.dequantization, values.branch1.fake_quantize),
-                ov::builder::subgraph::MultiplyBranch(
-                    input_shapes.second, values.branch2.constant, input_precisions.second, values.branch2.dequantization, values.branch2.fake_quantize),
+                ov::builder::subgraph::MultiplyBranch(input_shapes.first,
+                                                      values.branch1.constant,
+                                                      input_precisions.first,
+                                                      values.branch1.dequantization,
+                                                      values.branch1.fake_quantize),
+                ov::builder::subgraph::MultiplyBranch(input_shapes.second,
+                                                      values.branch2.constant,
+                                                      input_precisions.second,
+                                                      values.branch2.dequantization,
+                                                      values.branch2.fake_quantize),
                 ov::builder::subgraph::DequantizationOperations(values.after_dequantization));
         };
 
         actualFunction = MultiplyFunction::get(model_precision, to_multiply_values(testParams.actual));
 
         SimpleLowPrecisionTransformer transform({}, {}, AttributeParameters(), true);
-        transform.add<ov::pass::low_precision::MultiplyTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
-        transform.cleanup->get_pass_config()->disable<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
+        transform.add<ov::pass::low_precision::MultiplyTransformation, ov::op::v1::Multiply>(
+            testParams.transformationParams);
+        transform.cleanup->get_pass_config()
+            ->disable<ov::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyFunction::get(model_precision, to_multiply_values(testParams.expected));
@@ -134,11 +144,11 @@ public:
         MultiplyTransformationTestValues testParams = std::get<3>(obj.param);
 
         std::ostringstream result;
-        result << LayerTransformation::getTestCaseNameByParams(model_precision, input_shapes.first, testParams.transformationParams) <<
-            "_SH1=" << input_shapes.first <<
-            "_TY1=" << input_precisions.first <<
-            "_SH2=" << input_shapes.second <<
-            "_TY2=" << input_precisions.second;
+        result << LayerTransformation::getTestCaseNameByParams(model_precision,
+                                                               input_shapes.first,
+                                                               testParams.transformationParams)
+               << "_SH1=" << input_shapes.first << "_TY1=" << input_precisions.first << "_SH2=" << input_shapes.second
+               << "_TY2=" << input_precisions.second;
 
         update_input_precisions(input_precisions, testParams);
         update_dequantization_precision(model_precision, testParams);
@@ -152,12 +162,14 @@ private:
     static void update_dequantization_precision(const ov::element::Type& dequantization_precision,
                                                 MultiplyTransformationTestValues& test_values) {
         if (!test_values.actual.after_dequantization.multiply.empty() &&
-            test_values.actual.after_dequantization.multiply.outPrecision == MultiplyTransformationTestValues::input_precision) {
+            test_values.actual.after_dequantization.multiply.outPrecision ==
+                MultiplyTransformationTestValues::input_precision) {
             test_values.actual.after_dequantization.multiply.outPrecision = dequantization_precision;
         }
 
         if (!test_values.expected.after_dequantization.multiply.empty() &&
-            test_values.expected.after_dequantization.multiply.outPrecision == MultiplyTransformationTestValues::input_precision) {
+            test_values.expected.after_dequantization.multiply.outPrecision ==
+                MultiplyTransformationTestValues::input_precision) {
             test_values.expected.after_dequantization.multiply.outPrecision = dequantization_precision;
         }
     }
@@ -165,7 +177,8 @@ private:
     // low precision has to be defined by tests parameters
     static void update_input_precisions(const std::pair<ov::element::Type, ov::element::Type>& input_precisions,
                                         MultiplyTransformationTestValues& test_values) {
-        const auto update_values = [](const std::pair<ov::element::Type, ov::element::Type>& input_precisions, MultiplyValues& values) {
+        const auto update_values = [](const std::pair<ov::element::Type, ov::element::Type>& input_precisions,
+                                      MultiplyValues& values) {
             const auto update_branch = [](const ov::element::Type& input_precision, MultiplyBranch& branch) {
                 if (branch.input_precision == MultiplyTransformationTestValues::input_precision) {
                     branch.input_precision = input_precision;
@@ -194,634 +207,259 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ov::element::Type> model_precisions = {
-    ov::element::f32,
-    ov::element::f16
-};
+const std::vector<ov::element::Type> model_precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
-        {{ 1, 3, 8, 16 }, { 1, 3, 8, 16 }},
-        {{ 1, 3, 8, 16 }, { 1, 3, 1, 1 }},
-        {{ 1, 3, 1, 1 }, { 1, 3, 8, 16 }},
-        {
-            { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-            { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-        },
-        {
-            { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
-            { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
-        }
-};
+    {{1, 3, 8, 16}, {1, 3, 8, 16}},
+    {{1, 3, 8, 16}, {1, 3, 1, 1}},
+    {{1, 3, 1, 1}, {1, 3, 8, 16}},
+    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}},
+    {{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()},
+     {Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()}}};
 
 namespace multiply_channel_fq {
-    const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
-        { ov::element::u8, ov::element::f32 },
-        { ov::element::u8, ov::element::f16 },
-        { ov::element::i8, ov::element::f32 },
-        { ov::element::i8, ov::element::f16 }
-    };
+const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
+    {ov::element::u8, ov::element::f32},
+    {ov::element::u8, ov::element::f16},
+    {ov::element::i8, ov::element::f32},
+    {ov::element::i8, ov::element::f16}};
 
-    const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
+const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
+    {
+        LayerTransformation::createParamsU8I8(),
         {
-            LayerTransformation::createParamsU8I8(),
+            {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
             {
-                {
-                    {},
-                    MultiplyTransformationTestValues::input_precision,
-                    {ov::element::f32, { 2.f }, { 10.f }}
-                },
-                {
-                    {{ 0.f, 1.27f, 2.55f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                    {},
-                    {},
-                    {
-                        256,
-                        ov::Shape{1, 3, 1, 1},
-                        {0.f, 0.f, 0.f},
-                        {2.55f, 2.55f, 2.55f},
-                        {0.f, 0.f, 0.f},
-                        {2.55f, 2.55f, 2.55f},
-                        MultiplyTransformationTestValues::input_precision
-                    } // FakeQuantize
-                },
-            },
-            {
-                {
-                    {},
-                    MultiplyTransformationTestValues::input_precision,
-                    {{}, {{2.f}, ov::element::f32}, {}}
-                },
-                {
-                    {{ 0, 127, 255 }, ov::element::u8, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                    {},
-                    {}
-                },
-                {{}, {}, {{0.1f, 0.1f, 0.1f}}}
+                {{0.f, 1.27f, 2.55f},
+                 MultiplyTransformationTestValues::input_precision,
+                 ov::Shape{1, 3, 1, 1}},  // Constant as input,
+                {},
+                {},
+                {256,
+                 ov::Shape{1, 3, 1, 1},
+                 {0.f, 0.f, 0.f},
+                 {2.55f, 2.55f, 2.55f},
+                 {0.f, 0.f, 0.f},
+                 {2.55f, 2.55f, 2.55f},
+                 MultiplyTransformationTestValues::input_precision}  // FakeQuantize
             },
         },
-    };
+        {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+         {{{0, 127, 255}, ov::element::u8, ov::Shape{1, 3, 1, 1}},  // Constant as input,
+          {},
+          {}},
+         {{}, {}, {{0.1f, 0.1f, 0.1f}}}},
+    },
+};
 
-    INSTANTIATE_TEST_SUITE_P(
-        smoke_LPT,
-        MultiplyTransformation,
-        ::testing::Combine(
-            ::testing::ValuesIn(model_precisions),
-            ::testing::ValuesIn(input_shapes),
-            ::testing::ValuesIn(input_precisions),
-            ::testing::ValuesIn(multiplyTransformationTestValues)),
-        MultiplyTransformation::getTestCaseName);
-} // namespace multiply_channel_fq
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyTransformation,
+                         ::testing::Combine(::testing::ValuesIn(model_precisions),
+                                            ::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(multiplyTransformationTestValues)),
+                         MultiplyTransformation::getTestCaseName);
+}  // namespace multiply_channel_fq
 
 const std::vector<std::pair<ov::element::Type, ov::element::Type>> input_precisions = {
-    { ov::element::u8, ov::element::u8 },
-    { ov::element::i8, ov::element::i8 },
-    { ov::element::u8, ov::element::i8 },
-    { ov::element::i8, ov::element::u8 },
-    { ov::element::f32, ov::element::f32 },
-    { ov::element::f16, ov::element::f16 },
+    {ov::element::u8, ov::element::u8},
+    {ov::element::i8, ov::element::i8},
+    {ov::element::u8, ov::element::i8},
+    {ov::element::i8, ov::element::u8},
+    {ov::element::f32, ov::element::f32},
+    {ov::element::f16, ov::element::f16},
 };
 
 namespace multiply_channel {
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}},
+     },
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                {},
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {
-                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                {},
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+         {{{7.f, 8.f, 9.f},
+           MultiplyTransformationTestValues::input_precision,
+           ov::Shape{1, 3, 1, 1}},  // Constant as input,
+          {},
+          {ov::element::f32, {3.f}, {7.f}}},
+     },
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{{7.f, 8.f, 9.f},
+        MultiplyTransformationTestValues::input_precision,
+        ov::Shape{1, 3, 1, 1}},  // Constant as input,
+       {},
+       {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                {},
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            }
-        },
-        {
-            {
-                {{ 7.f, 8.f, 9.f }, MultiplyTransformationTestValues::input_precision, ov::Shape{1, 3, 1, 1}}, // Constant as input,
-                {},
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{{7.f, 8.f, 9.f},
+        MultiplyTransformationTestValues::input_precision,
+        ov::Shape{1, 3, 1, 1}},  // Constant as input,
+       {},
+       {ov::element::f32, {3.f}, {7.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}}},
+     {{{{7.f, 8.f, 9.f},
+        MultiplyTransformationTestValues::input_precision,
+        ov::Shape{1, 3, 1, 1}},  // Constant as input,
+       {},
+       {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {{ 1.f, 2.f, 3.f }}, {{ 10.f, 11.f, 12.f }}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {{ 3.f, 4.f, 5.f }}, {{ 7.f, 8.f, 9.f }}}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{1.f, 2.f, 3.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{3.f, 4.f, 5.f }, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f, 88.f, 108.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{},
+       MultiplyTransformationTestValues::input_precision,
+       {ov::element::f32, {{1.f, 2.f, 3.f}}, {{10.f, 11.f, 12.f}}}},
+      {{},
+       MultiplyTransformationTestValues::input_precision,
+       {ov::element::f32, {{3.f, 4.f, 5.f}}, {{7.f, 8.f, 9.f}}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{1.f, 2.f, 3.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f, 4.f, 5.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f, 88.f, 108.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { }, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MultiplyTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(model_precisions),
-        ::testing::ValuesIn(input_shapes),
-        ::testing::ValuesIn(input_precisions),
-        ::testing::ValuesIn(multiplyTransformationTestValues)),
-    MultiplyTransformation::getTestCaseName);
-} // namespace multiply_channel
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyTransformation,
+                         ::testing::Combine(::testing::ValuesIn(model_precisions),
+                                            ::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(multiplyTransformationTestValues)),
+                         MultiplyTransformation::getTestCaseName);
+}  // namespace multiply_channel
 
 namespace broadcast_right {
-const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
-    {{ 1, 3, 8, 16 }, { 1, 1, 1, 1 }}
-};
+const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {{{1, 3, 8, 16}, {1, 1, 1, 1}}};
 
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 2.f }, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 3.f }, ov::element::f32}, {}}
-            },
-            {{}, {}, {{ 70.f }, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}},
+     },
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{ 70.f }, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {{ 1.f, 2.f, 3.f }}, {{ 10.f, 11.f, 12.f }}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 1.f, 2.f, 3.f }, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 3.f }, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f, 77.f, 84.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{},
+       MultiplyTransformationTestValues::input_precision,
+       {ov::element::f32, {{1.f, 2.f, 3.f}}, {{10.f, 11.f, 12.f}}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{1.f, 2.f, 3.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f, 77.f, 84.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MultiplyTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(model_precisions),
-        ::testing::ValuesIn(input_shapes),
-        ::testing::ValuesIn(input_precisions),
-        ::testing::ValuesIn(multiplyTransformationTestValues)),
-    MultiplyTransformation::getTestCaseName);
-} // namespace broadcast_right
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyTransformation,
+                         ::testing::Combine(::testing::ValuesIn(model_precisions),
+                                            ::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(multiplyTransformationTestValues)),
+                         MultiplyTransformation::getTestCaseName);
+}  // namespace broadcast_right
 
 namespace broadcast_left {
-const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {
-    {{ 1, 1, 1, 1 }, { 1, 3, 8, 16 }}
-};
+const std::vector<std::pair<PartialShape, PartialShape>> input_shapes = {{{1, 1, 1, 1}, {1, 3, 8, 16}}};
 
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 2.f }, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 3.f }, ov::element::f32}, {}}
-            },
-            {{}, {}, {{ 70.f }, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+         {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}},
+     },
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{ 70.f }, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {{ 3.f, 4.f, 5.f }}, {{ 7.f, 8.f, 9.f }}}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 2.f }, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{ 3.f, 4.f, 5.f }, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f, 80.f, 90.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+      {{},
+       MultiplyTransformationTestValues::input_precision,
+       {ov::element::f32, {{3.f, 4.f, 5.f}}, {{7.f, 8.f, 9.f}}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f, 4.f, 5.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f, 80.f, 90.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{2.f}, ov::element::f32}, {}}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {2.f}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {{}, {{2.f}, ov::element::f32}, {}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, {}, { 10.f }}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            }
-        },
-        {
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {}
-            },
-            {
-                {},
-                MultiplyTransformationTestValues::input_precision,
-                {{}, {{3.f}, ov::element::f32}, {}}
-            },
-            {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {}, {10.f}}},
+      {{}, MultiplyTransformationTestValues::input_precision, {ov::element::f32, {3.f}, {7.f}}}},
+     {{{}, MultiplyTransformationTestValues::input_precision, {}},
+      {{}, MultiplyTransformationTestValues::input_precision, {{}, {{3.f}, ov::element::f32}, {}}},
+      {{}, {}, {{70.f}, MultiplyTransformationTestValues::model_precision}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MultiplyTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(model_precisions),
-        ::testing::ValuesIn(input_shapes),
-        ::testing::ValuesIn(input_precisions),
-        ::testing::ValuesIn(multiplyTransformationTestValues)),
-    MultiplyTransformation::getTestCaseName);
-} // namespace broadcast_left
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyTransformation,
+                         ::testing::Combine(::testing::ValuesIn(model_precisions),
+                                            ::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(multiplyTransformationTestValues)),
+                         MultiplyTransformation::getTestCaseName);
+}  // namespace broadcast_left
 
-} // namespace
+}  // namespace

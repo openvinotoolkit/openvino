@@ -49,7 +49,8 @@ public:
         auto axis_node = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
         const auto cumsum = std::make_shared<ov::op::v0::CumSum>(cumsum_tensor, axis_node);
 
-        auto eltwiseMul = ov::test::utils::make_eltwise(inputParams[0], cumsum, ov::test::utils::EltwiseTypes::MULTIPLY);
+        auto eltwiseMul =
+            ov::test::utils::make_eltwise(inputParams[0], cumsum, ov::test::utils::EltwiseTypes::MULTIPLY);
         auto eltwiseAdd1 = ov::test::utils::make_eltwise(inputParams[1], cumsum, ov::test::utils::EltwiseTypes::ADD);
         auto eltwiseAdd2 = ov::test::utils::make_eltwise(eltwiseAdd1, eltwiseMul, ov::test::utils::EltwiseTypes::ADD);
 

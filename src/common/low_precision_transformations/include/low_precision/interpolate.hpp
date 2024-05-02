@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API InterpolateTransformation : public LayerTransformat
 public:
     OPENVINO_RTTI("InterpolateTransformation", "0");
     InterpolateTransformation(const Params& params = Params());
-    bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };

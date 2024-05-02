@@ -4,41 +4,41 @@
 
 #pragma once
 
+#include <pybind11/iostream.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/iostream.h>
 
-#include <string>
-#include <iterator>
 #include <climits>
+#include <iterator>
+#include <string>
 
 #include "Python.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
-#include "pyopenvino/core/infer_request.hpp"
 
 namespace py = pybind11;
 
 namespace Common {
 
 namespace containers {
-    using TensorIndexMap = std::map<size_t, ov::Tensor>;
+using TensorIndexMap = std::map<size_t, ov::Tensor>;
 
-    const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
-}; // namespace containers
+const TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+};  // namespace containers
 
 namespace values {
 
 // Minimum amount of bits for common numpy types. Used to perform checks against OV types.
 constexpr size_t min_bitwidth = sizeof(int8_t) * CHAR_BIT;
 
-}; // namespace values
+};  // namespace values
 
 // Helpers for dtypes and OpenVINO types
 namespace type_helpers {
@@ -52,7 +52,7 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 ov::element::Type get_ov_type(const py::array& array);
 
 ov::element::Type get_ov_type(py::dtype& dtype);
-}
+}  // namespace type_helpers
 
 // Helpers for string types and numpy arrays of strings
 namespace string_helpers {
@@ -67,7 +67,7 @@ void fill_tensor_from_strings(ov::Tensor& tensor, py::array& array);
 
 void fill_string_tensor_data(ov::Tensor& tensor, py::array& array);
 
-}; // namespace string_helpers
+};  // namespace string_helpers
 
 // Helpers for numpy arrays
 namespace array_helpers {
@@ -89,7 +89,7 @@ py::array array_from_constant_cast_bool(ov::op::v0::Constant&& c, py::dtype& dst
 
     result.reserve(size);
 
-    for(size_t i = 0; i < size; i++) {
+    for (size_t i = 0; i < size; i++) {
         result.emplace_back(*(static_cast<const T*>(c.get_data_ptr()) + i) != 0 ? 1 : 0);
     }
 
@@ -108,7 +108,7 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtyp
 
 py::array array_from_constant_view(ov::op::v0::Constant&& c);
 
-}; // namespace array_helpers
+};  // namespace array_helpers
 
 namespace constant_helpers {
 template <typename T>
@@ -116,13 +116,13 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
     auto byte_strides = ov::row_major_strides(s);
     for (auto&& stride : byte_strides) {
         stride *= sizeof(T);
-     }
+    }
     return byte_strides;
 }
 
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
 
-}; // namespace constant_helpers
+};  // namespace constant_helpers
 
 // Helpers for shapes
 namespace shape_helpers {
@@ -135,7 +135,7 @@ void get_slice(T& result, const T& shape, size_t start, const size_t step, const
     }
 }
 
-}; // namespace shape_helpers
+};  // namespace shape_helpers
 
 template <typename T>
 T create_copied(py::array& array);
@@ -198,10 +198,11 @@ public:
 };
 
 namespace docs {
-template<typename Container, typename std::enable_if<std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
+template <typename Container,
+          typename std::enable_if<std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
 std::string container_to_string(const Container& c, const std::string& delimiter) {
     if (c.size() == 0) {
-    	return std::string{};
+        return std::string{};
     }
 
     std::string buffer;
@@ -214,10 +215,11 @@ std::string container_to_string(const Container& c, const std::string& delimiter
     return buffer;
 }
 
-template<typename Container, typename std::enable_if<!std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
+template <typename Container,
+          typename std::enable_if<!std::is_same<typename Container::value_type, std::string>::value, bool>::type = true>
 std::string container_to_string(const Container& c, const std::string& delimiter) {
     if (c.size() == 0) {
-    	return std::string{};
+        return std::string{};
     }
 
     std::string buffer;

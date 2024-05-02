@@ -24,28 +24,26 @@ std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     return os.str();
 }
 
-void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
+void KernelBase::CheckDispatchData(const std::string& kernelName,
+                                   const kernel_selector::CommonDispatchData& dispatchData,
                                    const size_t maxWorkGroupSize) {
     if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
-                                 ": LWS and GWS size is expected to be equal to 3. Actual: " +
-                                 toString(dispatchData));
+                                 ": LWS and GWS size is expected to be equal to 3. Actual: " + toString(dispatchData));
 
     if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > maxWorkGroupSize) {
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                 ": LWS cannot be greater than " + std::to_string(static_cast<int>(maxWorkGroupSize)) + ". Actual: " +
-                                 toString(dispatchData));
+                                 ": LWS cannot be greater than " + std::to_string(static_cast<int>(maxWorkGroupSize)) +
+                                 ". Actual: " + toString(dispatchData));
     }
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
         if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
             throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                     ": Dispatch data cannot contain zeros. Actual: " +
-                                     toString(dispatchData));
+                                     ": Dispatch data cannot contain zeros. Actual: " + toString(dispatchData));
 
         if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
             throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                     ": GWS must be divisible by corresponding LWS. Actual: " +
-                                     toString(dispatchData));
+                                     ": GWS must be divisible by corresponding LWS. Actual: " + toString(dispatchData));
     }
 }
 
@@ -90,9 +88,15 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     // Changed data type from unit type to output data type to fix the issue case that
     // the activation function makes cl kernel build error when the output data type
     // and unit type are different and activation param is existed
-    bool convert_input_to_output_dt = (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
+    bool convert_input_to_output_dt =
+        (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
     // If input is FP16 and output is FP32, convert input to float before running activation function.
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "", false, false, convert_input_to_output_dt));
+    jit.Merge(MakeActivationJitConstants(params.activations,
+                                         params.outputs[0].GetDType(),
+                                         "",
+                                         false,
+                                         false,
+                                         convert_input_to_output_dt));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
@@ -124,7 +128,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IsSIMDSizeSupported
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo& info, size_t simd_size) const {
     auto supported_sizes = info.supportedSimdSizes;
     return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
 }
@@ -132,8 +136,8 @@ bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) c
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MakeFusedOpsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
-                                                  const std::vector<FusedOpsConfiguration> &conf) const {
+JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params& params,
+                                                  const std::vector<FusedOpsConfiguration>& conf) const {
     JitConstants jit = {};
     // TODO: multiple output support
 
@@ -183,20 +187,22 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();
-            jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
-                can_all_use_preload || (c.allow_for_partial_preload && can_any_use_preload)));
+            jit.AddConstant(
+                MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
+                                can_all_use_preload || (c.allow_for_partial_preload && can_any_use_preload)));
         }
 
         jit.Merge(MakeFusedOpsDeclsJitConstants(params, conf));
     } catch (std::exception& ex) {
-        throw std::runtime_error("Fused op code generation for node " + params.layerID + " failed with error: " + ex.what());
+        throw std::runtime_error("Fused op code generation for node " + params.layerID +
+                                 " failed with error: " + ex.what());
     }
 
     return jit;
 }
 
-JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::base_params &params,
-                                                       const std::vector<FusedOpsConfiguration> &conf) const {
+JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::base_params& params,
+                                                       const std::vector<FusedOpsConfiguration>& conf) const {
     JitConstants jit = {};
 
     if (conf.empty())

@@ -1,21 +1,23 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-import unittest
-from unittest.mock import Mock
-import onnx
-from onnx.helper import make_graph, make_model, make_tensor_value_info
-import os
-from os import path
-import json
 import argparse
-from pathlib import Path
+import json
+import os
+import unittest
 from itertools import chain
-from openvino.tools.mo.convert_impl import prepare_ir
-from openvino.frontend import (
+from os import path
+from pathlib import Path
+from unittest.mock import Mock
+
+import onnx
+import pytest
+from onnx.helper import make_graph, make_model, make_tensor_value_info
+from openvino.frontend import (  # pylint: disable=no-name-in-module,import-error
     FrontEndManager,
-)  # pylint: disable=no-name-in-module,import-error
+)
+
+from openvino.tools.mo.convert_impl import prepare_ir
 
 try:
     import openvino_telemetry as tm

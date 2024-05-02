@@ -3,9 +3,11 @@
 //
 
 #include "scatter_nd_update_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -44,14 +46,14 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-ScatterNDUpdateKernelRef::DispatchData
-ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, bool is_second) const {
+ScatterNDUpdateKernelRef::DispatchData ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params,
+                                                                            bool is_second) const {
     DispatchData dispatchData;
 
     if (!is_second) {
         const auto& scope = params.outputs[0];
         dispatchData.indicesLastDim = 1;
-        dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
+        dispatchData.gws = {scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v};
     } else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
@@ -79,8 +81,14 @@ JitConstants ScatterNDUpdateKernelRef::GetJitConstants(const scatter_nd_update_p
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
-        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf1 = {"_FIRST_KERNEL",
+                                       GetDefaultOrder(params.outputs[0].GetDims().size()),
+                                       "val",
+                                       params.inputs[0].GetDType()};
+        FusedOpsConfiguration conf2 = {"_SECOND_KERNEL",
+                                       GetDefaultOrder(params.outputs[0].GetDims().size()),
+                                       "val",
+                                       params.inputs[0].GetDType()};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
     }
 
@@ -88,7 +96,7 @@ JitConstants ScatterNDUpdateKernelRef::GetJitConstants(const scatter_nd_update_p
 }
 
 bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
-    if (p.GetType() != KernelType:: SCATTER_ND_UPDATE) {
+    if (p.GetType() != KernelType::SCATTER_ND_UPDATE) {
         return false;
     }
 
@@ -117,7 +125,10 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t shape_info_offset, size_t rank) {
+static std::string GetInputBlockND(const scatter_nd_update_params& params,
+                                   size_t num,
+                                   size_t shape_info_offset,
+                                   size_t rank) {
     const auto& input = params.inputs[num];
 
     auto input_dims = input.LogicalDims();
@@ -135,7 +146,8 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
     for (int32_t idx = static_cast<int32_t>(rank) - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
 
-        size_t dim_offset = idx < 2 ? idx : (DataTensor::max_rank() - dims.size()) + idx; // convert to idx in default planar format
+        size_t dim_offset =
+            idx < 2 ? idx : (DataTensor::max_rank() - dims.size()) + idx;  // convert to idx in default planar format
         block_nd_s[idx] = "(" + toCodeString(dims[idx], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
     }
 
@@ -195,9 +207,11 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
             cldnn_jit.AddConstant(MakeJitConstant(
                 "INPUT0_BLOCK_ND",
                 GetInputBlockND(newParams, 0, newParams.inputs[0].get_dynamic_shape_offset(), input0_rank)));
-            cldnn_jit.AddConstant(MakeJitConstant(
-                "INPUT1_BLOCK_ND",
-                GetInputBlockND(newParams, 1, newParams.inputs[1].get_dynamic_shape_offset(), newParams.indices_rank - 1)));
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND",
+                                                  GetInputBlockND(newParams,
+                                                                  1,
+                                                                  newParams.inputs[1].get_dynamic_shape_offset(),
+                                                                  newParams.indices_rank - 1)));
             cldnn_jit.AddConstant(MakeJitConstant(
                 "INPUT2_BLOCK_ND",
                 GetInputBlockND(newParams, 2, newParams.inputs[2].get_dynamic_shape_offset(), input2_rank)));
@@ -210,8 +224,11 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
                 std::reverse(dims.begin(), dims.end());
 
                 size_t last_idx = newParams.indices_rank - 1;
-                size_t dim_offset = last_idx < 2 ? last_idx : last_idx + DataTensor::max_rank() - newParams.indices_rank;
-                auto indices_last_dim = toCodeString(dims[last_idx], dim_offset + (newParams.inputs[0].is_dynamic() ? DataTensor::max_rank() : 0));
+                size_t dim_offset =
+                    last_idx < 2 ? last_idx : last_idx + DataTensor::max_rank() - newParams.indices_rank;
+                auto indices_last_dim =
+                    toCodeString(dims[last_idx],
+                                 dim_offset + (newParams.inputs[0].is_dynamic() ? DataTensor::max_rank() : 0));
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", indices_last_dim));
             } else {
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
@@ -221,8 +238,19 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
 
         clKernelData& kernel = kd.kernels[i];
 
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
+        FillCLKernelData(kernel,
+                         dispatchData,
+                         params.engineInfo,
+                         kernelName,
+                         jit,
+                         entry_point,
+                         "",
+                         false,
+                         false,
+                         inputs_number,
+                         GetFusedPrimitiveInputsCount(params),
+                         1,
+                         newParams.is_shape_agnostic);
     }
 
     return {kd};

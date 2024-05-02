@@ -4,25 +4,25 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/concat.hpp"
-#include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/low_precision.hpp"
-#include "low_precision/relu.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/concat.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include "low_precision/move_fake_quantize.hpp"
+#include "low_precision/relu.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/move_fake_quantize.hpp"
 #include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -96,9 +96,8 @@ inline std::ostream& operator<<(std::ostream& out, const MoveFakeQuantizeTransfo
     return out << "_" << values.multiChannels << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::
-    tuple<ov::element::Type, std::vector<ov::PartialShape>, MoveFakeQuantizeTransformationTestValues, bool>
-        MoveFakeQuantizeTransformationParams;
+typedef std::tuple<ov::element::Type, std::vector<ov::PartialShape>, MoveFakeQuantizeTransformationTestValues, bool>
+    MoveFakeQuantizeTransformationParams;
 
 class MoveFakeQuantizeTransformation : public LayerTransformation,
                                        public testing::WithParamInterface<MoveFakeQuantizeTransformationParams> {
@@ -118,21 +117,21 @@ public:
         ov::IntervalsAlignmentSharedValue::Interval interval{-1.28f, 2.55f};
 
         actualFunction = ov::builder::subgraph::MoveFakeQuantize::get(precision,
-                                                                          inputShapes,
-                                                                          testValues.actual.number_of_operations,
-                                                                          testValues.actual.fakeQuantizeBefore,
-                                                                          testValues.actual.convertBefore,
-                                                                          testValues.actual.dequantizationBefore,
-                                                                          testValues.actual.operation,
-                                                                          testValues.actual.fakeQuantizeAfter,
-                                                                          testValues.actual.convertAfter,
-                                                                          testValues.actual.dequantizationAfter,
-                                                                          {ov::PrecisionPreservedAttribute(true),
-                                                                           ov::IntervalsAlignmentAttribute(interval, 256),
-                                                                           ov::QuantizationAlignmentAttribute(false)},
-                                                                          ov::element::undefined,
-                                                                          testValues.axis,
-                                                                          oneInputWithSplit);
+                                                                      inputShapes,
+                                                                      testValues.actual.number_of_operations,
+                                                                      testValues.actual.fakeQuantizeBefore,
+                                                                      testValues.actual.convertBefore,
+                                                                      testValues.actual.dequantizationBefore,
+                                                                      testValues.actual.operation,
+                                                                      testValues.actual.fakeQuantizeAfter,
+                                                                      testValues.actual.convertAfter,
+                                                                      testValues.actual.dequantizationAfter,
+                                                                      {ov::PrecisionPreservedAttribute(true),
+                                                                       ov::IntervalsAlignmentAttribute(interval, 256),
+                                                                       ov::QuantizationAlignmentAttribute(false)},
+                                                                      ov::element::undefined,
+                                                                      testValues.axis,
+                                                                      oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
             {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
@@ -162,21 +161,21 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::MoveFakeQuantize::get(precision,
-                                                             inputShapes,
-                                                             testValues.result.number_of_operations,
-                                                             testValues.result.fakeQuantizeBefore,
-                                                             testValues.result.convertBefore,
-                                                             testValues.result.dequantizationBefore,
-                                                             testValues.result.operation,
-                                                             testValues.result.fakeQuantizeAfter,
-                                                             testValues.result.convertAfter,
-                                                             testValues.result.dequantizationAfter,
-                                                             {ov::PrecisionPreservedAttribute(true),
-                                                              ov::IntervalsAlignmentAttribute(interval, 256),
-                                                              ov::QuantizationAlignmentAttribute(false)},
-                                                             testValues.result.precisionAfterOperation,
-                                                             testValues.axis,
-                                                             oneInputWithSplit);
+                                                         inputShapes,
+                                                         testValues.result.number_of_operations,
+                                                         testValues.result.fakeQuantizeBefore,
+                                                         testValues.result.convertBefore,
+                                                         testValues.result.dequantizationBefore,
+                                                         testValues.result.operation,
+                                                         testValues.result.fakeQuantizeAfter,
+                                                         testValues.result.convertAfter,
+                                                         testValues.result.dequantizationAfter,
+                                                         {ov::PrecisionPreservedAttribute(true),
+                                                          ov::IntervalsAlignmentAttribute(interval, 256),
+                                                          ov::QuantizationAlignmentAttribute(false)},
+                                                         testValues.result.precisionAfterOperation,
+                                                         testValues.axis,
+                                                         oneInputWithSplit);
     }
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
         const ov::element::Type precision = std::get<0>(obj.param);
@@ -208,8 +207,8 @@ const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element
 
 namespace perTensorValues {
 const std::vector<std::vector<ov::PartialShape>> shapes = {{{1, 1, 9, 9}, {1, 1, 9, 9}},
-                                                               {{4, 3, 9, 9}, {4, 3, 9, 9}},
-                                                               {{-1, -1, -1, -1}, {-1, -1, -1, -1}}};
+                                                           {{4, 3, 9, 9}, {4, 3, 9, 9}},
+                                                           {{-1, -1, -1, -1}, {-1, -1, -1, -1}}};
 
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
     // without operation

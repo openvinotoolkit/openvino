@@ -4,23 +4,22 @@
 
 #pragma once
 
-#include "format.hpp"
-#include "compounds.hpp"
-#include "utils.hpp"
-
-#include <openvino/core/partial_shape.hpp>
-
-#include <map>
-#include <list>
-#include <cstdint>
-#include <iostream>
-#include <numeric>
 #include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <iostream>
+#include <list>
+#include <map>
+#include <numeric>
+#include <openvino/core/partial_shape.hpp>
 #include <sstream>
-#include <vector>
 #include <string>
 #include <utility>
-#include <functional>
+#include <vector>
+
+#include "compounds.hpp"
+#include "format.hpp"
+#include "utils.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -33,24 +32,21 @@ constexpr int32_t tensor_batch_dim_max = 1;
 constexpr int32_t tensor_feature_dim_max = 1;
 constexpr int32_t tensor_spatial_dim_max = 6;
 constexpr int32_t tensor_group_dim_max = 1;
-constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_group_dim_max;
+constexpr int32_t tensor_dim_max =
+    tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_group_dim_max;
 
 struct tensor;
 
 /// @brief Helper structs used in tensor constructor with dim_vec_kinds
 namespace details {
 /// @brief enum class that represent dimension kinds
-enum class dim_vec_kind {
-    batch,
-    feature,
-    spatial,
-    group
-};
+enum class dim_vec_kind { batch, feature, spatial, group };
 
 /// @brief template class with max_dimensionalities and dimension offset for dimension kinds
 template <dim_vec_kind Kind>
 struct dim_vec_limits {
-    static_assert(meta::always_false_ty_val<dim_vec_kind, Kind>::value, "Limits are undefined for selected value of dim_vec_kind.");
+    static_assert(meta::always_false_ty_val<dim_vec_kind, Kind>::value,
+                  "Limits are undefined for selected value of dim_vec_kind.");
 };
 
 template <>
@@ -86,8 +82,8 @@ public:
 
     template <typename... DimTys>
     explicit dim_vec_kind_init(DimTys&&... values)
-        : _sizes{int32_t(std::forward<DimTys>(values))...}, _dimSize(sizeof...(DimTys)) {
-    }
+        : _sizes{int32_t(std::forward<DimTys>(values))...},
+          _dimSize(sizeof...(DimTys)) {}
 
     void init_tensor_values(cldnn::tensor& t);
 
@@ -135,12 +131,12 @@ private:
     value_type _sizes[tensor_dim_max];
 
 public:
-    explicit tensor(value_type default_size = 0) :
-        raw(_sizes, tensor_dim_max),
-        batch(_sizes, tensor_batch_dim_max),
-        feature(_sizes + tensor_batch_dim_max, tensor_feature_dim_max),
-        spatial(_sizes + tensor_batch_dim_max + tensor_feature_dim_max, tensor_spatial_dim_max),
-        group(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_group_dim_max) {
+    explicit tensor(value_type default_size = 0)
+        : raw(_sizes, tensor_dim_max),
+          batch(_sizes, tensor_batch_dim_max),
+          feature(_sizes + tensor_batch_dim_max, tensor_feature_dim_max),
+          spatial(_sizes + tensor_batch_dim_max + tensor_feature_dim_max, tensor_spatial_dim_max),
+          group(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_group_dim_max) {
         std::fill_n(_sizes, tensor_dim_max, default_size);
     }
 
@@ -159,15 +155,14 @@ public:
     */
     template <typename... KindInitTys,
               typename = typename std::enable_if<
-                  meta::all<
-                      meta::is_any_of<KindInitTys,
-                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::batch>,
-                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::feature>,
-                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::spatial>,
-                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::group>>::value...>::value,
+                  meta::all<meta::is_any_of<
+                      KindInitTys,
+                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::batch>,
+                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::feature>,
+                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::spatial>,
+                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::group>>::value...>::value,
                   void>::type>
-    explicit tensor(KindInitTys&&... kind_inits)
-        : tensor(1) {
+    explicit tensor(KindInitTys&&... kind_inits) : tensor(1) {
         assign_inits(std::forward<KindInitTys>(kind_inits)...);
     }
 
@@ -183,8 +178,7 @@ public:
      *
      * @endcode
      */
-    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y)
-        : tensor(1) {
+    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y) : tensor(1) {
         _sizes[0] = batch_num;
         _sizes[tensor_batch_dim_max] = feature_num;
         _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
@@ -206,8 +200,7 @@ public:
     *
     * @endcode
     */
-    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y, value_type z)
-        : tensor(1) {
+    tensor(value_type batch_num, value_type feature_num, value_type x, value_type y, value_type z) : tensor(1) {
         _sizes[0] = batch_num;
         _sizes[tensor_batch_dim_max] = feature_num;
         _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
@@ -240,7 +233,8 @@ public:
     }
 
     /// @brief Constructs @p tensor using vector of sizes.
-    /// @param[in] sizes dimensions need to be provided in the following order {batch, feature, spatial_x, spatial_y [, spatial_z] }.
+    /// @param[in] sizes dimensions need to be provided in the following order {batch, feature, spatial_x, spatial_y [,
+    /// spatial_z] }.
     /// @param[in] default_size default_size for tensor dimensions.
     /// @details Example:
     /*! @code
@@ -253,19 +247,18 @@ public:
      *
      * @endcode
      */
-    explicit tensor(const std::vector<value_type>& sizes, value_type default_size = 1)
-        : tensor(default_size) {
+    explicit tensor(const std::vector<value_type>& sizes, value_type default_size = 1) : tensor(default_size) {
         int max_size = std::min(static_cast<int>(sizes.size()), tensor_dim_max);
         for (int i = 0; i < max_size; i++)
             _sizes[i] = sizes[i];
     }
 
-    tensor(format fmt, const std::vector<value_type>& sizes, value_type default_size = 1)
-        : tensor(default_size) {
+    tensor(format fmt, const std::vector<value_type>& sizes, value_type default_size = 1) : tensor(default_size) {
         auto in_order = fmt.order();
         auto out_order = fmt.internal_order();
         if (in_order.size() != sizes.size())
-            throw std::invalid_argument("The count of values passed to initialize tensor does not match passed format.");
+            throw std::invalid_argument(
+                "The count of values passed to initialize tensor does not match passed format.");
 
         for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
             auto channel = out_order[out_idx];
@@ -274,15 +267,15 @@ public:
 
             auto in_idx = in_order.find(channel);
             if (in_idx == in_order.npos)
-                throw std::runtime_error("Internal order of a format contains channel which does not appear in external order.");
+                throw std::runtime_error(
+                    "Internal order of a format contains channel which does not appear in external order.");
 
             _sizes[out_idx] = sizes[in_idx];
         }
     }
 
     /// @brief Copy construction.
-    tensor(const tensor& other)
-        : tensor(0) {
+    tensor(const tensor& other) : tensor(0) {
         std::copy_n(other._sizes, tensor_dim_max, _sizes);
     }
 
@@ -322,10 +315,10 @@ public:
 
     size_t hash() const {
         size_t seed = 0;
-        seed = hash_range(seed, batch.begin(),      batch.end());
-        seed = hash_range(seed, feature.begin(),    feature.end());
-        seed = hash_range(seed, spatial.begin(),    spatial.end());
-        seed = hash_range(seed, group.begin(),      group.end());
+        seed = hash_range(seed, batch.begin(), batch.end());
+        seed = hash_range(seed, feature.begin(), feature.end());
+        seed = hash_range(seed, spatial.begin(), spatial.end());
+        seed = hash_range(seed, group.begin(), group.end());
         return seed;
     }
 
@@ -443,11 +436,7 @@ public:
 
     /// @brief Returns tensor elements count calculated as multiplication of all elements.
     size_t count() const {
-        return std::accumulate(
-            raw.begin(),
-            raw.end(),
-            static_cast<size_t>(1),
-            std::multiplies<size_t>());
+        return std::accumulate(raw.begin(), raw.end(), static_cast<size_t>(1), std::multiplies<size_t>());
     }
 
     /// @brief Returns new tensor based on current but transformed to new @p format.
@@ -477,15 +466,10 @@ public:
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
         const auto& new_traits = new_fmt.traits();
-        static const std::map<char, char> flatten_mapping = {
-            { 'v', 'u'},
-            { 'u', 'w'},
-            { 'w', 'z'},
-            { 'z', 'y'}
-        };
+        static const std::map<char, char> flatten_mapping = {{'v', 'u'}, {'u', 'w'}, {'w', 'z'}, {'z', 'y'}};
 
         for (size_t i = 0; i < default_fmt.order().size(); i++) {
-            auto target_dim = val_order[i]; //bfxywzuv
+            auto target_dim = val_order[i];  // bfxywzuv
             while (!new_traits.has_dimension(target_dim)) {
                 if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
                     target_dim = flatten_mapping.at(target_dim);
@@ -505,7 +489,7 @@ public:
         }
 
         for (size_t i = 0; i < new_order.size(); i++) {
-            auto c = new_order[i]; //bfxywz
+            auto c = new_order[i];  // bfxywz
             if (c == '?')
                 continue;
             if (new_sizes[i] == -1) {
@@ -513,7 +497,7 @@ public:
             }
         }
 
-        tensor sizes { new_sizes };
+        tensor sizes{new_sizes};
         return sizes;
     }
 
@@ -537,20 +521,19 @@ public:
         }
 
         if (fmt == cldnn::format::os_is_yx_isa8_osv8_isv4 &&  // TODO Fix offsets calculation for formats below
-                   !(is_aligned_to(my_sizes[0], 8)) &&
-                   !(is_aligned_to(my_sizes[1], 32))) {
+            !(is_aligned_to(my_sizes[0], 8)) && !(is_aligned_to(my_sizes[1], 32))) {
             my_sizes[0] = align_to(my_sizes[0], 8);
             my_sizes[1] = align_to(my_sizes[1], 32);
             adjusted_coords[0] = align_to(adjusted_coords[0], 8);
             adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-        } else if (fmt == cldnn::format::os_is_yx_isa8_osv16_isv4 &&
-                   !(is_aligned_to(my_sizes[0], 16)) &&
+        } else if (fmt == cldnn::format::os_is_yx_isa8_osv16_isv4 && !(is_aligned_to(my_sizes[0], 16)) &&
                    !(is_aligned_to(my_sizes[1], 32))) {
             my_sizes[0] = align_to(my_sizes[0], 16);
             my_sizes[1] = align_to(my_sizes[1], 32);
             adjusted_coords[0] = align_to(adjusted_coords[0], 16);
             adjusted_coords[1] = align_to(adjusted_coords[1], 32);
-        } else if (fmt == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv16_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+        } else if (fmt == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
+                   fmt == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
             const auto yxsv = 4;
             const auto flat_xy = adjusted_coords[4] + adjusted_coords[3] * my_sizes[4];
 
@@ -563,7 +546,9 @@ public:
             adjusted_coords[3] = 0;
         } else if (fmt == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(my_sizes[1], 32)) {
             my_sizes[1] = align_to(my_sizes[1], 32);
-        } else if ((fmt == cldnn::format::iy_xs_os_xsv2_osv8__ao32 || fmt == cldnn::format::iy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+        } else if ((fmt == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
+                    fmt == cldnn::format::iy_xs_os_xsv2_osv16__ao32) &&
+                   !is_aligned_to(my_sizes[3], 32)) {
             my_sizes[3] = align_to(my_sizes[3], 32);
         } else if (fmt == cldnn::format::i_yxs_os_yxsv2_osv16 || fmt == cldnn::format::gi_yxs_os_yxsv2_osv16) {
             const auto yxsv = 2;
@@ -576,7 +561,9 @@ public:
             adjusted_coords.insert(std::prev(adjusted_coords.end()), flat_xy % yxsv);
             adjusted_coords[2] = flat_xy / yxsv;
             adjusted_coords[1] = 0;
-        } else if ((fmt == cldnn::format::giy_xs_os_xsv2_osv8__ao32 || fmt == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+        } else if ((fmt == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
+                    fmt == cldnn::format::giy_xs_os_xsv2_osv16__ao32) &&
+                   !is_aligned_to(my_sizes[3], 32)) {
             my_sizes[4] = align_to(my_sizes[4], 32);
         }
 
@@ -646,13 +633,21 @@ inline void details::dim_vec_kind_init<Kind>::init_tensor_values(cldnn::tensor& 
 }
 
 /// @brief Adds two @p tensors
-inline tensor operator+(const tensor& lhs, const tensor& rhs) { return lhs.add(rhs); }
+inline tensor operator+(const tensor& lhs, const tensor& rhs) {
+    return lhs.add(rhs);
+}
 /// @brief Subtracts two @p tensors
-inline tensor operator-(const tensor& lhs, const tensor& rhs) { return lhs.sub(rhs); }
+inline tensor operator-(const tensor& lhs, const tensor& rhs) {
+    return lhs.sub(rhs);
+}
 /// @brief Multiplies a @p tensor to a @p scalar
-inline tensor operator*(const tensor& lhs, tensor::value_type rhs) { return lhs.mul(rhs); }
+inline tensor operator*(const tensor& lhs, tensor::value_type rhs) {
+    return lhs.mul(rhs);
+}
 /// @brief Divides a @p tensor by a @p scalar
-inline tensor operator/(const tensor& lhs, tensor::value_type rhs) { return lhs.div(rhs); }
+inline tensor operator/(const tensor& lhs, tensor::value_type rhs) {
+    return lhs.div(rhs);
+}
 
 /// @}
 /// @}

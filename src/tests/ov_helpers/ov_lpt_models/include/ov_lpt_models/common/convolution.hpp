@@ -18,10 +18,9 @@ class Convolution {
 public:
     Convolution();
 
-    Convolution(
-        const DequantizationOperations::Subtract zeroPointOnActivations,
-        const Constant& constantOnWeights,
-        const DequantizationOperations& dequantizationOnWeights);
+    Convolution(const DequantizationOperations::Subtract zeroPointOnActivations,
+                const Constant& constantOnWeights,
+                const DequantizationOperations& dequantizationOnWeights);
 
     bool empty() const;
 

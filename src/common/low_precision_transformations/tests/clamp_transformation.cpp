@@ -4,16 +4,16 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/clamp.hpp"
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/clamp.hpp"
 #include "ov_lpt_models/clamp.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 using namespace testing;
@@ -56,23 +56,23 @@ public:
                       inputShape,
                       testValues.actual.precisionBeforeDequantization)
                 : ov::builder::subgraph::ClampFunction::getOriginal(inputShape,
-                                                                        testValues.actual.precisionBeforeDequantization,
-                                                                        testValues.actual.dequantization);
+                                                                    testValues.actual.precisionBeforeDequantization,
+                                                                    testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::ClampTransformation, ov::op::v0::Clamp>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = testValues.nonDequantizationMultiply
-                                ? ov::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
-                                      inputShape,
-                                      testValues.actual.precisionBeforeDequantization)
-                                : ov::builder::subgraph::ClampFunction::getReference(
-                                      inputShape,
-                                      testValues.expected.precisionBeforeDequantization,
-                                      testValues.expected.dequantizationBefore,
-                                      testValues.expected.precisionAfterOperation,
-                                      testValues.expected.dequantizationAfter);
+        referenceFunction =
+            testValues.nonDequantizationMultiply
+                ? ov::builder::subgraph::ClampFunction::getWithNonDequantizationMultiply(
+                      inputShape,
+                      testValues.actual.precisionBeforeDequantization)
+                : ov::builder::subgraph::ClampFunction::getReference(inputShape,
+                                                                     testValues.expected.precisionBeforeDequantization,
+                                                                     testValues.expected.dequantizationBefore,
+                                                                     testValues.expected.precisionAfterOperation,
+                                                                     testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
@@ -112,8 +112,7 @@ const std::vector<ClampTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
      // ActualValues
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {3.f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {3.f}}},
      // ExpectedValues
      {ov::element::u8,
       {{}, {}, {}},
@@ -174,17 +173,11 @@ const std::vector<ClampTransformationTestValues> testValues = {
     // U8 asymmetric quantization
     {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
      {ov::element::u8, {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}}},
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}},
-      ov::element::f32,
-      {{}, {}, {}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}}, ov::element::f32, {{}, {}, {}}}},
     // U8 without asymmetric quantization
     {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),
      {ov::element::u8, {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}}},
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}},
-      ov::element::f32,
-      {{}, {}, {}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 0.f, 128.f}}, {{3.f, 3.f, 3.f}}}, ov::element::f32, {{}, {}, {}}}},
     // per channel quantization with small values
     {LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {{1e-14f, 1e-12f, 1e-15f}}, {{1e-14f, 1e-12f, 1e-15f}}}},

@@ -5,8 +5,8 @@
 #pragma once
 
 #include "acl_utils.hpp"
-#include "nodes/executors/mvn.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "nodes/executors/mvn.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -19,10 +19,10 @@ public:
     bool init(const MVNAttrs& mvnAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
-              const void *post_ops_data_) override;
+              const void* post_ops_data_) override;
 
     impl_desc_type getImplType() const override {
         return implType;
@@ -41,22 +41,23 @@ public:
     bool isSupported(const MVNAttrs& mvnAttrs,
                      const std::vector<MemoryDescPtr>& srcDescs,
                      const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != ov::element::f32 &&
-             srcDescs[0]->getPrecision() != ov::element::f16) ||
-             srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
+        if ((srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16) ||
+            srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
             DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",
-                      " src[0]=", srcDescs[0]->getPrecision(),
-                      " dst[0]=", dstDescs[0]->getPrecision());
+                      " src[0]=",
+                      srcDescs[0]->getPrecision(),
+                      " dst[0]=",
+                      dstDescs[0]->getPrecision());
             return false;
         }
 
-        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
-              dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-              dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support layout:",
-                      " src: ", srcDescs[0]->serializeFormat(),
-                      " dst: ", dstDescs[0]->serializeFormat());
+                      " src: ",
+                      srcDescs[0]->serializeFormat(),
+                      " dst: ",
+                      dstDescs[0]->serializeFormat());
             return false;
         }
 
@@ -82,5 +83,5 @@ public:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

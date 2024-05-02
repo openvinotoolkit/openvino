@@ -4,15 +4,15 @@
 
 #include "ov_lpt_models/group_convolution.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "low_precision/network_helper.hpp"
 
-#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 using namespace ov::opset1;
 using namespace ov::pass::low_precision;
@@ -37,36 +37,35 @@ std::shared_ptr<Node> createWeightsOriginal(
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
         weights = ov::opset1::Constant::create(
             precision,
-            rankLength == 3 ?
-                ov::Shape{ outputChannelsCount, inputChannelsCount, 1 } :
-                ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
-            weightsValues.size() == 1ul ?
-                std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
-                weightsValues);
+            rankLength == 3 ? ov::Shape{outputChannelsCount, inputChannelsCount, 1}
+                            : ov::Shape{outputChannelsCount, inputChannelsCount, 1, 1},
+            weightsValues.size() == 1ul ? std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0])
+                                        : weightsValues);
     } else {
         const size_t inputChannelsPerGroup = inputChannelsCount / groupCount;
         if ((rankLength == 3) || (rankLength == 4)) {
             weights = ov::opset1::Constant::create(
                 precision,
-                addReshape ?
-                    (rankLength == 3 ?
-                        ov::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize } :
-                        ov::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize }) :
-                    (rankLength == 3 ?
-                        ov::Shape{ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize } :
-                        ov::Shape{ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize, kernelSize }),
-                weightsValues.size() == 1ul ?
-                    std::vector<float>(
-                        rankLength == 3 ?
-                            outputChannelsCount * kernelSize * inputChannelsPerGroup :
-                            outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup,
-                        weightsValues[0]) :
-                    weightsValues);
+                addReshape
+                    ? (rankLength == 3 ? ov::Shape{outputChannelsCount, inputChannelsPerGroup, kernelSize}
+                                       : ov::Shape{outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize})
+                    : (rankLength == 3
+                           ? ov::Shape{groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, kernelSize}
+                           : ov::Shape{groupCount,
+                                       outputChannelsCount / groupCount,
+                                       inputChannelsPerGroup,
+                                       kernelSize,
+                                       kernelSize}),
+                weightsValues.size() == 1ul
+                    ? std::vector<float>(rankLength == 3
+                                             ? outputChannelsCount * kernelSize * inputChannelsPerGroup
+                                             : outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup,
+                                         weightsValues[0])
+                    : weightsValues);
         } else {
             const ov::Shape shape{outputChannelsCount, inputChannelsPerGroup, 1ull, kernelSize, kernelSize};
-            const std::vector<float> values = weightsValues.size() == 1ull ?
-                std::vector<float>(shape_size(shape), weightsValues[0]) :
-                weightsValues;
+            const std::vector<float> values =
+                weightsValues.size() == 1ull ? std::vector<float>(shape_size(shape), weightsValues[0]) : weightsValues;
             weights = ov::opset1::Constant::create(precision, shape, values);
         }
 
@@ -83,15 +82,14 @@ std::shared_ptr<Node> createWeightsOriginal(
                     constantShape[1] = outputChannelsCount / groupCount;
                 }
             }
-            weights = ov::test::utils::make_fake_quantize(
-                weights,
-                precision,
-                fakeQuantizeOnWeights.quantizationLevel,
-                constantShape,
-                fakeQuantizeOnWeights.inputLowValues,
-                fakeQuantizeOnWeights.inputHighValues,
-                fakeQuantizeOnWeights.outputLowValues,
-                fakeQuantizeOnWeights.outputHighValues);
+            weights = ov::test::utils::make_fake_quantize(weights,
+                                                          precision,
+                                                          fakeQuantizeOnWeights.quantizationLevel,
+                                                          constantShape,
+                                                          fakeQuantizeOnWeights.inputLowValues,
+                                                          fakeQuantizeOnWeights.inputHighValues,
+                                                          fakeQuantizeOnWeights.outputLowValues,
+                                                          fakeQuantizeOnWeights.outputHighValues);
         }
 
         if (!dequantizationOnWeights.empty()) {
@@ -157,43 +155,42 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
         throw std::runtime_error("unexpected actual weights values size");
     }
 
-    std::shared_ptr<ov::Node> weights = createWeightsOriginal(
-        rankLength,
-        weightsConst->get_element_type(),
-        inputChannelsCount,
-        outputChannelsCount,
-        groupCount,
-        groupCalculationDimention,
-        kernelSize,
-        weightsConst->cast_vector<float>(),
-        fakeQuantizeOnWeights,
-        {});
+    std::shared_ptr<ov::Node> weights = createWeightsOriginal(rankLength,
+                                                              weightsConst->get_element_type(),
+                                                              inputChannelsCount,
+                                                              outputChannelsCount,
+                                                              groupCount,
+                                                              groupCalculationDimention,
+                                                              kernelSize,
+                                                              weightsConst->cast_vector<float>(),
+                                                              fakeQuantizeOnWeights,
+                                                              {});
 
-    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(
-        dequantization,
-        weights,
-        ov::Strides{ 1, 1 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::CoordinateDiff{ 0, 0 },
-        ov::Strides{ 1, 1 });
+    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(dequantization,
+                                                                            weights,
+                                                                            ov::Strides{1, 1},
+                                                                            ov::CoordinateDiff{0, 0},
+                                                                            ov::CoordinateDiff{0, 0},
+                                                                            ov::Strides{1, 1});
     convolution->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "GroupConvolutionTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(convolution)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "GroupConvolutionTransformation");
 }
 
-std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
-    const ov::element::Type precision,
-    const ov::PartialShape& inputShape,
-    const ov::Shape& outputShape,
-    const size_t groupCount,
-    const int groupCalculationDimention,
-    const FakeQuantizeOnData& fakeQuantizeOnData,
-    const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-    const bool addReshape,
-    const bool addPrecisionPreserved) {
+std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(const ov::element::Type precision,
+                                                                 const ov::PartialShape& inputShape,
+                                                                 const ov::Shape& outputShape,
+                                                                 const size_t groupCount,
+                                                                 const int groupCalculationDimention,
+                                                                 const FakeQuantizeOnData& fakeQuantizeOnData,
+                                                                 const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+                                                                 const bool addReshape,
+                                                                 const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4 || rankLength == 5, "not supported input shape rank: ", rankLength);
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4 || rankLength == 5,
+                    "not supported input shape rank: ",
+                    rankLength);
 
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
 
@@ -201,30 +198,26 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
     if (!fakeQuantizeOnData.empty()) {
         parent = std::make_shared<ov::opset1::FakeQuantize>(
             input,
-            std::make_shared<ov::opset1::Constant>(
-                precision,
-                rankLength == 3 ?
-                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1 } :
-                    Shape{ 1, fakeQuantizeOnData.inputLowValues.size(), 1, 1 },
-                fakeQuantizeOnData.inputLowValues),
-            std::make_shared<ov::opset1::Constant>(
-                precision,
-                rankLength == 3 ?
-                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1 } :
-                    Shape{ 1, fakeQuantizeOnData.inputHighValues.size(), 1, 1 },
-                fakeQuantizeOnData.inputHighValues),
-            std::make_shared<ov::opset1::Constant>(
-                precision,
-                rankLength == 3 ?
-                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1 } :
-                    Shape{ 1, fakeQuantizeOnData.outputLowValues.size(), 1, 1 },
-                fakeQuantizeOnData.outputLowValues),
-            std::make_shared<ov::opset1::Constant>(
-                precision,
-                rankLength == 3 ?
-                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1 } :
-                    Shape{ 1, fakeQuantizeOnData.outputHighValues.size(), 1, 1 },
-                fakeQuantizeOnData.outputHighValues),
+            std::make_shared<ov::opset1::Constant>(precision,
+                                                   rankLength == 3
+                                                       ? Shape{1, fakeQuantizeOnData.inputLowValues.size(), 1}
+                                                       : Shape{1, fakeQuantizeOnData.inputLowValues.size(), 1, 1},
+                                                   fakeQuantizeOnData.inputLowValues),
+            std::make_shared<ov::opset1::Constant>(precision,
+                                                   rankLength == 3
+                                                       ? Shape{1, fakeQuantizeOnData.inputHighValues.size(), 1}
+                                                       : Shape{1, fakeQuantizeOnData.inputHighValues.size(), 1, 1},
+                                                   fakeQuantizeOnData.inputHighValues),
+            std::make_shared<ov::opset1::Constant>(precision,
+                                                   rankLength == 3
+                                                       ? Shape{1, fakeQuantizeOnData.outputLowValues.size(), 1}
+                                                       : Shape{1, fakeQuantizeOnData.outputLowValues.size(), 1, 1},
+                                                   fakeQuantizeOnData.outputLowValues),
+            std::make_shared<ov::opset1::Constant>(precision,
+                                                   rankLength == 3
+                                                       ? Shape{1, fakeQuantizeOnData.outputHighValues.size(), 1}
+                                                       : Shape{1, fakeQuantizeOnData.outputHighValues.size(), 1, 1},
+                                                   fakeQuantizeOnData.outputHighValues),
             fakeQuantizeOnData.quantizationLevel);
     }
 
@@ -235,14 +228,8 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
         const std::vector<size_t> padKernel(rankLength - 2, 3ul);
         const ov::op::PadType padType = ov::op::PadType::NOTSET;
         const ov::op::RoundingType roundingType = ov::op::RoundingType::FLOOR;
-        const auto pooling = std::make_shared<ov::opset1::MaxPool>(
-            parent,
-            stride,
-            padBegin,
-            padEnd,
-            padKernel,
-            roundingType,
-            padType);
+        const auto pooling =
+            std::make_shared<ov::opset1::MaxPool>(parent, stride, padBegin, padEnd, padKernel, roundingType, padType);
         parent = pooling;
     }
 
@@ -250,30 +237,28 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::getOriginal(
     const size_t kernelSize = 5ul;
     const size_t inputChannelsCount = inputShape[1].get_length();
 
-    std::vector<float> weightsValues = { 1.f };
-    std::shared_ptr<ov::Node> weights = createWeightsOriginal(
-        rankLength,
-        precision,
-        inputChannelsCount,
-        outputChannelsCount,
-        groupCount,
-        groupCalculationDimention,
-        kernelSize,
-        weightsValues,
-        fakeQuantizeOnWeights,
-        {},
-        addReshape);
+    std::vector<float> weightsValues = {1.f};
+    std::shared_ptr<ov::Node> weights = createWeightsOriginal(rankLength,
+                                                              precision,
+                                                              inputChannelsCount,
+                                                              outputChannelsCount,
+                                                              groupCount,
+                                                              groupCalculationDimention,
+                                                              kernelSize,
+                                                              weightsValues,
+                                                              fakeQuantizeOnWeights,
+                                                              {},
+                                                              addReshape);
 
-    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(
-        parent,
-        weights,
-        ov::Strides(rankLength - 2, 1ul),
-        ov::CoordinateDiff(rankLength - 2, 0),
-        ov::CoordinateDiff(rankLength - 2, 0),
-        ov::Strides(rankLength - 2, 1));
+    const auto convolution = std::make_shared<ov::opset1::GroupConvolution>(parent,
+                                                                            weights,
+                                                                            ov::Strides(rankLength - 2, 1ul),
+                                                                            ov::CoordinateDiff(rankLength - 2, 0),
+                                                                            ov::CoordinateDiff(rankLength - 2, 0),
+                                                                            ov::Strides(rankLength - 2, 1));
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "GroupConvolutionTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(convolution)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "GroupConvolutionTransformation");
 }
 
 std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
@@ -308,26 +293,27 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
 
     std::shared_ptr<ov::Node> weights;
     if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
-        const ov::Shape weightsShape = ov::Shape{ groupCount, outputChannelsInGroup, inputChannelsInGroup, kernelSize, kernelSize };
+        const ov::Shape weightsShape =
+            ov::Shape{groupCount, outputChannelsInGroup, inputChannelsInGroup, kernelSize, kernelSize};
         weights = ov::opset1::Constant::create(
             weightsConst->get_element_type(),
             weightsShape,
-            weightsSize == 1ul ? std::vector<float>(
-                groupCount * outputChannelsInGroup * inputChannelsInGroup * kernelSize * kernelSize,
-                weightsConst->cast_vector<float>()[0]) : weightsConst->cast_vector<float>());
+            weightsSize == 1ul ? std::vector<float>(groupCount * outputChannelsInGroup * inputChannelsInGroup *
+                                                        kernelSize * kernelSize,
+                                                    weightsConst->cast_vector<float>()[0])
+                               : weightsConst->cast_vector<float>());
     } else {
-        weights = createWeightsOriginal(
-            rankLength,
-            weightsConst->get_element_type(),
-            inputChannelsCount,
-            outputChannelsCount,
-            groupCount,
-            calculatedDimention,
-            kernelSize,
-            weightsConst->cast_vector<float>(),
-            fakeQuantizeOnWeights,
-            dequantizationOnWeights,
-            addReshape);
+        weights = createWeightsOriginal(rankLength,
+                                        weightsConst->get_element_type(),
+                                        inputChannelsCount,
+                                        outputChannelsCount,
+                                        groupCount,
+                                        calculatedDimention,
+                                        kernelSize,
+                                        weightsConst->cast_vector<float>(),
+                                        fakeQuantizeOnWeights,
+                                        dequantizationOnWeights,
+                                        addReshape);
     }
 
     auto convolutionOriginal =
@@ -348,8 +334,8 @@ std::shared_ptr<ov::Model> GroupConvolutionFunction::get(
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
     deqAfter->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(deqAfter) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "GroupConvolutionTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(deqAfter)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "GroupConvolutionTransformation");
 }
 
 }  // namespace subgraph

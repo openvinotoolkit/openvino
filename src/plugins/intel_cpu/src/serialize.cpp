@@ -25,8 +25,7 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream& ostream)
-    : _ostream(ostream) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -46,10 +45,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
-ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
-    : _istream(istream)
-    , _model_builder(fn) {
-}
+ModelDeserializer::ModelDeserializer(std::istream& istream, model_builder fn) : _istream(istream), _model_builder(fn) {}
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
@@ -93,7 +89,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.consts_offset);
     if (hdr.consts_size) {
         dataBlob = ov::Tensor(ov::element::u8, ov::Shape({hdr.consts_size}));
-        _istream.read(static_cast<char *>(dataBlob.data(ov::element::u8)), hdr.consts_size);
+        _istream.read(static_cast<char*>(dataBlob.data(ov::element::u8)), hdr.consts_size);
     }
 
     // read XML content
@@ -109,5 +105,5 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     setInfo(root, model);
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

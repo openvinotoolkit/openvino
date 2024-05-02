@@ -11,15 +11,23 @@ import pytest
 import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
+
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
-from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
+from models_hub_common.constants import hf_cache_dir, tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from openvino import Core
+from utils import (
+    get_input_signature,
+    get_output_signature,
+    get_output_signature_from_keras_layer,
+    load_graph,
+    repack_ov_result_to_tf_format,
+    retrieve_inputs_info_for_signature,
+    unpack_tf_result,
+)
 
-from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
-    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature
+from openvino import Core
 
 
 def is_hf_link(link: str):
@@ -35,32 +43,42 @@ class TestTFHubConvertModel(TestConvertModel):
             library_type = model_link[3:]
             if library_type == "transformers":
                 from transformers import TFAutoModel
+
                 return TFAutoModel.from_pretrained(model_name)
             elif library_type == "sentence-transformers":
                 from tf_sentence_transformers import SentenceTransformer
+
                 return SentenceTransformer.from_pretrained(model_name)
-        if 'storage.openvinotoolkit.org' in model_link:
+        if "storage.openvinotoolkit.org" in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
             model_file_name = os.path.basename(model_link)
-            if model_file_name.endswith('.tar.gz'):
+            if model_file_name.endswith(".tar.gz"):
                 # unzip archive and try to find the frozen model
-                subprocess.check_call(["tar", "-xvzf", model_file_name], cwd=self.model_dir.name)
-                model_file_name = os.path.join(self.model_dir.name, model_file_name[:-7], 'frozen_inference_graph.pb')
+                subprocess.check_call(
+                    ["tar", "-xvzf", model_file_name], cwd=self.model_dir.name
+                )
+                model_file_name = os.path.join(
+                    self.model_dir.name,
+                    model_file_name[:-7],
+                    "frozen_inference_graph.pb",
+                )
             else:
                 model_file_name = os.path.join(self.model_dir.name, model_file_name)
-            if model_file_name.endswith('.pb'):
+            if model_file_name.endswith(".pb"):
                 graph = load_graph(model_file_name)
                 return graph
 
         load = hub.load(model_link)
-        if 'serving_default' in list(load.signatures.keys()):
-            concrete_func = load.signatures['serving_default']
-        elif 'default' in list(load.signatures.keys()):
-            concrete_func = load.signatures['default']
+        if "serving_default" in list(load.signatures.keys()):
+            concrete_func = load.signatures["serving_default"]
+        elif "default" in list(load.signatures.keys()):
+            concrete_func = load.signatures["default"]
         else:
             signature_keys = sorted(list(load.signatures.keys()))
-            assert len(signature_keys) > 0, "No signatures for a model {}, url {}".format(model_name, model_link)
+            assert (
+                len(signature_keys) > 0
+            ), "No signatures for a model {}, url {}".format(model_name, model_link)
             concrete_func = load.signatures[signature_keys[0]]
         concrete_func._backref_to_saved_model = load
         return concrete_func
@@ -68,10 +86,15 @@ class TestTFHubConvertModel(TestConvertModel):
     def get_inputs_info(self, model_obj):
         if type(model_obj) is tf_v1.Graph:
             input_signature = get_input_signature(model_obj)
-        elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
+        elif (
+            hasattr(model_obj, "input_signature")
+            and model_obj.input_signature is not None
+        ):
             input_signature = model_obj.input_signature
         else:
-            assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
+            assert (
+                len(model_obj.structured_input_signature) > 1
+            ), "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
 
         inputs_info = retrieve_inputs_info_for_signature(input_signature)
@@ -132,39 +155,61 @@ class TestTFHubConvertModel(TestConvertModel):
         # deallocate memory after each test case
         gc.collect()
 
-    @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__),
-                                                          "model_lists", "precommit_convert_model")))
+    @pytest.mark.parametrize(
+        "model_name,model_link,mark,reason",
+        get_models_list(
+            os.path.join(
+                os.path.dirname(__file__), "model_lists", "precommit_convert_model"
+            )
+        ),
+    )
     @pytest.mark.precommit
-    def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip' or mark == 'xfail', \
-            "Incorrect test case: {}, {}".format(model_name, model_link)
-        if mark == 'skip':
+    def test_convert_model_precommit(
+        self, model_name, model_link, mark, reason, ie_device
+    ):
+        assert (
+            mark is None or mark == "skip" or mark == "xfail"
+        ), "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == "skip":
             pytest.skip(reason)
-        elif mark == 'xfail':
+        elif mark == "xfail":
             pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)
 
-    @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_tf_hub")))
+    @pytest.mark.parametrize(
+        "model_name,model_link,mark,reason",
+        get_models_list(
+            os.path.join(os.path.dirname(__file__), "model_lists", "nightly_tf_hub")
+        ),
+    )
     @pytest.mark.nightly_tf_hub
-    def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip' or mark == 'xfail', \
-            "Incorrect test case: {}, {}".format(model_name, model_link)
-        if mark == 'skip':
+    def test_convert_model_all_models(
+        self, model_name, model_link, mark, reason, ie_device
+    ):
+        assert (
+            mark is None or mark == "skip" or mark == "xfail"
+        ), "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == "skip":
             pytest.skip(reason)
-        elif mark == 'xfail':
+        elif mark == "xfail":
             pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)
 
-    @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_hf")))
+    @pytest.mark.parametrize(
+        "model_name,model_link,mark,reason",
+        get_models_list(
+            os.path.join(os.path.dirname(__file__), "model_lists", "nightly_hf")
+        ),
+    )
     @pytest.mark.nightly_hf
-    def test_convert_model_hugging_face_nightly(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip' or mark == 'xfail', \
-            "Incorrect test case: {}, {}".format(model_name, model_link)
-        if mark == 'skip':
+    def test_convert_model_hugging_face_nightly(
+        self, model_name, model_link, mark, reason, ie_device
+    ):
+        assert (
+            mark is None or mark == "skip" or mark == "xfail"
+        ), "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == "skip":
             pytest.skip(reason)
-        elif mark == 'xfail':
+        elif mark == "xfail":
             pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)

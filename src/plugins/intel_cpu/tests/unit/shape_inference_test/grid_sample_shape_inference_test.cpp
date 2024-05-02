@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "grid_sample_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
-#include "utils.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "grid_sample_shape_inference.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

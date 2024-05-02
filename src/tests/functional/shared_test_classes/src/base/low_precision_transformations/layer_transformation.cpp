@@ -4,9 +4,8 @@
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
-#include <vector>
 #include <string>
-
+#include <vector>
 
 namespace LayerTestsUtils {
 ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
@@ -41,9 +40,7 @@ std::pair<float, float> LayerTransformation::get_quantization_interval(ov::eleme
 std::string LayerTransformation::to_string(const ov::pass::low_precision::LayerTransformation::Params& params) {
     using namespace ov::pass::low_precision;
     std::ostringstream result;
-    result <<
-        (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<
-        params.deqPrecision;
+    result << (params.updatePrecisions ? "" : "notUpdatePrecisions_") << params.deqPrecision;
 
     return result.str();
 }
@@ -74,7 +71,7 @@ std::string find_node_by_runtime_precision(const ov::CompiledModel& execNet, IsN
 
     return "";
 }
-} // namespace
+}  // namespace
 
 std::string LayerTransformation::get_runtime_precision(const std::string& layerName) {
     auto is_node_f = [layerName](const std::shared_ptr<ov::Node>& op) {
@@ -106,7 +103,7 @@ bool has_layer(const std::string& names, const std::string& layer_name) {
 
     return names.substr(beginPosition, endPosition - beginPosition) == layer_name;
 }
-} // namespace
+}  // namespace
 
 std::string LayerTransformation::get_runtime_precision_by_fused_name(const std::string& layerName) {
     auto is_node_f = [layerName](const std::shared_ptr<ov::Node>& op) {
@@ -164,8 +161,8 @@ std::map<std::string, ov::Node::RTMap> LayerTransformation::get_runtime_info() {
 }
 
 void LayerTransformation::init_input_shapes(const ov::PartialShape& shape) {
-    std::pair<ov::PartialShape, std::vector<ov::Shape>> input_shapes(shape, { shape.to_shape() });
-    SubgraphBaseTest::init_input_shapes({ input_shapes });
+    std::pair<ov::PartialShape, std::vector<ov::Shape>> input_shapes(shape, {shape.to_shape()});
+    SubgraphBaseTest::init_input_shapes({input_shapes});
 }
 
 void LayerTransformation::init_input_shapes(const std::vector<ov::PartialShape>& shapes) {

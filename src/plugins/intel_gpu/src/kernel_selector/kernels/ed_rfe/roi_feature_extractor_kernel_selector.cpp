@@ -3,16 +3,19 @@
 //
 
 #include "roi_feature_extractor_kernel_selector.h"
+
 #include "roi_feature_extractor_kernel_ref.h"
 
 namespace kernel_selector {
 
-experimental_detectron_roi_feature_extractor_kernel_selector& experimental_detectron_roi_feature_extractor_kernel_selector::Instance() {
-        static experimental_detectron_roi_feature_extractor_kernel_selector instance_;
-        return instance_;
-    }
+experimental_detectron_roi_feature_extractor_kernel_selector&
+experimental_detectron_roi_feature_extractor_kernel_selector::Instance() {
+    static experimental_detectron_roi_feature_extractor_kernel_selector instance_;
+    return instance_;
+}
 
-experimental_detectron_roi_feature_extractor_kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector() {
+experimental_detectron_roi_feature_extractor_kernel_selector::
+    experimental_detectron_roi_feature_extractor_kernel_selector() {
     implementations.push_back(std::make_shared<ExperimentalDetectronROIFeatureExtractorRef>());
 }
 

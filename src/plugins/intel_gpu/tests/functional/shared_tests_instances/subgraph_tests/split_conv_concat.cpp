@@ -19,4 +19,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
                          SplitConvConcat::getTestCaseName);
 
 }  // namespace
-

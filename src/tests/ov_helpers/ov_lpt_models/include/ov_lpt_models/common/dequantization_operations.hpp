@@ -25,6 +25,7 @@ public:
 
         ov::element::Type outPrecision = ov::element::undefined;
         bool addDequantizationAttribute = true;
+
     private:
         bool isEmpty;
     };
@@ -35,16 +36,15 @@ public:
         Subtract(const float value, const bool toRemove = true);
         Subtract(const std::vector<float>& values);
         Subtract(const std::vector<float>& values, const ov::element::Type outPrecision);
-        Subtract(
-            const std::vector<float>& values,
-            const ov::element::Type outPrecision,
-            const ov::Shape& constantShape,
-            const bool toRemove = false,
-            const size_t constantIndex = 1ul,
-            const ov::element::Type constantPrecision = ov::element::undefined,
-            const bool addConvert = false,
-            const ov::Node::RTMap& attributes = {},
-            const ov::Node::RTMap& convertAttributes = {});
+        Subtract(const std::vector<float>& values,
+                 const ov::element::Type outPrecision,
+                 const ov::Shape& constantShape,
+                 const bool toRemove = false,
+                 const size_t constantIndex = 1ul,
+                 const ov::element::Type constantPrecision = ov::element::undefined,
+                 const bool addConvert = false,
+                 const ov::Node::RTMap& attributes = {},
+                 const ov::Node::RTMap& convertAttributes = {});
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Subtract& value) const noexcept;
         bool operator==(const Subtract& value) const noexcept {
@@ -75,13 +75,12 @@ public:
         Multiply(const float value);
         Multiply(const std::vector<float>& values);
         Multiply(const std::vector<float>& values, const ov::element::Type outPrecision);
-        Multiply(
-            const std::vector<float>& values,
-            const ov::element::Type outPrecision,
-            const ov::Shape& constantShape,
-            const bool toRemove = false,
-            const size_t constantIndex = 1ul,
-            const ov::element::Type constantPrecision = ov::element::undefined);
+        Multiply(const std::vector<float>& values,
+                 const ov::element::Type outPrecision,
+                 const ov::Shape& constantShape,
+                 const bool toRemove = false,
+                 const size_t constantIndex = 1ul,
+                 const ov::element::Type constantPrecision = ov::element::undefined);
         bool empty() const noexcept;
         bool equal(const DequantizationOperations::Multiply& value) const noexcept;
         bool operator==(const Multiply& value) const noexcept {
@@ -127,27 +126,17 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
     if (subtract.empty()) {
         return out << "{}";
     }
-    return out << "_" <<
-        subtract.values << "_" <<
-        subtract.outPrecision << "_" <<
-        subtract.constantShape << "_" <<
-        subtract.constantShapeIsDefined << "_" <<
-        subtract.constantIndex << "_" <<
-        subtract.constantPrecision << "_" <<
-        subtract.addConvert;
+    return out << "_" << subtract.values << "_" << subtract.outPrecision << "_" << subtract.constantShape << "_"
+               << subtract.constantShapeIsDefined << "_" << subtract.constantIndex << "_" << subtract.constantPrecision
+               << "_" << subtract.addConvert;
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations::Multiply& multiply) {
     if (multiply.empty()) {
         return out << "{}";
     }
-    return out << "_" <<
-        multiply.values << "_" <<
-        multiply.outPrecision << "_" <<
-        multiply.constantShape << "_" <<
-        multiply.constantShapeIsDefined << "_" <<
-        multiply.constantIndex << "_" <<
-        multiply.constantPrecision;
+    return out << "_" << multiply.values << "_" << multiply.outPrecision << "_" << multiply.constantShape << "_"
+               << multiply.constantShapeIsDefined << "_" << multiply.constantIndex << "_" << multiply.constantPrecision;
 }
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations& data) {

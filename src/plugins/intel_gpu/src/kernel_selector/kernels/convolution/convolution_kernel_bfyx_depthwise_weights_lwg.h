@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 class ConvolutionKernel_bfyx_depthwise_weights_lwg : public ConvolutionKernelBase {
@@ -22,7 +23,7 @@ public:
 
 protected:
     bool Validate(const Params&) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::goiyx;
     }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

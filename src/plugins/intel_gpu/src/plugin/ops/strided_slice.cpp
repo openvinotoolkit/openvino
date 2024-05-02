@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/strided_slice.hpp"
-#include "openvino/op/constant.hpp"
-
-#include "intel_gpu/primitives/strided_slice.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/crop.hpp"
 
 #include <climits>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -44,7 +43,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto end_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
     std::vector<int64_t> end;
     if (end_constant) {
-       auto const_vals = end_constant->cast_vector<int64_t>();
+        auto const_vals = end_constant->cast_vector<int64_t>();
         for (auto val : const_vals) {
             end.push_back(convert_max_val(val, end_constant->get_element_type()));
         }
@@ -53,7 +52,8 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<int64_t> strides = stride_constant ? stride_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
     do {
-        if (!begin_constant || !end_constant || !stride_constant || input_pshape.is_dynamic() || p.use_new_shape_infer()) {
+        if (!begin_constant || !end_constant || !stride_constant || input_pshape.is_dynamic() ||
+            p.use_new_shape_infer()) {
             break;
         }
 
@@ -66,7 +66,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         auto output_shape = output_pshape.to_shape();
 
         bool ones_stride = true;
-        for (auto & s : strides) {
+        for (auto& s : strides) {
             if (s != 1)
                 ones_stride = false;
         }
@@ -90,10 +90,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         auto begin_mask = convert_to_set(op->get_begin_mask());
         auto end_mask = convert_to_set(op->get_end_mask());
 
-        std::vector<size_t> reshape_pattern,
-                            axes,
-                            offset,
-                            dim;
+        std::vector<size_t> reshape_pattern, axes, offset, dim;
 
         size_t input_shape_idx = 0;
         uint64_t uniq_id = 0;
@@ -115,9 +112,8 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                 // -1 because it's a position of ellipses
                 unsigned long num_input_axis_after_ellipses =
                     static_cast<unsigned long>(begin.size() - axis - num_new_axis_after_ellipses - 1);
-                unsigned long num_of_hidden_dims =
-                    static_cast<unsigned long>(input_shape.size() - num_input_axis_after_ellipses
-                                                    - num_input_axis_before_ellipses);
+                unsigned long num_of_hidden_dims = static_cast<unsigned long>(
+                    input_shape.size() - num_input_axis_after_ellipses - num_input_axis_before_ellipses);
                 for (size_t i = 0; i < num_of_hidden_dims; ++i) {
                     axes.emplace_back(uniq_id);
                     uniq_id++;
@@ -139,8 +135,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                     dim.emplace_back(1);
                     int64_t lb = begin[axis];
                     if (lb < 0)
-                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
-                                        static_cast<int64_t>(0));
+                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb, static_cast<int64_t>(0));
                     offset.emplace_back(begin_mask.count(axis) ? 0 : lb);
                     input_shape_idx++;
                 } else {
@@ -152,11 +147,9 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
                     // convert negative indexes to positive
                     if (lb < 0)
-                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
-                                        static_cast<int64_t>(0));
+                        lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb, static_cast<int64_t>(0));
                     if (ub < 0)
-                        ub = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + ub,
-                                        static_cast<int64_t>(0));
+                        ub = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + ub, static_cast<int64_t>(0));
 
                     // apply restrictions when begin or end values more/less than max/min possible values.
                     lb = std::min(static_cast<int64_t>(input_shape[input_shape_idx]), lb);
@@ -226,7 +219,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         auto data_output = op->input_value(0);
         auto data_node_shape = data_output.get_shape();
 
-        std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
+        std::vector<cldnn::tensor::value_type> offset_tensor{0, 0, 0, 0};
         for (size_t i = 0; i < axes.size(); i++) {
             OPENVINO_ASSERT(axes[i] < 4, "[GPU] Invalid crop axis: ", axes[i], " in op ", op->get_friendly_name());
             offset_tensor[axes[i]] = static_cast<cldnn::tensor::value_type>(offset[i]);
@@ -248,7 +241,8 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         if (!shrink_axis_mask.empty()) {
             std::vector<int64_t> output_pattern(output_shape.size());
             auto out_p = output_pattern.begin();
-            for (auto s = output_shape.begin(); s != output_shape.end() && out_p != output_pattern.end(); s++, out_p++) {
+            for (auto s = output_shape.begin(); s != output_shape.end() && out_p != output_pattern.end();
+                 s++, out_p++) {
                 *out_p = *s;
             }
 
@@ -265,7 +259,8 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     std::shared_ptr<cldnn::strided_slice> stridedSlicePrim = nullptr;
-    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() && !output_pshape.is_dynamic() && !p.use_new_shape_infer()) {
+    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() &&
+        !output_pshape.is_dynamic() && !p.use_new_shape_infer()) {
         stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
                                                                   inputs[0],
                                                                   begin,

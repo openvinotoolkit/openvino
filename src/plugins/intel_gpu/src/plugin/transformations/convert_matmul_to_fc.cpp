@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "convert_matmul_to_fc.hpp"
+
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
-#include "convert_matmul_to_fc.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -23,15 +24,16 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
     };
     auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) &&
-               static_rank_gt_1(output) &&
-               pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) { return x != 1; }) <= 2;
+        return ov::op::util::is_on_constant_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
+               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
+                   return x != 1;
+               }) <= 2;
     };
 
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
     auto weights_m = ov::pass::pattern::any_input(weights_path);
-    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
+    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m},
+                                                                     ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -70,7 +72,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes =
+            [&shape_a, &shape_b, &rank_a, &rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
@@ -108,12 +111,13 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          */
         ov::NodeVector new_ops;
 
-        auto create_transpose = [this, &new_ops ](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
+        auto create_transpose = [this, &new_ops](const ov::Output<ov::Node>& node, const std::string& transpose_name) {
             std::vector<size_t> transpose_order(node.get_partial_shape().size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ transpose_order.size() }, transpose_order);
+            auto transpose_const =
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
             auto transpose = std::make_shared<ov::op::v1::Transpose>(node, transpose_const);
             if (!ov::is_type<ov::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
@@ -143,7 +147,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         bool can_reuse_transpose = false;
         if (!matmul->get_transpose_b()) {
             if (transpose_node && transpose_node->get_input_size() == 2) {
-                auto order_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                auto order_constant =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
                 if (order_constant) {
                     std::vector<size_t> order = order_constant->cast_vector<size_t>();
 
@@ -155,8 +160,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
                 }
             }
 
-            fc_input_b = can_reuse_transpose ? transpose_node
-                                             : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+            fc_input_b = can_reuse_transpose
+                             ? transpose_node
+                             : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
         }
 
         // Input normalization
@@ -181,7 +187,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         auto no_bias = std::make_shared<op::Placeholder>();
 
         // Create FullyConnected
-        auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0));
+        auto fc =
+            std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, no_bias, matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+
+#include "utils/cpu_test_utils.hpp"
 
 namespace CPUTestUtils {
 
@@ -55,4 +56,4 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
     return resCPUParams;
 }
 
-} // namespace CPUTestUtils
+}  // namespace CPUTestUtils

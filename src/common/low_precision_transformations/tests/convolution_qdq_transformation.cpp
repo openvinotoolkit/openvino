@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-#include "low_precision/convolution.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/convolution.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -40,11 +38,10 @@ public:
     Values expected;
 };
 
-typedef std::tuple<
-    ov::PartialShape,
-    ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
+typedef std::tuple<ov::PartialShape, ConvolutionQDqTransformationTestValues> ConvolutionQDqTransformationParams;
 
-class ConvolutionQDqTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
+class ConvolutionQDqTransformation : public LayerTransformation,
+                                     public testing::WithParamInterface<ConvolutionQDqTransformationParams> {
 public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
@@ -79,20 +76,16 @@ public:
             testValues.expected.dequantizationAfter);
     }
 
-
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj) {
         auto inputShape = std::get<0>(obj.param);
         ConvolutionQDqTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << toString(testValues.params) << "_" <<
-            inputShape << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
-            testValues.actual.weights.outPrecision << "_" << "{ " <<
-            testValues.actual.weights.values[0] << " }_" <<
-            testValues.actual.fakeQuantizeOnWeights << "_" <<
-            testValues.actual.dequantizationOnWeights;
+        result << toString(testValues.params) << "_" << inputShape << "_"
+               << testValues.actual.precisionBeforeDequantization << "_"
+               << testValues.actual.dequantizationOnActivations << "_" << "_weights_"
+               << testValues.actual.weights.outPrecision << "_" << "{ " << testValues.actual.weights.values[0] << " }_"
+               << testValues.actual.fakeQuantizeOnWeights << "_" << testValues.actual.dequantizationOnWeights;
         return result.str();
     }
 };
@@ -107,10 +100,10 @@ TEST_P(ConvolutionQDqTransformation, CompareFunctions) {
 
 namespace testValues1 {
 const std::vector<ov::PartialShape> suitablePartialShapes = {
-    ov::PartialShape({ 1, 3, 72, 48 }),
-    ov::PartialShape({ 4, 3, 72, 48 }),
-    ov::PartialShape({ -1, 3, 72, 48 }),
-    ov::PartialShape({ -1, -1, -1, -1 }),
+    ov::PartialShape({1, 3, 72, 48}),
+    ov::PartialShape({4, 3, 72, 48}),
+    ov::PartialShape({-1, 3, 72, 48}),
+    ov::PartialShape({-1, -1, -1, -1}),
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
@@ -144,46 +137,36 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //         \FP32      /FP32
     //          \        /
     //           Multiply
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                {ov::element::f32},
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 1.f }, ov::element::f32},
-            { 255ul, Shape({ 1, 1, 1, 1 }), { -1.28f }, { 1.27f }, { -128.f }, { 127.f }, element::i8 },
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
-                {}
-            },
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                {}
-            },
-            { std::vector<float>{ 100.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::i8, true},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{1.f}, ov::element::f32},
+      {255ul, Shape({1, 1, 1, 1}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, element::i8},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{}, {{127.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
+      {{},
+       {{127.f},
+        ov::element::f32,
+        {6, 1, 1, 1},
+        false,
+        1ul,
+        element::i8,
+        false,
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {}},
+      {std::vector<float>{100.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {{}, {}, {{0.0006f}, ov::element::f32, {}}}}},
 
     // Actual:
     //
@@ -213,29 +196,23 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //         \FP32      /FP32
     //          \        /
     //           Multiply
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {},
-            { std::vector<float>{ 2.f }, ov::element::f32},
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {{}, { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {}},
-            {},
-            { std::vector<float>{ -125.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {{}, {}, {{ 0.0002f }, ov::element::f32, {}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32}, {{127.f}, element::f32, {}, false, 1ul, element::u8, true}, {0.02f}},
+      {},
+      {std::vector<float>{2.f}, ov::element::f32},
+      {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{}, {{127.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
+      {},
+      {std::vector<float>{-125.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {{}, {}, {{0.0002f}, ov::element::f32, {}}}}},
 
     // Actual:
     //
@@ -268,29 +245,23 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //         \FP32         /FP32
     //          \           /
     //           Convolution
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
-            { std::vector<float>{ 2.f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {},
-            { std::vector<float>{ -3.75f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32}, {{127.f}, element::f32, {}, false, 1ul, element::u8, true}, {0.02f}},
+      {{ov::element::f32}, {{127.f}, element::f32, {}, false, 1ul, element::i8, true}, {0.03f}},
+      {std::vector<float>{2.f}, ov::element::f32},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32}, {{127.f}, element::f32, {}, false, 1ul, element::u8, true}, {0.02f}},
+      {},
+      {std::vector<float>{-3.75f}, ov::element::f32},
+      {},
+      ov::element::f32,
+      {}}},
 
     // Actual:
     //
@@ -320,46 +291,36 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //         \FP32      /FP32
     //          \        /
     //           Multiply
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
-                {}
-            },
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                {}
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::i8, true},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{}, {{127.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
+      {{},
+       {{127.f},
+        ov::element::f32,
+        {6, 1, 1, 1},
+        false,
+        1ul,
+        element::i8,
+        false,
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {{}, {}, {{0.0006f}, ov::element::f32, {}}}}},
 
     // Actual:
     //
@@ -389,152 +350,100 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     //         \FP32      /FP32
     //          \        /
     //           Multiply
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 1, 3, 1, 1 }, false },
-                {}
-            },
-            {
-                {},
-                { { 127.f }, ov::element::f32, { 6, 1, 1, 1 }, false, 1ul, element::i8, false,
-                  { {ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()} } },
-                {}
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {{}, {}, {{ 0.0006f }, ov::element::f32, {}}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{127.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{}, {{127.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
+      {{},
+       {{127.f},
+        ov::element::f32,
+        {6, 1, 1, 1},
+        false,
+        1ul,
+        element::i8,
+        false,
+        {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+       {}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {{}, {}, {{0.0006f}, ov::element::f32, {}}}}},
     // mixed precision: f16 dequantization constants, f32 dequantization precision
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {{ov::element::f16}, {}, {0.02f}},
-            {{ov::element::f16}, {}, {0.03f}},
-            {std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f16,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {{}, {}, {}},
-            {{}, {}, {}},
-            {std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f16}, {}, {0.02f}},
+      {{ov::element::f16}, {}, {0.03f}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f16,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{}, {}, {}},
+      {{}, {}, {}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {{}, {}, {{0.0006f}, ov::element::f16, {}, false, 1, ov::element::f32}}}},
     // incorrect zero point on activations [not transformed]
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {1000.f}, element::f32, {}, false },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {1000.f}, element::f32, {}, false },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {},
-            { std::vector<float>{ -3.75f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false}, {{1000.f}, element::f32, {}, false}, {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{127.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false}, {{1000.f}, element::f32, {}, false}, {{0.02f}, element::f32, {}, false}},
+      {},
+      {std::vector<float>{-3.75f}, ov::element::f32},
+      {},
+      ov::element::f32,
+      {}}},
     // incorrect zero point on weights [not transformed, weights folded]
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {1000.f}, element::f32, {}, false },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {},
-            { std::vector<float>{ -29.94f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false}, {{1000.f}, element::f32, {}, false}, {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {},
+      {std::vector<float>{-29.94f}, ov::element::f32},
+      {},
+      ov::element::f32,
+      {}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConvolutionQDqTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(suitablePartialShapes),
-        ::testing::ValuesIn(testValues)),
-    ConvolutionQDqTransformation::getTestCaseName);
-} // namespace testValues1
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConvolutionQDqTransformation,
+                         ::testing::Combine(::testing::ValuesIn(suitablePartialShapes),
+                                            ::testing::ValuesIn(testValues)),
+                         ConvolutionQDqTransformation::getTestCaseName);
+}  // namespace testValues1
 
 namespace testValues2 {
 const std::vector<ov::PartialShape> unsuitablePartialShapes = {
@@ -542,48 +451,33 @@ const std::vector<ov::PartialShape> unsuitablePartialShapes = {
 };
 
 const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
-                { {0.03f}, element::f32, {}, false }
-            },
-            { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {
-                { ov::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
-                { {0.02f}, element::f32, {}, false }
-            },
-            {},
-            { std::vector<float>{ -3.75 }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+     // ActualValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::i8, true},
+       {{0.03f}, element::f32, {}, false}},
+      {std::vector<float>{2.f}, ov::element::i8},
+      {},
+      ov::element::f32,
+      {}},
+     // ExpectedValues
+     {ov::element::u8,
+      {{ov::element::f32, false},
+       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+       {{0.02f}, element::f32, {}, false}},
+      {},
+      {std::vector<float>{-3.75}, ov::element::f32},
+      {},
+      ov::element::f32,
+      {}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConvolutionQDqTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(unsuitablePartialShapes),
-        ::testing::ValuesIn(testValues)),
-    ConvolutionQDqTransformation::getTestCaseName);
-} // namespace testValues2
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConvolutionQDqTransformation,
+                         ::testing::Combine(::testing::ValuesIn(unsuitablePartialShapes),
+                                            ::testing::ValuesIn(testValues)),
+                         ConvolutionQDqTransformation::getTestCaseName);
+}  // namespace testValues2

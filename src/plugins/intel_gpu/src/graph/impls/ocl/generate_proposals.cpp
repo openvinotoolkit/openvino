@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "generate_proposals_inst.h"
-#include "generate_proposals/generate_proposals_kernel_selector.h"
 #include "generate_proposals/generate_proposals_kernel_ref.h"
+#include "generate_proposals/generate_proposals_kernel_selector.h"
+#include "generate_proposals_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
-struct generate_proposals_impl
-        : public typed_primitive_impl_ocl<generate_proposals> {
+struct generate_proposals_impl : public typed_primitive_impl_ocl<generate_proposals> {
     using parent = typed_primitive_impl_ocl<generate_proposals>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::generate_proposals_kernel_selector;
@@ -37,12 +35,13 @@ public:
         auto params = get_default_params<kernel_selector::generate_proposals_params>(impl_param);
 
         params.min_size = primitive->min_size;
-        params.nms_threshold  = primitive->nms_threshold;
+        params.nms_threshold = primitive->nms_threshold;
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
         params.normalized = primitive->normalized;
         params.nms_eta = primitive->nms_eta;
-        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
+        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32
+                                                                                : kernel_selector::Datatype::INT64;
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
@@ -53,23 +52,24 @@ public:
 };
 
 namespace detail {
-    attach_generate_proposals_impl::attach_generate_proposals_impl() {
-        implementation_map<generate_proposals>::add(impl_types::ocl,
-                                                    typed_primitive_impl_ocl<generate_proposals>::create<generate_proposals_impl>, {
-                                                            std::make_tuple(data_types::f16, format::bfyx),
-                                                            std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-                                                            std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-                                                            std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+attach_generate_proposals_impl::attach_generate_proposals_impl() {
+    implementation_map<generate_proposals>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<generate_proposals>::create<generate_proposals_impl>,
+        {std::make_tuple(data_types::f16, format::bfyx),
+         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
 
-                                                            std::make_tuple(data_types::f32, format::bfyx),
-                                                            std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-                                                            std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-                                                            std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
-    }
+         std::make_tuple(data_types::f32, format::bfyx),
+         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+         std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)});
+}
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn

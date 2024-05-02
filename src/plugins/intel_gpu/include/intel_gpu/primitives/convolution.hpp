@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "openvino/core/strides.hpp"
-#include "openvino/core/coordinate_diff.hpp"
 #include <vector>
+
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -22,8 +23,8 @@ struct convolution : public primitive_base<convolution> {
     /// @param bias Primitive id containing bias data.
     /// @param w_zero_point Primitive id containing weights zero points.
     /// @param a_zero_point Primitive id containing activations zero points.
-    /// @param compensation Primitive id containing activations precalculated compensations for optimized asymmetric quantization.
-    /// It works as bias, but can be skipped by the kernel if it performs direct zero-points subtraction
+    /// @param compensation Primitive id containing activations precalculated compensations for optimized asymmetric
+    /// quantization. It works as bias, but can be skipped by the kernel if it performs direct zero-points subtraction
     /// @param groups Number of filter groups.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param dilation Defines gaps in the input - dilation rate k=1 is normal convolution,
@@ -33,7 +34,8 @@ struct convolution : public primitive_base<convolution> {
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
-    /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
+    /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I,
+    /// ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
                 const input_info& input,
@@ -51,20 +53,19 @@ struct convolution : public primitive_base<convolution> {
                 data_types output_data_type,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
-              groups(groups),
-              stride(stride),
-              dilation(dilation),
-              padding_begin(padding_begin),
-              padding_end(padding_end),
-              auto_pad(auto_pad),
-              grouped_weights_shape(grouped_weights_shape),
-              weights(weights),
-              bias(bias),
-              weights_zero_points(w_zero_point),
-              activations_zero_points(a_zero_point),
-              compensation(compensation) {
-    }
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+          groups(groups),
+          stride(stride),
+          dilation(dilation),
+          padding_begin(padding_begin),
+          padding_end(padding_end),
+          auto_pad(auto_pad),
+          grouped_weights_shape(grouped_weights_shape),
+          weights(weights),
+          bias(bias),
+          weights_zero_points(w_zero_point),
+          activations_zero_points(a_zero_point),
+          compensation(compensation) {}
 
     /// @brief Constructs convolution primitive.
     /// @param id This primitive id.
@@ -80,7 +81,8 @@ struct convolution : public primitive_base<convolution> {
     /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
-    /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I, ...]
+    /// @param grouped_weights_shape True if weights shape is [G, O, I, ...], and false if it's [O, I, ...] or [G*O, I,
+    /// ...]
     /// @param audo_pad The pad type for automatically computing padding sizes
     convolution(const primitive_id& id,
                 const input_info& input,
@@ -106,8 +108,7 @@ struct convolution : public primitive_base<convolution> {
           bias(bias),
           weights_zero_points(""),
           activations_zero_points(""),
-          compensation("") {
-    }
+          compensation("") {}
 
     /// @brief Constructs convolution primitive.
     /// @param id This primitive id.
@@ -127,7 +128,8 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param bilinear_interpolation_pad If bilinear_interpolation_pad is true and the sampling location is within
-    /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
+    /// one pixel outside of the feature map boundary, then bilinear interpolation is performed on the zero padded
+    /// feature map.
     convolution(const primitive_id& id,
                 const std::vector<input_info>& inputs,
                 const primitive_id& weights,
@@ -141,31 +143,31 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_end,
                 bool bilinear_interpolation_pad = false,
                 const padding& output_padding = padding())
-    : primitive_base(id, inputs, {output_padding}),
-      groups(groups),
-      stride(stride),
-      dilation(dilation),
-      padding_begin(padding_begin),
-      padding_end(padding_end),
-      auto_pad(ov::op::PadType::EXPLICIT),
-      deformable_mode(deformable_mode),
-      deformable_groups(deformable_groups),
-      bilinear_interpolation_pad(bilinear_interpolation_pad),
-      grouped_weights_shape(false),
-      weights(weights),
-      bias(bias),
-      weights_zero_points(""),
-      activations_zero_points(""),
-      compensation("") {
-    }
+        : primitive_base(id, inputs, {output_padding}),
+          groups(groups),
+          stride(stride),
+          dilation(dilation),
+          padding_begin(padding_begin),
+          padding_end(padding_end),
+          auto_pad(ov::op::PadType::EXPLICIT),
+          deformable_mode(deformable_mode),
+          deformable_groups(deformable_groups),
+          bilinear_interpolation_pad(bilinear_interpolation_pad),
+          grouped_weights_shape(false),
+          weights(weights),
+          bias(bias),
+          weights_zero_points(""),
+          activations_zero_points(""),
+          compensation("") {}
 
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups {1};
+    uint32_t groups{1};
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     ov::Strides stride;
-    /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
-    /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
+    /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per
+    /// input, k=4 means skipping 3 pixels. As an example in one dimension, a filter w of size 3 would compute over
+    /// input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. For dilation 2 the filter would
+    /// instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     ov::Strides dilation;
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     ov::CoordinateDiff padding_begin;
@@ -175,20 +177,20 @@ struct convolution : public primitive_base<convolution> {
     ov::op::PadType auto_pad = ov::op::PadType::NOTSET;
 
     /// @param deformable_mode.
-    bool deformable_mode {false};
+    bool deformable_mode{false};
     /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
     /// by channel dimension.
-    uint32_t deformable_groups {1};
-    /// if bilinear_interpolation_pad is true and the sampling location is within one pixel outside of the feature map boundary,
-    /// then bilinear interpolation is performed on the zero padded feature map.
-    /// If bilinear_interpolation_pad is false and the sampling location is within one pixel outside of the feature map boundary,
-    /// then the sampling location shifts to the inner boundary of the feature map.
-    bool bilinear_interpolation_pad {false};
+    uint32_t deformable_groups{1};
+    /// if bilinear_interpolation_pad is true and the sampling location is within one pixel outside of the feature map
+    /// boundary, then bilinear interpolation is performed on the zero padded feature map. If bilinear_interpolation_pad
+    /// is false and the sampling location is within one pixel outside of the feature map boundary, then the sampling
+    /// location shifts to the inner boundary of the feature map.
+    bool bilinear_interpolation_pad{false};
 
-    bool transposed {false};
+    bool transposed{false};
 
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
-    bool grouped_weights_shape {false};
+    bool grouped_weights_shape{false};
     /// @brief Primitive id containing weights data.
     const primitive_id weights;
     /// @brief Primitive id containing bias data.
@@ -227,24 +229,14 @@ struct convolution : public primitive_base<convolution> {
 
         auto rhs_casted = downcast<const convolution>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(stride) &&
-               cmp_fields(dilation) &&
-               cmp_fields(groups) &&
-               cmp_fields(deformable_groups) &&
-               cmp_fields(padding_begin) &&
-               cmp_fields(padding_end) &&
-               cmp_fields(auto_pad) &&
-               cmp_fields(deformable_mode) &&
-               cmp_fields(bilinear_interpolation_pad) &&
-               cmp_fields(transposed) &&
-               cmp_fields(grouped_weights_shape) &&
-               cmp_fields(weights.empty()) &&
-               cmp_fields(bias.empty()) &&
-               cmp_fields(weights_zero_points.empty()) &&
-               cmp_fields(activations_zero_points.empty()) &&
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(stride) && cmp_fields(dilation) && cmp_fields(groups) && cmp_fields(deformable_groups) &&
+               cmp_fields(padding_begin) && cmp_fields(padding_end) && cmp_fields(auto_pad) &&
+               cmp_fields(deformable_mode) && cmp_fields(bilinear_interpolation_pad) && cmp_fields(transposed) &&
+               cmp_fields(grouped_weights_shape) && cmp_fields(weights.empty()) && cmp_fields(bias.empty()) &&
+               cmp_fields(weights_zero_points.empty()) && cmp_fields(activations_zero_points.empty()) &&
                cmp_fields(compensation.empty());
-        #undef cmp_fields
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -322,25 +314,26 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                       tensor kernel_size,
                       bool bilinear_interpolation_pad,
                       const padding& output_padding = padding())
-    : primitive_base(id, inputs, {output_padding}),
-      pad(pad),
-      stride(stride),
-      dilation(dilation),
-      output_size(output_size),
-      kernel_size(kernel_size),
-      groups(groups),
-      deformable_groups(deformable_groups),
-      padding_begin(stride.size(), 0),
-      padding_end(stride.size(), 0),
-      bilinear_interpolation_pad {bilinear_interpolation_pad} {}
+        : primitive_base(id, inputs, {output_padding}),
+          pad(pad),
+          stride(stride),
+          dilation(dilation),
+          output_size(output_size),
+          kernel_size(kernel_size),
+          groups(groups),
+          deformable_groups(deformable_groups),
+          padding_begin(stride.size(), 0),
+          padding_end(stride.size(), 0),
+          bilinear_interpolation_pad{bilinear_interpolation_pad} {}
 
     /// @brief Defines logical pad value added to input tensor.
     ov::CoordinateDiff pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     ov::Strides stride;
-    /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per input, k=4 means skipping 3 pixels.
-    /// As an example in one dimension, a filter w of size 3 would compute over input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1.
-    /// For dilation 2 the filter would instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
+    /// @brief Defines gaps in the input - dilation rate k=1 is normal convolution, k=2 means skipping one pixel per
+    /// input, k=4 means skipping 3 pixels. As an example in one dimension, a filter w of size 3 would compute over
+    /// input x the following: w[0]*x[0] + w[1]*x[1] + w[2]*x[2] for dilation of 1. For dilation 2 the filter would
+    /// instead compute w[0]*x[0] + w[1]*x[2] + w[2]*x[4].
     ov::Strides dilation;
     /// @brief Size of output tensor.
     tensor output_size;
@@ -357,7 +350,7 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     ov::CoordinateDiff padding_end;
     /// @brief if bilinear_interpolation_pad is true and the sampling location is within one pixel outside
     /// of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
-    bool bilinear_interpolation_pad {false};
+    bool bilinear_interpolation_pad{false};
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -379,17 +372,11 @@ struct deformable_interp : public primitive_base<deformable_interp> {
 
         auto rhs_casted = downcast<const deformable_interp>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(pad) &&
-               cmp_fields(stride) &&
-               cmp_fields(dilation) &&
-               cmp_fields(kernel_size) &&
-               cmp_fields(groups) &&
-               cmp_fields(deformable_groups) &&
-               cmp_fields(padding_begin) &&
-               cmp_fields(padding_end) &&
-               cmp_fields(bilinear_interpolation_pad);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) && cmp_fields(stride) && cmp_fields(dilation) && cmp_fields(kernel_size) &&
+               cmp_fields(groups) && cmp_fields(deformable_groups) && cmp_fields(padding_begin) &&
+               cmp_fields(padding_end) && cmp_fields(bilinear_interpolation_pad);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -433,11 +420,11 @@ struct deformable_conv : public primitive_base<deformable_conv> {
                     uint32_t groups,
                     tensor output_size,
                     const padding& output_padding = padding())
-    : primitive_base(id, {input}, {output_padding}),
-      output_size(output_size),
-      groups(groups),
-      weights(weights),
-      bias(biases) {}
+        : primitive_base(id, {input}, {output_padding}),
+          output_size(output_size),
+          groups(groups),
+          weights(weights),
+          bias(biases) {}
 
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
@@ -462,8 +449,7 @@ struct deformable_conv : public primitive_base<deformable_conv> {
 
         auto rhs_casted = downcast<const deformable_conv>(rhs);
 
-        return groups == rhs_casted.groups &&
-               weights.size() == rhs_casted.weights.size() &&
+        return groups == rhs_casted.groups && weights.size() == rhs_casted.weights.size() &&
                bias.size() == rhs_casted.bias.size();
     }
 
@@ -486,8 +472,10 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
         ret.reserve(weights.size() + bias.size());
-        for (auto& w : weights) ret.push_back(w);
-        for (auto& b : bias) ret.push_back(b);
+        for (auto& w : weights)
+            ret.push_back(w);
+        for (auto& b : bias)
+            ret.push_back(b);
         return ret;
     }
 };

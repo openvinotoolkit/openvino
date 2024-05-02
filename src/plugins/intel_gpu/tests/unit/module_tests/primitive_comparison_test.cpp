@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/range.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
-#include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/range.hpp>
+
+#include "test_utils.h"
 
 namespace cldnn {
 // For gtest NE compare, class defines only `==` operator. Required when building using C++20
@@ -32,13 +32,17 @@ TEST(primitive_comparison, common_params) {
 
     auto range_prim = range("range", def_inputs, layout{def_shape, def_data_type, def_format, def_padding});
 
-    auto range_prim_inputs = range("range", {input_info("input0"), input_info("input1")}, layout{def_shape, def_data_type, def_format, def_padding});
+    auto range_prim_inputs = range("range",
+                                   {input_info("input0"), input_info("input1")},
+                                   layout{def_shape, def_data_type, def_format, def_padding});
 
     auto range_prim_data_type = range("range", def_inputs, layout{def_shape, data_types::f16, def_format, def_padding});
 
-    auto range_prim_padding_values = range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 2})});
+    auto range_prim_padding_values =
+        range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 2})});
 
-    auto range_prim_padding_fill_value = range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 1}, 1.f)});
+    auto range_prim_padding_fill_value =
+        range("range", def_inputs, layout{def_shape, def_data_type, def_format, padding({1, 1, 1, 1}, 1.f)});
 
     ASSERT_NE(range_prim, fc_prim);
     ASSERT_NE(range_prim, range_prim_inputs);
@@ -48,20 +52,28 @@ TEST(primitive_comparison, common_params) {
 }
 
 TEST(primitive_comparison, convolution) {
-    auto conv_prim = convolution("conv", input_info("input"), "weights", "bias", 1,
-                                 {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_prim =
+        convolution("conv", input_info("input"), "weights", "bias", 1, {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_eq = convolution("conv_eq", input_info("input_eq"), "weights_eq", "bias_eq", 1,
-                                    {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_prim_eq = convolution("conv_eq",
+                                    input_info("input_eq"),
+                                    "weights_eq",
+                                    "bias_eq",
+                                    1,
+                                    {2, 2},
+                                    {1, 1},
+                                    {0, 0},
+                                    {0, 0},
+                                    false);
 
-    auto conv_prim_stride = convolution("conv", input_info("input"), "weights", "bias", 1,
-                                        {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_prim_stride =
+        convolution("conv", input_info("input"), "weights", "bias", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_no_bias = convolution("conv", input_info("input"), {"weights"}, {}, 1,
-                                         {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
+    auto conv_prim_no_bias =
+        convolution("conv", input_info("input"), {"weights"}, {}, 1, {2, 2}, {1, 1}, {0, 0}, {0, 0}, false);
 
-    auto conv_prim_grouped = convolution("conv", input_info("input"), "weights", "bias", 2,
-                                         {2, 2}, {1, 1}, {0, 0}, {0, 0}, true);
+    auto conv_prim_grouped =
+        convolution("conv", input_info("input"), "weights", "bias", 2, {2, 2}, {1, 1}, {0, 0}, {0, 0}, true);
 
     ASSERT_EQ(conv_prim, conv_prim_eq);
     ASSERT_NE(conv_prim, conv_prim_stride);
@@ -97,10 +109,14 @@ TEST(primitive_comparison, fully_connected) {
 
 TEST(primitive_comparison, gather) {
     auto gather_prim = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_eq = gather("gather_eq", input_info("input0_eq"), input_info("input1_eq"), 2, {}, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_axis = gather("gather", input_info("input0"), input_info("input1"), 3, {}, {1, 3, 224, 224}, 1, true);
-    auto gather_prim_batch_dim = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 2, true);
-    auto gather_prim_support_neg_ind = gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 1, false);
+    auto gather_prim_eq =
+        gather("gather_eq", input_info("input0_eq"), input_info("input1_eq"), 2, {}, {1, 3, 224, 224}, 1, true);
+    auto gather_prim_axis =
+        gather("gather", input_info("input0"), input_info("input1"), 3, {}, {1, 3, 224, 224}, 1, true);
+    auto gather_prim_batch_dim =
+        gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 2, true);
+    auto gather_prim_support_neg_ind =
+        gather("gather", input_info("input0"), input_info("input1"), 2, {}, {1, 3, 224, 224}, 1, false);
 
     ASSERT_EQ(gather_prim, gather_prim_eq);
     ASSERT_NE(gather_prim, gather_prim_axis);

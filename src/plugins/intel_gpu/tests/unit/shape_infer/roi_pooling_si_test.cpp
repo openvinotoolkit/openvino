@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/roi_pooling.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "roi_pooling_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "roi_pooling_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -32,7 +29,7 @@ struct roi_pooling_test_params {
     layout expected_layout;
 };
 
-class roi_pooling_test : public testing::TestWithParam<roi_pooling_test_params> { };
+class roi_pooling_test : public testing::TestWithParam<roi_pooling_test_params> {};
 
 TEST_P(roi_pooling_test, shape_infer) {
     auto p = GetParam();
@@ -49,7 +46,9 @@ TEST_P(roi_pooling_test, shape_infer) {
                                                           p.pooled_width,
                                                           p.pooled_height,
                                                           p.spatial_scale,
-                                                          0, 1, 1);
+                                                          0,
+                                                          1,
+                                                          1);
 
     cldnn::program prog(engine);
 
@@ -60,26 +59,29 @@ TEST_P(roi_pooling_test, shape_infer) {
     program_wrapper::add_connection(prog, input0_layout_node, roi_pooling_node);
     program_wrapper::add_connection(prog, input1_layout_node, roi_pooling_node);
 
-    auto res = roi_pooling_inst::calc_output_layouts<ov::PartialShape>(roi_pooling_node, *roi_pooling_node.get_kernel_impl_params());
+    auto res = roi_pooling_inst::calc_output_layouts<ov::PartialShape>(roi_pooling_node,
+                                                                       *roi_pooling_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, roi_pooling_test,
-    testing::ValuesIn(std::vector<roi_pooling_test_params>{
-        {
-            layout{ov::PartialShape{1, 3, 8, 8}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3, 5}, data_types::f32, format::bfyx},
-            3, 3, 0.625f,
-            layout{ov::PartialShape{3, 3, 3, 3}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{-1 , 5}, data_types::f32, format::bfyx},
-            5, 5, 1.f,
-            layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 5}, data_types::f32, format::bfyx}
-        }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         roi_pooling_test,
+                         testing::ValuesIn(std::vector<roi_pooling_test_params>{
+                             {layout{ov::PartialShape{1, 3, 8, 8}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3, 5}, data_types::f32, format::bfyx},
+                              3,
+                              3,
+                              0.625f,
+                              layout{ov::PartialShape{3, 3, 3, 3}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{-1, 5}, data_types::f32, format::bfyx},
+                              5,
+                              5,
+                              1.f,
+                              layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 5},
+                                     data_types::f32,
+                                     format::bfyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

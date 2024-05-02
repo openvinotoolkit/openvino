@@ -17,9 +17,7 @@ const cacheLocalPath = path.join(tempDir, 'cache_local');
 const cacheRemotePath = path.join(tempDir, 'cache_remote');
 
 // Clean up mock file system after each test
-afterEach(() => {
-  fs.rmSync(tempDir, { recursive: true });
-});
+afterEach(() => { fs.rmSync(tempDir, {recursive : true}); });
 
 // Mock the action's main function
 const runMock = jest.spyOn(saveImpl, 'save');
@@ -31,8 +29,8 @@ describe('save', () => {
     // Set up mock file system before each test
 
     // Create cache pathes
-    fs.mkdirSync(cacheLocalPath, { recursive: true });
-    fs.mkdirSync(cacheRemotePath, { recursive: true });
+    fs.mkdirSync(cacheLocalPath, {recursive : true});
+    fs.mkdirSync(cacheRemotePath, {recursive : true});
 
     // Define test files
     const file1Path = path.join(cacheLocalPath, 'file1.txt');
@@ -62,14 +60,12 @@ describe('save', () => {
 
     expect(runMock).toHaveReturned();
 
-    expect(setOutputMock).toHaveBeenNthCalledWith(
-      1,
-      'cache-file',
-      'cache.cache'
-    );
+    expect(setOutputMock)
+        .toHaveBeenNthCalledWith(1, 'cache-file', 'cache.cache');
     expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
 
-    expect(fs.existsSync(`${cacheRemotePath}/cache.cache`)).toBe(true); // Check if the tar file was created
+    expect(fs.existsSync(`${cacheRemotePath}/cache.cache`))
+        .toBe(true); // Check if the tar file was created
   });
 
   it('Cache files: absent local cache dir', async () => {
@@ -90,7 +86,8 @@ describe('save', () => {
 
     await saveImpl.save();
     expect(runMock).toHaveReturned();
-    expect(fs.existsSync(`${cacheRemotePath}/cache.cache`)).toBe(false); // Check that the tar file was not created
+    expect(fs.existsSync(`${cacheRemotePath}/cache.cache`))
+        .toBe(false); // Check that the tar file was not created
   });
 
   it('Cache files: absent remote cache dir', async () => {
@@ -112,13 +109,11 @@ describe('save', () => {
     await saveImpl.save();
 
     expect(runMock).toHaveReturned();
-    expect(setOutputMock).toHaveBeenNthCalledWith(
-      1,
-      'cache-file',
-      'cache.cache'
-    );
+    expect(setOutputMock)
+        .toHaveBeenNthCalledWith(1, 'cache-file', 'cache.cache');
     expect(setOutputMock).toHaveBeenNthCalledWith(2, 'cache-hit', true);
-    expect(fs.existsSync(`${cacheRemotePathAbsent}/cache.cache`)).toBe(true); // Check if the tar file was created
+    expect(fs.existsSync(`${cacheRemotePathAbsent}/cache.cache`))
+        .toBe(true); // Check if the tar file was created
   });
 
   it('Cache files: key is not set', async () => {

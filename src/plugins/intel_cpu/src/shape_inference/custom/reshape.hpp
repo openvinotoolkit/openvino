@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -14,7 +15,7 @@ class ReshapeShapeInfer : public ShapeInferEmptyPads {
 public:
     ReshapeShapeInfer(bool specialZero) : m_specialZero(specialZero) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
@@ -27,7 +28,7 @@ class SqueezeShapeInfer : public ShapeInferEmptyPads {
 public:
     SqueezeShapeInfer() {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
@@ -37,7 +38,7 @@ class UnsqueezeShapeInfer : public ShapeInferEmptyPads {
 public:
     UnsqueezeShapeInfer() {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     port_mask_t get_port_mask() const override {
         return PortMask(1);
     }
@@ -51,7 +52,6 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

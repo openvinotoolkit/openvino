@@ -50,16 +50,25 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology.add(reorder("reordered_input", input_info("input"), fmt, ov::element::from<I>()));
         topology.add(reorder("reordered_buckets", input_info("buckets"), fmt, ov::element::from<B>()));
 
-        topology.add(
-            bucketize("bucketize_right_bound", { input_info("reordered_input"), input_info("buckets") }, ov::element::from<O>(), true));
-        topology.add(
-            bucketize("bucketize_left_bound", { input_info("reordered_input"), input_info("buckets") }, ov::element::from<O>(), false));
-        topology.add(
-            reorder("plane_bucketize_right_bound", input_info("bucketize_right_bound"), format::bfyx, ov::element::from<O>()));
-        topology.add(
-            reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, ov::element::from<O>()));
+        topology.add(bucketize("bucketize_right_bound",
+                               {input_info("reordered_input"), input_info("buckets")},
+                               ov::element::from<O>(),
+                               true));
+        topology.add(bucketize("bucketize_left_bound",
+                               {input_info("reordered_input"), input_info("buckets")},
+                               ov::element::from<O>(),
+                               false));
+        topology.add(reorder("plane_bucketize_right_bound",
+                             input_info("bucketize_right_bound"),
+                             format::bfyx,
+                             ov::element::from<O>()));
+        topology.add(reorder("plane_bucketize_left_bound",
+                             input_info("bucketize_left_bound"),
+                             format::bfyx,
+                             ov::element::from<O>()));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("buckets", buckets);
@@ -145,12 +154,13 @@ INSTANTIATE_BUCKETIZE_TEST_SUITE(float, float16, int64_t, getBucketizeFloatingPo
 INSTANTIATE_BUCKETIZE_TEST_SUITE(float16, float, int32_t, getBucketizeFloatingPointParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(float, float, int64_t, getBucketizeFloatingPointParams)
 INSTANTIATE_BUCKETIZE_TEST_SUITE(float16, float16, int32_t, getBucketizeFloatingPointParams)
-INSTANTIATE_TEST_SUITE_P(export_import,
-                         bucketize_test_float16float16int32_t,
-                         testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<ov::float16, ov::float16, int32_t>()),
-                                          testing::Values(layout_formats[0]),
-                                          testing::Values(true)),
-                         bucketize_test_float16float16int32_t::PrintToStringParamName);
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    bucketize_test_float16float16int32_t,
+    testing::Combine(testing::ValuesIn(getBucketizeFloatingPointParams<ov::float16, ov::float16, int32_t>()),
+                     testing::Values(layout_formats[0]),
+                     testing::Values(true)),
+    bucketize_test_float16float16int32_t::PrintToStringParamName);
 
 #undef INSTANTIATE_BUCKETIZE_TEST_SUITE
 

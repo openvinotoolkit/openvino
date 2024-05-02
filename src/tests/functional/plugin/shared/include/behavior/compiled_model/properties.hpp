@@ -5,25 +5,23 @@
 #pragma once
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-
-#include "common_test_utils/test_assertions.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/unicode_utils.hpp"
-#include "common_test_utils/subgraph_builders/single_conv.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-#define ASSERT_EXEC_METRIC_SUPPORTED(property)                                                \
-    {                                                                                           \
-        auto properties = compiled_model.get_property(ov::supported_properties);\
-        auto it = std::find(properties.begin(), properties.end(), property);                        \
-        ASSERT_NE(properties.end(), it);                                                           \
+#define ASSERT_EXEC_METRIC_SUPPORTED(property)                                   \
+    {                                                                            \
+        auto properties = compiled_model.get_property(ov::supported_properties); \
+        auto it = std::find(properties.begin(), properties.end(), property);     \
+        ASSERT_NE(properties.end(), it);                                         \
     }
-
 
 class OVCompiledModelPropertiesBase : public OVCompiledNetworkTestBase {
 public:
@@ -33,7 +31,7 @@ public:
 };
 
 class OVClassCompiledModelEmptyPropertiesTests : public testing::WithParamInterface<std::string>,
-                                            public OVCompiledModelPropertiesBase {
+                                                 public OVCompiledModelPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
@@ -43,7 +41,7 @@ using OVCompiledModelPropertiesDefaultSupportedTests = OVClassCompiledModelEmpty
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;
 class OVClassCompiledModelPropertiesTests : public testing::WithParamInterface<PropertiesParams>,
-                                       public OVCompiledModelPropertiesBase {
+                                            public OVCompiledModelPropertiesBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
@@ -59,10 +57,10 @@ using OVClassCompiledModelPropertiesIncorrectTests = OVClassCompiledModelPropert
 using OVCompiledModelIncorrectDevice = OVClassBaseTestP;
 using OVClassCompileModelWithCorrectPropertiesTest = OVClassCompiledModelPropertiesTests;
 
-class OVClassCompiledModelSetCorrectConfigTest :
-        public OVClassNetworkTest,
-        public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
-        public OVCompiledNetworkTestBase {
+class OVClassCompiledModelSetCorrectConfigTest
+    : public OVClassNetworkTest,
+      public ::testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>>,
+      public OVCompiledNetworkTestBase {
 protected:
     std::string configKey;
     ov::Any configValue;
@@ -103,12 +101,11 @@ public:
 
 using OVClassCompiledModelGetPropertyTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
 
-using PriorityParams = std::tuple<
-        std::string,            // Device name
-        ov::AnyMap              // device priority Configuration key
->;
+using PriorityParams = std::tuple<std::string,  // Device name
+                                  ov::AnyMap    // device priority Configuration key
+                                  >;
 class OVClassCompiledModelGetPropertyTest_Priority : public ::testing::WithParamInterface<PriorityParams>,
-                                                       public OVCompiledNetworkTestBase {
+                                                     public OVCompiledNetworkTestBase {
 protected:
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> simpleNetwork;

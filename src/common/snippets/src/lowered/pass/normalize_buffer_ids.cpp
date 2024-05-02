@@ -4,16 +4,17 @@
 
 #include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 
-#include "snippets/op/buffer.hpp"
 #include "snippets/itt.hpp"
-
+#include "snippets/op/buffer.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool NormalizeBufferIDs::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool NormalizeBufferIDs::run(lowered::LinearIR& linear_ir,
+                             lowered::LinearIR::constExprIt begin,
+                             lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::NormalizeBufferIDs");
 
     // [ original Buffer ID -> normalized ]
@@ -33,7 +34,7 @@ bool NormalizeBufferIDs::run(lowered::LinearIR& linear_ir, lowered::LinearIR::co
     return buffer_ids.size();
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

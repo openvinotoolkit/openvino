@@ -3,18 +3,19 @@
 //
 
 #include "low_precision_transformations/fake_quantize_precision_selection_transformation.hpp"
-#include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
+#include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
+std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(
+    const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -39,11 +40,9 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     function = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         netPrecision,
         inputShape,
-        {
-            testValues.operationBeforeLimitedOperationIsPrecisionTransparent,
-            testValues.actual.fakeQuantizeOnData,
-            testValues.actual.fakeQuantizeOnWeights
-        });
+        {testValues.operationBeforeLimitedOperationIsPrecisionTransparent,
+         testValues.actual.fakeQuantizeOnData,
+         testValues.actual.fakeQuantizeOnWeights});
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

@@ -25,7 +25,7 @@ public:
     static std::shared_ptr<Kernel> make_kernel(const lowered::LinearIR& region);
 
     lowered::LinearIR region;
-    const void *compile_params = nullptr;
+    const void* compile_params = nullptr;
 };
 
 class KernelStatic : public Kernel {
@@ -44,6 +44,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterUpdateParamsTuple> &obj) {
+std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterUpdateParamsTuple>& obj) {
     auto shapes_ss = [](const InputShape& shape) {
         std::stringstream ss;
         ss << "_IS=(" << ov::test::utils::partialShape2str({shape.first}) << ")_TS=";
@@ -52,10 +52,10 @@ void ScatterUpdateLayerTest::SetUp() {
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.at(0));
     auto update_param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.at(1));
     auto indices_const = std::make_shared<ov::op::v0::Constant>(indices_type, indices_shape, indices_value);
-    auto axis_const =
-        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto axis_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto scatter = std::make_shared<ov::op::v3::ScatterUpdate>(param, indices_const, update_param, axis_const);
-    function = std::make_shared<ov::Model>(scatter->outputs(), ov::ParameterVector{param, update_param}, "ScatterUpdate");
+    function =
+        std::make_shared<ov::Model>(scatter->outputs(), ov::ParameterVector{param, update_param}, "ScatterUpdate");
 }
 }  // namespace test
 }  // namespace ov

@@ -8,10 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/pass/pass.hpp"
 #include "low_precision/common/port_quantization_granularity_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
@@ -25,8 +25,8 @@ class LP_TRANSFORMATIONS_API MarkupQuantizationGranularity;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief MarkupPerTensorQuantization transformation marks operations as required per-tensor quantization according to the
- * provided restrictions.
+ * @brief MarkupPerTensorQuantization transformation marks operations as required per-tensor quantization according to
+ * the provided restrictions.
  *
  * For more details about the transformation, refer to
  * [MarkupPerTensorQuantization](@ref openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization) page
@@ -37,7 +37,8 @@ public:
     class PerTensorQuantization {
     public:
         explicit PerTensorQuantization(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const std::string version_id, const std::vector<PortQuantizationGranularityRestriction>& restrictions) {
+        void add(const std::string version_id,
+                 const std::vector<PortQuantizationGranularityRestriction>& restrictions) {
             portsByVersion.emplace(version_id, restrictions);
         }
 

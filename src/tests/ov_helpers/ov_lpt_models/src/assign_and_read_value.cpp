@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_lpt_models/assign_and_read_value.hpp"
+
 #include <memory>
 #include <vector>
 
-
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/op/util/assign_base.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
-#include "openvino/op/util/variable.hpp"
-#include "openvino/op/util/assign_base.hpp"
-
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_lpt_models/assign_and_read_value.hpp"
-#include "low_precision/network_helper.hpp"
-#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace builder {
@@ -25,15 +24,16 @@ using ov::op::util::Variable;
 using ov::op::util::VariableInfo;
 
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
-        const ov::PartialShape& inputShape,
-        const element::Type& inputPrecision,
-        const ov::element::Type precisionBeforeDequantization,
-        const size_t opsetVersion,
-        const bool FQAfterReadValue,
-        const std::vector<float>& constantValue,
-        const ov::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::PartialShape& inputShape,
+    const element::Type& inputPrecision,
+    const ov::element::Type precisionBeforeDequantization,
+    const size_t opsetVersion,
+    const bool FQAfterReadValue,
+    const std::vector<float>& constantValue,
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
-    const auto defaultConstant = std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.get_shape(), constantValue);
+    const auto defaultConstant =
+        std::make_shared<ov::opset1::Constant>(inputPrecision, inputShape.get_shape(), constantValue);
     const auto variable = std::make_shared<Variable>(VariableInfo{inputShape.get_shape(), inputPrecision, "id"});
     std::shared_ptr<Node> readValue;
     if (opsetVersion == 6) {
@@ -66,18 +66,19 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
     assign->add_control_dependency(readValue);
     add->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
-    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(add)};
+    ov::SinkVector sinks{ov::as_type_ptr<ov::op::Sink>(assign)};
+    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{input}, "AssignAndReadValueFunction");
 }
 
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
-        const size_t opsetVersion) {
+    const ov::element::Type precision,
+    const ov::PartialShape& inputShape,
+    const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+    const size_t opsetVersion) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
-    const auto defaultConstant = std::make_shared<ov::opset1::Constant>(precision, inputShape.get_shape(), std::vector<float>{0});
+    const auto defaultConstant =
+        std::make_shared<ov::opset1::Constant>(precision, inputShape.get_shape(), std::vector<float>{0});
     const auto variable = std::make_shared<Variable>(VariableInfo{inputShape.get_shape(), precision, "id"});
     std::shared_ptr<Node> readValue;
     if (opsetVersion == 6) {
@@ -92,16 +93,15 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
                                                    ov::element::f32,
                                                    FakeQuantizeOnData{256ul, Shape{}, {0}, {2.55f}, {0}, {2.55f}});
     const auto add = std::make_shared<ov::opset1::Add>(lastNode, input);
-    const auto FQAfterAdd = fakeQuantize.empty() ? nullptr :
-                              ov::test::utils::make_fake_quantize(
-                                      add,
-                                      precision,
-                                      fakeQuantize.quantizationLevel,
-                                      fakeQuantize.constantShape,
-                                      fakeQuantize.inputLowValues,
-                                      fakeQuantize.inputHighValues,
-                                      fakeQuantize.outputLowValues,
-                                      fakeQuantize.outputHighValues);
+    const auto FQAfterAdd = fakeQuantize.empty() ? nullptr
+                                                 : ov::test::utils::make_fake_quantize(add,
+                                                                                       precision,
+                                                                                       fakeQuantize.quantizationLevel,
+                                                                                       fakeQuantize.constantShape,
+                                                                                       fakeQuantize.inputLowValues,
+                                                                                       fakeQuantize.inputHighValues,
+                                                                                       fakeQuantize.outputLowValues,
+                                                                                       fakeQuantize.outputHighValues);
     std::shared_ptr<Node> assign;
     if (opsetVersion == 6) {
         assign = std::make_shared<ov::opset6::Assign>(FQAfterAdd, variable);
@@ -111,9 +111,9 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getOriginal(
     assign->add_control_dependency(readValue);
     add->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
-    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(add)};
+    ov::SinkVector sinks{ov::as_type_ptr<ov::op::Sink>(assign)};
+    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{input}, "AssignAndReadValueFunction");
 }
 
 std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
@@ -130,7 +130,8 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
     if (constantValue != std::vector<float>{0}) {
         constantPrecision = inputPrecision;
     }
-    const auto defaultConstant = std::make_shared<ov::opset1::Constant>(constantPrecision, inputShape.get_shape(), constantValue);
+    const auto defaultConstant =
+        std::make_shared<ov::opset1::Constant>(constantPrecision, inputShape.get_shape(), constantValue);
     const auto variable = std::make_shared<Variable>(VariableInfo{inputShape.get_shape(), constantPrecision, "id"});
     std::shared_ptr<Node> readValue;
     if (opsetVersion == 6) {
@@ -183,9 +184,9 @@ std::shared_ptr<ov::Model> AssignAndReadValueFunction::getReference(
     assign->add_control_dependency(readValue);
     add->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(add) };
-    ov::SinkVector sinks{ ov::as_type_ptr<ov::op::Sink>(assign) };
-    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{ input }, "AssignAndReadValueFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(add)};
+    ov::SinkVector sinks{ov::as_type_ptr<ov::op::Sink>(assign)};
+    return std::make_shared<ov::Model>(results, sinks, ov::ParameterVector{input}, "AssignAndReadValueFunction");
 }
 
 }  // namespace subgraph

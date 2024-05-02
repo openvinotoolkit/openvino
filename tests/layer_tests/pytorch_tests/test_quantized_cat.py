@@ -19,7 +19,9 @@ class aten_quantized_cat(torch.nn.Module):
     def forward(self, inp):
         x = torch.quantize_per_tensor(inp, 1.0, 0, self.dtype)
         y = torch.quantize_per_tensor(inp, 1.0, 0, self.dtype)
-        return torch.dequantize(torch.ops.quantized.cat([x, y], 1, self.scale, self.zero_point))
+        return torch.dequantize(
+            torch.ops.quantized.cat([x, y], 1, self.scale, self.zero_point)
+        )
 
 
 class aten_append_quantized_cat(torch.nn.Module):
@@ -34,7 +36,9 @@ class aten_append_quantized_cat(torch.nn.Module):
         list = []
         list.append(x)
         list.append(x)
-        return torch.dequantize(torch.ops.quantized.cat(list, 1, self.scale, self.zero_point))
+        return torch.dequantize(
+            torch.ops.quantized.cat(list, 1, self.scale, self.zero_point)
+        )
 
 
 class aten_loop_append_quantized_cat(torch.nn.Module):
@@ -49,7 +53,9 @@ class aten_loop_append_quantized_cat(torch.nn.Module):
         list = []
         for i in range(3):
             list.append(x)
-        return torch.dequantize(torch.ops.quantized.cat(list, 1, self.scale, self.zero_point))
+        return torch.dequantize(
+            torch.ops.quantized.cat(list, 1, self.scale, self.zero_point)
+        )
 
 
 class aten_add_quantized_cat(torch.nn.Module):
@@ -63,7 +69,9 @@ class aten_add_quantized_cat(torch.nn.Module):
         x = torch.quantize_per_tensor(x, 1.0, 0, self.dtype)
         list = [x, x]
         list2 = list + [x, x]
-        return torch.dequantize(torch.ops.quantized.cat(list2, 1, self.scale, self.zero_point))
+        return torch.dequantize(
+            torch.ops.quantized.cat(list2, 1, self.scale, self.zero_point)
+        )
 
 
 class TestQuantizedCat(PytorchLayerTest):
@@ -75,9 +83,13 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122715')
-    def test_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122715",
+    )
+    def test_quantized_cat(
+        self, scale, zero_point, dtype, ie_device, precision, ir_version
+    ):
         self._test(
             aten_quantized_cat(scale, zero_point, dtype),
             None,
@@ -95,9 +107,13 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122715')
-    def test_append_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122715",
+    )
+    def test_append_quantized_cat(
+        self, scale, zero_point, dtype, ie_device, precision, ir_version
+    ):
         self._test(
             aten_append_quantized_cat(scale, zero_point, dtype),
             None,
@@ -118,7 +134,9 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.xfail(
         reason="Transformation RemoveMultiSubGraphOpDanglingParamsResults doesn't support removing unused merged inputs, ticket 112833."
     )
-    def test_loop_append_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+    def test_loop_append_quantized_cat(
+        self, scale, zero_point, dtype, ie_device, precision, ir_version
+    ):
         self._test(
             aten_loop_append_quantized_cat(scale, zero_point, dtype),
             None,
@@ -136,9 +154,13 @@ class TestQuantizedCat(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.quint8, torch.qint8])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122715')
-    def test_add_quantized_cat(self, scale, zero_point, dtype, ie_device, precision, ir_version):
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122715",
+    )
+    def test_add_quantized_cat(
+        self, scale, zero_point, dtype, ie_device, precision, ir_version
+    ):
         self._test(
             aten_add_quantized_cat(scale, zero_point, dtype),
             None,

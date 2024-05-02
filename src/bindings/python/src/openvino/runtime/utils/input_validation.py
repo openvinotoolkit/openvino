@@ -8,7 +8,6 @@ import logging
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 
 import numpy as np
-
 from openvino.runtime.exceptions import UserInputError
 
 log = logging.getLogger(__name__)
@@ -50,7 +49,9 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
     return True
 
 
-def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, required=False):
+def check_valid_attribute(
+    op_name, attr_dict, attr_key, val_type, cond=None, required=False
+):
     # type: (str, dict, str, Type, Optional[Callable[[Any], bool]], Optional[bool]) -> bool
     """Check whether specified attribute satisfies given criteria.
 

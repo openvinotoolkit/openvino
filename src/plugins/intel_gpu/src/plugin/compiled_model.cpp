@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/async_infer_request.hpp"
 
 #include <sys/types.h>
+
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/plugin/async_infer_request.hpp"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -42,18 +42,15 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
-    : ov::ICompiledModel(model,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name(model->get_friendly_name())
-    , m_inputs(ov::ICompiledModel::inputs())
-    , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(false) {
+    : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
+          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(model->get_friendly_name()),
+      m_inputs(ov::ICompiledModel::inputs()),
+      m_outputs(ov::ICompiledModel::outputs()),
+      m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -66,16 +63,13 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
                              const bool loaded_from_cache)
-    : ov::ICompiledModel(nullptr,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name("")
-    , m_loaded_from_cache(loaded_from_cache) {
+    : ov::ICompiledModel(nullptr, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
+          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(""),
+      m_loaded_from_cache(loaded_from_cache) {
     {
         size_t num_params;
         ib >> num_params;
@@ -158,10 +152,11 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
     auto sync_request = create_sync_infer_request();
-    auto async_infer_request = std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(sync_request),
-                                                                   get_task_executor(),
-                                                                   m_wait_executor,
-                                                                   get_callback_executor());
+    auto async_infer_request =
+        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(sync_request),
+                                            get_task_executor(),
+                                            m_wait_executor,
+                                            get_callback_executor());
     return async_infer_request;
 }
 
@@ -233,7 +228,7 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {
+        return decltype(ov::supported_properties)::value_type{
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
@@ -257,17 +252,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
-        };
+            ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}};
     } else if (name == ov::model_name) {
-        return decltype(ov::model_name)::value_type {m_model_name};
+        return decltype(ov::model_name)::value_type{m_model_name};
     } else if (name == ov::loaded_from_cache) {
-        return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
+        return decltype(ov::loaded_from_cache)::value_type{m_loaded_from_cache};
     } else if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_property(ov::num_streams);
         if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY)
             nr *= 2;
-        return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{nr};
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
     }

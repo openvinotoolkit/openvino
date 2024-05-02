@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/ops.hpp"
 #include "matchers/single_op/single_op.hpp"
-#include "utils/node.hpp"
+
+#include "openvino/op/ops.hpp"
 #include "utils/attribute_visitor.hpp"
 #include "utils/model_comparator.hpp"
+#include "utils/node.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node> &node) const {
-    for (const auto &cfg : default_configs) {
+iMatcherConfig::Ptr SingleOpMatcher::get_config(const std::shared_ptr<ov::Node>& node) const {
+    for (const auto& cfg : default_configs) {
         if (cfg->op_in_config(node)) {
             return cfg;
         }
     }
-    for (const auto &cfg : default_configs) {
+    for (const auto& cfg : default_configs) {
         if (cfg->is_fallback_config) {
             return cfg;
         }
@@ -36,12 +37,11 @@ void SingleOpMatcher::set_match_in_types(bool match_in_types) {
     is_match_in_types = match_in_types;
 }
 
-bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
-                                   const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
     }
-    const std::vector<size_t> &ignored_ports = get_config(node)->ignored_ports;
+    const std::vector<size_t>& ignored_ports = get_config(node)->ignored_ports;
 
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
         if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
@@ -73,9 +73,7 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
     return true;
 }
 
-bool
-SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
-                               const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
     }
@@ -98,8 +96,7 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ov::Node> &node,
     return true;
 }
 
-bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
-                                  const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const {
     util::ReadAttributes visitor_node, visitor_ref;
     node->visit_attributes(visitor_node);
     ref->visit_attributes(visitor_ref);
@@ -130,9 +127,8 @@ bool SingleOpMatcher::match_attrs(const std::shared_ptr<ov::Node> &node,
     return visitor_node.get_attributes_map() == visitor_ref.get_attributes_map();
 }
 
-bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
-                            const std::shared_ptr<ov::Node> &ref) const {
-    const auto &cfg = get_config(node);
+bool SingleOpMatcher::match(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const {
+    const auto& cfg = get_config(node);
     if (match_only_configured_ops() && cfg->is_fallback_config) {
         return false;
     }
@@ -156,17 +152,13 @@ bool SingleOpMatcher::match(const std::shared_ptr<ov::Node> &node,
     return true;
 }
 
-bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node> &node,
-                                   const std::shared_ptr<ov::Node> &ref) const {
+bool SingleOpMatcher::same_op_type(const std::shared_ptr<ov::Node>& node, const std::shared_ptr<ov::Node>& ref) const {
     return node->get_type_info() == ref->get_type_info();
 }
 
 SingleOpMatcher::SingleOpMatcher() {
-    default_configs = {
-            std::make_shared<MatcherConfig<
-                    ov::op::v1::Convolution,
-                    ov::op::v1::ConvolutionBackpropData,
-                    ov::op::v1::GroupConvolution,
-                    ov::op::v1::GroupConvolutionBackpropData>>(true)
-    };
+    default_configs = {std::make_shared<MatcherConfig<ov::op::v1::Convolution,
+                                                      ov::op::v1::ConvolutionBackpropData,
+                                                      ov::op::v1::GroupConvolution,
+                                                      ov::op::v1::GroupConvolutionBackpropData>>(true)};
 }

@@ -14,14 +14,7 @@ struct scatter_update : public primitive_base<scatter_update> {
 
     scatter_update() : primitive_base("", {}) {}
 
-    enum scatter_update_axis {
-        along_b,
-        along_f,
-        along_x,
-        along_y,
-        along_z,
-        along_w
-    };
+    enum scatter_update_axis { along_b, along_f, along_x, along_y, along_z, along_w };
 
     /// @brief Constructs scatter_update primitive.
     /// @param id This primitive id.
@@ -35,7 +28,8 @@ struct scatter_update : public primitive_base<scatter_update> {
                    const input_info& idupd,
                    const int64_t axis,
                    const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx, idupd}, {output_padding}), axis(axis) {}
+        : primitive_base(id, {dict, idx, idupd}, {output_padding}),
+          axis(axis) {}
 
     /// @brief ScatterUpdate axis
     int64_t axis = 0;

@@ -1,12 +1,13 @@
-const { addon: ov } = require('openvino-node');
+const {addon : ov} = require('openvino-node');
 
-const { cv } = require('opencv-wasm');
-const { getImageData } = require('../helpers.js');
+const {cv} = require('opencv-wasm');
+const {getImageData} = require('../helpers.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 5)
-  throw new Error(`Usage: ${process.argv[1]} <path_to_model> `
-    + '<path_to_image> <device_name>');
+  throw new Error(
+      `Usage: ${process.argv[1]} <path_to_model> ` +
+      '<path_to_image> <device_name>');
 
 const modelPath = process.argv[2];
 const imagePath = process.argv[3];
@@ -40,7 +41,7 @@ async function main(modelPath, imagePath, deviceName) {
   cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
 
   const tensorData = new Float32Array(image.data);
-  const shape = [1, image.rows, image.cols, 3];
+  const shape = [ 1, image.rows, image.cols, 3 ];
   const inputTensor = new ov.Tensor(ov.element.f32, shape, tensorData);
 
   //----------------- Step 4. Apply preprocessing ------------------------------
@@ -64,19 +65,25 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 7. Process output -----------------------------------
   const outputLayer = compiledModel.outputs[0];
   const resultInfer = inferRequest.getTensor(outputLayer);
-  const predictions = Array.from(resultInfer.data)
-    .map((prediction, classId) => ({ prediction, classId }))
-    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
-      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+  const predictions =
+      Array.from(resultInfer.data)
+          .map((prediction, classId) => ({prediction, classId}))
+          .sort(
+              ({prediction : predictionA}, {prediction : predictionB}) =>
+                  predictionA === predictionB ? 0
+                  : predictionA > predictionB ? -1
+                                              : 1);
 
   console.log(`Image path: ${imagePath}`);
   console.log('Top 10 results:');
   console.log('class_id probability');
   console.log('--------------------');
-  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
+  predictions.slice(0, 10).forEach(
+      ({classId, prediction}) =>
+          console.log(`${classId}\t ${prediction.toFixed(7)}`),
   );
 
-  console.log('\nThis sample is an API example, for any performance '
-    + 'measurements please use the dedicated benchmark_app tool');
+  console.log(
+      '\nThis sample is an API example, for any performance ' +
+      'measurements please use the dedicated benchmark_app tool');
 }

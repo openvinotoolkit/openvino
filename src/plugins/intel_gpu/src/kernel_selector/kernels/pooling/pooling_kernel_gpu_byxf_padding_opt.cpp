@@ -37,7 +37,8 @@ PoolingKernelBase::DispatchData PoolingKernelGPUByxfPaddingOpt::SetDefault(const
     return dispatchData;
 }
 
-JitConstants PoolingKernelGPUByxfPaddingOpt::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKernelGPUByxfPaddingOpt::GetJitConstants(const pooling_params& params,
+                                                             DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));

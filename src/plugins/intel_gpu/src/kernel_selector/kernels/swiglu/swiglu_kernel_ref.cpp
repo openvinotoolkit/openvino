@@ -3,8 +3,10 @@
 //
 
 #include "swiglu_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey SwiGLUKernelRef::GetSupportedKey() const {
@@ -96,7 +98,7 @@ KernelsPriority SwiGLUKernelRef::GetKernelsPriority(const Params& /*params*/) co
 }
 
 Datatype SwiGLUKernelRef::GetAccumulatorType(const swiglu_params& params) const {
-    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+    Datatype types[] = {Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types)
         for (auto& in : params.inputs)

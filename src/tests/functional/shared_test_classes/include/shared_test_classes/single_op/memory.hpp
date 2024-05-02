@@ -9,24 +9,23 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
 
-using MemoryLayerTestParams = std::tuple<
-        ov::test::utils::MemoryTransformation,   // Apply Memory transformation
-        int64_t,                                 // iterationCount
-        ov::Shape,                               // inputShape
-        ov::element::Type,                       // modelType
-        std::string                              // targetDevice
->;
+using MemoryLayerTestParams = std::tuple<ov::test::utils::MemoryTransformation,  // Apply Memory transformation
+                                         int64_t,                                // iterationCount
+                                         ov::Shape,                              // inputShape
+                                         ov::element::Type,                      // modelType
+                                         std::string                             // targetDevice
+                                         >;
 
 class MemoryLayerTest : public testing::WithParamInterface<MemoryLayerTestParams>,
-                   virtual public ov::test::SubgraphBaseStaticTest {
+                        virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MemoryLayerTestParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MemoryLayerTestParams>& obj);
 
 protected:
     void SetUp() override;

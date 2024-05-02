@@ -36,7 +36,7 @@ message GraphDef {
   // Deprecated single version field; use versions above instead.  Since all
   // GraphDef changes before "versions" was introduced were forward
   // compatible, this field is entirely ignored.
-  int32 version = 3 [deprecated = true];
+  int32 version = 3 [ deprecated = true ];
 
   // "library" provides user-defined functions.
   //

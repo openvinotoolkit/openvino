@@ -17,8 +17,10 @@ def wrap_ord_dict(func):
             return items
         else:
             raise TypeError(
-                "Decorated function '{}' returned '{}' but 'tuple', 'list', 'dict' or 'OrderedDict' expected"
-                .format(func.__name__, type(items)))
+                "Decorated function '{}' returned '{}' but 'tuple', 'list', 'dict' or 'OrderedDict' expected".format(
+                    func.__name__, type(items)
+                )
+            )
 
     wrapped.unwrap = func
     return wrapped

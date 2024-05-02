@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <vector>
+
 #include "condition_inst.h"
 #include "data_inst.h"
 #include "implementation_map.hpp"
 #include "register.hpp"
-
-#include <algorithm>
-#include <vector>
 namespace cldnn {
 namespace common {
 
@@ -93,7 +93,8 @@ struct condition_impl : typed_primitive_impl<condition> {
                     auto other_branch = !pred ? instance.get_branch_true() : instance.get_branch_false();
                     auto other_layout = other_branch.inner_program->get_outputs()[out_idx]->get_output_layout();
                     output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
-                    output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
+                    output_mem_ptr =
+                        instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
                     GPU_DEBUG_LOG << "    output layout is updated to " << output_layout.to_short_string() << std::endl;
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
@@ -121,12 +122,22 @@ struct condition_impl : typed_primitive_impl<condition> {
                         // Use dummy memory for empty tensor
                         mem_ptr = std::make_shared<simple_attached_memory>(layout, nullptr);
                     }
-                    OPENVINO_ASSERT(mem_ptr != nullptr, "[GPU] Can't assign nullptr memory buffer for condition primitive with id=", instance.id(), " ("
-                                                        "mem_idx=", mem_idx, ", "
-                                                        "external_id=", input_external_id, ", "
-                                                        "internal_id=", input_internal_id, ")");
+                    OPENVINO_ASSERT(mem_ptr != nullptr,
+                                    "[GPU] Can't assign nullptr memory buffer for condition primitive with id=",
+                                    instance.id(),
+                                    " ("
+                                    "mem_idx=",
+                                    mem_idx,
+                                    ", "
+                                    "external_id=",
+                                    input_external_id,
+                                    ", "
+                                    "internal_id=",
+                                    input_internal_id,
+                                    ")");
                     executed_net->set_input_data(input_internal_id, mem_ptr);
-                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
+                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx
+                                  << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
                                   << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
@@ -150,7 +161,7 @@ struct condition_impl : typed_primitive_impl<condition> {
         return make_unique<condition_impl>(arg);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
@@ -169,11 +180,7 @@ private:
 namespace detail {
 
 attach_condition_common::attach_condition_common() {
-    implementation_map<condition>::add(impl_types::common,
-                                    shape_types::dynamic_shape,
-                                    condition_impl::create,
-                                    {},
-                                    {});
+    implementation_map<condition>::add(impl_types::common, shape_types::dynamic_shape, condition_impl::create, {}, {});
     implementation_map<condition>::add(impl_types::common, condition_impl::create, {});
 }
 

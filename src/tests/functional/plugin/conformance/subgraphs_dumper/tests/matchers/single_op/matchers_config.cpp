@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "base_test.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "openvino/op/ops.hpp"
-#include "base_test.hpp"
 
 namespace {
 
@@ -23,7 +23,6 @@ protected:
 
     std::shared_ptr<ov::Node> node;
 };
-
 
 // Check that matcher configuration for operation created successfully and all parameters are set
 TEST_F(MatcherConfigTest, ParametersAreSet) {
@@ -58,4 +57,4 @@ TEST_F(MatcherConfigTest, FallbackConfigDefaultConstructor) {
     ASSERT_TRUE(matcher_cfg.is_fallback_config);
 }
 
-} // namespace
+}  // namespace

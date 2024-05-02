@@ -2,30 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include <gtest/gtest.h>
-#include <thread>
-
 #include "behavior/ov_plugin/caching_tests.hpp"
 
-#include "openvino/pass/manager.hpp"
+#include <gtest/gtest.h>
+
+#include <thread>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
+#include "common_test_utils/subgraph_builders/conv_bias.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "common_test_utils/subgraph_builders/single_conv.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
-#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/kso_func.hpp"
-#include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
-#include "common_test_utils/subgraph_builders/single_conv.hpp"
-#include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
-#include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/conv_bias.hpp"
-#include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
-#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "openvino/pass/manager.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -81,57 +79,46 @@ ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std
 
 std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
-    res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
-    res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_conv_pool_relu, {1, 1, 32, 32}),
-        "ConvPoolRelu"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}),
-        "SplitConvConcat"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}),
-        "KSOFunction"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}),
-        "SingleConv"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}),
-        "2InputSubtract"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_nested_split_conv_concat, {1, 4, 20, 20}),
-        "NestedSplitConvConcat"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_input_in_branch, {1, 4, 20, 20}),
-        "SplitConvConcatInputInBranch"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch, {1, 4, 20, 20}),
-        "SplitConvConcatNestedInBranch"});
-    res.push_back(ovModelWithName {
+    res.push_back(ovModelWithName{simple_function_multiply, "SimpleFunctionMultiply"});
+    res.push_back(ovModelWithName{simple_function_relu, "SimpleFunctionRelu"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_conv_pool_relu, {1, 1, 32, 32}), "ConvPoolRelu"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_split_conv_concat, {1, 4, 20, 20}), "SplitConvConcat"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_kso_function, {1, 4, 20, 20}), "KSOFunction"});
+    res.push_back(ovModelWithName{inputShapeWrapper(ov::test::utils::make_single_conv, {1, 3, 24, 24}), "SingleConv"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_2_input_subtract, {1, 3, 24, 24}), "2InputSubtract"});
+    res.push_back(ovModelWithName{inputShapeWrapper(ov::test::utils::make_nested_split_conv_concat, {1, 4, 20, 20}),
+                                  "NestedSplitConvConcat"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_input_in_branch, {1, 4, 20, 20}),
+                        "SplitConvConcatInputInBranch"});
+    res.push_back(
+        ovModelWithName{inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch, {1, 4, 20, 20}),
+                        "SplitConvConcatNestedInBranch"});
+    res.push_back(ovModelWithName{
         inputShapeWrapper(ov::test::utils::make_cplit_conv_concat_nested_in_branch_nested_out, {1, 4, 20, 20}),
         "SplitConvConcatNestedInBranchNestedOut"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}),
-        "ConvBias"});
-    res.push_back(ovModelWithName{
-        inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}),
-        "MatMulBias" });
+    res.push_back(ovModelWithName{inputShapeWrapper(ov::test::utils::make_conv_bias, {1, 3, 24, 24}), "ConvBias"});
+    res.push_back(ovModelWithName{inputShapeWrapper(ov::test::utils::make_matmul_bias, {1, 3, 24, 24}), "MatMulBias"});
     return res;
 }
 
 std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ov::test::utils::make_read_concat_split_assign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
+    res.push_back(ovModelWithName{inputShapeWrapper(ov::test::utils::make_read_concat_split_assign, {1, 1, 2, 4}),
+                                  "ReadConcatSplitAssign"});
     return res;
 }
 
 std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
-    res.push_back(ovModelWithName { [](ov::element::Type type, size_t batchSize) {
-        return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
-    }, "TIwithLSTMcell1"});
+    res.push_back(ovModelWithName{[](ov::element::Type type, size_t batchSize) {
+                                      return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
+                                  },
+                                  "TIwithLSTMcell1"});
     return res;
 }
 
@@ -155,11 +142,14 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
     auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
-    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) == supportedProperties.end()) {
+    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) ==
+        supportedProperties.end()) {
         return false;
     }
     auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
-    if (std::find(device_capabilities.begin(), device_capabilities.end(), std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
+    if (std::find(device_capabilities.begin(),
+                  device_capabilities.end(),
+                  std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
         return false;
     }
     return true;
@@ -172,7 +162,8 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
-    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
+    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" +
+           deviceName;
 }
 
 void CompileModelCacheTestBase::SetUp() {
@@ -201,7 +192,7 @@ void CompileModelCacheTestBase::TearDown() {
     try {
         core->set_property(targetDevice, ov::cache_dir());
     } catch (...) {
-       // do nothing
+        // do nothing
     }
     ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
@@ -210,7 +201,8 @@ void CompileModelCacheTestBase::TearDown() {
 void CompileModelCacheTestBase::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!function) {
-        GTEST_FAIL() << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
+        GTEST_FAIL() << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name()
+                     << std::endl;
     } else {
         std::vector<ov::Shape> inShapes;
         for (const auto& param : function->get_parameters()) {
@@ -235,11 +227,12 @@ void CompileModelCacheTestBase::run() {
         ASSERT_FALSE(compiledModel.get_property(ov::loaded_from_cache));
         generate_inputs(targetStaticShapes.front());
         infer();
-    } catch (const Exception &ex) {
-        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() <<
-        "\nException [" << ex.what() << "]" << std::endl;
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't loadNetwork without cache for " << m_functionName << " with precision "
+                     << m_precision.get_type_name() << "\nException [" << ex.what() << "]" << std::endl;
     } catch (...) {
-        GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
+        GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision "
+                     << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = get_plugin_outputs();
     size_t blobCountInitial = -1;
@@ -283,7 +276,8 @@ TEST_P(CompileModelCacheTestBase, CompareWithRefImpl) {
     run();
 }
 
-std::string CompileModelLoadFromFileTestBase::getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
+std::string CompileModelLoadFromFileTestBase::getTestCaseName(
+    testing::TestParamInfo<compileModelLoadFromFileParams> obj) {
     auto param = obj.param;
     auto deviceName = std::get<0>(param);
     auto configuration = std::get<1>(param);
@@ -333,9 +327,9 @@ void CompileModelLoadFromFileTestBase::run() {
         compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
         inferRequest = compiledModel.create_infer_request();
         inferRequest.infer();
-    } catch (const Exception &ex) {
-        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName <<
-        "\nException [" << ex.what() << "]" << std::endl;
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
+                     << std::endl;
     } catch (...) {
         GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
     }
@@ -766,8 +760,7 @@ void CompiledKernelsCacheTest::SetUp() {
     auto hash = std::hash<std::string>()(test_name);
     std::stringstream ss;
     ss << std::this_thread::get_id();
-    cache_path = "compiledModel" + std::to_string(hash) + "_"
-                + ss.str() + "_" + GetTimestamp() + "_cache";
+    cache_path = "compiledModel" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
 }
 
 void CompiledKernelsCacheTest::TearDown() {
@@ -799,7 +792,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
                 ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
-        }
+            }
             ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         }
         FAIL() << ex.what() << std::endl;
@@ -848,12 +841,11 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
     }
 }
 
-
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring postfix  = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
+        std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
         std::wstring cache_path_w = ov::test::utils::stringToWString(cache_path) + postfix;
 
         try {
@@ -877,7 +869,8 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             if (ov::util::directory_exists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
-                    ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
+                    ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)),
+                              0);
                 }
                 ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
             }
@@ -886,6 +879,6 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
     }
 }
 #endif
-} // namespace behavior
-} // namespace test
-} // namespace ov
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

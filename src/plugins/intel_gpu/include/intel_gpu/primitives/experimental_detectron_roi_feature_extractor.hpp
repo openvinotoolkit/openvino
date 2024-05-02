@@ -3,13 +3,15 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief experimental detectron ROI feature extractor
-struct experimental_detectron_roi_feature_extractor : public primitive_base<experimental_detectron_roi_feature_extractor> {
+struct experimental_detectron_roi_feature_extractor
+    : public primitive_base<experimental_detectron_roi_feature_extractor> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_roi_feature_extractor)
 
     experimental_detectron_roi_feature_extractor() : primitive_base("", {}) {}
@@ -27,14 +29,14 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
                                                  const std::vector<int64_t>& pyramid_scales,
                                                  int sampling_ratio,
                                                  bool aligned,
-                                                 const padding& output_padding = padding()) :
-            primitive_base(id, inputs, {output_padding}),
-            output_dim(output_dim),
-            pooled_height(output_dim),
-            pooled_width(output_dim),
-            pyramid_scales(pyramid_scales),
-            sampling_ratio(sampling_ratio),
-            aligned(aligned) {}
+                                                 const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}),
+          output_dim(output_dim),
+          pooled_height(output_dim),
+          pooled_width(output_dim),
+          pyramid_scales(pyramid_scales),
+          sampling_ratio(sampling_ratio),
+          aligned(aligned) {}
 
     int output_dim = 0;
     int pooled_height = 0;
@@ -60,12 +62,9 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
 
         auto rhs_casted = downcast<const experimental_detectron_roi_feature_extractor>(rhs);
 
-        return output_dim == rhs_casted.output_dim &&
-               pooled_height == rhs_casted.pooled_height &&
-               pooled_width == rhs_casted.pooled_width &&
-               pyramid_scales == rhs_casted.pyramid_scales &&
-               sampling_ratio == rhs_casted.sampling_ratio &&
-               aligned == rhs_casted.aligned;
+        return output_dim == rhs_casted.output_dim && pooled_height == rhs_casted.pooled_height &&
+               pooled_width == rhs_casted.pooled_width && pyramid_scales == rhs_casted.pyramid_scales &&
+               sampling_ratio == rhs_casted.sampling_ratio && aligned == rhs_casted.aligned;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

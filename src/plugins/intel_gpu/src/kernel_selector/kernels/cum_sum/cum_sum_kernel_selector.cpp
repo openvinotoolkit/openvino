@@ -3,8 +3,9 @@
 //
 
 #include "cum_sum_kernel_selector.h"
-#include "cum_sum_kernel_ref.h"
+
 #include "cum_sum_kernel_partial_sum.h"
+#include "cum_sum_kernel_ref.h"
 
 namespace kernel_selector {
 cum_sum_kernel_selector::cum_sum_kernel_selector() {

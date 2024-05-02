@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.space_to_batch import SpaceToBatch
 
 
 class SpaceToBatchFrontExtractor(FrontExtractorOp):
-    op = 'SpaceToBatchND'
+    op = "SpaceToBatchND"
     enabled = True
 
     @classmethod

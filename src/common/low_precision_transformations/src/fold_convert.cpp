@@ -3,12 +3,12 @@
 //
 
 #include "low_precision/fold_convert.hpp"
+
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -30,7 +30,7 @@ FoldConvertTransformation::FoldConvertTransformation(const Params& params) : Cle
     this->register_matcher(matcher, callback);
 }
 
-bool FoldConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FoldConvertTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto subtract = m.get_match_root();
     if (!canBeTransformed(context, subtract)) {
         return false;
@@ -38,11 +38,13 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ov::pa
 
     auto foldConvert = [&](const size_t branch) {
         const auto convert = subtract->get_input_node_shared_ptr(branch);
-        if (!ov::is_type<ov::opset1::Convert>(convert) || !ov::is_type<ov::opset1::Constant>(convert->get_input_node_shared_ptr(0))) {
+        if (!ov::is_type<ov::opset1::Convert>(convert) ||
+            !ov::is_type<ov::opset1::Constant>(convert->get_input_node_shared_ptr(0))) {
             return;
         }
 
-        const auto resultConstant = ov::pass::low_precision::foldConvert(convert->input_value(0), convert->get_output_element_type(0));
+        const auto resultConstant =
+            ov::pass::low_precision::foldConvert(convert->input_value(0), convert->get_output_element_type(0));
         assert(ov::is_type<ov::opset1::Constant>(resultConstant));
 
         replace_node(convert, resultConstant);
@@ -55,19 +57,19 @@ bool FoldConvertTransformation::transform(TransformationContext& context, ov::pa
     return true;
 }
 
-bool FoldConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    return
-        CleanupTransformation::canBeTransformed(context, operation) &&
-        ((ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(1)) &&
-        ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
-        (ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(0)) &&
-        ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0))));
+bool FoldConvertTransformation::canBeTransformed(const TransformationContext& context,
+                                                 std::shared_ptr<Node> operation) const {
+    return CleanupTransformation::canBeTransformed(context, operation) &&
+           ((ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(1)) &&
+             ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(1)->get_input_node_ptr(0))) ||
+            (ov::is_type<ov::opset1::Convert>(operation->get_input_node_ptr(0)) &&
+             ov::is_type<ov::opset1::Constant>(operation->get_input_node_ptr(0)->get_input_node_ptr(0))));
 }
 
 bool FoldConvertTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -13,13 +13,14 @@ from openvino.tools.mo.utils.error import Error
 
 class FuseTransposesSequence(BackReplacementPattern):
     """
-         This pass finds sequence of Transpose operations and merge them to single Transpose operation
-         In case if resulting Permutation do nothing, we just remove it
+    This pass finds sequence of Transpose operations and merge them to single Transpose operation
+    In case if resulting Permutation do nothing, we just remove it
     """
+
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for permute_node in graph.get_op_nodes(type='Transpose'):
+        for permute_node in graph.get_op_nodes(type="Transpose"):
             if permute_node.id not in graph.nodes():
                 continue
 
@@ -32,26 +33,44 @@ class FuseTransposesSequence(BackReplacementPattern):
                     break
 
                 next_op = next_ops[0]
-                if next_op.soft_get('type') == 'Transpose':
+                if next_op.soft_get("type") == "Transpose":
                     list_of_permutes.append(next_op)
                     node = next_op
                 else:
                     break
 
-            final_permutation = int64_array([x for x in range(len(list_of_permutes[0].in_port(1).data.get_value()))])
+            final_permutation = int64_array(
+                [x for x in range(len(list_of_permutes[0].in_port(1).data.get_value()))]
+            )
             for permute in list_of_permutes:
                 order = permute.in_port(1).data.get_value()
                 if order is None:
-                    raise Error("Transpose node {} has wrong order for permute = None".format(permute.name))
+                    raise Error(
+                        "Transpose node {} has wrong order for permute = None".format(
+                            permute.name
+                        )
+                    )
                 final_permutation = final_permutation[int64_array(order)]
 
-            if np.array_equal(final_permutation, [x for x in range(len(list_of_permutes[0].in_port(1).data.get_value()))]):
-                first_data_node, last_data_node = list_of_permutes[0].in_node(), list_of_permutes[-1].out_node()
+            if np.array_equal(
+                final_permutation,
+                [
+                    x
+                    for x in range(len(list_of_permutes[0].in_port(1).data.get_value()))
+                ],
+            ):
+                first_data_node, last_data_node = (
+                    list_of_permutes[0].in_node(),
+                    list_of_permutes[-1].out_node(),
+                )
                 graph.remove_edge(first_data_node.id, list_of_permutes[0].id)
             else:
                 if len(list_of_permutes) < 2:
                     continue
-                first_data_node, last_data_node = list_of_permutes[0].out_node(), list_of_permutes[-1].out_node()
+                first_data_node, last_data_node = (
+                    list_of_permutes[0].out_node(),
+                    list_of_permutes[-1].out_node(),
+                )
                 list_of_permutes[0].in_port(1).data.set_value(final_permutation)
                 graph.remove_edge(first_data_node.id, first_data_node.out_node().id)
 

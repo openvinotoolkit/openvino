@@ -13,10 +13,10 @@ namespace kernel_selector {
  */
 class experimental_detectron_topk_rois_kernel_selector : public kernel_selector_base {
 public:
-    static experimental_detectron_topk_rois_kernel_selector &Instance();
+    static experimental_detectron_topk_rois_kernel_selector& Instance();
 
     experimental_detectron_topk_rois_kernel_selector();
 
-    KernelsData GetBestKernels(const Params &params) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 }  // namespace kernel_selector

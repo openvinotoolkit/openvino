@@ -3,22 +3,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import shutil
 
 import numpy as np
-from openvino.runtime import Core
-import shutil
 import pytest
+from openvino.runtime import Core
 from tests.runtime import get_runtime
 
-
 external_data_model_current_folder_path = "external_data.onnx"
-external_data_model_full_path = os.path.join(os.path.dirname(__file__), "models", external_data_model_current_folder_path)
+external_data_model_full_path = os.path.join(
+    os.path.dirname(__file__), "models", external_data_model_current_folder_path
+)
 external_data_current_folder_path = "data/tensor.data"
-external_data_full_path = os.path.join(os.path.dirname(__file__), "models", external_data_current_folder_path)
+external_data_full_path = os.path.join(
+    os.path.dirname(__file__), "models", external_data_current_folder_path
+)
 
 
 def setup_module():
-    shutil.copyfile(external_data_model_full_path, external_data_model_current_folder_path)
+    shutil.copyfile(
+        external_data_model_full_path, external_data_model_current_folder_path
+    )
     os.mkdir("data")
     shutil.copyfile(external_data_full_path, external_data_current_folder_path)
 
@@ -29,7 +34,10 @@ def teardown_module():
     os.rmdir("data")
 
 
-@pytest.mark.parametrize("model_path", [external_data_model_full_path, external_data_model_current_folder_path])
+@pytest.mark.parametrize(
+    "model_path",
+    [external_data_model_full_path, external_data_model_current_folder_path],
+)
 def test_import_onnx_with_external_data(model_path: str):
     core = Core()
     model = core.read_model(model=model_path)

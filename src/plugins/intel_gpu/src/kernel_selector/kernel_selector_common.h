@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "kernel_selector_params.h"
-#include "intel_gpu/runtime/kernel_args.hpp"
-
 #include <cfloat>
 #include <cstdint>
 #include <limits>
@@ -15,30 +12,33 @@
 #include <string>
 #include <vector>
 
-#define EXE_MODE_DEFAULT ""
-#define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
+#include "intel_gpu/runtime/kernel_args.hpp"
+#include "kernel_selector_params.h"
+
+#define EXE_MODE_DEFAULT      ""
+#define EXE_MODE_AGE_BASED    "-cl-no-subgroup-ifp"
 #define EXE_MODE_NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
 
 namespace kernel_selector {
 
 #ifndef UNUSED
-#define UNUSED(a) (void)a
+#    define UNUSED(a) (void)a
 #endif
 
 // TODO: current solution until we will have kernel selection time based
-#define KernelsPriority float
-#define FORCE_PRIORITY_1 (0.0000001f)
-#define FORCE_PRIORITY_2 (0.0000002f)
-#define FORCE_PRIORITY_3 (0.0000003f)
-#define FORCE_PRIORITY_4 (0.0000004f)
-#define FORCE_PRIORITY_5 (0.0000005f)
-#define FORCE_PRIORITY_6 (0.0000006f)
-#define FORCE_PRIORITY_7 (0.0000007f)
-#define FORCE_PRIORITY_8 (0.0000008f)
-#define FORCE_PRIORITY_9 (0.0000009f)
+#define KernelsPriority                 float
+#define FORCE_PRIORITY_1                (0.0000001f)
+#define FORCE_PRIORITY_2                (0.0000002f)
+#define FORCE_PRIORITY_3                (0.0000003f)
+#define FORCE_PRIORITY_4                (0.0000004f)
+#define FORCE_PRIORITY_5                (0.0000005f)
+#define FORCE_PRIORITY_6                (0.0000006f)
+#define FORCE_PRIORITY_7                (0.0000007f)
+#define FORCE_PRIORITY_8                (0.0000008f)
+#define FORCE_PRIORITY_9                (0.0000009f)
 #define DONT_USE_IF_HAVE_SOMETHING_ELSE (1000000.f)
-#define TUTORIAL_PRIORITY (DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f)
-#define NOT_SUPPORTED (FLT_MAX)
+#define TUTORIAL_PRIORITY               (DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f)
+#define NOT_SUPPORTED                   (FLT_MAX)
 
 std::string GetStringEnv(const char* varName);
 
@@ -49,7 +49,6 @@ using Scalars = cldnn::scalars_desc;
 using ArgumentDescriptor = cldnn::argument_desc;
 using Arguments = cldnn::arguments_desc;
 using KernelParams = cldnn::kernel_arguments_desc;
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KernelCode

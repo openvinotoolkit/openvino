@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/avg_pool.hpp"
-#include "low_precision/max_pool.hpp"
 #include <memory>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/max_pool.hpp"
 #include "ov_lpt_models/avg_pool.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -60,11 +60,11 @@ public:
         AvgPoolTransformationTestValues testValues;
         std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
         actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
-                                                                                 testValues.actual.inputPrecision,
-                                                                                 shape,
-                                                                                 addFakeQuantize,
-                                                                                 {additionalLayer},
-                                                                                 testValues.actual.dequantization);
+                                                                             testValues.actual.inputPrecision,
+                                                                             shape,
+                                                                             addFakeQuantize,
+                                                                             {additionalLayer},
+                                                                             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
@@ -73,14 +73,14 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::AvgPoolFunction::getReference(precision,
-                                                                     testValues.expected.inputPrecision,
-                                                                     shape,
-                                                                     addFakeQuantize,
-                                                                     {additionalLayer},
-                                                                     testValues.expected.dequantizationBefore,
-                                                                     testValues.expected.preicsionAfterOperation,
-                                                                     {},
-                                                                     testValues.expected.dequantizationAfter);
+                                                                 testValues.expected.inputPrecision,
+                                                                 shape,
+                                                                 addFakeQuantize,
+                                                                 {additionalLayer},
+                                                                 testValues.expected.dequantizationBefore,
+                                                                 testValues.expected.preicsionAfterOperation,
+                                                                 {},
+                                                                 testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
@@ -153,9 +153,7 @@ const std::vector<AvgPoolTransformationTestValues> testValues = {
          {{}, {{128.f, 128.f, 128.f}}, {{3.f, 3.f, 3.f}}},
      }},
     // U8 without dequantization
-    {LayerTransformation::createParamsU8I8(),
-     {ov::element::u8, {}},
-     {ov::element::u8, {}, ov::element::u8, {}}},
+    {LayerTransformation::createParamsU8I8(), {ov::element::u8, {}}, {ov::element::u8, {}, ov::element::u8, {}}},
     // U8 not update precisions
     {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
      {ov::element::f32, {{}, {128.f}, {0.02f}}},
@@ -209,10 +207,7 @@ const std::vector<AvgPoolTransformationTestValues> testValues = {
     // U8 per tensor quantization
     {LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}}},
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}},
-      ov::element::f32,
-      {}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 64.f, 32.f}}, {{0.02f, 0.03f, 0.01f}}}, ov::element::f32, {}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

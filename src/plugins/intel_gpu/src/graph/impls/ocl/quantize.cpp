@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "quantize_inst.h"
-#include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
+#include "quantize/quantize_kernel_selector.h"
+#include "quantize_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -47,7 +46,7 @@ protected:
                 args.inputs.push_back(instance.dep_memory_ptr(8));
             }
         }
-        args.outputs = { instance.output_memory_ptr() };
+        args.outputs = {instance.output_memory_ptr()};
         args.shape_info = instance.shape_info_memory_ptr();
 
         return args;
@@ -103,12 +102,7 @@ public:
 namespace detail {
 
 attach_quantize_impl::attach_quantize_impl() {
-    auto types = {
-        data_types::f16,
-        data_types::f32,
-        data_types::i8,
-        data_types::u8
-    };
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
 
     auto formats = {
         format::bfyx,
@@ -149,7 +143,11 @@ attach_quantize_impl::attach_quantize_impl() {
 
     implementation_map<quantize>::add(impl_types::ocl, shape_types::static_shape, quantize_impl::create, keys);
 
-    implementation_map<quantize>::add(impl_types::ocl, shape_types::dynamic_shape, quantize_impl::create, types, dyn_formats);
+    implementation_map<quantize>::add(impl_types::ocl,
+                                      shape_types::dynamic_shape,
+                                      quantize_impl::create,
+                                      types,
+                                      dyn_formats);
 }
 
 }  // namespace detail

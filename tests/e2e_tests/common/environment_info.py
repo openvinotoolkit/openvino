@@ -13,12 +13,14 @@ logger = get_logger(__name__)
 
 DEFAULT_BUILD_NUMBER = 0
 DEFAULT_SHORT_VERSION_NUMBER = "0.0.0"
-DEFAULT_FULL_VERSION_NUMBER = "{}-{}-{}".format(DEFAULT_SHORT_VERSION_NUMBER, config.product_version_suffix,
-                                                DEFAULT_BUILD_NUMBER)
+DEFAULT_FULL_VERSION_NUMBER = "{}-{}-{}".format(
+    DEFAULT_SHORT_VERSION_NUMBER, config.product_version_suffix, DEFAULT_BUILD_NUMBER
+)
 
 
 class BaseInfo:
     """Retrieves environment info"""
+
     glob_version = None
     glob_os_distname = None
 
@@ -30,8 +32,7 @@ class BaseInfo:
         """
         if self.glob_version is None:
             self.glob_version = self.get()
-            self.glob_version = \
-                self.glob_version["version"]
+            self.glob_version = self.glob_version["version"]
 
         return self.glob_version
 
@@ -55,6 +56,7 @@ class BaseInfo:
 class EnvironmentInfo(object):
     """Stores details about environment such as build number, version number
     and allows their retrieval"""
+
     module_class_string = config.info_module
     module_name, class_name = module_class_string.rsplit(".", 1)
     module = importlib.import_module(module_name)
@@ -99,4 +101,4 @@ class EnvironmentInfo(object):
 
     @classmethod
     def _version_number_from_environment_version(cls, environment_version):
-        return '-'.join(environment_version.split('-')[:2])
+        return "-".join(environment_version.split("-")[:2])

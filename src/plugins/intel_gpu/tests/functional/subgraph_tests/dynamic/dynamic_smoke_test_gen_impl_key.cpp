@@ -1,26 +1,25 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<
-        std::vector<InputShape>, // input shapes
-        ov::element::Type,       // Model type
-        std::string,             // Device name
-        std::map<std::string, std::string> // Additional network configuration
-> genImplKeyDynamicGPUTestParamsSet;
+typedef std::tuple<std::vector<InputShape>,            // input shapes
+                   ov::element::Type,                  // Model type
+                   std::string,                        // Device name
+                   std::map<std::string, std::string>  // Additional network configuration
+                   >
+    genImplKeyDynamicGPUTestParamsSet;
 
 const std::vector<ov::element::Type> model_types = {
     ov::element::f16,
@@ -64,7 +63,9 @@ protected:
             in_data.start_from = 0;
             in_data.range = 80;
             in_data.resolution = 8;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -91,13 +92,14 @@ protected:
 
         std::vector<int> reduce_axes = {0};
         auto reduceAxesNode1 = std::dynamic_pointer_cast<ov::Node>(
-                                 std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({1}), reduce_axes));
-        auto reduceOp1 = ov::test::utils::make_reduce(shapeOfOp1, reduceAxesNode1, true, ov::test::utils::ReductionType::Prod);
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({1}), reduce_axes));
+        auto reduceOp1 =
+            ov::test::utils::make_reduce(shapeOfOp1, reduceAxesNode1, true, ov::test::utils::ReductionType::Prod);
         reduceOp1->set_friendly_name("reduce1");
 
         std::vector<int64_t> shapePatternFill = {-1};
-        auto reshapePatternComp1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                          ov::Shape{1}, shapePatternFill);
+        auto reshapePatternComp1 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shapePatternFill);
         auto concatOp1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp1, reshapePatternComp1}, 0);
         concatOp1->set_friendly_name("concat1");
 
@@ -111,11 +113,12 @@ protected:
         shapeOfOp2->set_friendly_name("shapeof2");
 
         auto reduceAxesNode2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({1}), reduce_axes);
-        auto reduceOp2 = ov::test::utils::make_reduce(shapeOfOp2, reduceAxesNode2, true, ov::test::utils::ReductionType::Prod);
+        auto reduceOp2 =
+            ov::test::utils::make_reduce(shapeOfOp2, reduceAxesNode2, true, ov::test::utils::ReductionType::Prod);
         reduceOp2->set_friendly_name("reduce2");
 
-        auto reshapePatternComp2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                          ov::Shape{1}, shapePatternFill);
+        auto reshapePatternComp2 =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, shapePatternFill);
         auto concatOp2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{reduceOp2, reshapePatternComp2}, 0);
         concatOp2->set_friendly_name("concat2");
 
@@ -140,40 +143,34 @@ TEST_P(GenlImplKeyDynamicGPUTest, Inference) {
 std::map<std::string, std::string> emptyAdditionalConfig;
 const std::vector<std::vector<ov::test::InputShape>> dynInputShapes = {
     // 1D
-    {
-        // Input for ShapeOf
-        {{ov::Dimension::dynamic()}, {{30}, {40}, {50}}},
-        // Input for Add
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{3, 10}, {2, 20}, {25, 2}}}
-    },
+    {// Input for ShapeOf
+     {{ov::Dimension::dynamic()}, {{30}, {40}, {50}}},
+     // Input for Add
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{3, 10}, {2, 20}, {25, 2}}}},
     // 2D
-    {
-        // Input for ShapeOf
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10}, {2, 20}}},
-        // Input for Add
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 10}, {2, 10, 2}}}
-    },
+    {// Input for ShapeOf
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10}, {2, 20}}},
+     // Input for Add
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 1, 10}, {2, 10, 2}}}},
     // 3D
-    {
-        // Input for ShapeOf
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {1, 4, 12}}},
-        // Input for Add
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}
-    },
+    {// Input for ShapeOf
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {1, 4, 12}}},
+     // Input for Add
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10, 4}, {2, 2, 12}}}},
     // 4D
-    {
-        // Input for ShapeOf
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{3, 1, 10, 4}, {2, 4, 23, 12}}},
-        // Input for Add
-        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{30, 4}, {24, 92}}}
-    }
-};
+    {// Input for ShapeOf
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+      {{3, 1, 10, 4}, {2, 4, 23, 12}}},
+     // Input for Add
+     {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{30, 4}, {24, 92}}}}};
 
 const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputShapes),
-                                                   ::testing::ValuesIn(model_types),
-                                                   ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                   ::testing::Values(emptyAdditionalConfig));
+                                                 ::testing::ValuesIn(model_types),
+                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                 ::testing::Values(emptyAdditionalConfig));
 
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic_impl_key, GenlImplKeyDynamicGPUTest,
-                         testParams_smoke, GenlImplKeyDynamicGPUTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_impl_key,
+                         GenlImplKeyDynamicGPUTest,
+                         testParams_smoke,
+                         GenlImplKeyDynamicGPUTest::getTestCaseName);
+}  // namespace

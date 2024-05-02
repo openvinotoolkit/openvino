@@ -3,10 +3,11 @@
 //
 
 #include "resample_kernel_selector.h"
-#include "resample_kernel_ref.h"
-#include "resample_kernel_opt.h"
+
 #include "resample_kernel_onnx.h"
+#include "resample_kernel_opt.h"
 #include "resample_kernel_pil_ref.h"
+#include "resample_kernel_ref.h"
 
 namespace kernel_selector {
 resample_kernel_selector::resample_kernel_selector() {

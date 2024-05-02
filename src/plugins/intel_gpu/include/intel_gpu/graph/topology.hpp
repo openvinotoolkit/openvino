@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
-
 #include <map>
 #include <memory>
 #include <vector>
+
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
 
 namespace cldnn {
 
@@ -46,7 +46,9 @@ public:
 
     void change_input_layout(const primitive_id& id, const layout& new_layout);
 
-    const topology_map& get_primitives() const { return _primitives; }
+    const topology_map& get_primitives() const {
+        return _primitives;
+    }
 
     const std::vector<primitive_id> get_primitives_ids() const;
 

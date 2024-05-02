@@ -2,38 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/not_equal.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
-#include "openvino/op/mod.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
-#include "openvino/op/xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/floor_mod.hpp"
-
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/xor.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -60,10 +59,7 @@ void CreateElementwiseOp(ProgramBuilder& p,
                 if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
                     auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                     auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                    auto reorderPrim = cldnn::reorder(reorderName,
-                                                    inputs[i],
-                                                    targetFormat,
-                                                    targetDatatype);
+                    auto reorderPrim = cldnn::reorder(reorderName, inputs[i], targetFormat, targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
                     inputs[i] = cldnn::input_info(reorderName);
@@ -85,13 +81,8 @@ void CreateElementwiseOp(ProgramBuilder& p,
     }
 
     auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    auto eltwisePrim = cldnn::eltwise(layerName,
-                                      inputs,
-                                      mode,
-                                      std::move(coefficients),
-                                      out_dt,
-                                      op->get_autob(),
-                                      pythondiv);
+    auto eltwisePrim =
+        cldnn::eltwise(layerName, inputs, mode, std::move(coefficients), out_dt, op->get_autob(), pythondiv);
 
     p.add_primitive(*op, eltwisePrim);
 }

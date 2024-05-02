@@ -16,14 +16,14 @@ using namespace ::tests;
 namespace {
 
 template <class OutputType, class InputType>
-using eye_test_param = std::tuple<format,                    // Input and output format
-                                  InputType,                 // columns number
-                                  InputType,                 // rows number
-                                  InputType,                 // diagonal index
-                                  std::vector<InputType>,    // batch shape
-                                  std::vector<int32_t>,      // output shape
-                                  std::vector<OutputType>,   // expected values
-                                  bool>;                     // is_caching_test
+using eye_test_param = std::tuple<format,                   // Input and output format
+                                  InputType,                // columns number
+                                  InputType,                // rows number
+                                  InputType,                // diagonal index
+                                  std::vector<InputType>,   // batch shape
+                                  std::vector<int32_t>,     // output shape
+                                  std::vector<OutputType>,  // expected values
+                                  bool>;                    // is_caching_test
 
 template <class OutputType, class InputType>
 class EyeTest : public ::testing::TestWithParam<eye_test_param<OutputType, InputType>> {
@@ -61,12 +61,15 @@ public:
 
         std::string ouput_op_name;
         if (fmt == format::bfyx || fmt == format::bfzyx) {
-            auto inputs = batch_shape.empty()
-                              ? std::vector<input_info>{ input_info("num_rows"), input_info("num_columns"), input_info("diagonal_index") }
-                              : std::vector<input_info>{ input_info("num_rows"), input_info("num_columns"), input_info("diagonal_index"), input_info("batch") };
+            auto inputs = batch_shape.empty() ? std::vector<input_info>{input_info("num_rows"),
+                                                                        input_info("num_columns"),
+                                                                        input_info("diagonal_index")}
+                                              : std::vector<input_info>{input_info("num_rows"),
+                                                                        input_info("num_columns"),
+                                                                        input_info("diagonal_index"),
+                                                                        input_info("batch")};
             ouput_op_name = "eye";
-            auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
+            auto eye_primitive = eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
             tp.add(std::move(eye_primitive));
         } else {
             tp.add(reorder("r_num_rows", input_info("num_rows"), fmt, ov::element::from<InputType>()));
@@ -75,17 +78,21 @@ public:
             if (!batch_shape.empty()) {
                 tp.add(reorder("r_batch", input_info("batch"), fmt, ov::element::from<InputType>()));
             }
-            auto inputs = batch_shape.empty()
-                              ? std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index") }
-                              : std::vector<input_info>{ input_info("r_num_rows"), input_info("r_num_columns"), input_info("r_diagonal_index"), input_info("r_batch") };
-            auto eye_primitive =
-                eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
+            auto inputs = batch_shape.empty() ? std::vector<input_info>{input_info("r_num_rows"),
+                                                                        input_info("r_num_columns"),
+                                                                        input_info("r_diagonal_index")}
+                                              : std::vector<input_info>{input_info("r_num_rows"),
+                                                                        input_info("r_num_columns"),
+                                                                        input_info("r_diagonal_index"),
+                                                                        input_info("r_batch")};
+            auto eye_primitive = eye("eye", inputs, tensor{output_shape}, diag, ov::element::from<OutputType>());
             tp.add(std::move(eye_primitive));
             ouput_op_name = "output";
             tp.add(reorder("output", input_info("eye"), oupput_fmt, ov::element::from<OutputType>()));
         }
 
-        cldnn::network::ptr network = get_network(engine_, tp, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine_, tp, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
         auto outputs = network->execute();
 

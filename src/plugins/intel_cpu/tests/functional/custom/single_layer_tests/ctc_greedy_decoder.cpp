@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random>
 #include <gtest/gtest.h>
+
+#include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -42,8 +43,7 @@ public:
             size_t N;
             size_t C;
             std::tie(T, N, C) = shape;
-            results << "{" << T << "," << N << "," << C << "}"
-                    << "_";
+            results << "{" << T << "," << N << "," << C << "}" << "_";
         }
 
         results << "Prc=" << inType << "_";
@@ -97,9 +97,12 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i],
+                                                                     in_data);
                 } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                     targetInputStaticShapes[i]);
                 }
             } else {
                 auto T = targetInputStaticShapes[i][0];

@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/normalize.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "normalize_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -25,7 +22,7 @@ struct normalize_test_params {
     bool across_spatial;
 };
 
-class normalize_test : public testing::TestWithParam<normalize_test_params> { };
+class normalize_test : public testing::TestWithParam<normalize_test_params> {};
 
 TEST_P(normalize_test, shape_infer) {
     auto p = GetParam();
@@ -44,20 +41,21 @@ TEST_P(normalize_test, shape_infer) {
     auto& normalize_node = prog.get_or_create(normalize_prim);
     program_wrapper::add_connection(prog, input0_layout_node, normalize_node);
     program_wrapper::add_connection(prog, input1_layout_node, normalize_node);
-    auto res = normalize_inst::calc_output_layouts<ov::PartialShape>(normalize_node, *normalize_node.get_kernel_impl_params());
+    auto res =
+        normalize_inst::calc_output_layouts<ov::PartialShape>(normalize_node, *normalize_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     auto expected_layout = p.input_layout;
     ASSERT_EQ(res[0], expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, normalize_test,
-    testing::ValuesIn(std::vector<normalize_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, false},
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, true},
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, false},
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, true},
-        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, false}
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         normalize_test,
+                         testing::ValuesIn(std::vector<normalize_test_params>{
+                             {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, false},
+                             {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, true},
+                             {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, false},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, true},
+                             {layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, false}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

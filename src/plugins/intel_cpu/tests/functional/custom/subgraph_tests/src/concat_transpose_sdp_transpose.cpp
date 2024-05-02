@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -128,8 +127,12 @@ public:
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv,
+                                                            beam_idx,
+                                                            ov::op::v0::Constant::create(ElementType::i32, {1}, {0}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherK, inputParams[1]}, concat_axis);
         auto concatV = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gatherV, inputParams[2]}, concat_axis);
         auto transposeK = std::make_shared<ov::op::v1::Transpose>(concatK, preOrder);
@@ -193,7 +196,7 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
-        auto create_input = [this] (std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
+        auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
                 auto size = shape[0];
@@ -282,29 +285,24 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {
-    {
-        // greedy search
-        {{
-            // B, L1, H, S
-            {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
-            // B, L0, H, S
-            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        },
-        // beam search
-        {{
-            // B, L1, H, S
-            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
-            // B, L0, H, S
-            {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        }
-    }
-};
+    {// greedy search
+     {{
+          // B, L1, H, S
+          {{1, -1, 8, 64}, {{1, 10, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}, {1, 20, 8, 64}, {1, 1, 8, 64}}},
+          // B, L0, H, S
+          {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 10, 8, 64}, {1, 11, 8, 64}, {1, 12, 8, 64}, {1, 32, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}},
+     // beam search
+     {{
+          // B, L1, H, S
+          {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+          // B, L0, H, S
+          {{-1, -1, 8, 64}, {{4, 0, 8, 64}, {4, 10, 8, 64}, {4, 11, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                          ConcatSDPTransposeTest,
@@ -312,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatSDPTransposeTest::getTestCaseName);
-} //  namespace
+}  //  namespace
 
 class ConcatSDPTransposeTestSetState : public ConcatSDPTransposeTestBase {
 public:
@@ -330,7 +328,7 @@ public:
         }
     }
     void new_state(ov::element::Type& type, const ov::Shape& pastKVInitShape) {
-        auto fill = [] (ov::Tensor& t, float val) {
+        auto fill = [](ov::Tensor& t, float val) {
             auto shape = t.get_shape();
             if (t.get_element_type() == ov::element::f32) {
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
@@ -411,19 +409,15 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
 
 namespace {
 const std::vector<InputShapeAndTransposeOrder> inputShapeAndReordersSetState = {
-    {
-        // beam search
-        {{
-            // B, L1, H, S
-            {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
-            // B, L0, H, S and init tensor
-            {{-1, -1, 8, 64}, {{4, 2, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}, {4, 14, 8, 64}}},
-         },
-         // transposeOrder
-         {0, 2, 1, 3}
-        }
-    }
-};
+    {// beam search
+     {{
+          // B, L1, H, S
+          {{-1, -1, 8, 64}, {{4, 10, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}, {4, 1, 8, 64}}},
+          // B, L0, H, S and init tensor
+          {{-1, -1, 8, 64}, {{4, 2, 8, 64}, {4, 12, 8, 64}, {4, 13, 8, 64}, {4, 14, 8, 64}}},
+      },
+      // transposeOrder
+      {0, 2, 1, 3}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTestSetState,

@@ -2,9 +2,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino import Model, PartialShape
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.runtime.passes import Matcher, MatcherPass, ModelPass, WrapType
+
+from openvino import Model, PartialShape
 
 
 def get_relu_model():
@@ -35,6 +36,7 @@ def expect_exception(func, message=""):
             return None
         except Exception as e:
             return str(e)
+
     res = check()
     if res is None:
         raise AssertionError("Exception is not thrown!")

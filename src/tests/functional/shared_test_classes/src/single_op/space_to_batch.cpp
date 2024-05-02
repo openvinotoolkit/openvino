@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj) {
+std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple>& obj) {
     std::vector<InputShape> input_shapes;
     std::vector<int64_t> block_shapes, pads_begin, pads_end;
     ov::element::Type model_type;

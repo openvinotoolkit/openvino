@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <slice_inst.h>
-#include "primitive_type_base.h"
 #include "openvino/op/slice.hpp"
-#include "slice_shape_inference.hpp"
-#include <sstream>
+
 #include <json_object.h>
+#include <slice_inst.h>
+
+#include <sstream>
+
+#include "primitive_type_base.h"
+#include "slice_shape_inference.hpp"
 
 namespace cldnn {
 
@@ -36,8 +39,7 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(slice)
 
-slice_inst::typed_primitive_inst(network& network, slice_node const& node)
-    : parent(network, node) {}
+slice_inst::typed_primitive_inst(network& network, slice_node const& node) : parent(network, node) {}
 
 layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params const& impl_param) {
     return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
@@ -115,4 +117,4 @@ void slice_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     }
 }
 
-} // namespace cldnn
+}  // namespace cldnn

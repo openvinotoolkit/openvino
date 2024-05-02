@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "arg_max_min_inst.h"
-#include "arg_max_min/arg_max_min_kernel_selector.h"
 #include "arg_max_min/arg_max_min_kernel_base.h"
+#include "arg_max_min/arg_max_min_kernel_selector.h"
+#include "arg_max_min_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -16,20 +15,24 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
         axis += rank;
     }
     switch (axis) {
-        case 0: return kernel_selector::argm_axis::BATCH;
-        case 1: return kernel_selector::argm_axis::FEATURE;
-        case 2:
-            if (rank > 4)
-                return kernel_selector::argm_axis::Z;
-            else
-                return kernel_selector::argm_axis::Y;
-        case 3:
-            if (rank > 4)
-                return kernel_selector::argm_axis::Y;
-            else
-                return kernel_selector::argm_axis::X;
-        case 4: return kernel_selector::argm_axis::X;
-        default: OPENVINO_THROW("Invalid arg_max_min axis ", axis);
+    case 0:
+        return kernel_selector::argm_axis::BATCH;
+    case 1:
+        return kernel_selector::argm_axis::FEATURE;
+    case 2:
+        if (rank > 4)
+            return kernel_selector::argm_axis::Z;
+        else
+            return kernel_selector::argm_axis::Y;
+    case 3:
+        if (rank > 4)
+            return kernel_selector::argm_axis::Y;
+        else
+            return kernel_selector::argm_axis::X;
+    case 4:
+        return kernel_selector::argm_axis::X;
+    default:
+        OPENVINO_THROW("Invalid arg_max_min axis ", axis);
     }
 }
 
@@ -130,16 +133,14 @@ namespace detail {
 attach_arg_max_min_impl::attach_arg_max_min_impl() {
     auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::i32};
 
-    auto formats = {
-        format::bfyx,
-        format::yxfb,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bfzyx
-    };
+    auto formats = {format::bfyx,
+                    format::yxfb,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+                    format::bfzyx};
 
     implementation_map<arg_max_min>::add(impl_types::ocl,
                                          shape_types::static_shape,
@@ -147,10 +148,7 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
                                          types,
                                          formats);
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx};
 
     implementation_map<arg_max_min>::add(impl_types::ocl,
                                          shape_types::dynamic_shape,

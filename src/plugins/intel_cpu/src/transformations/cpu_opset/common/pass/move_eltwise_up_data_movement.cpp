@@ -5,46 +5,37 @@
 #include "move_eltwise_up_data_movement.hpp"
 
 #include <memory>
-#include <vector>
 #include <numeric>
-
 #include <openvino/opsets/opset8.hpp>
+#include <vector>
+
+#include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "itt.hpp"
-
-
 namespace {
-    bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Squeeze>(node) ||
-               ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-               ov::is_type<ov::op::v1::Reshape>(node) ||
-               ov::is_type<ov::op::v1::Transpose>(node) ||
-               ov::is_type<ov::op::v0::ShuffleChannels>(node) ||
-               ov::is_type<ov::op::v7::Roll>(node) ||
-               ov::is_type<ov::op::v0::ReverseSequence>(node) ||
-               ov::is_type<ov::op::v0::DepthToSpace>(node) ||
-               ov::is_type<ov::op::v1::BatchToSpace>(node) ||
-               ov::is_type<ov::op::v1::Broadcast>(node) ||
-               ov::is_type<ov::op::v3::Broadcast>(node) ||
-               ov::is_type<ov::op::v1::Gather>(node) ||
-               ov::is_type<ov::op::v7::Gather>(node) ||
-               ov::is_type<ov::op::v8::Gather>(node);
-    }
+bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::v0::ShuffleChannels>(node) || ov::is_type<ov::op::v7::Roll>(node) ||
+           ov::is_type<ov::op::v0::ReverseSequence>(node) || ov::is_type<ov::op::v0::DepthToSpace>(node) ||
+           ov::is_type<ov::op::v1::BatchToSpace>(node) || ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v3::Broadcast>(node) || ov::is_type<ov::op::v1::Gather>(node) ||
+           ov::is_type<ov::op::v7::Gather>(node) || ov::is_type<ov::op::v8::Gather>(node);
+}
 
-    bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
-        auto constantNode = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
-        return constantNode != nullptr && shape_size(constantNode->get_shape()) == 1;
-    }
-} // namespace
+bool is_scalar_like(const std::shared_ptr<ov::Node>& node) {
+    auto constantNode = std::dynamic_pointer_cast<ov::opset8::Constant>(node);
+    return constantNode != nullptr && shape_size(constantNode->get_shape()) == 1;
+}
+}  // namespace
 
 ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
-                                                      ov::op::util::BinaryElementwiseArithmetic,
-                                                      ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
+                                                        ov::op::util::BinaryElementwiseArithmetic,
+                                                        ov::op::v0::FakeQuantize>(ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -64,7 +55,8 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
             }
         }
 
-        if (!ov::is_type<ov::op::v0::FakeQuantize>(eltwise) && eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(eltwise) &&
+            eltwise->get_output_element_type(0) != eltwise->get_input_element_type(0)) {
             return false;
         }
 
@@ -72,8 +64,7 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         auto child = eltwise;
 
         while (is_data_movement_operation(current)) {
-            if (current->get_output_size() != 1 ||
-                current->get_output_target_inputs(0).size() != 1 ||
+            if (current->get_output_size() != 1 || current->get_output_target_inputs(0).size() != 1 ||
                 current->get_output_element_type(0) != current->get_input_element_type(0)) {
                 return false;
             }

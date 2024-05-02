@@ -13,4 +13,3 @@ TEST_P(RandomUniformLayerTest, Inference) {
 }
 }  // namespace test
 }  // namespace ov
-

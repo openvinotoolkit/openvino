@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_max_suppression.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "non_max_suppression_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -30,7 +27,7 @@ struct non_max_suppression_test_params {
     std::vector<layout> expected_layouts;
 };
 
-class non_max_suppression_test : public testing::TestWithParam<non_max_suppression_test_params> { };
+class non_max_suppression_test : public testing::TestWithParam<non_max_suppression_test_params> {};
 
 TEST_P(non_max_suppression_test, shape_infer) {
     auto p = GetParam();
@@ -69,7 +66,9 @@ TEST_P(non_max_suppression_test, shape_infer) {
                                                                           primitive_id(),
                                                                           p.num_outputs);
     non_max_suppression_prim->output_paddings = {padding(), padding(), padding()};
-    non_max_suppression_prim->output_data_types = {optional_data_type{}, optional_data_type{p.in_layouts[1].data_type}, optional_data_type{}};
+    non_max_suppression_prim->output_data_types = {optional_data_type{},
+                                                   optional_data_type{p.in_layouts[1].data_type},
+                                                   optional_data_type{}};
     if (p.in_layouts.size() > 2) {
         non_max_suppression_prim->num_select_per_class = input_prim_ids[2].pid;
     }
@@ -90,43 +89,52 @@ TEST_P(non_max_suppression_test, shape_infer) {
         ASSERT_EQ(res[i], p.expected_layouts[i]);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, non_max_suppression_test,
-    testing::ValuesIn(std::vector<non_max_suppression_test_params>{
-        {
-            {layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, 2, 3}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
-            1.f, 4, false, true, 3,
-            {layout{ov::PartialShape{4, 3}, data_types::i32, format::bfyx},
-             layout{ov::PartialShape{4, 3}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, 2, 3}, data_types::f32, format::bfyx}},
-            1.f, 4, false, true, 3,
-            {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
-             layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
-            1.f, 4, false, true, 3,
-            {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
-             layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-             layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
-            1.f, 4, false, true, 3,
-            {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
-             layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}
-        },
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         non_max_suppression_test,
+                         testing::ValuesIn(std::vector<non_max_suppression_test_params>{
+                             {{layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{2, 2, 3}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
+                              1.f,
+                              4,
+                              false,
+                              true,
+                              3,
+                              {layout{ov::PartialShape{4, 3}, data_types::i32, format::bfyx},
+                               layout{ov::PartialShape{4, 3}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}},
+                             {{layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{2, 2, 3}, data_types::f32, format::bfyx}},
+                              1.f,
+                              4,
+                              false,
+                              true,
+                              3,
+                              {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
+                               layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}},
+                             {{layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
+                              1.f,
+                              4,
+                              false,
+                              true,
+                              3,
+                              {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
+                               layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}},
+                             {{layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                               layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
+                              1.f,
+                              4,
+                              false,
+                              true,
+                              3,
+                              {layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::i32, format::bfyx},
+                               layout{ov::PartialShape{ov::Dimension::dynamic(), 3}, data_types::f32, format::bfyx},
+                               layout{ov::PartialShape{1}, data_types::i32, format::bfyx}}},
+                         }));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

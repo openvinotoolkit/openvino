@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-#include "low_precision/lpt_visibility.hpp"
 
 namespace ov {
 
@@ -24,4 +24,4 @@ public:
         return false;
     }
 };
-} // namespace ov
+}  // namespace ov

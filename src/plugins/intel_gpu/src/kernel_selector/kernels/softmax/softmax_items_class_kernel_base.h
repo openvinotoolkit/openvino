@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "softmax_kernel_base.h"
 #include <vector>
+
+#include "softmax_kernel_base.h"
 
 namespace kernel_selector {
 class SoftmaxItemsClassKernelBase : public SoftmaxKernelBase {
@@ -24,7 +25,7 @@ protected:
             return Datatype::F32;
     }
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

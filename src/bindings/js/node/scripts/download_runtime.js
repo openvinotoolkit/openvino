@@ -4,8 +4,8 @@ const tar = require('tar-fs');
 const https = require('node:https');
 const gunzip = require('gunzip-maybe');
 const fs = require('node:fs/promises');
-const { createReadStream, createWriteStream } = require('node:fs');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const {createReadStream, createWriteStream} = require('node:fs');
+const {HttpsProxyAgent} = require('https-proxy-agent');
 
 const packageJson = require('../package.json');
 
@@ -20,16 +20,15 @@ async function main() {
   const destinationPath = path.resolve(__dirname, '..', modulePath);
   const force = process.argv.includes('-f');
   const ignoreIfExists = process.argv.includes('--ignore-if-exists');
-  const { env } = process;
+  const {env} = process;
   const proxy = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
   try {
-    await downloadRuntime(destinationPath, { force, ignoreIfExists, proxy });
+    await downloadRuntime(destinationPath, {force, ignoreIfExists, proxy});
   } catch (error) {
     if (error instanceof RuntimeExistsError) {
-      console.error(
-        `Directory '${destinationPath}' already exists. To force runtime downloading run 'npm run download_runtime -- -f'`
-      );
+      console.error(`Directory '${
+          destinationPath}' already exists. To force runtime downloading run 'npm run download_runtime -- -f'`);
     } else {
       throw error;
     }
@@ -52,28 +51,33 @@ class RuntimeExistsError extends Error {
  * @function downloadRuntime
  * @param {string} destinationPath - The destination directory path.
  * @param {Object} [config] - The configuration object.
- * @param {boolean} [config.force=false] - The flag to force install and replace runtime if it exists. Default is `false`.
- * @param {boolean} [config.ignoreIfExists=true] - The flag to skip installation if it exists Default is `true`.
+ * @param {boolean} [config.force=false] - The flag to force install and replace
+ *     runtime if it exists. Default is `false`.
+ * @param {boolean} [config.ignoreIfExists=true] - The flag to skip installation
+ *     if it exists Default is `true`.
  * @param {string|null} [config.proxy=null] - The proxy URL. Default is `null`.
  * @returns {Promise<void>}
  * @throws {RuntimeExistsError}
  */
-async function downloadRuntime(destinationPath, config = { force: false, ignoreIfExists: true, proxy: null }) {
-  const { version } = packageJson;
+async function downloadRuntime(destinationPath, config = {
+  force : false,
+  ignoreIfExists : true,
+  proxy : null
+}) {
+  const {version} = packageJson;
   const osInfo = await getOsInfo();
-  const isRuntimeDirectoryExists = await checkIfDirectoryExists(destinationPath);
+  const isRuntimeDirectoryExists =
+      await checkIfDirectoryExists(destinationPath);
 
   if (isRuntimeDirectoryExists && !config.force) {
     if (config.ignoreIfExists) {
-      console.warn(
-        `Directory '${destinationPath}' already exists. Skipping runtime downloading because 'ignoreIfExists' flag is passed.`
-      );
+      console.warn(`Directory '${
+          destinationPath}' already exists. Skipping runtime downloading because 'ignoreIfExists' flag is passed.`);
       return;
     }
 
-    throw new RuntimeExistsError(
-      `Directory '${destinationPath}' already exists. To force runtime downloading use 'force' flag.`
-    );
+    throw new RuntimeExistsError(`Directory '${
+        destinationPath}' already exists. To force runtime downloading use 'force' flag.`);
   }
 
   const runtimeArchiveUrl = getRuntimeArchiveUrl(version, osInfo);
@@ -87,7 +91,8 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await fs.mkdir(tempDirectoryPath);
 
     console.log('Downloading OpenVINO runtime archive...');
-    await downloadFile(runtimeArchiveUrl, filename, tempDirectoryPath, config.proxy);
+    await downloadFile(
+        runtimeArchiveUrl, filename, tempDirectoryPath, config.proxy);
     console.log('OpenVINO runtime archive downloaded.');
 
     await removeDirectory(destinationPath);
@@ -96,7 +101,7 @@ async function downloadRuntime(destinationPath, config = { force: false, ignoreI
     await unarchive(archiveFilePath, destinationPath);
 
     console.log('The archive was successfully extracted.');
-  } catch (error) {    
+  } catch (error) {
     console.error(`Failed to download OpenVINO runtime: ${error}.`);
     throw error;
   } finally {
@@ -135,7 +140,7 @@ async function getOsInfo() {
     throw new Error(`Version for windows and '${arch}' is not supported.`);
   }
 
-  return { platform, arch };
+  return {platform, arch};
 }
 
 /**
@@ -167,16 +172,16 @@ async function checkIfDirectoryExists(directoryPath) {
  * @returns {string}
  */
 function getRuntimeArchiveUrl(version, osInfo) {
-  const { 
+  const {
     host,
-    package_name: packageNameTemplate,
-    remote_path: remotePathTemplate,
+    package_name : packageNameTemplate,
+    remote_path : remotePathTemplate,
   } = packageJson.binary;
   const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`
-  const fullPath = fullPathTemplate
-    .replace(new RegExp('{version}', 'g'), version)
-    .replace(new RegExp('{platform}', 'g'), osInfo.platform)
-    .replace(new RegExp('{arch}', 'g'), osInfo.arch);
+  const fullPath =
+      fullPathTemplate.replace(new RegExp('{version}', 'g'), version)
+          .replace(new RegExp('{platform}', 'g'), osInfo.platform)
+          .replace(new RegExp('{arch}', 'g'), osInfo.arch);
 
   return new URL(fullPath, host).toString();
 }
@@ -192,9 +197,10 @@ function getRuntimeArchiveUrl(version, osInfo) {
 async function removeDirectory(path) {
   try {
     console.log(`Removing ${path}`);
-    await fs.rm(path, { recursive: true, force: true });
+    await fs.rm(path, {recursive : true, force : true});
   } catch (error) {
-    if (error.code === codeENOENT) console.log(`Path: ${path} doesn't exist`);
+    if (error.code === codeENOENT)
+      console.log(`Path: ${path} doesn't exist`);
 
     throw error;
   }
@@ -215,7 +221,7 @@ function downloadFile(url, filename, destination, proxy = null) {
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
-  if (new URL(url).protocol === 'http') 
+  if (new URL(url).protocol === 'http')
     throw new Error('Http link doesn\'t support');
 
   let agent;
@@ -226,14 +232,14 @@ function downloadFile(url, filename, destination, proxy = null) {
   }
 
   return new Promise((resolve, reject) => {
-    file.on('error', (error) => {
-      reject(`Failed to open file stream: ${error}.`);
-    });
+    file.on(
+        'error',
+        (error) => { reject(`Failed to open file stream: ${error}.`); });
 
     console.log(`Download file by link: ${url}`);
 
-    const request = https.get(url, { agent }, (res) => {
-      const { statusCode } = res;
+    const request = https.get(url, {agent}, (res) => {
+      const {statusCode} = res;
 
       if (statusCode !== 200) {
         return reject(`Server returned status code ${statusCode}.`);
@@ -248,9 +254,8 @@ function downloadFile(url, filename, destination, proxy = null) {
       });
     });
 
-    request.on('error', (error) => {
-      reject(`Failed to send request: ${error}.`);
-    });
+    request.on(
+        'error', (error) => { reject(`Failed to send request: ${error}.`); });
 
     request.setTimeout(timeout, () => {
       request.destroy();
@@ -270,15 +275,13 @@ function downloadFile(url, filename, destination, proxy = null) {
 function unarchive(tarFilePath, dest) {
   return new Promise((resolve, reject) => {
     createReadStream(tarFilePath)
-      .pipe(gunzip())
-      .pipe(tar.extract(dest)
-        .on('finish', () => {
-          resolve();
-        }).on('error', (err) => {
-          reject(err);
-        }),
-      );
+        .pipe(gunzip())
+        .pipe(
+            tar.extract(dest)
+                .on('finish', () => { resolve(); })
+                .on('error', (err) => { reject(err); }),
+        );
   });
 }
 
-module.exports = { downloadRuntime };
+module.exports = {downloadRuntime};

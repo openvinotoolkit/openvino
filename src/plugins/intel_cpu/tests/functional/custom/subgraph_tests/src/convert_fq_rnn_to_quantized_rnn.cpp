@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cassert>
+#include <memory>
+#include <vector>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-
-#include <algorithm>
-#include <cassert>
-#include <memory>
-#include <vector>
 
 using namespace CPUTestUtils;
 
@@ -36,8 +36,8 @@ public:
 
         std::tie(rnnType, inputShapes, quantizedHiddenState) = obj.param;
 
-        auto batchSize  = inputShapes[0];
-        auto inputSize  = inputShapes[1];
+        auto batchSize = inputShapes[0];
+        auto inputSize = inputShapes[1];
         auto hiddenSize = inputShapes[2];
 
         std::ostringstream result;
@@ -101,15 +101,15 @@ protected:
 
         std::tie(rnnType, inputShapes, quantizedHiddenState) = this->GetParam();
 
-        if (rnnType != "LSTMSequence") // remove cell input for non-cell rnn types
+        if (rnnType != "LSTMSequence")  // remove cell input for non-cell rnn types
             inputShapes.erase(inputShapes.begin() + cellIdx);
 
         init_input_shapes(inputShapes);
 
-        const auto inputSize  = targetStaticShapes.front()[0][2];
+        const auto inputSize = targetStaticShapes.front()[0][2];
         const auto hiddenSize = targetStaticShapes.front()[1][2];
         const size_t numDirections = 1;
-        const size_t numOfGates     = rnnType == "LSTMSequence"   ? 4 : 3;
+        const size_t numOfGates = rnnType == "LSTMSequence" ? 4 : 3;
         const size_t numOfBiasGates = rnnType == "LBRGRUSequence" ? numOfGates + 1 : numOfGates;
 
         const auto ngPrec = element::f32;
@@ -121,9 +121,14 @@ protected:
 
         auto makeDataFQ = [](const ov::Output<Node>& input) {
             const auto fqLevels = 256;
-            return ov::test::utils::make_fake_quantize(input, ov::element::f32, fqLevels, {},
-                                                      {-128.f/127}, {1.f},
-                                                      {-128.f/127}, {1.f});
+            return ov::test::utils::make_fake_quantize(input,
+                                                       ov::element::f32,
+                                                       fqLevels,
+                                                       {},
+                                                       {-128.f / 127},
+                                                       {1.f},
+                                                       {-128.f / 127},
+                                                       {1.f});
         };
 
         auto X_FQ = makeDataFQ(inputParams[0]);
@@ -131,19 +136,43 @@ protected:
         if (quantizedHiddenState) {
             H = makeDataFQ(inputParams[1]);
         } else {
-            H = ov::test::utils::deprecated::make_constant(ov::element::f32, inputDynamicShapes[1].get_shape(),  {}, true, 1.f, -1.f);
+            H = ov::test::utils::deprecated::make_constant(ov::element::f32,
+                                                           inputDynamicShapes[1].get_shape(),
+                                                           {},
+                                                           true,
+                                                           1.f,
+                                                           -1.f);
         }
 
-        auto W = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, inputSize},  {}, true, 1.f, -1.f);
-        auto R = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfGates     * hiddenSize, hiddenSize}, {}, true, 1.f, -1.f);
-        auto B = ov::test::utils::deprecated::make_constant(ov::element::f32, {numDirections, numOfBiasGates * hiddenSize},             {}, true, 0.1f, -0.1f);
+        auto W = ov::test::utils::deprecated::make_constant(ov::element::f32,
+                                                            {numDirections, numOfGates * hiddenSize, inputSize},
+                                                            {},
+                                                            true,
+                                                            1.f,
+                                                            -1.f);
+        auto R = ov::test::utils::deprecated::make_constant(ov::element::f32,
+                                                            {numDirections, numOfGates * hiddenSize, hiddenSize},
+                                                            {},
+                                                            true,
+                                                            1.f,
+                                                            -1.f);
+        auto B = ov::test::utils::deprecated::make_constant(ov::element::f32,
+                                                            {numDirections, numOfBiasGates * hiddenSize},
+                                                            {},
+                                                            true,
+                                                            0.1f,
+                                                            -0.1f);
 
         auto makeWeightsFQ = [](const std::shared_ptr<Node> weight) {
             const auto fqLevelsW = 255;
-            return ov::test::utils::make_fake_quantize(weight, ov::element::f32,
-                                                     fqLevelsW, std::vector<size_t>{},
-                                                     {-127.f/63}, {127.f/63},
-                                                     {-127.f/63}, {127.f/63});
+            return ov::test::utils::make_fake_quantize(weight,
+                                                       ov::element::f32,
+                                                       fqLevelsW,
+                                                       std::vector<size_t>{},
+                                                       {-127.f / 63},
+                                                       {127.f / 63},
+                                                       {-127.f / 63},
+                                                       {127.f / 63});
         };
 
         auto W_FQ = makeWeightsFQ(W);
@@ -152,37 +181,59 @@ protected:
         std::shared_ptr<ov::Node> rnnCellOp;
 
         // fill sequence_length constant with max sequence length values
-        const auto batchSize  = targetStaticShapes.front()[0][0];
-        const auto maxSeqLen  = targetStaticShapes.front()[0][1];
+        const auto batchSize = targetStaticShapes.front()[0][0];
+        const auto maxSeqLen = targetStaticShapes.front()[0][1];
         std::vector<int> lengths(batchSize, static_cast<int>(maxSeqLen));
         auto seq_lengths = ov::op::v0::Constant::create(element::i64, Shape{batchSize}, lengths);
 
         if (rnnType == "LSTMSequence") {
             hasCell = true;
             auto C = inputParams[cellIdx];
-            rnnCellOp = std::make_shared<ov::op::v5::LSTMSequence>(
-                X_FQ, H, C, seq_lengths, W_FQ, R_FQ, B,
-                hiddenSize, op::RecurrentSequenceDirection::FORWARD);
+            rnnCellOp = std::make_shared<ov::op::v5::LSTMSequence>(X_FQ,
+                                                                   H,
+                                                                   C,
+                                                                   seq_lengths,
+                                                                   W_FQ,
+                                                                   R_FQ,
+                                                                   B,
+                                                                   hiddenSize,
+                                                                   op::RecurrentSequenceDirection::FORWARD);
         } else if (rnnType == "GRUSequence") {
-            rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(
-                X_FQ, H, seq_lengths, W_FQ, R_FQ, B,
-                hiddenSize, op::RecurrentSequenceDirection::FORWARD);
+            rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(X_FQ,
+                                                                  H,
+                                                                  seq_lengths,
+                                                                  W_FQ,
+                                                                  R_FQ,
+                                                                  B,
+                                                                  hiddenSize,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
         } else if (rnnType == "LBRGRUSequence") {
             const std::vector<std::string> activations{"sigmoid", "tanh"};
             const std::vector<float> activations_alpha, activations_beta;
-            rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(
-                X_FQ, H, seq_lengths, W_FQ, R_FQ, B,
-                hiddenSize, op::RecurrentSequenceDirection::FORWARD,
-                activations, activations_alpha, activations_beta, 0.f, true);
+            rnnCellOp = std::make_shared<ov::op::v5::GRUSequence>(X_FQ,
+                                                                  H,
+                                                                  seq_lengths,
+                                                                  W_FQ,
+                                                                  R_FQ,
+                                                                  B,
+                                                                  hiddenSize,
+                                                                  op::RecurrentSequenceDirection::FORWARD,
+                                                                  activations,
+                                                                  activations_alpha,
+                                                                  activations_beta,
+                                                                  0.f,
+                                                                  true);
         } else {
             OPENVINO_THROW("Unexpected offset type");
         }
 
         if (maxSeqLen > 1)
-            abs_threshold = 0.05; // RNN int8 computation is expected to affect the accuracy, especially when sequence_length > 1
+            abs_threshold =
+                0.05;  // RNN int8 computation is expected to affect the accuracy, especially when sequence_length > 1
 
         function = makeNgraphFunction(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
     }
+
 private:
     static const size_t cellIdx = 2;
     bool hasCell = false;
@@ -196,27 +247,30 @@ TEST_P(ConvertFqRnnToQuantizedRnn, CompareWithRefs) {
 namespace {
 
 const std::vector<std::vector<InputShape>> staticShapesLSTM = {
-    {   // seq len > 1
-        { {}, { {2, 5, 10} } },  // X
-        { {}, { {2, 1, 4}} },    // H
-        { {}, { {2, 1, 4}} },    // C
+    {
+        // seq len > 1
+        {{}, {{2, 5, 10}}},  // X
+        {{}, {{2, 1, 4}}},   // H
+        {{}, {{2, 1, 4}}},   // C
     },
-    {   // seq len = 1
-        { {}, { {2, 1, 5} } },   // X
-        { {}, { {2, 1, 1}} },    // H
-        { {}, { {2, 1, 1}} },    // C
+    {
+        // seq len = 1
+        {{}, {{2, 1, 5}}},  // X
+        {{}, {{2, 1, 1}}},  // H
+        {{}, {{2, 1, 1}}},  // C
     },
 };
 
 std::vector<bool> quantizedHiddenStateParam{true, false};
 
-INSTANTIATE_TEST_SUITE_P(smoke_static, ConvertFqRnnToQuantizedRnn,
+INSTANTIATE_TEST_SUITE_P(smoke_static,
+                         ConvertFqRnnToQuantizedRnn,
                          ::testing::Combine(::testing::Values("LSTMSequence", "GRUSequence"),
                                             // "LBRGRUSequence", // enable after implemented in oneDNN
                                             ::testing::ValuesIn(staticShapesLSTM),
                                             ::testing::ValuesIn(quantizedHiddenStateParam)),
                          ConvertFqRnnToQuantizedRnn::getTestCaseName);
-} // namespace
+}  // namespace
 
 }  // namespace test
 }  // namespace ov

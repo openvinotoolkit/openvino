@@ -7,30 +7,32 @@
 from collections import OrderedDict
 
 
-def assemble_preproc(batch=None,
-                     h=None,
-                     w=None,
-                     resize_mode="nearest",
-                     mean=None,
-                     mean_file=None,
-                     scale_factor=None,
-                     normalization_factor=None,
-                     reverse_channels=None,
-                     permute_order=None,
-                     expand_dims=True,
-                     target_layers=None,
-                     layers_to_expand=None,
-                     layers_not_to_expand=None,
-                     add_layer_to_input_data=None,
-                     remove_layers_from_input_data=None,
-                     slice_length=None,
-                     cast_data_type=None,
-                     rename_inputs=None,
-                     grayscale=None,
-                     convert_to_torch=None,
-                     names_to_indices=None,
-                     assign_indices=None,
-                     **kwargs):
+def assemble_preproc(
+    batch=None,
+    h=None,
+    w=None,
+    resize_mode="nearest",
+    mean=None,
+    mean_file=None,
+    scale_factor=None,
+    normalization_factor=None,
+    reverse_channels=None,
+    permute_order=None,
+    expand_dims=True,
+    target_layers=None,
+    layers_to_expand=None,
+    layers_not_to_expand=None,
+    add_layer_to_input_data=None,
+    remove_layers_from_input_data=None,
+    slice_length=None,
+    cast_data_type=None,
+    rename_inputs=None,
+    grayscale=None,
+    convert_to_torch=None,
+    names_to_indices=None,
+    assign_indices=None,
+    **kwargs
+):
     """
     Construct data preprocessing pipeline given basic values.
 
@@ -75,52 +77,62 @@ def assemble_preproc(batch=None,
     steps = []
 
     if step_include(assign_indices):
-        steps.append(("assign_indices", {
-            "target_layers": target_layers
-        }))
+        steps.append(("assign_indices", {"target_layers": target_layers}))
 
     if step_include(remove_layers_from_input_data):
-        steps.append(("remove_layers_from_input_data", {
-            "target_layers": remove_layers_from_input_data
-        }))
+        steps.append(
+            (
+                "remove_layers_from_input_data",
+                {"target_layers": remove_layers_from_input_data},
+            )
+        )
 
     if h and w:
-        steps.append(("resize", {
-            "height": h,
-            "width": w,
-            "mode=": resize_mode,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            (
+                "resize",
+                {
+                    "height": h,
+                    "width": w,
+                    "mode=": resize_mode,
+                    "target_layers": target_layers,
+                },
+            )
+        )
 
     if step_include(mean) and step_include(mean_file):
-        raise AttributeError('both mean and mean file options specified')
+        raise AttributeError("both mean and mean file options specified")
     elif step_include(mean):
-        steps.append(("subtract_mean_values", {
-            "mean_values": mean,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            (
+                "subtract_mean_values",
+                {"mean_values": mean, "target_layers": target_layers},
+            )
+        )
     elif step_include(mean_file):
-        steps.append(("subtract_mean_values_file", {
-            "mean_file": mean_file,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            (
+                "subtract_mean_values_file",
+                {"mean_file": mean_file, "target_layers": target_layers},
+            )
+        )
 
     if grayscale == dict():
         steps.append(("grayscale", grayscale))
 
     if step_include(scale_factor) and step_include(normalization_factor):
-        raise AttributeError(
-            'both scale and normalization factors are specified')
+        raise AttributeError("both scale and normalization factors are specified")
     elif step_include(normalization_factor):
-        steps.append(("normalize", {
-            "factor": normalization_factor,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            (
+                "normalize",
+                {"factor": normalization_factor, "target_layers": target_layers},
+            )
+        )
     elif step_include(scale_factor):
-        steps.append(("scale", {
-            "factor": scale_factor,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            ("scale", {"factor": scale_factor, "target_layers": target_layers})
+        )
 
     if step_include(cast_data_type):
         steps.append(("cast_data_type", {"target_data_type": cast_data_type}))
@@ -132,29 +144,38 @@ def assemble_preproc(batch=None,
         steps.append(("reverse_channels", {"target_layers": target_layers}))
 
     if step_include(permute_order):
-        steps.append(("permute_shape", {
-            "order": permute_order,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            ("permute_shape", {"order": permute_order, "target_layers": target_layers})
+        )
 
     if step_include(batch):
-        steps.append(("align_with_batch", {
-            "batch": batch,
-            "expand_dims": expand_dims,
-            "target_layers": target_layers
-        }))
+        steps.append(
+            (
+                "align_with_batch",
+                {
+                    "batch": batch,
+                    "expand_dims": expand_dims,
+                    "target_layers": target_layers,
+                },
+            )
+        )
 
     if step_include(layers_to_expand) and step_include(layers_not_to_expand):
-        steps.append(("align_with_batch_dif", {
-            "batch": batch,
-            "layers_to_expand": layers_to_expand,
-            "layers_not_to_expand": layers_not_to_expand
-        }))
+        steps.append(
+            (
+                "align_with_batch_dif",
+                {
+                    "batch": batch,
+                    "layers_to_expand": layers_to_expand,
+                    "layers_not_to_expand": layers_not_to_expand,
+                },
+            )
+        )
 
     if step_include(add_layer_to_input_data):
-        steps.append(("add_layer_to_input_data", {
-            "layer_data": add_layer_to_input_data
-        }))
+        steps.append(
+            ("add_layer_to_input_data", {"layer_data": add_layer_to_input_data})
+        )
 
     for preproc, config in kwargs.items():
         steps.append((preproc, config))
@@ -165,16 +186,12 @@ def assemble_preproc(batch=None,
         steps.append(("rename_inputs", {"rename_input_pairs": rename_inputs}))
 
     if step_include(convert_to_torch):
-        steps.append(("convert_to_torch", {
-            "target_layers": target_layers
-        }))
+        steps.append(("convert_to_torch", {"target_layers": target_layers}))
 
     if step_include(names_to_indices):
-        steps.append(("names_to_indices", {
-            "target_layers": target_layers
-        }))
+        steps.append(("names_to_indices", {"target_layers": target_layers}))
 
-    return 'preprocess', OrderedDict(steps)
+    return "preprocess", OrderedDict(steps)
 
 
 def assemble_preproc_tf(*args, **kwargs):
@@ -183,8 +200,9 @@ def assemble_preproc_tf(*args, **kwargs):
     :return: "preprocess" step with TensorFlow specific actions
     """
 
-    order = kwargs.pop('permute_order', None)
-    reverse = kwargs.pop('reverse_channels', True)
+    order = kwargs.pop("permute_order", None)
+    reverse = kwargs.pop("reverse_channels", True)
 
-    return assemble_preproc(*args, permute_order=order, reverse_channels=reverse, **kwargs)
-
+    return assemble_preproc(
+        *args, permute_order=order, reverse_channels=reverse, **kwargs
+    )

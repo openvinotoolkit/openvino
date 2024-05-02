@@ -4,13 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/markup_bias.hpp"
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include <memory>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/markup_bias.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "ov_lpt_models/markup_bias.hpp"
 #include "simple_low_precision_transformer.hpp"
 
@@ -47,10 +47,10 @@ protected:
         std::tie(precision, test_values, layer_type) = GetParam();
 
         actualFunction = ov::builder::subgraph::MarkupBiasFunction::get(precision,
-                                                                            test_values.input_shape,
-                                                                            test_values.bias_shape,
-                                                                            layer_type,
-                                                                            false);
+                                                                        test_values.input_shape,
+                                                                        test_values.bias_shape,
+                                                                        layer_type,
+                                                                        false);
         SimpleLowPrecisionTransformer transformer;
         transformer.transform(actualFunction);
     }

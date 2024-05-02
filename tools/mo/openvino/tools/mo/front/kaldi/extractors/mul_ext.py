@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.elementwise import Mul
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.elementwise import Mul
 
 
 class MulFrontExtractor(FrontExtractorOp):
-    op = 'Mul'
+    op = "Mul"
     enabled = True
 
     @classmethod

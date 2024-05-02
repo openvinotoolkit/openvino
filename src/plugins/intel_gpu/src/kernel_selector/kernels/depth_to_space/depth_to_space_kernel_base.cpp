@@ -3,9 +3,11 @@
 //
 
 #include "depth_to_space_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -54,9 +56,18 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params) c
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
 
-    return { kd };
+    return {kd};
 }
 }  // namespace kernel_selector

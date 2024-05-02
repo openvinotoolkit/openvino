@@ -15,8 +15,12 @@ enum class engine_types : int32_t {
 
 inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     switch (type) {
-    case engine_types::ocl: os << "ocl"; break;
-    default: os << "unknown"; break;
+    case engine_types::ocl:
+        os << "ocl";
+        break;
+    default:
+        os << "unknown";
+        break;
     }
 
     return os;
@@ -29,8 +33,12 @@ enum class runtime_types : int32_t {
 
 inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     switch (type) {
-    case runtime_types::ocl: os << "ocl"; break;
-    default: os << "unknown"; break;
+    case runtime_types::ocl:
+        os << "ocl";
+        break;
+    default:
+        os << "unknown";
+        break;
     }
 
     return os;

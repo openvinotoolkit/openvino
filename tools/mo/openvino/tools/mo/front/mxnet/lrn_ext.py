@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.lrn import AttributedLRN
 
 
 class LRNExtractor(FrontExtractorOp):
-    op = 'LRN'
+    op = "LRN"
     enabled = True
 
     @classmethod
@@ -19,10 +19,13 @@ class LRNExtractor(FrontExtractorOp):
         knorm = attrs.float("knorm", 2.0)
         nsize = attrs.int("nsize", None)
 
-        AttributedLRN.update_node_stat(node, {
-            'alpha': alpha,
-            'beta': beta,
-            'bias': knorm,
-            'local_size': nsize,
-        })
+        AttributedLRN.update_node_stat(
+            node,
+            {
+                "alpha": alpha,
+                "beta": beta,
+                "bias": knorm,
+                "local_size": nsize,
+            },
+        )
         return cls.enabled

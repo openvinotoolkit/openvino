@@ -26,6 +26,7 @@ public:
     ov::element::Type outPrecision;
     ov::Shape constantShape;
     bool constantShapeIsDefined;
+
 private:
     bool isEmpty;
 };

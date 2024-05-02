@@ -5,7 +5,6 @@
 import numpy as np
 import onnx
 import onnx.mapping
-
 from tests.tests_python.utils import run_node
 
 

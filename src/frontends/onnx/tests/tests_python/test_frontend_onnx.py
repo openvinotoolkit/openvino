@@ -4,13 +4,13 @@
 
 import io
 import os
-import onnx
-import numpy as np
-from onnx.helper import make_graph, make_model, make_tensor_value_info
-import pytest
-from pathlib import Path
 from itertools import chain
+from pathlib import Path
 
+import numpy as np
+import onnx
+import pytest
+from onnx.helper import make_graph, make_model, make_tensor_value_info
 from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
 
@@ -326,9 +326,9 @@ def test_onnx_conversion_extension_check_attributes():
     skip_if_onnx_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.onnx import ConversionExtension
 
     # use the model with attributes
     fe = fem.load_by_model(onnx_model_with_custom_attributes_filename)
@@ -380,9 +380,9 @@ def test_onnx_conversion_extension_attribute_with_default_value():
     skip_if_onnx_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.onnx import ConversionExtension
 
     # use the model without attributes
     fe = fem.load_by_model(onnx_model_filename)
@@ -447,10 +447,10 @@ def test_onnx_conversion_extension_cast_attributes():
     skip_if_onnx_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
-    from openvino.runtime import Type
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.onnx import ConversionExtension
+    from openvino.runtime import Type
 
     # use the model without attributes
     fe = fem.load_by_model(onnx_model_with_custom_attributes_filename)
@@ -504,9 +504,8 @@ def test_onnx_conversion_extension_common():
     skip_if_onnx_frontend_is_disabled()
 
     # use common (openvino.frontend) import here
-    from openvino.frontend import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import ConversionExtension, NodeContext
 
     fe = fem.load_by_model(onnx_model_filename)
     assert fe
@@ -534,9 +533,9 @@ def test_onnx_conversion_extension():
     skip_if_onnx_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.onnx import ConversionExtension
 
     fe = fem.load_by_model(onnx_model_filename)
     assert fe
@@ -564,9 +563,9 @@ def test_onnx_conversion_extension_with_custom_domain():
     skip_if_onnx_frontend_is_disabled()
 
     # use specific (openvino.frontend.onnx) import here
-    from openvino.frontend.onnx import ConversionExtension
-    from openvino.frontend import NodeContext
     import openvino.runtime.opset8 as ops
+    from openvino.frontend import NodeContext
+    from openvino.frontend.onnx import ConversionExtension
 
     fe = fem.load_by_model(onnx_model_extension_with_custom_domain)
     assert fe

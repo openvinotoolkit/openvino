@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
+#include <memory>
 
 #include "runtime/ocl/ocl_stream.hpp"
 #include "runtime/ocl/ocl_user_event.hpp"
-
-#include <memory>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;

@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <unordered_set>
 #include <ostream>
+#include <unordered_set>
 #include <vector>
 
 #include "low_precision/lpt_visibility.hpp"
@@ -27,35 +27,35 @@ enum levels : size_t {
     int32_narrow_range = 4294967295
 };
 
-static std::set<levels> all_levels = {
-    levels::int4,  levels::int4_narrow_range,
-    levels::int8,  levels::int8_narrow_range,
-    levels::int16, levels::int16_narrow_range,
-    levels::int32, levels::int32_narrow_range
-};
+static std::set<levels> all_levels = {levels::int4,
+                                      levels::int4_narrow_range,
+                                      levels::int8,
+                                      levels::int8_narrow_range,
+                                      levels::int16,
+                                      levels::int16_narrow_range,
+                                      levels::int32,
+                                      levels::int32_narrow_range};
 
 class LP_TRANSFORMATIONS_API QuantizationDetails {
 public:
     QuantizationDetails();
     QuantizationDetails(const QuantizationDetails& quantizationDetails);
-    QuantizationDetails(
-            const size_t levels,
-            const std::vector<float>& inputLowValues,
-            const std::vector<float>& inputHighValues,
-            const std::vector<float>& outputLowValues,
-            const std::vector<float>& outputHighValues);
+    QuantizationDetails(const size_t levels,
+                        const std::vector<float>& inputLowValues,
+                        const std::vector<float>& inputHighValues,
+                        const std::vector<float>& outputLowValues,
+                        const std::vector<float>& outputHighValues);
 
-    static bool outputLayoutIsSupported(std::shared_ptr<ov::opset1::FakeQuantize> quantize, bool isConvertExpected = false);
+    static bool outputLayoutIsSupported(std::shared_ptr<ov::opset1::FakeQuantize> quantize,
+                                        bool isConvertExpected = false);
 
-    static void getInputIntervals(
-            std::shared_ptr<ov::opset1::FakeQuantize> quantize,
-            std::vector<float>& inputLowValues,
-            std::vector<float>& inputHighValues);
+    static void getInputIntervals(std::shared_ptr<ov::opset1::FakeQuantize> quantize,
+                                  std::vector<float>& inputLowValues,
+                                  std::vector<float>& inputHighValues);
 
-    static void getOutputIntervals(
-            std::shared_ptr<ov::opset1::FakeQuantize> quantize,
-            std::vector<float>& outputLowValues,
-            std::vector<float>& outputHighValues);
+    static void getOutputIntervals(std::shared_ptr<ov::opset1::FakeQuantize> quantize,
+                                   std::vector<float>& outputLowValues,
+                                   std::vector<float>& outputHighValues);
 
     static QuantizationDetails getDetails(std::shared_ptr<ov::opset1::FakeQuantize>);
     bool hasNegativeOutput() const;
@@ -69,9 +69,7 @@ public:
 
     bool empty() const noexcept;
 
-    static bool isSupportedLevel(
-        const size_t level,
-        const std::set<levels>& supported_levels = all_levels);
+    static bool isSupportedLevel(const size_t level, const std::set<levels>& supported_levels = all_levels);
 
     const size_t levels;
     const std::vector<float> inputLowValues;
@@ -83,14 +81,14 @@ private:
     static std::vector<float> getBlobValue(std::shared_ptr<Node> constantLayer);
 };
 
-inline std::ostream &operator << (std::ostream &os, const QuantizationDetails& value) {
-    os << "levels: " << value.levels <<
-       ", input 1/" << value.inputLowValues.size() << ": [" << value.getInputLowValue(0) << " : " << value.getInputHighValue(0) << "], " <<
-       ", output 1/" << value.outputLowValues.size() << ": [" << value.getOutputLowValue(0) << " : " << value.getOutputHighValue(0) << "]";
+inline std::ostream& operator<<(std::ostream& os, const QuantizationDetails& value) {
+    os << "levels: " << value.levels << ", input 1/" << value.inputLowValues.size() << ": ["
+       << value.getInputLowValue(0) << " : " << value.getInputHighValue(0) << "], " << ", output 1/"
+       << value.outputLowValues.size() << ": [" << value.getOutputLowValue(0) << " : " << value.getOutputHighValue(0)
+       << "]";
     return os;
 }
 
-
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

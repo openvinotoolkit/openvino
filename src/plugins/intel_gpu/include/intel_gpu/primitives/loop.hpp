@@ -3,11 +3,12 @@
 //
 
 #pragma once
-#include <vector>
 #include <functional>
-#include "primitive.hpp"
-#include "intel_gpu/graph/topology.hpp"
+#include <vector>
+
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -52,43 +53,54 @@ namespace cldnn {
 struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
-    loop() : primitive_base("", {}),
-             max_num_iterations(0) {}
+    loop() : primitive_base("", {}), max_num_iterations(0) {}
 
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///         or a mapping from output of body topology to input of body topology for the next iteration.
         /// @param external_id Primitive id of input of loop or output of body network.
         /// @param internal_id Primitive id of input of body network.
-        /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end, stride arguments will be ignored.
+        /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end,
+        /// stride arguments will be ignored.
         /// @param start Index where the iteration starts from. Applies only when axis >=0.
-        /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
+        /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when
+        /// axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
-        io_primitive_map(primitive_id external_id, primitive_id internal_id,
-            int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
-            external_id(external_id, 0),
-            internal_id(internal_id, 0),
-            axis(axis),
-            start(start),
-            end(end),
-            stride(stride) {}
+        io_primitive_map(primitive_id external_id,
+                         primitive_id internal_id,
+                         int64_t axis = -1,
+                         int64_t start = 0,
+                         int64_t end = -1,
+                         int64_t stride = 1)
+            : external_id(external_id, 0),
+              internal_id(internal_id, 0),
+              axis(axis),
+              start(start),
+              end(end),
+              stride(stride) {}
 
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///         or a mapping from output of body topology to input of body topology for the next iteration.
         /// @param external_id Primitive id of input of loop or output of body network.
         /// @param internal_id Primitive id of input of body network.
-        /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end, stride arguments will be ignored.
+        /// @param axis Axis to iterate through. Negative value means the axis will not iterate through and start, end,
+        /// stride arguments will be ignored.
         /// @param start Index where the iteration starts from. Applies only when axis >=0.
-        /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
+        /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when
+        /// axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
-        io_primitive_map(input_info external_id = input_info(), input_info internal_id = input_info(),
-            int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
-            external_id(std::move(external_id)),
-            internal_id(std::move(internal_id)),
-            axis(axis),
-            start(start),
-            end(end),
-            stride(stride) {}
+        io_primitive_map(input_info external_id = input_info(),
+                         input_info internal_id = input_info(),
+                         int64_t axis = -1,
+                         int64_t start = 0,
+                         int64_t end = -1,
+                         int64_t stride = 1)
+            : external_id(std::move(external_id)),
+              internal_id(std::move(internal_id)),
+              axis(axis),
+              start(start),
+              end(end),
+              stride(stride) {}
 
         input_info external_id;
         input_info internal_id;
@@ -144,8 +156,7 @@ struct loop : public primitive_base<loop> {
         ///
         /// @param from Output data primitive id of body topology
         /// @param to Input data primitive id of body topology
-        backedge_mapping(primitive_id from, primitive_id to)
-            : from(from), to(to) {}
+        backedge_mapping(primitive_id from, primitive_id to) : from(from), to(to) {}
         backedge_mapping() {}
         primitive_id from;
         primitive_id to;
@@ -174,13 +185,15 @@ struct loop : public primitive_base<loop> {
     ///                                       loop will not be executed, otherwise loop will be executed.
     /// @param num_iteration_id mutable_data primitive id to get the actual number of loop iterations.
     /// @param body_current_iteration_id Optional data primitive id in the body network to specify current iteration.
-    ///                             If body_current_iteration_id is specified but body does not have data whose primitive
-    ///                             id is same as body_current_iteration_id, data primitive will be added in the body network.
+    ///                             If body_current_iteration_id is specified but body does not have data whose
+    ///                             primitive id is same as body_current_iteration_id, data primitive will be added in
+    ///                             the body network.
     /// @param body_execution_condition_id Optional data primitive id in the body network to specify execution condition
-    ///                               for the next iteration. Its data primitive should have 1 integer element. Zero means
-    ///                               loop will not be executed, otherwise loop will be executed.  If body_execution_condition_id
-    ///                               is specified but body does not have data whose primitive id is same as body_execution_condition_id,
-    ///                               data primitive will be added in the body network.
+    ///                               for the next iteration. Its data primitive should have 1 integer element. Zero
+    ///                               means loop will not be executed, otherwise loop will be executed.  If
+    ///                               body_execution_condition_id is specified but body does not have data whose
+    ///                               primitive id is same as body_execution_condition_id, data primitive will be added
+    ///                               in the body network.
     /// @param primitive_map Rules to map input of loop or output of body topology to input of the body topology
     /// @param back_edges Output data primitive id.
     /// @param output_padding     Optional padding for output from primitive.
@@ -197,17 +210,17 @@ struct loop : public primitive_base<loop> {
          const primitive_id& body_current_iteration_id = primitive_id(),
          const primitive_id& body_execution_condition_id = primitive_id(),
          const size_t num_outputs = 1)
-            : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
-              body_program(std::move(body_program)),
-              trip_count_id(trip_count_id),
-              first_execution_condition_id(first_execution_condition_id),
-              num_iteration_id(num_iteration_id),
-              body_current_iteration_id(body_current_iteration_id),
-              body_execution_condition_id(body_execution_condition_id),
-              input_primitive_maps(input_primitive_maps),
-              output_primitive_maps(output_primitive_maps),
-              back_edges(back_edges),
-              max_num_iterations(max_num_iterations) {
+        : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
+          body_program(std::move(body_program)),
+          trip_count_id(trip_count_id),
+          first_execution_condition_id(first_execution_condition_id),
+          num_iteration_id(num_iteration_id),
+          body_current_iteration_id(body_current_iteration_id),
+          body_execution_condition_id(body_execution_condition_id),
+          input_primitive_maps(input_primitive_maps),
+          output_primitive_maps(output_primitive_maps),
+          back_edges(back_edges),
+          max_num_iterations(max_num_iterations) {
         OPENVINO_ASSERT(inputs.front().pid == num_iteration_id, "first input of inputs should be num_iteration_id");
     }
 
@@ -278,9 +291,9 @@ protected:
         std::vector<input_info> ret;
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
-            auto target = std::find_if(input.begin(), input.end(),
-                                    [&](const input_info& info) {
-                                        return info.pid == mapping.external_id.pid;});
+            auto target = std::find_if(input.begin(), input.end(), [&](const input_info& info) {
+                return info.pid == mapping.external_id.pid;
+            });
             if (target == input.end()) {
                 ret.push_back(mapping.external_id.pid);
             }

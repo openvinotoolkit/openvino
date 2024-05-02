@@ -10,22 +10,33 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import pytest
-from common.samples_common_test_class import get_tests
-from common.samples_common_test_class import SamplesCommonTestClass
+from common.samples_common_test_class import SamplesCommonTestClass, get_tests
 from common.specific_samples_parsers import parse_hello_reshape_ssd
 
-
-test_data_fp32 = get_tests({
-    'i': ['samples_smoke_tests_data_2021.4/validation_set/500x500/cat.bmp'],
-    'm': ['samples_smoke_tests_data_2021.4/models/public/ssd512/FP16/ssd512.xml'],
-    'sample_type': ['C++','Python'],
-    'd': ['CPU']}, use_device=['d'], use_batch=False)
+test_data_fp32 = get_tests(
+    {
+        "i": ["samples_smoke_tests_data_2021.4/validation_set/500x500/cat.bmp"],
+        "m": ["samples_smoke_tests_data_2021.4/models/public/ssd512/FP16/ssd512.xml"],
+        "sample_type": ["C++", "Python"],
+        "d": ["CPU"],
+    },
+    use_device=["d"],
+    use_batch=False,
+)
 
 
 class TestHelloShape(SamplesCommonTestClass):
-    sample_name = 'hello_reshape_ssd'
+    sample_name = "hello_reshape_ssd"
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_hello_reshape_ssd_fp32(self, param, cache):
-        assert parse_hello_reshape_ssd(self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_shape_cmd_line).split('\n'))
+        assert parse_hello_reshape_ssd(
+            self._test(
+                param,
+                cache,
+                use_preffix=False,
+                get_cmd_func=self.get_hello_shape_cmd_line,
+            ).split("\n")
+        )

@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "primitive.hpp"
 #include <vector>
+
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 #define CLDNN_ROI_VECTOR_SIZE 5
@@ -15,25 +16,26 @@ namespace cldnn {
 struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
-    proposal() : primitive_base("", {}),
-                 max_proposals(0),
-                 iou_threshold(0.0f),
-                 base_bbox_size(16),
-                 min_bbox_size(0),
-                 feature_stride(0),
-                 pre_nms_topn(0),
-                 post_nms_topn(0),
-                 coordinates_offset(1.0f),
-                 box_coordinate_scale(1.0f),
-                 box_size_scale(1.0f),
-                 for_deformable(false),
-                 swap_xy(false),
-                 initial_clip(false),
-                 clip_before_nms(true),
-                 clip_after_nms(false),
-                 round_ratios(true),
-                 shift_anchors(false),
-                 normalize(false) {}
+    proposal()
+        : primitive_base("", {}),
+          max_proposals(0),
+          iou_threshold(0.0f),
+          base_bbox_size(16),
+          min_bbox_size(0),
+          feature_stride(0),
+          pre_nms_topn(0),
+          post_nms_topn(0),
+          coordinates_offset(1.0f),
+          box_coordinate_scale(1.0f),
+          box_size_scale(1.0f),
+          for_deformable(false),
+          swap_xy(false),
+          initial_clip(false),
+          clip_before_nms(true),
+          clip_after_nms(false),
+          round_ratios(true),
+          shift_anchors(false),
+          normalize(false) {}
 
     proposal(const primitive_id& id,
              const input_info& cls_scores,
@@ -97,7 +99,11 @@ struct proposal : public primitive_base<proposal> {
              const padding& output_padding = padding(),
              data_types output_data_type = data_types::f32,
              const size_t num_outputs = 1)
-        : primitive_base(id, {cls_scores, bbox_pred, image_info}, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+        : primitive_base(id,
+                         {cls_scores, bbox_pred, image_info},
+                         {output_padding},
+                         {optional_data_type{output_data_type}},
+                         num_outputs),
           max_proposals(max_proposals),
           iou_threshold(iou_threshold),
           base_bbox_size(base_bbox_size),
@@ -145,27 +151,27 @@ struct proposal : public primitive_base<proposal> {
              bool shift_anchors,
              bool normalize,
              const padding& output_padding = padding())
-            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, {output_padding}),
-              max_proposals(max_proposals),
-              iou_threshold(iou_threshold),
-              base_bbox_size(base_bbox_size),
-              min_bbox_size(min_bbox_size),
-              feature_stride(feature_stride),
-              pre_nms_topn(pre_nms_topn),
-              post_nms_topn(post_nms_topn),
-              ratios(ratios_param),
-              scales(scales_param),
-              coordinates_offset(coordinates_offset),
-              box_coordinate_scale(box_coordinate_scale),
-              box_size_scale(box_size_scale),
-              for_deformable(for_deformable),
-              swap_xy(swap_xy),
-              initial_clip(initial_clip),
-              clip_before_nms(clip_before_nms),
-              clip_after_nms(clip_after_nms),
-              round_ratios(round_ratios),
-              shift_anchors(shift_anchors),
-              normalize(normalize) {}
+        : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, {output_padding}),
+          max_proposals(max_proposals),
+          iou_threshold(iou_threshold),
+          base_bbox_size(base_bbox_size),
+          min_bbox_size(min_bbox_size),
+          feature_stride(feature_stride),
+          pre_nms_topn(pre_nms_topn),
+          post_nms_topn(post_nms_topn),
+          ratios(ratios_param),
+          scales(scales_param),
+          coordinates_offset(coordinates_offset),
+          box_coordinate_scale(box_coordinate_scale),
+          box_size_scale(box_size_scale),
+          for_deformable(for_deformable),
+          swap_xy(swap_xy),
+          initial_clip(initial_clip),
+          clip_before_nms(clip_before_nms),
+          clip_after_nms(clip_after_nms),
+          round_ratios(round_ratios),
+          shift_anchors(shift_anchors),
+          normalize(normalize) {}
 
     int max_proposals;
     float iou_threshold;
@@ -208,28 +214,15 @@ struct proposal : public primitive_base<proposal> {
 
         auto rhs_casted = downcast<const proposal>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(max_proposals) &&
-               cmp_fields(iou_threshold) &&
-               cmp_fields(base_bbox_size) &&
-               cmp_fields(min_bbox_size) &&
-               cmp_fields(feature_stride) &&
-               cmp_fields(pre_nms_topn) &&
-               cmp_fields(post_nms_topn) &&
-               cmp_fields(ratios) &&
-               cmp_fields(scales) &&
-               cmp_fields(coordinates_offset) &&
-               cmp_fields(box_coordinate_scale) &&
-               cmp_fields(box_size_scale) &&
-               cmp_fields(for_deformable) &&
-               cmp_fields(swap_xy) &&
-               cmp_fields(initial_clip) &&
-               cmp_fields(clip_before_nms) &&
-               cmp_fields(clip_after_nms) &&
-               cmp_fields(round_ratios) &&
-               cmp_fields(shift_anchors) &&
-               cmp_fields(normalize);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(max_proposals) && cmp_fields(iou_threshold) && cmp_fields(base_bbox_size) &&
+               cmp_fields(min_bbox_size) && cmp_fields(feature_stride) && cmp_fields(pre_nms_topn) &&
+               cmp_fields(post_nms_topn) && cmp_fields(ratios) && cmp_fields(scales) &&
+               cmp_fields(coordinates_offset) && cmp_fields(box_coordinate_scale) && cmp_fields(box_size_scale) &&
+               cmp_fields(for_deformable) && cmp_fields(swap_xy) && cmp_fields(initial_clip) &&
+               cmp_fields(clip_before_nms) && cmp_fields(clip_after_nms) && cmp_fields(round_ratios) &&
+               cmp_fields(shift_anchors) && cmp_fields(normalize);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

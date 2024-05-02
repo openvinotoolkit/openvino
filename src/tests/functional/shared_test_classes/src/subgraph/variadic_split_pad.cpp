@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 
-
 namespace ov {
 namespace test {
 
@@ -49,9 +48,13 @@ void VariadicSplitPad::SetUp() {
 
     ov::ResultVector results;
     for (size_t i : connectIndexes) {
-        auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padBegin.size()}, padBegin.data());
-        auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padEnd.size()}, padEnd.data());
-        auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(split->output(i).get_element_type(), ov::Shape{}, std::vector<int64_t>{0});
+        auto pads_begin =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padBegin.size()}, padBegin.data());
+        auto pads_end =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padEnd.size()}, padEnd.data());
+        auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(split->output(i).get_element_type(),
+                                                                    ov::Shape{},
+                                                                    std::vector<int64_t>{0});
         auto pad = std::make_shared<ov::op::v1::Pad>(split->output(i), pads_begin, pads_end, arg_pad_value, padMode);
 
         results.push_back(std::make_shared<ov::op::v0::Result>(pad));

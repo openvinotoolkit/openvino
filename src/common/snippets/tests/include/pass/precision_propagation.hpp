@@ -35,10 +35,9 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<
-    std::pair<PartialShape, PartialShape>, // input shapes
-    PrecisionPropagationParamsValues
-> PrecisionPropagationParams;
+typedef std::tuple<std::pair<PartialShape, PartialShape>,  // input shapes
+                   PrecisionPropagationParamsValues>
+    PrecisionPropagationParams;
 
 class PrecisionPropagationTest : public TransformationTestsF,
                                  public testing::WithParamInterface<PrecisionPropagationParams> {

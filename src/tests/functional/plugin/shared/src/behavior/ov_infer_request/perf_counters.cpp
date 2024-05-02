@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "behavior/ov_infer_request/perf_counters.hpp"
-#include "openvino/runtime/profiling_info.hpp"
+
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace ov {
 namespace test {
@@ -29,7 +29,7 @@ std::string OVInferRequestPerfCountersTest::getTestCaseName(testing::TestParamIn
     result << "targetDevice=" << targetDevice << "_";
     if (!configuration.empty()) {
         using namespace ov::test::utils;
-        for (auto &configItem : configuration) {
+        for (auto& configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
         }
@@ -66,14 +66,15 @@ TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     for (const auto& op : function->get_ops()) {
         if (!strcmp(op->get_type_info().name, "Constant"))
             continue;
-        auto op_is_in_profiling_info = std::any_of(std::begin(profiling_info), std::end(profiling_info),
-            [&] (const ov::ProfilingInfo& info) {
-            if (info.node_name.find(op->get_friendly_name() + "_") != std::string::npos || info.node_name == op->get_friendly_name()) {
-                return true;
-            } else {
-                return false;
-            }
-        });
+        auto op_is_in_profiling_info =
+            std::any_of(std::begin(profiling_info), std::end(profiling_info), [&](const ov::ProfilingInfo& info) {
+                if (info.node_name.find(op->get_friendly_name() + "_") != std::string::npos ||
+                    info.node_name == op->get_friendly_name()) {
+                    return true;
+                } else {
+                    return false;
+                }
+            });
         ASSERT_TRUE(op_is_in_profiling_info) << "For op: " << op;
     }
 }

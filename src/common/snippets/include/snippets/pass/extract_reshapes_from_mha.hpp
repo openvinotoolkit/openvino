@@ -30,7 +30,7 @@ namespace pass {
  *
  * @ingroup snippets
  */
-class ExtractReshapesFromMHA: public ov::pass::MatcherPass {
+class ExtractReshapesFromMHA : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ExtractReshapesFromMHA", "0");
     ExtractReshapesFromMHA();

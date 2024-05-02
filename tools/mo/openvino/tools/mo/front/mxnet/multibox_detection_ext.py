@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.DetectionOutput import DetectionOutput
 
 
 class MultiBoxDetectionOutputExtractor(FrontExtractorOp):
-    op = '_contrib_MultiBoxDetection'
+    op = "_contrib_MultiBoxDetection"
     enabled = True
 
     @classmethod
@@ -19,19 +19,19 @@ class MultiBoxDetectionOutputExtractor(FrontExtractorOp):
         clip = 0 if not attrs.bool("clip", True) else 1
 
         node_attrs = {
-            'type': 'DetectionOutput',
-            'op': __class__.op,
-            'keep_top_k': top_k,
-            'variance_encoded_in_target': 0,
-            'code_type': "caffe.PriorBoxParameter.CENTER_SIZE",
-            'share_location': 1,
-            'confidence_threshold': confidence_threshold,
-            'background_label_id': 0,
-            'nms_threshold': nms_threshold,
-            'top_k': top_k,
-            'decrease_label_id': 1,
-            'clip_before_nms': clip,
-            'normalized': 1,
+            "type": "DetectionOutput",
+            "op": __class__.op,
+            "keep_top_k": top_k,
+            "variance_encoded_in_target": 0,
+            "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
+            "share_location": 1,
+            "confidence_threshold": confidence_threshold,
+            "background_label_id": 0,
+            "nms_threshold": nms_threshold,
+            "top_k": top_k,
+            "decrease_label_id": 1,
+            "clip_before_nms": clip,
+            "normalized": 1,
         }
 
         DetectionOutput.update_node_stat(node, node_attrs)

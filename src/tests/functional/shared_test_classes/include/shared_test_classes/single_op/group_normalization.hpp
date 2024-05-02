@@ -21,7 +21,7 @@ using GroupNormalizationTestParams = std::tuple<ElementType,   // netPrecision
 class GroupNormalizationTest : public testing::WithParamInterface<GroupNormalizationTestParams>,
                                virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GroupNormalizationTestParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupNormalizationTestParams>& obj) {
         ElementType netType, inType, outType;
         InputShape shapes;
         std::int64_t num_groups;
@@ -58,19 +58,19 @@ protected:
         double epsilon;
         ov::AnyMap additional_config;
 
-        std::tie(ngPrc, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) = this->GetParam();
+        std::tie(ngPrc, inType, outType, shapes, num_groups, epsilon, targetDevice, additional_config) =
+            this->GetParam();
         InputShape biasInputShape = ExtractBiasShape(shapes);
         init_input_shapes({shapes, biasInputShape, biasInputShape});
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
 
-        const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(
-            params.at(0),
-            params.at(1),
-            params.at(2),
-            num_groups,
-            epsilon);
+        const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(params.at(0),
+                                                                                          params.at(1),
+                                                                                          params.at(2),
+                                                                                          num_groups,
+                                                                                          epsilon);
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupNormalization)};
 
         abs_threshold = 1e-5;
@@ -86,12 +86,14 @@ protected:
 
     InputShape ExtractBiasShape(const InputShape& shape) {
         std::vector<ov::Shape> biasShape;
-        std::transform(shape.second.cbegin(), shape.second.cend(), std::back_inserter(biasShape),
-                       [](const ov::Shape& s)->ov::Shape { return {s[1]}; });
-        InputShape biasInputShape {
-            shape.first.is_dynamic() ? ov::PartialShape{shape.first[1]} : shape.first,
-            std::move(biasShape)
-        };
+        std::transform(shape.second.cbegin(),
+                       shape.second.cend(),
+                       std::back_inserter(biasShape),
+                       [](const ov::Shape& s) -> ov::Shape {
+                           return {s[1]};
+                       });
+        InputShape biasInputShape{shape.first.is_dynamic() ? ov::PartialShape{shape.first[1]} : shape.first,
+                                  std::move(biasShape)};
         return biasInputShape;
     }
 };

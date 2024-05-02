@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/tensor_iterator.hpp"
+#include "matchers/subgraph/read_value_assign.hpp"
+
 #include "openvino/op/if.hpp"
 #include "openvino/op/loop.hpp"
-#include "matchers/subgraph/read_value_assign.hpp"
-#include "utils/model.hpp"
-
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-std::vector<ReadValueAssignExtractor::ExtractedPattern>
-ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
+std::vector<ReadValueAssignExtractor::ExtractedPattern> ReadValueAssignExtractor::extract(
+    const std::shared_ptr<ov::Model>& model) {
     struct ReadValuePairs {
         int cnt_assign = 0;
         int cnt_read_val = 0;
         std::shared_ptr<ov::Node> rv;
         std::string variable_id;
     };
-    std::map<ov::op::util::Variable::Ptr, ReadValuePairs>  pairs;
+    std::map<ov::op::util::Variable::Ptr, ReadValuePairs> pairs;
     for (auto& node : model->get_ordered_ops()) {
         if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
             pairs[assign->get_variable()].cnt_assign++;
@@ -92,8 +92,8 @@ ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
 
         try {
             auto extracted_pattern = ov::util::generate_model(extracted_nodes);
-            matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
-        } catch(std::exception& e) {
+            matched_patterns.push_back({extracted_pattern.first, extracted_pattern.second, extractor_name});
+        } catch (std::exception& e) {
             std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " << e.what() << std::endl;
         }
     }

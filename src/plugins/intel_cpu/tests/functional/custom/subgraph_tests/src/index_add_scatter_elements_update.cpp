@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -28,17 +27,16 @@ namespace test {
  *                           |
  *                         Result
 */
-using InputsAndAxis = std::tuple<
-        std::vector<InputShape>,           // Input, shape of data and updates
-        int                                // Axis
->;
-using IndexAddTestParams = std::tuple<InputsAndAxis,                   // Input shapes and axis
-                                    v12::ScatterElementsUpdate::Reduction,  // Reduce mode
-                                    ElementType,  // model precision
-                                    ElementType,  // indices precision
-                                    float,        // alpha
-                                    bool          // dynamic shape test
-                                    >;
+using InputsAndAxis = std::tuple<std::vector<InputShape>,  // Input, shape of data and updates
+                                 int                       // Axis
+                                 >;
+using IndexAddTestParams = std::tuple<InputsAndAxis,                          // Input shapes and axis
+                                      v12::ScatterElementsUpdate::Reduction,  // Reduce mode
+                                      ElementType,                            // model precision
+                                      ElementType,                            // indices precision
+                                      float,                                  // alpha
+                                      bool                                    // dynamic shape test
+                                      >;
 
 class IndexAddTest : public testing::WithParamInterface<IndexAddTestParams>,
                      virtual public ov::test::SubgraphBaseTest,
@@ -106,7 +104,7 @@ protected:
         init_input_shapes(input_shapes);
 
         //
-        normalized_axis = axis < 0 ? axis + inputDynamicShapes.at(DATA_INPUT_IDX).rank().get_length(): axis;
+        normalized_axis = axis < 0 ? axis + inputDynamicShapes.at(DATA_INPUT_IDX).rank().get_length() : axis;
 
         if (dynamic) {
             // infer dynamic shape from axis
@@ -118,11 +116,10 @@ protected:
         param->set_friendly_name("data");
         auto update_param = std::make_shared<v0::Parameter>(data_type, inputDynamicShapes.at(UPDATES_INPUT_IDX));
         update_param->set_friendly_name("update");
-        auto indices_param = std::make_shared<v0::Parameter>(indices_type, ov::PartialShape{-1}); // 1D
+        auto indices_param = std::make_shared<v0::Parameter>(indices_type, ov::PartialShape{-1});  // 1D
         indices_param->set_friendly_name("indices");
 
-        auto axis_const =
-            std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{axis});
+        auto axis_const = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{axis});
         axis_const->set_friendly_name("axis");
         auto alpha_const =
             std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{alpha_value});
@@ -151,21 +148,18 @@ protected:
         auto src_rank = std::get<1>(src_shape_rank);
         auto slice_start = std::make_shared<v3::Broadcast>(const_zero, inp_rank);
         auto axes = get_node_axes_range(src_broadcasted);
-        auto const_inf =
-            v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+        auto const_inf = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
         auto slice_end = std::make_shared<v3::Broadcast>(const_inf, src_rank);
         auto slice_step = std::make_shared<v3::Broadcast>(const_one, src_rank);
         auto dim_1d = std::make_shared<v3::Broadcast>(dim, const_one);
-        auto slice_end2 =
-            std::make_shared<v12::ScatterElementsUpdate>(slice_end,
-                                                        dim_1d,
-                                                        const_one,
-                                                        const_zero,
-                                                        v12::ScatterElementsUpdate::Reduction::NONE);
+        auto slice_end2 = std::make_shared<v12::ScatterElementsUpdate>(slice_end,
+                                                                       dim_1d,
+                                                                       const_one,
+                                                                       const_zero,
+                                                                       v12::ScatterElementsUpdate::Reduction::NONE);
         auto new_shape_ = std::make_shared<v8::Slice>(input, slice_start, slice_end2, slice_step, axes);
         auto new_shape = std::make_shared<v3::ShapeOf>(new_shape_, element::i32);
-        auto src_ =
-            std::make_shared<v3::Broadcast>(src_broadcasted, new_shape, BroadcastType::BIDIRECTIONAL);
+        auto src_ = std::make_shared<v3::Broadcast>(src_broadcasted, new_shape, BroadcastType::BIDIRECTIONAL);
         auto src_input_dtype = std::make_shared<v1::ConvertLike>(src_, input);
         // brodcast index to input rank size
         src_rank = std::make_shared<v3::ShapeOf>(new_shape, element::i32);
@@ -178,13 +172,10 @@ protected:
         auto broadcasted_index =
             std::make_shared<v3::Broadcast>(reshaped_index, new_shape, BroadcastType::BIDIRECTIONAL);
         auto scatter_result =
-            std::make_shared<v12::ScatterElementsUpdate>(input,
-                                                        broadcasted_index,
-                                                        src_,
-                                                        dim,
-                                                        reduceMode);
+            std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, src_, dim, reduceMode);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(scatter_result)};
-        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param, indices_param, update_param}, "index_add");
+        function =
+            std::make_shared<ov::Model>(results, ov::ParameterVector{param, indices_param, update_param}, "index_add");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -209,16 +200,20 @@ protected:
                 // All index values are expected to be within bounds [-d, d - 1] along dimension d pointed by axis.
                 auto d = dataShape[normalized_axis];
                 in_data.start_from = -1.0 * static_cast<int64_t>(d);
-                in_data.range = d-1;
+                in_data.range = d - 1;
                 in_data.resolution = 1;
-                tensor = shape_size(indicesShape) == 0 ? ov::Tensor(funcInput.get_element_type(), indicesShape) :
-                                            ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), indicesShape, in_data);
+                tensor =
+                    shape_size(indicesShape) == 0
+                        ? ov::Tensor(funcInput.get_element_type(), indicesShape)
+                        : ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), indicesShape, in_data);
             } else if (i == 2) {  // "updates"
                 in_data.start_from = -50;
                 in_data.range = 50;
                 in_data.resolution = 1;
-                tensor = shape_size(updateShape) == 0 ? ov::Tensor(funcInput.get_element_type(), updateShape) :
-                            ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
+                tensor =
+                    shape_size(updateShape) == 0
+                        ? ov::Tensor(funcInput.get_element_type(), updateShape)
+                        : ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
             } else {
                 OPENVINO_THROW("Unknown input");
             }
@@ -228,8 +223,8 @@ protected:
 
 private:
     std::tuple<Output<Node>, Output<Node>> get_shape_rank(const Output<Node>& x,
-                                                      bool as_scalar = false,
-                                                      element::Type output_type = element::i32) {
+                                                          bool as_scalar = false,
+                                                          element::Type output_type = element::i32) {
         auto shape = std::make_shared<opset10::ShapeOf>(x, output_type);
         Output<Node> rank = std::make_shared<opset10::ShapeOf>(shape, output_type);
         if (as_scalar) {
@@ -256,17 +251,16 @@ TEST_P(IndexAddTest, CompareWithRefs) {
 
 namespace {
 // map<inputShape, map<updatesShape, axis>>
-std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> axesShapeInShape {
-    {{3}, {{{2}, {0, -1}}, {{3}, {0, -1}}/*, {{0}, {0, -1}}*/}}, // TODO: empty tensor failing in template plugin
-    {{4, 6}, {{{3, 6}, {0, -2}}, {{4, 6}, {0, 1, -1}}/*, {{0, 2}, {0, -2}}*/}},  // axis 0
-    {{2, 4}, {{{2, 3}, {1, -1}}, {{2, 4}, {0, 1, -1}}/*, {{4, 0}, {1, -1}}*/}},  // axis 1
+std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> axesShapeInShape{
+    {{3}, {{{2}, {0, -1}}, {{3}, {0, -1}} /*, {{0}, {0, -1}}*/}},  // TODO: empty tensor failing in template plugin
+    {{4, 6}, {{{3, 6}, {0, -2}}, {{4, 6}, {0, 1, -1}} /*, {{0, 2}, {0, -2}}*/}},  // axis 0
+    {{2, 4}, {{{2, 3}, {1, -1}}, {{2, 4}, {0, 1, -1}} /*, {{4, 0}, {1, -1}}*/}},  // axis 1
     {{1, 120}, {{{1, 120}, {0}}}},
     {{32, 120}, {{{16, 120}, {0}}, {{32, 120}, {0}}}},
     {{120, 32}, {{{120, 16}, {1}}, {{120, 32}, {1}}}},
 };
 
-inline std::vector<InputShape> partial_shapes_to_test_representation(
-    const std::vector<ov::PartialShape>& shapes) {
+inline std::vector<InputShape> partial_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {
     std::vector<InputShape> result;
     for (const auto& staticShape : shapes) {
         result.push_back({{staticShape}, {staticShape.get_shape()}});
@@ -280,27 +274,32 @@ std::vector<ov::test::InputsAndAxis> combine_shapes(
     for (auto& input_shape : input_shapes) {
         for (auto& item : input_shape.second) {
             for (auto& elt : item.second) {
-                res_vec.push_back(ov::test::InputsAndAxis{
-                    partial_shapes_to_test_representation({ov::PartialShape(input_shape.first), ov::PartialShape(item.first)}),
-                    elt});
+                res_vec.push_back(
+                    ov::test::InputsAndAxis{partial_shapes_to_test_representation(
+                                                {ov::PartialShape(input_shape.first), ov::PartialShape(item.first)}),
+                                            elt});
             }
         }
     }
     return res_vec;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
-                         IndexAddTest,
-                         ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
-                                            ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32, ElementType::i32,
-                                                            //   ElementType::u8, ElementType::i8,     // cannot validate until CVS-136858 addressed
-                                                              ElementType::f16, ElementType::bf16), // data precision
-                                            ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
-                                            ::testing::Values(1.0),              // alpha
-                                            ::testing::Values(true, false)),     // dynamic shape test
-                         IndexAddTest::getTestCaseName);
-} //  namespace
+INSTANTIATE_TEST_SUITE_P(
+    smoke_IndexAddTest,
+    IndexAddTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(combine_shapes(axesShapeInShape)),
+        ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
+        ::testing::Values(ElementType::f32,
+                          ElementType::i32,
+                          //   ElementType::u8, ElementType::i8,     // cannot validate until CVS-136858 addressed
+                          ElementType::f16,
+                          ElementType::bf16),                   // data precision
+        ::testing::Values(ElementType::i32, ElementType::i64),  // indices precision
+        ::testing::Values(1.0),                                 // alpha
+        ::testing::Values(true, false)),                        // dynamic shape test
+    IndexAddTest::getTestCaseName);
+}  //  namespace
 
 }  // namespace test
 }  // namespace ov

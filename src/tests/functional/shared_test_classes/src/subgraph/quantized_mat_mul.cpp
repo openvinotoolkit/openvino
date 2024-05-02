@@ -3,12 +3,13 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
+
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
 
-std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet> &obj) {
+std::string QuantMatMulTest::getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet>& obj) {
     QuantParams quantParams0;
     QuantParams quantParams1;
     ov::element::Type element_type;
@@ -69,29 +70,52 @@ void QuantMatMulTest::SetUp() {
     std::tie(quantLevels0, inputRange0, outputRange0, quantGranularity0, fqPrec0) = quantParams0;
     std::tie(quantLevels1, inputRange1, outputRange1, quantGranularity1, fqPrec1) = quantParams1;
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape0)),
-                                std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape1))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape0)),
+                               std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape1))};
 
-    auto makeFakeQuantizeNode = [element_type](size_t quantLevels, QuantRange inputRange, QuantRange outputRange,
-            ov::test::utils::QuantizationGranularity quantGranularity, const ov::Output<ov::Node> &in, ov::Shape inputShape,
-            ov::element::Type prec) -> std::shared_ptr<ov::Node> {
+    auto makeFakeQuantizeNode = [element_type](size_t quantLevels,
+                                               QuantRange inputRange,
+                                               QuantRange outputRange,
+                                               ov::test::utils::QuantizationGranularity quantGranularity,
+                                               const ov::Output<ov::Node>& in,
+                                               ov::Shape inputShape,
+                                               ov::element::Type prec) -> std::shared_ptr<ov::Node> {
         std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
         if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
             dataFqConstShapes[1] = inputShape[1];
         size_t constDataSize = ov::shape_size(dataFqConstShapes);
-        std::vector<float> inputLowData(constDataSize), inputHighData(constDataSize), outputLowData(constDataSize), outputHighData(constDataSize);
+        std::vector<float> inputLowData(constDataSize), inputHighData(constDataSize), outputLowData(constDataSize),
+            outputHighData(constDataSize);
         for (int i = 0; i < constDataSize; i++) {
             inputLowData[i] = inputRange.first;
             inputHighData[i] = inputRange.second;
             outputLowData[i] = outputRange.first;
             outputHighData[i] = outputRange.second;
         }
-        return ov::test::utils::make_fake_quantize(
-            in, element_type, quantLevels, dataFqConstShapes, inputLowData, inputHighData, outputLowData, outputHighData);
+        return ov::test::utils::make_fake_quantize(in,
+                                                   element_type,
+                                                   quantLevels,
+                                                   dataFqConstShapes,
+                                                   inputLowData,
+                                                   inputHighData,
+                                                   outputLowData,
+                                                   outputHighData);
     };
 
-    auto dataFq0 = makeFakeQuantizeNode(quantLevels0, inputRange0, outputRange0, quantGranularity0, params[0], inputShape0, fqPrec0);
-    auto dataFq1 = makeFakeQuantizeNode(quantLevels1, inputRange1, outputRange1, quantGranularity1, params[1], inputShape1, fqPrec1);
+    auto dataFq0 = makeFakeQuantizeNode(quantLevels0,
+                                        inputRange0,
+                                        outputRange0,
+                                        quantGranularity0,
+                                        params[0],
+                                        inputShape0,
+                                        fqPrec0);
+    auto dataFq1 = makeFakeQuantizeNode(quantLevels1,
+                                        inputRange1,
+                                        outputRange1,
+                                        quantGranularity1,
+                                        params[1],
+                                        inputShape1,
+                                        fqPrec1);
 
     auto MatMul = std::make_shared<ov::op::v0::MatMul>(dataFq0, dataFq1);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(MatMul)};

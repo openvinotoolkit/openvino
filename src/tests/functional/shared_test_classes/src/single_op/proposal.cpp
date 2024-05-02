@@ -23,9 +23,16 @@ std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<prop
     bool clip_before_nms, clip_after_nms;
     std::string framework;
 
-    std::tie(base_size, pre_nms_topn, post_nms_topn,
-             nms_thresh, min_size, ratio, scale,
-             clip_before_nms, clip_after_nms, framework) = proposal_params;
+    std::tie(base_size,
+             pre_nms_topn,
+             post_nms_topn,
+             nms_thresh,
+             min_size,
+             ratio,
+             scale,
+             clip_before_nms,
+             clip_after_nms,
+             framework) = proposal_params;
 
     std::ostringstream result;
     result << "base_size=" << base_size << "_";
@@ -60,17 +67,23 @@ void ProposalLayerTest::SetUp() {
     bool clip_before_nms, clip_after_nms;
     std::string framework;
 
-    std::tie(base_size, pre_nms_topn, post_nms_topn,
-             nms_thresh, min_size, ratio, scale,
-             clip_before_nms, clip_after_nms, framework) = proposal_params;
-
+    std::tie(base_size,
+             pre_nms_topn,
+             post_nms_topn,
+             nms_thresh,
+             min_size,
+             ratio,
+             scale,
+             clip_before_nms,
+             clip_after_nms,
+             framework) = proposal_params;
 
     size_t bottom_w = base_size;
     size_t bottom_h = base_size;
     size_t num_anchors = ratio.size() * scale.size();
 
     ov::Shape scores_shape = {1, 2 * num_anchors, bottom_h, bottom_w};
-    ov::Shape boxes_shape  = {1, 4 * num_anchors, bottom_h, bottom_w};
+    ov::Shape boxes_shape = {1, 4 * num_anchors, bottom_h, bottom_w};
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, scores_shape),
                                std::make_shared<ov::op::v0::Parameter>(model_type, boxes_shape)};
 

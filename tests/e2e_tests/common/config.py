@@ -11,11 +11,13 @@ from .core import get_bool, get_list, get_path
 
 class StrippingLists:
     DEFAULT_SENSITIVE_KEYS_TO_BE_MASKED = [
-        r"(?!zabbix_operator_initial_).*pass(word)?", r".*client_id", r".*(access)?(_)?(?<!ssh_)key(?!s|_path)",
+        r"(?!zabbix_operator_initial_).*pass(word)?",
+        r".*client_id",
+        r".*(access)?(_)?(?<!ssh_)key(?!s|_path)",
         r"id_token",
         r"Authorization",
         r"database_url",
-        r"gmail_"
+        r"gmail_",
     ]
 
 
@@ -30,19 +32,33 @@ openvino_root_dir = get_path("OPENVINO_ROOT_DIR")
 host_os_user = os.environ.get("TT_HOST_OS_USER", "root")
 log_username = os.environ.get("TT_LOG_USERNAME", False)
 run_performance_tests = get_bool("TT_PERFORMANCE_TESTS", False)
-logger_format = "{}%(asctime)s {}- %(threadName)s:%(name)s:%(funcName)s:%(lineno)d - %(levelname)s: %(message)s".format if run_performance_tests else \
-    "{}%(asctime)s {}- %(name)s - %(levelname)s: %(message)s".format
+logger_format = (
+    "{}%(asctime)s {}- %(threadName)s:%(name)s:%(funcName)s:%(lineno)d - %(levelname)s: %(message)s".format
+    if run_performance_tests
+    else "{}%(asctime)s {}- %(name)s - %(levelname)s: %(message)s".format
+)
 sensitive_keys_to_be_masked = re.compile(
-    "|".join(get_list("TT_SENSITIVE_KEYS", fallback=StrippingLists.DEFAULT_SENSITIVE_KEYS_TO_BE_MASKED)), re.IGNORECASE)
+    "|".join(
+        get_list(
+            "TT_SENSITIVE_KEYS",
+            fallback=StrippingLists.DEFAULT_SENSITIVE_KEYS_TO_BE_MASKED,
+        )
+    ),
+    re.IGNORECASE,
+)
 strip_sensitive_data = get_bool("TT_STRIP_SENSITIVE_DATA", False)
 logging_level = os.environ.get("TT_LOGGING_LEVEL", "INFO")
 
 """TT_DATABASE_URL - report database name.  if specified, results will be logged in this database"""
 # Workaround for no TT_DATABASE_URL set in Jenkins Job.
-database_url = os.environ.get("TT_DATABASE_URL", None)  # if specified, results will be logged in database
+database_url = os.environ.get(
+    "TT_DATABASE_URL", None
+)  # if specified, results will be logged in database
 
 """TT_DATABASE_SSL - use ssl to access database """
-database_ssl = get_bool("TT_DATABASE_SSL", False)  # if specified, results will be logged in database
+database_ssl = get_bool(
+    "TT_DATABASE_SSL", False
+)  # if specified, results will be logged in database
 
 """ TT_CONFIGURATION - configuration name used to distinct test builds. Default value: "" """
 configuration = os.environ.get("TT_CONFIGURATION", "")
@@ -62,7 +78,9 @@ product_version = os.environ.get("TT_PRODUCT_VERSION", _product_version)
 """ TT_PRODUCT_BUILD_NUMBER  - Test product build number provided by user (last number from version - 0.8.0.XXXX)"""
 
 if _product_version and _product_type and _package_version:
-    _product_build_number_default = f"{_product_type}_{_product_version}_{_package_version}"
+    _product_build_number_default = (
+        f"{_product_type}_{_product_version}_{_package_version}"
+    )
 else:
     _product_build_number_default = "Unset_product_build_number"
 product_build_number = os.environ.get("TT_PRODUCT_BUILD_NUMBER", None)
@@ -73,7 +91,9 @@ product_version_suffix = os.environ.get("TT_PRODUCT_VERSION_SUFFIX", "")
 """ TT_INFO_MODULE - indicates module that should be used for getting information about tested environment.
                      Default value: e2e.base_info.BaseInfo.
                      Allowed value class module that inherits from default class"""
-info_module = os.environ.get("TT_INFO_MODULE", "e2e_tests.common.environment_info.BaseInfo")
+info_module = os.environ.get(
+    "TT_INFO_MODULE", "e2e_tests.common.environment_info.BaseInfo"
+)
 
 """ TT_REPOSITORY_NAME - repository name provided by user """
 repository_name = os.environ.get("TT_REPOSITORY_NAME", "")

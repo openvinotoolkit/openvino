@@ -1,20 +1,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import platform
 
+import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSetItem(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return [np.random.randint(-10, 10, [10]).tolist()]
 
     def create_model(self, idx):
-        import torch
         from typing import List
+
+        import torch
 
         class aten_set_item(torch.nn.Module):
             def __init__(self, idx):

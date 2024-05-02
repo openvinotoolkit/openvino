@@ -2,27 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/memory_pool.hpp"
+
 #include <algorithm>
 #include <fstream>
-#include <vector>
-
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/memory_pool.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-
 #include <list>
-#include <string>
-#include <utility>
 #include <set>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
-memory_record::memory_record(memory_set users,
-                             std::shared_ptr<memory>& memory,
-                             uint32_t net_id,
-                             allocation_type type)
-    : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
+memory_record::memory_record(memory_set users, std::shared_ptr<memory>& memory, uint32_t net_id, allocation_type type)
+    : _users(users),
+      _memory(memory),
+      _network_id(net_id),
+      _type(type) {}
 
 memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
     return _engine->allocate_memory(layout, type, reset);
@@ -30,9 +30,7 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
 
 memory_pool::~memory_pool() {}
 
-bool memory_pool::has_conflict(const memory_set& a,
-                               const std::set<size_t>& b,
-                               uint32_t b_network_id) {
+bool memory_pool::has_conflict(const memory_set& a, const std::set<size_t>& b, uint32_t b_network_id) {
     std::set<size_t> a_same_network;
     for (auto const& mem_usr : a) {
         if (mem_usr._network_id == b_network_id) {
@@ -58,10 +56,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
         auto it = _non_padded_pool.lower_bound(_layout.bytes_count());
 
         while (it != _non_padded_pool.end()) {
-            if (it->second._network_id == network_id &&
-                it->second._type == type &&
+            if (it->second._network_id == network_id && it->second._type == type &&
                 it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
-                auto user_it = it->second._users.find({ unique_id, network_id, prim_id });
+                auto user_it = it->second._users.find({unique_id, network_id, prim_id});
 
                 // normally there should be only one entry
                 if (user_it != it->second._users.end()) {
@@ -72,7 +69,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                     it = _non_padded_pool.erase(it);
                 }
 
-                //entry found and processed - so return
+                // entry found and processed - so return
                 return;
             } else {
                 ++it;
@@ -87,10 +84,8 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             auto list_itr = list.begin();
 
             while (list_itr != list.end()) {
-                if (list_itr->_memory.get() == mem &&
-                    list_itr->_network_id == network_id &&
-                    list_itr->_type == type) {
-                    auto user_it = list_itr->_users.find({ unique_id, network_id, prim_id });
+                if (list_itr->_memory.get() == mem && list_itr->_network_id == network_id && list_itr->_type == type) {
+                    auto user_it = list_itr->_users.find({unique_id, network_id, prim_id});
 
                     // normally there should be only one entry
                     if (user_it != list_itr->_users.end()) {
@@ -101,7 +96,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                         list.erase(list_itr);
                     }
 
-                    //entry found and processed - so return
+                    // entry found and processed - so return
                     break;
                 } else {
                     list_itr++;
@@ -124,8 +119,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   bool reset) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
     while (it != _non_padded_pool.end()) {
-        if (it->second._network_id == network_id &&
-            it->second._type == type &&
+        if (it->second._network_id == network_id && it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
@@ -158,16 +152,14 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
-            if (rec_list._network_id == network_id &&
-                rec_list._type == type &&
+            if (rec_list._network_id == network_id && rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.feature() % 32 == 0)) &&
                 // TODO: check if this condition always correct
                 layout.feature() <= rec_list._memory->get_layout().feature() &&
                 layout.batch() <= rec_list._memory->get_layout().batch() &&
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
-                layout.format != format::fs_b_yx_fsv32 &&
-                !has_conflict(rec_list._users, restrictions, network_id)) {
+                layout.format != format::fs_b_yx_fsv32 && !has_conflict(rec_list._users, restrictions, network_id)) {
                 rec_list._users.insert({unique_id, network_id, prim_id});
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
@@ -307,14 +299,14 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 }
 
-memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
+memory_pool::memory_pool(engine& engine) : _engine(&engine) {}
 
 void memory_pool::dump(uint32_t net_id) {
     GPU_DEBUG_COUT << "Dump memory pool of network " << net_id << std::endl;
     GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
     for (auto mem : _non_padded_pool) {
         GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << mem.first << ", type: " << mem.second._type
-                  << ")'s users: " << std::endl;
+                       << ")'s users: " << std::endl;
         for (auto user : mem.second._users) {
             GPU_DEBUG_COUT << "   --- " << user._prim_id << " (" << user._unique_id << ") " << std::endl;
         }
@@ -323,7 +315,8 @@ void memory_pool::dump(uint32_t net_id) {
     for (auto mem : _padded_pool) {
         GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << std::endl;
         for (auto record : mem.second) {
-            GPU_DEBUG_COUT << "    " << record._memory->buffer_ptr() << ", type: " << record._type << ", users : " << std::endl;
+            GPU_DEBUG_COUT << "    " << record._memory->buffer_ptr() << ", type: " << record._type
+                           << ", users : " << std::endl;
             for (auto user : record._users) {
                 GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << std::endl;
             }

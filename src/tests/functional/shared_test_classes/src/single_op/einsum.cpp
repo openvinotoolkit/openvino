@@ -17,7 +17,7 @@ std::string EinsumLayerTest::getTestCaseName(const testing::TestParamInfo<Einsum
     std::tie(equation, shapes) = equation_with_input;
 
     std::ostringstream result;
-        result << "IS=(";
+    result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
         result << ov::test::utils::partialShape2str({shapes[i].first}) << (i < shapes.size() - 1lu ? "_" : "");
     }

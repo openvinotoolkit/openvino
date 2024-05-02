@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
 #include "roi_pooling_inst.h"
 #include "roi_pooling_shape_inference.hpp"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
-#include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_pooling)
@@ -26,8 +26,9 @@ layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel
                   {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
 }
 
-template<typename ShapeType>
-std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const& node,
+                                                          kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<roi_pooling>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
@@ -35,29 +36,27 @@ std::vector<layout> roi_pooling_inst::calc_output_layouts(roi_pooling_node const
     auto output_format = input0_layout.format;
 
     ov::op::v0::ROIPooling op;
-    std::vector<int> output_size { desc->pooled_height, desc->pooled_width };
-    op.set_output_roi({ output_size.begin(), output_size.end() });
+    std::vector<int> output_size{desc->pooled_height, desc->pooled_width};
+    op.set_output_roi({output_size.begin(), output_size.end()});
     op.set_spatial_scale(desc->spatial_scale);
 
     ShapeType rois_shape = impl_param.get_input_layout(1).get<ShapeType>();
-    std::vector<ShapeType> input_shapes = {
-        data_shape,
-        rois_shape
-    };
+    std::vector<ShapeType> input_shapes = {data_shape, rois_shape};
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> roi_pooling_inst::calc_output_layouts<ov::PartialShape>(roi_pooling_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> roi_pooling_inst::calc_output_layouts<ov::PartialShape>(
+    roi_pooling_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node) {
     auto desc = node.get_primitive();
-    auto mode = desc->mode == pooling_mode::max
-                    ? "max"
-                    : desc->mode == pooling_mode::bilinear
-                          ? "bilinear"
-                          : desc->mode == pooling_mode::deformable_bilinear ? "deformable_bilinear" : "average";
+    auto mode = desc->mode == pooling_mode::max                   ? "max"
+                : desc->mode == pooling_mode::bilinear            ? "bilinear"
+                : desc->mode == pooling_mode::deformable_bilinear ? "deformable_bilinear"
+                                                                  : "average";
     auto is_ps = desc->position_sensitive ? "true" : "false";
     auto node_info = node.desc_to_json();
 

@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_op_tests/convert_color_i420.hpp"
+
 #include <vector>
 
-#include "single_op_tests/convert_color_i420.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace {
 using ov::test::ConvertColorI420LayerTest;
 
-const std::vector<ov::Shape> in_shapes = {
-    {1, 10, 10, 1}
-};
+const std::vector<ov::Shape> in_shapes = {{1, 10, 10, 1}};
 
-auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_shapes, bool single_plane) {
+auto generate_input_static_shapes = [](const std::vector<ov::Shape>& original_shapes, bool single_plane) {
     std::vector<std::vector<ov::Shape>> result_shapes;
     for (const auto& original_shape : original_shapes) {
         std::vector<ov::Shape> one_result_shapes;
@@ -34,28 +33,24 @@ auto generate_input_static_shapes = [] (const std::vector<ov::Shape>& original_s
     return result_shapes;
 };
 
-auto in_shapes_single_plain_static     = generate_input_static_shapes(in_shapes, true);
+auto in_shapes_single_plain_static = generate_input_static_shapes(in_shapes, true);
 auto in_shapes_not_single_plain_static = generate_input_static_shapes(in_shapes, false);
 
-const std::vector<ov::element::Type> inTypes = {
-        ov::element::u8, ov::element::f32
-};
+const std::vector<ov::element::Type> inTypes = {ov::element::u8, ov::element::f32};
 
 const auto test_case_values_single_plain = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_single_plain_static)),
     ::testing::ValuesIn(inTypes),
     ::testing::Bool(),
     ::testing::Values(true),
-    ::testing::Values(ov::test::utils::DEVICE_CPU)
-);
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 const auto test_case_values_not_single_plain = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_not_single_plain_static)),
     ::testing::ValuesIn(inTypes),
     ::testing::Bool(),
     ::testing::Values(false),
-    ::testing::Values(ov::test::utils::DEVICE_CPU)
-);
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420SinglePlain,
                          ConvertColorI420LayerTest,
@@ -68,12 +63,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420NotSinglePlain,
                          ConvertColorI420LayerTest::getTestCaseName);
 
 const auto test_case_accuracy_values = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(generate_input_static_shapes({{1, 16*6, 16, 1}}, true))),
-        ::testing::Values(ov::element::u8),
-        ::testing::Values(false),
-        ::testing::Values(true),
-        ::testing::Values(ov::test::utils::DEVICE_CPU)
-);
+    ::testing::ValuesIn(
+        ov::test::static_shapes_to_test_representation(generate_input_static_shapes({{1, 16 * 6, 16, 1}}, true))),
+    ::testing::Values(ov::element::u8),
+    ::testing::Values(false),
+    ::testing::Values(true),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420_acc,
                          ConvertColorI420LayerTest,
@@ -81,12 +76,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsConvertColorI420_acc,
                          ConvertColorI420LayerTest::getTestCaseName);
 
 const auto test_case_accuracy_values_nightly = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(generate_input_static_shapes({{1, 256*256, 256, 1}}, true))),
-        ::testing::Values(ov::element::u8),
-        ::testing::Values(false),
-        ::testing::Values(true),
-        ::testing::Values(ov::test::utils::DEVICE_CPU)
-);
+    ::testing::ValuesIn(
+        ov::test::static_shapes_to_test_representation(generate_input_static_shapes({{1, 256 * 256, 256, 1}}, true))),
+    ::testing::Values(ov::element::u8),
+    ::testing::Values(false),
+    ::testing::Values(true),
+    ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(nightly_TestsConvertColorI420_acc,
                          ConvertColorI420LayerTest,

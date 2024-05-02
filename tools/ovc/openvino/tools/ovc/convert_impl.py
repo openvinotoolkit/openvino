@@ -10,8 +10,7 @@ import traceback
 import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
-from typing import Iterable, Callable
-
+from typing import Callable, Iterable
 
 try:
     import openvino_telemetry as tm
@@ -19,32 +18,50 @@ try:
 except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
-from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
-from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
-from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
-from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
-from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
-    get_mo_convert_params, input_to_input_cut_info, parse_inputs
-from openvino.tools.ovc.help import get_convert_model_help_specifics
-
-from openvino.tools.ovc.error import Error, FrameworkError
-from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
-from openvino.tools.ovc.version import VersionChecker
-from openvino.tools.ovc.utils import check_values_equal
-from openvino.tools.ovc.logger import init_logger
-from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
-    init_mo_telemetry
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
-from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
-
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
-from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import PartialShape
+from openvino.runtime import get_version as get_rt_version
+from openvino.tools.ovc.cli_parser import (
+    depersonalize,
+    get_available_front_ends,
+    get_common_cli_options,
+    get_mo_convert_params,
+    input_to_input_cut_info,
+    parse_inputs,
+)
+from openvino.tools.ovc.error import Error, FrameworkError
+from openvino.tools.ovc.get_ov_update_message import (
+    get_compression_message,
+    get_ov_update_message,
+)
+from openvino.tools.ovc.help import get_convert_model_help_specifics
+from openvino.tools.ovc.logger import init_logger
+from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
+from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
+from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import (
+    paddle_frontend_converter,
+)
+from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import (
+    extract_input_info_from_example,
+    get_pytorch_decoder,
+)
+from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
+from openvino.tools.ovc.telemetry_utils import (
+    init_mo_telemetry,
+    send_conversion_result,
+    send_params_info,
+)
+from openvino.tools.ovc.utils import check_values_equal
+from openvino.tools.ovc.version import VersionChecker
 
 try:
-    from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
-        extract_model_graph  # pylint: disable=no-name-in-module,import-error
+    from openvino.frontend.tensorflow.utils import (  # pylint: disable=no-name-in-module,import-error
+        create_tf_graph_iterator,
+        extract_model_graph,
+        type_supported_by_tf_fe,
+    )
 
     tf_frontend_with_python_bindings_installed = True
 except (ModuleNotFoundError, ImportError):
@@ -59,23 +76,23 @@ def replace_ext(name: str, old: str, new: str):
 
 
 def print_argv(argv: argparse.Namespace):
-    print('Model Conversion arguments:')
+    print("Model Conversion arguments:")
     props = OrderedDict()
-    props['common_args'] = get_common_cli_options(argv, argv.is_python_api_used)
+    props["common_args"] = get_common_cli_options(argv, argv.is_python_api_used)
 
-    framework_specifics_map = {
-        'common_args': 'Common parameters:'
-    }
+    framework_specifics_map = {"common_args": "Common parameters:"}
 
     lines = []
     for key in props:
         lines.append(framework_specifics_map[key])
-        for (op, desc) in props[key].items():
+        for op, desc in props[key].items():
             if isinstance(desc, list):
-                lines.append('\t{}: \t{}'.format(desc[0], desc[1](getattr(argv, op, 'NONE'))))
+                lines.append(
+                    "\t{}: \t{}".format(desc[0], desc[1](getattr(argv, op, "NONE")))
+                )
             else:
-                lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    print('\n'.join(lines), flush=True)
+                lines.append("\t{}: \t{}".format(desc, getattr(argv, op, "NONE")))
+    print("\n".join(lines), flush=True)
 
 
 def check_iterable(iterable: Iterable, func: Callable):
@@ -89,12 +106,15 @@ def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
     if not argv.is_python_api_used:
-        log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
+        log.debug(
+            "Output model name would be {}{{.xml, .bin}}".format(argv.output_model)
+        )
 
     if is_verbose(argv):
         print_argv(argv)
 
     import re
+
     if argv.is_python_api_used and isinstance(argv.input, str):
         argv.input = [argv.input]
 
@@ -104,7 +124,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     normalize_inputs(argv)
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    if not hasattr(argv, 'output') or argv.output is None:
+    if not hasattr(argv, "output") or argv.output is None:
         return argv
 
     if argv.is_python_api_used:
@@ -118,8 +138,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         assert isinstance(argv.output, str)
 
         error_msg = f"output '{argv.output}' is incorrect, output names should not be empty or contain spaces"
-        processed_output = re.split(r'\s*,\s*', argv.output.strip())
-        assert check_iterable(processed_output, lambda x: x.find(' ') == -1), error_msg
+        processed_output = re.split(r"\s*,\s*", argv.output.strip())
+        assert check_iterable(processed_output, lambda x: x.find(" ") == -1), error_msg
         assert check_iterable(processed_output, lambda x: len(x) > 0), error_msg
         argv.output = processed_output
     return argv
@@ -138,7 +158,8 @@ def get_moc_frontends(argv: argparse.Namespace):
     if argv.input_model:
         if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 2:
             moc_front_end = fem.load_by_model(
-                [argv.input_model[0], argv.input_model[1]])  # TODO: Pass all input model parts
+                [argv.input_model[0], argv.input_model[1]]
+            )  # TODO: Pass all input model parts
         else:
             moc_front_end = fem.load_by_model(argv.input_model)
         if not moc_front_end:
@@ -158,6 +179,7 @@ def filtered_extensions(extensions):
     try:
         new_extensions = []
         from openvino.frontend.pytorch.module_extension import ModuleExtension
+
         for ext in extensions:
             if not isinstance(ext, ModuleExtension):
                 new_extensions.append(ext)
@@ -176,14 +198,22 @@ def prepare_ir(argv: argparse.Namespace):
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
     if moc_front_end:
         # TODO: Should be moved to the same place where paddle and pytorch handle their objects
-        if argv.framework == 'tf' and argv.is_python_object and type_supported_by_tf_fe(argv.input_model):
-            argv.input_model = create_tf_graph_iterator(argv.input_model,
-                                                        argv.placeholder_shapes,
-                                                        argv.placeholder_data_types,
-                                                        getattr(argv, "example_input", None),
-                                                        argv.share_weights)
+        if (
+            argv.framework == "tf"
+            and argv.is_python_object
+            and type_supported_by_tf_fe(argv.input_model)
+        ):
+            argv.input_model = create_tf_graph_iterator(
+                argv.input_model,
+                argv.placeholder_shapes,
+                argv.placeholder_data_types,
+                getattr(argv, "example_input", None),
+                argv.share_weights,
+            )
         t.send_event("ovc", "conversion_method", moc_front_end.get_name() + "_frontend")
-        moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
+        moc_front_end.add_extension(
+            TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace)
+        )
         if any_extensions_used(argv):
             for extension in filtered_extensions(argv.extension):
                 moc_front_end.add_extension(extension)
@@ -191,23 +221,27 @@ def prepare_ir(argv: argparse.Namespace):
         return ov_model
 
     if not argv.input_model:
-        raise Error('No input model is provided')
+        raise Error("No input model is provided")
 
-    raise Error('Cannot recognize input model.')
+    raise Error("Cannot recognize input model.")
 
 
 def check_model_object(argv):
-    model = argv['input_model']
-    if 'tensorflow' in sys.modules:
+    model = argv["input_model"]
+    if "tensorflow" in sys.modules:
         if tf_frontend_with_python_bindings_installed and extract_model_graph(argv):
             return "tf"
-    if 'torch' in sys.modules:
+    if "torch" in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
+
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (
+            hasattr(torch, "export")
+            and isinstance(model, (torch.export.ExportedProgram))
+        ):
             return "pytorch"
         try:
-            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
             from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+            from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
             if isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
                 return "pytorch"
@@ -215,25 +249,29 @@ def check_model_object(argv):
             pass
 
     import io
+
     # FIXME: Consuming any io.BytesIO object as an ONNX model is too dengerous and
     # can conflict with others in the future (not future proof).
     # TODO: Refer to https://onnx.ai/onnx/intro/python.html to find examples with
     # real ONNX python objects. ONNX model has onnx.onnx_ml_pb2.ModelProto type.
     if isinstance(model, io.BytesIO):
-        return 'onnx'
+        return "onnx"
 
-    if 'paddle' in sys.modules:
+    if "paddle" in sys.modules:
         import paddle
-        if isinstance(model, paddle.hapi.model.Model) or isinstance(model,
-                                                                    paddle.fluid.dygraph.layers.Layer) or isinstance(
-            model, paddle.fluid.executor.Executor):
+
+        if (
+            isinstance(model, paddle.hapi.model.Model)
+            or isinstance(model, paddle.fluid.dygraph.layers.Layer)
+            or isinstance(model, paddle.fluid.executor.Executor)
+        ):
             return "paddle"
 
-    raise Error('Unknown model type: {}'.format(type(model)))
+    raise Error("Unknown model type: {}".format(type(model)))
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
-    init_logger('ERROR', argv.verbose)
+    init_logger("ERROR", argv.verbose)
 
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
@@ -244,15 +282,18 @@ def driver(argv: argparse.Namespace, non_default_params: dict):
 
 
 def get_non_default_params(argv, cli_parser):
-    import numbers
     import inspect
+    import numbers
+
     from openvino.tools.ovc import convert_model
 
     signature = inspect.signature(convert_model)
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg, arg_value in vars(argv).items():
-        if arg in signature.parameters and check_values_equal(arg_value, signature.parameters[arg].default):
+        if arg in signature.parameters and check_values_equal(
+            arg_value, signature.parameters[arg].default
+        ):
             continue
         if check_values_equal(arg_value, cli_parser.get_default(arg)):
             continue
@@ -265,17 +306,17 @@ def get_non_default_params(argv, cli_parser):
 
 
 def add_line_breaks(text: str, char_num: int, line_break: str):
-    words = text.replace('\n', "\n ").split(" ")
+    words = text.replace("\n", "\n ").split(" ")
     cnt = 0
     for i, w in enumerate(words):
         cnt += len(w)
-        if '\n' in w:
-            cnt = len(w) - w.find('\n') - 1
+        if "\n" in w:
+            cnt = len(w) - w.find("\n") - 1
         if cnt > char_num:
-            if words[i][-1] not in ['\n', '\t']:
-                words[i] = w + '\n'
+            if words[i][-1] not in ["\n", "\t"]:
+                words[i] = w + "\n"
             cnt = 0
-    text = ' '.join(words).replace("\n ", "\n")
+    text = " ".join(words).replace("\n ", "\n")
     return line_break + text.replace("\n", line_break)
 
 
@@ -285,7 +326,7 @@ def show_mo_convert_help():
         print(group_name)
         for param_name in group:
             param_data = group[param_name]
-            text = param_data.description.replace("    ", '')
+            text = param_data.description.replace("    ", "")
             text = add_line_breaks(text, 56, "\n\t\t\t")
             print("  :param {} {}".format(param_name, text))
         print()
@@ -326,11 +367,13 @@ def normalize_inputs(argv: argparse.Namespace):
         if inp.name is not None:
             input_names_list.append(inp.name)
     if len(input_names_list) > 0:
-        assert len(input_names_list) == len(inputs), "\"input\" parameter has unnamed inputs and named inputs. " \
-                                                     "Please either set names for all inputs, " \
-                                                     "or do not set names for all inputs."
+        assert len(input_names_list) == len(inputs), (
+            '"input" parameter has unnamed inputs and named inputs. '
+            "Please either set names for all inputs, "
+            "or do not set names for all inputs."
+        )
     argv.inputs_list = input_names_list
-    argv.input = ','.join(input_names_list)
+    argv.input = ",".join(input_names_list)
 
     if len(input_names_list) > 0:
         # Named inputs case
@@ -360,7 +403,11 @@ def normalize_inputs(argv: argparse.Namespace):
                 data_type_list.append(to_ov_type(inp.type))
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
-    if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
+    if (
+        hasattr(argv, "framework")
+        and argv.framework == "pytorch"
+        and getattr(argv, "example_input", None) is not None
+    ):
         extract_input_info_from_example(argv, inputs)
 
 
@@ -369,7 +416,9 @@ def args_to_argv(**kwargs):
     args_specifics = get_convert_model_help_specifics()
 
     import inspect
+
     from openvino.tools.ovc import convert_model
+
     signature = inspect.signature(convert_model)
     for key, value in kwargs.items():
         if value is None and key in signature.parameters:
@@ -377,15 +426,19 @@ def args_to_argv(**kwargs):
             continue
         if key in args_specifics:
             param_specifics = args_specifics[key]
-            if 'action' in param_specifics and hasattr(param_specifics['action'], 'check_value'):
-                value = param_specifics['action'].check_value(value, key)
-            if 'type' in param_specifics:
-                value = param_specifics['type'](value)
+            if "action" in param_specifics and hasattr(
+                param_specifics["action"], "check_value"
+            ):
+                value = param_specifics["action"].check_value(value, key)
+            if "type" in param_specifics:
+                value = param_specifics["type"](value)
         setattr(argv, key, value)
     return argv
 
 
-def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser, python_api_used):
+def pack_params_to_args_namespace(
+    args: dict, cli_parser: argparse.ArgumentParser, python_api_used
+):
     if python_api_used:
         argv = args_to_argv(**args)
 
@@ -404,11 +457,11 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
 
 
 def is_verbose(argv, args=None):
-    if argv is not None and hasattr(argv, 'verbose') and argv.verbose:
+    if argv is not None and hasattr(argv, "verbose") and argv.verbose:
         return True
-    if args is not None and 'verbose' in args and args['verbose']:
+    if args is not None and "verbose" in args and args["verbose"]:
         return True
-    if '--verbose' in sys.argv:
+    if "--verbose" in sys.argv:
         return True
     return False
 
@@ -420,48 +473,55 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
-    telemetry.start_session('ovc')
-    telemetry.send_event('ovc', 'version', simplified_ie_version)
+    telemetry.start_session("ovc")
+    telemetry.send_event("ovc", "version", simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
-    init_logger('ERROR', False)
+    init_logger("ERROR", False)
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
-        if 'input_model' not in args:
-            args['input_model'] = ()
-        if isinstance(args['input_model'], (tuple, list)) and len(args['input_model']) == 1:
-            args['input_model'] = args['input_model'][0]
+        if "input_model" not in args:
+            args["input_model"] = ()
+        if (
+            isinstance(args["input_model"], (tuple, list))
+            and len(args["input_model"]) == 1
+        ):
+            args["input_model"] = args["input_model"][0]
     try:
         model_framework = None
-        inp_model_is_object = input_model_is_object(args['input_model']) if python_api_used else False
+        inp_model_is_object = (
+            input_model_is_object(args["input_model"]) if python_api_used else False
+        )
 
         if inp_model_is_object:
             model_framework = check_model_object(args)
             if model_framework == "pytorch":
                 example_inputs = None
-                if 'example_input' in args and args['example_input'] is not None:
-                    example_inputs = args['example_input']
-                elif 'example_inputs' in args:
+                if "example_input" in args and args["example_input"] is not None:
+                    example_inputs = args["example_input"]
+                elif "example_inputs" in args:
                     raise AssertionError(
-                        "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?")
+                        "'example_inputs' argument is not recognized, maybe you meant to provide 'example_input'?"
+                    )
 
-                get_pytorch_decoder(args['input_model'], example_inputs, args)
+                get_pytorch_decoder(args["input_model"], example_inputs, args)
             if model_framework == "paddle":
                 example_inputs = None
-                if 'example_input' in args and args['example_input'] is not None:
-                    example_inputs = args['example_input']
+                if "example_input" in args and args["example_input"] is not None:
+                    example_inputs = args["example_input"]
 
                 outputs = None
-                if 'output' in args and args['output'] is not None:
+                if "output" in args and args["output"] is not None:
                     # Once the temporary PDPD model is generated. output can be dropped.
                     # Just swap outputs and args['output'] can reset the argv.output to `None`.
                     # It can avoid the following `output` negative effect.
-                    outputs, args['output'] = args['output'], outputs
-                paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs,
-                                                                     outputs)
+                    outputs, args["output"] = args["output"], outputs
+                paddle_runtime_converter = paddle_frontend_converter(
+                    args["input_model"], example_inputs, outputs
+                )
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
-                args['input_model'] = pdmodel
+                args["input_model"] = pdmodel
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
         argv.framework = model_framework
@@ -489,22 +549,29 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
         if is_verbose(argv) or not python_api_used:
-            if 'compress_to_fp16' in argv and argv.compress_to_fp16:
+            if "compress_to_fp16" in argv and argv.compress_to_fp16:
                 print(get_compression_message())
 
             ov_update_message = get_ov_update_message()
             if ov_update_message is not None:
                 print(ov_update_message)
 
-        send_conversion_result('success')
+        send_conversion_result("success")
 
         if is_verbose(argv):
             elapsed_time = datetime.datetime.now() - start_time
-            print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+            print(
+                "[ SUCCESS ] Total execution time: {:.2f} seconds. ".format(
+                    elapsed_time.total_seconds()
+                )
+            )
 
             _, peak_size = tracemalloc.get_traced_memory()
-            print("[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(
-                peak_size / (1024 * 1024)))
+            print(
+                "[ SUCCESS ] Peak memory consumption (includes only memory allocated in Python): {:.2f} MB. ".format(
+                    peak_size / (1024 * 1024)
+                )
+            )
             tracemalloc.stop()
 
         return ov_model, argv
@@ -512,13 +579,17 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     except Exception as e:
         if is_verbose(argv) or not python_api_used:
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
-                log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
+                log.error(
+                    "File {} was not found".format(
+                        str(e).split("No such file or directory:")[1]
+                    )
+                )
                 log.debug(traceback.format_exc())
             elif isinstance(e, (Error, OpConversionFailure)):
                 log.error(e)
                 log.debug(traceback.format_exc())
             elif isinstance(e, FrameworkError):
-                log.error(e, extra={'framework_error': True})
+                log.error(e, extra={"framework_error": True})
                 log.debug(traceback.format_exc())
             else:
                 log.error("-------------------------------------------------")
@@ -533,7 +604,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 log.error("----------------- END OF REPORT -----------------")
                 log.error("-------------------------------------------------")
 
-        send_conversion_result('fail')
+        send_conversion_result("fail")
         if python_api_used:
             raise e
         else:

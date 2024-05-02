@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.tile import Tile
 
 
 class TileExtractor(FrontExtractorOp):
-    op = 'Tile'
+    op = "Tile"
     enabled = True
 
     @classmethod

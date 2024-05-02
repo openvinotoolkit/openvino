@@ -31,7 +31,7 @@ public:
 private:
     friend class InferRequest;
     friend class Plugin;
-    CumuSchedule::Ptr          m_scheduler;
+    CumuSchedule::Ptr m_scheduler;
 };
 }  // namespace auto_plugin
-} // namespace ov
+}  // namespace ov

@@ -4,15 +4,14 @@
 
 #include "ov_lpt_models/convolution_backprop_data.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "low_precision/network_helper.hpp"
 
-#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -21,7 +20,8 @@ namespace builder {
 namespace subgraph {
 
 namespace {
-const std::shared_ptr<ov::opset1::ConvolutionBackpropData> buildConvBackpropData(const Output<Node>& data, const Output<Node>& weights) {
+const std::shared_ptr<ov::opset1::ConvolutionBackpropData> buildConvBackpropData(const Output<Node>& data,
+                                                                                 const Output<Node>& weights) {
     const auto rank = data.get_partial_shape().rank();
     const auto rank_value = rank.is_static() ? rank.get_length() : 4;
     OPENVINO_ASSERT(rank_value == 3 || rank_value == 4,
@@ -48,8 +48,8 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::get(const ov::elemen
     const auto convolutionBackpropData = buildConvBackpropData(fq, weights);
     convolutionBackpropData->set_friendly_name("convolutionBackpropData");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolutionBackpropData) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(convolutionBackpropData)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ConvolutionBackpropDataTransformation");
 }
 
 std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
@@ -127,8 +127,8 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getOriginal(
 
     const auto convolutionBackpropData = buildConvBackpropData(activations, weights);
     convolutionBackpropData->set_friendly_name("output");
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolutionBackpropData) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(convolutionBackpropData)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ConvolutionBackpropDataTransformation");
 }
 
 std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getReference(
@@ -158,8 +158,8 @@ std::shared_ptr<ov::Model> ConvolutionBackpropDataFunction::getReference(
     dequantizationStructureAfter.multiply.outPrecision = netPrecision;
     const auto result = makeDequantization(convolutionBackpropData, dequantizationStructureAfter);
     result->set_friendly_name("output");
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(result) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionBackpropDataTransformation");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(result)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ConvolutionBackpropDataTransformation");
 }
 
 }  // namespace subgraph

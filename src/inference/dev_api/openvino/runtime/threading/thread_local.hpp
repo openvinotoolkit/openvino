@@ -93,13 +93,13 @@ struct ThreadLocal {
         auto operator*() -> decltype(it->second) {
             return it->second;
         }
-        auto operator-> () -> decltype(&(it->second)) {
+        auto operator->() -> decltype(&(it->second)) {
             return &(it->second);
         }
         auto operator*() const -> decltype(it->second) {
             return it->second;
         }
-        auto operator-> () const -> decltype(&(it->second)) {
+        auto operator->() const -> decltype(&(it->second)) {
             return &(it->second);
         }
     };

@@ -3,6 +3,7 @@
 //
 
 #include "deconvolution_kernel_bfyx_opt.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -54,15 +55,14 @@ JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_p
 
     if (!params.fused_ops.empty()) {
         auto fused_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = {
-            "",
-            {"batch_offset", "ofm_offset", "id_y", "id_x"},
-            "result",
-            fused_dt,
-            1,
-            LoadType::LT_UNALIGNED,
-            BoundaryCheck::DISABLED };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"",
+                                      {"batch_offset", "ofm_offset", "id_y", "id_x"},
+                                      "result",
+                                      fused_dt,
+                                      1,
+                                      LoadType::LT_UNALIGNED,
+                                      BoundaryCheck::DISABLED};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;
 }

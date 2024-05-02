@@ -96,13 +96,14 @@ JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params&
         auto fused_dt = GetActivationType(params);
         std::vector<std::string> idx_order;
         if (params.outputs[0].Dimentions() <= 4) {
-            idx_order = { "batch_offset", "ofm_offset", "out_y", "out_x" };
+            idx_order = {"batch_offset", "ofm_offset", "out_y", "out_x"};
         } else {
-            idx_order = { "batch_offset", "ofm_offset", "out_z", "out_y", "out_x" };
+            idx_order = {"batch_offset", "ofm_offset", "out_z", "out_y", "out_x"};
         }
-        FusedOpsConfiguration conf = { "", idx_order, "post_activation", fused_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED };
+        FusedOpsConfiguration conf =
+            {"", idx_order, "post_activation", fused_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED};
 
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

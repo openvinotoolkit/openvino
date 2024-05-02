@@ -6,8 +6,8 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class FakeQuantize_extender(Extender):
-    op = 'FakeQuantize'
+    op = "FakeQuantize"
 
     @staticmethod
     def extend(op: Node):
-        op['stop_value_propagation'] = True
+        op["stop_value_propagation"] = True

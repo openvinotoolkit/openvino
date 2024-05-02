@@ -6,8 +6,8 @@ import sys
 
 import numpy as np
 import paddle
-
 from save_model import exportModel
+
 
 def meshgrid():
     paddle.disable_static()
@@ -19,7 +19,8 @@ def meshgrid():
     x = paddle.randint(low=0, high=100, shape=[5])
     y = paddle.randint(low=0, high=100, shape=[3])
     z = paddle.randint(low=0, high=100, shape=[2])
-    return exportModel('meshgrid', test_model, [x, y, z], target_dir=sys.argv[1])
+    return exportModel("meshgrid", test_model, [x, y, z], target_dir=sys.argv[1])
+
 
 if __name__ == "__main__":
     meshgrid()

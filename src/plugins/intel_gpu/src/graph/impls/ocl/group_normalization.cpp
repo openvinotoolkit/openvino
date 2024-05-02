@@ -1,10 +1,10 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "primitive_base.hpp"
-#include "group_normalization_inst.h"
 #include "group_normalization/group_normalization_kernel_ref.h"
 #include "group_normalization/group_normalization_kernel_selector.h"
+#include "group_normalization_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -42,24 +42,26 @@ namespace detail {
 attach_group_normalization_impl::attach_group_normalization_impl() {
     auto types = {data_types::f16, data_types::f32};
     auto formats = {
-            format::bfyx,
-            format::byxf,
-            format::yxfb,
-            format::bfzyx,
-            format::b_fs_yx_fsv2,
-            format::b_fs_zyx_fsv2,
-            format::b_fs_yx_fsv4,
-            format::b_fs_zyx_fsv4,
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_zyx_fsv32,
+        format::bfyx,
+        format::byxf,
+        format::yxfb,
+        format::bfzyx,
+        format::b_fs_yx_fsv2,
+        format::b_fs_zyx_fsv2,
+        format::b_fs_yx_fsv4,
+        format::b_fs_zyx_fsv4,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
     };
 
-    implementation_map<group_normalization>::add(impl_types::ocl, shape_types::static_shape,
-                                     typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
-                                     types,
-                                     formats);
+    implementation_map<group_normalization>::add(
+        impl_types::ocl,
+        shape_types::static_shape,
+        typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
+        types,
+        formats);
 }
 
 }  // namespace detail

@@ -3,6 +3,7 @@
 //
 
 #include "generate_proposals_kernel_selector.h"
+
 #include "generate_proposals_kernel_ref.h"
 
 namespace kernel_selector {

@@ -7,12 +7,14 @@ from openvino.tools.mo.ops.squeeze import Squeeze
 
 
 class SqueezeExtractor(FrontExtractorOp):
-    op = 'squeeze'
+    op = "squeeze"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
-        Squeeze.update_node_stat(node, {'squeeze_dims': attrs.int("axis", None), 'keep_at_least_1d': True})
+        Squeeze.update_node_stat(
+            node, {"squeeze_dims": attrs.int("axis", None), "keep_at_least_1d": True}
+        )
         return cls.enabled

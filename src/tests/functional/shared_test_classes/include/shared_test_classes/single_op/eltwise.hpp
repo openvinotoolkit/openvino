@@ -5,26 +5,25 @@
 
 #pragma once
 
-#include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-    std::vector<InputShape>,           // input shapes
-    ov::test::utils::EltwiseTypes,     // eltwise op type
-    ov::test::utils::InputLayerType,   // secondary input type
-    ov::test::utils::OpType,           // op type
-    ElementType,                       // Model type
-    ElementType,                       // In type
-    ElementType,                       // Out type
-    TargetDevice,                      // Device name
-    ov::AnyMap                         // Additional network configuration
-> EltwiseTestParams;
+typedef std::tuple<std::vector<InputShape>,          // input shapes
+                   ov::test::utils::EltwiseTypes,    // eltwise op type
+                   ov::test::utils::InputLayerType,  // secondary input type
+                   ov::test::utils::OpType,          // op type
+                   ElementType,                      // Model type
+                   ElementType,                      // In type
+                   ElementType,                      // Out type
+                   TargetDevice,                     // Device name
+                   ov::AnyMap                        // Additional network configuration
+                   >
+    EltwiseTestParams;
 
-class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
-                         virtual public SubgraphBaseTest {
+class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>, virtual public SubgraphBaseTest {
 protected:
     void SetUp() override;
 
@@ -34,5 +33,5 @@ public:
 private:
     void transformInputShapesAccordingEltwise(const ov::PartialShape& secondInputShape);
 };
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

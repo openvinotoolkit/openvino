@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.pass_separator import FrontStart
 from openvino.tools.mo.front.common.replacement import FrontReplacementSubgraph
+from openvino.tools.mo.front.pass_separator import FrontStart
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.const import Const
@@ -18,6 +18,7 @@ class ReshapeDimNormalizer(FrontReplacementSubgraph):
 
     This transformation reforms Reshape operations to store dim info in 1-port input.
     """
+
     enabled = True
     force_shape_inference = True
 
@@ -25,25 +26,27 @@ class ReshapeDimNormalizer(FrontReplacementSubgraph):
         return [FrontStart]
 
     def run_after(self):
-        from openvino.tools.mo.front.freeze_placeholder_value import FreezePlaceholderValue
+        from openvino.tools.mo.front.freeze_placeholder_value import (
+            FreezePlaceholderValue,
+        )
+
         return [FreezePlaceholderValue]
 
     def pattern(self):
-        return dict(
-            nodes=[
-                ('reshape', dict(kind='op', op='Reshape'))
-            ],
-            edges=[]
-        )
+        return dict(nodes=[("reshape", dict(kind="op", op="Reshape"))], edges=[])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        node = match['reshape']
-        connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
+        node = match["reshape"]
+        connected_in_ports = [
+            port for port in node.in_ports().values() if not port.disconnected()
+        ]
         if len(connected_in_ports) == 1:
-            if node.has('dim'):
-                const = Const(graph, {'value': node.dim}).create_node()
+            if node.has("dim"):
+                const = Const(graph, {"value": node.dim}).create_node()
                 node.add_input_port(1, skip_if_exist=True)
                 const.out_port(0).connect(node.in_port(1))
-                del node['dim']
+                del node["dim"]
             else:
-                raise Error('The `dim` attribute for node {} is not set'.format(node.op))
+                raise Error(
+                    "The `dim` attribute for node {} is not set".format(node.op)
+                )

@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "reorder_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "reorder_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "graph/impls/onednn/utils.hpp"
-#endif // ENABLE_ONEDNN_FOR_GPU
+#    include "graph/impls/onednn/utils.hpp"
+#endif  // ENABLE_ONEDNN_FOR_GPU
 #include <algorithm>
 #include <string>
 
@@ -71,8 +71,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         // how many tiles do we need to produce
         // each input tile produces one output tile so we can find no. of input tiles by calculating no. of output tiles
         // (which is equal to width of an output divided by output tile width)
-        tensor::value_type conv_output_width =
-            input_layout.spatial(0) - filter_width + 1;
+        tensor::value_type conv_output_width = input_layout.spatial(0) - filter_width + 1;
         tensor::value_type input_tiles_count_x = conv_output_width / output_tile_width;
         tensor::value_type output_width = input_tiles_count_x * input_tile_width;
         tensor::value_type output_height = input_layout.spatial(1);
@@ -141,10 +140,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
         return layout(odt,
                       ofmt,
-                      tensor{input_layout.batch(),
-                             input_layout.feature(),
-                             output_width,
-                             input_layout.spatial(1)});
+                      tensor{input_layout.batch(), input_layout.feature(), output_width, input_layout.spatial(1)});
     }
 
     // transformation of weights from winograd to standard
@@ -158,12 +154,13 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         return desc->weights_reorder_params->get_output_layout();
     }
 
-    if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::os_i_osv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
-        ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
-        ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
-        ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
-        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) && input_layout.is_static()) {
+    if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 ||
+         ofmt == format::os_i_osv16 || ofmt == format::bfzyx || ifmt == format::bfzyx ||
+         ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 || ofmt == format::bs_fs_zyx_bsv16_fsv16 ||
+         ifmt == format::bs_fs_zyx_bsv16_fsv16 || ofmt == format::bs_fs_zyx_bsv16_fsv32 ||
+         ifmt == format::bs_fs_zyx_bsv16_fsv32 || ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
+         ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) &&
+        input_layout.is_static()) {
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
@@ -173,8 +170,9 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 }
 
-template<typename ShapeType>
-std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/,
+                                                      const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<reorder>();
     auto input_layout = impl_param.get_input_layout();
 
@@ -183,14 +181,16 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 
     if (desc->weights_reorder_params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
+        auto onednn_weights_params =
+            std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
         if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
-#endif // ENABLE_ONEDNN_FOR_GPU
-        return { desc->weights_reorder_params->get_output_layout() };
+#endif  // ENABLE_ONEDNN_FOR_GPU
+        return {desc->weights_reorder_params->get_output_layout()};
     } else {
-        return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+        return {
+            layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0])};
     }
 }
 
@@ -202,8 +202,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
-    auto input_mem_type = desc->input_mem_type ==
-        reorder::memory_type::buffer ? "buffer" : "surface";
+    auto input_mem_type = desc->input_mem_type == reorder::memory_type::buffer ? "buffer" : "surface";
 
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
@@ -223,10 +222,12 @@ reorder_inst::typed_primitive_inst(network& network) : parent(network) {
     _type = reorder::type_id();
 }
 
-reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
-        parent(network, node, !node.can_be_optimized()
-                              && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound()))
-        , _req_reinterpr(node.requires_reinterpret()) {
+reorder_inst::typed_primitive_inst(network& network, reorder_node const& node)
+    : parent(network,
+             node,
+             !node.can_be_optimized() &&
+                 (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
+      _req_reinterpr(node.requires_reinterpret()) {
     update_output_memory();
 
     if (is_dynamic())
@@ -235,13 +236,14 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     if (input_layout.is_static() && output_layout.is_static()) {
-        CLDNN_ERROR_LESS_THAN(node.id(),
-                              "Input dimension size",
-                              input_layout.get_tensor().raw.size(),
-                              "ouput dimension size",
-                              output_layout.get_tensor().raw.size(),
-                              "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
-                              "(reorder) or when input > output (flatten).");
+        CLDNN_ERROR_LESS_THAN(
+            node.id(),
+            "Input dimension size",
+            input_layout.get_tensor().raw.size(),
+            "ouput dimension size",
+            output_layout.get_tensor().raw.size(),
+            "Input dimension < output dimension. Reorder primitive woks only with same dimension sizes "
+            "(reorder) or when input > output (flatten).");
     }
     if (!argument->subtract_per_feature.empty()) {
         CLDNN_ERROR_GREATER_THAN(node.id(),
@@ -251,7 +253,8 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");
         if (input_layout.format != format::nv12) {
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
+            CLDNN_ERROR_NOT_EQUAL(
+                node.id(),
                 "Input feature size[0]",
                 static_cast<size_t>(input_layout.feature()),
                 "argument subtract per feature size",

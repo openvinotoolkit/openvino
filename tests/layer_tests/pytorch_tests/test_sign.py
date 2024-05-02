@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSilu(PytorchLayerTest):
     def _prepare_input(self, inp_type="mixed", out=False):
         import numpy as np
+
         inp = np.arange(0, 10).astype(np.float32)
         if inp_type == "negative":
             inp[0] = 1
@@ -22,7 +22,7 @@ class TestSilu(PytorchLayerTest):
             inp[idx.astype(int)] *= -1
         if out:
             return (inp, np.zeros_like(inp))
-        return (inp, )
+        return (inp,)
 
     def create_model(self, out):
         import torch
@@ -49,5 +49,10 @@ class TestSilu(PytorchLayerTest):
     @pytest.mark.parametrize("input_type", ["zeros", "positive", "negative", "mixed"])
     @pytest.mark.parametrize("out", [True, False])
     def test_sign(self, input_type, out, ie_device, precision, ir_version):
-        self._test(*self.create_model(out), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"inp_type": input_type, "out": out})
+        self._test(
+            *self.create_model(out),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"inp_type": input_type, "out": out}
+        )

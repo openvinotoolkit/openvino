@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_validation.hpp"
 #include "static_shape.hpp"
+
+#include "shape_validation.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -155,7 +156,7 @@ ov::Shape StaticShapeRef::get_shape() const {
     return to_shape();
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 
 template <>
 void NodeValidationFailure::create(const char* file,
@@ -182,4 +183,4 @@ void NodeValidationFailure::create(const char* file,
                                               node_validation_failure_loc_string(ctx.first),
                                               ov::op::validate::shape_infer_explanation_str(*ctx.second, explanation)));
 }
-}   // namespace ov
+}  // namespace ov

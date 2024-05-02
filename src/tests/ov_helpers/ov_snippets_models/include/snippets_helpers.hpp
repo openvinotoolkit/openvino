@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "openvino/core/model.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace test {
@@ -19,8 +19,10 @@ public:
     SnippetsFunctionBase() = delete;
     virtual ~SnippetsFunctionBase() = default;
 
-    explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes, ov::element::Type_t precision = element::f32)
-                : precision{precision}, input_shapes{inputShapes} {}
+    explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes,
+                                  ov::element::Type_t precision = element::f32)
+        : precision{precision},
+          input_shapes{inputShapes} {}
 
     std::shared_ptr<Model> getReference() const {
         std::shared_ptr<Model> function_ref = initReference();
@@ -40,7 +42,9 @@ public:
         return function_low;
     }
 
-    size_t getNumInputs() const { return input_shapes.size(); }
+    size_t getNumInputs() const {
+        return input_shapes.size();
+    }
 
 protected:
     virtual std::shared_ptr<Model> initOriginal() const = 0;
@@ -56,15 +60,15 @@ protected:
     const ov::element::Type_t precision;
     const std::vector<PartialShape> input_shapes;
 
-    virtual void validate_function(const std::shared_ptr<Model> &f) const;
+    virtual void validate_function(const std::shared_ptr<Model>& f) const;
 };
 
-/// \brief Base class for snippets subgraphs with customizable embedded op sequences. Note that the custom_ops allowed types are
-/// model-specific and expected to be checked inside a child class constructor.
-/// \param  custom_ops  vector of ops to be inserted in the graph. Required vector size and acceptable op types are subgraph-specific.
-/// The ops are expected to be default-constructed to facilitate test development, the class will take care of the ops inputs for you.
-/// \param  customOpsNumInputs  size_t vector that specifies the number of inputs for each of the custom_ops. Not that an rvalue is expected,
-/// since it should be hard-coded along with the Original and Reference functions.
+/// \brief Base class for snippets subgraphs with customizable embedded op sequences. Note that the custom_ops allowed
+/// types are model-specific and expected to be checked inside a child class constructor. \param  custom_ops  vector of
+/// ops to be inserted in the graph. Required vector size and acceptable op types are subgraph-specific. The ops are
+/// expected to be default-constructed to facilitate test development, the class will take care of the ops inputs for
+/// you. \param  customOpsNumInputs  size_t vector that specifies the number of inputs for each of the custom_ops. Not
+/// that an rvalue is expected, since it should be hard-coded along with the Original and Reference functions.
 class SnippetsFunctionCustomizable : public SnippetsFunctionBase {
 public:
     SnippetsFunctionCustomizable() = delete;

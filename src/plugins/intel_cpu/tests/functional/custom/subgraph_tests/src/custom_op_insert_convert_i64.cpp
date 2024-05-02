@@ -36,10 +36,9 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-using CustomOpI64CPUTestParams = std::tuple<
-    ElementType,     // Input element type
-    InputShape       // Input shape
->;
+using CustomOpI64CPUTestParams = std::tuple<ElementType,  // Input element type
+                                            InputShape    // Input shape
+                                            >;
 
 class CustomOpI64 : public ov::op::Op {
 public:
@@ -109,7 +108,7 @@ public:
         std::ostringstream result;
 
         result << "InElType=" << std::get<0>(obj.param) << "_";
-        result << "IS="       << std::get<1>(obj.param);
+        result << "IS=" << std::get<1>(obj.param);
 
         return result.str();
     }
@@ -130,12 +129,10 @@ protected:
         auto i32_op_1 = std::make_shared<op::v1::LogicalNot>(param);
         auto custom_op_1 = std::make_shared<CustomOpI64>(i32_op_1);
 
-        OutputVector results{
-                i32_op_0->output(0),
-                custom_op_0->output(1),
-                custom_op_1->output(0),
-                custom_op_1->output(1)
-            };
+        OutputVector results{i32_op_0->output(0),
+                             custom_op_0->output(1),
+                             custom_op_1->output(0),
+                             custom_op_1->output(1)};
 
         function = std::make_shared<ov::Model>(results, ParameterVector{param}, "customOpI64Test");
     }
@@ -145,7 +142,8 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            auto tensor =
+                ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -202,15 +200,11 @@ TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     ASSERT_EQ(res_i32_num, 2lu) << "Unexpected number of the Result nodes with type i32.";
 }
 
-const InputShape inputShapes = {
-    {}, {{2, 3, 64}}
-};
+const InputShape inputShapes = {{}, {{2, 3, 64}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
                          CustomOpConvertI64CPUTest,
-                         ::testing::Combine(
-                                ::testing::Values(ElementType::i32),
-                                ::testing::Values(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::i32), ::testing::Values(inputShapes)),
                          CustomOpConvertI64CPUTest::getTestCaseName);
 }  // namespace test
 }  // namespace ov

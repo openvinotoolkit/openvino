@@ -3,8 +3,9 @@
 //
 
 #include "ref_transpose.hpp"
-#include "openvino/core/parallel.hpp"
+
 #include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,7 +28,10 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
     }
 }
 
-void RefTransposeExecutor::referenceExecute(const uint8_t* src_data, uint8_t* dst_data, jit_permute_config_params jcp, const int mb) {
+void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
+                                            uint8_t* dst_data,
+                                            jit_permute_config_params jcp,
+                                            const int mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
@@ -70,13 +74,13 @@ void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
-bool RefTransposeExecutor::init(const TransposeParams &transposeParams,
-                                const std::vector<MemoryDescPtr> &srcDescs,
-                                const std::vector<MemoryDescPtr> &dstDescs,
-                                const dnnl::primitive_attr &attr) {
+bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
+                                const std::vector<MemoryDescPtr>& srcDescs,
+                                const std::vector<MemoryDescPtr>& dstDescs,
+                                const dnnl::primitive_attr& attr) {
     jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
     return true;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

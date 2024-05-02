@@ -10,21 +10,23 @@
 
 namespace py = pybind11;
 
-namespace pybind11 { namespace detail {
+namespace pybind11 {
+namespace detail {
 
-template <> struct type_caster<ov::Layout> : public type_caster_base<ov::Layout> {
+template <>
+struct type_caster<ov::Layout> : public type_caster_base<ov::Layout> {
     using base = type_caster_base<ov::Layout>;
+
 public:
     /**
-     * Conversion part 1 (Python->C++): convert a PyObject into a LayoutWrapper 
+     * Conversion part 1 (Python->C++): convert a PyObject into a LayoutWrapper
      * instance or return false upon failure. The second argument
      * indicates whether implicit conversions should be applied.
      */
     bool load(handle src, bool convert) {
         if (base::load(src, convert)) {
             return true;
-        }
-        else if (py::isinstance<py::str>(src)) {
+        } else if (py::isinstance<py::str>(src)) {
             value = new ov::Layout(py::cast<std::string>(src));
             return true;
         }
@@ -42,7 +44,7 @@ public:
         return pybind11::cast(src, policy, parent);
     }
 };
-}
-}
+}  // namespace detail
+}  // namespace pybind11
 
 void regclass_graph_PrePostProcessor(py::module m);

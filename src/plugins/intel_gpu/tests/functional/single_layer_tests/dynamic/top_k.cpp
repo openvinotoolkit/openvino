@@ -6,28 +6,27 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/topk.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<
-        int64_t,                           // keepK
-        int64_t,                           // axis
-        ov::op::v1::TopK::Mode,            // mode
-        ov::op::v1::TopK::SortType,        // sort
-        ov::element::Type,                 // Model type
-        ov::element::Type,                 // Input precision
-        ov::element::Type,                 // Output precision
-        InputShape,                        // input_shape
-        std::string,                       // Device name
-        ov::test::utils::InputLayerType    // Input type
-> TopKLayerTestParamsSet;
+typedef std::tuple<int64_t,                         // keepK
+                   int64_t,                         // axis
+                   ov::op::v1::TopK::Mode,          // mode
+                   ov::op::v1::TopK::SortType,      // sort
+                   ov::element::Type,               // Model type
+                   ov::element::Type,               // Input precision
+                   ov::element::Type,               // Output precision
+                   InputShape,                      // input_shape
+                   std::string,                     // Device name
+                   ov::test::utils::InputLayerType  // Input type
+                   >
+    TopKLayerTestParamsSet;
 
 class TopKLayerGPUTest : public testing::WithParamInterface<TopKLayerTestParamsSet>,
                          virtual public ov::test::SubgraphBaseTest {
@@ -42,7 +41,8 @@ public:
         InputShape input_shape;
         std::string targetDevice;
         ov::test::utils::InputLayerType input_type;
-        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) = basicParamsSet;
+        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) =
+            basicParamsSet;
 
         std::ostringstream result;
         result << "k=" << keepK << "_";
@@ -72,7 +72,8 @@ protected:
         ov::op::v1::TopK::SortType sort;
         ov::element::Type inPrc, outPrc;
         InputShape input_shape;
-        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) = basicParamsSet;
+        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) =
+            basicParamsSet;
 
         if (input_type == ov::test::utils::InputLayerType::CONSTANT) {
             init_input_shapes({input_shape});
@@ -88,12 +89,13 @@ protected:
         std::shared_ptr<ov::op::v1::TopK> topk;
         if (input_type == ov::test::utils::InputLayerType::CONSTANT) {
             auto k = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
+            topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(
+                std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
         } else {
             auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
             params.push_back(k);
             topk = std::dynamic_pointer_cast<ov::op::v1::TopK>(
-                    std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
+                std::make_shared<ov::op::v1::TopK>(params[0], k, axis, mode, sort));
         }
 
         ov::ResultVector results;
@@ -115,12 +117,12 @@ protected:
         if (model_type == ov::element::f32) {
             std::vector<int> data(size);
 
-            int start = - static_cast<int>(size / 2);
+            int start = -static_cast<int>(size / 2);
             std::iota(data.begin(), data.end(), start);
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
-            auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
+            auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
             for (size_t i = 0; i < size; ++i) {
                 rawBlobDataPtr[i] = static_cast<float>(data[i]);
             }
@@ -161,50 +163,42 @@ const std::vector<ov::element::Type> model_types = {
 const std::vector<int64_t> axes = {0, 3};
 const std::vector<int64_t> k = {3, 5, 7};
 
-const std::vector<ov::op::v1::TopK::Mode> modes = {
-    ov::op::v1::TopK::Mode::MIN,
-    ov::op::v1::TopK::Mode::MAX
-};
+const std::vector<ov::op::v1::TopK::Mode> modes = {ov::op::v1::TopK::Mode::MIN, ov::op::v1::TopK::Mode::MAX};
 
 const std::vector<ov::op::v1::TopK::SortType> sortTypes = {
     ov::op::v1::TopK::SortType::SORT_VALUES,
     ov::op::v1::TopK::SortType::SORT_INDICES,
 };
 
-std::vector<ov::test::InputShape> input_shapesDynamic = {
-    {
-        {ov::PartialShape::dynamic(4), {{7, 7, 7, 7}, {7, 8, 7, 9}}},
-        {{-1, -1, -1, -1}, {{8, 9, 10, 11}, {11, 7, 8, 9}}}
-    }
-};
+std::vector<ov::test::InputShape> input_shapesDynamic = {{{ov::PartialShape::dynamic(4), {{7, 7, 7, 7}, {7, 8, 7, 9}}},
+                                                          {{-1, -1, -1, -1}, {{8, 9, 10, 11}, {11, 7, 8, 9}}}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(k),
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(modes),
-        ::testing::ValuesIn(sortTypes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::ValuesIn(input_shapesDynamic),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT)),
-    TopKLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_constant_dynamic,
+                         TopKLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(k),
+                                            ::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(modes),
+                                            ::testing::ValuesIn(sortTypes),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::ValuesIn(input_shapesDynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT)),
+                         TopKLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
-    ::testing::Combine(
-        ::testing::Values(1),
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(modes),
-        ::testing::ValuesIn(sortTypes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::ValuesIn(input_shapesDynamic),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ov::test::utils::InputLayerType::PARAMETER)),
-    TopKLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic,
+                         TopKLayerGPUTest,
+                         ::testing::Combine(::testing::Values(1),
+                                            ::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(modes),
+                                            ::testing::ValuesIn(sortTypes),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::ValuesIn(input_shapesDynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER)),
+                         TopKLayerGPUTest::getTestCaseName);
 
-} // namespace
-
+}  // namespace

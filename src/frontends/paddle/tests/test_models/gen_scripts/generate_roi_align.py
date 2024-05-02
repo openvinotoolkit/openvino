@@ -1,30 +1,29 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # roi_align paddle model generator
 #
 import numpy as np
-from save_model import saveModel
-import paddle
 import ops
-import sys
+import paddle
+from save_model import saveModel
 
 
-def make_rois(batch_size, width, height, pooled_width, pooled_height, spatial_scale, roi_per_batch):
+def make_rois(
+    batch_size, width, height, pooled_width, pooled_height, spatial_scale, roi_per_batch
+):
     rois = []
     rois_num = []
     for bno in range(batch_size):
         for i in range(roi_per_batch):
-            x1 = np.random.randint(
-                0, width // spatial_scale - pooled_width)
-            y1 = np.random.randint(
-                0, height // spatial_scale - pooled_height)
+            x1 = np.random.randint(0, width // spatial_scale - pooled_width)
+            y1 = np.random.randint(0, height // spatial_scale - pooled_height)
 
-            x2 = np.random.randint(x1 + pooled_width,
-                                   width // spatial_scale)
-            y2 = np.random.randint(
-                y1 + pooled_height, height // spatial_scale)
+            x2 = np.random.randint(x1 + pooled_width, width // spatial_scale)
+            y2 = np.random.randint(y1 + pooled_height, height // spatial_scale)
 
             roi = [x1, y1, x2, y2]
             rois.append(roi)
@@ -35,23 +34,36 @@ def make_rois(batch_size, width, height, pooled_width, pooled_height, spatial_sc
     return rois, rois_num
 
 
-def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled_width, spatial_scale, sampling_ratio, aligned):
+def roi_align(
+    name: str,
+    x_data,
+    rois_data,
+    rois_num_data,
+    pooled_height,
+    pooled_width,
+    spatial_scale,
+    sampling_ratio,
+    aligned,
+):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        x = paddle.static.data(
-            name='x', shape=x_data.shape, dtype=x_data.dtype)
+        x = paddle.static.data(name="x", shape=x_data.shape, dtype=x_data.dtype)
         rois = paddle.static.data(
-            name='rois', shape=rois_data.shape, dtype=rois_data.dtype)
+            name="rois", shape=rois_data.shape, dtype=rois_data.dtype
+        )
         rois_num = paddle.static.data(
-            name='rois_num', shape=rois_num_data.shape, dtype=rois_num_data.dtype)
-        out = ops.roi_align(input=x,
-                            rois=rois,
-                            output_size=(pooled_height, pooled_width),
-                            spatial_scale=spatial_scale,
-                            sampling_ratio=sampling_ratio,
-                            rois_num=rois_num,
-                            aligned=aligned)
+            name="rois_num", shape=rois_num_data.shape, dtype=rois_num_data.dtype
+        )
+        out = ops.roi_align(
+            input=x,
+            rois=rois,
+            output_size=(pooled_height, pooled_width),
+            spatial_scale=spatial_scale,
+            sampling_ratio=sampling_ratio,
+            rois_num=rois_num,
+            aligned=aligned,
+        )
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -59,11 +71,19 @@ def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled
         exe.run(paddle.static.default_startup_program())
 
         outs = exe.run(
-            feed={'x': x_data, 'rois': rois_data, 'rois_num': rois_num_data},
-            fetch_list=[out])
+            feed={"x": x_data, "rois": rois_data, "rois_num": rois_num_data},
+            fetch_list=[out],
+        )
 
-        saveModel(name, exe, feedkeys=['x', 'rois', 'rois_num'], fetchlist=[out], inputs=[
-                  x_data, rois_data, rois_num_data], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x", "rois", "rois_num"],
+            fetchlist=[out],
+            inputs=[x_data, rois_data, rois_num_data],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 
@@ -75,7 +95,7 @@ def main():
     width = 6
 
     x_dim = (batch_size, channels, height, width)
-    x = np.random.random(x_dim).astype('float32')
+    x = np.random.random(x_dim).astype("float32")
 
     spatial_scale = 1.0 / 2.0
     pooled_height = 2
@@ -84,11 +104,27 @@ def main():
     aligned = False
 
     roi_per_batch = 1
-    rois, rois_num = make_rois(batch_size, width, height, pooled_width,
-                               pooled_height, spatial_scale, roi_per_batch)
+    rois, rois_num = make_rois(
+        batch_size,
+        width,
+        height,
+        pooled_width,
+        pooled_height,
+        spatial_scale,
+        roi_per_batch,
+    )
 
-    roi_align("roi_align_test", x, rois, rois_num, pooled_height,
-              pooled_width, spatial_scale, sampling_ratio, aligned)
+    roi_align(
+        "roi_align_test",
+        x,
+        rois,
+        rois_num,
+        pooled_height,
+        pooled_width,
+        spatial_scale,
+        sampling_ratio,
+        aligned,
+    )
 
     batch_size = 1
     channels = 3
@@ -96,7 +132,7 @@ def main():
     width = 6
 
     x_dim = (batch_size, channels, height, width)
-    x = np.random.random(x_dim).astype('float32')
+    x = np.random.random(x_dim).astype("float32")
 
     spatial_scale = 1.0 / 2.0
     pooled_height = 2
@@ -105,11 +141,27 @@ def main():
     aligned = True
 
     roi_per_batch = 2
-    rois, rois_num = make_rois(batch_size, width, height, pooled_width,
-                               pooled_height, spatial_scale, roi_per_batch)
+    rois, rois_num = make_rois(
+        batch_size,
+        width,
+        height,
+        pooled_width,
+        pooled_height,
+        spatial_scale,
+        roi_per_batch,
+    )
 
-    roi_align("roi_align_test2", x, rois, rois_num, pooled_height,
-              pooled_width, spatial_scale, sampling_ratio, aligned)
+    roi_align(
+        "roi_align_test2",
+        x,
+        rois,
+        rois_num,
+        pooled_height,
+        pooled_width,
+        spatial_scale,
+        sampling_ratio,
+        aligned,
+    )
 
 
 if __name__ == "__main__":

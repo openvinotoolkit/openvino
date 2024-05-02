@@ -2,19 +2,23 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino import OVAny
 import pytest
 
+from openvino import OVAny
 
-@pytest.mark.parametrize(("value", "data_type"), [
-    ("test_string", str),
-    (2137, int),
-    (21.37, float),
-    (False, bool),
-    ([1, 2, 3], list),
-    ((1, 2, 3), tuple),
-    ({"a": "b"}, dict),
-])
+
+@pytest.mark.parametrize(
+    ("value", "data_type"),
+    [
+        ("test_string", str),
+        (2137, int),
+        (21.37, float),
+        (False, bool),
+        ([1, 2, 3], list),
+        ((1, 2, 3), tuple),
+        ({"a": "b"}, dict),
+    ],
+)
 def test_any(value, data_type):
     ovany = OVAny(value)
     assert isinstance(ovany.value, data_type)
@@ -22,11 +26,14 @@ def test_any(value, data_type):
     assert ovany.get() == value
 
 
-@pytest.mark.parametrize(("values", "data_type"), [
-    (["test", "string"], str),
-    ([21, 37], int),
-    ([21.0, 37.0], float),
-])
+@pytest.mark.parametrize(
+    ("values", "data_type"),
+    [
+        (["test", "string"], str),
+        ([21, 37], int),
+        ([21.0, 37.0], float),
+    ],
+)
 def test_any_list(values, data_type):
     ovany = OVAny(values)
     assert isinstance(ovany.value, list)
@@ -36,11 +43,14 @@ def test_any_list(values, data_type):
     assert ovany.get() == values
 
 
-@pytest.mark.parametrize(("value_dict", "value_type", "data_type"), [
-    ({"key": "value"}, str, str),
-    ({21: 37}, int, int),
-    ({21.0: 37.0}, float, float),
-])
+@pytest.mark.parametrize(
+    ("value_dict", "value_type", "data_type"),
+    [
+        ({"key": "value"}, str, str),
+        ({21: 37}, int, int),
+        ({21.0: 37.0}, float, float),
+    ],
+)
 def test_any_dict(value_dict, value_type, data_type):
     ovany = OVAny(value_dict)
     key = list(value_dict.keys())[0]
@@ -73,24 +83,30 @@ def test_any_class():
     assert value.value.text == "test"
 
 
-@pytest.mark.parametrize(("value", "dtype"), [
-    ("some_value", str),
-    (31.23456, float),
-    (True, bool),
-    (42, int),
-])
+@pytest.mark.parametrize(
+    ("value", "dtype"),
+    [
+        ("some_value", str),
+        (31.23456, float),
+        (True, bool),
+        (42, int),
+    ],
+)
 def test_astype(value, dtype):
     ovany = OVAny(value)
     assert ovany.astype(dtype) == value
 
 
-@pytest.mark.parametrize(("value", "dtype"), [
-    (["some_value", "another value"], str),
-    ([31.23456, -31.3453], float),
-    ([True, False], bool),
-    ([42, 21], int),
-    ([], None),
-])
+@pytest.mark.parametrize(
+    ("value", "dtype"),
+    [
+        (["some_value", "another value"], str),
+        ([31.23456, -31.3453], float),
+        ([True, False], bool),
+        ([42, 21], int),
+        ([], None),
+    ],
+)
 def test_aslist(value, dtype):
     ovany = OVAny(value)
     assert ovany.aslist(dtype) == value

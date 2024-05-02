@@ -7,15 +7,10 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ov::element::Type> precisions = {
-        ov::element::f32
-};
+const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
 namespace shape4d {
-const std::vector<ov::PartialShape> inputShapes = {
-    { 1ul, 3ul, 16ul, 16ul },
-    { 4ul, 3ul, 16ul, 16ul }
-};
+const std::vector<ov::PartialShape> inputShapes = {{1ul, 3ul, 16ul, 16ul}, {4ul, 3ul, 16ul, 16ul}};
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
@@ -48,7 +43,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
      "U8",
      true}};
 
-//Comment out the tests because of the transformation is disabled by another WR
+// Comment out the tests because of the transformation is disabled by another WR
 /*
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
     ::testing::Combine(
@@ -61,10 +56,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
 }  // namespace shape4d
 
 namespace shape5d {
-const std::vector<ov::PartialShape> inputShapes = {
-    { 1ul, 3ul, 16ul, 16ul, 16ul },
-    { 4ul, 3ul, 16ul, 16ul, 16ul }
-};
+const std::vector<ov::PartialShape> inputShapes = {{1ul, 3ul, 16ul, 16ul, 16ul}, {4ul, 3ul, 16ul, 16ul, 16ul}};
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
@@ -92,7 +84,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
      "output/GroupConvolution",
      "U8"}};
 
-//Comment out the tests because of the transformation is disabled by another WR
+// Comment out the tests because of the transformation is disabled by another WR
 /*
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
      ::testing::Combine(

@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <roi_align_inst.h>
-#include "primitive_type_base.h"
-#include <sstream>
 #include <json_object.h>
+#include <roi_align_inst.h>
+
+#include <sstream>
+
 #include "openvino/core/enum_names.hpp"
+#include "primitive_type_base.h"
 #include "roi_align_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)
 
-roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node)
-    : parent(network, node) {}
+roi_align_inst::typed_primitive_inst(network& network, roi_align_node const& node) : parent(network, node) {}
 
 layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<roi_align>();
@@ -26,18 +27,19 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_imp
                   {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
 }
 
-template<typename ShapeType>
-std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& node,
+                                                        kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<roi_align>();
 
-    auto input0_layout  = impl_param.get_input_layout(0);
-    auto input1_layout  = impl_param.get_input_layout(1);
-    auto input2_layout  = impl_param.get_input_layout(2);
+    auto input0_layout = impl_param.get_input_layout(0);
+    auto input1_layout = impl_param.get_input_layout(1);
+    auto input2_layout = impl_param.get_input_layout(2);
 
     std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),     // input shape
-        input1_layout.get<ShapeType>(),     // roi shape
-        input2_layout.get<ShapeType>()      // batch indices shape
+        input0_layout.get<ShapeType>(),  // input shape
+        input1_layout.get<ShapeType>(),  // roi shape
+        input2_layout.get<ShapeType>()   // batch indices shape
     };
 
     ov::op::v3::ROIAlign op;
@@ -45,11 +47,12 @@ std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& no
     op.set_pooled_w(primitive->pooled_w);
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
+    return {layout{output_shapes[0], input0_layout.data_type, input0_layout.format}};
 }
 
-template
-std::vector<layout> roi_align_inst::calc_output_layouts<ov::PartialShape>(roi_align_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> roi_align_inst::calc_output_layouts<ov::PartialShape>(
+    roi_align_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string roi_align_inst::to_string(roi_align_node const& node) {
     auto node_info = node.desc_to_json();
@@ -74,18 +77,21 @@ std::string roi_align_inst::to_string(roi_align_node const& node) {
 namespace ov {
 using cldnn::roi_align;
 
-template <> EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
-  static auto enum_names =
-      EnumNames<roi_align::PoolingMode>("PoolingMode", {{"max", roi_align::PoolingMode::max},
-                                                        {"avg", roi_align::PoolingMode::avg}});
-  return enum_names;
+template <>
+EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
+    static auto enum_names =
+        EnumNames<roi_align::PoolingMode>("PoolingMode",
+                                          {{"max", roi_align::PoolingMode::max}, {"avg", roi_align::PoolingMode::avg}});
+    return enum_names;
 }
 
-template <> EnumNames<roi_align::AlignedMode>& EnumNames<roi_align::AlignedMode>::get() {
-  static auto enum_names =
-      EnumNames<roi_align::AlignedMode>("AlignedMode", {{"asymmetric", roi_align::AlignedMode::asymmetric},
-                                                        {"half_pixel_for_nn", roi_align::AlignedMode::half_pixel_for_nn},
-                                                        {"half_pixel", roi_align::AlignedMode::half_pixel}});
-  return enum_names;
+template <>
+EnumNames<roi_align::AlignedMode>& EnumNames<roi_align::AlignedMode>::get() {
+    static auto enum_names =
+        EnumNames<roi_align::AlignedMode>("AlignedMode",
+                                          {{"asymmetric", roi_align::AlignedMode::asymmetric},
+                                           {"half_pixel_for_nn", roi_align::AlignedMode::half_pixel_for_nn},
+                                           {"half_pixel", roi_align::AlignedMode::half_pixel}});
+    return enum_names;
 }
-} // namespace ov
+}  // namespace ov

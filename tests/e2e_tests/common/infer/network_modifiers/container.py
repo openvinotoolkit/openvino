@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import inspect
+
 from e2e_tests.common.common.base_provider import BaseProvider
 
 
@@ -10,13 +11,13 @@ class ClassProvider(BaseProvider):
 
     @classmethod
     def validate(cls):
-        methods = [
-            f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)
-        ]
-        if 'apply' not in methods:
+        methods = [f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)]
+        if "apply" not in methods:
             raise AttributeError(
-                "Requested class {} registred as '{}' doesn't provide required method 'apply'"
-                .format(cls.__name__, cls.__action_name__))
+                "Requested class {} registred as '{}' doesn't provide required method 'apply'".format(
+                    cls.__name__, cls.__action_name__
+                )
+            )
 
 
 class Container:

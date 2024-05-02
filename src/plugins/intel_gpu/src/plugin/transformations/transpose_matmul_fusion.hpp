@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_gpu {
 
-class TransposeMatMulFusion: public ov::pass::GraphRewrite {
+class TransposeMatMulFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeMatMulFusion", "0");
     TransposeMatMulFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

@@ -5,18 +5,18 @@
 #include "low_precision_transformations/fake_quantize_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
-
-#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#include "low_precision/fuse_subtract_to_fake_quantize.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
+std::string FakeQuantizeTransformation::getTestCaseName(
+    const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -26,8 +26,8 @@ std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParam
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
-           isConvertOnConstants << "_" << testParams.fakequantize;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_"
+           << isConvertOnConstants << "_" << testParams.fakequantize;
     return result.str();
 }
 
@@ -43,12 +43,11 @@ void FakeQuantizeTransformation::SetUp() {
 
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
-    function = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
-        params,
-        netPrecision,
-        inputShape,
-        testParams.fakequantize,
-        true);
+    function = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(params,
+                                                                        netPrecision,
+                                                                        inputShape,
+                                                                        testParams.fakequantize,
+                                                                        true);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "one_hot_inst.h"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
-#include "primitive_type_base.h"
 #include <string>
 #include <vector>
 
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "one_hot_inst.h"
 #include "one_hot_shape_inference.hpp"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
@@ -34,8 +33,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {
-        CLDNN_ERROR_MESSAGE(desc->id,
-                            "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
+        CLDNN_ERROR_MESSAGE(desc->id, "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
     }
 
     if (is_output_bfzyx(input_layout, desc->one_hot_axis))
@@ -44,8 +42,9 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
     return {dt, format, desc->shape};
 }
 
-template<typename ShapeType>
-std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node*/,
+                                                      const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<one_hot>();
     auto input_layout = impl_param.get_input_layout(0);
     auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
@@ -56,27 +55,22 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
         // thus wrap this call with try/catch.
         // it's safe as shape_infer method calls normalize_axis internally
         op.set_axis(desc->one_hot_axis);
-    } catch (...) {}
+    } catch (...) {
+    }
 
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get_partial_shape(),
-        ShapeType{},
-        ShapeType{},
-        ShapeType{}
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get_partial_shape(), ShapeType{}, ShapeType{}, ShapeType{}};
 
     int64_t depth = desc->depth;
 
     auto depth_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
-    std::unordered_map<size_t, ov::Tensor> const_data = {
-        {1, depth_tensor}
-    };
+    std::unordered_map<size_t, ov::Tensor> const_data = {{1, depth_tensor}};
     std::vector<ShapeType> output_shapes =
         ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
-template std::vector<layout> one_hot_inst::calc_output_layouts<ov::PartialShape>(one_hot_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> one_hot_inst::calc_output_layouts<ov::PartialShape>(one_hot_node const& node,
+                                                                                 const kernel_impl_params& impl_param);
 
 std::string one_hot_inst::to_string(one_hot_node const& node) {
     auto desc = node.get_primitive();

@@ -3,8 +3,7 @@
 
 import pytest
 
-
 skip_commit_slider_devtest = pytest.mark.skip(
     reason="Test is used to check stability of commit_slider after development changes"
-        "and does not suppose regular checks.")
-
+    "and does not suppose regular checks."
+)

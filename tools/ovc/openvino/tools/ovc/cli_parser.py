@@ -9,16 +9,25 @@ import re
 from collections import OrderedDict, namedtuple
 from typing import List, Union
 
-import openvino
-from openvino.runtime import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import (  # pylint: disable=no-name-in-module,import-error
+    Dimension,
+    PartialShape,
+    Type,
+)
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
-from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape, is_shape_type
-from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type, is_type
+from openvino.tools.ovc.moc_frontend.shape_utils import is_shape_type, to_partial_shape
+from openvino.tools.ovc.moc_frontend.type_utils import is_type, to_ov_type
 from openvino.tools.ovc.utils import get_mo_root_dir
 
+import openvino
+
 # Helper class for storing input cut information
-_InputCutInfo = namedtuple("InputCutInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
+_InputCutInfo = namedtuple(
+    "InputCutInfo",
+    ["name", "shape", "type", "value"],
+    defaults=[None, None, None, None],
+)
 
 
 def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type, type]):
@@ -43,34 +52,45 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
         for val in input:
             if isinstance(val, str):
                 if name is not None:
-                    raise Exception("More than one input name provided: {}".format(input))
+                    raise Exception(
+                        "More than one input name provided: {}".format(input)
+                    )
                 name = val
             elif is_type(val):
                 if inp_type is not None:
-                    raise Exception("More than one input type provided: {}".format(input))
+                    raise Exception(
+                        "More than one input type provided: {}".format(input)
+                    )
                 inp_type = to_ov_type(val)
             elif is_shape_type(val) or val is None:
                 if shape is not None:
-                    raise Exception("More than one input shape provided: {}".format(input))
+                    raise Exception(
+                        "More than one input shape provided: {}".format(input)
+                    )
                 shape = to_partial_shape(val) if val is not None else None
             else:
-                raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
-                                "input type or input shape. Got unknown object: {}".format(val))
+                raise Exception(
+                    "Incorrect input parameters provided. Expected tuple with input name, "
+                    "input type or input shape. Got unknown object: {}".format(val)
+                )
         # pylint: disable=no-member
-        return _InputCutInfo(name,
-                             PartialShape(shape) if shape is not None else None,
-                             inp_type,
-                             None)
+        return _InputCutInfo(
+            name, PartialShape(shape) if shape is not None else None, inp_type, None
+        )
     # Case when only type is set
     if is_type(input):
-        return _InputCutInfo(None, None, to_ov_type(input), None)  # pylint: disable=no-member
+        return _InputCutInfo(
+            None, None, to_ov_type(input), None
+        )  # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
     raise Exception(
         "Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(
-            type(input)))
+            type(input)
+        )
+    )
 
 
 def is_single_input(input: [tuple, list]):
@@ -139,11 +159,17 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
         res_list = []
         for name, value in input.items():
             if not isinstance(name, str):
-                raise Exception("Incorrect operation name type. Expected string, got {}".format(type(name)))
+                raise Exception(
+                    "Incorrect operation name type. Expected string, got {}".format(
+                        type(name)
+                    )
+                )
             info = single_input_to_input_cut_info(value)
             if info.name is not None and info.name != name:
-                raise Exception("Incorrect \"input\" dictionary, got different names in key and value. "
-                                "Got operation name {} for key {}".format(info.name, name))
+                raise Exception(
+                    'Incorrect "input" dictionary, got different names in key and value. '
+                    "Got operation name {} for key {}".format(info.name, name)
+                )
             res_list.append(_InputCutInfo(name, info.shape, info.type))
         return res_list
     # Case when single type or value is set, or unknown object
@@ -154,25 +180,27 @@ ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.tools.ovc.convert_model.__doc__  # pylint: disable=no-member
+    mo_convert_docs = (
+        openvino.tools.ovc.convert_model.__doc__
+    )  # pylint: disable=no-member
     mo_convert_params = {}
     group = "Optional parameters:"  # FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
 
-    mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
+    mo_convert_docs = mo_convert_docs[: mo_convert_docs.find("Returns:")]
 
     while len(mo_convert_docs) > 0:
         param_idx1 = mo_convert_docs.find(":param")
         if param_idx1 == -1:
             break
         param_idx2 = mo_convert_docs.find(":", param_idx1 + 1)
-        param_name = mo_convert_docs[param_idx1 + len(':param '):param_idx2]
+        param_name = mo_convert_docs[param_idx1 + len(":param ") : param_idx2]
 
         param_description_idx = mo_convert_docs.find(":param", param_idx2 + 1)
-        param_description = mo_convert_docs[param_idx2 + 1: param_description_idx]
+        param_description = mo_convert_docs[param_idx2 + 1 : param_description_idx]
 
-        group_name_idx = param_description.rfind('\n\n')
-        group_name = ''
+        group_name_idx = param_description.rfind("\n\n")
+        group_name = ""
         if group_name_idx != -1:
             group_name = param_description[group_name_idx:].strip()
 
@@ -183,7 +211,7 @@ def get_mo_convert_params():
 
         mo_convert_docs = mo_convert_docs[param_description_idx:]
 
-        if group_name != '':
+        if group_name != "":
             mo_convert_params[group_name] = {}
             group = group_name
 
@@ -195,20 +223,23 @@ def get_mo_convert_params():
             if param_name in cli_tool_specific_descriptions:
                 cli_tool_description = cli_tool_specific_descriptions[param_name]
 
-            desc = ParamDescription(d.description,
-                                    cli_tool_description)
+            desc = ParamDescription(d.description, cli_tool_description)
             mo_convert_params[group_name][param_name] = desc
 
     return mo_convert_params
 
 
-def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name,
-                                 try_mo_root=False, check_existence=True) -> List[str]:
+def canonicalize_and_check_paths(
+    values: Union[str, List[str], None],
+    param_name,
+    try_mo_root=False,
+    check_existence=True,
+) -> List[str]:
     if values is not None:
         list_of_values = list()
         if isinstance(values, str):
             if values != "":
-                list_of_values = values.split(',')
+                list_of_values = values.split(",")
         elif isinstance(values, list):
             list_of_values = values
         else:
@@ -223,14 +254,16 @@ def canonicalize_and_check_paths(values: Union[str, List[str], None], param_name
 
             list_of_values[idx] = val
 
-            error_msg = 'The value for parameter "{}" must be existing file/directory, ' \
-                        'but "{}" does not exist.'.format(param_name, val)
+            error_msg = (
+                'The value for parameter "{}" must be existing file/directory, '
+                'but "{}" does not exist.'.format(param_name, val)
+            )
             if os.path.exists(val):
                 continue
-            elif not try_mo_root or val == '':
+            elif not try_mo_root or val == "":
                 raise Error(error_msg)
             elif try_mo_root:
-                path_from_mo_root = get_mo_root_dir() + '/ovc/' + val
+                path_from_mo_root = get_mo_root_dir() + "/ovc/" + val
                 list_of_values[idx] = path_from_mo_root
                 if not os.path.exists(path_from_mo_root):
                     raise Error(error_msg)
@@ -243,11 +276,13 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
     Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
     existence.
     """
+
     check_value = canonicalize_and_check_paths
 
     def __call__(self, parser, namespace, values, option_string=None):
-        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
-                                                     try_mo_root=False, check_existence=True)
+        list_of_paths = canonicalize_and_check_paths(
+            values, param_name=option_string, try_mo_root=False, check_existence=True
+        )
         setattr(namespace, self.dest, list_of_paths)
 
 
@@ -277,81 +312,120 @@ def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
     if isinstance(paths, (list, tuple)):
         paths_list = [readable_file_or_dir_or_object(path) for path in paths]
     if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_dir_or_object(path) for path in str(paths).split(',')]
+        paths_list = [
+            readable_file_or_dir_or_object(path) for path in str(paths).split(",")
+        ]
 
-    return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
+    return (
+        paths_list[0]
+        if isinstance(paths, (list, tuple)) and len(paths_list) == 1
+        else paths_list
+    )
 
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.tools.ovc.convert_model)  # pylint: disable=no-member
+    signature = inspect.signature(
+        openvino.tools.ovc.convert_model
+    )  # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
-        if param_name in ['share_weights', 'example_input']:
+        if param_name in ["share_weights", "example_input"]:
             continue
-        if param_name == 'input_model':
+        if param_name == "input_model":
             # input_model is not a normal key for a tool, it will collect all untagged keys
             cli_param_name = param_name
         else:
-            cli_param_name = '--' + param_name
+            cli_param_name = "--" + param_name
         if cli_param_name not in args_group._option_string_actions:
             # Get parameter specifics
-            param_specifics = cli_tool_specific_descriptions[param_name] if param_name in \
-                                                                            cli_tool_specific_descriptions else {}
-            help_text = param_specifics['description'] if 'description' in param_specifics \
+            param_specifics = (
+                cli_tool_specific_descriptions[param_name]
+                if param_name in cli_tool_specific_descriptions
+                else {}
+            )
+            help_text = (
+                param_specifics["description"]
+                if "description" in param_specifics
                 else param_description.description
-            action = param_specifics['action'] if 'action' in param_specifics else None
-            param_type = param_specifics['type'] if 'type' in param_specifics else None
-            param_alias = param_specifics[
-                'aliases'] if 'aliases' in param_specifics and param_name != 'input_model' else {}
-            param_version = param_specifics['version'] if 'version' in param_specifics else None
-            param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
+            )
+            action = param_specifics["action"] if "action" in param_specifics else None
+            param_type = param_specifics["type"] if "type" in param_specifics else None
+            param_alias = (
+                param_specifics["aliases"]
+                if "aliases" in param_specifics and param_name != "input_model"
+                else {}
+            )
+            param_version = (
+                param_specifics["version"] if "version" in param_specifics else None
+            )
+            param_choices = (
+                param_specifics["choices"] if "choices" in param_specifics else None
+            )
 
             # Bool params common setting
-            if signature.parameters[param_name].annotation == bool and param_name != 'version':
+            if (
+                signature.parameters[param_name].annotation == bool
+                and param_name != "version"
+            ):
                 args_group.add_argument(
-                    cli_param_name, *param_alias,
-                    action='store_true',
+                    cli_param_name,
+                    *param_alias,
+                    action="store_true",
                     help=help_text,
-                    default=signature.parameters[param_name].default)
+                    default=signature.parameters[param_name].default,
+                )
             # File paths common setting
             elif param_name in filepath_args:
-                action = action if action is not None else CanonicalizePathCheckExistenceAction
+                action = (
+                    action
+                    if action is not None
+                    else CanonicalizePathCheckExistenceAction
+                )
                 args_group.add_argument(
-                    cli_param_name, *param_alias,
+                    cli_param_name,
+                    *param_alias,
                     type=str if param_type is None else param_type,
                     action=action,
                     help=help_text,
-                    default=None if param_name == 'input_model' else signature.parameters[param_name].default,
-                    metavar=param_name.upper() if param_name == 'input_model' else None)
+                    default=(
+                        None
+                        if param_name == "input_model"
+                        else signature.parameters[param_name].default
+                    ),
+                    metavar=param_name.upper() if param_name == "input_model" else None,
+                )
             # Other params
             else:
                 additional_params = {}
                 if param_version is not None:
-                    additional_params['version'] = param_version
+                    additional_params["version"] = param_version
                 if param_type is not None:
-                    additional_params['type'] = param_type
+                    additional_params["type"] = param_type
                 if param_choices is not None:
-                    additional_params['choices'] = param_choices
+                    additional_params["choices"] = param_choices
                 args_group.add_argument(
-                    cli_param_name, *param_alias,
+                    cli_param_name,
+                    *param_alias,
                     help=help_text,
                     default=signature.parameters[param_name].default,
                     action=action,
-                    **additional_params
+                    **additional_params,
                 )
 
 
 class Formatter(argparse.HelpFormatter):
     def _format_usage(self, usage, actions, groups, prefix):
-        usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
-        usage = usage[0:usage.find('INPUT_MODEL')].rstrip() + '\n'
+        usage = argparse.HelpFormatter._format_usage(
+            self, usage, actions, groups, prefix
+        )
+        usage = usage[0 : usage.find("INPUT_MODEL")].rstrip() + "\n"
         insert_idx = usage.find(self._prog) + len(self._prog)
-        usage = usage[0: insert_idx] + ' INPUT_MODEL... ' + usage[insert_idx + 1:]
+        usage = usage[0:insert_idx] + " INPUT_MODEL... " + usage[insert_idx + 1 :]
         return usage
 
     def _get_default_metavar_for_optional(self, action):
-        if action.option_strings == ['--compress_to_fp16']:
+        if action.option_strings == ["--compress_to_fp16"]:
             return "True | False"
         return argparse.HelpFormatter._get_default_metavar_for_optional(self, action)
 
@@ -360,22 +434,34 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     if not parser:
         parser = argparse.ArgumentParser(formatter_class=Formatter)
     mo_convert_params = get_mo_convert_params()
-    mo_convert_params_common = mo_convert_params['Optional parameters:']
+    mo_convert_params_common = mo_convert_params["Optional parameters:"]
 
     from openvino.tools.ovc.version import VersionChecker
 
     # Command line tool specific params
-    parser.add_argument('--output_model',
-                        help='This parameter is used to name output .xml/.bin files of converted model. '
-                             'Model name or output directory can be passed. If output directory is passed, '
-                             'the resulting .xml/.bin files are named by original model name.')
-    parser.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
-                        help='Compress weights in output OpenVINO model to FP16. '
-                             'To turn off compression use "--compress_to_fp16=False" command line parameter. '
-                             'Default value is True.')
-    parser.add_argument('--version', action='version',
-                        help='Print ovc version and exit.',
-                        version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
+    parser.add_argument(
+        "--output_model",
+        help="This parameter is used to name output .xml/.bin files of converted model. "
+        "Model name or output directory can be passed. If output directory is passed, "
+        "the resulting .xml/.bin files are named by original model name.",
+    )
+    parser.add_argument(
+        "--compress_to_fp16",
+        type=check_bool,
+        default=True,
+        nargs="?",
+        help="Compress weights in output OpenVINO model to FP16. "
+        'To turn off compression use "--compress_to_fp16=False" command line parameter. '
+        "Default value is True.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        help="Print ovc version and exit.",
+        version="OpenVINO Model Converter (ovc) {}".format(
+            VersionChecker().get_ie_version()
+        ),
+    )
     add_args_by_description(parser, mo_convert_params_common)
     return parser
 
@@ -390,17 +476,23 @@ def input_model_details(model):
 
 def get_common_cli_options(argv, is_python_api_used):
     d = OrderedDict()
-    d['input_model'] = ['- Input Model', input_model_details]
+    d["input_model"] = ["- Input Model", input_model_details]
     if not is_python_api_used:
         model_name = get_model_name_from_args(argv)
-        d['output_model'] = ['- IR output name', lambda _: model_name]
-    d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
-    d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
+        d["output_model"] = ["- IR output name", lambda _: model_name]
+    d["input"] = [
+        "- Input layers",
+        lambda x: x if x else "Not specified, inherited from the model",
+    ]
+    d["output"] = [
+        "- Output layers",
+        lambda x: x if x else "Not specified, inherited from the model",
+    ]
     return d
 
 
 def get_params_with_paths_list():
-    return ['input_model', 'output_model', 'extension']
+    return ["input_model", "output_model", "extension"]
 
 
 def get_all_cli_parser():
@@ -425,9 +517,9 @@ def remove_shape_from_input_value(input_value: str):
     :param input_value: string passed as input to the "input" command line parameter
     :return: string without shape specification
     """
-    if '->' in input_value:
-        raise Error('Incorrect format of input. Got {}'.format(input_value))
-    return re.sub(r'[(\[]([0-9\.?,  -]*)[)\]]', '', input_value)
+    if "->" in input_value:
+        raise Error("Incorrect format of input. Got {}".format(input_value))
+    return re.sub(r"[(\[]([0-9\.?,  -]*)[)\]]", "", input_value)
 
 
 def get_shape_from_input_value(input_value: str):
@@ -438,19 +530,18 @@ def get_shape_from_input_value(input_value: str):
     """
 
     # parse shape
-    shape = re.findall(r'[(\[]([0-9\.\?,  -]*)[)\]]', input_value)
+    shape = re.findall(r"[(\[]([0-9\.\?,  -]*)[)\]]", input_value)
     if len(shape) == 0:
         shape = None
-    elif len(shape) == 1 and shape[0] in ['', ' ']:
+    elif len(shape) == 1 and shape[0] in ["", " "]:
         # this shape corresponds to scalar
         shape = PartialShape([])
     elif len(shape) == 1:
-        dims = re.split(r', *| +', shape[0])
+        dims = re.split(r", *| +", shape[0])
         dims = list(filter(None, dims))
         shape = PartialShape([Dimension(dim) for dim in dims])
     else:
-        raise Error("Wrong syntax to specify shape. Use \"input\" "
-                    "\"node_name[shape]\"")
+        raise Error('Wrong syntax to specify shape. Use "input" ' '"node_name[shape]"')
     return shape
 
 
@@ -486,21 +577,23 @@ def parse_input_value(input_value: str):
 
 
 def split_inputs(input_str):
-    pattern = r'^(?:[^[\]()<]*(\[[\.)-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$'
+    pattern = r"^(?:[^[\]()<]*(\[[\.)-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$"
     if not re.match(pattern, input_str):
-        raise Error(f"input value '{input_str}' is incorrect. Input should be in the following format: "
-                    f"{get_convert_model_help_specifics()['input']['description']}")
+        raise Error(
+            f"input value '{input_str}' is incorrect. Input should be in the following format: "
+            f"{get_convert_model_help_specifics()['input']['description']}"
+        )
 
     brakets_count = 0
     inputs = []
     while input_str:
         idx = 0
         for c in input_str:
-            if c == '[':
+            if c == "[":
                 brakets_count += 1
-            if c == ']':
+            if c == "]":
                 brakets_count -= 1
-            if c == ',':
+            if c == ",":
                 if brakets_count != 0:
                     idx += 1
                     continue
@@ -511,7 +604,7 @@ def split_inputs(input_str):
             inputs.append(input_str)
             break
         inputs.append(input_str[:idx])
-        input_str = input_str[idx + 1:]
+        input_str = input_str[idx + 1 :]
     return inputs
 
 
@@ -525,26 +618,34 @@ def get_model_name(path_input_model: str) -> str:
         name of the output IR
     """
     parsed_name, extension = os.path.splitext(os.path.basename(path_input_model))
-    return 'model' if parsed_name.startswith('.') or len(parsed_name) == 0 else parsed_name
+    return (
+        "model" if parsed_name.startswith(".") or len(parsed_name) == 0 else parsed_name
+    )
 
 
 def get_model_name_from_args(argv: argparse.Namespace):
     output_dir = os.getcwd()
-    if hasattr(argv, 'output_model') and argv.output_model:
+    if hasattr(argv, "output_model") and argv.output_model:
         model_name = argv.output_model
 
-        if not os.path.isdir(argv.output_model) and not argv.output_model.endswith(os.sep):
+        if not os.path.isdir(argv.output_model) and not argv.output_model.endswith(
+            os.sep
+        ):
             # In this branch we assume that model name is set in 'output_model'.
-            if not model_name.endswith('.xml'):
-                model_name += '.xml'
+            if not model_name.endswith(".xml"):
+                model_name += ".xml"
             # Logic of creating and checking directory is covered in save_model() method.
             return model_name
         else:
             # In this branch 'output_model' has directory without name of model.
             # The directory may not exist.
-            if os.path.isdir(argv.output_model) and not os.access(argv.output_model, os.W_OK):
+            if os.path.isdir(argv.output_model) and not os.access(
+                argv.output_model, os.W_OK
+            ):
                 # If the provided path is existing directory, but not writable, then raise error
-                raise Error('The directory "{}" is not writable'.format(argv.output_model))
+                raise Error(
+                    'The directory "{}" is not writable'.format(argv.output_model)
+                )
             output_dir = argv.output_model
 
     input_model = argv.input_model
@@ -557,15 +658,17 @@ def get_model_name_from_args(argv: argparse.Namespace):
         return output_dir
 
     input_model_name = os.path.basename(input_model)
-    if input_model_name == '':
+    if input_model_name == "":
         input_model_name = os.path.basename(os.path.dirname(input_model))
 
     # remove extension if exists
     input_model_name = os.path.splitext(input_model_name)[0]
 
     # if no valid name exists in input path set name to 'model'
-    if input_model_name == '':
-        raise Exception("Could not derive model name from input model. Please provide 'output_model' parameter.")
+    if input_model_name == "":
+        raise Exception(
+            "Could not derive model name from input model. Please provide 'output_model' parameter."
+        )
 
     # add .xml extension
     return os.path.join(output_dir, input_model_name + ".xml")
@@ -592,17 +695,15 @@ def check_bool(value):
     if isinstance(value, bool):
         return value
     elif isinstance(value, str):
-        if value.lower() not in ['true', 'false']:
+        if value.lower() not in ["true", "false"]:
             raise argparse.ArgumentTypeError("expected a True/False value")
-        return value.lower() == 'true'
+        return value.lower() == "true"
     else:
         raise argparse.ArgumentTypeError("expected a bool or str type")
 
 
 def depersonalize(value: str, key: str):
-    dir_keys = [
-        'extension'
-    ]
+    dir_keys = ["extension"]
     if isinstance(value, list):
         updated_value = []
         for elem in value:
@@ -612,14 +713,14 @@ def depersonalize(value: str, key: str):
     if not isinstance(value, str):
         return value
     res = []
-    for path in value.split(','):
+    for path in value.split(","):
         if os.path.isdir(path) and key in dir_keys:
-            res.append('DIR')
+            res.append("DIR")
         elif os.path.isfile(path):
-            res.append(os.path.join('DIR', os.path.split(path)[1]))
+            res.append(os.path.join("DIR", os.path.split(path)[1]))
         else:
             res.append(path)
-    return ','.join(res)
+    return ",".join(res)
 
 
 def get_available_front_ends(fem=None):
@@ -627,7 +728,7 @@ def get_available_front_ends(fem=None):
     if fem is None:
         return []
     available_moc_front_ends = fem.get_available_front_ends()
-    if 'ir' in available_moc_front_ends:
-        available_moc_front_ends.remove('ir')
+    if "ir" in available_moc_front_ends:
+        available_moc_front_ends.remove("ir")
 
     return available_moc_front_ends

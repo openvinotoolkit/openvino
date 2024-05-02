@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 using namespace ov;
 
@@ -25,17 +25,15 @@ public:
     bool parentHasOneConsumer;
 };
 
-typedef std::tuple <
-    ov::element::Type,
-    PartialShape,
-    std::string,
-    MultiplyToGroupConvolutionTransformationParam> MultiplyToGroupConvolutionTransformationParams;
+typedef std::tuple<ov::element::Type, PartialShape, std::string, MultiplyToGroupConvolutionTransformationParam>
+    MultiplyToGroupConvolutionTransformationParams;
 
-class MultiplyToGroupConvolutionTransformation :
-    public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class MultiplyToGroupConvolutionTransformation
+    : public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj);
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj);
 
 protected:
     void SetUp() override;

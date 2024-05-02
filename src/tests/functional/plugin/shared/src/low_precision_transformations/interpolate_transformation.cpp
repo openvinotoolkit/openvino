@@ -5,12 +5,12 @@
 #include "low_precision_transformations/interpolate_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/interpolate.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -27,7 +27,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-std::string InterpolateTransformation::getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
+std::string InterpolateTransformation::getTestCaseName(
+    const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
     ov::element::Type precision;
     std::pair<ov::PartialShape, ov::Shape> shapes;
     std::string targetDevice;
@@ -36,14 +37,9 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
     std::tie(precision, shapes, targetDevice, attributes) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, shapes.first, targetDevice, params) << "_" <<
-           shapes.second << "_" <<
-        attributes.align_corners << "_" <<
-        attributes.antialias << "_" <<
-        attributes.axes << "_" <<
-        attributes.mode << "_" <<
-        attributes.pads_begin << "_" <<
-        attributes.pads_end;
+    result << get_test_case_name_by_params(precision, shapes.first, targetDevice, params) << "_" << shapes.second << "_"
+           << attributes.align_corners << "_" << attributes.antialias << "_" << attributes.axes << "_"
+           << attributes.mode << "_" << attributes.pads_begin << "_" << attributes.pads_end;
     return result.str();
 }
 
@@ -63,7 +59,8 @@ void InterpolateTransformation::SetUp() {
     interpAttrs.pads_begin = attributes.pads_begin;
     interpAttrs.pads_end = attributes.pads_end;
 
-    function = ov::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
+    function =
+        ov::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {

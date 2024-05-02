@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "topk_rois_ref.h"
 
 #include <kernel_selector_utils.h>
-#include <random>
 
+#include <random>
 
 namespace kernel_selector {
 
 namespace {
 
-
-CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params &params) {
+CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params& params) {
     CommonDispatchData dispatchData;
     dispatchData.gws = {params.outputs[0].Batch().v, 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -23,18 +21,19 @@ CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params &para
 
 }  // namespace
 
-JitConstants ExperimentalDetectronTopKROIRef::GetJitConstants(const experimental_detectron_topk_roi_params &params) const {
+JitConstants ExperimentalDetectronTopKROIRef::GetJitConstants(
+    const experimental_detectron_topk_roi_params& params) const {
     return MakeBaseParamsJitConstants(params);
 }
 
-
-KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params) const {
+KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }
 
     KernelData kernel_data = KernelData::Default<experimental_detectron_topk_roi_params>(params);
-    const experimental_detectron_topk_roi_params &new_params = dynamic_cast<const experimental_detectron_topk_roi_params &>(*kernel_data.params.get());
+    const experimental_detectron_topk_roi_params& new_params =
+        dynamic_cast<const experimental_detectron_topk_roi_params&>(*kernel_data.params.get());
 
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
@@ -42,15 +41,23 @@ KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params
     auto experimental_detectron_topk_roi_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, experimental_detectron_topk_roi_jit, entry_point);
 
-    FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false,
-                     false, 2);
+    FillCLKernelData(kernel_data.kernels[0],
+                     dispatch_data,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     2);
 
     KernelsData kernelsData;
     kernelsData.push_back(std::move(kernel_data));
     return kernelsData;
 }
 
-KernelsPriority ExperimentalDetectronTopKROIRef::GetKernelsPriority(const Params & /*params*/) const {
+KernelsPriority ExperimentalDetectronTopKROIRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -81,12 +88,13 @@ ParamsKey ExperimentalDetectronTopKROIRef::GetSupportedKey() const {
     return k;
 }
 
-bool ExperimentalDetectronTopKROIRef::Validate(const Params &params) const {
+bool ExperimentalDetectronTopKROIRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {
         return false;
     }
 
-    const experimental_detectron_topk_roi_params &new_params = dynamic_cast<const experimental_detectron_topk_roi_params &>(params);
+    const experimental_detectron_topk_roi_params& new_params =
+        dynamic_cast<const experimental_detectron_topk_roi_params&>(params);
     if (new_params.inputs.size() != 2) {
         return false;
     }

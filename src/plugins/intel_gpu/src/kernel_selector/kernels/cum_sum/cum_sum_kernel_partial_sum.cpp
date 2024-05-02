@@ -3,10 +3,12 @@
 //
 
 #include "cum_sum_kernel_partial_sum.h"
-#include "kernel_selector_utils.h"
+
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -94,7 +96,8 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
     return {kd};
 }
 
-CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(const cum_sum_params& params) const {
+CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(
+    const cum_sum_params& params) const {
     MultiDispatchData dispatchData;
     std::vector<size_t> dims = {params.outputs[0].Batch().v,
                                 params.outputs[0].Feature().v,
@@ -129,7 +132,7 @@ CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForM
     dispatchData.stage_1.sum_items_num = items_num;
 
     dispatchData.stage_final.gws = gws;
-    dispatchData.stage_final.lws = { 1, 1, 1 };
+    dispatchData.stage_final.lws = {1, 1, 1};
     dispatchData.stage_final.sum_items_num = Align(items_num, BLOCK_SIZE);
 
     return dispatchData;

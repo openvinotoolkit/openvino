@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_bfyx_gemm_like.h"
+
 #include <string>
 #include <vector>
 
@@ -47,7 +48,8 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
     JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP",
+                        RoundUp(params.outputs[0].Feature().v / params.groups, dispatchData.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("FILTER_SIZE_X_DIV2", params.filterSize.x / 2),
@@ -110,8 +112,8 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
         return false;
     }
 
-    // Limit filter_x_size to 32 becasue convolution ref kernel is faster than GEMMLike kernel when filter size is bigger.
-    // 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
+    // Limit filter_x_size to 32 becasue convolution ref kernel is faster than GEMMLike kernel when filter size is
+    // bigger. 32 is chosen from filter size of customer model. May need to more measurement to pick optimal value
     const size_t acceptable_filter_x_size = 32;
     if (params.filterSize.x > acceptable_filter_x_size) {
         return false;
@@ -120,10 +122,10 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
     return true;
 }
 
-WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
+WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(const convolution_params& params) const {
     if (params.inputs[0].GetDType() == Datatype::F16) {
-        return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv16__ao32 : WeightsLayout::iy_xs_os_xsv2_osv16__ao32;
+        return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv16__ao32
+                                   : WeightsLayout::iy_xs_os_xsv2_osv16__ao32;
     } else {
         return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv8__ao32 : WeightsLayout::iy_xs_os_xsv2_osv8__ao32;
     }

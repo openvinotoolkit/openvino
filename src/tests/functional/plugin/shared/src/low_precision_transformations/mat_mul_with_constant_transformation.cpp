@@ -2,39 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
+
 #include <memory>
 #include <queue>
 #include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <queue>
 
-#include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
-#include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
+std::string MatMulWithConstantTransformation::getTestCaseName(
+    const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
     ov::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result <<
-        testValues.inputShape << "_" <<
-        precision << "_" <<
-        targetDevice << "_" <<
-        testValues.fqOnData << "_" <<
-        testValues.fqOnWeights << "_" <<
-        testValues.deqOnWeights;
+    result << testValues.inputShape << "_" << precision << "_" << targetDevice << "_" << testValues.fqOnData << "_"
+           << testValues.fqOnWeights << "_" << testValues.deqOnWeights;
 
     return result.str();
 }
-
 
 void MatMulWithConstantTransformation::SetUp() {
     ov::element::Type precision;
@@ -43,13 +37,12 @@ void MatMulWithConstantTransformation::SetUp() {
 
     init_input_shapes(testValues.inputShape);
 
-    function = ov::builder::subgraph::MatMulFunction::getOriginal(
-        precision,
-        testValues.inputShape,
-        testValues.fqOnData,
-        testValues.weights,
-        testValues.fqOnWeights,
-        testValues.deqOnWeights);
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(precision,
+                                                                  testValues.inputShape,
+                                                                  testValues.fqOnData,
+                                                                  testValues.weights,
+                                                                  testValues.fqOnWeights,
+                                                                  testValues.deqOnWeights);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

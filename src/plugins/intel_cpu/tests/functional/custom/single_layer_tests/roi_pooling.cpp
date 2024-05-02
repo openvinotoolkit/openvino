@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-
-#include "utils/cpu_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -19,17 +18,14 @@ enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using roiPoolingShapes = std::vector<InputShape>;
 
-using roiPoolingParams = std::tuple<roiPoolingShapes,                // Input shapes
-                                    std::vector<size_t>,             // Pooled shape {pooled_h, pooled_w}
-                                    float,                           // Spatial scale
-                                    utils::ROIPoolingTypes,          // ROIPooling method
-                                    ov::element::Type,               // Net precision
+using roiPoolingParams = std::tuple<roiPoolingShapes,         // Input shapes
+                                    std::vector<size_t>,      // Pooled shape {pooled_h, pooled_w}
+                                    float,                    // Spatial scale
+                                    utils::ROIPoolingTypes,   // ROIPooling method
+                                    ov::element::Type,        // Net precision
                                     ov::test::TargetDevice>;  // Device name
 
-using ROIPoolingCPUTestParamsSet = std::tuple<roiPoolingParams,
-                                              CPUSpecificParams,
-                                              ProposalGenerationMode,
-                                              ov::AnyMap>;
+using ROIPoolingCPUTestParamsSet = std::tuple<roiPoolingParams, CPUSpecificParams, ProposalGenerationMode, ov::AnyMap>;
 
 class ROIPoolingCPULayerTest : public testing::WithParamInterface<ROIPoolingCPUTestParamsSet>,
                                public ov::test::SubgraphBaseTest,
@@ -46,7 +42,7 @@ public:
         roiPoolingShapes inputShapes;
         std::vector<size_t> poolShape;
         float spatial_scale;
-       utils::ROIPoolingTypes pool_method;
+        utils::ROIPoolingTypes pool_method;
         ov::element::Type netPrecision;
         std::string targetDevice;
         std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
@@ -54,7 +50,7 @@ public:
         std::ostringstream result;
         result << "netPRC=" << netPrecision.to_string() << "_";
         for (const auto& shape : inputShapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -86,13 +82,13 @@ public:
             }
         }
         switch (propMode) {
-            case ProposalGenerationMode::ULTIMATE_RIGHT_BORDER:
-                result << "_UltimateRightBorderProposal";
-                break;
-            case ProposalGenerationMode::RANDOM:
-            default:
-                result << "_RandomProposal";
-                break;
+        case ProposalGenerationMode::ULTIMATE_RIGHT_BORDER:
+            result << "_UltimateRightBorderProposal";
+            break;
+        case ProposalGenerationMode::RANDOM:
+        default:
+            result << "_RandomProposal";
+            break;
         }
 
         return result.str();
@@ -108,7 +104,7 @@ protected:
         const auto& funcInputs = function->inputs();
 
         auto feat_map_shape = targetInputStaticShapes[0];
-        const auto is_roi_max_mode = (pool_method ==utils::ROIPoolingTypes::ROI_MAX);
+        const auto is_roi_max_mode = (pool_method == utils::ROIPoolingTypes::ROI_MAX);
         const int height = is_roi_max_mode ? feat_map_shape[2] / spatial_scale : 1;
         const int width = is_roi_max_mode ? feat_map_shape[3] / spatial_scale : 1;
 
@@ -119,10 +115,11 @@ protected:
             if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 if (propMode == ULTIMATE_RIGHT_BORDER) {
-                    // because of nonalgebraic character of floating point operation, the following values causes inequity:
-                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
-                    // and as result excess of right limit for proposal value if the border case (current_h == pooled_h - 1)
-                    // will not be handled explicitly
+                    // because of nonalgebraic character of floating point operation, the following values causes
+                    // inequity:
+                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) *
+                    // (input_h - 1) and as result excess of right limit for proposal value if the border case
+                    // (current_h == pooled_h - 1) will not be handled explicitly
                     switch (funcInput.get_element_type()) {
                     case ov::element::f32: {
                         auto* dataPtr = tensor.data<float>();
@@ -153,7 +150,12 @@ protected:
                     switch (funcInput.get_element_type()) {
                     case ov::element::f32:
                     case ov::element::bf16: {
-                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                        ov::test::utils::fill_data_roi(tensor,
+                                                       feat_map_shape[0] - 1,
+                                                       height,
+                                                       width,
+                                                       1.f,
+                                                       is_roi_max_mode);
                         break;
                     }
                     default:
@@ -165,10 +167,12 @@ protected:
                 in_data.start_from = 0;
                 in_data.range = 10;
                 in_data.resolution = 1000;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
 
-            inputs.insert({ funcInput.get_node_shared_ptr(), tensor });
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
@@ -182,7 +186,7 @@ protected:
         roiPoolingShapes inputShapes;
         std::vector<size_t> poolShape;
         float spatial_scale;
-       utils::ROIPoolingTypes pool_method;
+        utils::ROIPoolingTypes pool_method;
         ov::element::Type netPrecision;
         std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
 
@@ -208,9 +212,11 @@ protected:
 
         std::shared_ptr<ov::Node> roi_pooling;
         if (ov::test::utils::ROIPoolingTypes::ROI_MAX == pool_method) {
-            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "max");
+            roi_pooling =
+                std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "max");
         } else {
-            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
+            roi_pooling =
+                std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], poolShape, spatial_scale, "bilinear");
         }
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
 
@@ -252,79 +258,55 @@ const std::vector<roiPoolingShapes> inShapes = {
     roiPoolingShapes{{{}, {{3, 4, 50, 50}}}, {{}, {{5, 5}}}},
     roiPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {-1, -1, -1, -1},
-            // static
-            {
-                {3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {3, 4, 50, 50}
-            }
-        },
+        {// dynamic
+         {-1, -1, -1, -1},
+         // static
+         {{3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {3, 4, 50, 50}}},
         // input 1
-        {
-            // dynamic
-            {-1, 5},
-            // static
-            {
-                {1, 5}, {3, 5}, {5, 5}, {1, 5}, {3, 5}, {5, 5}
-            }
-        },
+        {// dynamic
+         {-1, 5},
+         // static
+         {{1, 5}, {3, 5}, {5, 5}, {1, 5}, {3, 5}, {5, 5}}},
     },
     roiPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {-1, {3, 5}, {7, 60}, -1},
-            // static
-            {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {3, 4, 50, 50}, {1, 3, 7, 8},
-            }
-        },
+        {// dynamic
+         {-1, {3, 5}, {7, 60}, -1},
+         // static
+         {
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+         }},
         // input 1
-        {
-            // dynamic
-            {{1, 5}, 5},
-            // static
-            {
-                {1, 5}, {2, 5}, {1, 5}, {2, 5}
-            }
-        },
+        {// dynamic
+         {{1, 5}, 5},
+         // static
+         {{1, 5}, {2, 5}, {1, 5}, {2, 5}}},
     },
     roiPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {{1, 8}, {3, 5}, {7, 60}, {5, 50}},
-            // static
-            {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {8, 5, 59, 5}, {1, 3, 7, 8},
-            }
-        },
+        {// dynamic
+         {{1, 8}, {3, 5}, {7, 60}, {5, 50}},
+         // static
+         {
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+             {8, 5, 59, 5},
+             {1, 3, 7, 8},
+         }},
         // input 1
-        {
-            // dynamic
-            {{1, 5}, 5},
-            // static
-            {
-                {1, 5}, {2, 5}, {1, 5}, {2, 5}
-            }
-        },
+        {// dynamic
+         {{1, 5}, 5},
+         // static
+         {{1, 5}, {2, 5}, {1, 5}, {2, 5}}},
     },
 };
 
-const std::vector<std::vector<size_t>> pooledShapes_max = {
-    {1, 1},
-    {2, 2},
-    {3, 3},
-    {6, 6}
-};
+const std::vector<std::vector<size_t>> pooledShapes_max = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
 
-const std::vector<std::vector<size_t>> pooledShapes_bilinear = {
-    {1, 1},
-    {2, 2},
-    {3, 3},
-    {6, 6}
-};
+const std::vector<std::vector<size_t>> pooledShapes_bilinear = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
 
 const std::vector<ov::element::Type> netPRCs = {ov::element::f32, ov::element::bf16};
 
@@ -345,20 +327,20 @@ const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inS
                                                          ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_max,
-                        ROIPoolingCPULayerTest,
-                        ::testing::Combine(test_ROIPooling_max,
-                                           ::testing::ValuesIn(selectCPUInfoForDevice()),
-                                           ::testing::Values(ProposalGenerationMode::RANDOM),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        ROIPoolingCPULayerTest::getTestCaseName);
+                         ROIPoolingCPULayerTest,
+                         ::testing::Combine(test_ROIPooling_max,
+                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
+                                            ::testing::Values(ProposalGenerationMode::RANDOM),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         ROIPoolingCPULayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingCPU_bilinear,
-                        ROIPoolingCPULayerTest,
-                        ::testing::Combine(test_ROIPooling_bilinear,
-                                           ::testing::ValuesIn(selectCPUInfoForDevice()),
-                                           ::testing::Values(ProposalGenerationMode::RANDOM),
-                                           ::testing::ValuesIn(additionalConfig)),
-                        ROIPoolingCPULayerTest::getTestCaseName);
+                         ROIPoolingCPULayerTest,
+                         ::testing::Combine(test_ROIPooling_bilinear,
+                                            ::testing::ValuesIn(selectCPUInfoForDevice()),
+                                            ::testing::Values(ProposalGenerationMode::RANDOM),
+                                            ::testing::ValuesIn(additionalConfig)),
+                         ROIPoolingCPULayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_ROIPoolingCPU_bilinear_ultimateRightBorderProposal,
@@ -373,6 +355,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER),
                        ::testing::Values(ov::AnyMap{{ov::hint::inference_precision(ov::element::f32)}})),
     ROIPoolingCPULayerTest::getTestCaseName);
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

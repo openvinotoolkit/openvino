@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_constants.hpp"
 #include "behavior/compiled_model/import_export.hpp"
+
+#include "common_test_utils/test_constants.hpp"
 
 namespace {
 
@@ -67,4 +68,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape,
                          OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
 
 }  // namespace
-

@@ -3,18 +3,18 @@
 //
 
 #include "move_fc_reshape_to_weights.hpp"
-#include "intel_gpu/op/fully_connected.hpp"
-#include "transformations/utils/utils.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 
-#include "openvino/op/matmul.hpp"
+#include "intel_gpu/op/fully_connected.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -51,7 +51,8 @@ MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         const auto weights_path = fully_connected->get_input_node_shared_ptr(1);
         const bool with_transpose = ov::is_type<ov::op::v1::Transpose>(weights_path);
         if (with_transpose) {
-            const auto transpose_const = ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
+            const auto transpose_const =
+                ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
             if (transpose_const->cast_vector<int>() != std::vector<int>{1, 0}) {
                 return false;
             }

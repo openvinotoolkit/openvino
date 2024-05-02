@@ -1,14 +1,15 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "input_layout_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
-#include <string>
-#include <memory>
 #include <algorithm>
+#include <memory>
+#include <string>
+
+#include "input_layout_inst.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace {
 bool has_optimized_users(cldnn::input_layout_node const& node) {
@@ -25,8 +26,7 @@ bool has_optimized_users(cldnn::input_layout_node const& node) {
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
-input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
-    : parent(dprim, prog) {
+input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog) : parent(dprim, prog) {
     can_share_buffer(false);
 }
 
@@ -51,11 +51,13 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
     } else {
         if (_outputs.empty() || !_outputs[0]) {
             _outputs.resize(1);
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+            _outputs[0] =
+                engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
 
         if (ol.is_dynamic() && _outputs[0]->size() < mem->size()) {
-            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+            _outputs[0] =
+                engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
         mem_lock<uint8_t> src(mem, stream);
         ev = _outputs[0]->copy_from(stream, src.data(), false);

@@ -1,15 +1,13 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-
 #pragma once
 
 #include <memory>
 
-#include "openvino/core/model.hpp"
-
-#include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "matchers/single_op/manager.hpp"
+#include "op_conformance_utils/meta_info/meta_info.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace tools {
@@ -20,7 +18,9 @@ public:
     std::string m_cache_subdir = ".";
 
     virtual void update_cache(const std::shared_ptr<ov::Model>& model,
-                              const std::string& source_model, bool extract_body = true, bool from_cache = false) {};
+                              const std::string& source_model,
+                              bool extract_body = true,
+                              bool from_cache = false) {};
     virtual void serialize_cache() {};
     virtual void reset_cache() {};
 
@@ -36,8 +36,8 @@ public:
             model_bytesize_gb >>= 30;
             auto mem_size_gb = mem_size;
             mem_size_gb >>= 30;
-            std::cout << "[ WARNING ] Model " << model_path << " bytesize is " << model_bytesize_gb <<
-            "is larger than RAM size: " << mem_size_gb << ". Model will be skipped!" << std::endl;
+            std::cout << "[ WARNING ] Model " << model_path << " bytesize is " << model_bytesize_gb
+                      << "is larger than RAM size: " << mem_size_gb << ". Model will be skipped!" << std::endl;
             return true;
         }
         return false;

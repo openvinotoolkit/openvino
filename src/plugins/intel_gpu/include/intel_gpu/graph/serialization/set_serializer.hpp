@@ -6,13 +6,16 @@
 
 #include <set>
 #include <type_traits>
+
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "openvino/core/axis_set.hpp"
 
 namespace cldnn {
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::set<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::set<T>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::set<T>& set) {
         buffer << set.size();
@@ -23,7 +26,9 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::set<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::set<T>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, std::set<T>& set) {
         typename std::set<T>::size_type set_size = 0UL;
@@ -38,7 +43,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::AxisSet, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::AxisSet,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const ov::AxisSet& set) {
         buffer << set.size();
@@ -49,7 +56,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::AxisSet, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::AxisSet,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, ov::AxisSet& set) {
         typename ov::AxisSet::size_type set_size = 0UL;

@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/ctc_greedy_decoder.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "ctc_greedy_decoder_inst.h"
-
 #include "program_wrapper.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,7 +21,7 @@ struct ctc_greedy_decoder_seq_len_test_params {
     std::vector<layout> expected_layouts;
 };
 
-class ctc_greedy_decoder_seq_len_test : public testing::TestWithParam<ctc_greedy_decoder_seq_len_test_params> { };
+class ctc_greedy_decoder_seq_len_test : public testing::TestWithParam<ctc_greedy_decoder_seq_len_test_params> {};
 
 TEST_P(ctc_greedy_decoder_seq_len_test, shape_infer) {
     auto p = GetParam();
@@ -48,14 +46,13 @@ TEST_P(ctc_greedy_decoder_seq_len_test, shape_infer) {
         input_prim_ids.push_back(input_info(prim_id));
     }
 
-    auto ctc_greedy_decoder_seq_len_prim = std::make_shared<ctc_greedy_decoder>(
-                                   "output",
-                                   input_prim_ids,
-                                   p.blank_index[0],
-                                   true,
-                                   padding(),
-                                   data_types::i32,
-                                   2);
+    auto ctc_greedy_decoder_seq_len_prim = std::make_shared<ctc_greedy_decoder>("output",
+                                                                                input_prim_ids,
+                                                                                p.blank_index[0],
+                                                                                true,
+                                                                                padding(),
+                                                                                data_types::i32,
+                                                                                2);
 
     cldnn::program prog(engine);
     auto& ctc_greedy_decoder_seq_len_node = prog.get_or_create(ctc_greedy_decoder_seq_len_prim);
@@ -64,38 +61,41 @@ TEST_P(ctc_greedy_decoder_seq_len_test, shape_infer) {
         program_wrapper::add_connection(prog, input_layout_node, ctc_greedy_decoder_seq_len_node);
     }
 
-    auto res = ctc_greedy_decoder_inst::calc_output_layouts<ov::PartialShape>(ctc_greedy_decoder_seq_len_node, *ctc_greedy_decoder_seq_len_node.get_kernel_impl_params());
+    auto res = ctc_greedy_decoder_inst::calc_output_layouts<ov::PartialShape>(
+        ctc_greedy_decoder_seq_len_node,
+        *ctc_greedy_decoder_seq_len_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 2);
     for (size_t i = 0; i < p.expected_layouts.size(); i++)
         ASSERT_EQ(res[i], p.expected_layouts[i]);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, ctc_greedy_decoder_seq_len_test,
-    testing::ValuesIn(std::vector<ctc_greedy_decoder_seq_len_test_params>{
-        {
-            {
-                {layout{ov::PartialShape{1, 6, 10}, data_types::f32, format::bfyx}},
-                {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
-            },
-            {-1},
-            {
-                {layout{ov::PartialShape{1, 6}, data_types::i32, format::bfyx}},
-                {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
-            },
-        },
-        {
-            {
-                {layout{ov::PartialShape{1, 6, 10}, data_types::f32, format::bfyx}},
-                {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
-                {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
-            },
-            {5},
-            {
-                {layout{ov::PartialShape{1, 6}, data_types::i32, format::bfyx}},
-                {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
-            },
-        },
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         ctc_greedy_decoder_seq_len_test,
+                         testing::ValuesIn(std::vector<ctc_greedy_decoder_seq_len_test_params>{
+                             {
+                                 {
+                                     {layout{ov::PartialShape{1, 6, 10}, data_types::f32, format::bfyx}},
+                                     {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
+                                 },
+                                 {-1},
+                                 {
+                                     {layout{ov::PartialShape{1, 6}, data_types::i32, format::bfyx}},
+                                     {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
+                                 },
+                             },
+                             {
+                                 {
+                                     {layout{ov::PartialShape{1, 6, 10}, data_types::f32, format::bfyx}},
+                                     {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
+                                     {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
+                                 },
+                                 {5},
+                                 {
+                                     {layout{ov::PartialShape{1, 6}, data_types::i32, format::bfyx}},
+                                     {layout{ov::PartialShape{1}, data_types::i32, format::bfyx}},
+                                 },
+                             },
+                         }));
 
 }  // namespace shape_infer_tests

@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.slice import TFSlice
 
 
 class SliceExtractor(FrontExtractorOp):
-    op = 'Slice'
+    op = "Slice"
     enabled = True
 
     @classmethod

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "extract_image_patches_inst.h"
-#include "extract_image_patches/extract_image_patches_kernel_selector.h"
 #include "extract_image_patches/extract_image_patches_kernel_ref.h"
+#include "extract_image_patches/extract_image_patches_kernel_selector.h"
+#include "extract_image_patches_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -39,14 +38,17 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
 namespace detail {
 
 attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
-    implementation_map<extract_image_patches>::add(impl_types::ocl, typed_primitive_impl_ocl<extract_image_patches>::create<extract_image_patches_impl>, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    implementation_map<extract_image_patches>::add(
+        impl_types::ocl,
+        typed_primitive_impl_ocl<extract_image_patches>::create<extract_image_patches_impl>,
+        {
+            std::make_tuple(data_types::i32, format::bfyx),
+            std::make_tuple(data_types::i64, format::bfyx),
+            std::make_tuple(data_types::i8, format::bfyx),
+            std::make_tuple(data_types::u8, format::bfyx),
+            std::make_tuple(data_types::f32, format::bfyx),
+            std::make_tuple(data_types::f16, format::bfyx),
+        });
 }
 
 }  // namespace detail

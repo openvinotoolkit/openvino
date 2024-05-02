@@ -3,11 +3,13 @@
 //
 
 #include "convolution_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
@@ -25,7 +27,8 @@ bool ConvolutionKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& params,
+                                                    const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
     mem_consts.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
     const auto& padding = params.padding_begin;
@@ -48,7 +51,8 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         mem_consts.AddConstants({MakeJitConstant("QUANTIZATION_TERM", 1)});
     }
 
-    if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+    if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS ||
+        params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         mem_consts.AddConstants({MakeJitConstant("ASYMMETRIC_DATA_QUANTIZATION", 1)});
         if (!params.activations_zero_points.empty()) {
             mem_consts.AddConstants({MakeJitConstant("ACTIVATIONS_ZERO_POINTS", params.activations_zero_points[0])});
@@ -58,7 +62,8 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
             mem_consts.AddConstants({MakeJitConstant("COMPENSATION", params.compensation[0])});
         }
     }
-    if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+    if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS ||
+        params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         mem_consts.AddConstants({MakeJitConstant("ASYMMETRIC_WEIGHTS_QUANTIZATION", 1)});
         if (!params.weights_zero_points.empty()) {
             mem_consts.AddConstants({MakeJitConstant("WEIGHTS_ZERO_POINTS", params.weights_zero_points[0])});
@@ -86,17 +91,18 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
     return mem_consts;
 }
 
-JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernelBase::GetJitConstantsWithLoopUnroll(const convolution_params& params,
+                                                                  const DispatchData& dispatchData) const {
     JitConstants mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
-                                        params.filterSize.y,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
-                                        (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimM,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimK,
-                                        (uint32_t)dispatchData.gemmStyle.subBlockDimN};
+                                           params.filterSize.y,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -144,7 +150,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
                        {Tensor::DataChannelName::Y}};
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     dispatchData.cldnnStyle.blockWidth = 1;
     dispatchData.cldnnStyle.blockHeight = 1;
@@ -237,7 +244,9 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1, 0, 1,
+                     1,
+                     0,
+                     1,
                      newParams.is_shape_agnostic);
 
     if (newParams.deformable_mode) {
@@ -256,7 +265,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     uint32_t fused_deps_total = 0;
     for (auto& fused_dep : newParams.fused_ops) {
         for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total});
             fused_deps_total++;
         }
     }
@@ -278,7 +287,8 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
                      reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
-    properPadding &= ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
+    properPadding &=
+        ((params.padding_begin.x == 0 && params.padding_begin.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
 
     return properPadding;
 }
@@ -288,7 +298,7 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     auto ndims = cp.inputs[0].GetDims().size();
 
     DataTensor t = cp.inputs[0];
-    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} };
+    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
     pad[0].before = cp.padding_begin.x;
     pad[1].before = cp.padding_begin.y;
@@ -298,9 +308,15 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     const auto inputLimitY = (cp.outputs[0].Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
     const auto inputLimitZ = (cp.outputs[0].Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
 
-    pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
-    pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
-    pad[2].after = (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before), static_cast<int>(0));
+    pad[0].after =
+        (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before),
+                         static_cast<int>(0));
+    pad[1].after =
+        (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before),
+                         static_cast<int>(0));
+    pad[2].after =
+        (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before),
+                         static_cast<int>(0));
 
     Tensor::NDims dims(ndims);
     const Tensor::NDims& orgDims = cp.inputs[0].GetDims();
@@ -368,8 +384,7 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
     return EXE_MODE_DEFAULT;
 }
 
-KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,
-                                                              const int autoTuneIndex) const {
+KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex) const {
     return GetCommonKernelsData(params, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
 
@@ -395,12 +410,11 @@ JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolu
     return {};
 }
 
-
 Datatype ConvolutionKernelBase::GetPackedType(Datatype dt, size_t pack_size) const {
     if (dt == Datatype::UINT8) {
         return pack_size == 4 ? Datatype::UINT32 : pack_size == 2 ? Datatype::UINT16 : dt;
     } else if (dt == Datatype::INT8) {
-        return pack_size == 4 ?  Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
+        return pack_size == 4 ? Datatype::INT32 : pack_size == 2 ? Datatype::INT16 : dt;
     } else {
         return dt;
     }
@@ -418,19 +432,16 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
     bool quantized_weights = false;
     bool quantized_inputs = false;
 
-    if (params.inputs[0].GetDType() == Datatype::UINT8 ||
-        params.inputs[0].GetDType() == Datatype::INT8)
+    if (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8)
         quantized_inputs = true;
 
-    if (params.weights.GetDType() == WeightsType::UINT8 ||
-        params.weights.GetDType() == WeightsType::INT8)
+    if (params.weights.GetDType() == WeightsType::UINT8 || params.weights.GetDType() == WeightsType::INT8)
         quantized_weights = true;
 
     if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
         return Datatype::F32;
 
-    if (params.outputs[0].GetDType() == Datatype::UINT8 ||
-        params.outputs[0].GetDType() == Datatype::INT8) {
+    if (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8) {
         if (params.inputs[0].GetDType() == Datatype::F32) {
             return Datatype::F32;
         } else if (params.inputs[0].GetDType() == Datatype::F16) {
@@ -448,12 +459,10 @@ Datatype ConvolutionKernelBase::GetAccumulatorType(const convolution_params& par
     bool quantized_weights = false;
     bool quantized_inputs = false;
 
-    if (params.inputs[0].GetDType() == Datatype::UINT8 ||
-        params.inputs[0].GetDType() == Datatype::INT8)
+    if (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8)
         quantized_inputs = true;
 
-    if (params.weights.GetDType() == WeightsType::UINT8 ||
-        params.weights.GetDType() == WeightsType::INT8)
+    if (params.weights.GetDType() == WeightsType::UINT8 || params.weights.GetDType() == WeightsType::INT8)
         quantized_weights = true;
 
     // This case should be always false, because quantization type is not NONE

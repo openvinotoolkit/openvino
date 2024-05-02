@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/itt.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
-
-#include "intel_gpu/runtime/itt.hpp"
 
 using namespace cldnn;
 

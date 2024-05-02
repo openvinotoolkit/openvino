@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -29,8 +28,8 @@ static bool IsDynamic(const std::shared_ptr<ov::Node>& op) {
 }
 
 static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
-    auto get_layer_name = [&](size_t idx)->std::string {
-        return layer_type_name_ID(op) + ((op->get_output_size() == 1)? "" : ".out" + std::to_string(idx));
+    auto get_layer_name = [&](size_t idx) -> std::string {
+        return layer_type_name_ID(op) + ((op->get_output_size() == 1) ? "" : ".out" + std::to_string(idx));
     };
 
     auto inputs = p.GetInputInfo(op);
@@ -80,13 +79,18 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto outPartialShape = op->get_output_partial_shape(i);
             if (outPartialShape.size() != start_offset.size()) {
-                OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
-                               " output: ", op->get_output_tensor(i).get_any_name());
+                OPENVINO_THROW("Invalid dimesions in split layer: ",
+                               op->get_friendly_name(),
+                               " output: ",
+                               op->get_output_tensor(i).get_any_name());
             }
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
-                if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
-                    OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
-                                   " output: ", op->get_output_tensor(idx).get_any_name());
+                if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) >
+                    input_pshape[idx].get_length()) {
+                    OPENVINO_THROW("Invalid dimesions in split layer: ",
+                                   op->get_friendly_name(),
+                                   " output: ",
+                                   op->get_output_tensor(idx).get_any_name());
                 }
             }
 

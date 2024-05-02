@@ -4,11 +4,10 @@
 
 #include "conversion.hpp"
 
-#include "gtest/gtest.h"
-#include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "gtest/gtest.h"
 #include "shared_test_classes/base/utils/compare_results.hpp"
-
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -119,7 +118,8 @@ void ConvertToBooleanCPULayerTest::generate_inputs(const std::vector<ov::Shape>&
             auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
             ov::test::utils::fill_data_random(rawBlobDataPtr, first_part_size, range, start_from, resolution);
         } else {
-            FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
+            FAIL() << "Generating inputs with precision " << inPrc.to_string()
+                   << " isn't supported, if output precision is boolean.";
         }
     }
 
@@ -135,14 +135,31 @@ void ConvertToBooleanCPULayerTest::generate_inputs(const std::vector<ov::Shape>&
 
         if (inPrc == ov::element::f32) {
             auto* rawBlobDataPtr = static_cast<float*>(tensor.data());
-            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size, neg_size, range, neg_start_from, resolution);
-            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size, pos_size, range, pos_start_from, resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size,
+                                              neg_size,
+                                              range,
+                                              neg_start_from,
+                                              resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size,
+                                              pos_size,
+                                              range,
+                                              pos_start_from,
+                                              resolution);
         } else if (inPrc == ov::element::bf16) {
             auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
-            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size, neg_size, range, neg_start_from, resolution);
-            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size, pos_size, range, pos_start_from, resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size,
+                                              neg_size,
+                                              range,
+                                              neg_start_from,
+                                              resolution);
+            ov::test::utils::fill_data_random(rawBlobDataPtr + first_part_size + neg_size,
+                                              pos_size,
+                                              range,
+                                              pos_start_from,
+                                              resolution);
         } else {
-            FAIL() << "Generating inputs with precision " << inPrc.to_string() << " isn't supported, if output precision is boolean.";
+            FAIL() << "Generating inputs with precision " << inPrc.to_string()
+                   << " isn't supported, if output precision is boolean.";
         }
     }
 
@@ -156,9 +173,9 @@ TEST_P(ConvertCPULayerTest, CompareWithRefs) {
 
 TEST_P(ConvertToBooleanCPULayerTest, CompareWithRefs) {
     run();
-    // CPU Plugin decomposes Convert[...->BOOL] into Convert[...->supported] + Abs + Min + Seiling + Convert[supported->u8].
-    // To align output precision of model, Plugin insertes Convert[U8->Boolean] on output.
-    // To avoid conflicts of mapping node types and prim types in CheckPluginRelatedResults, we set empty set of node types
+    // CPU Plugin decomposes Convert[...->BOOL] into Convert[...->supported] + Abs + Min + Seiling +
+    // Convert[supported->u8]. To align output precision of model, Plugin insertes Convert[U8->Boolean] on output. To
+    // avoid conflicts of mapping node types and prim types in CheckPluginRelatedResults, we set empty set of node types
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{});
 }
 
@@ -181,65 +198,44 @@ const std::vector<InputShape>& inShapes_7D_static() {
 }
 
 const std::vector<InputShape>& inShapes_4D_dynamic() {
-    static const std::vector<InputShape> inShapes_4D_dynamic = {
-            {
-                // dynamic
-                {{-1, -1, -1, -1}},
-                // target
-                {
-                    {2, 4, 4, 1},
-                    {2, 17, 5, 4},
-                    {1, 2, 3, 4}
-                }
-            },
-            {
-                // dynamic
-                {{{1, 5}, {2, 22}, {2, 9}, {1, 4}}},
-                // target
-                {
-                    {2, 17, 5, 4},
-                    {5, 2, 3, 2},
-                    {1, 10, 4, 1},
-                }
-            }
-    };
+    static const std::vector<InputShape> inShapes_4D_dynamic = {{// dynamic
+                                                                 {{-1, -1, -1, -1}},
+                                                                 // target
+                                                                 {{2, 4, 4, 1}, {2, 17, 5, 4}, {1, 2, 3, 4}}},
+                                                                {// dynamic
+                                                                 {{{1, 5}, {2, 22}, {2, 9}, {1, 4}}},
+                                                                 // target
+                                                                 {
+                                                                     {2, 17, 5, 4},
+                                                                     {5, 2, 3, 2},
+                                                                     {1, 10, 4, 1},
+                                                                 }}};
     return inShapes_4D_dynamic;
 }
 
 const std::vector<InputShape>& inShapes_7D_dynamic() {
     static const std::vector<InputShape> inShapes_7D_dynamic = {
-            {
-                // dynamic
-                {{-1, -1, -1, -1, -1, -1, -1}},
-                // target
-                {
-                    {2, 4, 4, 4, 3, 3, 1},
-                    {2, 17, 5, 4, 3, 2, 1},
-                    {1, 2, 3, 4, 5, 6, 7}
-                }
-            },
-            {
-                // dynamic
-                {{{1, 5}, {2, 22}, {2, 9}, {1, 4}, {1, 4}, {1, 4}, {1, 4}}},
-                // target
-                {
-                    {2, 17, 5, 4, 3, 1, 2},
-                    {5, 2, 3, 2, 4, 1, 3},
-                    {1, 10, 4, 1, 4, 2, 3},
-                }
-            }
-    };
+        {// dynamic
+         {{-1, -1, -1, -1, -1, -1, -1}},
+         // target
+         {{2, 4, 4, 4, 3, 3, 1}, {2, 17, 5, 4, 3, 2, 1}, {1, 2, 3, 4, 5, 6, 7}}},
+        {// dynamic
+         {{{1, 5}, {2, 22}, {2, 9}, {1, 4}, {1, 4}, {1, 4}, {1, 4}}},
+         // target
+         {
+             {2, 17, 5, 4, 3, 1, 2},
+             {5, 2, 3, 2, 4, 1, 3},
+             {1, 10, 4, 1, 4, 2, 3},
+         }}};
     return inShapes_7D_dynamic;
 }
 
 const std::vector<ov::element::Type>& precisions() {
-    static const std::vector<ov::element::Type> precisions = {
-            ov::element::u8,
-            ov::element::i8,
-            ov::element::i32,
-            ov::element::f32,
-            ov::element::bf16
-    };
+    static const std::vector<ov::element::Type> precisions = {ov::element::u8,
+                                                              ov::element::i8,
+                                                              ov::element::i32,
+                                                              ov::element::f32,
+                                                              ov::element::bf16};
     return precisions;
 }
 

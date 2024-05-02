@@ -6,7 +6,6 @@ import platform
 import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
@@ -16,8 +15,9 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
         input_data = {}
         for input in inputs_dict.keys():
-            input_data[input] = np.random.uniform(low=0, high=1,
-                                                            size=inputs_dict[input]).astype(np.float32)
+            input_data[input] = np.random.uniform(
+                low=0, high=1, size=inputs_dict[input]
+            ).astype(np.float32)
         return input_data
 
     def create_nms_net(self, test_params: dict, with_scores: bool = False):
@@ -40,11 +40,24 @@ class TestNonMaxSuppression(CommonTFLayerTest):
 
             if with_scores:
                 soft_nms_sigma = tf.constant(test_params["soft_nms_sigma"])
-                _ = tf.image.non_max_suppression_with_scores(boxes, scores, max_output_size,
-                                                             iou_threshold, score_threshold, soft_nms_sigma, name="NMS")
+                _ = tf.image.non_max_suppression_with_scores(
+                    boxes,
+                    scores,
+                    max_output_size,
+                    iou_threshold,
+                    score_threshold,
+                    soft_nms_sigma,
+                    name="NMS",
+                )
             else:
-                _ = tf.image.non_max_suppression(boxes, scores, max_output_size,
-                                                 iou_threshold, score_threshold, name="NMS")
+                _ = tf.image.non_max_suppression(
+                    boxes,
+                    scores,
+                    max_output_size,
+                    iou_threshold,
+                    score_threshold,
+                    name="NMS",
+                )
             tf_net = sess.graph_def
 
         ref_net = None
@@ -57,7 +70,7 @@ class TestNonMaxSuppression(CommonTFLayerTest):
                 "max_output_size": 5,
                 "iou_threshold": 0.7,
                 "score_threshold": 0.8,
-                "soft_nms_sigma": 0.1
+                "soft_nms_sigma": 0.1,
             }
         ),
         (
@@ -66,7 +79,7 @@ class TestNonMaxSuppression(CommonTFLayerTest):
                 "max_output_size": 9,
                 "iou_threshold": 0.7,
                 "score_threshold": 0.7,
-                "soft_nms_sigma": 0.4
+                "soft_nms_sigma": 0.4,
             }
         ),
         (
@@ -75,31 +88,59 @@ class TestNonMaxSuppression(CommonTFLayerTest):
                 "max_output_size": 3,
                 "iou_threshold": 0.3,
                 "score_threshold": 0.8,
-                "soft_nms_sigma": 0.7
+                "soft_nms_sigma": 0.7,
             }
-        )
+        ),
     ]
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
-                              use_legacy_frontend):
-        if ie_device == 'GPU':
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_NonMaxSuppression(
+        self,
+        test_params,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        if ie_device == "GPU":
             pytest.skip("Skip TF NonMaxSuppresion test on GPU")
-        self._test(*self.create_nms_net(test_params), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_nms_net(test_params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit
-    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
-        if ie_device == 'GPU':
+    def test_NonMaxSuppressionWithScores(
+        self,
+        test_params,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        if ie_device == "GPU":
             pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")
-        self._test(*self.create_nms_net(test_params, with_scores=True), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_nms_net(test_params, with_scores=True),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

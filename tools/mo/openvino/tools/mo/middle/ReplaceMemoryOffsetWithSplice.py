@@ -3,9 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.splice import Splice
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.assign import Assign
@@ -14,6 +12,7 @@ from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.crop import Crop
 from openvino.tools.mo.ops.read_value import ReadValue
 from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.ops.splice import Splice
 from openvino.tools.mo.utils.error import Error
 
 
@@ -21,25 +20,32 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
     """
     Replace MemoryOffset with Splice
     """
+
     enabled = True
 
     def run_before(self):
-        from openvino.tools.mo.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
+        from openvino.tools.mo.middle.RemoveDuplicationMemory import (
+            RemoveMemoryDuplicationPattern,
+        )
+
         return [RemoveMemoryDuplicationPattern]
 
     def run_after(self):
-        from openvino.tools.mo.middle.split_tdnn_memoryoffset import SplitTdnnMemoryOffset
+        from openvino.tools.mo.middle.split_tdnn_memoryoffset import (
+            SplitTdnnMemoryOffset,
+        )
+
         return [SplitTdnnMemoryOffset]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('op', dict(op='MemoryOffset', has_default=False))],
-            edges=[])
+            nodes=[("op", dict(op="MemoryOffset", has_default=False))], edges=[]
+        )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        node = match['op']
+        node = match["op"]
         pair_node = Node(graph, node.pair_name)
 
         if pair_node.has_default:
@@ -60,29 +66,49 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         node_name = node.name
         node_t = node.t
 
-        splice = Splice(graph, {'name': node_name,
-                                'id': node_id,
-                                'context': int64_array(range(node_t, 1))
-                                if node_t < 0 else int64_array(range(0, node_t+1))}).create_node()
+        splice = Splice(
+            graph,
+            {
+                "name": node_name,
+                "id": node_id,
+                "context": (
+                    int64_array(range(node_t, 1))
+                    if node_t < 0
+                    else int64_array(range(0, node_t + 1))
+                ),
+            },
+        ).create_node()
         splice.in_port(0).connect(input_node_out_port)
 
         # offset of Crop will be 0 (first element) if node_t < 0 and in_shape[1]*node_t (last element) if node_t > 0
-        crop = Crop(graph, {'name': 'Splice_Crop',
-                            'axis': int64_array([1]),
-                            'offset': int64_array([max(0, in_shape[1] * node_t)]),
-                            'dim': int64_array([in_shape[1]])}).create_node()
+        crop = Crop(
+            graph,
+            {
+                "name": "Splice_Crop",
+                "axis": int64_array([1]),
+                "offset": int64_array([max(0, in_shape[1] * node_t)]),
+                "dim": int64_array([in_shape[1]]),
+            },
+        ).create_node()
 
         splice.out_port(0).connect(crop.in_port(0))
-        splice.out_port(0).data.set_shape(int64_array([in_shape[0], (abs(node_t) + 1) * in_shape[1]]))
+        splice.out_port(0).data.set_shape(
+            int64_array([in_shape[0], (abs(node_t) + 1) * in_shape[1]])
+        )
 
         outs = input_node_out_port.get_destinations()
         for in_port in outs:
             out_ = in_port.node
-            if out_.op == 'Concat' and out_ == out_node_in_ports[0].node:
-                crop_input = Crop(graph, {'name': 'Splice_Crop',
-                                          'axis': int64_array([1]),
-                                          'offset': int64_array([-min(0, in_shape[1] * node_t)]),
-                                          'dim': int64_array([in_shape[1]])}).create_node()
+            if out_.op == "Concat" and out_ == out_node_in_ports[0].node:
+                crop_input = Crop(
+                    graph,
+                    {
+                        "name": "Splice_Crop",
+                        "axis": int64_array([1]),
+                        "offset": int64_array([-min(0, in_shape[1] * node_t)]),
+                        "dim": int64_array([in_shape[1]]),
+                    },
+                ).create_node()
                 splice.out_port(0).connect(crop_input.in_port(0))
 
                 in_port.disconnect()
@@ -101,26 +127,28 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
     """
     Replace MemoryOffset with Memory if IfDefined used with it to avoid cycles
     """
+
     enabled = True
     force_shape_inference = True
 
     def run_before(self):
-        from openvino.tools.mo.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
+        from openvino.tools.mo.middle.RemoveDuplicationMemory import (
+            RemoveMemoryDuplicationPattern,
+        )
+
         return [RemoveMemoryDuplicationPattern]
 
     @staticmethod
     def pattern():
-        return dict(
-            nodes=[('op', dict(op='MemoryOffset', has_default=True))],
-            edges=[])
+        return dict(nodes=[("op", dict(op="MemoryOffset", has_default=True))], edges=[])
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        node = match['op']
+        node = match["op"]
         pair_node = Node(graph, node.pair_name)
 
         if node.t >= 0:
-            raise Error('Does not support IfDefined with t > 0')
+            raise Error("Does not support IfDefined with t > 0")
 
         if node.in_port(0).get_source() is not None:
             input_port = node.in_port(0).get_source()
@@ -138,38 +166,67 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         in_shape = input_port.data.get_shape()
         node_t = abs(node.t)
 
-        init_value_memory_out = Const(graph, {'name': 'init_value_' + pair_name,
-                                              'value': np.zeros(int64_array([in_shape[0], in_shape[1]*node_t]), dtype=np.float32),
-                                              'shape': int64_array([in_shape[0], in_shape[1]*node_t])}).create_node()
-        memory_out = ReadValue(graph, {'name': pair_name,
-                                       'variable_id': node_name+pair_name,
-                                       'variable_shape': None,
-                                       'variable_type': None
-                                       }).create_node()
+        init_value_memory_out = Const(
+            graph,
+            {
+                "name": "init_value_" + pair_name,
+                "value": np.zeros(
+                    int64_array([in_shape[0], in_shape[1] * node_t]), dtype=np.float32
+                ),
+                "shape": int64_array([in_shape[0], in_shape[1] * node_t]),
+            },
+        ).create_node()
+        memory_out = ReadValue(
+            graph,
+            {
+                "name": pair_name,
+                "variable_id": node_name + pair_name,
+                "variable_shape": None,
+                "variable_type": None,
+            },
+        ).create_node()
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
         if node_t > 1:
-            crop_concat = Crop(graph, {'name': 'Memory_crop', 'dim': mo_array([in_shape[1]*(node_t-1)]),
-                                       'offset': mo_array([in_shape[1]]), 'axis': mo_array([1])}).create_node()
+            crop_concat = Crop(
+                graph,
+                {
+                    "name": "Memory_crop",
+                    "dim": mo_array([in_shape[1] * (node_t - 1)]),
+                    "offset": mo_array([in_shape[1]]),
+                    "axis": mo_array([1]),
+                },
+            ).create_node()
             memory_out.out_port(0).connect(crop_concat.in_port(0))
-            concat = Concat(graph, {'name': 'Memory_concat'}).create_node()
-            concat.add_sequence_of_ports('in', range(2))
+            concat = Concat(graph, {"name": "Memory_concat"}).create_node()
+            concat.add_sequence_of_ports("in", range(2))
             crop_concat.out_port(0).connect(concat.in_port(0))
             concat.in_port(1).connect(input_port)
 
-            memory_in = Assign(graph, {'name': node_name, 'variable_id': node_name + pair_name}).create_node()
+            memory_in = Assign(
+                graph, {"name": node_name, "variable_id": node_name + pair_name}
+            ).create_node()
             concat.out_port(0).connect(memory_in.in_port(0))
-            out = Result(graph, {'name': 'Memory_output'}).create_node()
+            out = Result(graph, {"name": "Memory_output"}).create_node()
             memory_in.out_port(0).connect(out.in_port(0))
 
-            crop_out = Crop(graph, {'name': 'Memory_crop_out', 'dim': mo_array([in_shape[1]]),
-                                    'offset': mo_array([0]), 'axis': mo_array([1])}).create_node()
+            crop_out = Crop(
+                graph,
+                {
+                    "name": "Memory_crop_out",
+                    "dim": mo_array([in_shape[1]]),
+                    "offset": mo_array([0]),
+                    "axis": mo_array([1]),
+                },
+            ).create_node()
             memory_out.out_port(0).connect(crop_out.in_port(0))
             out_port.get_connection().set_source(crop_out.out_port(0))
         else:
-            memory_in = Assign(graph, {'name': node_name, 'variable_id': node_name + pair_name}).create_node()
+            memory_in = Assign(
+                graph, {"name": node_name, "variable_id": node_name + pair_name}
+            ).create_node()
             memory_in.in_port(0).connect(input_port)
-            out = Result(graph, {'name': 'Memory_output'}).create_node()
+            out = Result(graph, {"name": "Memory_output"}).create_node()
             memory_in.out_port(0).connect(out.in_port(0))
             out_port.get_connection().set_source(memory_out.out_port(0))
 

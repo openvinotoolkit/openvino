@@ -8,10 +8,10 @@
 #include <string>
 #include <vector>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -33,7 +33,7 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
     this->register_matcher(m, callback);
 }
 
-bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(m.get_match_root());
     if (fakeQuantize == nullptr) {
         return false;
@@ -76,7 +76,8 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> 
     return vecLow == vecHigh;
 }
 
-bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context,
+                                                      std::shared_ptr<Node> op) const {
     if (!NetworkHelper::isConstantPath(op) && !isConstantOutput(op)) {
         return false;
     }
@@ -88,7 +89,9 @@ bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContex
 
     for (size_t i = 1; i < fq->get_input_size(); ++i) {
         const auto& shape = fq->get_input_shape(i);
-        if (std::count_if(shape.begin(), shape.end(), [](size_t x) { return x > 1; }) > 1) {
+        if (std::count_if(shape.begin(), shape.end(), [](size_t x) {
+                return x > 1;
+            }) > 1) {
             return false;
         }
     }
@@ -100,6 +103,6 @@ bool FoldFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> 
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

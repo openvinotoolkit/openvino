@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "layer_transformation.hpp"
 
 namespace ov {
@@ -23,11 +22,11 @@ class LP_TRANSFORMATIONS_API UnsqueezeTransformation : public LayerTransformatio
 public:
     OPENVINO_RTTI("UnsqueezeTransformation", "0");
     UnsqueezeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -5,63 +5,69 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mark_input_bins, shape_insert, dynamic_dimension, \
-    shape_array
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.graph.graph import Node, Graph, add_opoutput, Error
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension,
+    mark_input_bins,
+    mo_array,
+    shape_array,
+    shape_insert,
+)
+from openvino.tools.mo.graph.graph import Error, Graph, Node, add_opoutput
 from openvino.tools.mo.ops.op import Op
 
 
 class RNN(Op):
-    op = 'RNN'
+    op = "RNN"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': 'RNNSequence',  # should be never emitted to IR; for debugging purposes
-            'op': self.op,
-            'blobs_wrb': False,
-            'has_num_directions': False,
-            'direction': 'forward',
-            'infer': self.infer,
-            'reverse_infer': self.reverse_infer,
-            'multiplier': 1,
-            'gate_order': mo_array([0]),  # Only one gate in this cell
-            'normalized': False,
-
-            'activation_alpha': None,
-            'activation_beta': None,
-            'activations': None,
-            'clip': None,
-            'in_ports_count': 6,
-            'out_ports_count': 2,
+            "type": "RNNSequence",  # should be never emitted to IR; for debugging purposes
+            "op": self.op,
+            "blobs_wrb": False,
+            "has_num_directions": False,
+            "direction": "forward",
+            "infer": self.infer,
+            "reverse_infer": self.reverse_infer,
+            "multiplier": 1,
+            "gate_order": mo_array([0]),  # Only one gate in this cell
+            "normalized": False,
+            "activation_alpha": None,
+            "activation_beta": None,
+            "activations": None,
+            "clip": None,
+            "in_ports_count": 6,
+            "out_ports_count": 2,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     @staticmethod
     def supported_attrs():
         return [
-            'hidden_size',  # number of the elements in hidden cell size
-            'direction',  # one of 'forward', 'reverse', or 'bidirectional'
-            'axis',
-
+            "hidden_size",  # number of the elements in hidden cell size
+            "direction",  # one of 'forward', 'reverse', or 'bidirectional'
+            "axis",
             # Additional attributes
-            'activation_alpha',
-            'activation_beta',
-            'activations',
-            'clip',
+            "activation_alpha",
+            "activation_beta",
+            "activations",
+            "clip",
         ]
 
     def backend_attrs(self):
         return [
-            'hidden_size',  # number of the elements in hidden cell size
-            'direction',  # one of 'forward', 'reverse', or 'bidirectional'
-            'axis',
-
+            "hidden_size",  # number of the elements in hidden cell size
+            "direction",  # one of 'forward', 'reverse', or 'bidirectional'
+            "axis",
             # Additional attributes
-            'activation_alpha',
-            'activation_beta',
-            ('activations', lambda node: ','.join(node.activations) if node.activations is not None else None),
-            'clip',
+            "activation_alpha",
+            "activation_beta",
+            (
+                "activations",
+                lambda node: (
+                    ",".join(node.activations) if node.activations is not None else None
+                ),
+            ),
+            "clip",
         ]
 
     @staticmethod
@@ -81,7 +87,7 @@ class RNN(Op):
         batch_size, seq_len = get_rnn_batch_size_and_seq_len(node)
         # MXNet, ONNX has the same input layout
         input_shape = shape_array([seq_len, batch_size, input_size])
-        if node.format == 'tf':
+        if node.format == "tf":
             input_shape = shape_array([batch_size, seq_len, input_size])
 
         node.in_port(0).data.set_shape(input_shape)
@@ -100,10 +106,10 @@ def rnn_infer(node: Node, out_ports=None):
     assert node.batch_dim <= 1
     assert node.sequence_dim <= 1
     assert node.batch_dim != node.sequence_dim
-    assert node.direction in ['forward', 'reverse', 'bidirectional']
+    assert node.direction in ["forward", "reverse", "bidirectional"]
 
     if node.blobs_wrb:
-        mark_input_bins(node, ['W', 'R', 'B'])
+        mark_input_bins(node, ["W", "R", "B"])
     else:
         mark_input_bins(node)
 
@@ -113,21 +119,34 @@ def rnn_infer(node: Node, out_ports=None):
 
     # Reshape input nodes
     for port in [2, 3]:
-        if port in node.in_nodes() and len(node.in_node(port).in_nodes()) > 0 and \
-                'zero_shapes' in node.in_node(port).in_node():
+        if (
+            port in node.in_nodes()
+            and len(node.in_node(port).in_nodes()) > 0
+            and "zero_shapes" in node.in_node(port).in_node()
+        ):
             for i in node.in_node(port).in_node().zero_shapes:
                 if node.in_node(port).shape[i] != input_shape[i]:
-                    node.in_node(port).value = np.repeat(node.in_node(port).value, input_shape[i], axis=i)
+                    node.in_node(port).value = np.repeat(
+                        node.in_node(port).value, input_shape[i], axis=i
+                    )
                     node.in_node(port).shape[i] = input_shape[i]
 
-    out_shape = [input_shape[node.sequence_dim], input_shape[node.batch_dim], node.hidden_size]
+    out_shape = [
+        input_shape[node.sequence_dim],
+        input_shape[node.batch_dim],
+        node.hidden_size,
+    ]
 
     if node.batch_dim == 0:
-        out_shape = [input_shape[node.batch_dim], input_shape[node.sequence_dim], node.hidden_size]
+        out_shape = [
+            input_shape[node.batch_dim],
+            input_shape[node.sequence_dim],
+            node.hidden_size,
+        ]
 
-    num_directions = 2 if node.direction in ['bidirectional'] else 1
+    num_directions = 2 if node.direction in ["bidirectional"] else 1
     if node.has_num_directions:
-        if node.format == 'mxnet' and node.normalized is False:
+        if node.format == "mxnet" and node.normalized is False:
             # In MXNet RNN layer return output with shape [seq_len, batch_size, hidden_size * num_directions]
             out_shape[-1] *= num_directions
         else:
@@ -138,8 +157,8 @@ def rnn_infer(node: Node, out_ports=None):
     if 0 not in node.out_nodes():
         data_node = Op._create_data_node(
             node.graph,
-            name=node.node + '/ExtraOutput/{}'.format(0),
-            attrs={'executable': True}
+            name=node.node + "/ExtraOutput/{}".format(0),
+            attrs={"executable": True},
         )
         if 0 not in node.out_ports():
             node.add_output_port(0)
@@ -162,8 +181,8 @@ def rnn_infer(node: Node, out_ports=None):
         if i not in node.out_nodes():
             data_node = Op._create_data_node(
                 node.graph,
-                name=node.node + '/ExtraOutput/' + str(i),
-                attrs={'executable': True}
+                name=node.node + "/ExtraOutput/" + str(i),
+                attrs={"executable": True},
             )
             if i not in node.out_ports():
                 node.add_output_port(i)
@@ -182,7 +201,7 @@ def get_rnn_batch_size_and_seq_len(node: Node):
     :param node:
     :return:
     """
-    node_name = node.soft_get('name', node.id)
+    node_name = node.soft_get("name", node.id)
     out_shape = node.out_port(0).data.get_shape()
     batch_size = dynamic_dimension
     seq_len = dynamic_dimension
@@ -193,37 +212,47 @@ def get_rnn_batch_size_and_seq_len(node: Node):
         if node.batch_dim == 1:
             seq_len = out_shape[0]
 
-            if node.format == 'mxnet':
-                assert len(out_shape) == 3, 'incorrect out_shape rank for node {}'.format(node_name)
+            if node.format == "mxnet":
+                assert (
+                    len(out_shape) == 3
+                ), "incorrect out_shape rank for node {}".format(node_name)
                 # for MXNet out_shape = [seq_len, batch_size, hidden_size]
                 batch_size = out_shape[1]
                 in_port_with_initial_states = 2
-            elif node.format == 'onnx':
-                assert len(out_shape) == 4, 'incorrect out_shape rank for node {}'.format(node_name)
+            elif node.format == "onnx":
+                assert (
+                    len(out_shape) == 4
+                ), "incorrect out_shape rank for node {}".format(node_name)
                 # even for ONNX in extractor 'batch_dim': 1 (front/onnx/lstm_ext.py:26) despite the fact that
                 # out_shape = [seq_len, num_directions, batch_size, hidden_size]
                 batch_size = out_shape[2]
                 in_port_with_initial_states = 5
-            elif node.format == 'tf':
-                log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
-                          extra={'is_warning': True})
+            elif node.format == "tf":
+                log.error(
+                    "reverse infer for TensorFlow RNN operation {} is not implemented yet".format(
+                        node_name
+                    ),
+                    extra={"is_warning": True},
+                )
             else:
-                raise Error('Incorrect framework name')
+                raise Error("Incorrect framework name")
         elif node.batch_dim == 0:
             # out_shape = [batch_size, num_directions, seq_len, hidden_size]
             batch_size = out_shape[0]
             seq_len = out_shape[2]
             in_port_with_initial_states = 3
         else:
-            raise Error('incorrect batch_dim for node {}'.format(node_name))
+            raise Error("incorrect batch_dim for node {}".format(node_name))
 
     if batch_size is dynamic_dimension:
         if node.is_in_port_connected(in_port_with_initial_states):
-            initial_hidden_state_size = node.in_port(in_port_with_initial_states).data.get_shape()
+            initial_hidden_state_size = node.in_port(
+                in_port_with_initial_states
+            ).data.get_shape()
             if initial_hidden_state_size is not None:
                 batch_size = initial_hidden_state_size[1]
 
-    if seq_len is dynamic_dimension and node.format == 'onnx':
+    if seq_len is dynamic_dimension and node.format == "onnx":
         # ONNX can store seq_len in optional input
         if node.is_in_port_connected(4):
             seq_len_val = node.in_port(4).data.get_value()
@@ -234,17 +263,19 @@ def get_rnn_batch_size_and_seq_len(node: Node):
 
 
 def get_rnn_input_size(node: Node):
-    node_name = node.soft_get('name', node.id)
-    assert node.is_in_port_connected(1), 'weights input is not connected'
+    node_name = node.soft_get("name", node.id)
+    assert node.is_in_port_connected(1), "weights input is not connected"
 
-    if node.format == 'onnx':
+    if node.format == "onnx":
         # ONNX weights on input 1 contain only W part, R, and B are connected separately
         # weights_shape = `[num_directions, 4 * hidden_size, input_size]`
         weights_size = node.in_port(1).data.get_shape()
-        assert len(weights_size) == 3, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
+        assert (
+            len(weights_size) == 3
+        ), "incorrect weights ranks for MXNet {} node {}".format(node.op, node_name)
         input_size = weights_size[2]
         return input_size
-    elif node.format == 'mxnet':
+    elif node.format == "mxnet":
         multiplier = node.multiplier
         hidden_size = node.hidden_size
         num_layers = node.num_layers
@@ -252,20 +283,28 @@ def get_rnn_input_size(node: Node):
 
         # for MXNet models we always get flattened weights which contains WRB
         weights_size = node.in_port(1).data.get_shape()
-        assert len(weights_size) == 1, 'incorrect weights ranks for MXNet {} node {}'.format(node.op, node_name)
+        assert (
+            len(weights_size) == 1
+        ), "incorrect weights ranks for MXNet {} node {}".format(node.op, node_name)
         weights_size = weights_size[0]
 
         size = hidden_size * direction * multiplier
         other_layer_params_size = (hidden_size * direction + hidden_size + 2) * size
-        first_layer_params_size = weights_size - (num_layers - 1) * other_layer_params_size
+        first_layer_params_size = (
+            weights_size - (num_layers - 1) * other_layer_params_size
+        )
         # lhe lines above to find first_layer_params_size was taken from MXNetSplitMultiLayers.py:79
         # input_size can be calculated from the first_layer_params_size
         # if first_layer_params_size = (input_size + hidden_size + 2) * size
         # then input_size = first_layer_params_size / size - 2 - hidden_size
         input_size = first_layer_params_size / size - 2 - hidden_size
         return input_size
-    elif node.format == 'tf':
-        log.error('reverse infer for TensorFlow RNN operation {} is not implemented yet'.format(node_name),
-                  extra={'is_warning': True})
+    elif node.format == "tf":
+        log.error(
+            "reverse infer for TensorFlow RNN operation {} is not implemented yet".format(
+                node_name
+            ),
+            extra={"is_warning": True},
+        )
     else:
-        raise Error('Incorrect framework name')
+        raise Error("Incorrect framework name")

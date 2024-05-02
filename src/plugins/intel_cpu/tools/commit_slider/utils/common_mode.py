@@ -1,22 +1,21 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from abc import ABC
-import utils.helpers as util
-from utils.subscription import SubscriptionManager
-from utils.break_validator import validateBMOutput
-from utils.break_validator import BmValidationError
+import csv
 import json
 import os
+from abc import ABC
 from enum import Enum
-import csv
+
+import utils.helpers as util
+from utils.break_validator import BmValidationError, validateBMOutput
+from utils.subscription import SubscriptionManager
+
 
 class Mode(ABC):
     @staticmethod
     def factory(cfg):
-        modeClassName = util.checkAndGetClassnameByConfig(
-            cfg, "modeMap", "mode"
-        )
+        modeClassName = util.checkAndGetClassnameByConfig(cfg, "modeMap", "mode")
         cl = util.checkAndGetSubclass(modeClassName, Mode)
         return cl(cfg)
 
@@ -26,15 +25,11 @@ class Mode(ABC):
         traversalClassName = util.checkAndGetClassnameByConfig(
             cfg, "traversalMap", "traversal"
         )
-        traversalClass = util.checkAndGetSubclass(
-            traversalClassName, self.Traversal
-        )
+        traversalClass = util.checkAndGetSubclass(traversalClassName, self.Traversal)
         self.traversal = traversalClass(self)
         self.cfg = cfg
         logPath = util.getActualPath("logPath", cfg)
-        self.commonLogger = util.setupLogger(
-            "commonLogger", logPath, "common_log.log"
-        )
+        self.commonLogger = util.setupLogger("commonLogger", logPath, "common_log.log")
 
     def isPerformanceBased(self):
         return False
@@ -96,14 +91,13 @@ class Mode(ABC):
 
     def preliminaryCheck(self, list, cfg):
         # common checking if degradation exists
-        if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
-                list, cfg):
+        if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(list, cfg):
             raise util.PreliminaryAnalysisError(
                 "No degradation found: {i1} and {i2} don't differ".format(
-                    i1=list[0], i2=list[-1]),
-                util.PreliminaryAnalysisError.\
-                    PreliminaryErrType.NO_DEGRADATION
-                )
+                    i1=list[0], i2=list[-1]
+                ),
+                util.PreliminaryAnalysisError.PreliminaryErrType.NO_DEGRADATION,
+            )
 
     def prepareRun(self, list, cfg):
         self.normalizeCfg(cfg)
@@ -111,22 +105,25 @@ class Mode(ABC):
         # check prerun-cashed commits
         canReduce, newList = util.getReducedInterval(list, cfg)
         if canReduce:
-            if (self.traversal.isComparative() and
-                self.checkIfListBordersDiffer(newList, cfg) or
-                not self.traversal.isComparative()):
+            if (
+                self.traversal.isComparative()
+                and self.checkIfListBordersDiffer(newList, cfg)
+                or not self.traversal.isComparative()
+            ):
                 self.commonLogger.info(
                     "Initial interval reduced to cashed {c1}..{c2}".format(
-                        c1=newList[0], c2=newList[-1])
+                        c1=newList[0], c2=newList[-1]
+                    )
                 )
                 list = newList
             elif self.traversal.isComparative():
                 raise util.PreliminaryAnalysisError(
                     "No degradation for reduced interval: \
                     {i1} and {i2} don't differ".format(
-                        i1=list[0], i2=list[-1]),
-                    util.PreliminaryAnalysisError.\
-                        PreliminaryErrType.NO_DEGRADATION
-                    )
+                        i1=list[0], i2=list[-1]
+                    ),
+                    util.PreliminaryAnalysisError.PreliminaryErrType.NO_DEGRADATION,
+                )
         else:
             self.preliminaryCheck(list, cfg)
         return list
@@ -146,7 +143,7 @@ class Mode(ABC):
             if errorHandlingMode == "skip":
                 cfg["skipMode"]["flagSet"] = {}
                 cfg["skipMode"]["flagSet"]["enableSkips"] = True
-            elif (errorHandlingMode == "rebuild"):
+            elif errorHandlingMode == "rebuild":
                 cfg["skipMode"]["flagSet"] = {}
                 cfg["skipMode"]["flagSet"]["enableSkips"] = False
                 cfg["skipMode"]["flagSet"]["enableRebuild"] = True
@@ -155,14 +152,16 @@ class Mode(ABC):
             else:
                 raise util.CfgError(
                     "Error handling mode {} is not supported".format(errorHandlingMode)
-                    )
+                )
 
     def postRun(self, list: list):
         util.returnToActualVersion(self.cfg)
-        if "printCSV" in self.cfg\
-                and self.cfg["printCSV"]\
-                and self.isPerformanceBased():
-            fields = ['linId', 'logId', 'hash', 'value'] 
+        if (
+            "printCSV" in self.cfg
+            and self.cfg["printCSV"]
+            and self.isPerformanceBased()
+        ):
+            fields = ["linId", "logId", "hash", "value"]
             rows = []
             linearId = 0
             logId = 0
@@ -176,28 +175,31 @@ class Mode(ABC):
                 linearId = linearId + 1
             reportPath = util.getActualPath("logPath", self.cfg)
             reportPath = os.path.join(reportPath, "report.csv")
-            with open(reportPath, 'w') as csvfile: 
+            with open(reportPath, "w") as csvfile:
                 csvwriter = csv.writer(csvfile)
                 csvwriter.writerow(fields)
                 csvwriter.writerows(rows)
         if self.isPerformanceBased():
-            commitList = [{
-                'id': int(list.index(item.cHash)),
-                'hash': item.cHash,
-                'throughput': self.getCommitIfCashed(item.cHash)[1]
-            } for i, item in enumerate(self.commitPath.getList())]
-            commitList = sorted(
-                commitList,
-                key=lambda el: el['id']
-            )
-            breakCommit = [item.cHash for item in self.commitPath.getList()\
-                           if item.state == self.CommitPath.CommitState.BREAK][0]
+            commitList = [
+                {
+                    "id": int(list.index(item.cHash)),
+                    "hash": item.cHash,
+                    "throughput": self.getCommitIfCashed(item.cHash)[1],
+                }
+                for i, item in enumerate(self.commitPath.getList())
+            ]
+            commitList = sorted(commitList, key=lambda el: el["id"])
+            breakCommit = [
+                item.cHash
+                for item in self.commitPath.getList()
+                if item.state == self.CommitPath.CommitState.BREAK
+            ][0]
             try:
                 validateBMOutput(
                     commitList,
                     breakCommit,
                     self.cfg["runConfig"]["perfAppropriateDeviation"],
-                    self.traversal.numericComparator()[0]
+                    self.traversal.numericComparator()[0],
                 )
             except BmValidationError as e:
                 self.commitPath.metaInfo["postValidationPassed"] = False
@@ -208,9 +210,7 @@ class Mode(ABC):
             list = self.prepareRun(list, cfg)
             for i, item in enumerate(list):
                 list[i] = item.replace('"', "")
-            self.traversal.wrappedBypass(
-                list, list, cfg
-            )
+            self.traversal.wrappedBypass(list, list, cfg)
             self.postRun(list)
         except util.PreliminaryAnalysisError as e:
             self.commitPath.metaInfo["preValidationPassed"] = False
@@ -222,13 +222,17 @@ class Mode(ABC):
 
     def printResult(self):
         if not self.commitPath.metaInfo["preValidationPassed"]:
-            print("Preliminary check failed, reason: {}".format(
-                self.commitPath.metaInfo["reason"]
-            ))
+            print(
+                "Preliminary check failed, reason: {}".format(
+                    self.commitPath.metaInfo["reason"]
+                )
+            )
         elif not self.commitPath.metaInfo["postValidationPassed"]:
-            print("Output results invalid, reason: {}".format(
-                self.commitPath.metaInfo["reason"]
-            ))
+            print(
+                "Output results invalid, reason: {}".format(
+                    self.commitPath.metaInfo["reason"]
+                )
+            )
         else:
             for pathcommit in self.commitPath.getList():
                 if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
@@ -236,8 +240,7 @@ class Mode(ABC):
 
     def getCommitInfo(self, commit):
         # override if you need more details in output representation
-        return "Break commit: {c}, state: {s}".format(
-            c=commit.cHash, s=commit.state)
+        return "Break commit: {c}, state: {s}".format(c=commit.cHash, s=commit.state)
 
     def checkIfListBordersDiffer(self, list, cfg):
         return self.compareCommits(list[0], list[-1], cfg)
@@ -246,10 +249,7 @@ class Mode(ABC):
 
         def __init__(self):
             self.commitList = []
-            self.metaInfo = {
-                    "preValidationPassed": True,
-                    "postValidationPassed": True
-                }
+            self.metaInfo = {"preValidationPassed": True, "postValidationPassed": True}
 
         def accept(self, traversal, commitToReport) -> None:
             traversal.visit(self, commitToReport)
@@ -280,11 +280,10 @@ class Mode(ABC):
             if commit in [x.cHash for x in self.commitList]:
                 commitInd = [
                     i for i, elem in enumerate(self.commitList) if elem.cHash == commit
-                    ][0]
+                ][0]
                 self.commitList[commitInd].setupState(state)
             else:
-                raise Exception(
-                    "Commit {} in not in commit path".format(commit))
+                raise Exception("Commit {} in not in commit path".format(commit))
 
         def pop(self):
             return self.commitList.pop(0)
@@ -296,7 +295,9 @@ class Mode(ABC):
         def bypass(self, curList, list, cfg) -> int:
             raise NotImplementedError()
 
-        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+        def numericComparator(
+            self, leftVal: float = 1, rightVal: float = -1, threshold: float = 0
+        ) -> bool:
             # default numericComparator() represents traversal type for performance-based mode
             raise NotImplementedError()
 
@@ -315,55 +316,48 @@ class Mode(ABC):
                     self.wrappedBypass(curList, list, cfg)
                 else:
                     raise util.BuildError(
-                        message = "error occured during handling",
-                        errType = util.BuildError.BuildErrType.WRONG_STATE,
-                        commit=be.commit
-                        )
-
+                        message="error occured during handling",
+                        errType=util.BuildError.BuildErrType.WRONG_STATE,
+                        commit=be.commit,
+                    )
 
         def skipCommit(self, commit, curList, cfg):
             curList.remove(commit)
-            pc = Mode.CommitPath.PathCommit(
-                commit,
-                Mode.CommitPath.CommitState.SKIPPED
-            )
-            self.mode.commonLogger.info(
-                "Skipped commit {}".format(commit)
-            )
+            pc = Mode.CommitPath.PathCommit(commit, Mode.CommitPath.CommitState.SKIPPED)
+            self.mode.commonLogger.info("Skipped commit {}".format(commit))
             self.mode.setOutputInfo(pc)
             self.mode.commitPath.accept(self, pc)
-
 
         def ignoreCommit(self, commit, curList, cfg):
             curList.remove(commit)
-            pc = Mode.CommitPath.PathCommit(
-                commit,
-                Mode.CommitPath.CommitState.IGNORED
-            )
-            self.mode.commonLogger.info(
-                "Ignored commit {}".format(commit)
-            )
+            pc = Mode.CommitPath.PathCommit(commit, Mode.CommitPath.CommitState.IGNORED)
+            self.mode.commonLogger.info("Ignored commit {}".format(commit))
             self.mode.setOutputInfo(pc)
             self.mode.commitPath.accept(self, pc)
-
 
         def visit(self, cPath, commitToReport):
             cPath.append(commitToReport)
 
-
         def prepBypass(self, curList, list, cfg):
-            if (cfg["cachedPathConfig"]["enabled"] and
-                cfg["cachedPathConfig"]["scheme"] == "optional"):
+            if (
+                cfg["cachedPathConfig"]["enabled"]
+                and cfg["cachedPathConfig"]["scheme"] == "optional"
+            ):
                 # try to reduce interval by cashed borders
                 canReduce, newList = util.getReducedInterval(curList, cfg)
                 if canReduce:
-                    if (self.isComparative() and
-                        self.mode.checkIfListBordersDiffer(newList, cfg) or
-                        not self.isComparative()):
+                    if (
+                        self.isComparative()
+                        and self.mode.checkIfListBordersDiffer(newList, cfg)
+                        or not self.isComparative()
+                    ):
                         self.mode.commonLogger.info(
                             "Interval {c1}..{c2} reduced to cashed {c1_}..{c2_}".format(
-                                c1=curList[0], c2=curList[-1],
-                                c1_=newList[0], c2_=newList[-1])
+                                c1=curList[0],
+                                c2=curList[-1],
+                                c1_=newList[0],
+                                c2_=newList[-1],
+                            )
                         )
                         curList = newList
             i1 = list.index(curList[0])
@@ -380,7 +374,6 @@ class Mode(ABC):
             # redefine for uncommon traversal
             return True
 
-
         def __init__(self, mode) -> None:
             self.mode = mode
 
@@ -388,7 +381,9 @@ class Mode(ABC):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+        def numericComparator(
+            self, leftVal: float = 1, rightVal: float = -1, threshold: float = 0
+        ) -> bool:
             # default numericComparator() returns True, for current Traversal
             curRelation = rightVal / leftVal
             return (1 - curRelation) >= threshold, curRelation
@@ -400,31 +395,26 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.compareCommits(
-                    sampleCommit, curList[0], cfg)
+                isBad = self.mode.compareCommits(sampleCommit, curList[0], cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 self.mode.commitPath.changeState(
-                    breakCommit,
-                    Mode.CommitPath.CommitState.BREAK
+                    breakCommit, Mode.CommitPath.CommitState.BREAK
                 )
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.compareCommits(
-                    sampleCommit, curList[mid], cfg)
+            isBad = self.mode.compareCommits(sampleCommit, curList[mid], cfg)
             if isBad:
-                self.wrappedBypass(
-                    curList[0 : mid + 1], list, cfg
-                )
+                self.wrappedBypass(curList[0 : mid + 1], list, cfg)
             else:
-                self.wrappedBypass(
-                    curList[mid :], list, cfg
-                )
+                self.wrappedBypass(curList[mid:], list, cfg)
 
     class FirstFixedVersion(Traversal):
         def __init__(self, mode) -> None:
             super().__init__(mode)
 
-        def numericComparator(self, leftVal: float=1, rightVal: float=-1, threshold: float=0) -> bool:
+        def numericComparator(
+            self, leftVal: float = 1, rightVal: float = -1, threshold: float = 0
+        ) -> bool:
             # default numericComparator() returns False, for current Traversal
             curRelation = rightVal / leftVal
             return (curRelation - 1) >= threshold, curRelation
@@ -436,25 +426,18 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = not self.mode.compareCommits(
-                    sampleCommit, curList[0], cfg)
+                isBad = not self.mode.compareCommits(sampleCommit, curList[0], cfg)
                 breakCommit = curList[-1] if isBad else curList[0]
                 self.mode.commitPath.changeState(
-                    breakCommit,
-                    Mode.CommitPath.CommitState.BREAK
+                    breakCommit, Mode.CommitPath.CommitState.BREAK
                 )
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = not self.mode.compareCommits(
-                    sampleCommit, curList[mid], cfg)
+            isBad = not self.mode.compareCommits(sampleCommit, curList[mid], cfg)
             if isBad:
-                self.wrappedBypass(
-                    curList[mid :], list, cfg
-                )
+                self.wrappedBypass(curList[mid:], list, cfg)
             else:
-                self.wrappedBypass(
-                    curList[0 : mid + 1], list, cfg
-                )
+                self.wrappedBypass(curList[0 : mid + 1], list, cfg)
 
     class AllBreakVersions(Traversal):
         def __init__(self, mode) -> None:
@@ -467,36 +450,25 @@ class Mode(ABC):
             if "sampleCommit" in cfg["serviceConfig"]:
                 sampleCommit = cfg["serviceConfig"]["sampleCommit"]
             if curLen <= 2:
-                isBad = self.mode.compareCommits(
-                    sampleCommit, curList[0], cfg)
+                isBad = self.mode.compareCommits(sampleCommit, curList[0], cfg)
                 breakCommit = curList[0] if isBad else curList[-1]
                 self.mode.commitPath.changeState(
-                    breakCommit,
-                    Mode.CommitPath.CommitState.BREAK
+                    breakCommit, Mode.CommitPath.CommitState.BREAK
                 )
                 lastCommit = list[-1]
-                isTailDiffer = self.mode.compareCommits(
-                    breakCommit, lastCommit, cfg)
+                isTailDiffer = self.mode.compareCommits(breakCommit, lastCommit, cfg)
                 if isTailDiffer:
                     cfg["serviceConfig"]["sampleCommit"] = breakCommit
                     # to-do make copy without skip-commits
                     brIndex = list.index(breakCommit)
-                    self.wrappedBypass(
-                       list[brIndex :],
-                       list, cfg
-                    )
+                    self.wrappedBypass(list[brIndex:], list, cfg)
                 return
             mid = (int)((curLen - 1) / 2)
-            isBad = self.mode.compareCommits(
-                    sampleCommit, curList[mid], cfg)
+            isBad = self.mode.compareCommits(sampleCommit, curList[mid], cfg)
             if isBad:
-                self.wrappedBypass(
-                    curList[0 : mid + 1], list, cfg
-                )
+                self.wrappedBypass(curList[0 : mid + 1], list, cfg)
             else:
-                self.wrappedBypass(
-                    curList[mid :], list, cfg
-                )
+                self.wrappedBypass(curList[mid:], list, cfg)
 
     class BruteForce(Traversal):
         def __init__(self, mode) -> None:
@@ -504,8 +476,7 @@ class Mode(ABC):
 
         def bypass(self, curList, list, cfg) -> int:
             for commit in list:
-                self.mode.commonLogger.info(
-                    "Handle commit {}".format(commit))
+                self.mode.commonLogger.info("Handle commit {}".format(commit))
                 self.mode.getPseudoMetric(commit, cfg)
 
         def isComparative(self):

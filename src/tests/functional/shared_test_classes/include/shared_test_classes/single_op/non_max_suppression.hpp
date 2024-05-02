@@ -15,14 +15,13 @@ using InputShapeParams = std::tuple<size_t,   // Number of batches
                                     size_t,   // Number of boxes
                                     size_t>;  // Number of classes
 
-using InputTypes =
-    std::tuple<ov::element::Type,   // boxes and scores type
-               ov::element::Type,   // max_output_boxes_per_class type
-               ov::element::Type>;  // iou_threshold, score_threshold, soft_nms_sigma type
+using InputTypes = std::tuple<ov::element::Type,   // boxes and scores type
+                              ov::element::Type,   // max_output_boxes_per_class type
+                              ov::element::Type>;  // iou_threshold, score_threshold, soft_nms_sigma type
 
 using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st and 2nd inputs
-                             InputTypes,   // Input precisions
-                             int,           // Max output boxes per class
+                             InputTypes,        // Input precisions
+                             int,               // Max output boxes per class
                              float,             // IOU threshold
                              float,             // Score threshold
                              float,             // Soft NMS sigma
@@ -34,6 +33,7 @@ using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st an
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
+
 protected:
     void SetUp() override;
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
@@ -49,10 +49,10 @@ protected:
 
 // free function to compare BBoxes. It is used in shared, CPU, and GPU tests.
 void compare_b_boxes(const std::vector<ov::Tensor>& expected,
-                   const std::vector<ov::Tensor>& actual,
-                   const ov::Tensor& input,
-                   size_t num_batches,
-                   size_t num_boxes);
+                     const std::vector<ov::Tensor>& actual,
+                     const ov::Tensor& input,
+                     size_t num_batches,
+                     size_t num_boxes);
 
 }  // namespace test
 }  // namespace ov

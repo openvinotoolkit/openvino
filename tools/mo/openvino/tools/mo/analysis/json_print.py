@@ -10,7 +10,11 @@ import numpy as np
 from openvino.tools.mo.front.user_data_repack import UserDataRepack
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_precision
-from openvino.tools.mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor, AnalysisResults
+from openvino.tools.mo.utils.model_analysis import (
+    AnalysisCollectorAnchor,
+    AnalysisResults,
+    AnalyzeAction,
+)
 
 
 def prepare_obj_for_dump(obj: object):
@@ -27,7 +31,7 @@ def prepare_obj_for_dump(obj: object):
         try:
             return np_data_type_to_precision(obj)
         except:
-            log.error('Unsupported data type: {}'.format(str(obj)))
+            log.error("Unsupported data type: {}".format(str(obj)))
             return str(obj)
     elif isinstance(obj, np.generic):
         return obj.item()
@@ -39,8 +43,9 @@ class AnalysisJSONPrint(AnalyzeAction):
     """
     The action prints the analysis results in JSON format.
     """
+
     enabled = False
-    id = 'ANALYSIS_JSON_PRINT'
+    id = "ANALYSIS_JSON_PRINT"
 
     def run_before(self):
         return [UserDataRepack]
@@ -54,7 +59,6 @@ class AnalysisJSONPrint(AnalyzeAction):
             try:
                 print(json.dumps(prepare_obj_for_dump(analysis_results.get_result())))
             except Exception as e:
-                log.error('Cannot serialize to JSON: %s', str(e))
+                log.error("Cannot serialize to JSON: %s", str(e))
                 sys.exit(1)
         sys.exit(0)
-

@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <list>
-#include <unordered_map>
 #include <functional>
 #include <iostream>
-#include <thread>
+#include <list>
 #include <mutex>
+#include <thread>
+#include <unordered_map>
 
 #include "kernel.hpp"
 
@@ -18,11 +18,10 @@ namespace cldnn {
 struct primitive_impl;
 
 /// @brief LRU cache which remove the least recently used data when cache is full.
-template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
+template <typename Key, typename Value, typename KeyHasher = std::hash<Key>>
 class LruCache {
 public:
     using data_type = std::pair<Key, Value>;
-
 
 public:
     explicit LruCache(size_t caps) : _capacity(caps) {}
@@ -177,7 +176,7 @@ private:
 
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
 
-template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
+template <typename Key, typename Value, typename KeyHasher = std::hash<Key>>
 class LruCacheThreadSafe : public LruCache<Key, Value, KeyHasher> {
 public:
     using parent = LruCache<Key, Value, KeyHasher>;
@@ -185,7 +184,7 @@ public:
     using FuncRemoveItem = std::function<void(ItemType&)>;
     using parent::parent;
 
-    explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
+    explicit LruCacheThreadSafe(size_t caps) : parent(caps) {}
 
     bool add(const Key& key, const Value& value) {
         std::lock_guard<std::mutex> lock(_mutex);

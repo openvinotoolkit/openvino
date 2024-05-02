@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/core/preprocess/color_format.hpp"
-
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
@@ -14,14 +13,14 @@ namespace utils {
 
 std::vector<uint8_t> color_test_image(size_t height, size_t width, int b_step, ov::preprocess::ColorFormat format);
 
-using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::Tensor(
-        const std::shared_ptr<ov::Node>& node,
-        size_t port,
-        const ov::element::Type& elemType,
-        const ov::Shape& targetShape)>>;
+using InputsMap = std::map<ov::NodeTypeInfo,
+                           std::function<ov::Tensor(const std::shared_ptr<ov::Node>& node,
+                                                    size_t port,
+                                                    const ov::element::Type& elemType,
+                                                    const ov::Shape& targetShape)>>;
 
 InputsMap getInputMap();
 
-} // namespace utils
-} // namespace test
-} // namespace ov
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

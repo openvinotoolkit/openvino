@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.back.replacement import BackReplacementPattern
+from openvino.tools.mo.graph.graph import Graph
 
 
 class RestoreOriginalFrameworkName(BackReplacementPattern):
@@ -20,15 +20,15 @@ class RestoreOriginalFrameworkName(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
-            if not node.has_valid('framework_node_name'):
+            if not node.has_valid("framework_node_name"):
                 continue
 
-            if node.has_valid('rename_condition'):
-                need_renaming = node['rename_condition'](node)
-                del node['rename_condition']
+            if node.has_valid("rename_condition"):
+                need_renaming = node["rename_condition"](node)
+                del node["rename_condition"]
                 if need_renaming:
-                    node.name = node['framework_node_name']
+                    node.name = node["framework_node_name"]
             else:
-                node.name = node['framework_node_name']
+                node.name = node["framework_node_name"]
 
-            del node['framework_node_name']
+            del node["framework_node_name"]

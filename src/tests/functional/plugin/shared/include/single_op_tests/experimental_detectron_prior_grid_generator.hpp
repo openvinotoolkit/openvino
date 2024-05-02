@@ -11,5 +11,5 @@ namespace test {
 TEST_P(ExperimentalDetectronPriorGridGeneratorLayerTest, Inference) {
     run();
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

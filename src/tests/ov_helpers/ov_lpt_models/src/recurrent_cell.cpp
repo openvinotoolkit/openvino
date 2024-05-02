@@ -4,18 +4,16 @@
 
 #include "ov_lpt_models/recurrent_cell.hpp"
 
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset5.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/precision_preserved_attribute.hpp"
-#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
-#include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace builder {
@@ -23,14 +21,13 @@ namespace subgraph {
 
 using namespace ov::pass;
 
-std::shared_ptr<ov::Model> RecurrentCellFunction::get(
-    const ov::element::Type inputPrecision,
-    const std::vector<ov::PartialShape>& inputActivationsShapes,
-    const std::vector<ov::Shape>& inputWeightsShapes,
-    const RNNType type,
-    const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDatas,
-    const std::vector<DequantizationOperations::Convert>& converts,
-    const std::vector<DequantizationOperations>& dequantizations) {
+std::shared_ptr<ov::Model> RecurrentCellFunction::get(const ov::element::Type inputPrecision,
+                                                      const std::vector<ov::PartialShape>& inputActivationsShapes,
+                                                      const std::vector<ov::Shape>& inputWeightsShapes,
+                                                      const RNNType type,
+                                                      const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDatas,
+                                                      const std::vector<DequantizationOperations::Convert>& converts,
+                                                      const std::vector<DequantizationOperations>& dequantizations) {
     auto X = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputActivationsShapes[0]);
     X->set_friendly_name("X");
     std::shared_ptr<Node> parent_X = makeQuantizationAndDequantization(X,
@@ -51,8 +48,8 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
     C->set_friendly_name("C");
 
     auto W = ov::opset1::Constant::create(fqOnDatas[2].empty() ? ov::element::i8 : inputPrecision,
-                                              inputWeightsShapes[0],
-                                              {1});
+                                          inputWeightsShapes[0],
+                                          {1});
     std::shared_ptr<Node> parent_W = makeQuantizationAndDequantization(W,
                                                                        inputPrecision,
                                                                        W->get_friendly_name(),
@@ -60,8 +57,8 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
                                                                        converts[2],
                                                                        dequantizations[2]);
     auto R = ov::opset1::Constant::create(fqOnDatas[2].empty() ? ov::element::i8 : inputPrecision,
-                                              inputWeightsShapes[1],
-                                              {1});
+                                          inputWeightsShapes[1],
+                                          {1});
     std::shared_ptr<Node> parent_R = makeQuantizationAndDequantization(R,
                                                                        inputPrecision,
                                                                        R->get_friendly_name(),
@@ -114,10 +111,10 @@ std::shared_ptr<ov::Model> RecurrentCellFunction::get(
     }
 
     ov::ResultVector results{rnn_layer_res_2 ? rnn_layer_res_1, rnn_layer_res_2 : rnn_layer_res_1};
-    std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(
-        results,
-        is_lstm ? ov::ParameterVector{X, H, C} : ov::ParameterVector{X, H},
-        "LSTMTransformation");
+    std::shared_ptr<ov::Model> function =
+        std::make_shared<ov::Model>(results,
+                                    is_lstm ? ov::ParameterVector{X, H, C} : ov::ParameterVector{X, H},
+                                    "LSTMTransformation");
 
     return function;
 }

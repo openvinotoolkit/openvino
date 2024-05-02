@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "deconvolution_inst.h"
-#include "deconvolution/deconvolution_kernel_selector.h"
 #include "deconvolution/deconvolution_kernel_base.h"
+#include "deconvolution/deconvolution_kernel_selector.h"
+#include "deconvolution_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -42,17 +41,20 @@ public:
         const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
-        auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);
+        auto params =
+            get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param,
+                                                                                   primitive->grouped_weights_shape);
 
         params.groups = groups;
 
         const auto weights_idx = 1 + 0;
-        const auto& weights_layout = impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
+        const auto& weights_layout =
+            impl_param.input_layouts[weights_idx].convert_to_weights_layout(primitive->grouped_weights_shape);
         uint32_t kx = weights_layout.spatial(0);
         uint32_t ky = weights_layout.spatial(1);
         uint32_t kz = weights_layout.spatial(2);
 
-        params.filterSize = { kx, ky, kz };
+        params.filterSize = {kx, ky, kz};
 
         uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
         uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
@@ -97,7 +99,10 @@ attach_deconvolution_impl::attach_deconvolution_impl() {
         format::bs_fs_zyx_bsv32_fsv16,
     };
 
-    implementation_map<deconvolution>::add(impl_types::ocl, typed_primitive_impl_ocl<deconvolution>::create<deconvolution_impl>, types, formats);
+    implementation_map<deconvolution>::add(impl_types::ocl,
+                                           typed_primitive_impl_ocl<deconvolution>::create<deconvolution_impl>,
+                                           types,
+                                           formats);
 }
 
 }  // namespace detail

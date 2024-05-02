@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import tensorflow as tf
-from tensorflow.lite.tools import flatbuffer_utils as utils
 from common.layer_test_class import CommonLayerTest
-from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph, data_generators
+from common.utils.tflite_utils import (
+    data_generators,
+    get_tensors_from_graph,
+    get_tflite_results,
+)
+from tensorflow.lite.tools import flatbuffer_utils as utils
 
 
 class TFLiteLayerTest(CommonLayerTest):
@@ -21,8 +25,10 @@ class TFLiteLayerTest(CommonLayerTest):
         return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
-        raise RuntimeError("This is TensorFlow Lite base layer test class, "
-                           "please implement make_model function for the specific test")
+        raise RuntimeError(
+            "This is TensorFlow Lite base layer test class, "
+            "please implement make_model function for the specific test"
+        )
 
     def produce_tflite_model(self, framework_model, save_path):
         with tf.Graph().as_default() as g:
@@ -30,12 +36,12 @@ class TFLiteLayerTest(CommonLayerTest):
             input_tensors = get_tensors_from_graph(g, self.inputs)
             output_tensors = get_tensors_from_graph(g, self.outputs)
 
-        tflite_model = tf.compat.v1.lite.TFLiteConverter(framework_model,
-                                                         input_tensors=input_tensors,
-                                                         output_tensors=output_tensors).convert()
+        tflite_model = tf.compat.v1.lite.TFLiteConverter(
+            framework_model, input_tensors=input_tensors, output_tensors=output_tensors
+        ).convert()
 
-        tflite_model_path = os.path.join(os.path.dirname(save_path), 'model.tflite')
-        with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
+        tflite_model_path = os.path.join(os.path.dirname(save_path), "model.tflite")
+        with tf.io.gfile.GFile(tflite_model_path, "wb") as f:
             f.write(tflite_model)
         return tflite_model_path
 
@@ -50,14 +56,18 @@ class TFLiteLayerTest(CommonLayerTest):
         if self.allowed_ops is None:
             return
         BO = utils.schema_fb.BuiltinOperator
-        builtin_operators = {getattr(BO, name): name for name in dir(BO) if not name.startswith("_")}
+        builtin_operators = {
+            getattr(BO, name): name for name in dir(BO) if not name.startswith("_")
+        }
         model = utils.read_model(self.model_path)
 
         op_names = []
         for op in model.operatorCodes:
             assert op.customCode is None, "Encountered custom operation in the model"
             deprecated_code = op.deprecatedBuiltinCode
-            deprecated_vs_normal = utils.schema_fb.BuiltinOperator.PLACEHOLDER_FOR_GREATER_OP_CODES
+            deprecated_vs_normal = (
+                utils.schema_fb.BuiltinOperator.PLACEHOLDER_FOR_GREATER_OP_CODES
+            )
             if deprecated_code < deprecated_vs_normal:
                 op_names.append(builtin_operators[op.deprecatedBuiltinCode])
             else:
@@ -69,12 +79,18 @@ class TFLiteLayerTest(CommonLayerTest):
                 if op_names == allowed_ops_var:
                     passed = True
                     break
-            assert passed, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
+            assert passed, "TFLite model is not as you expect it to be: " + ", ".join(
+                op_names
+            )
         else:
-            assert op_names == self.allowed_ops, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
+            assert (
+                op_names == self.allowed_ops
+            ), "TFLite model is not as you expect it to be: " + ", ".join(op_names)
 
     def _test(self, ie_device, precision, temp_dir, params):
         model = self.make_model(params)
         self.model_path = self.produce_tflite_model(model, temp_dir)
         self.check_tflite_model_has_only_allowed_ops()
-        super()._test(model, None, ie_device, precision, None, temp_dir, False, **params)
+        super()._test(
+            model, None, ie_device, precision, None, temp_dir, False, **params
+        )

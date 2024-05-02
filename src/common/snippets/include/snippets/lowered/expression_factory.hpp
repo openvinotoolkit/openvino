@@ -5,7 +5,6 @@
 #pragma once
 
 #include "linear_ir.hpp"
-
 #include "snippets/snippets_isa.hpp"
 
 namespace ov {
@@ -14,7 +13,7 @@ namespace lowered {
 
 class LinearIR::ExpressionFactory {
 public:
-    template<class... Args>
+    template <class... Args>
     static ExpressionPtr build(const std::shared_ptr<Node>& n, Args&&... params) {
         if (const auto par = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
             return create(par, params...);
@@ -33,7 +32,7 @@ public:
         }
         return create(n, params...);
     }
-    template<class ExprType, typename std::enable_if<std::is_base_of<Expression, ExprType>::value, bool>::type = true>
+    template <class ExprType, typename std::enable_if<std::is_base_of<Expression, ExprType>::value, bool>::type = true>
     static ExpressionPtr shallow_copy(const std::shared_ptr<ExprType>& expr) {
         if (const auto& io_expr = std::dynamic_pointer_cast<IOExpression>(expr))
             return std::make_shared<IOExpression>(*io_expr);
@@ -42,27 +41,39 @@ public:
     }
 
 private:
-    /* -- Default Builders - initialize input port connectors from parents and create new output port connectors themselves */
-    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par, const LinearIR& linear_ir,
+    /* -- Default Builders - initialize input port connectors from parents and create new output port connectors
+     * themselves */
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Parameter>& par,
+                                const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
-    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res, const LinearIR& linear_ir,
+    static ExpressionPtr create(const std::shared_ptr<ov::op::v0::Result>& res,
+                                const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
-    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir,
+    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n,
+                                const LinearIR& linear_ir,
                                 const std::shared_ptr<ov::Model>& model);
 
-    /* -- Input Builders - get input port connectors from method parameters and create new output port connectors themselves */
-    static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
-    static ExpressionPtr create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
-    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n, const std::vector<PortConnectorPtr>& inputs, const LinearIR& linear_ir);
+    /* -- Input Builders - get input port connectors from method parameters and create new output port connectors
+     * themselves */
+    static ExpressionPtr create(const std::shared_ptr<op::LoopBegin>& n,
+                                const std::vector<PortConnectorPtr>& inputs,
+                                const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<op::LoopEnd>& n,
+                                const std::vector<PortConnectorPtr>& inputs,
+                                const LinearIR& linear_ir);
+    static ExpressionPtr create(const std::shared_ptr<ov::Node>& n,
+                                const std::vector<PortConnectorPtr>& inputs,
+                                const LinearIR& linear_ir);
 
-    // Note: PerfCountBegin nodes have a PerfCountEnd ov::Output, but corresponding expression should not have any outputs to avoid register allocation
+    // Note: PerfCountBegin nodes have a PerfCountEnd ov::Output, but corresponding expression should not have any
+    // outputs to avoid register allocation
 #ifdef SNIPPETS_DEBUG_CAPS
     static ExpressionPtr create(const std::shared_ptr<op::PerfCountBeginBase>& n,
-                                                   const std::vector<PortConnectorPtr>& inputs,
-                                                   const LinearIR& linear_ir);
+                                const std::vector<PortConnectorPtr>& inputs,
+                                const LinearIR& linear_ir);
     static ExpressionPtr create(const std::shared_ptr<op::PerfCountEndBase>& n,
-                                                   const std::vector<PortConnectorPtr>& inputs,
-                                                   const LinearIR& linear_ir);
+                                const std::vector<PortConnectorPtr>& inputs,
+                                const LinearIR& linear_ir);
     static ExpressionPtr create_without_connections(const std::shared_ptr<ov::Node>& n, const LinearIR& linear_ir);
 #endif
 
@@ -74,6 +85,6 @@ private:
     static void init_expression_inputs(const ExpressionPtr& expr, const std::vector<PortConnectorPtr>& inputs);
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

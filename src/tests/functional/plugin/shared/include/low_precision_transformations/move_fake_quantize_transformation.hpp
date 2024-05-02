@@ -4,16 +4,14 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include <string>
 
 #include "low_precision/move_fake_quantize.hpp"
-
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/move_fake_quantize.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -29,18 +27,16 @@ public:
     std::int64_t axis;
 };
 
-typedef std::tuple <
-    ov::element::Type,
-    std::vector<ov::PartialShape>,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    bool,
-    MoveFakeQuantizeTransformationParam
-> MoveFakeQuantizeTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   std::vector<ov::PartialShape>,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   bool,
+                   MoveFakeQuantizeTransformationParam>
+    MoveFakeQuantizeTransformationParams;
 
-class MoveFakeQuantizeTransformation :
-    public testing::WithParamInterface<MoveFakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class MoveFakeQuantizeTransformation : public testing::WithParamInterface<MoveFakeQuantizeTransformationParams>,
+                                       public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj);
 

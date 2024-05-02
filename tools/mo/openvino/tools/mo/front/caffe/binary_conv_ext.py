@@ -10,7 +10,7 @@ from openvino.tools.mo.utils.error import Error
 
 
 class ConvFrontExtractor(FrontExtractorOp):
-    op = 'ConvolutionBinary'
+    op = "ConvolutionBinary"
     enabled = True
 
     @classmethod
@@ -18,26 +18,34 @@ class ConvFrontExtractor(FrontExtractorOp):
         proto_layer, model_layer = node.pb, node.model_pb
 
         if not proto_layer:
-            raise Error('Protobuf layer can not be empty')
+            raise Error("Protobuf layer can not be empty")
 
         conv_param = proto_layer.convolution_param
-        conv_type = 'ConvND' if len(proto_layer.bottom) > 1 else 'Conv2D'
+        conv_type = "ConvND" if len(proto_layer.bottom) > 1 else "Conv2D"
 
         params = conv_set_params(conv_param, conv_type)
         attrs = conv_create_attrs(params)
-        attrs.update({'op': __class__.op,
-                      'get_group': lambda node: node.group,
-                      'get_output_feature_dim': lambda node: node.output,
-                      'weights_index': 1 if conv_type == 'Conv2D' else 2
-                      })
+        attrs.update(
+            {
+                "op": __class__.op,
+                "get_group": lambda node: node.group,
+                "get_output_feature_dim": lambda node: node.output,
+                "weights_index": 1 if conv_type == "Conv2D" else 2,
+            }
+        )
 
         # Embed weights and biases as attributes
         # It will be moved to a separate nodes in special pass
         attrs.update(
-            weights_biases(conv_param.bias_term, model_layer, start_index=len(proto_layer.bottom), proto=conv_param))
+            weights_biases(
+                conv_param.bias_term,
+                model_layer,
+                start_index=len(proto_layer.bottom),
+                proto=conv_param,
+            )
+        )
         attrs.update(layout_attrs())
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
         return cls.enabled
-

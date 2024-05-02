@@ -22,7 +22,7 @@ protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE};
     }
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/ops.hpp"
-#include "matchers/single_op/single_op.hpp"
 #include "base_test.hpp"
+#include "matchers/single_op/single_op.hpp"
+#include "openvino/op/ops.hpp"
 
 namespace {
 
@@ -20,11 +20,11 @@ protected:
     SingleOpMatcher matcher;
 };
 
-
 // Check that different values of constant nodes on port 0 (default value) are ignored in match()
 TEST_F(SingleOpMatcherTest, AllPortsAreConsts_IgnoreConstPortVals) {
     const auto const1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({5, 5}), 1);
-    const auto shape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape({2}), std::vector<int>{1, 25});
+    const auto shape_pattern =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape({2}), std::vector<int>{1, 25});
     const auto op1 = std::make_shared<ov::op::v1::Reshape>(const1, shape_pattern, false);
 
     const auto const2 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({5, 5}), 2);
@@ -85,8 +85,8 @@ TEST_F(SingleOpMatcherTest, ChecAddOpConfiguration) {
 
     const auto const3 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({5, 5}), 3);
     const auto const4 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f32, ov::Shape({5, 5}), 4);
-    const auto op2  = std::make_shared<ov::op::v1::Add>(const1, const2);
+    const auto op2 = std::make_shared<ov::op::v1::Add>(const1, const2);
     ASSERT_TRUE(matcher.match(op1, op2));
 }
 
-} // namespace
+}  // namespace

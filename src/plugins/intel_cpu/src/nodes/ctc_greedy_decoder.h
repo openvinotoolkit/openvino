@@ -22,6 +22,7 @@ public:
     bool needPrepareParams() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+
 private:
     const size_t DATA_INDEX = 0lu;
     const size_t SEQUENCE_LENGTH_INDEX = 1lu;
@@ -30,6 +31,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

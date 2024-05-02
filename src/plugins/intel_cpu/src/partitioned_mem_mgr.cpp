@@ -30,4 +30,3 @@ void PartitionedMemoryMngr::registerMemory(Memory* memPtr) {
 void PartitionedMemoryMngr::unregisterMemory(Memory* memPtr) {
     m_pMngr->unregisterMemory(memPtr);
 }
-

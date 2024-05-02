@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace ov {
@@ -19,11 +20,10 @@ public:
         const ov::element::Type precisionBeforeDequantization,
         const ov::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type originalFunctionPrecision,
-        const ov::PartialShape& inputShape,
-        const FakeQuantizeOnData& fakeQuantizeOnData,
-        const std::vector<float>& axes);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type originalFunctionPrecision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const FakeQuantizeOnData& fakeQuantizeOnData,
+                                                  const std::vector<float>& axes);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,

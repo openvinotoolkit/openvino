@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnpack(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info["x:0"]
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data["x:0"] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_unpack_net(self, input_shape, num, axis, input_type):
@@ -26,7 +26,7 @@ class TestUnpack(CommonTFLayerTest):
             }
             assert input_type in type_map, "Test error: need to update type_map"
             tf_type = type_map[input_type]
-            x = tf.compat.v1.placeholder(tf_type, input_shape, 'x')
+            x = tf.compat.v1.placeholder(tf_type, input_shape, "x")
             if axis is not None:
                 unpack = tf.raw_ops.Unpack(value=x, num=num, axis=axis)
             else:
@@ -48,8 +48,14 @@ class TestUnpack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_unpack_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
-        self._test(*self.create_unpack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_unpack_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_unpack_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

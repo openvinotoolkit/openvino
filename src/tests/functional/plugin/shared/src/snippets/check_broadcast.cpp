@@ -5,8 +5,8 @@
 #include "snippets/check_broadcast.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "subgraph_converts.hpp"
 
 namespace ov {
 namespace test {
@@ -14,30 +14,25 @@ namespace snippets {
 
 class CheckBroadcastFunction {
 public:
-    static std::shared_ptr<ov::Model> get(
-        const PartialShape& input_shape1,
-        const PartialShape& input_shape2,
-        const ov::element::Type input_type,
-        const ov::op::AutoBroadcastSpec broadcast) {
+    static std::shared_ptr<ov::Model> get(const PartialShape& input_shape1,
+                                          const PartialShape& input_shape2,
+                                          const ov::element::Type input_type,
+                                          const ov::op::AutoBroadcastSpec broadcast) {
         const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape1);
         parameter1->set_friendly_name("parameter1");
 
         const auto parameter2 = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape2);
         parameter2->set_friendly_name("parameter2");
 
-        std::shared_ptr<Node> parent = std::make_shared<ov::op::v1::Multiply>(
-            parameter1,
-            parameter2,
-            broadcast);
+        std::shared_ptr<Node> parent = std::make_shared<ov::op::v1::Multiply>(parameter1, parameter2, broadcast);
         parent->set_friendly_name("multiply");
 
         const auto result = std::make_shared<ov::op::v0::Result>(parent);
         result->set_friendly_name("result");
 
-        return std::make_shared<ov::Model>(
-            ov::ResultVector{ result },
-            ov::ParameterVector{ parameter1, parameter2 },
-            "CheckBroadcastFunction");
+        return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                           ov::ParameterVector{parameter1, parameter2},
+                                           "CheckBroadcastFunction");
     }
 };
 
@@ -78,11 +73,10 @@ void CheckBroadcast::SetUp() {
 
     init_input_shapes({test_case_params.input_shapes.first, test_case_params.input_shapes.second});
 
-    function = CheckBroadcastFunction::get(
-        inputDynamicShapes[0],
-        inputDynamicShapes[1],
-        input_type,
-        test_case_params.broadcast);
+    function = CheckBroadcastFunction::get(inputDynamicShapes[0],
+                                           inputDynamicShapes[1],
+                                           input_type,
+                                           test_case_params.broadcast);
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
@@ -93,6 +87,6 @@ TEST_P(CheckBroadcast, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

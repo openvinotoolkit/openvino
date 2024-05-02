@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.ops.proposal import ProposalOp
 from openvino.tools.mo.front.extractor import MXNetCustomFrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.proposal import ProposalOp
 
 
 class RPNProposalMXNetFrontExtractor(MXNetCustomFrontExtractorOp):
-    op = 'proposal'
+    op = "proposal"
     enabled = True
 
     def extract(self, node):
@@ -22,14 +22,14 @@ class RPNProposalMXNetFrontExtractor(MXNetCustomFrontExtractorOp):
         nms_thresh = attrs.float("threshold", 0.7)
 
         node_attrs = {
-            'feat_stride': feat_stride,
-            'base_size': 0,
-            'min_size': min_size,
-            'ratio': mo_array(ratio),
-            'scale': mo_array(scale),
-            'pre_nms_topn': pre_nms_topn,
-            'post_nms_topn': post_nms_topn,
-            'nms_thresh': nms_thresh,
+            "feat_stride": feat_stride,
+            "base_size": 0,
+            "min_size": min_size,
+            "ratio": mo_array(ratio),
+            "scale": mo_array(scale),
+            "pre_nms_topn": pre_nms_topn,
+            "post_nms_topn": post_nms_topn,
+            "nms_thresh": nms_thresh,
         }
 
         ProposalOp.update_node_stat(node, node_attrs)

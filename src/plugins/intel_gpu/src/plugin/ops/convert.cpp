@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convert_like.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "openvino/op/convert_like.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -20,10 +19,7 @@ static void CreateConvertLikeOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto outDataType = cldnn::element_type_to_data_type(op->get_input_element_type(1));
 
-    auto reorderPrim = cldnn::reorder(layerName,
-                                      inputs[0],
-                                      cldnn::format::any,
-                                      outDataType);
+    auto reorderPrim = cldnn::reorder(layerName, inputs[0], cldnn::format::any, outDataType);
     p.add_primitive(*op, reorderPrim);
 }
 

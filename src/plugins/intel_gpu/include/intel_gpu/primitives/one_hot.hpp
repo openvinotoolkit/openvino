@@ -49,12 +49,12 @@ struct one_hot : public primitive_base<one_hot> {
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding})
-        , shape(shape)
-        , one_hot_axis(one_hot_axis)
-        , depth(depth)
-        , on_value(on_value)
-        , off_value(off_value) {}
+        : primitive_base(id, {input}, {output_padding}),
+          shape(shape),
+          one_hot_axis(one_hot_axis),
+          depth(depth),
+          on_value(on_value),
+          off_value(off_value) {}
 
     /// @brief Constructs one-hot primitive layer.
     /// @param id              An identifier of new primitive.
@@ -72,12 +72,12 @@ struct one_hot : public primitive_base<one_hot> {
             const float& on_value = 1.0f,
             const float& off_value = 0.0f,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}})
-        , shape(shape)
-        , one_hot_axis(one_hot_axis)
-        , depth(depth)
-        , on_value(on_value)
-        , off_value(off_value) {}
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}),
+          shape(shape),
+          one_hot_axis(one_hot_axis),
+          depth(depth),
+          on_value(on_value),
+          off_value(off_value) {}
 
     /// @brief Output size reference.
     tensor shape;
@@ -104,10 +104,8 @@ struct one_hot : public primitive_base<one_hot> {
 
         auto rhs_casted = downcast<const one_hot>(rhs);
 
-        return one_hot_axis == rhs_casted.one_hot_axis &&
-               depth == rhs_casted.depth &&
-               on_value == rhs_casted.on_value &&
-               off_value == rhs_casted.off_value;
+        return one_hot_axis == rhs_casted.one_hot_axis && depth == rhs_casted.depth &&
+               on_value == rhs_casted.on_value && off_value == rhs_casted.off_value;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

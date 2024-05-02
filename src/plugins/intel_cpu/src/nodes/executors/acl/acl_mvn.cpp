@@ -14,7 +14,7 @@ AclMVNExecutor::AclMVNExecutor(const ExecutorContext::CPtr context) : MVNExecuto
 bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const dnnl::primitive_attr &attr) {
+                          const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
@@ -46,9 +46,14 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
         }
     }
 
-    TensorInfo srcTensorInfo = TensorInfo(TensorShape(X, Y), 1, precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    TensorInfo dstTensorInfo = TensorInfo(TensorShape(X, Y), 1, precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
-
+    TensorInfo srcTensorInfo = TensorInfo(TensorShape(X, Y),
+                                          1,
+                                          precisionToAclDataType(srcDescs[0]->getPrecision()),
+                                          getAclDataLayoutByMemoryDesc(srcDescs[0]));
+    TensorInfo dstTensorInfo = TensorInfo(TensorShape(X, Y),
+                                          1,
+                                          precisionToAclDataType(dstDescs[0]->getPrecision()),
+                                          getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
     if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_))
         return false;
@@ -57,12 +62,16 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
     dstTensor.allocator()->init(dstTensorInfo);
 
     mvn = std::make_unique<arm_compute::NEMeanStdDevNormalizationLayer>();
-    configureThreadSafe([&] { mvn->configure(&srcTensor, &dstTensor, mvnAttrs.epsValue_); });
+    configureThreadSafe([&] {
+        mvn->configure(&srcTensor, &dstTensor, mvnAttrs.epsValue_);
+    });
 
     return true;
 }
 
-void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
+void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
+                          const std::vector<MemoryPtr>& dst,
+                          const void* post_ops_data_) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
@@ -72,5 +81,5 @@ void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<
     dstTensor.allocator()->free();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

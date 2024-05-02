@@ -23,22 +23,13 @@ struct group_normalization_params : public base_params {
 class GroupNormalizationKernelRef : public KernelBaseOpenCL {
 public:
     using DispatchData = CommonDispatchData;
-    enum KernelId {
-        eCalcMeanKernel,
-        eCalcStandardDeviationKernel,
-        eNormalize,
-        eKernelsNum
-    };
+    enum KernelId { eCalcMeanKernel, eCalcStandardDeviationKernel, eNormalize, eKernelsNum };
 
     GroupNormalizationKernelRef() : KernelBaseOpenCL{"group_normalization_gpu_ref"} {}
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE};
     }
 
 protected:

@@ -2,14 +2,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
 import openvino.runtime.opset8 as ov
-from openvino import Model
-
-from openvino.runtime.op.util import InvariantInputDescription, BodyOutputDescription
-
+import pytest
+from openvino.runtime.op.util import BodyOutputDescription, InvariantInputDescription
 from tests.utils.helpers import compare_models
+
+from openvino import Model
 
 
 def create_simple_if_with_two_outputs(condition_val):
@@ -24,7 +23,9 @@ def create_simple_if_with_two_outputs(condition_val):
     mul_t = ov.multiply(y_t, z_t)
     then_body_res_1 = ov.result(add_t)
     then_body_res_2 = ov.result(mul_t)
-    then_body = Model([then_body_res_1, then_body_res_2], [x_t, y_t, z_t], "then_body_function")
+    then_body = Model(
+        [then_body_res_1, then_body_res_2], [x_t, y_t, z_t], "then_body_function"
+    )
 
     # else_body
     x_e = ov.parameter([], np.float32, "X")
@@ -35,7 +36,9 @@ def create_simple_if_with_two_outputs(condition_val):
     pow_e = ov.power(w_e, z_e)
     else_body_res_1 = ov.result(add_e)
     else_body_res_2 = ov.result(pow_e)
-    else_body = Model([else_body_res_1, else_body_res_2], [x_e, z_e, w_e], "else_body_function")
+    else_body = Model(
+        [else_body_res_1, else_body_res_2], [x_e, z_e, w_e], "else_body_function"
+    )
 
     const_x = ov.constant(15.0, dtype=np.float32)
     const_y = ov.constant(-5.0, dtype=np.float32)
@@ -64,7 +67,9 @@ def create_diff_if_with_two_outputs(condition_val):
     mul_t = ov.multiply(y_t, x_t)
     then_body_res_1 = ov.result(mmul_t)
     then_body_res_2 = ov.result(mul_t)
-    then_body = Model([then_body_res_1, then_body_res_2], [x_t, y_t], "then_body_function")
+    then_body = Model(
+        [then_body_res_1, then_body_res_2], [x_t, y_t], "then_body_function"
+    )
 
     # else_body
     x_e = ov.parameter([2], np.float32, "X")
@@ -72,7 +77,9 @@ def create_diff_if_with_two_outputs(condition_val):
     mul_e = ov.multiply(x_e, z_e)
     else_body_res_1 = ov.result(z_e)
     else_body_res_2 = ov.result(mul_e)
-    else_body = Model([else_body_res_1, else_body_res_2], [x_e, z_e], "else_body_function")
+    else_body = Model(
+        [else_body_res_1, else_body_res_2], [x_e, z_e], "else_body_function"
+    )
 
     const_x = ov.constant([3, 4], dtype=np.float32)
     const_y = ov.constant([2, 1], dtype=np.float32)
@@ -156,17 +163,13 @@ def check_if(if_model, cond_val, exp_results):
 
 
 def test_if_with_two_outputs():
-    check_if(create_simple_if_with_two_outputs, True,
-             ["If", 2, []])
-    check_if(create_simple_if_with_two_outputs, False,
-             ["If", 2, []])
+    check_if(create_simple_if_with_two_outputs, True, ["If", 2, []])
+    check_if(create_simple_if_with_two_outputs, False, ["If", 2, []])
 
 
 def test_diff_if_with_two_outputs():
-    check_if(create_diff_if_with_two_outputs, True,
-             ["If", 2, []])
-    check_if(create_diff_if_with_two_outputs, False,
-             ["If", 2, []])
+    check_if(create_diff_if_with_two_outputs, True, ["If", 2, []])
+    check_if(create_diff_if_with_two_outputs, False, ["If", 2, []])
 
 
 def test_simple_if():
@@ -182,18 +185,27 @@ def test_simple_if_without_body_parameters():
 def check_if_getters(if_model, cond_val):
     if_op = if_model(cond_val)
     assert isinstance(if_op.get_then_body(), Model)
-    assert if_op.get_function(0)._get_raw_address() == if_op.get_then_body()._get_raw_address()
+    assert (
+        if_op.get_function(0)._get_raw_address()
+        == if_op.get_then_body()._get_raw_address()
+    )
     assert compare_models(if_op.get_function(0), if_op.get_then_body())
 
     assert isinstance(if_op.get_else_body(), Model)
-    assert if_op.get_function(1)._get_raw_address() == if_op.get_else_body()._get_raw_address()
+    assert (
+        if_op.get_function(1)._get_raw_address()
+        == if_op.get_else_body()._get_raw_address()
+    )
     assert compare_models(if_op.get_function(1), if_op.get_else_body())
 
 
-@pytest.mark.parametrize(("cond_val"), [
-    True,
-    False,
-])
+@pytest.mark.parametrize(
+    ("cond_val"),
+    [
+        True,
+        False,
+    ],
+)
 def test_if_getters(cond_val):
     check_if_getters(create_simple_if_with_two_outputs, cond_val)
 
@@ -207,7 +219,10 @@ def test_simple_if_basic():
     then_mul = ov.multiply(x_t, y_t)
     then_body_res_1 = ov.result(then_mul)
     then_body = Model([then_body_res_1], [x_t, y_t], "then_body_function")
-    then_body_inputs = [InvariantInputDescription(1, 0), InvariantInputDescription(2, 1)]
+    then_body_inputs = [
+        InvariantInputDescription(1, 0),
+        InvariantInputDescription(2, 1),
+    ]
 
     else_body_outputs = [BodyOutputDescription(0, 0)]
 
@@ -231,7 +246,10 @@ def test_simple_if_basic():
     for i in range(len(input_desc)):
         assert input_desc[i].get_type_info() == then_body_inputs[i].get_type_info()
         assert input_desc[i].input_index == then_body_inputs[i].input_index
-        assert input_desc[i].body_parameter_index == then_body_inputs[i].body_parameter_index
+        assert (
+            input_desc[i].body_parameter_index
+            == then_body_inputs[i].body_parameter_index
+        )
 
     for i in range(len(output_desc)):
         assert output_desc[i].get_type_info() == else_body_outputs[i].get_type_info()

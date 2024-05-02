@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
 #include <string>
 #include <vector>
+
+#include "activation_inst.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(activation)
@@ -20,13 +21,12 @@ layout activation_inst::calc_output_layout(activation_node const& node, kernel_i
     auto desc = impl_param.typed_desc<activation>();
     auto func = desc->activation_function;
 
-    std::vector<activation_func> activations_int8 = {
-        activation_func::none,
-        activation_func::negative,
-        activation_func::negation,
-        activation_func::relu,
-        activation_func::floor,
-        activation_func::clamp };
+    std::vector<activation_func> activations_int8 = {activation_func::none,
+                                                     activation_func::negative,
+                                                     activation_func::negation,
+                                                     activation_func::relu,
+                                                     activation_func::floor,
+                                                     activation_func::clamp};
 
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32) {

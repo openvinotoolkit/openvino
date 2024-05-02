@@ -4,23 +4,23 @@
 
 #pragma once
 
+#include <fstream>
+#include <functional>
+#include <list>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "convolution_inst.h"
+#include "eltwise_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
-#include "quantize_inst.h"
-#include "eltwise_inst.h"
-#include "convolution_inst.h"
 #include "permute_inst.h"
-#include <string>
-#include <vector>
-#include <memory>
-#include <list>
-#include <utility>
-#include <set>
-#include <functional>
+#include "quantize_inst.h"
 
-#include <fstream>
-
-#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
+#define GPU_DEBUG_LOG_PASS GPU_DEBUG_LOG << "[" << get_name() << "] "
 
 namespace cldnn {
 class base_pass {
@@ -29,7 +29,9 @@ class base_pass {
 public:
     explicit base_pass(const std::string& pass_name) : name(pass_name) {}
     virtual void run(program& p) = 0;
-    std::string get_name() { return name; }
+    std::string get_name() {
+        return name;
+    }
 
 private:
     const std::string name;
@@ -39,8 +41,12 @@ class pass_manager {
 public:
     explicit pass_manager(program& p);
     void run(program& p, base_pass& pass);
-    uint32_t get_pass_count() { return pass_count; }
-    uint32_t inc_pass_count() { return ++pass_count; }
+    uint32_t get_pass_count() {
+        return pass_count;
+    }
+    uint32_t inc_pass_count() {
+        return ++pass_count;
+    }
     ~pass_manager() {}
 
 private:
@@ -108,8 +114,9 @@ class mark_shape_of_subgraphs : public base_pass {
     // - Primitive must have CPU implementation (this requirement is ignored for reshape
     //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
 public:
-    mark_shape_of_subgraphs(bool update_impls = false) :
-        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+    mark_shape_of_subgraphs(bool update_impls = false)
+        : base_pass("mark_shape_of_subgraphs"),
+          _update_impls(update_impls) {}
 
 private:
     void run(program& p) override;
@@ -137,14 +144,16 @@ private:
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
-    void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
-    bool optimize_quantize(program &p, quantize_node& quantize_node);
+    void prepare_scale_shift_opt(program& p, quantize_node& quantize_node);
+    bool optimize_quantize(program& p, quantize_node& quantize_node);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
 public:
-    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false) :
-        base_pass("prepare_conv_eltw_fusing"), _lo(lo_ref), b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
+    explicit prepare_conv_eltw_fusing(layout_optimizer& lo_ref, bool b_fs_yx_fsv16_opt = false)
+        : base_pass("prepare_conv_eltw_fusing"),
+          _lo(lo_ref),
+          b_fs_yx_fsv16_opt(b_fs_yx_fsv16_opt) {}
 
 private:
     void run(program& p) override;
@@ -171,24 +180,22 @@ public:
 
 class prepare_primitive_fusing : public base_pass {
 public:
-    explicit prepare_primitive_fusing(layout_optimizer& lo_ref) :
-        base_pass("prepare_primitive_fusing"), _lo(lo_ref) {}
+    explicit prepare_primitive_fusing(layout_optimizer& lo_ref) : base_pass("prepare_primitive_fusing"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;
-    void fuse_bias(program &p);
+    void fuse_bias(program& p);
     void fuse_reorders(program& p);
-    void fuse_simple_primitives(program &p);
-    void fuse_constant_transposes(program &p);
-    void optimize_fused_ops(program &p);
-    void remove_redundant_reshape(program &p);
+    void fuse_simple_primitives(program& p);
+    void fuse_constant_transposes(program& p);
+    void optimize_fused_ops(program& p);
+    void remove_redundant_reshape(program& p);
     layout_optimizer& _lo;
 };
 
 class pre_replace_deconv : public base_pass {
 public:
-    explicit pre_replace_deconv(layout_optimizer& lo_ref) :
-        base_pass("pre_replace_deconv"), _lo(lo_ref) {}
+    explicit pre_replace_deconv(layout_optimizer& lo_ref) : base_pass("pre_replace_deconv"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;
@@ -198,8 +205,10 @@ private:
 class prepare_padding : public base_pass {
 public:
     explicit prepare_padding(bool output_size_handling_enabled_switch)
-        : base_pass("prepare_padding"), output_size_handling_enabled(output_size_handling_enabled_switch) {}
+        : base_pass("prepare_padding"),
+          output_size_handling_enabled(output_size_handling_enabled_switch) {}
     static cldnn::padding get_needed_padding_for_convolution(convolution_node& node);
+
 private:
     void run(program& p) override;
     bool output_size_handling_enabled;
@@ -225,15 +234,14 @@ private:
 
         // When using this ctor weights offset is added to the bias_offset
         weights_bias_offset(const size_t w_offset, const size_t b_offset)
-            : weights_offset(w_offset)
-            , bias_offset(weights_offset + b_offset)
-        {}
+            : weights_offset(w_offset),
+              bias_offset(weights_offset + b_offset) {}
     };
 
     void run(program& p) override;
-    template<typename T>
+    template <typename T>
     weights_bias_offset get_weights_bias_offset(const T& node);
-    template<typename T>
+    template <typename T>
     void optimize_weights(T& node, program& p);
     reorder_factory& _rf;
 };
@@ -244,9 +252,10 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(
+        engine& engine,
+        const ExecutionConfig& config,
+        std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -260,8 +269,10 @@ private:
 
 class remove_redundant_reorders : public base_pass {
 public:
-    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false,
-        bool remove_output_reorders = false);
+    explicit remove_redundant_reorders(layout_optimizer& lo_ref,
+                                       bool enable_reorder_fusing = false,
+                                       bool update_implementations = false,
+                                       bool remove_output_reorders = false);
     void run(program& p) override;
 
 private:
@@ -284,8 +295,7 @@ private:
 
 class select_preferred_formats : public base_pass {
 public:
-    explicit select_preferred_formats(layout_optimizer& lo_ref) :
-        base_pass("select_preferred_formats"), _lo(lo_ref) {}
+    explicit select_preferred_formats(layout_optimizer& lo_ref) : base_pass("select_preferred_formats"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;

@@ -8,14 +8,15 @@ import shutil
 import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
+
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
-from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
+from models_hub_common.constants import hf_cache_dir, tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from openvino import Core, PartialShape
+from utils import retrieve_inputs_info_for_signature, unpack_tf_result
 
-from utils import unpack_tf_result, retrieve_inputs_info_for_signature
+from openvino import Core, PartialShape
 
 
 class TestTFReadModel(TestConvertModel):
@@ -27,9 +28,11 @@ class TestTFReadModel(TestConvertModel):
             new_shapes_dict = {}
             for model_input in ov_model.inputs:
                 input_names = list(model_input.names)
-                assert len(input_names) > 0, 'Expected at least one input tensor name'
+                assert len(input_names) > 0, "Expected at least one input tensor name"
                 input_name = input_names[0]
-                assert input_name in inputs, 'Inputs data does not contain {}'.format(input_name)
+                assert input_name in inputs, "Inputs data does not contain {}".format(
+                    input_name
+                )
                 input_shape = list(inputs[input_name].shape)
                 new_shapes_dict[input_name] = PartialShape(input_shape)
                 if model_input.get_partial_shape().rank.is_dynamic:
@@ -60,10 +63,12 @@ class TestTFReadModel(TestConvertModel):
     def get_inputs_info(self, model_path):
         # load model into memory and retrieve inputs info (shape and type for each input)
         tf_model = self._load_model_to_memory(model_path)
-        assert tf_model is not None, 'TensorFlow model is not loaded due to not found tag'
+        assert (
+            tf_model is not None
+        ), "TensorFlow model is not loaded due to not found tag"
         inputs_info = []
-        if 'serving_default' in list(tf_model.signatures.keys()):
-            concrete_func = tf_model.signatures['serving_default']
+        if "serving_default" in list(tf_model.signatures.keys()):
+            concrete_func = tf_model.signatures["serving_default"]
             input_signature = concrete_func.structured_input_signature[1].items()
             inputs_info = retrieve_inputs_info_for_signature(input_signature)
         else:
@@ -89,9 +94,11 @@ class TestTFReadModel(TestConvertModel):
 
     def infer_fw_model(self, model_path, inputs):
         tf_model = self._load_model_to_memory(model_path)
-        assert tf_model is not None, 'TensorFlow model is not loaded due to not found tag'
-        if 'serving_default' in list(tf_model.signatures.keys()):
-            concrete_func = tf_model.signatures['serving_default']
+        assert (
+            tf_model is not None
+        ), "TensorFlow model is not loaded due to not found tag"
+        if "serving_default" in list(tf_model.signatures.keys()):
+            concrete_func = tf_model.signatures["serving_default"]
             # repack input dictionary to tensorflow constants
             tf_inputs = {}
             for input_name, input_value in inputs.items():
@@ -103,11 +110,13 @@ class TestTFReadModel(TestConvertModel):
                 concrete_func = tf_model.signatures[signature]
                 # repack input dictionary to tensorflow constants
                 tf_inputs = {}
-                for input_name in list(concrete_func.structured_input_signature[1].keys()):
+                for input_name in list(
+                    concrete_func.structured_input_signature[1].keys()
+                ):
                     tf_inputs[input_name] = tf.constant(inputs[input_name])
 
                 output_tf_results = unpack_tf_result(concrete_func(**tf_inputs))
-                assert isinstance(output_tf_results, dict), 'Expected dictionary output'
+                assert isinstance(output_tf_results, dict), "Expected dictionary output"
 
                 for output_name, output_tensor in output_tf_results.items():
                     output_results[output_name] = output_tensor
@@ -135,15 +144,23 @@ class TestTFReadModel(TestConvertModel):
         # deallocate memory after each test case
         gc.collect()
 
-    @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__),
-                                                          "model_lists", "precommit_read_model")))
+    @pytest.mark.parametrize(
+        "model_name,model_link,mark,reason",
+        get_models_list(
+            os.path.join(
+                os.path.dirname(__file__), "model_lists", "precommit_read_model"
+            )
+        ),
+    )
     @pytest.mark.precommit
-    def test_read_model_precommit(self, model_name, model_link, mark, reason, ie_device):
-        assert mark is None or mark == 'skip' or mark == 'xfail', \
-            "Incorrect test case: {}, {}".format(model_name, model_link)
-        if mark == 'skip':
+    def test_read_model_precommit(
+        self, model_name, model_link, mark, reason, ie_device
+    ):
+        assert (
+            mark is None or mark == "skip" or mark == "xfail"
+        ), "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == "skip":
             pytest.skip(reason)
-        elif mark == 'xfail':
+        elif mark == "xfail":
             pytest.xfail(reason)
         self.run(model_name, model_link, ie_device)

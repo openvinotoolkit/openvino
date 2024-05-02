@@ -4,26 +4,26 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <memory>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        int, // axis
-        int  // group
-> shuffleChannelsSpecificParams;
+typedef std::tuple<int,  // axis
+                   int   // group
+                   >
+    shuffleChannelsSpecificParams;
 
-typedef std::tuple<
-        shuffleChannelsSpecificParams,
-        ov::element::Type,              // Model type
-        std::vector<InputShape>,        // Input shapes
-        ov::test::TargetDevice          // Device name
-> shuffleChannelsLayerTestParamsSet;
+typedef std::tuple<shuffleChannelsSpecificParams,
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shapes
+                   ov::test::TargetDevice    // Device name
+                   >
+    shuffleChannelsLayerTestParamsSet;
 
 class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
                                  virtual public ov::test::SubgraphBaseTest {

@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "permute_inst.h"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
-
 #include <algorithm>
 #include <string>
 #include <vector>
+
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "permute_inst.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(permute)
@@ -46,8 +46,9 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
     return layout(output_type, out_fmt, output_size, op);
 }
 
-template<typename ShapeType>
-std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node*/, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node*/,
+                                                      kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<permute>();
     auto input_layout = impl_param.get_input_layout();
 
@@ -62,7 +63,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node
 
     if (input_rank.is_dynamic()) {
         output_shape = ShapeType::dynamic(desc->permute_order.size());
-        return { layout{output_shape, output_type, input_layout.format} };
+        return {layout{output_shape, output_type, input_layout.format}};
     }
 
     int64_t input_static_rank = input_rank.get_length();
@@ -77,10 +78,11 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node
         output_shape.push_back(input_shape[permute_order[i]]);
     }
 
-    return { layout{output_shape, output_type, input_layout.format, desc->output_paddings[0]} };
+    return {layout{output_shape, output_type, input_layout.format, desc->output_paddings[0]}};
 }
 
-template std::vector<layout> permute_inst::calc_output_layouts<ov::PartialShape>(permute_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> permute_inst::calc_output_layouts<ov::PartialShape>(permute_node const& node,
+                                                                                 const kernel_impl_params& impl_param);
 
 std::string permute_inst::to_string(permute_node const& node) {
     auto desc = node.get_primitive();
@@ -106,9 +108,11 @@ std::string permute_inst::to_string(permute_node const& node) {
     return primitive_description.str();
 }
 
-permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
-        parent(network, node, !node.can_be_optimized()
-                              && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())) {
+permute_inst::typed_primitive_inst(network& network, permute_node const& node)
+    : parent(network,
+             node,
+             !node.can_be_optimized() &&
+                 (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())) {
     auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
@@ -125,13 +129,12 @@ void permute_inst::on_execute() {
     update_output_memory();
 }
 
-
 void permute_inst::update_output_memory() {
     if (!can_be_optimized() || _impl_params->is_dynamic())
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) &&
+        _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     if (_node != nullptr)
@@ -142,7 +145,5 @@ void permute_inst::update_output_memory() {
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;
 }
-
-
 
 }  // namespace cldnn

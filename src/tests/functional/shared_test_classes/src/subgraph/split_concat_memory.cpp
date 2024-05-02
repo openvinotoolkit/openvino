@@ -84,4 +84,3 @@ void SplitConcatMemory::SetUp() {
 
 }  // namespace test
 }  // namespace ov
-

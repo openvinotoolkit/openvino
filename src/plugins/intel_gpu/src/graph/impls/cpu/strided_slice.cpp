@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/strided_slice.hpp"
+
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
 #include "strided_slice_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/strided_slice.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -89,7 +88,8 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
             return stream.group_events(events);
         }
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -122,7 +122,8 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
 
         if (strides_data.empty()) {
             auto strides_mem = instance.dep_memory_ptr(3);
-            strides_host_tensor = make_tensor(strides_mem->get_layout(), strides_mem->lock(stream, mem_lock_type::read));
+            strides_host_tensor =
+                make_tensor(strides_mem->get_layout(), strides_mem->lock(stream, mem_lock_type::read));
         } else {
             strides_host_tensor = ov::Tensor(ov::element::Type_t::i64, {strides_data.size()}, strides_data.data());
         }
@@ -130,11 +131,13 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         auto input_mem_ptr = instance.dep_memory_ptr(0);
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        input_host_tensors.push_back(make_tensor(params->input_layouts[0], input_mem_ptr->lock(stream, mem_lock_type::read)));
+        input_host_tensors.push_back(
+            make_tensor(params->input_layouts[0], input_mem_ptr->lock(stream, mem_lock_type::read)));
         input_host_tensors.push_back(begin_host_tensor);
         input_host_tensors.push_back(end_host_tensor);
         input_host_tensors.push_back(strides_host_tensor);
-        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_mem_ptr->lock(stream, mem_lock_type::write)));
+        output_host_tensors.push_back(
+            make_tensor(params->output_layouts[0], output_mem_ptr->lock(stream, mem_lock_type::write)));
 
         if (!op) {
             op = std::make_shared<ov::op::v1::StridedSlice>();
@@ -147,7 +150,8 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute strided_slice primitive with id ", instance.id());
+                        "[GPU] Couldn't execute strided_slice primitive with id ",
+                        instance.id());
 
         if (begin_data.empty()) {
             auto begin_mem = instance.dep_memory_ptr(1);
@@ -178,7 +182,7 @@ struct strided_slice_impl : public typed_primitive_impl<strided_slice> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -187,7 +191,6 @@ public:
         return make_unique<strided_slice_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -207,8 +210,16 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
         data_types::u8,
     };
 
-    implementation_map<strided_slice>::add(impl_types::cpu, shape_types::static_shape, strided_slice_impl::create, types, formats);
-    implementation_map<strided_slice>::add(impl_types::cpu, shape_types::dynamic_shape, strided_slice_impl::create, types, formats);
+    implementation_map<strided_slice>::add(impl_types::cpu,
+                                           shape_types::static_shape,
+                                           strided_slice_impl::create,
+                                           types,
+                                           formats);
+    implementation_map<strided_slice>::add(impl_types::cpu,
+                                           shape_types::dynamic_shape,
+                                           strided_slice_impl::create,
+                                           types,
+                                           formats);
 }
 
 }  // namespace detail

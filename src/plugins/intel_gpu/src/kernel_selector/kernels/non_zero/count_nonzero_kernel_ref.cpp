@@ -3,8 +3,10 @@
 //
 
 #include "count_nonzero_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
@@ -39,9 +41,10 @@ CountNonzeroKernelRef::DispatchData CountNonzeroKernelRef::SetDefault(const coun
 
     // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
     dispatchData.dataSize = input.LogicalSize();
-    size_t max_dim_size = (dispatchData.dataSize > params.engineInfo.maxWorkGroupSize) ?
-                                    params.engineInfo.maxWorkGroupSize : dispatchData.dataSize;
-    dispatchData.lws = dispatchData.gws = { max_dim_size, 1, 1};
+    size_t max_dim_size = (dispatchData.dataSize > params.engineInfo.maxWorkGroupSize)
+                              ? params.engineInfo.maxWorkGroupSize
+                              : dispatchData.dataSize;
+    dispatchData.lws = dispatchData.gws = {max_dim_size, 1, 1};
 
     return dispatchData;
 }
@@ -77,7 +80,8 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params) const {
     if (newParams.has_dynamic_tensors()) {
         const auto& input = newParams.inputs[0];
         DimensionAccessHelper dims(input);
-        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
+        const std::string total_data_size =
+            toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
         cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", total_data_size)});
     } else {
         cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize)});

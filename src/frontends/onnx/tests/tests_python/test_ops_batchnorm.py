@@ -4,13 +4,15 @@
 
 import numpy as np
 import onnx
-
 from tests.tests_python.utils import run_node
 
 
 def make_batch_norm_node(**node_attributes):
     return onnx.helper.make_node(
-        "BatchNormalization", inputs=["X", "scale", "B", "mean", "var"], outputs=["Y"], **node_attributes,
+        "BatchNormalization",
+        inputs=["X", "scale", "B", "mean", "var"],
+        outputs=["Y"],
+        **node_attributes,
     )
 
 

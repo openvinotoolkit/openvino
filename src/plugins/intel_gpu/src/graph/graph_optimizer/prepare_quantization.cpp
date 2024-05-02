@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "data_inst.h"
+#include "eltwise_inst.h"
 #include "fully_connected_inst.h"
+#include "pass_manager.h"
 #include "pooling_inst.h"
+#include "program_helpers.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
-#include "eltwise_inst.h"
-#include "data_inst.h"
-#include "pass_manager.h"
-#include "program_helpers.h"
 #include "to_string_utils.h"
-
-#include <algorithm>
-#include <string>
-#include <memory>
-#include <vector>
 
 using namespace cldnn;
 
@@ -27,24 +27,23 @@ inline float clamp(float val) {
 
 }  // namespace
 
-
-void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& quantize_node) {
+void prepare_quantization::prepare_scale_shift_opt(program& p, quantize_node& quantize_node) {
     const auto& stream = p.get_stream();
 
-    program_node &input_low_node = quantize_node.get_dependency(1);
-    program_node &input_high_node = quantize_node.get_dependency(2);
-    program_node &output_low_node = quantize_node.get_dependency(3);
-    program_node &output_high_node = quantize_node.get_dependency(4);
+    program_node& input_low_node = quantize_node.get_dependency(1);
+    program_node& input_high_node = quantize_node.get_dependency(2);
+    program_node& output_low_node = quantize_node.get_dependency(3);
+    program_node& output_high_node = quantize_node.get_dependency(4);
 
-    if (!input_low_node.is_type<data>() || !input_high_node.is_type<data>() ||
-        !output_low_node.is_type<data>() || !output_high_node.is_type<data>()) {
+    if (!input_low_node.is_type<data>() || !input_high_node.is_type<data>() || !output_low_node.is_type<data>() ||
+        !output_high_node.is_type<data>()) {
         return;
     }
 
-    auto &input_low = input_low_node.as<data>();
-    auto &input_high = input_high_node.as<data>();
-    auto &output_low = output_low_node.as<data>();
-    auto &output_high = output_high_node.as<data>();
+    auto& input_low = input_low_node.as<data>();
+    auto& input_high = input_high_node.as<data>();
+    auto& output_low = output_low_node.as<data>();
+    auto& output_high = output_high_node.as<data>();
 
     auto mem_input_low = input_low.get_attached_memory_ptr();
     auto mem_input_high = input_high.get_attached_memory_ptr();
@@ -59,8 +58,8 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     scales_layout.set_tensor(max_size);
 
-    auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
-    auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_input_scale = p.get_engine().allocate_memory(scales_layout, false);
+    auto mem_input_shift = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, false);
 
@@ -68,41 +67,44 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
         auto sizes = l.get_tensor();
         auto pitches = l.get_pitches();
 
-        return (idx.batch[0] % sizes.batch[0])*pitches.batch[0]
-                        + (idx.feature[0] % sizes.feature[0])*pitches.feature[0]
-                        + (idx.spatial[1] % sizes.spatial[1])*pitches.spatial[1]
-                        + (idx.spatial[0] % sizes.spatial[0])*pitches.spatial[0];
+        return (idx.batch[0] % sizes.batch[0]) * pitches.batch[0] +
+               (idx.feature[0] % sizes.feature[0]) * pitches.feature[0] +
+               (idx.spatial[1] % sizes.spatial[1]) * pitches.spatial[1] +
+               (idx.spatial[0] % sizes.spatial[0]) * pitches.spatial[0];
     };
 
-    auto lock_memory = [&stream] (memory::ptr memory, std::function<void(std::size_t, float)>& set_data,
-                                  std::function<float(size_t)>& get_data) {
+    auto lock_memory = [&stream](memory::ptr memory,
+                                 std::function<void(std::size_t, float)>& set_data,
+                                 std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
         using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
         switch (memory->get_layout().data_type) {
-            case data_types::f32: {
-                std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
-                float* data = data_lock_ptr->data();
-                set_data = [data] (size_t idx, float value) {
-                    data[idx] = value;
-                };
-                get_data = [data] (size_t idx) {
-                    return data[idx];
-                };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
-            }
-            case data_types::f16: {
-                std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
-                ov::float16* data = data_lock_ptr->data();
-                set_data = [data] (size_t idx, float value) {
-                    data[idx] = ov::float16(value);
-                };
-                get_data = [data] (size_t idx) {
-                    return static_cast<float>(data[idx]);
-                };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
-            }
-            default:
-                throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
+        case data_types::f32: {
+            std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
+            float* data = data_lock_ptr->data();
+            set_data = [data](size_t idx, float value) {
+                data[idx] = value;
+            };
+            get_data = [data](size_t idx) {
+                return data[idx];
+            };
+            return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr,
+                                                                                                 nullptr);
+        }
+        case data_types::f16: {
+            std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
+            ov::float16* data = data_lock_ptr->data();
+            set_data = [data](size_t idx, float value) {
+                data[idx] = ov::float16(value);
+            };
+            get_data = [data](size_t idx) {
+                return static_cast<float>(data[idx]);
+            };
+            return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr,
+                                                                                                 data_lock_ptr);
+        }
+        default:
+            throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
         }
     };
 
@@ -240,8 +242,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     quantize_inputs.push_back(out_scale_prim->id);
     quantize_inputs.push_back(out_shift_prim->id);
 
-    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
-    auto new_quantize_prim = std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
+    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32)
+                                                            : data_types::f32;
+    auto new_quantize_prim =
+        std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
     new_quantize_prim->origin_op_name = primitive->origin_op_name;
     new_quantize_prim->origin_op_type_name = primitive->origin_op_type_name;
 
@@ -260,12 +264,12 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     new_quantize_prim->per_tensor_output_shift = per_tensor_out_shift;
 
     // Clamp is needed to avoid inf and -inf which are converted to undefined "inf" constant in opencl
-    new_quantize_prim->in_scale  = clamp(in_scale_val);
-    new_quantize_prim->in_shift  = clamp(in_shift_val);
-    new_quantize_prim->in_lo     = clamp(in_lo_val);
-    new_quantize_prim->in_hi     = clamp(in_hi_val);
-    new_quantize_prim->out_lo    = clamp(out_lo_val);
-    new_quantize_prim->out_hi    = clamp(out_hi_val);
+    new_quantize_prim->in_scale = clamp(in_scale_val);
+    new_quantize_prim->in_shift = clamp(in_shift_val);
+    new_quantize_prim->in_lo = clamp(in_lo_val);
+    new_quantize_prim->in_hi = clamp(in_hi_val);
+    new_quantize_prim->out_lo = clamp(out_lo_val);
+    new_quantize_prim->out_hi = clamp(out_hi_val);
     new_quantize_prim->out_scale = clamp(out_scale_val);
     new_quantize_prim->out_shift = clamp(out_shift_val);
 
@@ -316,7 +320,10 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
     }
 
     auto get_scale_shift_mem = [](const cldnn::eltwise_node& eltw, size_t dep_id) -> memory::ptr {
-        OPENVINO_ASSERT(dep_id < eltw.get_dependencies().size(), "[GPU] ", eltw.id(), "Invalid dependency id in dequantize optimization");
+        OPENVINO_ASSERT(dep_id < eltw.get_dependencies().size(),
+                        "[GPU] ",
+                        eltw.id(),
+                        "Invalid dependency id in dequantize optimization");
 
         return eltw.get_dependency(dep_id).as<data>().get_attached_memory_ptr();
     };
@@ -380,16 +387,17 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
 }
 
 void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorder_node) {
-    if (!reorder_node.is_in_data_flow() || reorder_node.get_users().size() != 1 || reorder_node.get_dependencies().size() != 1) {
+    if (!reorder_node.is_in_data_flow() || reorder_node.get_users().size() != 1 ||
+        reorder_node.get_dependencies().size() != 1) {
         return;
     }
 
-    auto &usr = reorder_node.get_users().front();
-    auto &dep = reorder_node.get_dependency(0);
-    if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
-        !dep.is_input() ||
+    auto& usr = reorder_node.get_users().front();
+    auto& dep = reorder_node.get_dependency(0);
+    if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) || !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
-        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
+        (reorder_node.get_output_layout().data_type != data_types::f32 &&
+         reorder_node.get_output_layout().data_type != data_types::f16) ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
         dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
@@ -400,7 +408,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
     p.remove_if_dangling(reorder_node);
 }
 
-bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize_node) {
+bool prepare_quantization::optimize_quantize(program& p, quantize_node& quantize_node) {
     const auto& stream = p.get_stream();
 
     auto& input = quantize_node.get_dependency(0);
@@ -415,10 +423,10 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
     auto quantize_prim_first = quantize_node.get_primitive();
 
-    program_node &input_low_node_first = quantize_node.get_dependency(1);
-    program_node &input_high_node_first = quantize_node.get_dependency(2);
-    program_node &output_low_node_first = quantize_node.get_dependency(3);
-    program_node &output_high_node_first = quantize_node.get_dependency(4);
+    program_node& input_low_node_first = quantize_node.get_dependency(1);
+    program_node& input_high_node_first = quantize_node.get_dependency(2);
+    program_node& output_low_node_first = quantize_node.get_dependency(3);
+    program_node& output_high_node_first = quantize_node.get_dependency(4);
 
     if (!input_low_node_first.is_type<data>() || !input_high_node_first.is_type<data>() ||
         !output_low_node_first.is_type<data>() || !output_high_node_first.is_type<data>()) {
@@ -442,10 +450,10 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
         auto quantize_prim_second = usr->as<quantize>().get_primitive();
 
-        program_node &input_low_node_second = usr->get_dependency(1);
-        program_node &input_high_node_second = usr->get_dependency(2);
-        program_node &output_low_node_second = usr->get_dependency(3);
-        program_node &output_high_node_second = usr->get_dependency(4);
+        program_node& input_low_node_second = usr->get_dependency(1);
+        program_node& input_high_node_second = usr->get_dependency(2);
+        program_node& output_low_node_second = usr->get_dependency(3);
+        program_node& output_high_node_second = usr->get_dependency(4);
 
         if (!input_low_node_second.is_type<data>() || !input_high_node_second.is_type<data>() ||
             !output_low_node_second.is_type<data>() || !output_high_node_second.is_type<data>())
@@ -461,14 +469,21 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
         mem_lock<uint8_t, mem_lock_type::read> mem_output_low_lock_second{mem_output_low_second, stream};
         mem_lock<uint8_t, mem_lock_type::read> mem_output_high_lock_second{mem_output_high_second, stream};
 
-        if (mem_input_low_first->count() != mem_input_low_second->count() || mem_input_high_first->count() != mem_input_high_second->count() ||
-            mem_output_low_first->count() != mem_output_low_second->count() || mem_output_high_first->count() != mem_output_high_second->count())
+        if (mem_input_low_first->count() != mem_input_low_second->count() ||
+            mem_input_high_first->count() != mem_input_high_second->count() ||
+            mem_output_low_first->count() != mem_output_low_second->count() ||
+            mem_output_high_first->count() != mem_output_high_second->count())
             continue;
 
-        if (memcmp(mem_input_low_lock_first.data(), mem_input_low_lock_second.data(), mem_input_low_first->size()) != 0 ||
-            memcmp(mem_input_high_lock_first.data(), mem_input_high_lock_second.data(), mem_input_high_first->size()) != 0 ||
-            memcmp(mem_output_low_lock_first.data(), mem_output_low_lock_second.data(), mem_output_low_first->size()) != 0 ||
-            memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0)
+        if (memcmp(mem_input_low_lock_first.data(), mem_input_low_lock_second.data(), mem_input_low_first->size()) !=
+                0 ||
+            memcmp(mem_input_high_lock_first.data(), mem_input_high_lock_second.data(), mem_input_high_first->size()) !=
+                0 ||
+            memcmp(mem_output_low_lock_first.data(), mem_output_low_lock_second.data(), mem_output_low_first->size()) !=
+                0 ||
+            memcmp(mem_output_high_lock_first.data(),
+                   mem_output_high_lock_second.data(),
+                   mem_output_high_first->size()) != 0)
             continue;
 
         if (quantize_prim_first->output_data_types[0] != quantize_prim_second->output_data_types[0] ||
@@ -533,7 +548,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto &node = (*itr++);
+        auto& node = (*itr++);
         if (node->is_type<quantize>()) {
             handle_quantize_node(p, node->as<quantize>());
         } else if (node->is_type<eltwise>()) {

@@ -7,13 +7,13 @@ import math
 import numpy as np
 
 from openvino.tools.mo.back.FuseTransposesSequence import FuseTransposesSequence
-from openvino.tools.mo.middle.FuseReshapesSequence import FuseReshapesSequence
-from openvino.tools.mo.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.FuseReshapesSequence import FuseReshapesSequence
 from openvino.tools.mo.middle.passes.fusing.helpers import get_next_operation
+from openvino.tools.mo.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
 from openvino.tools.mo.ops.op import PermuteAttrs
 from openvino.tools.mo.ops.reshape import Reshape
 
@@ -104,10 +104,15 @@ def split_dims_indices(input_shape: np.array, match_shape: np.array):
     in_left = input_shape[0]
     while match_ind < len(match_shape):
         if in_ind >= len(input_shape):
-            assert match_shape[match_ind] == 1, 'Total number of elements in input shape and output shape are not equal'
+            assert (
+                match_shape[match_ind] == 1
+            ), "Total number of elements in input shape and output shape are not equal"
             match_ind += 1
             result.append(in_ind - 1)
-        elif match_shape[match_ind] == input_shape[in_ind] and match_shape[match_ind] == 1:
+        elif (
+            match_shape[match_ind] == input_shape[in_ind]
+            and match_shape[match_ind] == 1
+        ):
             match_ind += 1
             in_ind += 1
             if in_ind < len(input_shape):
@@ -146,7 +151,9 @@ def set_reshape_new_output_shape(reshape_node: Node, new_output_shape: np.array)
     :return: None
     """
     reshape_node.out_port(0).data.set_shape(new_output_shape)
-    in_ports = [port for port in reshape_node.in_ports().values() if not port.disconnected()]
+    in_ports = [
+        port for port in reshape_node.in_ports().values() if not port.disconnected()
+    ]
     if len(in_ports) == 2:
         reshape_node.in_port(1).data.set_value(new_output_shape)
 
@@ -164,12 +171,14 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
     3. Remove dummy Reshapes.
     4. Fuse sequence of Transposes.
     """
+
     enabled = False
     run_not_recursively = True
-    OPTIMIZED_NODE_FLAG = 'permute_reshape_optimized'
+    OPTIMIZED_NODE_FLAG = "permute_reshape_optimized"
 
     def run_before(self):
         from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
+
         return [ReshapeMutation]
 
     def run_after(self):
@@ -182,8 +191,11 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         :return: result of the check
         """
         # TODO change to 'op' and reshape-like
-        return node.has_and_set('type') and node.type in ('Transpose', 'Reshape') and \
-            not node.has_and_set(self.OPTIMIZED_NODE_FLAG)
+        return (
+            node.has_and_set("type")
+            and node.type in ("Transpose", "Reshape")
+            and not node.has_and_set(self.OPTIMIZED_NODE_FLAG)
+        )
 
     def find_and_replace_pattern(self, graph: Graph):
         for start_node in graph.pseudo_topological_sort():
@@ -195,8 +207,11 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
                     next_node[self.OPTIMIZED_NODE_FLAG] = True
                     next_nodes = get_next_operation(next_node)
                     if len(next_nodes) > 1:
-                        log.debug('There are two consumers of the node {}. Stop matching sequence.'.format(
-                            next_node.soft_get('name')))
+                        log.debug(
+                            "There are two consumers of the node {}. Stop matching sequence.".format(
+                                next_node.soft_get("name")
+                            )
+                        )
                         break
                     next_node = next_nodes[0]
             # optimize sequence of three or more Transpose-Reshape nodes
@@ -210,8 +225,11 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
 
     @staticmethod
     def optimize_permute_reshape_sequence(graph: Graph, nodes: list):
-        log.debug('Running permute-reshape optimization of the following nodes: {}'.format(
-            [node.soft_get('name') for node in nodes]))
+        log.debug(
+            "Running permute-reshape optimization of the following nodes: {}".format(
+                [node.soft_get("name") for node in nodes]
+            )
+        )
 
         # the transformation expects that the first and the last operation in the sequence is Reshape so the following
         # function adds required reshapes
@@ -221,9 +239,12 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
             node = nodes[ind]
             input_shape = node.in_node(0).shape
             output_shape = node.out_node(0).shape
-            if node.type == 'Reshape' and not np.array_equal(input_shape, output_shape):
-                log.debug('The Reshape node "{}" is not NOP. Shapes: "{}" vs "{}"'.format(
-                    node.soft_get('name'), input_shape, output_shape))
+            if node.type == "Reshape" and not np.array_equal(input_shape, output_shape):
+                log.debug(
+                    'The Reshape node "{}" is not NOP. Shapes: "{}" vs "{}"'.format(
+                        node.soft_get("name"), input_shape, output_shape
+                    )
+                )
                 __class__.make_reshape_nop(node)
 
     @staticmethod
@@ -238,26 +259,48 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         :return: None
         """
         # add leading Reshape
-        if nodes[0].type == 'Transpose':
+        if nodes[0].type == "Transpose":
             dummy_reshape_node = create_op_node_with_second_input(
-                graph, Reshape, nodes[0].in_port(0).data.get_shape().copy(),
-                {'name': nodes[0].in_port(0).get_connection().get_source().node.id + '/Reshape'})
+                graph,
+                Reshape,
+                nodes[0].in_port(0).data.get_shape().copy(),
+                {
+                    "name": nodes[0].in_port(0).get_connection().get_source().node.id
+                    + "/Reshape"
+                },
+            )
             dummy_reshape_node[__class__.OPTIMIZED_NODE_FLAG] = True
             nodes[0].in_port(0).get_connection().insert_node(dummy_reshape_node)
             nodes.insert(0, dummy_reshape_node)
-            log.debug('Added Reshape op "{}" in the beginning of the permute-reshape sequence'.format(
-                dummy_reshape_node.soft_get('name')))
+            log.debug(
+                'Added Reshape op "{}" in the beginning of the permute-reshape sequence'.format(
+                    dummy_reshape_node.soft_get("name")
+                )
+            )
 
         # similarly add the Reshape op after the last Transpose op which reshapes to the Transpose output shape
-        if nodes[-1].type == 'Transpose':
+        if nodes[-1].type == "Transpose":
             dummy_reshape_node = create_op_node_with_second_input(
-                graph, Reshape, nodes[-1].out_port(0).data.get_shape().copy(),
-                {'name': nodes[0].out_port(0).get_connection().get_destination().node.id + '/Reshape'})
+                graph,
+                Reshape,
+                nodes[-1].out_port(0).data.get_shape().copy(),
+                {
+                    "name": nodes[0]
+                    .out_port(0)
+                    .get_connection()
+                    .get_destination()
+                    .node.id
+                    + "/Reshape"
+                },
+            )
             dummy_reshape_node[__class__.OPTIMIZED_NODE_FLAG] = True
             nodes[-1].out_port(0).get_connection().insert_node(dummy_reshape_node)
             nodes.append(dummy_reshape_node)
-            log.debug('Added Reshape op "{}" in the end of the permute-reshape sequence'.format(
-                dummy_reshape_node.soft_get('name')))
+            log.debug(
+                'Added Reshape op "{}" in the end of the permute-reshape sequence'.format(
+                    dummy_reshape_node.soft_get("name")
+                )
+            )
 
     @staticmethod
     def forward_new_reshape_shape(reshape_node: Node, initial_output_shape: np.array):
@@ -270,26 +313,37 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         """
         output_shape = reshape_node.out_port(0).data.get_shape()
         if np.all(output_shape == initial_output_shape):
-            log.debug('Initial output and new output shapes match for node "{}". Do nothing'.format(
-                reshape_node.soft_get('name')))
+            log.debug(
+                'Initial output and new output shapes match for node "{}". Do nothing'.format(
+                    reshape_node.soft_get("name")
+                )
+            )
             return
 
         dest_node = reshape_node.out_port(0).get_destination().node
-        if dest_node.type == 'Transpose':
+        if dest_node.type == "Transpose":
             split_dims = split_dims_indices(initial_output_shape, output_shape)
-            assert dest_node.in_port(1).data.get_value() is not None, \
-                'The 1st input value "order" is not set for Transpose node "{}"'.format(dest_node.soft_get('name'))
+            assert (
+                dest_node.in_port(1).data.get_value() is not None
+            ), 'The 1st input value "order" is not set for Transpose node "{}"'.format(
+                dest_node.soft_get("name")
+            )
             permute_order = dest_node.in_port(1).data.get_value()
             for split_dim in split_dims:
                 permute_order = split_input_permute_dimension(split_dim, permute_order)
             dest_node.in_port(1).data.set_value(permute_order)
             dest_node.infer(dest_node)
-        elif dest_node.type == 'Reshape':
-            log.debug('Two subsequent reshape nodes: "{}" and "{}". Nothing to optimize'.format(
-                reshape_node.soft_get('name'), dest_node.soft_get('name')))
+        elif dest_node.type == "Reshape":
+            log.debug(
+                'Two subsequent reshape nodes: "{}" and "{}". Nothing to optimize'.format(
+                    reshape_node.soft_get("name"), dest_node.soft_get("name")
+                )
+            )
         else:
-            assert False, 'Unsupported type of the node "{}" in the Transpose-Reshape optimization' \
-                          ''.format(dest_node.type)
+            assert False, (
+                'Unsupported type of the node "{}" in the Transpose-Reshape optimization'
+                "".format(dest_node.type)
+            )
 
     @staticmethod
     def backward_new_reshape_shape(reshape_node: Node, initial_input_shape: np.array):
@@ -305,15 +359,21 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         """
         input_shape = reshape_node.in_port(0).data.get_shape()
         if np.all(input_shape == initial_input_shape):
-            log.debug('Initial input and new input shapes match for node "{}". Do nothing'.format(
-                reshape_node.soft_get('name')))
+            log.debug(
+                'Initial input and new input shapes match for node "{}". Do nothing'.format(
+                    reshape_node.soft_get("name")
+                )
+            )
             return
 
         src_node = reshape_node.in_port(0).get_source().node
-        if src_node.type == 'Transpose':
+        if src_node.type == "Transpose":
             split_dims = split_dims_indices(initial_input_shape, input_shape)
-            assert src_node.in_port(1).data.get_value() is not None, \
-                'The 1st input value "order" is not set for Transpose node "{}"'.format(src_node.soft_get('name'))
+            assert (
+                src_node.in_port(1).data.get_value() is not None
+            ), 'The 1st input value "order" is not set for Transpose node "{}"'.format(
+                src_node.soft_get("name")
+            )
             permute_order = src_node.in_port(1).data.get_value()
             for split_dim in split_dims:
                 permute_order = split_output_permute_dimension(split_dim, permute_order)
@@ -325,13 +385,20 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
             # update the Transpose input node (it should be Reshape) output shape and 'dim' attribute
             permute_source_port = src_node.in_port(0).get_source()
             permute_source_port.data.set_shape(new_permute_input_shape)
-            set_reshape_new_output_shape(permute_source_port.node, new_permute_input_shape)
-        elif src_node.type == 'Reshape':
-            log.debug('Two subsequent reshape nodes: "{}" and "{}". Nothing to optimize'.format(
-                reshape_node.soft_get('name'), src_node.soft_get('name')))
+            set_reshape_new_output_shape(
+                permute_source_port.node, new_permute_input_shape
+            )
+        elif src_node.type == "Reshape":
+            log.debug(
+                'Two subsequent reshape nodes: "{}" and "{}". Nothing to optimize'.format(
+                    reshape_node.soft_get("name"), src_node.soft_get("name")
+                )
+            )
         else:
-            assert False, 'Unsupported type of the node "{}" in the Transpose-Reshape optimization' \
-                          ''.format(src_node.type)
+            assert False, (
+                'Unsupported type of the node "{}" in the Transpose-Reshape optimization'
+                "".format(src_node.type)
+            )
 
     @staticmethod
     def make_reshape_nop(reshape_node: Node):

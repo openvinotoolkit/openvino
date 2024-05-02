@@ -7,10 +7,10 @@ from openvino.tools.mo.ops.broadcast import Broadcast
 
 
 class BroadcastExtractor(FrontExtractorOp):
-    op = 'BroadcastTo'
+    op = "BroadcastTo"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        Broadcast.update_node_stat(node, attrs={'mode': 'numpy'})
+        Broadcast.update_node_stat(node, attrs={"mode": "numpy"})
         return cls.enabled

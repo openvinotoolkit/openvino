@@ -3,8 +3,10 @@
 //
 
 #include "convolution_kernel_winograd_6x3_s1_fused.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -26,7 +28,8 @@ ParamsKey ConvolutionKernel_Winograd_6x3_s1_fused::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_Winograd_6x3_s1_fused::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_Winograd_6x3_s1_fused::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_blocked_read_write_short();
@@ -80,7 +83,7 @@ JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const conv
 }
 
 WeightsLayout ConvolutionKernel_Winograd_6x3_s1_fused::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
+    const convolution_params& params) const {
     // check if image weights layout will fit into device memory, if not then try to fallback to buffer
     if (CheckImageSize(params, WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb)) {
         return WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb;

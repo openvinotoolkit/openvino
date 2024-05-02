@@ -35,7 +35,6 @@ public:
     KernelsData GetBestKernels(const Params& params) const override;
 };
 
-
 class deformable_interp_kernel_selector : public kernel_selector_base {
 public:
     static deformable_interp_kernel_selector& Instance() {

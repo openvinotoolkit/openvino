@@ -3,16 +3,19 @@
 
 import os
 from fnmatch import fnmatch
-from generator import generator, generate
 
-from openvino.tools.mo.utils.custom_replacement_config import load_and_validate_json_config
+from generator import generate, generator
+from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+
+from openvino.tools.mo.utils.custom_replacement_config import (
+    load_and_validate_json_config,
+)
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import get_mo_root_dir
-from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
 def get_json_configs(mo_root_dir):
-    config_path = os.path.join(mo_root_dir, 'extensions', 'front')
+    config_path = os.path.join(mo_root_dir, "extensions", "front")
     pattern = "*.json"
     config_files_list = []
     for path, subdirs, files in os.walk(config_path):
@@ -21,10 +24,11 @@ def get_json_configs(mo_root_dir):
                 config_files_list.append((os.path.join(path, name),))
     return config_files_list
 
+
 @generator
 class TestSchema(UnitTestWithMockedTelemetry):
     base_dir = get_mo_root_dir()
-    schema_file = os.path.join(base_dir, 'mo', 'utils', 'schema.json')
+    schema_file = os.path.join(base_dir, "mo", "utils", "schema.json")
     transformation_configs = get_json_configs(base_dir)
     test_json1 = '[{"id": "", "match_kind": "general", "custom_attributes": {}}]'
     test_json2 = '[{"id": "someid", "match_kind": "abc", "custom_attributes": {}}]'

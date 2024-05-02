@@ -52,7 +52,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
     p.add_primitive(*op, mutable_prim_w2);
     inputs.push_back(cldnn::input_info(mutable_id_w2));
 
-    const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
+    const auto expectedPrimInputCount = 4 + 2;  // 4 operation inputs plus 2 input-outputs
     if (inputs.size() != expectedPrimInputCount) {
         OPENVINO_THROW("experimental_detectron_detection_output primitive requires 6 inputs");
     }

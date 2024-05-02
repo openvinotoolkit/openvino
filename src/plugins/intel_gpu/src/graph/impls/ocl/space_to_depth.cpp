@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "space_to_depth_inst.h"
-#include "space_to_depth/space_to_depth_kernel_selector.h"
 #include "space_to_depth/space_to_depth_kernel_ref.h"
+#include "space_to_depth/space_to_depth_kernel_selector.h"
+#include "space_to_depth_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -26,9 +25,9 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
         const auto& primitive = impl_param.typed_desc<space_to_depth>();
         auto params = get_default_params<kernel_selector::space_to_depth_params>(impl_param);
 
-        params.depth_mode = (primitive->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) ?
-                               kernel_selector::SpaceToDepthMode::BLOCKS_FIRST :
-                               kernel_selector::SpaceToDepthMode::DEPTH_FIRST;
+        params.depth_mode = (primitive->mode == SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
+                                ? kernel_selector::SpaceToDepthMode::BLOCKS_FIRST
+                                : kernel_selector::SpaceToDepthMode::DEPTH_FIRST;
 
         params.block_size = primitive->block_size;
 
@@ -39,24 +38,26 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
 namespace detail {
 
 attach_space_to_depth_impl::attach_space_to_depth_impl() {
-    implementation_map<space_to_depth>::add(impl_types::ocl, typed_primitive_impl_ocl<space_to_depth>::create<space_to_depth_impl>, {
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-    });
+    implementation_map<space_to_depth>::add(impl_types::ocl,
+                                            typed_primitive_impl_ocl<space_to_depth>::create<space_to_depth_impl>,
+                                            {
+                                                std::make_tuple(data_types::f32, format::bfzyx),
+                                                std::make_tuple(data_types::f16, format::bfzyx),
+                                                std::make_tuple(data_types::u8, format::bfzyx),
+                                                std::make_tuple(data_types::i8, format::bfzyx),
+                                                std::make_tuple(data_types::f32, format::bfyx),
+                                                std::make_tuple(data_types::f16, format::bfyx),
+                                                std::make_tuple(data_types::u8, format::bfyx),
+                                                std::make_tuple(data_types::i8, format::bfyx),
+                                                std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+                                                std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+                                                std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+                                                std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
+                                                std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+                                                std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+                                            });
 }
 
 }  // namespace detail

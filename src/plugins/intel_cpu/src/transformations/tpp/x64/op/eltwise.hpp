@@ -4,16 +4,15 @@
 
 #pragma once
 
+#include "libxsmm_typedefs.h"
 #include "modifiers.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
 #include "snippets/op/powerstatic.hpp"
-
-#include "libxsmm_typedefs.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,7 +30,10 @@ public:
 class BinaryEltwiseTPP : public EltwiseTPP {
 public:
     BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type);
-    libxsmm_meltw_binary_type get_op_type() const { return m_op_type; }
+    libxsmm_meltw_binary_type get_op_type() const {
+        return m_op_type;
+    }
+
 private:
     libxsmm_meltw_binary_type m_op_type;
 };
@@ -39,7 +41,10 @@ private:
 class UnaryEltwiseTPP : public EltwiseTPP {
 public:
     UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type);
-    libxsmm_meltw_unary_type get_op_type() const { return m_op_type; }
+    libxsmm_meltw_unary_type get_op_type() const {
+        return m_op_type;
+    }
+
 private:
     libxsmm_meltw_unary_type m_op_type;
 };
@@ -100,7 +105,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-
 class Square : public UnaryEltwiseTPP, public ov::snippets::op::PowerStatic {
 public:
     OPENVINO_OP("Square", "TppOpset", snippets::op::PowerStatic);
@@ -117,7 +121,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-} // namespace op
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace op
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

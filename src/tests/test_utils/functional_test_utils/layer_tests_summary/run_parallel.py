@@ -1,24 +1,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import os
-import sys
-import threading
 import csv
 import datetime
-import shlex
 import heapq
-
+import os
+import shlex
+import sys
+import threading
 from argparse import ArgumentParser
-from subprocess import Popen, TimeoutExpired, run, call
 from hashlib import sha256
 from pathlib import Path
-from shutil import rmtree, copyfile
+from shutil import copyfile, rmtree
+from subprocess import Popen, TimeoutExpired, call, run
 from tarfile import open as tar_open
-from utils.conformance_utils import get_logger, progressbar
-from utils import constants
-from utils import file_utils
 
 import defusedxml.ElementTree as ET
+from utils import constants, file_utils
+from utils.conformance_utils import get_logger, progressbar
 
 if not constants.IS_WIN:
     from signal import SIGKILL
@@ -60,19 +58,10 @@ def parse_arguments():
     repeat_help = "Number of times to repeat failed and interrupted tests"
 
     parser.add_argument(
-        "-e",
-        "--exec_file",
-        help=exec_file_path_help,
-        type=str,
-        required=True
+        "-e", "--exec_file", help=exec_file_path_help, type=str, required=True
     )
     parser.add_argument(
-        "-c",
-        "--cache_path",
-        help=cache_path_help,
-        type=str,
-        required=False,
-        default=""
+        "-c", "--cache_path", help=cache_path_help, type=str, required=False, default=""
     )
     parser.add_argument(
         "-j",
@@ -115,12 +104,7 @@ def parse_arguments():
         default=constants.TEST_UNIT_NAME,
     )
     parser.add_argument(
-        "-rf",
-        "--repeat_failed",
-        help=repeat_help,
-        type=int,
-        required=False,
-        default=1
+        "-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=1
     )
 
     return parser.parse_args()
@@ -247,7 +231,9 @@ class TaskManager:
         while True:
             for pid in range(len(self._process_list)):
                 try:
-                    p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
+                    p_time = float(
+                        (datetime.datetime.now() - self._timers[pid]).total_seconds()
+                    )
                     if p_time > self.process_timeout:
                         logger.warning(
                             f"Process {pid} exceed time limitation per process"
@@ -293,7 +279,9 @@ class TaskManager:
         while len(self._process_list) > 0:
             for pid in range(len(self._process_list)):
                 try:
-                    p_time = float((datetime.datetime.now() - self._timers[pid]).total_seconds())
+                    p_time = float(
+                        (datetime.datetime.now() - self._timers[pid]).total_seconds()
+                    )
                     if p_time > self.process_timeout:
                         logger.warning(
                             f"Process {pid} exceed time limetation per process. The process will be killed"
@@ -325,7 +313,7 @@ class TestParallelRunner:
         repeat_failed: bool,
         is_parallel_devices=False,
         excluded_tests=set(),
-        timeout=0
+        timeout=0,
     ):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
@@ -357,7 +345,11 @@ class TestParallelRunner:
         self._excluded_tests = excluded_tests
         self._timeout = timeout if timeout > 0 else None
         if self._timeout is None:
-            self._timeout = DEFAULT_TEST_TIMEOUT if self._split_unit == constants.TEST_UNIT_NAME else DEFAULT_SUITE_TIMEOUT
+            self._timeout = (
+                DEFAULT_TEST_TIMEOUT
+                if self._split_unit == constants.TEST_UNIT_NAME
+                else DEFAULT_SUITE_TIMEOUT
+            )
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f"{self._exec_file_path}"
@@ -424,11 +416,15 @@ class TestParallelRunner:
             try:
                 os.remove(test_list_file_name)
             except Exception as err:
-                logger.warning(f"Imposible to remove {test_list_file_name}. Error: {err}")
-        command_to_get_test_list = self._command + f' --gtest_list_tests > {test_list_file_name}'
+                logger.warning(
+                    f"Imposible to remove {test_list_file_name}. Error: {err}"
+                )
+        command_to_get_test_list = (
+            self._command + f" --gtest_list_tests > {test_list_file_name}"
+        )
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run_res = run(command_to_get_test_list, check=True, shell=True)
-        if run_res.stderr not in ('', None):
+        if run_res.stderr not in ("", None):
             logger.error(f"Ooops! Something is going wrong... {run_res.stderr}")
             sys.exit(-1)
 
@@ -790,7 +786,10 @@ class TestParallelRunner:
                             line.find(constants.RUN) + len(constants.RUN) + 1 : -1 :
                         ]
                         dir = None
-                        if self._device is not None and self._available_devices is not None:
+                        if (
+                            self._device is not None
+                            and self._available_devices is not None
+                        ):
                             for device_name in self._available_devices:
                                 if device_name in test_name:
                                     test_name = test_name.replace(
@@ -920,7 +919,9 @@ class TestParallelRunner:
                 )
                 failed_models = set()
                 for conformance_ir_filelist in self._conformance_ir_filelists:
-                    with open(conformance_ir_filelist, "r", encoding=constants.ENCODING) as file:
+                    with open(
+                        conformance_ir_filelist, "r", encoding=constants.ENCODING
+                    ) as file:
                         for conformance_ir in file.readlines():
                             correct_ir = conformance_ir.replace("\n", "")
                             _, tail = os.path.split(correct_ir)
@@ -960,14 +961,18 @@ class TestParallelRunner:
                         )
                     rmtree(failed_ir_dir)
                 if len(failed_models) > 0:
-                    with open(failed_models_file_path, "w", encoding=constants.ENCODING) as failed_models_file:
+                    with open(
+                        failed_models_file_path, "w", encoding=constants.ENCODING
+                    ) as failed_models_file:
                         failed_models_list = []
                         for item in failed_models:
                             failed_models_list.append(f"{item}\n")
                         failed_models_file.writelines(failed_models_list)
                         failed_models_file.close()
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
-        with open(disabled_tests_path, "w", encoding=constants.ENCODING) as disabled_tests_file:
+        with open(
+            disabled_tests_path, "w", encoding=constants.ENCODING
+        ) as disabled_tests_file:
             for i in range(len(self._disabled_tests)):
                 self._disabled_tests[i] += "\n"
             disabled_tests_file.writelines(self._disabled_tests)
@@ -975,7 +980,9 @@ class TestParallelRunner:
             logger.info(f"Disabled test list is saved to: {disabled_tests_path}")
 
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
-        with open(not_run_tests_path, "w", encoding=constants.ENCODING) as not_run_tests_path_file:
+        with open(
+            not_run_tests_path, "w", encoding=constants.ENCODING
+        ) as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
             diff_set = (
                 set(saved_tests)
@@ -997,7 +1004,7 @@ class TestParallelRunner:
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
-            if (test_st not in ('passed', 'skipped')) and test_res > 0:
+            if (test_st not in ("passed", "skipped")) and test_res > 0:
                 is_successfull_run = False
         if self._disabled_tests:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")

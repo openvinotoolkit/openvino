@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/variadic_split.hpp"
 #include <memory>
-
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/variadic_split.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 using namespace testing;
@@ -50,12 +49,12 @@ public:
     void SetUp() override {
         const VariadicSplitTransformationTestValues testValues = GetParam();
 
-        actualFunction = ov::builder::subgraph::VariadicSplitFunction::getOriginal(
-            testValues.inputShape,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization,
-            testValues.axis,
-            testValues.splitLengths);
+        actualFunction =
+            ov::builder::subgraph::VariadicSplitFunction::getOriginal(testValues.inputShape,
+                                                                      testValues.actual.precisionBeforeDequantization,
+                                                                      testValues.actual.dequantization,
+                                                                      testValues.axis,
+                                                                      testValues.splitLengths);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::VariadicSplitTransformation, ov::op::v1::VariadicSplit>(
@@ -64,12 +63,12 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::VariadicSplitFunction::getReference(testValues.inputShape,
-                                                                           testValues.expected.inputPrecision,
-                                                                           testValues.expected.dequantizationBefore,
-                                                                           testValues.expected.precisionAfterOperation,
-                                                                           testValues.expected.dequantizationAfter,
-                                                                           testValues.axis,
-                                                                           testValues.splitLengths);
+                                                                       testValues.expected.inputPrecision,
+                                                                       testValues.expected.dequantizationBefore,
+                                                                       testValues.expected.precisionAfterOperation,
+                                                                       testValues.expected.dequantizationAfter,
+                                                                       testValues.axis,
+                                                                       testValues.splitLengths);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<VariadicSplitTransformationTestValues> obj) {

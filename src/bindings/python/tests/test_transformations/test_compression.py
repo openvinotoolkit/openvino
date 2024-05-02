@@ -5,21 +5,49 @@
 from typing import List
 
 import numpy as np
-from openvino.runtime.op import Parameter, Constant
+from openvino.runtime.op import Constant, Parameter
 from openvino.runtime.opset13 import add, multiply
+from tests.utils.helpers import create_filename_for_test
 
 import openvino as ov
-from tests.utils.helpers import create_filename_for_test
 
 
 def make_constant(values, transposed):
-    return Constant(ov.Type.f32, ov.Shape([1, len(values)] if transposed else [len(values), 1]), values)
+    return Constant(
+        ov.Type.f32,
+        ov.Shape([1, len(values)] if transposed else [len(values), 1]),
+        values,
+    )
 
 
 # keep fp16 denormals, flush fp32 denormals to zero
-in_range = [-65504.0, -2.0, 1.00097656, -1.0, -0.99951172, -0.00006103515625, -0.000000059604645, 0.0,
-            0.000000059604645, 0.99951172, 0.00006103515625, 1.0, 1.00097656, 2.0, 65504]
-out_of_range = [float("-inf"), -65505.0, -1e-10, -1e-39, 1e-39, 1e-10, 65505.0, float("inf")]
+in_range = [
+    -65504.0,
+    -2.0,
+    1.00097656,
+    -1.0,
+    -0.99951172,
+    -0.00006103515625,
+    -0.000000059604645,
+    0.0,
+    0.000000059604645,
+    0.99951172,
+    0.00006103515625,
+    1.0,
+    1.00097656,
+    2.0,
+    65504,
+]
+out_of_range = [
+    float("-inf"),
+    -65505.0,
+    -1e-10,
+    -1e-39,
+    1e-39,
+    1e-10,
+    65505.0,
+    float("inf"),
+]
 converted_out_of_range = [-65504.0, -65504.0, 0, 0, 0, 0, 65504.0, 65504.0]
 
 # test inputs
@@ -73,15 +101,21 @@ def test_compression_1(request, tmp_path):
     model = make_model(more_in_range, more_out_of_range)
     const_fp16, const_fp32 = get_constants(model, request, tmp_path)
     assert const_fp32 is not None, "There is no Constant op on FP32 branch"
-    assert const_fp16 is not None, "There is no compressed Constant + Convert op on FP16 branch"
+    assert (
+        const_fp16 is not None
+    ), "There is no compressed Constant + Convert op on FP16 branch"
 
     assert const_fp32.get_output_element_type(0) == ov.Type.f32
-    assert np.all(np.array(more_out_of_range, dtype=np.float32) == const_fp32.get_vector())
+    assert np.all(
+        np.array(more_out_of_range, dtype=np.float32) == const_fp32.get_vector()
+    )
 
     assert const_fp16.get_output_element_type(0) == ov.Type.f16
 
     msg = f"Difference: {np.array(converted_more_in_range, dtype=np.float32) - const_fp16.get_vector()}"
-    assert np.all(np.array(converted_more_in_range, dtype=np.float32) == const_fp16.get_vector()), msg
+    assert np.all(
+        np.array(converted_more_in_range, dtype=np.float32) == const_fp16.get_vector()
+    ), msg
 
 
 def test_compression_2(request, tmp_path):
@@ -91,8 +125,12 @@ def test_compression_2(request, tmp_path):
     assert const_fp16_1 is not None, "There is no Constant op on FP16 branch"
     assert const_fp16_2 is not None, "There is no Constant op on FP16 branch"
 
-    assert const_fp16_1.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
-    assert const_fp16_2.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
+    assert (
+        const_fp16_1.get_output_element_type(0) == ov.Type.f16
+    ), "Const element type is not f16"
+    assert (
+        const_fp16_2.get_output_element_type(0) == ov.Type.f16
+    ), "Const element type is not f16"
     f16_min, f16_max = np.finfo(np.float16).min, np.finfo(np.float16).max
     in_range_clipped = np.clip(more_in_range, f16_min, f16_max).astype(np.float16)
 
@@ -107,9 +145,17 @@ def test_no_compression(request, tmp_path):
     assert const_fp32_1 is not None, "There is no Constant op on FP32 branch"
     assert const_fp32_2 is not None, "There is no Constant op on FP32 branch"
 
-    assert const_fp32_1.get_output_element_type(0) == ov.Type.f32, "Const element type is not f32"
+    assert (
+        const_fp32_1.get_output_element_type(0) == ov.Type.f32
+    ), "Const element type is not f32"
 
-    assert const_fp32_2.get_output_element_type(0) == ov.Type.f32, "Const element type is not f32"
+    assert (
+        const_fp32_2.get_output_element_type(0) == ov.Type.f32
+    ), "Const element type is not f32"
 
-    assert np.all(np.array(more_out_of_range, dtype=np.float32) == const_fp32_1.get_vector())
-    assert np.all(np.array(more_out_of_range, dtype=np.float32) == const_fp32_2.get_vector())
+    assert np.all(
+        np.array(more_out_of_range, dtype=np.float32) == const_fp32_1.get_vector()
+    )
+    assert np.all(
+        np.array(more_out_of_range, dtype=np.float32) == const_fp32_2.get_vector()
+    )

@@ -59,8 +59,8 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params) const {
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        dispatchData.gws = { Align(size, 16), orgParams.inputs[0].Batch().v, 1 };
-        dispatchData.lws = { 16, 1, 1 };
+        dispatchData.gws = {Align(size, 16), orgParams.inputs[0].Batch().v, 1};
+        dispatchData.lws = {16, 1, 1};
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entryPoint);
         size = (size / 128 + 1) * topK;

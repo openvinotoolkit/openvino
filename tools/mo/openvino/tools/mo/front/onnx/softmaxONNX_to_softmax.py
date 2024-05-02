@@ -13,27 +13,40 @@ class SoftmaxONNXFrontReplacer(FrontReplacementOp):
     """
     Replace SoftmaxONNX operation with FlattenONNX -> Softmax -> Reshape subgraph
     """
+
     op = "SoftMaxONNX"
     enabled = True
 
     def run_before(self):
-        from openvino.tools.mo.front.onnx.flattenONNX_to_reshape import FlattenONNXToReshape
+        from openvino.tools.mo.front.onnx.flattenONNX_to_reshape import (
+            FlattenONNXToReshape,
+        )
+
         return [FlattenONNXToReshape]
 
     def replace_op(self, graph: Graph, node: Node):
-        node_name = node.soft_get('name', node.id)
-        assert node.has_valid('axis'), 'The node "{}" does not have mandatory attribute "axis"'.format(node_name)
+        node_name = node.soft_get("name", node.id)
+        assert node.has_valid(
+            "axis"
+        ), 'The node "{}" does not have mandatory attribute "axis"'.format(node_name)
 
-        flatten_node = FlattenONNX(graph, {'name': node_name + '/FlattenONNX_', 'axis': node.axis}).create_node()
-        shape_node = Shape(graph, {'name': node_name + '/ShapeOf_'}).create_node()
-        softmax_node = Softmax(graph, {'name': node_name + '/Softmax_',
-                                       'axis': 1,
-                                       'framework_node_name': node_name,
-                                       'rename_condition': lambda n: len(n.graph.get_op_nodes(name=node_name)) == 0
-                                       }).create_node()
+        flatten_node = FlattenONNX(
+            graph, {"name": node_name + "/FlattenONNX_", "axis": node.axis}
+        ).create_node()
+        shape_node = Shape(graph, {"name": node_name + "/ShapeOf_"}).create_node()
+        softmax_node = Softmax(
+            graph,
+            {
+                "name": node_name + "/Softmax_",
+                "axis": 1,
+                "framework_node_name": node_name,
+                "rename_condition": lambda n: len(n.graph.get_op_nodes(name=node_name))
+                == 0,
+            },
+        ).create_node()
         reshape_node = Reshape(graph, {}).create_node()
 
-        rename_nodes([(node, node_name + '/delete'), (reshape_node, node_name)])
+        rename_nodes([(node, node_name + "/delete"), (reshape_node, node_name)])
 
         flatten_node.out_port(0).connect(softmax_node.in_port(0))
         softmax_node.out_port(0).connect(reshape_node.in_port(0))

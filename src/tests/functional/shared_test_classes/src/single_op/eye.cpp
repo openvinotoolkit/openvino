@@ -4,10 +4,10 @@
 #include "shared_test_classes/single_op/eye.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/pass/constant_folding.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/eye.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 namespace ov {
 namespace test {
@@ -60,7 +60,8 @@ void EyeLayerTest::SetUp() {
                                                                       ov::Shape{out_batch_shape.size()},
                                                                       out_batch_shape.data());
         batch_shape_par->set_friendly_name("batchShape");
-        eye_operation = std::make_shared<ov::op::v9::Eye>(rows_const, cols_const, diag_const, batch_shape_par, model_type);
+        eye_operation =
+            std::make_shared<ov::op::v9::Eye>(rows_const, cols_const, diag_const, batch_shape_par, model_type);
     } else {
         eye_operation = std::make_shared<ov::op::v9::Eye>(rows_const, cols_const, diag_const, model_type);
     }

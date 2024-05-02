@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "reorg_yolo_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "reorg_yolo_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

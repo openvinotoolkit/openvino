@@ -4,17 +4,15 @@
 
 #include "low_precision/recurrent_cell.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
-
 #include <memory>
+
+#include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-
-#include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -47,29 +45,19 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
     const auto dequantization_without_subtract_R = wrap_dequantization(ov::pass::pattern::any_input(), false);
 
     auto X_in = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{
-            fq_X, dequantization_X, dequantization_without_subtract_X
-        });
+        OutputVector{fq_X, dequantization_X, dequantization_without_subtract_X});
 
     auto H_in = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{
-            H_as_const, fq_H, dequantization_H, dequantization_without_subtract_H
-        });
+        OutputVector{H_as_const, fq_H, dequantization_H, dequantization_without_subtract_H});
 
     auto W_in = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{
-            fq_W, dequantization_W, dequantization_without_subtract_W
-        });
+        OutputVector{fq_W, dequantization_W, dequantization_without_subtract_W});
 
     auto R_in = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{
-            fq_R, dequantization_R, dequantization_without_subtract_R
-        });
+        OutputVector{fq_R, dequantization_R, dequantization_without_subtract_R});
 
-    const auto lstm_seq = ov::pass::pattern::wrap_type<ov::opset5::LSTMSequence>(
-        {X_in, H_in, C, S, W_in, R_in, B});
-    const auto gru_seq  = ov::pass::pattern::wrap_type<ov::opset5::GRUSequence>(
-        {X_in, H_in,    S, W_in, R_in, B});
+    const auto lstm_seq = ov::pass::pattern::wrap_type<ov::opset5::LSTMSequence>({X_in, H_in, C, S, W_in, R_in, B});
+    const auto gru_seq = ov::pass::pattern::wrap_type<ov::opset5::GRUSequence>({X_in, H_in, S, W_in, R_in, B});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -81,11 +69,7 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(
-            OutputVector {
-                lstm_seq,
-                gru_seq
-            }),
+        std::make_shared<pass::pattern::op::Or>(OutputVector{lstm_seq, gru_seq}),
         "RecurrentCellTransformation");
 
     this->register_matcher(m, callback);
@@ -114,11 +98,11 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
                 }
 
                 auto QDQ = NetworkHelper::decomposeFakeQuantize(fq_node,
-                                                                  dataPrecision.precision,
-                                                                  dataPrecision.min,
-                                                                  dataPrecision.max,
-                                                                  dataPrecision.hasZeroPoint,
-                                                                  updatePrecisions);
+                                                                dataPrecision.precision,
+                                                                dataPrecision.min,
+                                                                dataPrecision.max,
+                                                                dataPrecision.hasZeroPoint,
+                                                                updatePrecisions);
                 std::shared_ptr<ov::Node> new_fq = std::get<0>(QDQ);
                 std::shared_ptr<ov::Node> deq_multiply = std::get<1>(QDQ);
                 if (deq_multiply == nullptr || new_fq == nullptr) {
@@ -153,7 +137,8 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
     return true;
 }
 
-bool RecurrentCellTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> lstm) const {
+bool RecurrentCellTransformation::canBeTransformed(const TransformationContext& context,
+                                                   std::shared_ptr<Node> lstm) const {
     std::shared_ptr<ov::Node> W, R;
 
     if (is_type<opset5::LSTMSequence>(lstm)) {
@@ -183,42 +168,34 @@ void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<
     }
 }
 
-std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_fake_quantize(
-    const std::shared_ptr<ov::Node> parameter) {
+std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_fake_quantize(const std::shared_ptr<ov::Node> parameter) {
     const auto input_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto input_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto output_low = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto output_high = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    return ov::pass::pattern::wrap_type<opset1::FakeQuantize>({
-        parameter,
-        input_low,
-        input_high,
-        output_low,
-        output_high});
+    return ov::pass::pattern::wrap_type<opset1::FakeQuantize>(
+        {parameter, input_low, input_high, output_low, output_high});
 }
 
-std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_quantization(
-    const std::shared_ptr<ov::Node> parameter) {
+std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_quantization(const std::shared_ptr<ov::Node> parameter) {
     const auto quantization_fake_quantize = wrap_fake_quantize(parameter);
-    const auto quantization_convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>(
-        {quantization_fake_quantize});
+    const auto quantization_convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({quantization_fake_quantize});
     return quantization_convert;
 }
 
-std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_dequantization(
-    const std::shared_ptr<ov::Node> parameter,
-    const bool with_subtract) {
+std::shared_ptr<ov::Node> RecurrentCellTransformation::wrap_dequantization(const std::shared_ptr<ov::Node> parameter,
+                                                                           const bool with_subtract) {
     const auto dequantization_convert = ov::pass::pattern::wrap_type<ov::opset1::Convert>({parameter});
     const auto subtract_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto dequantization_subtract = ov::pass::pattern::wrap_type<ov::opset1::Subtract>(
-        {dequantization_convert, subtract_constant});
+    const auto dequantization_subtract =
+        ov::pass::pattern::wrap_type<ov::opset1::Subtract>({dequantization_convert, subtract_constant});
     const auto multiply_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto multiply_parent = with_subtract ? dequantization_subtract : dequantization_convert;
-    const auto dequantization_multiply = ov::pass::pattern::wrap_type<ov::opset1::Multiply>(
-        {multiply_parent, multiply_constant});
+    const auto dequantization_multiply =
+        ov::pass::pattern::wrap_type<ov::opset1::Multiply>({multiply_parent, multiply_constant});
     return dequantization_multiply;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

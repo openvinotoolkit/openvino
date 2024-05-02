@@ -9,10 +9,10 @@ from openvino.tools.mo.graph.port import Port
 
 
 def get_value_id(node: Node):
-    assert node.has_valid('op')
+    assert node.has_valid("op")
     value_id = None
     for port, in_node in node.in_nodes().items():
-        if in_node.has_valid('value'):
+        if in_node.has_valid("value"):
             if value_id:
                 return None
             value_id = port
@@ -20,10 +20,10 @@ def get_value_id(node: Node):
 
 
 def get_tensor_id(node: Node):
-    assert node.has_valid('op')
+    assert node.has_valid("op")
     tensor_id = None
     for port, in_node in node.in_nodes().items():
-        if not in_node.has_valid('value'):
+        if not in_node.has_valid("value"):
             if tensor_id:
                 return None
             tensor_id = port
@@ -46,8 +46,15 @@ def get_value_in_port(node) -> Port:
     return None if len(value_ports) != 1 else value_ports[0]
 
 
-def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: bool = True, allowed_all: bool = False,
-               attr_to_check='type', follow_multi_consumer_data_nodes=False):
+def common_bfs(
+    start_node: Node,
+    allowed_ops: list,
+    op_name: list,
+    is_backward: bool = True,
+    allowed_all: bool = False,
+    attr_to_check="type",
+    follow_multi_consumer_data_nodes=False,
+):
     """
     The purpose of this algorithm is to find layers with 'op_name' located in given direction.
     In case of branching algorithm goes into each branch, but if it can't find layer in one of them it returns
@@ -67,7 +74,11 @@ def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: 
     while len(q) != 0:
         node = q.popleft()
         if node.id in used:
-            log.debug("[BFS:ERROR] Graph contains cycle! BFS starts from {} node".format(start_node.id))
+            log.debug(
+                "[BFS:ERROR] Graph contains cycle! BFS starts from {} node".format(
+                    start_node.id
+                )
+            )
             return []
         used.append(node.id)
         in_nodes_size = len(node.in_nodes()) if is_backward else len(node.out_nodes())
@@ -81,18 +92,24 @@ def common_bfs(start_node: Node, allowed_ops: list, op_name: list, is_backward: 
                     q.append(pnode)
                 else:
                     return []
-            elif pnode.kind == 'data' and pnode.value is None:
+            elif pnode.kind == "data" and pnode.value is None:
                 # If we go backward we don't use data node that have more than one consumer
-                if not is_backward or (len(pnode.out_nodes()) == 1 or follow_multi_consumer_data_nodes):
+                if not is_backward or (
+                    len(pnode.out_nodes()) == 1 or follow_multi_consumer_data_nodes
+                ):
                     q.append(pnode)
     return [Node(start_node.graph, x) for x in ret]
 
 
-def forward_bfs(start_node: Node, allowed_ops: list, op_name: list, allowed_all: bool = False):
+def forward_bfs(
+    start_node: Node, allowed_ops: list, op_name: list, allowed_all: bool = False
+):
     return common_bfs(start_node, allowed_ops, op_name, False, allowed_all=allowed_all)
 
 
-def backward_bfs(start_node: Node, allowed_ops: list, op_name: list, allowed_all: bool = False):
+def backward_bfs(
+    start_node: Node, allowed_ops: list, op_name: list, allowed_all: bool = False
+):
     return common_bfs(start_node, allowed_ops, op_name, allowed_all=allowed_all)
 
 
@@ -100,7 +117,7 @@ def get_next_operation(node: Node):
     """
     This function returns next op node, so node should be an operation
     """
-    assert node.kind == 'op'
+    assert node.kind == "op"
 
     out_nodes = node.out_nodes()
     res = []

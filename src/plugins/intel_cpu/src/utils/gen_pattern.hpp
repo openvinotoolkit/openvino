@@ -50,7 +50,9 @@ static bool matcher_verbose_enabled() {
     return enabled;
 }
 
-#    define _VERBOSE_LOG(...) if (matcher_verbose_enabled()) _verbose_log(__VA_ARGS__)
+#    define _VERBOSE_LOG(...)          \
+        if (matcher_verbose_enabled()) \
+        _verbose_log(__VA_ARGS__)
 #else
 static bool matcher_verbose_enabled() {
     return false;
@@ -720,7 +722,7 @@ public:
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,
                             const detail::AttrMap& attrs,
-                            const char * vt)
+                            const char* vt)
         : ov::pass::pattern::op::Pattern(args),
           m_type_info(type_info),
           m_attrs(attrs),

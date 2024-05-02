@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/single_op/one_hot.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/one_hot.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -54,7 +54,8 @@ void OneHotLayerTest::SetUp() {
     float on_val, off_val;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
-    std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, targetDevice) = this->GetParam();
+    std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, targetDevice) =
+        this->GetParam();
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

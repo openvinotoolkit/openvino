@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "mvn_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -28,7 +25,7 @@ struct mvn_test_params {
     std::vector<int64_t> axes;
 };
 
-class mvn_test : public testing::TestWithParam<mvn_test_params> { };
+class mvn_test : public testing::TestWithParam<mvn_test_params> {};
 
 TEST_P(mvn_test, shape_infer) {
     auto p = GetParam();
@@ -36,7 +33,12 @@ TEST_P(mvn_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
-    auto mvn_prim = std::make_shared<mvn>("output", input_info("input"), p.normalize_variance, p.epsilon, p.eps_inside_sqrt, p.axes);
+    auto mvn_prim = std::make_shared<mvn>("output",
+                                          input_info("input"),
+                                          p.normalize_variance,
+                                          p.epsilon,
+                                          p.eps_inside_sqrt,
+                                          p.axes);
 
     cldnn::program prog(engine);
 
@@ -49,16 +51,11 @@ TEST_P(mvn_test, shape_infer) {
     ASSERT_EQ(res[0], p.input_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, mvn_test,
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    mvn_test,
     testing::ValuesIn(std::vector<mvn_test_params>{
-        {
-            layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx},
-            true, 1e-9f, true, {2, 3}
-        },
-        {
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            true, 1e-9f, true, {1, 2, 3}
-        }
-    }));
+        {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, true, 1e-9f, true, {2, 3}},
+        {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, true, 1e-9f, true, {1, 2, 3}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

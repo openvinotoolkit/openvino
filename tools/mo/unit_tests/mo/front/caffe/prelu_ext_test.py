@@ -4,11 +4,12 @@
 import unittest
 from unittest.mock import patch
 
-from openvino.tools.mo.front.caffe.prelu_ext import PreluFrontExtractor
-from openvino.tools.mo.ops.prelu import PReLU
-from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
+
+from openvino.tools.mo.front.caffe.prelu_ext import PreluFrontExtractor
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.prelu import PReLU
 
 
 class FakePReLUProtoLayer:
@@ -19,20 +20,16 @@ class FakePReLUProtoLayer:
 class TestPreluExt(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        Op.registered_ops['PReLU'] = PReLU
+        Op.registered_ops["PReLU"] = PReLU
 
     def test_prelu_no_pb_no_ml(self):
         self.assertRaises(AttributeError, PreluFrontExtractor.extract, None)
 
-    @patch('openvino.tools.mo.front.caffe.prelu_ext.merge_attrs')
+    @patch("openvino.tools.mo.front.caffe.prelu_ext.merge_attrs")
     def test_reogyolo_ext_ideal_numbers(self, merge_attrs_mock):
-        params = {
-            'channel_shared': False
-        }
+        params = {"channel_shared": False}
 
-        merge_attrs_mock.return_value = {
-            **params
-        }
+        merge_attrs_mock.return_value = {**params}
 
         fake_pl = FakePReLUProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
@@ -40,10 +37,10 @@ class TestPreluExt(unittest.TestCase):
         PreluFrontExtractor.extract(fake_node)
 
         exp_res = {
-            'type': 'PReLU',
-            'op': 'PReLU',
-            'channel_shared': 0,
-            'infer': PReLU.infer,
+            "type": "PReLU",
+            "op": "PReLU",
+            "channel_shared": 0,
+            "infer": PReLU.infer,
         }
 
         for key in exp_res.keys():

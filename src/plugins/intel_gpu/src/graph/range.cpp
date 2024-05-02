@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "range_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "range_inst.h"
 #include "range_shape_inference.hpp"
 
 namespace cldnn {
@@ -24,7 +24,7 @@ layout range_inst::calc_output_layout(range_node const& node, kernel_impl_params
     return impl_param.typed_desc<range>()->output_layout;
 }
 
-template<typename ShapeType>
+template <typename ShapeType>
 std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<range>();
     auto output_data_type = desc->output_data_types[0].value_or(impl_param.get_input_layout().data_type);
@@ -56,7 +56,8 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
     return {layout({output_shapes[0], output_data_type, impl_param.get_output_layout().format})};
 }
 
-template std::vector<layout> range_inst::calc_output_layouts<ov::PartialShape>(range_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> range_inst::calc_output_layouts<ov::PartialShape>(range_node const& node,
+                                                                               const kernel_impl_params& impl_param);
 
 std::string range_inst::to_string(range_node const& node) {
     auto desc = node.get_primitive();

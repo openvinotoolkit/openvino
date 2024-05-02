@@ -12,12 +12,23 @@ from save_model import saveModel
 
 maxint32 = np.iinfo(np.int32).max
 
+
 def concat(data):
     data = [np.expand_dims(d, 0) for d in data]
     return np.concatenate(data, axis=0)
 
 
-def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=None, steps=None, is_dynamic=False):
+def paddle_set_value(
+    name: str,
+    x,
+    value,
+    callback,
+    dtype,
+    starts=None,
+    ends=None,
+    steps=None,
+    is_dynamic=False,
+):
 
     paddle.enable_static()
 
@@ -41,10 +52,20 @@ def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=Non
             node_starts = paddle.assign(input_starts)
             node_ends = paddle.assign(input_ends)
             node_steps = paddle.assign(input_steps)
-            out = callback(paddle.clone(node_x), node_v, node_starts, node_ends, node_steps)
+            out = callback(
+                paddle.clone(node_x), node_v, node_starts, node_ends, node_steps
+            )
 
         outs = exe.run(feed=feed, fetch_list=[out])
-        saveModel(name, exe, feedkeys=list(feed.keys()), fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=list(feed.keys()),
+            fetchlist=[out],
+            inputs=inputs,
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
 
 def build_slice(starts, ends, steps) -> list:
@@ -109,7 +130,7 @@ def main():
     shape = (10, 5)
     dtype = "int32"
     data = np.random.randint(0, 5, shape).astype(dtype)
-    value = np.random.randint(0, 2, (1, )).astype(dtype)
+    value = np.random.randint(0, 2, (1,)).astype(dtype)
     starts = generate_data([-4], np.int64)
     ends = generate_data([-1], np.int64)
     steps = generate_data([1], np.int64)
@@ -171,7 +192,7 @@ def main():
     shape = (10, 5)
     dtype = "int32"
     data = np.random.randint(0, 5, shape).astype(dtype)
-    value = np.random.randint(0, 2, (1, )).astype(dtype)
+    value = np.random.randint(0, 2, (1,)).astype(dtype)
     starts = generate_data([-4], np.int64)
     ends = generate_data([-1], np.int64)
     steps = generate_data([1], np.int64)
@@ -180,7 +201,18 @@ def main():
         x[build_slice(*slice)] = value
         return x
 
-    paddle_set_value("set_value_dynamic2", data, value, set_value7, dtype, starts, ends, steps, is_dynamic=True)
+    paddle_set_value(
+        "set_value_dynamic2",
+        data,
+        value,
+        set_value7,
+        dtype,
+        starts,
+        ends,
+        steps,
+        is_dynamic=True,
+    )
+
 
 if __name__ == "__main__":
     main()

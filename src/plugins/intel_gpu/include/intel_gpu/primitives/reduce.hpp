@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -54,7 +55,10 @@ struct reduce : public primitive_base<reduce> {
            const std::vector<int64_t> axes,
            const bool keep_dims,
            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), mode(mode), axes(axes), keep_dims(keep_dims) {}
+        : primitive_base(id, {input}, {output_padding}),
+          mode(mode),
+          axes(axes),
+          keep_dims(keep_dims) {}
 
     /// @brief Reduce operation type
     reduce_mode mode;
@@ -77,9 +81,7 @@ struct reduce : public primitive_base<reduce> {
 
         auto rhs_casted = downcast<const reduce>(rhs);
 
-        return mode == rhs_casted.mode &&
-               axes == rhs_casted.axes &&
-               keep_dims == rhs_casted.keep_dims;
+        return mode == rhs_casted.mode && axes == rhs_casted.axes && keep_dims == rhs_casted.keep_dims;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

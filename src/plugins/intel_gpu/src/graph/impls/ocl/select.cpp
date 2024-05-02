@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "select_inst.h"
-#include "select/select_kernel_selector.h"
 #include "select/select_kernel_base.h"
+#include "select/select_kernel_selector.h"
+#include "select_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -69,12 +68,7 @@ struct select_impl : typed_primitive_impl_ocl<select> {
 namespace detail {
 
 attach_select_impl::attach_select_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8};
 
     auto static_formats = {
         format::bfyx,
@@ -88,15 +82,13 @@ attach_select_impl::attach_select_impl() {
                                     types,
                                     static_formats);
 
-    auto dyn_formats = {
-        format::bfyx
-    };
+    auto dyn_formats = {format::bfyx};
 
     implementation_map<select>::add(impl_types::ocl,
-                                     shape_types::dynamic_shape,
-                                     typed_primitive_impl_ocl<select>::create<select_impl>,
-                                     types,
-                                     dyn_formats);
+                                    shape_types::dynamic_shape,
+                                    typed_primitive_impl_ocl<select>::create<select_impl>,
+                                    types,
+                                    dyn_formats);
 }
 
 }  // namespace detail

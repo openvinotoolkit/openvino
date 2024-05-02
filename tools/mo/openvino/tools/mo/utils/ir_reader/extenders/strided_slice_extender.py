@@ -8,14 +8,14 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class StridedSlice_extender(Extender):
-    op = 'StridedSlice'
+    op = "StridedSlice"
 
     @staticmethod
     def extend(op: Node):
         for attr in StridedSlice.get_mask_names():
             # We can not use op.has_and_set(attr) here as a condition, because it will return False if begin/end is
             # 1D tensor and begin_mask/end_mask is equal to 0
-            if op.has(attr) and op[attr] != '':
+            if op.has(attr) and op[attr] != "":
                 Extender.attr_to_list(op, attr)
             else:
                 op[attr] = int64_array([])

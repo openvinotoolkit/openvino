@@ -4,24 +4,27 @@
 import sys
 
 import numpy as np
+from openvino.runtime import Type
 
 import openvino as ov
-from openvino.runtime import Type
 
 
 def is_type(val):
     if isinstance(val, (type, Type)):
         return True
-    if 'tensorflow' in sys.modules:
-        import tensorflow as tf # pylint: disable=import-error
+    if "tensorflow" in sys.modules:
+        import tensorflow as tf  # pylint: disable=import-error
+
         if isinstance(val, tf.dtypes.DType):
             return True
-    if 'torch' in sys.modules:
+    if "torch" in sys.modules:
         import torch
+
         if isinstance(val, torch.dtype):
             return True
-    if 'paddle' in sys.modules:
+    if "paddle" in sys.modules:
         import paddle
+
         if isinstance(val, paddle.dtype):
             return True
     return False
@@ -32,12 +35,16 @@ def to_ov_type(val):
         return val
     if isinstance(val, (type, str, np.dtype)):
         return Type(val)
-    if 'tensorflow' in sys.modules:
-        import tensorflow as tf # pylint: disable=import-error
+    if "tensorflow" in sys.modules:
+        import tensorflow as tf  # pylint: disable=import-error
+
         if isinstance(val, tf.dtypes.DType):
-            from openvino.frontend.tensorflow.utils import tf_type_to_ov_type  # pylint: disable=no-name-in-module,import-error
+            from openvino.frontend.tensorflow.utils import (  # pylint: disable=no-name-in-module,import-error
+                tf_type_to_ov_type,
+            )
+
             return tf_type_to_ov_type(val)
-    if 'torch' in sys.modules:
+    if "torch" in sys.modules:
         import torch
 
         if isinstance(val, torch.dtype):
@@ -54,11 +61,13 @@ def to_ov_type(val):
                 torch.bool: ov.Type.boolean,
             }
             if val not in torch_to_ov_type:
-                raise Exception("The provided data time is not supported {}.".format(val))
+                raise Exception(
+                    "The provided data time is not supported {}.".format(val)
+                )
 
             return torch_to_ov_type[val]
 
-    if 'paddle' in sys.modules:
+    if "paddle" in sys.modules:
         import paddle
 
         if isinstance(val, paddle.dtype):
@@ -76,7 +85,13 @@ def to_ov_type(val):
             }
 
             if val not in paddle_to_ov_type:
-                raise Exception("The provided data time is not supported {}.".format(val))
+                raise Exception(
+                    "The provided data time is not supported {}.".format(val)
+                )
 
             return paddle_to_ov_type[val]
-    raise Exception("Unexpected type object. Expected ov.Type, np.dtype, tf.dtypes.DType. Got {}".format(type(val)))
+    raise Exception(
+        "Unexpected type object. Expected ov.Type, np.dtype, tf.dtypes.DType. Got {}".format(
+            type(val)
+        )
+    )

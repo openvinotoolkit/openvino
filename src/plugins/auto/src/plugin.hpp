@@ -5,16 +5,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <map>
-#include <vector>
-#include <string>
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "utils/log_util.hpp"
 #include "common.hpp"
-#include "plugin_config.hpp"
 #include "compiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "plugin_config.hpp"
+#include "utils/log_util.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -35,37 +35,36 @@ public:
                                                       const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const override;
+                                                      const ov::AnyMap& properties,
+                                                      const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                       const ov::AnyMap& properties) const override;
 
-    MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
-                                                                                 const ov::AnyMap& properties) const;
+    MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(
+        const std::string& devices_requests_cfg,
+        const ov::AnyMap& properties) const;
 
     MOCKTESTMACRO std::string get_device_list(const ov::AnyMap& properties) const;
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
-                                                   const std::string& model_precision = "FP32") const;
+                                                                const std::string& model_precision = "FP32") const;
 
     MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
-                                                 const std::string& model_precision = "FP32",
-                                                 unsigned int priority = 0);
+                                                  const std::string& model_precision = "FP32",
+                                                  unsigned int priority = 0);
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
-
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const override;
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,

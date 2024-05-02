@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -20,7 +21,7 @@ public:
 protected:
     ParamsKey GetSupportedKey() const override;
     bool Validate(const Params& params) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override {
         return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
     }
 };

@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8Params> &obj) {
+std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8Params>& obj) {
     Slice8SpecificParams params;
     ov::element::Type model_type;
     std::string target_device;
@@ -21,16 +21,17 @@ std::string Slice8LayerTest::getTestCaseName(const testing::TestParamInfo<Slice8
     for (size_t i = 0lu; i < params.shapes.front().second.size(); i++) {
         result << "{";
         for (size_t j = 0lu; j < params.shapes.size(); j++) {
-            result << ov::test::utils::vec2str(params.shapes[j].second[i]) << (j < params.shapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(params.shapes[j].second[i])
+                   << (j < params.shapes.size() - 1lu ? "_" : "");
         }
         result << "}_";
     }
-    result << "start="   << ov::test::utils::vec2str(params.start) << "_";
-    result << "stop="    << ov::test::utils::vec2str(params.stop) << "_";
-    result << "step="    << ov::test::utils::vec2str(params.step) << "_";
-    result << "axes="    << ov::test::utils::vec2str(params.axes) << "_";
+    result << "start=" << ov::test::utils::vec2str(params.start) << "_";
+    result << "stop=" << ov::test::utils::vec2str(params.stop) << "_";
+    result << "step=" << ov::test::utils::vec2str(params.step) << "_";
+    result << "axes=" << ov::test::utils::vec2str(params.axes) << "_";
     result << "modelType=" << model_type.to_string() << "_";
-    result << "trgDev="  << target_device;
+    result << "trgDev=" << target_device;
     return result.str();
 }
 

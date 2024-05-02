@@ -3,6 +3,7 @@
 //
 
 #include "generate_proposals_kernel_ref.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -70,38 +71,38 @@ GenerateProposalsRef::DispatchData SetDefault(const generate_proposals_params& p
 }
 }  // namespace
 
-void GenerateProposalsRef::SetKernelArguments(
-        const generate_proposals_params& params,
-        size_t idx, cldnn::arguments_desc& arguments) const {
+void GenerateProposalsRef::SetKernelArguments(const generate_proposals_params& params,
+                                              size_t idx,
+                                              cldnn::arguments_desc& arguments) const {
     switch (idx) {
-        case 0: { // refine anchors
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kAnchorsInputIdx});
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kDeltasInputIdx});
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kScoresInputIdx});
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
-            break;
-        }
-        case 1: { // sort proposals by score
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
-            break;
-        }
-        case 2: { // NMS
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
-            break;
-        }
-        case 3: { // convert proposals to rois and roi scores
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // proposals
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // nms_out_indices
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx}); // rois num
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});          // rois
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisScoresOutputIdx}); // roi scores
-            break;
-        }
-        default:
-            throw std::invalid_argument("generate_proposals has 4 kernels. valid index is 0 ~ 3.");
+    case 0: {  // refine anchors
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kAnchorsInputIdx});
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kDeltasInputIdx});
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kScoresInputIdx});
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // proposals
+        break;
+    }
+    case 1: {                                                                  // sort proposals by score
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // proposals
+        break;
+    }
+    case 2: {                                                                         // NMS
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});         // proposals
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});         // nms_out_indices
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx});  // rois num
+        break;
+    }
+    case 3: {  // convert proposals to rois and roi scores
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});           // proposals
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});           // nms_out_indices
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisNumsOutputIdx});    // rois num
+        arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                    // rois
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, kRoisScoresOutputIdx});  // roi scores
+        break;
+    }
+    default:
+        throw std::invalid_argument("generate_proposals has 4 kernels. valid index is 0 ~ 3.");
     }
 }
 
@@ -126,7 +127,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params) const {
     kd.internalBufferDataType = Datatype::F32;
 
     const auto num_batches = inputs[kScoresInputIdx].Batch().v;
-    constexpr size_t kProposalBoxSize = 6; // 6 values: {x0, y0, x1, y1, score, keep}
+    constexpr size_t kProposalBoxSize = 6;  // 6 values: {x0, y0, x1, y1, score, keep}
     const auto proposals_buffer_size = num_batches * num_proposals * sizeof(float) * kProposalBoxSize;
     kd.internalBufferSizes.push_back(proposals_buffer_size);
 
@@ -146,38 +147,37 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params) const {
         }
 
         switch (i) {
-            case 0: {
-                cldnn_jit.AddConstants({MakeJitConstant("MIN_SIZE", new_params.min_size),
-                                        MakeJitConstant("ANCHORS_NUM", anchors_num),
-                                        MakeJitConstant("NUM_PROPOSALS", num_proposals),
-                                        MakeJitConstant("BOTTOM_H", bottom_H),
-                                        MakeJitConstant("BOTTOM_W", bottom_W),
-                                        MakeJitConstant("BOTTOM_AREA", bottom_H * bottom_W),
-                                        MakeJitConstant("SCALE_W_INDEX", scale_w_index),
-                                        MakeJitConstant("MAX_DELTA_LOG_WH", max_delta_log_wh)
-                                       });
-                break;
-            }
-            case 1: {
-                cldnn_jit.AddConstants({MakeJitConstant("NUM_PROPOSALS", num_proposals)});
-                break;
-            }
-            case 2: {
-                cldnn_jit.AddConstants({MakeJitConstant("NUM_PROPOSALS", num_proposals),
-                                        MakeJitConstant("PRE_NMS_TOPN", pre_nms_topn),
-                                        MakeJitConstant("POST_NMS_COUNT", new_params.post_nms_count),
-                                        MakeJitConstant("NMS_THRESHOLD", new_params.nms_threshold),
-                                       });
-                break;
-            }
-            case 3: {
-                cldnn_jit.AddConstants({MakeJitConstant("POST_NMS_COUNT", new_params.post_nms_count),
-                                        MakeJitConstant("NUM_PROPOSALS", num_proposals)
-                                       });
-                break;
-            }
-            default:
-                throw std::invalid_argument("GENERATE_PROPOSALS has 4 kernels. valid index is 0 ~ 3.");
+        case 0: {
+            cldnn_jit.AddConstants({MakeJitConstant("MIN_SIZE", new_params.min_size),
+                                    MakeJitConstant("ANCHORS_NUM", anchors_num),
+                                    MakeJitConstant("NUM_PROPOSALS", num_proposals),
+                                    MakeJitConstant("BOTTOM_H", bottom_H),
+                                    MakeJitConstant("BOTTOM_W", bottom_W),
+                                    MakeJitConstant("BOTTOM_AREA", bottom_H * bottom_W),
+                                    MakeJitConstant("SCALE_W_INDEX", scale_w_index),
+                                    MakeJitConstant("MAX_DELTA_LOG_WH", max_delta_log_wh)});
+            break;
+        }
+        case 1: {
+            cldnn_jit.AddConstants({MakeJitConstant("NUM_PROPOSALS", num_proposals)});
+            break;
+        }
+        case 2: {
+            cldnn_jit.AddConstants({
+                MakeJitConstant("NUM_PROPOSALS", num_proposals),
+                MakeJitConstant("PRE_NMS_TOPN", pre_nms_topn),
+                MakeJitConstant("POST_NMS_COUNT", new_params.post_nms_count),
+                MakeJitConstant("NMS_THRESHOLD", new_params.nms_threshold),
+            });
+            break;
+        }
+        case 3: {
+            cldnn_jit.AddConstants({MakeJitConstant("POST_NMS_COUNT", new_params.post_nms_count),
+                                    MakeJitConstant("NUM_PROPOSALS", num_proposals)});
+            break;
+        }
+        default:
+            throw std::invalid_argument("GENERATE_PROPOSALS has 4 kernels. valid index is 0 ~ 3.");
         }
 
         const auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
@@ -185,7 +185,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params) const {
 
         KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
         kernel.params.workGroups.global = dispatchData.gws;
-        kernel.params.workGroups.local  = dispatchData.lws;
+        kernel.params.workGroups.local = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
         SetKernelArguments(new_params, i, kernel.params.arguments);
     }

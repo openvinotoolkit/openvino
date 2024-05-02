@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/space_to_batch.hpp"
-#include "openvino/op/constant.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -30,7 +29,11 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
         bool is_const_input = (inConst != nullptr);
         OPENVINO_ASSERT((i == 1) || (i >= 2 && non_constant_input != is_const_input),
-            "[GPU] Unsupported mixed node with constant and parameter in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                        "[GPU] Unsupported mixed node with constant and parameter in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
 
         if (!inConst) {
             non_constant_input = true;
@@ -58,10 +61,10 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         }
 
         auto spaceToBatchPrim = cldnn::space_to_batch(layerName,
-                                                      inputs[0],            // input data
-                                                      tensor_inputs[0],     // block_shape
-                                                      tensor_inputs[1],     // crops_begin
-                                                      tensor_inputs[2],     // crops_end
+                                                      inputs[0],         // input data
+                                                      tensor_inputs[0],  // block_shape
+                                                      tensor_inputs[1],  // crops_begin
+                                                      tensor_inputs[2],  // crops_end
                                                       out_size);
 
         p.add_primitive(*op, spaceToBatchPrim);

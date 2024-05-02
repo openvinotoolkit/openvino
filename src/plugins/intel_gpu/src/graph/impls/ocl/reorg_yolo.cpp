@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "reorg_yolo_inst.h"
-#include "reorg_yolo/reorg_yolo_kernel_selector.h"
 #include "reorg_yolo/reorg_yolo_kernel_ref.h"
+#include "reorg_yolo/reorg_yolo_kernel_selector.h"
+#include "reorg_yolo_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -47,7 +46,10 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
         format::bs_fs_yx_bsv32_fsv32,
     };
 
-    implementation_map<reorg_yolo>::add(impl_types::ocl, typed_primitive_impl_ocl<reorg_yolo>::create<reorg_yolo_impl>, types, formats);
+    implementation_map<reorg_yolo>::add(impl_types::ocl,
+                                        typed_primitive_impl_ocl<reorg_yolo>::create<reorg_yolo_impl>,
+                                        types,
+                                        formats);
 }
 
 }  // namespace detail

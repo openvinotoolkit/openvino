@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_gpu {
 
-class ConvertBinaryConvolutionToConvolution: public ov::pass::MatcherPass {
+class ConvertBinaryConvolutionToConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertBinaryConvolutionToConvolution", "0");
     ConvertBinaryConvolutionToConvolution();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

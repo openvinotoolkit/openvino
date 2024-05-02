@@ -12,10 +12,12 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
         inputs_data = {}
         num_elements = 0
         assert len(inputs_info) % 2 == 0, "Number of inputs should be divisible by 2."
-        data_input_cnt = len(inputs_info)//2
+        data_input_cnt = len(inputs_info) // 2
         for i in range(1, data_input_cnt + 1):
             indices_in_name = "indices{}:0".format(i)
-            assert indices_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(indices_in_name)
+            assert (
+                indices_in_name in inputs_info
+            ), "Test error: inputs_info must contain `{}`".format(indices_in_name)
             indices_shape = inputs_info[indices_in_name]
             num_elements = num_elements + np.prod(indices_shape, dtype=int)
 
@@ -30,17 +32,23 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
         for i in range(1, data_input_cnt + 1):
             data_in_name = "data{}:0".format(i)
             indices_in_name = "indices{}:0".format(i)
-            assert data_in_name in inputs_info, "Test error: inputs_info must contain `{}`".format(data_in_name)
+            assert (
+                data_in_name in inputs_info
+            ), "Test error: inputs_info must contain `{}`".format(data_in_name)
             data_shape = inputs_info[data_in_name]
             indices_shape = inputs_info[indices_in_name]
             inputs_data[data_in_name] = np.random.randint(-50, 50, data_shape)
 
             num_elements_i = np.prod(indices_shape, dtype=int)
-            inputs_data[indices_in_name] = np.reshape(indices_array[idx:idx+num_elements_i], indices_shape)
+            inputs_data[indices_in_name] = np.reshape(
+                indices_array[idx : idx + num_elements_i], indices_shape
+            )
             idx = idx + num_elements_i
         return inputs_data
 
-    def create_parallel_dynamic_stitch_net(self, data_input_cnt, shape_of_element, data_type):
+    def create_parallel_dynamic_stitch_net(
+        self, data_input_cnt, shape_of_element, data_type
+    ):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
@@ -50,8 +58,14 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
             indices_shape = []
 
             for i in range(1, data_input_cnt + 1):
-                indices.append(tf.compat.v1.placeholder(tf.int32, indices_shape, 'indices{}'.format(i)))
-                data.append(tf.compat.v1.placeholder(data_type, data_shape, 'data{}'.format(i)))
+                indices.append(
+                    tf.compat.v1.placeholder(
+                        tf.int32, indices_shape, "indices{}".format(i)
+                    )
+                )
+                data.append(
+                    tf.compat.v1.placeholder(data_type, data_shape, "data{}".format(i))
+                )
                 data_shape.insert(0, i)
                 indices_shape.insert(0, i)
             tf.dynamic_stitch(indices, data)
@@ -70,13 +84,19 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_parallel_dynamic_stitch_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
         if not use_legacy_frontend:
             pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
-        self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_parallel_dynamic_stitch_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
     test_data_different_types = [
         dict(data_input_cnt=4, shape_of_element=[3, 2], data_type=tf.float64),
@@ -86,10 +106,16 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_parallel_dynamic_stitch_different_types(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
         if not use_legacy_frontend:
             pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
-        self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_parallel_dynamic_stitch_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

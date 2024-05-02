@@ -14,14 +14,15 @@ StatisticsWriter adds MemCounter to the memory structure.
 */
 
 class MemoryCounter {
-private:
+ private:
   std::string name;
 
-public:
+ public:
   /// Constructs MemoryCounter object.
-  MemoryCounter(const std::string &mem_counter_name);
+  MemoryCounter(const std::string& mem_counter_name);
 };
 
-#define MEMORY_SNAPSHOT(mem_counter_name) MemoryTest::MemoryCounter mem_counter_name(#mem_counter_name);
+#define MEMORY_SNAPSHOT(mem_counter_name) \
+  MemoryTest::MemoryCounter mem_counter_name(#mem_counter_name);
 
 } // namespace MemoryTest

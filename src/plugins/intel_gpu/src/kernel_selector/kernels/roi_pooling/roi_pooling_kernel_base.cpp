@@ -3,6 +3,7 @@
 //
 
 #include "roi_pooling_kernel_base.h"
+
 #include <algorithm>
 
 namespace kernel_selector {

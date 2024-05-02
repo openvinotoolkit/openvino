@@ -18,7 +18,10 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
-padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_shape, reshape::reshape_mode mode, const ov::ITensorAccessor& ta) {
+padding propagate_padding(const layout& in_layout,
+                          const ov::PartialShape& out_shape,
+                          reshape::reshape_mode mode,
+                          const ov::ITensorAccessor& ta) {
     if (mode == reshape::reshape_mode::base)
         return padding();
 
@@ -86,7 +89,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
                 // If we have a non-squeezable case (pad along removed axis), then out padding is reset
                 // and kernel must be executed
                 auto rm_axis = *rm_iter;
-                if (pad_lower[rm_axis] != 0 || pad_upper[rm_axis] != 0 || pad_mask[rm_axis] != 0 )
+                if (pad_lower[rm_axis] != 0 || pad_upper[rm_axis] != 0 || pad_mask[rm_axis] != 0)
                     return padding();
             }
         }
@@ -139,7 +142,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
 
-template<typename ShapeType>
+template <typename ShapeType>
 std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, const kernel_impl_params& impl_param) {
     assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for reshape_node!");
@@ -152,15 +155,15 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
         if (prim->output_shape.count() != 0) {
-            return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
+            return {layout{input_layout.data_type, input_layout.format, prim->output_shape}};
         } else {
             auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
-            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
+            return {layout{prim->output_partial_shape, input_layout.data_type, fm}};
         }
     }
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
-                                                                   : ShapeType(ov::Shape{ prim->output_pattern.size() });
+                                                                   : ShapeType(ov::Shape{prim->output_pattern.size()});
     // Since reshape does not support 0D tensor(scalar) for shape input
     // the case propagated to 0D tensor should be handled manually with 1D tensor
     if (pattern_shape.size() == 0) {
@@ -177,31 +180,31 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     padding out_pad = padding();
 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
-         switch (mode) {
-            case reshape::reshape_mode::base: {
-                OPENVINO_ASSERT(!input_layout.has_dynamic_pad());
-                ov::op::v1::Reshape op;
-                op.set_special_zero(prim->special_zero);
-                op.set_friendly_name(prim->id.c_str());
-                output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
-                break;
-            }
-            case reshape::reshape_mode::squeeze: {
-                ov::op::v0::Squeeze op;
-                op.set_friendly_name(prim->id.c_str());
-                output_shapes = shape_infer(&op, input_shapes, ta);
-                out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
-                break;
-            }
-            case reshape::reshape_mode::unsqueeze: {
-                ov::op::v0::Unsqueeze op;
-                op.set_friendly_name(prim->id.c_str());
-                output_shapes = shape_infer(&op, input_shapes, ta);
-                out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
-                break;
-            }
-            default:
-                OPENVINO_THROW("Unsupported reshape mode");
+        switch (mode) {
+        case reshape::reshape_mode::base: {
+            OPENVINO_ASSERT(!input_layout.has_dynamic_pad());
+            ov::op::v1::Reshape op;
+            op.set_special_zero(prim->special_zero);
+            op.set_friendly_name(prim->id.c_str());
+            output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
+            break;
+        }
+        case reshape::reshape_mode::squeeze: {
+            ov::op::v0::Squeeze op;
+            op.set_friendly_name(prim->id.c_str());
+            output_shapes = shape_infer(&op, input_shapes, ta);
+            out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
+            break;
+        }
+        case reshape::reshape_mode::unsqueeze: {
+            ov::op::v0::Unsqueeze op;
+            op.set_friendly_name(prim->id.c_str());
+            output_shapes = shape_infer(&op, input_shapes, ta);
+            out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
+            break;
+        }
+        default:
+            OPENVINO_THROW("Unsupported reshape mode");
         }
     };
 
@@ -217,7 +220,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         run_shape_infer(prim->mode);
     } else {
         auto pattern_data = prim->output_pattern;
-        auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
+        auto pattern_tensor =
+            make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
 
         const_data.emplace(1, pattern_tensor);
         run_shape_infer(prim->mode);
@@ -228,10 +232,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         output_format = node.get_preferred_output_fmt();
     }
 
-    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad} };
+    return {layout{output_shapes[0],
+                   input_layout.data_type,
+                   format::adjust_to_rank(output_format, output_shapes[0].size()),
+                   out_pad}};
 }
 
-template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node,
+                                                                                 const kernel_impl_params& impl_param);
 
 std::string reshape_inst::to_string(reshape_node const& node) {
     auto desc = node.get_primitive();
@@ -253,8 +261,8 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     return primitive_description.str();
 }
 
-reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
-        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+reshape_inst::typed_primitive_inst(network& network, reshape_node const& node)
+    : parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
@@ -302,7 +310,10 @@ void reshape_inst::update_output_memory() {
     if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
         input_memory_ptr() == nullptr)
         return;
-    OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
+    OPENVINO_ASSERT(input_memory_ptr() != nullptr,
+                    "[GPU] Failed to reuse input in ",
+                    id(),
+                    " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }
 

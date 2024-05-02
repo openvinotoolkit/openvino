@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,17 +21,15 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ShuffleChannelsTransformationParam
-> ShuffleChannelsTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   ShuffleChannelsTransformationParam>
+    ShuffleChannelsTransformationParams;
 
-class ShuffleChannelsTransformation :
-    public testing::WithParamInterface<ShuffleChannelsTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class ShuffleChannelsTransformation : public testing::WithParamInterface<ShuffleChannelsTransformationParams>,
+                                      public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ShuffleChannelsTransformationParams>& obj);
 

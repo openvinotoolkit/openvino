@@ -15,6 +15,7 @@ class CheckForCycle(MiddleReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
+
         return [TensorIteratorMerge]
 
     def run_before(self):
@@ -23,4 +24,6 @@ class CheckForCycle(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         is_acyclic = nx.is_directed_acyclic_graph(graph)
         if not is_acyclic:
-            raise Error('Graph contains a cycle. Can not proceed. ' + refer_to_faq_msg(97))
+            raise Error(
+                "Graph contains a cycle. Can not proceed. " + refer_to_faq_msg(97)
+            )

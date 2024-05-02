@@ -8,17 +8,18 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        double,                        // epsilon
-        ov::element::Type,             // Model type
-        std::vector<InputShape>,       // Input shape
-        std::string                    // Target device name
-> BatchNormLayerTestParams;
+typedef std::tuple<double,                   // epsilon
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shape
+                   std::string               // Target device name
+                   >
+    BatchNormLayerTestParams;
 
 class BatchNormLayerTest : public testing::WithParamInterface<BatchNormLayerTestParams>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj);
+
 protected:
     void SetUp() override;
 };

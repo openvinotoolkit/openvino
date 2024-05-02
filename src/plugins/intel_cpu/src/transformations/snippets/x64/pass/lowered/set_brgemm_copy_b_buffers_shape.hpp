@@ -17,7 +17,7 @@ namespace pass {
  *        Ticket: 113744
  * @ingroup snippets
  */
-class SetBrgemmCopyBBuffersShape: public snippets::lowered::pass::RangedPass {
+class SetBrgemmCopyBBuffersShape : public snippets::lowered::pass::RangedPass {
 public:
     SetBrgemmCopyBBuffersShape() = default;
     OPENVINO_RTTI("SetBrgemmCopyBBuffersShape", "Pass");

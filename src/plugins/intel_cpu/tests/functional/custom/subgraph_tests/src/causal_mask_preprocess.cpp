@@ -176,7 +176,7 @@ public:
         ov::Tensor t_attention_mask = ov::Tensor(ov::element::i32, sp_attention_mask);
         auto* ptr = static_cast<int32_t*>(t_attention_mask.data());
         for (size_t n = 0; n < batch; n++, ptr += kvLen) {
-            for (size_t i = n*4; i < kvLen; i++) {
+            for (size_t i = n * 4; i < kvLen; i++) {
                 ptr[i] = 1;
             }
         }

@@ -26,16 +26,24 @@ public:
          const std::vector<int64_t>& order_c,
          const ov::element::Type output_type = ov::element::undefined);
 
-    bool visit_attributes(ov::AttributeVisitor &visitor) override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    std::vector<int64_t> get_input0_transpose_order() const { return m_order_a; }
-    std::vector<int64_t> get_input1_transpose_order() const { return m_order_b; }
-    std::vector<int64_t> get_output_transpose_order() const { return m_order_c; }
-    ov::element::Type get_output_type() const { return m_output_type; }
+    std::vector<int64_t> get_input0_transpose_order() const {
+        return m_order_a;
+    }
+    std::vector<int64_t> get_input1_transpose_order() const {
+        return m_order_b;
+    }
+    std::vector<int64_t> get_output_transpose_order() const {
+        return m_order_c;
+    }
+    ov::element::Type get_output_type() const {
+        return m_output_type;
+    }
 
     static std::vector<int64_t> default_order(size_t rank) {
         std::vector<int64_t> order(rank);
@@ -56,6 +64,6 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

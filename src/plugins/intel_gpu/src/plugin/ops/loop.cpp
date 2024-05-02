@@ -1,25 +1,24 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "intel_gpu/plugin/program_builder.hpp"
+#include "openvino/op/loop.hpp"
+
+#include <algorithm>
+#include <vector>
+
+#include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
-
-#include "openvino/op/add.hpp"
-#include "openvino/op/tensor_iterator.hpp"
-#include "openvino/op/loop.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
-#include "transformations/utils/utils.hpp"
-
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/loop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
-#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/graph/topology.hpp"
-
-#include <vector>
-#include <algorithm>
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations/utils/utils.hpp"
 
 using Loop = ov::op::v5::Loop;
 using TensorIterator = ov::op::v0::TensorIterator;
@@ -27,32 +26,39 @@ using TensorIterator = ov::op::v0::TensorIterator;
 namespace ov {
 namespace intel_gpu {
 
-template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, ov::Shape& shape, cldnn::data_types dtype, int64_t num, int64_t rank) {
-    auto mem = p.get_engine().allocate_memory({ shape, dtype, cldnn::format::get_default_format(rank) });
+template <class DATA_TYPE>
+static DATA_TYPE CreateScalarData(ProgramBuilder& p,
+                                  const cldnn::primitive_id& id,
+                                  ov::Shape& shape,
+                                  cldnn::data_types dtype,
+                                  int64_t num,
+                                  int64_t rank) {
+    auto mem = p.get_engine().allocate_memory({shape, dtype, cldnn::format::get_default_format(rank)});
     cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
 
-static cldnn::mutable_data CreateAdditionalOutputData(ProgramBuilder &p, const std::shared_ptr<ov::Node>& op,
-                                                        const cldnn::primitive_id& id, const cldnn::primitive_id& input,
-                                                        const int32_t output_idx) {
+static cldnn::mutable_data CreateAdditionalOutputData(ProgramBuilder& p,
+                                                      const std::shared_ptr<ov::Node>& op,
+                                                      const cldnn::primitive_id& id,
+                                                      const cldnn::primitive_id& input,
+                                                      const int32_t output_idx) {
     const auto precision = cldnn::element_type_to_data_type(op->get_output_element_type(output_idx));
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.get_engine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem)); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem));  // cldnn::data cannot set dependency
     return md;
 }
 
 static void SetLoopInputOutputMap(ProgramBuilder& p,
-                                    const std::shared_ptr<ov::op::util::SubGraphOp>& op,
-                                    cldnn::primitive::input_info_arr& inputs,
-                                    std::vector<cldnn::loop::io_primitive_map>& input_primitive_maps,
-                                    std::vector<cldnn::loop::io_primitive_map>& output_primitive_maps,
-                                    std::vector<cldnn::loop::backedge_mapping>& back_edges_maps) {
+                                  const std::shared_ptr<ov::op::util::SubGraphOp>& op,
+                                  cldnn::primitive::input_info_arr& inputs,
+                                  std::vector<cldnn::loop::io_primitive_map>& input_primitive_maps,
+                                  std::vector<cldnn::loop::io_primitive_map>& output_primitive_maps,
+                                  std::vector<cldnn::loop::backedge_mapping>& back_edges_maps) {
     const std::string layerName = layer_type_name_ID(op);
     const auto& loop_input_descs = op->get_input_descriptions();
     const auto& loop_output_descs = op->get_output_descriptions();
@@ -69,26 +75,32 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
         // set input mapping
         if (const auto& sliceInfo =
-            std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(loop_input_desc)) {
+                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(loop_input_desc)) {
             // sliced input
-            input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
-                sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
-            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][SliceInputDescription] = {m_input_index:"
-                        << loop_input_desc->m_input_index << "(external_id: "
-                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
-                        << "(internal_id: " << internal_id << ")}" << std::endl;
+            input_primitive_maps.emplace_back(external_id,
+                                              internal_id,
+                                              sliceInfo->m_axis,
+                                              sliceInfo->m_start,
+                                              sliceInfo->m_end,
+                                              sliceInfo->m_stride);
+            GPU_DEBUG_LOG << "loop_input_descs[" << layerName
+                          << "][SliceInputDescription] = {m_input_index:" << loop_input_desc->m_input_index
+                          << "(external_id: " << external_id
+                          << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+                          << "(internal_id: " << internal_id << ")}" << std::endl;
         } else {
             // input without slicing
             input_primitive_maps.emplace_back(external_id, internal_id);
-            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][InputDescription] = {m_input_index:"
-                        << loop_input_desc->m_input_index << "(external_id: "
-                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
-                        << "(internal_id: " << internal_id << ")}" << std::endl;
+            GPU_DEBUG_LOG << "loop_input_descs[" << layerName
+                          << "][InputDescription] = {m_input_index:" << loop_input_desc->m_input_index
+                          << "(external_id: " << external_id
+                          << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+                          << "(internal_id: " << internal_id << ")}" << std::endl;
         }
 
         // set back edges
         if (const auto& mergedInput =
-            std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(loop_input_desc)) {
+                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(loop_input_desc)) {
             // backedge
             const auto& to = body_inputs.at(mergedInput->m_body_parameter_index);
             const auto& from = body_outputs.at(mergedInput->m_body_value_index);
@@ -112,21 +124,27 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
             // update primitive_map
             if (const auto& concatOutput =
-                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
+                    std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(
+                        loop_output_desc)) {
                 // output which requires concatenation
-                output_primitive_maps.emplace_back(external_input_info, internal_id, concatOutput->m_axis,
-                    concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
-                        << external_input_info << ", internal:"
-                        << internal_id << "(axis, start, end, stride)={"
-                        << concatOutput->m_axis << "," << concatOutput->m_start << ","
-                        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
+                output_primitive_maps.emplace_back(external_input_info,
+                                                   internal_id,
+                                                   concatOutput->m_axis,
+                                                   concatOutput->m_start,
+                                                   concatOutput->m_end,
+                                                   concatOutput->m_stride);
+                GPU_DEBUG_LOG << "loop_output_descs[" << layerName
+                              << "][ConcatOutputDescription] external:" << external_input_info
+                              << ", internal:" << internal_id << "(axis, start, end, stride)={" << concatOutput->m_axis
+                              << "," << concatOutput->m_start << "," << concatOutput->m_end << ","
+                              << concatOutput->m_stride << "}" << std::endl;
             }
             if (std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_input_info, internal_id);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
-                        << external_input_info << ", internal:" << internal_id << std::endl;
+                GPU_DEBUG_LOG << "loop_output_descs[" << layerName
+                              << "][BodyOutputDescription] external:" << external_input_info
+                              << ", internal:" << internal_id << std::endl;
             }
         }
     } else {
@@ -139,7 +157,8 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             const std::string layerNameWithIndex = layerName + ".out" + std::to_string(output_idx);
             std::string external_id;
             if (output_idx > 0) {
-                cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
+                cldnn::mutable_data output_data =
+                    CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
                 p.add_primitive(*op, std::move(output_data));
                 external_id = layerNameWithIndex;
             } else {
@@ -152,32 +171,40 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
 
             // update primitive_map
             if (const auto& concatOutput =
-                std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(loop_output_desc)) {
+                    std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(
+                        loop_output_desc)) {
                 // output which requires concatenation
-                output_primitive_maps.emplace_back(external_id, internal_id, concatOutput->m_axis,
-                    concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
-                        << external_id << ", internal:"
-                        << internal_id << "(axis, start, end, stride)={"
-                        << concatOutput->m_axis << "," << concatOutput->m_start << ","
-                        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
+                output_primitive_maps.emplace_back(external_id,
+                                                   internal_id,
+                                                   concatOutput->m_axis,
+                                                   concatOutput->m_start,
+                                                   concatOutput->m_end,
+                                                   concatOutput->m_stride);
+                GPU_DEBUG_LOG << "loop_output_descs[" << layerName
+                              << "][ConcatOutputDescription] external:" << external_id << ", internal:" << internal_id
+                              << "(axis, start, end, stride)={" << concatOutput->m_axis << "," << concatOutput->m_start
+                              << "," << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
             }
             if (std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_id, internal_id);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
-                        << external_id << ", internal:" << internal_id << std::endl;
+                GPU_DEBUG_LOG << "loop_output_descs[" << layerName
+                              << "][BodyOutputDescription] external:" << external_id << ", internal:" << internal_id
+                              << std::endl;
             }
         }
     }
 }
 
-static std::vector<cldnn::primitive_id> GetOutputNames(const cldnn::primitive_id id,
-                                                        const cldnn::primitive_id body_execution_condition_id,
-                                                        const std::vector<cldnn::loop::io_primitive_map>& output_primitive_maps,
-                                                        const std::vector<cldnn::loop::backedge_mapping>& back_edges) {
+static std::vector<cldnn::primitive_id> GetOutputNames(
+    const cldnn::primitive_id id,
+    const cldnn::primitive_id body_execution_condition_id,
+    const std::vector<cldnn::loop::io_primitive_map>& output_primitive_maps,
+    const std::vector<cldnn::loop::backedge_mapping>& back_edges) {
     std::vector<cldnn::primitive_id> output_names;
-    OPENVINO_ASSERT(!output_primitive_maps.empty(), "[GPU] Output primitive map should have at least 1 mapping in primitive ", id);
+    OPENVINO_ASSERT(!output_primitive_maps.empty(),
+                    "[GPU] Output primitive map should have at least 1 mapping in primitive ",
+                    id);
     for (auto out_map : output_primitive_maps) {
         output_names.push_back(out_map.internal_id.pid);
     }
@@ -199,14 +226,16 @@ static std::vector<cldnn::primitive_id> GetOutputNames(const cldnn::primitive_id
     return output_names;
 }
 
-static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::util::SubGraphOp>& op, bool is_loop_op) {
+static void CreateCommonLoopOp(ProgramBuilder& p,
+                               const std::shared_ptr<ov::op::util::SubGraphOp>& op,
+                               bool is_loop_op) {
     const std::string layerName = layer_type_name_ID(op);
     auto inputs = p.GetInputInfo(op);
     bool is_dynamic = p.use_new_shape_infer() || op->is_dynamic();
 
     int64_t num_iterations = op->get_num_iterations();
 
-    auto num_outputs = is_dynamic? op->get_output_size() : 1;
+    auto num_outputs = is_dynamic ? op->get_output_size() : 1;
     auto ov_model = op->get_function();
 
     // Set special body ports: current_iteration input , execution condition output
@@ -228,7 +257,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
         if (special_body_ports.body_condition_output_idx >= 0) {
             const auto& body_outputs = loop_op->get_function()->get_results();
-            auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
+            auto body_condition_output =
+                body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
             body_execution_condition_id = layer_type_name_ID(body_condition_output);
         }
 
@@ -246,7 +276,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     SetLoopInputOutputMap(p, op, inputs, input_primitive_maps, output_primitive_maps, back_edges);
 
-    auto shape = is_dynamic? ov::Shape{} : ov::Shape{1, 1, 1, 1};
+    auto shape = is_dynamic ? ov::Shape{} : ov::Shape{1, 1, 1, 1};
     if (!is_dynamic) {
         for (size_t i = 4; i < op->get_output_shape(0).size(); ++i) {
             shape.push_back(1);
@@ -254,8 +284,9 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     }
     auto prec = ov::element::i64;
     if (current_iteration_input_op) {
-        OPENVINO_ASSERT(current_iteration_input_op->get_partial_shape().is_static(), "current_iteration should be static layout");
-        shape = is_dynamic? current_iteration_input_op->get_partial_shape().to_shape() : shape;
+        OPENVINO_ASSERT(current_iteration_input_op->get_partial_shape().is_static(),
+                        "current_iteration should be static layout");
+        shape = is_dynamic ? current_iteration_input_op->get_partial_shape().to_shape() : shape;
         prec = current_iteration_input_op->get_element_type();
 
         auto increment_value_id = current_iteration_input_op->get_friendly_name() + "_inc";
@@ -271,21 +302,32 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         ov_model->add_results({result});
 
         const cldnn::primitive_id first_iter_id = layerName + "_firstIter";
-        cldnn::mutable_data first_iter_data = CreateScalarData<cldnn::mutable_data>(p, first_iter_id, shape, prec, 0,
-                                static_cast<int64_t>(current_iteration_input_op->get_output_partial_shape(0).rank().get_length()));
+        cldnn::mutable_data first_iter_data = CreateScalarData<cldnn::mutable_data>(
+            p,
+            first_iter_id,
+            shape,
+            prec,
+            0,
+            static_cast<int64_t>(current_iteration_input_op->get_output_partial_shape(0).rank().get_length()));
 
         p.add_primitive(*op, std::move(first_iter_data));
         inputs.insert(inputs.begin(), cldnn::input_info(first_iter_id, 0));
 
-        input_primitive_maps.emplace_back(cldnn::input_info(first_iter_id), cldnn::input_info(body_current_iteration_id));
+        input_primitive_maps.emplace_back(cldnn::input_info(first_iter_id),
+                                          cldnn::input_info(body_current_iteration_id));
         back_edges.emplace_back(updated_current_iteration_id, body_current_iteration_id);
     }
 
     // set trip count, num iteration primitives
     // they should be mutable_data to prevent from being optimized out
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
-    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(p, num_iteration_id, shape, prec, 0,
-                                                                                   static_cast<int64_t>(op->get_output_partial_shape(0).rank().get_length()));
+    cldnn::mutable_data num_iteration_data = CreateScalarData<cldnn::mutable_data>(
+        p,
+        num_iteration_id,
+        shape,
+        prec,
+        0,
+        static_cast<int64_t>(op->get_output_partial_shape(0).rank().get_length()));
 
     p.add_primitive(*op, std::move(num_iteration_data));
     inputs.insert(inputs.begin(), cldnn::input_info(num_iteration_id, 0));
@@ -298,7 +340,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
     // get body program from ov::Model
-    ProgramBuilder prog(ov_model, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
+    ProgramBuilder
+        prog(ov_model, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;
@@ -308,16 +351,16 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     GPU_DEBUG_LOG << "* body_execution_condition_id   : " << body_execution_condition_id << std::endl;
 
     const cldnn::loop loopPrimitive(
-        layerName,                      /* layer name of this primitive (output id) */
-        inputs,                         /* inputs of this layer */
-        body_program,                   /* body network */
-        trip_count_id,                  /* trip_count data in outer network, always same as num_iterations in TI */
-        first_execution_condition_id,   /* initial_execution_condition data in outer network, always true in TI */
-        num_iteration_id,               /* actual number of iteration data in body network */
-        input_primitive_maps,           /* input mappings connecting outer network and inner network */
-        output_primitive_maps,          /* output mappings connecting outer network and inner network */
-        back_edges,                     /* back edge mapping */
-        num_iterations,                 /* max iteration, i.e. length of iteration axis */
+        layerName,                    /* layer name of this primitive (output id) */
+        inputs,                       /* inputs of this layer */
+        body_program,                 /* body network */
+        trip_count_id,                /* trip_count data in outer network, always same as num_iterations in TI */
+        first_execution_condition_id, /* initial_execution_condition data in outer network, always true in TI */
+        num_iteration_id,             /* actual number of iteration data in body network */
+        input_primitive_maps,         /* input mappings connecting outer network and inner network */
+        output_primitive_maps,        /* output mappings connecting outer network and inner network */
+        back_edges,                   /* back edge mapping */
+        num_iterations,               /* max iteration, i.e. length of iteration axis */
         body_current_iteration_id,
         body_execution_condition_id,
         num_outputs);

@@ -45,7 +45,6 @@ public:
                 const ov::op::PadType& auto_pad,
                 const ov::element::Type& output_type);
 
-
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -66,7 +65,7 @@ public:
     };
 
 protected:
-    int64_t m_groups = -1; // negative value means no groups
+    int64_t m_groups = -1;  // negative value means no groups
     bool m_asymmetric = false;
     ov::element::Type m_output_type = ov::element::undefined;
 };
@@ -76,6 +75,6 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
                                           CoordinateDiff& pads_begin,
                                           CoordinateDiff& pads_end);
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

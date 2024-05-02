@@ -5,22 +5,21 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include "test_utils/test_utils.h"
-
-#include <intel_gpu/runtime/engine.hpp>
-#include <intel_gpu/runtime/layout.hpp>
-#include <intel_gpu/runtime/memory.hpp>
-#include <intel_gpu/runtime/tensor.hpp>
 
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/primitive.hpp>
-
+#include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/layout.hpp>
+#include <intel_gpu/runtime/memory.hpp>
+#include <intel_gpu/runtime/tensor.hpp>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "test_utils/test_utils.h"
 
 using namespace cldnn;
 
@@ -44,16 +43,24 @@ struct typed_comparator<float> {
 
 template <>
 struct typed_comparator<ov::float16> {
-    static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, ov::float16 ref, ov::float16 val) {
+    static ::testing::AssertionResult compare(const char* lhs_expr,
+                                              const char* rhs_expr,
+                                              ov::float16 ref,
+                                              ov::float16 val) {
         double abs_error = std::abs(0.05 * (double)ref);
-        return ::testing::internal::DoubleNearPredFormat(lhs_expr, rhs_expr, "5 percent", (double)ref, (double)val, abs_error);
+        return ::testing::internal::DoubleNearPredFormat(lhs_expr,
+                                                         rhs_expr,
+                                                         "5 percent",
+                                                         (double)ref,
+                                                         (double)val,
+                                                         abs_error);
     }
 };
 
-#define TYPED_ASSERT_EQ(ref, val)                                                       \
+#define TYPED_ASSERT_EQ(ref, val) \
     ASSERT_PRED_FORMAT2(typed_comparator<typename std::remove_reference<decltype(ref)>::type>::compare, ref, val)
 
-#define TYPED_EXPECT_EQ(ref, val)                                                       \
+#define TYPED_EXPECT_EQ(ref, val) \
     EXPECT_PRED_FORMAT2(typed_comparator<typename std::remove_reference<decltype(ref)>::type>::compare, ref, val)
 
 // =====================================================================================================================
@@ -233,8 +240,8 @@ VVVVF<OutputT> fully_connected_reference_typed_3d(VVVVF<InputT>& input, VVVVF<We
     size_t input_f = input[0].size();
     size_t input_y = input[0][0].size();
     size_t input_x = input[0][0][0].size();
-    size_t output_b = input.size();        // input is assumed to be bfyx
-    size_t output_f = weights.size();    // weights is assumed to be bfyx
+    size_t output_b = input.size();    // input is assumed to be bfyx
+    size_t output_f = weights.size();  // weights is assumed to be bfyx
     VVVVF<OutputT> output(output_b, VVVF<OutputT>(input_f, VVF<OutputT>(output_f, VF<OutputT>(1))));
     OutputT res;
     for (size_t b = 0; b < output_b; ++b) {
@@ -267,14 +274,17 @@ template <typename T, size_t N>
 struct reference_node : reference_node_interface {
     using ptr = std::shared_ptr<reference_node>;
 
-    reference_node(cldnn::primitive_id id, reference_tensor_typed<T, N> data)
-        : id(id), reference(std::move(data)) {}
+    reference_node(cldnn::primitive_id id, reference_tensor_typed<T, N> data) : id(id), reference(std::move(data)) {}
 
     cldnn::primitive_id id;
     reference_tensor_typed<T, N> reference;
 
-    reference_tensor& get_reference() override { return reference; }
-    cldnn::primitive_id get_id() override { return id; }
+    reference_tensor& get_reference() override {
+        return reference;
+    }
+    cldnn::primitive_id get_id() override {
+        return id;
+    }
 };
 
 class network_test {
@@ -309,28 +319,36 @@ public:
     }
 
     template <typename T, typename InputT, size_t InputN, typename WeightsT, typename BiasT>
-    typename reference_node<T, 2>::ptr add_fully_connected(cldnn::primitive_id id,
-                                                           std::shared_ptr<reference_node<InputT, InputN>> input,
-                                                           std::shared_ptr<reference_node<WeightsT, InputN>> weights,
-                                                           std::shared_ptr<reference_node<BiasT, 2>> bias,
-                                                           ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{ cldnn::format::any, "" }) {
+    typename reference_node<T, 2>::ptr add_fully_connected(
+        cldnn::primitive_id id,
+        std::shared_ptr<reference_node<InputT, InputN>> input,
+        std::shared_ptr<reference_node<WeightsT, InputN>> weights,
+        std::shared_ptr<reference_node<BiasT, 2>> bias,
+        ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""}) {
         topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>()));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVF<T> output_data = fully_connected_reference_typed<T>(input->reference.reference,
                                                                 weights->reference.reference,
                                                                 bias->reference.reference[0]);
-        return add_node(id, reference_tensor_typed<T, 2>(output_data), { input, weights, bias });
+        return add_node(id, reference_tensor_typed<T, 2>(output_data), {input, weights, bias});
     }
 
     template <typename T, typename InputT, size_t InputN, typename WeightsT, typename BiasT>
-    typename reference_node<T, 4>::ptr add_fully_connected_3d(cldnn::primitive_id id,
-                                                           std::shared_ptr<reference_node<InputT, InputN>> input,
-                                                           std::shared_ptr<reference_node<WeightsT, InputN>> weights,
-                                                           std::shared_ptr<reference_node<BiasT, 2>> bias,
-                                                           ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
-                                                           size_t input_dim_size = 3) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>(), cldnn::padding(), input_dim_size));
+    typename reference_node<T, 4>::ptr add_fully_connected_3d(
+        cldnn::primitive_id id,
+        std::shared_ptr<reference_node<InputT, InputN>> input,
+        std::shared_ptr<reference_node<WeightsT, InputN>> weights,
+        std::shared_ptr<reference_node<BiasT, 2>> bias,
+        ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
+        size_t input_dim_size = 3) {
+        topo.add(cldnn::fully_connected(id,
+                                        input_info(input->id),
+                                        weights->id,
+                                        bias->id,
+                                        ov::element::from<T>(),
+                                        cldnn::padding(),
+                                        input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,
@@ -339,7 +357,7 @@ public:
         return add_node(id, reference_tensor_typed<T, 4>(output_data), {input, weights, bias});
     }
 
-    cldnn::network::ptr build_network(ExecutionConfig config, bool is_caching_test=false) {
+    cldnn::network::ptr build_network(ExecutionConfig config, bool is_caching_test = false) {
         config.set_property(ov::intel_gpu::force_implementations(forced_impls));
         cldnn::network::ptr net = get_network(eng, topo, config, get_test_stream_ptr(), is_caching_test);
 
@@ -349,7 +367,7 @@ public:
         return net;
     }
 
-    void run(ExecutionConfig config, bool is_caching_test=false) {
+    void run(ExecutionConfig config, bool is_caching_test = false) {
         auto net = build_network(config, is_caching_test);
         if (!is_caching_test) {
             std::stringstream network_info;

@@ -36,8 +36,11 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
     JitConstants jit = Parent::GetJitConstantsWithLoopUnroll(cp, dispatchData);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
-        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN)),
+        MakeJitConstant(
+            "ALIGNED_OFM",
+            RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN) * cp.groups),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP",
+                        RoundUp(cp.outputs[0].Feature().v / cp.groups, dispatchData.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", dispatchData.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", dispatchData.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("KERNEL_SLICE_DIV2", (cp.filterSize.x * cp.filterSize.y) / 2),
@@ -49,8 +52,9 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
     return jit;
 }
 
-ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(const convolution_params& arg,
-                                                                                                        int) const {
+ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Direct_10_10_12::SetDefault(
+    const convolution_params& arg,
+    int) const {
     DispatchData dispatchData = Parent::SetDefault(arg);
 
     constexpr uint32_t TILE_N = 16;
@@ -61,9 +65,12 @@ ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Dire
         dispatchData.gemmStyle = {1, 1, TILE_N, /*GWS DX*/ 4, /*GWS DY*/ 3, 1};
     }
 
-    dispatchData.gws[0] = RoundUp(arg.outputs[0].X().v, dispatchData.gemmStyle.globalWorkSizeDX) / dispatchData.gemmStyle.globalWorkSizeDX;
-    dispatchData.gws[1] = RoundUp(arg.outputs[0].Y().v, dispatchData.gemmStyle.globalWorkSizeDY) / dispatchData.gemmStyle.globalWorkSizeDY;
-    dispatchData.gws[2] = RoundUp(arg.outputs[0].Feature().v / arg.groups, TILE_N) * arg.outputs[0].Batch().v * arg.groups;
+    dispatchData.gws[0] = RoundUp(arg.outputs[0].X().v, dispatchData.gemmStyle.globalWorkSizeDX) /
+                          dispatchData.gemmStyle.globalWorkSizeDX;
+    dispatchData.gws[1] = RoundUp(arg.outputs[0].Y().v, dispatchData.gemmStyle.globalWorkSizeDY) /
+                          dispatchData.gemmStyle.globalWorkSizeDY;
+    dispatchData.gws[2] =
+        RoundUp(arg.outputs[0].Feature().v / arg.groups, TILE_N) * arg.outputs[0].Batch().v * arg.groups;
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;

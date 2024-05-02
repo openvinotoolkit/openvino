@@ -3,13 +3,12 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
 
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
-
 #include "openvino/op/util/attr_types.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -117,21 +116,21 @@ struct pooling : public primitive_base<pooling> {
             tensor output_size,
             const data_types output_data_type,
             const padding& output_padding = padding())
-            : primitive_base(id, {input, indices_output}, {output_padding}, {optional_data_type{output_data_type}}),
-              indices_output(indices_output.pid),
-              mode(pooling_mode::max),
-              size(size),
-              stride(stride),
-              dilation(dilation),
-              pads_begin(pads_begin),
-              pads_end(pads_end),
-              auto_pad(auto_pad),
-              rounding_type(rounding_type),
-              axis(axis),
-              with_output_size(true),
-              output_size(output_size),
-              index_element_type(index_element_type),
-              maxPoolOpset8Features(true) {}
+        : primitive_base(id, {input, indices_output}, {output_padding}, {optional_data_type{output_data_type}}),
+          indices_output(indices_output.pid),
+          mode(pooling_mode::max),
+          size(size),
+          stride(stride),
+          dilation(dilation),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          auto_pad(auto_pad),
+          rounding_type(rounding_type),
+          axis(axis),
+          with_output_size(true),
+          output_size(output_size),
+          index_element_type(index_element_type),
+          maxPoolOpset8Features(true) {}
 
     /// @brief Primitive id which contains indices output.
     primitive_id indices_output;
@@ -184,20 +183,12 @@ struct pooling : public primitive_base<pooling> {
 
         auto rhs_casted = downcast<const pooling>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(mode) &&
-               cmp_fields(size) &&
-               cmp_fields(stride) &&
-               cmp_fields(dilation) &&
-               cmp_fields(pads_begin) &&
-               cmp_fields(pads_end) &&
-               cmp_fields(auto_pad) &&
-               cmp_fields(rounding_type) &&
-               cmp_fields(axis) &&
-               cmp_fields(index_element_type) &&
-               cmp_fields(maxPoolOpset8Features) &&
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(mode) && cmp_fields(size) && cmp_fields(stride) && cmp_fields(dilation) &&
+               cmp_fields(pads_begin) && cmp_fields(pads_end) && cmp_fields(auto_pad) && cmp_fields(rounding_type) &&
+               cmp_fields(axis) && cmp_fields(index_element_type) && cmp_fields(maxPoolOpset8Features) &&
                cmp_fields(indices_output.empty());
-        #undef cmp_fields
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -221,7 +212,8 @@ struct pooling : public primitive_base<pooling> {
     void load(BinaryInputBuffer& ib) override {
         primitive_base<pooling>::load(ib);
         ib >> indices_output;
-        ib >> make_data(&mode, sizeof(pooling_mode));;
+        ib >> make_data(&mode, sizeof(pooling_mode));
+        ;
         ib >> size;
         ib >> stride;
         ib >> dilation;

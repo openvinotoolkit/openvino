@@ -50,8 +50,8 @@ message OpDef {
     // * For a sequence of tensors, the "type_list_attr" field will be set
     //   to the name of an attr with type "list(type)".
     DataType type = 3;
-    string type_attr = 4;    // if specified, attr must have type "type"
-    string number_attr = 5;  // if specified, attr must have type "int"
+    string type_attr = 4; // if specified, attr must have type "type"
+    string number_attr = 5; // if specified, attr must have type "int"
     // If specified, attr must have type "list(type)", and none of
     // type, type_attr, and number_attr may be specified.
     string type_list_attr = 6;
@@ -139,7 +139,7 @@ message OpDef {
   // that aggregate locally within each device (and possibly within
   // groups of nearby devices) before communicating.
   // TODO(josh11b): Implement that optimization.
-  bool is_aggregate = 16;  // for things like add
+  bool is_aggregate = 16; // for things like add
 
   // Other optimizations go here, like
   //   can_alias_input, rewrite_when_output_unused, partitioning_strategy, etc.
@@ -158,7 +158,7 @@ message OpDef {
   // be moved (e.g. via some sort of save / restore).
   // Stateful ops are guaranteed to never be optimized away by Common
   // Subexpression Elimination (CSE).
-  bool is_stateful = 17;  // for things like variables, queue
+  bool is_stateful = 17; // for things like variables, queue
 
   // -------------------------------------------------------------------------
   // Non-standard options.
@@ -167,7 +167,7 @@ message OpDef {
   // that may initialize tensors for the first time should set this
   // field to true, to allow the Op to take an uninitialized Tensor as
   // input.
-  bool allows_uninitialized_input = 19;  // for Assign, etc.
+  bool allows_uninitialized_input = 19; // for Assign, etc.
 };
 // LINT.ThenChange(
 //     https://www.tensorflow.org/code/tensorflow/core/framework/op_def_util.cc)

@@ -1,17 +1,16 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "openvino/core/validation_util.hpp"
 #include "utils/node.hpp"
+
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace util {
 
-ov::conformance::InputInfo::Range
-get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
-                 ov::element::Type elem_type) {
-    ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE,
-                                             ov::conformance::DEFAULT_MAX_VALUE);
+ov::conformance::InputInfo::Range get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
+                                                   ov::element::Type elem_type) {
+    ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE, ov::conformance::DEFAULT_MAX_VALUE);
     switch (elem_type) {
     case ov::element::Type_t::boolean: {
         ranges = get_const_ranges<bool>(const_node);
@@ -76,8 +75,7 @@ get_const_ranges(const std::shared_ptr<ov::op::v0::Constant>& const_node,
     return ranges;
 }
 
-std::map<std::string, ov::conformance::InputInfo>
-get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
+std::map<std::string, ov::conformance::InputInfo> get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
     std::map<std::string, ov::conformance::InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
         std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
@@ -91,8 +89,7 @@ get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
                 continue;
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
             in_info.is_const = true;
-            in_info.ranges = get_const_ranges(const_node,
-                                              const_node->get_default_output().get_element_type());
+            in_info.ranges = get_const_ranges(const_node, const_node->get_default_output().get_element_type());
         }
         input_info.insert({input_name, in_info});
     }

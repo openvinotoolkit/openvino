@@ -5,15 +5,15 @@
 #pragma once
 
 #include <assert.h>
+
 #include <memory>
 #include <vector>
 
-#include "openvino/core/node.hpp"
-
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "low_precision/network_helper.hpp"
 #include "lpt_itt.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {
@@ -50,7 +50,8 @@ public:
             if (ov::is_type<opset1::FakeQuantize>(node)) {
                 assert(node->get_output_size() == 1ul);
                 auto& outputRtInfo = node->output(0).get_rt_info();
-                outputRtInfo[AttributeType::get_type_info_static()] = AttributeType{std::set<element::Type>{element::u8, element::i8}};
+                outputRtInfo[AttributeType::get_type_info_static()] =
+                    AttributeType{std::set<element::Type>{element::u8, element::i8}};
                 continue;
             }
 
@@ -83,7 +84,7 @@ public:
                         continue;
                     }
 
-                    std::vector<ov::Any> attributes{ it->second };
+                    std::vector<ov::Any> attributes{it->second};
 
                     auto parentAttributes = getAttributes(input);
                     if (parentAttributes.empty()) {
@@ -105,17 +106,15 @@ public:
     }
 
 private:
-    std::vector<ov::Any> getParentInputRestrictions(
-        const std::shared_ptr<ov::Node> node) {
+    std::vector<ov::Any> getParentInputRestrictions(const std::shared_ptr<ov::Node> node) {
         std::vector<ov::Any> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);
             auto inputNode = input.get_source_output().get_node()->shared_from_this();
 
             const auto dequantization = NetworkHelper::getDequantization(node, index);
-            if (!dequantization.empty() &&
-                (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
-                 ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            if (!dequantization.empty() && (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+                ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
             }
 
@@ -163,4 +162,3 @@ private:
         }
     }
 };
-

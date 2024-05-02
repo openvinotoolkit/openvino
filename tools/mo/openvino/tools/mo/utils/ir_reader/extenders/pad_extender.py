@@ -6,9 +6,9 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class Pad_extender(Extender):
-    op = 'Pad'
+    op = "Pad"
 
     @staticmethod
     def extend(op: Node):
-        op['mode'] = op['pad_mode']
-        del op['pad_mode']
+        op["mode"] = op["pad_mode"]
+        del op["pad_mode"]

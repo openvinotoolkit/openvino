@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
 from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
 
 
 class PSROIPoolingFrontExtractor(FrontExtractorOp):
-    op = 'PSROIPooling'
+    op = "PSROIPooling"
     enabled = True
 
     @classmethod
@@ -17,9 +17,9 @@ class PSROIPoolingFrontExtractor(FrontExtractorOp):
         param = proto_layer.psroi_pooling_param
 
         update_attrs = {
-            'spatial_scale': param.spatial_scale,
-            'output_dim': param.output_dim,
-            'group_size': param.group_size,
+            "spatial_scale": param.spatial_scale,
+            "output_dim": param.output_dim,
+            "group_size": param.group_size,
         }
 
         mapping_rule = merge_attrs(param, update_attrs)

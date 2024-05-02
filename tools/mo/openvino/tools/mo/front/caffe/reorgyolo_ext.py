@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.reorgyolo import ReorgYoloOp
 from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.reorgyolo import ReorgYoloOp
 
 
 class ReorgYoloFrontExtractor(FrontExtractorOp):
-    op = 'ReorgYolo'
+    op = "ReorgYolo"
     enabled = True
 
     @classmethod
@@ -18,7 +18,7 @@ class ReorgYoloFrontExtractor(FrontExtractorOp):
 
         stride = param.stride
         update_attrs = {
-            'stride': stride,
+            "stride": stride,
         }
         mapping_rule = merge_attrs(param, update_attrs)
 

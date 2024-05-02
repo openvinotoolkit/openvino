@@ -9,20 +9,18 @@
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace ov;
 using namespace ov;
 using namespace ov::pass::low_precision;
 
-QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned) :
-    SharedAttribute(hasToBeAligned) {
-}
+QuantizationAlignmentAttribute::QuantizationAlignmentAttribute(const bool hasToBeAligned)
+    : SharedAttribute(hasToBeAligned) {}
 
-ov::Any QuantizationAlignmentAttribute::create(
-    const std::shared_ptr<ov::Node>& node,
-    const AttributeParameters& params) {
+ov::Any QuantizationAlignmentAttribute::create(const std::shared_ptr<ov::Node>& node,
+                                               const AttributeParameters& params) {
     if (!getAttribute<QuantizationAlignmentAttribute>(node).empty()) {
         return {};
     }
@@ -38,8 +36,7 @@ ov::Any QuantizationAlignmentAttribute::create(
         auto inputNode = input.get_source_output().get_node_shared_ptr();
 
         const auto dequantization = NetworkHelper::getDequantization(node, params.defaultPrecisions, index);
-        if (!dequantization.empty() &&
-            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+        if (!dequantization.empty() && (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
             ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
         }

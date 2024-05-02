@@ -24,6 +24,6 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -2,17 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ocl_kernel.hpp"
-#include "ocl_engine.hpp"
 #include "ocl_kernels_factory.hpp"
 
 #include <memory>
 #include <vector>
 
+#include "ocl_engine.hpp"
+#include "ocl_kernel.hpp"
+
 namespace cldnn {
 namespace ocl {
 
-std::shared_ptr<kernel> create_ocl_kernel(engine& engine, cl_context /* context */, cl_kernel kernel, std::string entry_point) {
+std::shared_ptr<kernel> create_ocl_kernel(engine& engine,
+                                          cl_context /* context */,
+                                          cl_kernel kernel,
+                                          std::string entry_point) {
     // Retain kernel to keep it valid
     cl::Kernel k(kernel, true);
     ocl_engine& cl_engine = dynamic_cast<ocl_engine&>(engine);

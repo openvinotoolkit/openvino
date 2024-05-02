@@ -16,17 +16,23 @@ def get_models_list(file_name: str):
         for model_info in f:
             model_info = model_info.strip()
             # skip comment in model scope file
-            if model_info.startswith('#'):
+            if model_info.startswith("#"):
                 continue
             mark = None
             reason = None
-            assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
-                "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
-            if len(model_info.split(',')) == 2:
-                model_name, model_link = model_info.split(',')
-            elif len(model_info.split(',')) == 4:
-                model_name, model_link, mark, reason = model_info.split(',')
-                assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
+            assert (
+                len(model_info.split(",")) == 2 or len(model_info.split(",")) == 4
+            ), "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(
+                model_info
+            )
+            if len(model_info.split(",")) == 2:
+                model_name, model_link = model_info.split(",")
+            elif len(model_info.split(",")) == 4:
+                model_name, model_link, mark, reason = model_info.split(",")
+                assert mark in [
+                    "skip",
+                    "xfail",
+                ], "Incorrect failure mark for model info {}".format(model_info)
             models.append((model_name, model_link, mark, reason))
 
     return models
@@ -39,7 +45,7 @@ def get_skipped_model_links(filename: str):
     with open(filename) as f:
         for model_info in f:
             model_info = model_info.strip()
-            model_name, model_link = model_info.split(',')
+            model_name, model_link = model_info.split(",")
             links.add(model_link)
     return links
 
@@ -93,14 +99,14 @@ def cleanup_dir(dir: str):
 def round_num(n: float) -> str:
     if 0.1 < n < 1:
         return str(n)[:4]
-    s = '{:.2E}'.format(n)
-    if s.endswith('E+00'):
+    s = "{:.2E}".format(n)
+    if s.endswith("E+00"):
         return s[:-4]
     return s
 
 
 def nano_secs(secs):
-    return float(secs) * (10 ** 9)
+    return float(secs) * (10**9)
 
 
 def measure(max_time_nano_secs: float, func, args):
@@ -120,11 +126,11 @@ def measure(max_time_nano_secs: float, func, args):
 
 
 def call_with_timer(timer_label: str, func, args):
-    print('{} ...'.format(timer_label))
+    print("{} ...".format(timer_label))
     t0 = time.time()
     ret_value = func(*args)
     t1 = time.time()
-    print('{} is done in {} secs'.format(timer_label, round_num(t1 - t0)))
+    print("{} is done in {} secs".format(timer_label, round_num(t1 - t0)))
     return ret_value
 
 

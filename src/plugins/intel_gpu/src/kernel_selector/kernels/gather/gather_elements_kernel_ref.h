@@ -26,9 +26,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
 
 protected:

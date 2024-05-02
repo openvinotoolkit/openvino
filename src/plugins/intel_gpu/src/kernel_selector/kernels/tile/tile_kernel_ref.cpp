@@ -3,8 +3,10 @@
 //
 
 #include "tile_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -33,14 +35,16 @@ CommonDispatchData TileKernelRef::SetDefault(const tile_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
     auto out = params.outputs[0];
 
-    dispatchData.gws = { out.X().v * out.Y().v, out.Z().v * out.W().v, out.Batch().v * out.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {out.X().v * out.Y().v, out.Z().v * out.W().v, out.Batch().v * out.Feature().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -76,8 +80,19 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.is_shape_agnostic);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     0,
+                     1,
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

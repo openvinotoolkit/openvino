@@ -3,16 +3,15 @@
 //
 
 #include "shape_inference_ngraph.hpp"
-#include "memory_accessor.hpp"
 
 #include <memory>
 
+#include "memory_accessor.hpp"
+
 using namespace ov::intel_cpu;
 
-IShapeInfer::Result
-NgraphShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+IShapeInfer::Result NgraphShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                            const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& iranks = m_shape_infer->get_input_ranks();
     OPENVINO_ASSERT(iranks.size() <= input_shapes.size(), "Too few input shapes passed to Shape infer.");
     std::vector<StaticShapeRef> input_static_shapes;

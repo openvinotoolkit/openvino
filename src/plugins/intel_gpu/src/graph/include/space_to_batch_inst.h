@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <string>
+
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "primitive_inst.h"
-
-#include <string>
 
 namespace cldnn {
 
@@ -18,8 +18,12 @@ struct typed_program_node<space_to_batch> : public typed_program_node_base<space
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2, 3}; }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {1, 2, 3};
+    }
 };
 
 using space_to_batch_node = typed_program_node<space_to_batch>;
@@ -30,8 +34,9 @@ class typed_primitive_inst<space_to_batch> : public typed_primitive_inst_base<sp
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(space_to_batch_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(space_to_batch_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(space_to_batch_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(space_to_batch_node const& node);
 

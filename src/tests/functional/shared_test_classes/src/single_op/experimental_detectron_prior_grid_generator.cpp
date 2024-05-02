@@ -8,7 +8,7 @@ namespace ov {
 namespace test {
 
 std::string ExperimentalDetectronPriorGridGeneratorLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
+    const testing::TestParamInfo<ExperimentalDetectronPriorGridGeneratorTestParams>& obj) {
     std::vector<InputShape> shapes;
     ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes attributes;
     std::pair<std::string, std::vector<ov::Tensor>> inputTensors;
@@ -52,16 +52,15 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::SetUp() {
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
     }
-    auto experimentalDetectron = std::make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(
-        params[0], // priors
-        params[1], // feature_map
-        params[2], // im_data
-        attributes);
-    function = std::make_shared<ov::Model>(
-            ov::OutputVector{experimentalDetectron->output(0)},
-            params,
-            "ExperimentalDetectronPriorGridGenerator");
+    auto experimentalDetectron =
+        std::make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(params[0],  // priors
+                                                                          params[1],  // feature_map
+                                                                          params[2],  // im_data
+                                                                          attributes);
+    function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectron->output(0)},
+                                           params,
+                                           "ExperimentalDetectronPriorGridGenerator");
 }
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

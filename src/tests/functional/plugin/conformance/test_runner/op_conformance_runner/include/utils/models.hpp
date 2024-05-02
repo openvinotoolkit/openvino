@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "op_conformance_utils/utils/file.hpp"
-#include "functional_test_utils/node_utils.hpp"
 #include "conformance.hpp"
+#include "functional_test_utils/node_utils.hpp"
+#include "op_conformance_utils/utils/file.hpp"
 
 namespace ov {
 namespace test {
 namespace op_conformance {
-
 
 static auto unique_ops = ov::test::utils::get_unique_ops();
 
@@ -30,9 +29,9 @@ inline std::string get_ref_path(const std::string& model_path) {
 }
 
 // vector<ir_path, ref_path>
-inline std::vector<std::pair<std::string, std::string>>
-get_model_paths(const std::vector<std::string>& conformance_ir_paths,
-                const std::string& operation_name = "undefined") {
+inline std::vector<std::pair<std::string, std::string>> get_model_paths(
+    const std::vector<std::string>& conformance_ir_paths,
+    const std::string& operation_name = "undefined") {
     // This is required to prevent re-scan folders each call in case there is nothing found
     // {{ op_name, {irs} }}
     static std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> op_filelist;
@@ -52,7 +51,7 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
             } else {
                 continue;
             }
-            //Save it in a list, first value - path, second - amout of tests with this path
+            // Save it in a list, first value - path, second - amout of tests with this path
             for (auto& val : tmp_buf) {
                 bool is_op = false;
 #ifdef _WIN32
@@ -61,7 +60,8 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
                         val.replace(it, it + 1, ov::test::utils::FileSeparator);
                 }
 #endif
-                for (const auto& path_item : ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
+                for (const auto& path_item :
+                     ov::test::utils::splitStringByDelimiter(val, ov::test::utils::FileSeparator)) {
                     auto tmp_path_item = path_item;
                     auto pos = tmp_path_item.find('-');
                     if (pos != std::string::npos) {
@@ -86,6 +86,6 @@ get_model_paths(const std::vector<std::string>& conformance_ir_paths,
     return {};
 }
 
-} // namespace op_conformance
-} // namespace test
-} // namespace ov
+}  // namespace op_conformance
+}  // namespace test
+}  // namespace ov

@@ -9,10 +9,9 @@
 namespace ov {
 namespace test {
 
-class BroadcastEltwiseEliminated : public testing::WithParamInterface<const char*>,
-                                   public ov::test::SubgraphBaseTest {
+class BroadcastEltwiseEliminated : public testing::WithParamInterface<const char*>, public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<const char*> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<const char*>& obj);
 
 protected:
     void SetUp() override;

@@ -3,12 +3,13 @@
 //
 
 #include "deconvolution_kernel_b_fs_zyx_fsv16_dw.h"
-#include "kernel_selector_utils.h"
 
 #include <algorithm>
-#include <vector>
-#include <string>
 #include <iostream>
+#include <string>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -23,7 +24,8 @@ float DeconvolutionKernel_b_fs_zyx_fsv16_dw::EstimateRegPressure(const deconvolu
     usage_bytes += d_params.block_size_x * BytesPerElement(GetAccumulatorType(params));
 
     if (d_params.preload_weights == weights_preload::all) {
-        usage_bytes += params.weights.X().v * params.weights.Y().v * params.weights.Z().v * BytesPerElement(params.weights.GetDType());
+        usage_bytes += params.weights.X().v * params.weights.Y().v * params.weights.Z().v *
+                       BytesPerElement(params.weights.GetDType());
     } else if (d_params.preload_weights == weights_preload::line) {
         usage_bytes += params.weights.X().v * BytesPerElement(params.weights.GetDType());
     } else {
@@ -44,8 +46,8 @@ float DeconvolutionKernel_b_fs_zyx_fsv16_dw::EstimateRegPressure(const deconvolu
     return static_cast<float>(usage_bytes * sub_group_size) / static_cast<float>(max_register_bytes);
 }
 
-DeconvolutionKernel_b_fs_zyx_fsv16_dw::dispatch_params
-DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetDispatchParams(const deconvolution_params& params) const {
+DeconvolutionKernel_b_fs_zyx_fsv16_dw::dispatch_params DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetDispatchParams(
+    const deconvolution_params& params) const {
     std::vector<dispatch_params> ordered_params;
     if (params.inputs[0].GetDType() == Datatype::F16 || params.inputs[0].GetDType() == Datatype::F32) {
         ordered_params = {
@@ -63,28 +65,31 @@ DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetDispatchParams(const deconvolution_par
     } else {
         ordered_params = {
             dispatch_params{16, input_preload::line, weights_preload::line},
-            dispatch_params{8,  input_preload::line, weights_preload::line},
-            dispatch_params{4,  input_preload::line, weights_preload::line},
+            dispatch_params{8, input_preload::line, weights_preload::line},
+            dispatch_params{4, input_preload::line, weights_preload::line},
             dispatch_params{16, input_preload::line, weights_preload::none},
-            dispatch_params{8,  input_preload::line, weights_preload::none},
-            dispatch_params{4,  input_preload::line, weights_preload::none},
-            dispatch_params{2,  input_preload::line, weights_preload::line},
-            dispatch_params{2,  input_preload::line, weights_preload::none},
-            dispatch_params{1,  input_preload::line, weights_preload::none},
-            dispatch_params{1,  input_preload::none, weights_preload::none},
+            dispatch_params{8, input_preload::line, weights_preload::none},
+            dispatch_params{4, input_preload::line, weights_preload::none},
+            dispatch_params{2, input_preload::line, weights_preload::line},
+            dispatch_params{2, input_preload::line, weights_preload::none},
+            dispatch_params{1, input_preload::line, weights_preload::none},
+            dispatch_params{1, input_preload::none, weights_preload::none},
         };
     }
 
-    dispatch_params best_params = dispatch_params{ 1,  input_preload::none, weights_preload::none };
+    dispatch_params best_params = dispatch_params{1, input_preload::none, weights_preload::none};
 
     for (auto& d_params : ordered_params) {
-        bool good_block_size_x = params.outputs[0].X().v % d_params.block_size_x == 0 || params.outputs[0].X().v > d_params.block_size_x * 3;
+        bool good_block_size_x =
+            params.outputs[0].X().v % d_params.block_size_x == 0 || params.outputs[0].X().v > d_params.block_size_x * 3;
         bool good_reg_pressure = EstimateRegPressure(params, d_params) <= max_reg_pressure;
         // No support for no input preload and weights line preload in kernel
-        bool good_preloads = !(d_params.preload_input == input_preload::none && d_params.preload_weights == weights_preload::line);
+        bool good_preloads =
+            !(d_params.preload_input == input_preload::none && d_params.preload_weights == weights_preload::line);
         // At least one input preload
-        bool full_input_preload = d_params.preload_input != input_preload::line ||
-                                  CeilDiv(d_params.block_size_x + params.filterSize.x - 1, params.stride.x) <= params.inputs[0].X().v;
+        bool full_input_preload =
+            d_params.preload_input != input_preload::line ||
+            CeilDiv(d_params.block_size_x + params.filterSize.x - 1, params.stride.x) <= params.inputs[0].X().v;
 
         if (good_block_size_x && good_reg_pressure && good_preloads && full_input_preload) {
             best_params = d_params;
@@ -127,7 +132,8 @@ DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16_dw::get_required_device_fea
     return get_common_subgroups_device_features_key(params);
 }
 
-DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::SetDefault(const deconvolution_params& params) const {
+DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16_dw::SetDefault(
+    const deconvolution_params& params) const {
     DispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
@@ -167,7 +173,8 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p) const {
         return false;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 ||
+        params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;
@@ -186,7 +193,8 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetJitConstants(const deconv
     if (params.outputs[0].Feature().v % feature_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", params.outputs[0].Feature().v % feature_block_size));
     }
-    jit.AddConstant(MakeJitConstant("INPUT_BLOCK_SIZE_X", CeilDiv(block_size_x + params.filterSize.x - 1, params.stride.x)));
+    jit.AddConstant(
+        MakeJitConstant("INPUT_BLOCK_SIZE_X", CeilDiv(block_size_x + params.filterSize.x - 1, params.stride.x)));
     jit.AddConstant(MakeJitConstant("PRELOAD_INPUT_LINE", dp.preload_input == input_preload::line));
     jit.AddConstant(MakeJitConstant("PRELOAD_WEIGHTS", dp.preload_weights == weights_preload::all));
     jit.AddConstant(MakeJitConstant("PRELOAD_WEIGHTS_LINE", dp.preload_weights == weights_preload::line));
@@ -197,23 +205,22 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetJitConstants(const deconv
         if (params.outputs[0].Dimentions() <= 4) {
             idx_order = {"b", "fg", "y", "x"};
         } else {
-            idx_order = { "b", "fg", "z", "y", "x" };
+            idx_order = {"b", "fg", "z", "y", "x"};
         }
         auto boundary_check = BoundaryCheck::ENABLED;
         if (params.outputs[0].Feature().v % feature_block_size == 0 && params.outputs[0].X().v % block_size_x == 0) {
             boundary_check = BoundaryCheck::DISABLED;
         }
-        FusedOpsConfiguration conf = {
-            "",
-            idx_order,
-            "dequantized",
-            fused_dt,
-            block_size_x,
-            LoadType::LT_ALIGNED_READ,
-            boundary_check,
-            IndexType::TENSOR_COORD,
-            Tensor::DataChannelName::X };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"",
+                                      idx_order,
+                                      "dequantized",
+                                      fused_dt,
+                                      block_size_x,
+                                      LoadType::LT_ALIGNED_READ,
+                                      boundary_check,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::X};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

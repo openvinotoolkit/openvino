@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include <string>
+
 #include "ov_lpt_models/common/convolution.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
-class ElementwiseBranchSelectionTestValues{
+class ElementwiseBranchSelectionTestValues {
 public:
     class Branch {
     public:
@@ -29,19 +30,15 @@ public:
     std::vector<std::pair<std::string, std::string>> expectedPrecisions;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ElementwiseBranchSelectionTestValues,
-    std::string
-> ElementwiseBranchSelectionTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, ElementwiseBranchSelectionTestValues, std::string>
+    ElementwiseBranchSelectionTransformationParams;
 
-class ElementwiseBranchSelectionTransformation :
-    public testing::WithParamInterface<ElementwiseBranchSelectionTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class ElementwiseBranchSelectionTransformation
+    : public testing::WithParamInterface<ElementwiseBranchSelectionTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj);
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -129,8 +129,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         // Transform compile time axes:
         for (size_t axis = 0; axis < params.compile_time_axes.size(); ++axis) {
             const int64_t transformed_axe = params.compile_time_axes[axis] < 0
-                                             ? input_rank + params.compile_time_axes[axis]
-                                             : params.compile_time_axes[axis];
+                                                ? input_rank + params.compile_time_axes[axis]
+                                                : params.compile_time_axes[axis];
             params.compile_time_axes[axis] = transformed_axe;
         }
 

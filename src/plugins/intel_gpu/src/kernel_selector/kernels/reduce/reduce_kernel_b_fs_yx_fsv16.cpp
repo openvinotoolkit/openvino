@@ -3,10 +3,12 @@
 //
 
 #include "reduce_kernel_b_fs_yx_fsv16.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
 #include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -51,22 +53,22 @@ static NDims calc_in_dims(const reduce_params& params) {
 
 static bool is_xy_opt_supported(const ReduceMode& mode) {
     switch (mode) {
-        case ReduceMode::MAX:
-        case ReduceMode::MIN:
-        case ReduceMode::MEAN:
-        case ReduceMode::SUM:
-        case ReduceMode::AND:
-        case ReduceMode::OR:
-        case ReduceMode::L1:
-        case ReduceMode::LOG_SUM_EXP:
-            return true;
-        // prod, sum_squre, L2 and log_sum doesn't work with reduce(x,y) optimization.
-        case ReduceMode::PROD:
-        case ReduceMode::SUM_SQUARE:
-        case ReduceMode::L2:
-        case ReduceMode::LOG_SUM:
-        default:
-            return false;
+    case ReduceMode::MAX:
+    case ReduceMode::MIN:
+    case ReduceMode::MEAN:
+    case ReduceMode::SUM:
+    case ReduceMode::AND:
+    case ReduceMode::OR:
+    case ReduceMode::L1:
+    case ReduceMode::LOG_SUM_EXP:
+        return true;
+    // prod, sum_squre, L2 and log_sum doesn't work with reduce(x,y) optimization.
+    case ReduceMode::PROD:
+    case ReduceMode::SUM_SQUARE:
+    case ReduceMode::L2:
+    case ReduceMode::LOG_SUM:
+    default:
+        return false;
     }
 }
 
@@ -74,9 +76,8 @@ static bool can_opt_reduce_xy(const reduce_params& params) {
     auto axes = params.reduceAxes;
     auto input_dims = get_input_dims(params);
     return is_xy_opt_supported(params.reduceMode) && axes.size() == 2 &&
-        std::find(axes.begin(), axes.end(), AXIS_Y) != std::end(axes) &&
-        std::find(axes.begin(), axes.end(), AXIS_X) != std::end(axes) &&
-        input_dims[1].v <= XY_OPT_F_LIMITS;
+           std::find(axes.begin(), axes.end(), AXIS_Y) != std::end(axes) &&
+           std::find(axes.begin(), axes.end(), AXIS_X) != std::end(axes) && input_dims[1].v <= XY_OPT_F_LIMITS;
 }
 
 static bool reducing_unaligned_f_axis(const reduce_params& params) {
@@ -125,15 +126,15 @@ CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& p
 
     if (can_opt_reduce_xy(params)) {
         auto input_dims = get_input_dims(params);
-        dispatchData.gws = { 16,
+        dispatchData.gws = {16,
                             std::min(CeilDiv(input_dims[2].v, SIMD), SIMD),
-                            CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                 // F, B
-        dispatchData.lws = { 16, dispatchData.gws[1], 1 };
+                            CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v};  // F, B
+        dispatchData.lws = {16, dispatchData.gws[1], 1};
     } else {
-        dispatchData.gws = { 16,
-                         CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
-                         CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                    // F, B
-        dispatchData.lws = { SIMD, 1, 1 };
+        dispatchData.gws = {16,
+                            CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
+                            CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v};                     // F, B
+        dispatchData.lws = {SIMD, 1, 1};
     }
 
     return dispatchData;
@@ -162,7 +163,8 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
     jit.AddConstant(MakeJitConstant("COMMON_OUTPUT_FEATURE_NUM", in_dims[1].v));
     jit.AddConstant(MakeJitConstant("COMMON_OUTPUT_BATCH_NUM", in_dims[0].v));
     jit.AddConstant(MakeJitConstant("READ_OFFSET", read_offset));
-    jit.AddConstant(MakeJitConstant("BLOCK_READ(ptr,offset)", "DT_INPUT_BLOCK_READ" + toCodeString(read_offset) + "(ptr,offset)"));
+    jit.AddConstant(
+        MakeJitConstant("BLOCK_READ(ptr,offset)", "DT_INPUT_BLOCK_READ" + toCodeString(read_offset) + "(ptr,offset)"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetFinalAccumulatorType(params), "FINAL_ACCUMULATOR"));
@@ -188,7 +190,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
         if (cant_handle_vec16) {
             FusedOpsConfiguration conf_vector_1 = {"_VECTOR_1",
                                                    idx_order,
-                                                   var_name+".lo",
+                                                   var_name + ".lo",
                                                    input_dt,
                                                    vec_size,
                                                    LoadType::LT_ALIGNED_READ,
@@ -199,7 +201,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
             std::vector<std::string> idx_order_vec_2 = {"b", "f", "y", "x + 8"};
             FusedOpsConfiguration conf_vector_2 = {"_VECTOR_2",
                                                    idx_order_vec_2,
-                                                   var_name+".hi",
+                                                   var_name + ".hi",
                                                    input_dt,
                                                    vec_size,
                                                    LoadType::LT_ALIGNED_READ,
@@ -207,8 +209,9 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
                                                    IndexType::TENSOR_COORD,
                                                    Tensor::DataChannelName::X};
 
-            jit.AddConstant(MakeJitConstant("FUSED_OPS_VECTOR", "{FUSED_OPS_VECTOR_1;final_result.lo=FUSED_OPS_RESULT_VECTOR_1;}"
-                                                                "{FUSED_OPS_VECTOR_2;final_result.hi=FUSED_OPS_RESULT_VECTOR_2;}"));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_VECTOR",
+                                            "{FUSED_OPS_VECTOR_1;final_result.lo=FUSED_OPS_RESULT_VECTOR_1;}"
+                                            "{FUSED_OPS_VECTOR_2;final_result.hi=FUSED_OPS_RESULT_VECTOR_2;}"));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT_VECTOR", "final_result"));
             jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vector_1, conf_vector_2}));
         } else {
@@ -228,9 +231,10 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
 
     // Some reduction modes are affected by 0 value (e.g. min, max, prod ...)
     bool zero_invariant_mode = params.reduceMode == ReduceMode::L1 || params.reduceMode == ReduceMode::L2 ||
-                               params.reduceMode == ReduceMode::LOG_SUM || params.reduceMode == ReduceMode::LOG_SUM_EXP ||
-                               params.reduceMode == ReduceMode::MEAN || params.reduceMode == ReduceMode::OR ||
-                               params.reduceMode == ReduceMode::SUM || params.reduceMode == ReduceMode::SUM_SQUARE;
+                               params.reduceMode == ReduceMode::LOG_SUM ||
+                               params.reduceMode == ReduceMode::LOG_SUM_EXP || params.reduceMode == ReduceMode::MEAN ||
+                               params.reduceMode == ReduceMode::OR || params.reduceMode == ReduceMode::SUM ||
+                               params.reduceMode == ReduceMode::SUM_SQUARE;
 
     if (zero_invariant_mode && reducing_unaligned_f_axis(params)) {
         jit.AddConstant(MakeJitConstant("ZERO_INVARIANT_REDUCTION", 1));

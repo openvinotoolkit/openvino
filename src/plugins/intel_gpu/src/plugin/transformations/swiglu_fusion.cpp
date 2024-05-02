@@ -5,7 +5,6 @@
 #include "swiglu_fusion.hpp"
 
 #include "intel_gpu/op/swiglu.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -54,7 +53,8 @@ SwiGLUFusion::SwiGLUFusion() {
         if (mul->input_value(1).get_index() != 1)
             return false;
 
-        auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
+        auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(
+            pattern_map.at(variadic_split_m).get_node_shared_ptr());
         auto variadic_split_in_ps = variadic_split->get_input_partial_shape(0);
         auto last_dim = variadic_split_in_ps.rank().get_length() - 1;
 
@@ -65,7 +65,8 @@ SwiGLUFusion::SwiGLUFusion() {
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
+        auto split_lengths = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+            pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
         auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;
@@ -75,10 +76,7 @@ SwiGLUFusion::SwiGLUFusion() {
         auto data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
-        auto swiglu = std::make_shared<op::SwiGLU>(data,
-                                                   axis_value,
-                                                   split_lengths_value,
-                                                   output_type);
+        auto swiglu = std::make_shared<op::SwiGLU>(data, axis_value, split_lengths_value, output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), swiglu);
         ov::replace_node(m.get_match_root(), swiglu);

@@ -26,7 +26,8 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     auto stride = desc->stride;
     auto window_size = desc->size;
 
-    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
+    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type :
+    // input_layout.data_type;
     // FIXME: dirty hack. Replace it with optional output data type (above) once OV returns correct precision on edges
     auto output_type = input_layout.data_type;
 
@@ -128,13 +129,14 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     for (size_t i = 0; i < window_size.size(); i++) {
         size.spatial[i] = static_cast<tensor::value_type>(window_size[window_size.size() - i - 1]);
     }
-    auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
-                                                                                      size,
-                                                                                      ov::CoordinateDiff(pad.begin(), pad.end()),
-                                                                                      stride,
-                                                                                      ov::Strides(window_size.size(), 1),
-                                                                                      true,
-                                                                                      1);
+    auto output_range =
+        calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
+                                                                      size,
+                                                                      ov::CoordinateDiff(pad.begin(), pad.end()),
+                                                                      stride,
+                                                                      ov::Strides(window_size.size(), 1),
+                                                                      true,
+                                                                      1);
 
     tensor output_size(input_layout.batch(),
                        input_layout.feature(),
@@ -144,8 +146,9 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     return {output_type, input_layout.format, output_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node*/,
+                                                      const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<pooling>();
     auto input_layout = impl_param.get_input_layout();
     auto input_shape = input_layout.get<ShapeType>();
@@ -171,7 +174,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     output_shape[1] = input_shape[1];
 
     if (input_shape.is_dynamic()) {
-        return { layout{output_shape, input_layout.data_type, input_layout.format} };
+        return {layout{output_shape, input_layout.data_type, input_layout.format}};
     }
 
     if (desc->with_output_size) {
@@ -204,12 +207,13 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
 
     auto kernel_size = desc->size;
     auto stride = desc->stride;
-    auto dilation = desc->dilation.empty() ? ov::Strides(stride.size(), 1)
-                                           : desc->dilation;
+    auto dilation = desc->dilation.empty() ? ov::Strides(stride.size(), 1) : desc->dilation;
     bool ceil_mod = desc->rounding_type == ov::op::RoundingType::CEIL;
 
     auto is_positive_values = [](const std::vector<size_t>& values) {
-        return !std::any_of(values.begin(), values.end(), [](size_t val) { return val == 0; });
+        return !std::any_of(values.begin(), values.end(), [](size_t val) {
+            return val == 0;
+        });
     };
 
     OPENVINO_ASSERT(is_positive_values(kernel_size), "Size of pooling window must be positive (>= 1)");
@@ -231,15 +235,16 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     for (size_t i = 0; i < spatial_size; ++i) {
         int64_t padded_input_dim = input_shape[i + 2].get_length() + pads_begin[i] + pads_end[i];
         int64_t kernel_dilated_dim = dilation[i] * (kernel_size[i] - 1) + 1;
-        int64_t out_dim = ceil_mod ? ceil_div(padded_input_dim - kernel_dilated_dim, stride[i]) + 1 :
-                                     (padded_input_dim - kernel_dilated_dim) / stride[i] + 1;
+        int64_t out_dim = ceil_mod ? ceil_div(padded_input_dim - kernel_dilated_dim, stride[i]) + 1
+                                   : (padded_input_dim - kernel_dilated_dim) / stride[i] + 1;
         output_shape[i + 2] = out_dim;
     }
 
-    return { layout{output_shape, output_dtype, input_layout.format} };
+    return {layout{output_shape, output_dtype, input_layout.format}};
 }
 
-template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node,
+                                                                                 const kernel_impl_params& impl_param);
 
 std::string pooling_inst::to_string(pooling_node const& node) {
     auto desc = node.get_primitive();

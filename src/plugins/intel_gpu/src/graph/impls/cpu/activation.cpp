@@ -2,50 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/element_type_traits.hpp"
-#include "register.hpp"
 #include "activation_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/power.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/elu.hpp"
-#include "openvino/op/sigmoid.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/exp.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/asin.hpp"
-#include "openvino/op/asinh.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/atanh.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/floor.hpp"
 #include "openvino/op/ceiling.hpp"
-#include "openvino/op/erf.hpp"
-#include "openvino/op/hard_sigmoid.hpp"
-#include "openvino/op/log.hpp"
-#include "openvino/op/negative.hpp"
-#include "openvino/op/selu.hpp"
-#include "openvino/op/softplus.hpp"
-#include "openvino/op/tan.hpp"
-#include "openvino/op/sin.hpp"
-#include "openvino/op/sinh.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
-#include "openvino/op/swish.hpp"
-#include "openvino/op/hswish.hpp"
-#include "openvino/op/mish.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gelu.hpp"
-#include "openvino/op/sign.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/tan.hpp"
+#include "openvino/op/tanh.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -108,7 +106,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
 
         // TODO: consider to re-implement lock/unlock in more exception-safetest way
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         // Most of the evaluate functions expect same data type for all inputs, so we need to convert params from float
         auto param_a = static_cast<typename ov::element_type_traits<DT>::value_type>(additional_params.a);
@@ -132,7 +131,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute activation primitive with id ", instance.id());
+                        "[GPU] Couldn't execute activation primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -142,7 +142,8 @@ struct activation_impl : public typed_primitive_impl<activation> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "activation::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -153,17 +154,23 @@ struct activation_impl : public typed_primitive_impl<activation> {
         if (!op) {
             switch (activation_function) {
             case activation_func::pow:
-                op = std::make_shared<ov::op::v1::Power>(); break;
+                op = std::make_shared<ov::op::v1::Power>();
+                break;
             case activation_func::hyperbolic_tan:
-                op = std::make_shared<ov::op::v0::Tanh>(); break;
+                op = std::make_shared<ov::op::v0::Tanh>();
+                break;
             case activation_func::elu:
-                op = std::make_shared<ov::op::v0::Elu>(); break;
+                op = std::make_shared<ov::op::v0::Elu>();
+                break;
             case activation_func::logistic:
-                op = std::make_shared<ov::op::v0::Sigmoid>(); break;
+                op = std::make_shared<ov::op::v0::Sigmoid>();
+                break;
             case activation_func::relu:
-                op = std::make_shared<ov::op::v0::Relu>(); break;
+                op = std::make_shared<ov::op::v0::Relu>();
+                break;
             case activation_func::relu_negative_slope:
-                op = std::make_shared<ov::op::v0::PRelu>(); break;
+                op = std::make_shared<ov::op::v0::PRelu>();
+                break;
             case activation_func::clamp: {
                 auto clamp_op = std::make_shared<ov::op::v0::Clamp>();
                 clamp_op->set_min(additional_params.a);
@@ -172,82 +179,111 @@ struct activation_impl : public typed_primitive_impl<activation> {
                 break;
             }
             case activation_func::exp:
-                op = std::make_shared<ov::op::v0::Exp>(); break;
+                op = std::make_shared<ov::op::v0::Exp>();
+                break;
             case activation_func::negation:
-                op = std::make_shared<ov::op::v1::LogicalNot>(); break;
+                op = std::make_shared<ov::op::v1::LogicalNot>();
+                break;
             case activation_func::asin:
-                op = std::make_shared<ov::op::v0::Asin>(); break;
+                op = std::make_shared<ov::op::v0::Asin>();
+                break;
             case activation_func::asinh:
-                op = std::make_shared<ov::op::v3::Asinh>(); break;
+                op = std::make_shared<ov::op::v3::Asinh>();
+                break;
             case activation_func::acos:
-                op = std::make_shared<ov::op::v0::Acos>(); break;
+                op = std::make_shared<ov::op::v0::Acos>();
+                break;
             case activation_func::acosh:
-                op = std::make_shared<ov::op::v3::Acosh>(); break;
+                op = std::make_shared<ov::op::v3::Acosh>();
+                break;
             case activation_func::atan:
-                op = std::make_shared<ov::op::v0::Atan>(); break;
+                op = std::make_shared<ov::op::v0::Atan>();
+                break;
             case activation_func::atanh:
-                op = std::make_shared<ov::op::v3::Atanh>(); break;
+                op = std::make_shared<ov::op::v3::Atanh>();
+                break;
             case activation_func::abs:
-                op = std::make_shared<ov::op::v0::Abs>(); break;
+                op = std::make_shared<ov::op::v0::Abs>();
+                break;
             case activation_func::floor:
-                op = std::make_shared<ov::op::v0::Floor>(); break;
+                op = std::make_shared<ov::op::v0::Floor>();
+                break;
             case activation_func::ceil:
-                op = std::make_shared<ov::op::v0::Ceiling>(); break;
+                op = std::make_shared<ov::op::v0::Ceiling>();
+                break;
             case activation_func::erf:
-                op = std::make_shared<ov::op::v0::Erf>(); break;
+                op = std::make_shared<ov::op::v0::Erf>();
+                break;
             case activation_func::log:
-                op = std::make_shared<ov::op::v0::Log>(); break;
+                op = std::make_shared<ov::op::v0::Log>();
+                break;
             case activation_func::negative:
-                op = std::make_shared<ov::op::v0::Negative>(); break;
+                op = std::make_shared<ov::op::v0::Negative>();
+                break;
             case activation_func::softplus:
-                op = std::make_shared<ov::op::v4::SoftPlus>(); break;
+                op = std::make_shared<ov::op::v4::SoftPlus>();
+                break;
             case activation_func::tan:
-                op = std::make_shared<ov::op::v0::Tan>(); break;
+                op = std::make_shared<ov::op::v0::Tan>();
+                break;
             case activation_func::sin:
-                op = std::make_shared<ov::op::v0::Sin>(); break;
+                op = std::make_shared<ov::op::v0::Sin>();
+                break;
             case activation_func::sinh:
-                op = std::make_shared<ov::op::v0::Sinh>(); break;
+                op = std::make_shared<ov::op::v0::Sinh>();
+                break;
             case activation_func::cos:
-                op = std::make_shared<ov::op::v0::Cos>(); break;
+                op = std::make_shared<ov::op::v0::Cos>();
+                break;
             case activation_func::cosh:
-                op = std::make_shared<ov::op::v0::Cosh>(); break;
+                op = std::make_shared<ov::op::v0::Cosh>();
+                break;
             case activation_func::swish:
-                op = std::make_shared<ov::op::v4::Swish>(); break;
+                op = std::make_shared<ov::op::v4::Swish>();
+                break;
             case activation_func::hswish:
-                op = std::make_shared<ov::op::v4::HSwish>(); break;
+                op = std::make_shared<ov::op::v4::HSwish>();
+                break;
             case activation_func::mish:
-                op = std::make_shared<ov::op::v4::Mish>(); break;
+                op = std::make_shared<ov::op::v4::Mish>();
+                break;
             case activation_func::gelu:
             case activation_func::gelu_tanh: {
                 auto gelu_op = std::make_shared<ov::op::v7::Gelu>();
-                auto approximation_mode =
-                    activation_function == cldnn::activation_func::gelu ? ov::op::GeluApproximationMode::ERF
-                                                                        : ov::op::GeluApproximationMode::TANH;
+                auto approximation_mode = activation_function == cldnn::activation_func::gelu
+                                              ? ov::op::GeluApproximationMode::ERF
+                                              : ov::op::GeluApproximationMode::TANH;
                 gelu_op->set_approximation_mode(approximation_mode);
                 op = gelu_op;
                 break;
             }
             case activation_func::sign:
-                op = std::make_shared<ov::op::v0::Sign>(); break;
+                op = std::make_shared<ov::op::v0::Sign>();
+                break;
             case activation_func::hsigmoid:
-                op = std::make_shared<ov::op::v5::HSigmoid>(); break;
+                op = std::make_shared<ov::op::v5::HSigmoid>();
+                break;
             case activation_func::round_half_to_even:
             case activation_func::round_half_away_from_zero: {
                 auto round_op = std::make_shared<ov::op::v5::Round>();
-                auto round_mode =
-                    activation_function == cldnn::activation_func::round_half_to_even ? ov::op::v5::Round::RoundMode::HALF_TO_EVEN
-                                                                                      : ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO;
+                auto round_mode = activation_function == cldnn::activation_func::round_half_to_even
+                                      ? ov::op::v5::Round::RoundMode::HALF_TO_EVEN
+                                      : ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO;
                 round_op->set_mode(round_mode);
                 op = round_op;
                 break;
             }
             case activation_func::sqrt:
-                op = std::make_shared<ov::op::v0::Sqrt>(); break;
+                op = std::make_shared<ov::op::v0::Sqrt>();
+                break;
             case activation_func::hard_sigmoid:
             case activation_func::selu:
             default:
                 OPENVINO_THROW("[GPU] Couldn't create activation operation: unsupported activation type ",
-                               "(", static_cast<size_t>(activation_function), ") for primitive with id ", instance.id());
+                               "(",
+                               static_cast<size_t>(activation_function),
+                               ") for primitive with id ",
+                               instance.id());
             }
         }
 
@@ -288,7 +324,7 @@ struct activation_impl : public typed_primitive_impl<activation> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -297,7 +333,6 @@ public:
         return make_unique<activation_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -319,8 +354,16 @@ attach_activation_impl::attach_activation_impl() {
         data_types::u8,
     };
 
-    implementation_map<activation>::add(impl_types::cpu, shape_types::static_shape, activation_impl::create, types, formats);
-    implementation_map<activation>::add(impl_types::cpu, shape_types::dynamic_shape, activation_impl::create, types, formats);
+    implementation_map<activation>::add(impl_types::cpu,
+                                        shape_types::static_shape,
+                                        activation_impl::create,
+                                        types,
+                                        formats);
+    implementation_map<activation>::add(impl_types::cpu,
+                                        shape_types::dynamic_shape,
+                                        activation_impl::create,
+                                        types,
+                                        formats);
 }
 
 }  // namespace detail

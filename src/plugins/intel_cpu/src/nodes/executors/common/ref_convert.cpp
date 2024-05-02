@@ -3,6 +3,7 @@
 //
 
 #include "ref_convert.hpp"
+
 #include "nodes/common/cpu_convert.h"
 
 bool ov::intel_cpu::CommonConvertExecutor::init(const ov::intel_cpu::ConvertParams& convertParams,

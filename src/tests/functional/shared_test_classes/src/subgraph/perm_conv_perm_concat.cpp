@@ -5,9 +5,9 @@
 #include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -65,26 +65,26 @@ void PermConvPermConcat::SetUp() {
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
     auto conv =
         ov::test::utils::make_convolution(permute_in,
-                                         element_type,
-                                         {kernel_shape[0], kernel_shape[1]},
-                                         {1, 1},
-                                         {0, 0},
-                                         {0, 0},
-                                         {1, 1},
-                                         ov::op::PadType::VALID,
-                                         output_channels,
-                                         false,
-                                         ov::test::utils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
+                                          element_type,
+                                          {kernel_shape[0], kernel_shape[1]},
+                                          {1, 1},
+                                          {0, 0},
+                                          {0, 0},
+                                          {1, 1},
+                                          ov::op::PadType::VALID,
+                                          output_channels,
+                                          false,
+                                          ov::test::utils::generate_float_numbers(conv_weights_size, -0.5f, 0.5f));
 
     auto permute_out_params = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, permute_out_order);
     auto permute_out = std::make_shared<ov::op::v1::Transpose>(conv, permute_out_params);
 
     auto permute_out_shape = permute_out->get_output_shape(0);
 
-    auto concat_const =
-        ov::test::utils::deprecated::make_constant(element_type,
-                                      {1, 1, 1, permute_out_shape[3]},
-                                      ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
+    auto concat_const = ov::test::utils::deprecated::make_constant(
+        element_type,
+        {1, 1, 1, permute_out_shape[3]},
+        ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{permute_out, concat_const}, 2);
 

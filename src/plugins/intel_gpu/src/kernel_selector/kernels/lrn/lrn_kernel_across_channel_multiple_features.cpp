@@ -3,6 +3,7 @@
 //
 
 #include "lrn_kernel_across_channel_multiple_features.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -92,7 +93,8 @@ bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_params& params,
+                                                                     const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input = params.inputs[0];
     const auto& input_dt = params.inputs[0].GetDType();

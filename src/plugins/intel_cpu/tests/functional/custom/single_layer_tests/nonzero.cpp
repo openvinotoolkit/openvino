@@ -11,18 +11,19 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-typedef std::tuple<
-        InputShape,     // Input shape definition
-        ElementType     // Net precision
-> NonZeroLayerTestParams;
+typedef std::tuple<InputShape,  // Input shape definition
+                   ElementType  // Net precision
+                   >
+    NonZeroLayerTestParams;
 
-typedef std::tuple<
-        NonZeroLayerTestParams,
-        std::pair<size_t, size_t>, // start from, range
-        CPUSpecificParams> NonZeroLayerCPUTestParamsSet;
+typedef std::tuple<NonZeroLayerTestParams,
+                   std::pair<size_t, size_t>,  // start from, range
+                   CPUSpecificParams>
+    NonZeroLayerCPUTestParamsSet;
 
 class NonZeroLayerCPUTest : public testing::WithParamInterface<NonZeroLayerCPUTestParamsSet>,
-                          virtual public SubgraphBaseTest, public CPUTestsBase {
+                            virtual public SubgraphBaseTest,
+                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerCPUTestParamsSet> obj) {
         NonZeroLayerTestParams basicParamsSet;
@@ -37,7 +38,7 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
@@ -58,7 +59,9 @@ public:
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = startFrom;
             in_data.range = range;
-            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                        targetInputStaticShapes[i],
+                                                                        in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -104,127 +107,92 @@ namespace {
 
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
-    return std::vector<CPUSpecificParams> {CPUSpecificParams{{}, {nc}, {}, {}}};;
+    return std::vector<CPUSpecificParams>{CPUSpecificParams{{}, {nc}, {}, {}}};
+    ;
 }
 
-const std::vector<ElementType> netPrecisions = {
-        ElementType::f32,
-        ElementType::bf16,
-        ElementType::i32,
-        ElementType::i8,
-        ElementType::u8
-};
+const std::vector<ElementType> netPrecisions = {ElementType::f32,
+                                                ElementType::bf16,
+                                                ElementType::i32,
+                                                ElementType::i8,
+                                                ElementType::u8};
 
-const std::vector<std::pair<size_t, size_t>> genData = {
-    {0, 10},
-    {0, 1}
-};
+const std::vector<std::pair<size_t, size_t>> genData = {{0, 10}, {0, 1}};
 
-std::vector<InputShape> inShapesDynamic = {
-        {
-            //dynamic shape
-            {-1},
-            { //target static shapes
-                {100},
-                {200},
-                {300}
-            }
-        },
-        {
-            //dynamic shape
-            {-1, -1},
-            { //target static shapes
-                {4, 100},
-                {4, 200},
-                {4, 300}
-            }
-        },
-        {
-            //dynamic shape
-            {-1, -1, -1},
-            { //target static shapes
-                {4, 4, 100},
-                {5, 0, 2},
-                {4, 4, 200},
-                {4, 4, 300}
-            }
-        },
-        {
-            //dynamic shape
-            {-1, -1, -1, -1},
-            { //target static shapes
-                {4, 4, 4, 100},
-                {4, 4, 4, 200},
-                {5, 0, 0, 2},
-                {4, 4, 4, 300}
-            }
-        },
-        {
-            //dynamic shape
-            {-1, {1, 10}, -1, {1, 500}},
-            { //target static shapes
-                {4, 4, 4, 100},
-                {4, 4, 4, 200},
-                {4, 4, 4, 300}
-            }
-        },
-        {
-            //dynamic shape
-            {{1, 10}, {1, 10}, {1, 10}, {1, 500}},
-            { //target static shapes
-                {4, 4, 4, 100},
-                {4, 4, 4, 200},
-                {4, 4, 4, 300}
-            }
-        },
-        {
-            // dynamic shape
-            {-1, -1, -1, -1, -1},
-            { // target static shapes
-                {4, 24, 5, 6, 4},
-                {8, 32, 9, 10, 2},
-                {4, 24, 5, 6, 4},
-                {16, 48, 9, 12, 2}
-            }
-        },
-        {
-            // dynamic shape
-            {-1, {1, 50}, -1, {1, 30}, -1},
-            { // target static shapes
-                {1, 16, 1, 8, 8},
-                {8, 32, 5, 14, 6},
-                {4, 16, 9, 10, 8},
-                {8, 32, 5, 14, 6}
-            }
-        }
-};
-std::vector<ov::Shape> inShapesStatic = {
-        { 100 },
-        { 4, 100 },
-        { 4, 2, 100 },
-        { 4, 4, 2, 100 },
-        { 4, 4, 4, 2, 100 }
-};
+std::vector<InputShape> inShapesDynamic = {{// dynamic shape
+                                            {-1},
+                                            {// target static shapes
+                                             {100},
+                                             {200},
+                                             {300}}},
+                                           {// dynamic shape
+                                            {-1, -1},
+                                            {// target static shapes
+                                             {4, 100},
+                                             {4, 200},
+                                             {4, 300}}},
+                                           {// dynamic shape
+                                            {-1, -1, -1},
+                                            {// target static shapes
+                                             {4, 4, 100},
+                                             {5, 0, 2},
+                                             {4, 4, 200},
+                                             {4, 4, 300}}},
+                                           {// dynamic shape
+                                            {-1, -1, -1, -1},
+                                            {// target static shapes
+                                             {4, 4, 4, 100},
+                                             {4, 4, 4, 200},
+                                             {5, 0, 0, 2},
+                                             {4, 4, 4, 300}}},
+                                           {// dynamic shape
+                                            {-1, {1, 10}, -1, {1, 500}},
+                                            {// target static shapes
+                                             {4, 4, 4, 100},
+                                             {4, 4, 4, 200},
+                                             {4, 4, 4, 300}}},
+                                           {// dynamic shape
+                                            {{1, 10}, {1, 10}, {1, 10}, {1, 500}},
+                                            {// target static shapes
+                                             {4, 4, 4, 100},
+                                             {4, 4, 4, 200},
+                                             {4, 4, 4, 300}}},
+                                           {// dynamic shape
+                                            {-1, -1, -1, -1, -1},
+                                            {// target static shapes
+                                             {4, 24, 5, 6, 4},
+                                             {8, 32, 9, 10, 2},
+                                             {4, 24, 5, 6, 4},
+                                             {16, 48, 9, 12, 2}}},
+                                           {// dynamic shape
+                                            {-1, {1, 50}, -1, {1, 30}, -1},
+                                            {// target static shapes
+                                             {1, 16, 1, 8, 8},
+                                             {8, 32, 5, 14, 6},
+                                             {4, 16, 9, 10, 8},
+                                             {8, 32, 5, 14, 6}}}};
+std::vector<ov::Shape> inShapesStatic = {{100}, {4, 100}, {4, 2, 100}, {4, 4, 2, 100}, {4, 4, 4, 2, 100}};
 
-const auto paramsStatic = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic)),
-                ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(genData),
-        ::testing::ValuesIn(filterCPUInfoForDevice()));
-const auto paramsDynamic = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapesDynamic),
-                ::testing::ValuesIn(netPrecisions)),
-        ::testing::ValuesIn(genData),
-        ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto paramsStatic =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic)),
+                                          ::testing::ValuesIn(netPrecisions)),
+                       ::testing::ValuesIn(genData),
+                       ::testing::ValuesIn(filterCPUInfoForDevice()));
+const auto paramsDynamic =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(inShapesDynamic), ::testing::ValuesIn(netPrecisions)),
+                       ::testing::ValuesIn(genData),
+                       ::testing::ValuesIn(filterCPUInfoForDevice()));
 
-INSTANTIATE_TEST_SUITE_P(smoke_NonZeroStaticCPUTest, NonZeroLayerCPUTest,
-                         paramsStatic, NonZeroLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_NonZeroDynamicCPUTest, NonZeroLayerCPUTest,
-                         paramsDynamic, NonZeroLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NonZeroStaticCPUTest,
+                         NonZeroLayerCPUTest,
+                         paramsStatic,
+                         NonZeroLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_NonZeroDynamicCPUTest,
+                         NonZeroLayerCPUTest,
+                         paramsDynamic,
+                         NonZeroLayerCPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 
 }  // namespace test
 }  // namespace ov

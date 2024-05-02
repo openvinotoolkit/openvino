@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "json_object.h"
 #include "non_zero_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "json_object.h"
-#include <string>
 
 namespace cldnn {
 
@@ -22,10 +23,11 @@ layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, ke
     return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1}};
 }
 
-template<typename ShapeType>
-std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/,
+                                                            kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-            "Output data type forcing is not supported for count_nonzero_node!");
+           "Output data type forcing is not supported for count_nonzero_node!");
     return {layout{ov::PartialShape{1}, cldnn::data_types::i32, cldnn::format::bfyx}};
 }
 
@@ -62,12 +64,15 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
         ov::PartialShape output_pshape(output_shape);
         return layout{std::move(output_pshape), cldnn::data_types::i32, cldnn::format::bfyx};
     } else {
-        return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
+        return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}),
+                      cldnn::data_types::i32,
+                      cldnn::format::bfyx};
     }
 }
 
-template<typename ShapeType>
-std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node const& /*node*/,
+                                                             kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<gather_nonzero>();
     assert(static_cast<bool>(desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
@@ -79,7 +84,9 @@ std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node
         auto out_layout = layout{{rank, out_size[0]}, cldnn::data_types::i32, cldnn::format::bfyx};
         return {out_layout};
     } else {
-        return {layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx}};
+        return {layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic()}),
+                       cldnn::data_types::i32,
+                       cldnn::format::bfyx}};
     }
 }
 
@@ -99,6 +106,7 @@ std::string gather_nonzero_inst::to_string(gather_nonzero_node const& node) {
     return primitive_description.str();
 }
 
-gather_nonzero_inst::typed_primitive_inst(network& network, gather_nonzero_node const& node) : parent(network, node, false) {}
+gather_nonzero_inst::typed_primitive_inst(network& network, gather_nonzero_node const& node)
+    : parent(network, node, false) {}
 
 }  // namespace cldnn

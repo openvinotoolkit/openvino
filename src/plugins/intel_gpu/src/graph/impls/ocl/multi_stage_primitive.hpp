@@ -4,28 +4,27 @@
 
 #pragma once
 
+#include <list>
+#include <utility>
+#include <vector>
+
+#include "concatenation_inst.h"
+#include "gather_inst.h"
+#include "implementation_map.hpp"
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/graph/program.hpp"
-
 #include "kernel_selector_common.h"
-#include "openvino/core/except.hpp"
-#include "primitive_inst.h"
 #include "kernel_selector_helper.h"
-#include "register.hpp"
-#include "implementation_map.hpp"
-#include "concatenation_inst.h"
-#include "gather_inst.h"
+#include "openvino/core/except.hpp"
 #include "permute_inst.h"
-
-#include <vector>
-#include <list>
-#include <utility>
+#include "primitive_inst.h"
+#include "register.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -44,9 +43,9 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     multi_stage_primitive() : _kernels_data({}), _kernels({}) {}
 
     multi_stage_primitive(const multi_stage_primitive<PType>& other)
-        : typed_primitive_impl<PType>()
-        , _kernels_data(other._kernels_data)
-        , _kernels({}) {
+        : typed_primitive_impl<PType>(),
+          _kernels_data(other._kernels_data),
+          _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
@@ -57,13 +56,15 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     }
 
     multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd)
-        : typed_primitive_impl<PType>()
-        , _kernels_data(kd) {
+        : typed_primitive_impl<PType>(),
+          _kernels_data(kd) {
         this->can_reuse_memory = false;
         this->_kernel_name = kd[0].kernelName;
     }
 
-    bool is_cpu() const final { return false; }
+    bool is_cpu() const final {
+        return false;
+    }
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]
@@ -97,28 +98,36 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, size_t stage) const = 0;
 
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
+    event::ptr aggregate_events(const std::vector<event::ptr>& events,
+                                stream& stream,
+                                bool group = false,
+                                bool is_output = false) const {
         if (events.size() == 1 && !is_output)
             return events[0];
 
         if (group && !is_output)
             return stream.group_events(events);
 
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events, is_output);
+        return events.empty() ? stream.create_user_event(true) : stream.enqueue_marker(events, is_output);
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
         if (!_kernels_data.empty() && !_kernels_data[0].kernels.empty()) {
             auto compiled_kernels = kernels_cache.get_kernels(params);
-            size_t total_kernels = std::accumulate(_kernels_data.begin(), _kernels_data.end(), (size_t)0,
-                [](size_t acc, const kernel_selector::kernel_data& kd) {
-                    return acc + kd.kernels.size();
-                });
-            OPENVINO_ASSERT(total_kernels == compiled_kernels.size(), "[GPU] Mismatch between number of expected and actually compiled kernels.\n",
-                                                                      "Expected: ", total_kernels, "\n"
-                                                                      "Got: ", compiled_kernels.size());
+            size_t total_kernels = std::accumulate(_kernels_data.begin(),
+                                                   _kernels_data.end(),
+                                                   (size_t)0,
+                                                   [](size_t acc, const kernel_selector::kernel_data& kd) {
+                                                       return acc + kd.kernels.size();
+                                                   });
+            OPENVINO_ASSERT(total_kernels == compiled_kernels.size(),
+                            "[GPU] Mismatch between number of expected and actually compiled kernels.\n",
+                            "Expected: ",
+                            total_kernels,
+                            "\n"
+                            "Got: ",
+                            compiled_kernels.size());
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
@@ -128,7 +137,8 @@ protected:
         }
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+    void init_by_cached_kernels(const kernels_cache& kernels_cache,
+                                std::vector<std::string>& cached_kernel_ids) override {
         _kernels.clear();
 
         _kernels.reserve(cached_kernel_ids.size());
@@ -154,8 +164,9 @@ protected:
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             for (auto size : kd.internalBufferSizes) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                layout inbuf_layout = {dtype,
+                                       format::bfyx,  // simple linear format (flattern to x channel)
+                                       {1, 1, 1, (tensor::value_type)(size / bpp)}};
                 layouts.push_back(inbuf_layout);
             }
         }

@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
+import warnings
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-import warnings
-
 from openvino.runtime import Node, Shape
 from openvino.runtime.op import Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
@@ -150,12 +149,18 @@ def roi_pooling(
     """
     # Allow either one of these attributes to be passed.
     if output_roi is None and output_size is None:
-        raise AttributeError("One of the following arguments must be defined: `output_roi`, `output_size`!")
+        raise AttributeError(
+            "One of the following arguments must be defined: `output_roi`, `output_size`!"
+        )
     # Force checking of spatial_scale.
     if spatial_scale is None:
-        raise AttributeError("The following arguments must be defined: `spatial_scale`!")
+        raise AttributeError(
+            "The following arguments must be defined: `spatial_scale`!"
+        )
 
-    def _deprecated_output_size_arg(output_roi: Optional[TensorShape], output_size: Optional[TensorShape]) -> Optional[TensorShape]:
+    def _deprecated_output_size_arg(
+        output_roi: Optional[TensorShape], output_size: Optional[TensorShape]
+    ) -> Optional[TensorShape]:
         if output_size is not None:
             warnings.warn(
                 "`output_size` is deprecated and will be removed in future. "

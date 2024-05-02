@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import subprocess # nosec
+import subprocess  # nosec
 import tarfile
 from datetime import datetime
 from shutil import copy, copytree, rmtree
-
 
 
 class Automation:
@@ -19,13 +18,15 @@ class Automation:
 
     @staticmethod
     def copy_files_from_bom(root_path, bom):
-        target_dir = os.path.join(os.path.dirname(__file__), "ModelOptimizerForTensorflow")
+        target_dir = os.path.join(
+            os.path.dirname(__file__), "ModelOptimizerForTensorflow"
+        )
         if os.path.exists(target_dir):
             rmtree(target_dir)
         os.makedirs(target_dir)
         for file in bom:
-            src = os.path.join(root_path, file.strip('\n'))
-            dst = os.path.join(target_dir, file.strip('\n'))
+            src = os.path.join(root_path, file.strip("\n"))
+            dst = os.path.join(target_dir, file.strip("\n"))
             if not os.path.exists(os.path.dirname(dst)):
                 os.makedirs(os.path.dirname(dst))
             if os.path.isdir(src):
@@ -37,9 +38,9 @@ class Automation:
     @staticmethod
     def add_version_txt(dst_path, build_number):
         timestamp = datetime.now().strftime("%I:%M%p %B %d, %Y")
-        with open(os.path.join(dst_path, "version.txt"), 'w') as f:
-            f.write(timestamp + '\n')
-            f.write(build_number + '\n')
+        with open(os.path.join(dst_path, "version.txt"), "w") as f:
+            f.write(timestamp + "\n")
+            f.write(build_number + "\n")
 
     @staticmethod
     def make_tarfile(out_file_name, source_dir):

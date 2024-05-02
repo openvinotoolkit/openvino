@@ -3,9 +3,11 @@
 //
 
 #include "gather_nd_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -36,11 +38,11 @@ ParamsKey GatherNDKernelRef::GetSupportedKey() const {
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
-        default_order = { "b", "f", "y", "x" };
+        default_order = {"b", "f", "y", "x"};
     } else if (size == 5) {
-        default_order = { "b", "f", "z", "y", "x" };
+        default_order = {"b", "f", "z", "y", "x"};
     } else if (size == 6) {
-        default_order = { "b", "f", "w", "z", "y", "x" };
+        default_order = {"b", "f", "w", "z", "y", "x"};
     }
 
     return default_order;
@@ -55,19 +57,21 @@ CommonDispatchData GatherNDKernelRef::SetDefault(const gather_nd_params& params)
         std::reverse(indices_dims.begin(), indices_dims.end());
     }
 
-    indices_dims[params.indices_rank - 1] = 1; // set last dim of indices to 1
+    indices_dims[params.indices_rank - 1] = 1;  // set last dim of indices to 1
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
-        dispatchData.gws = { indices_dims[3], indices_dims[2], indices_dims[1] * indices_dims[0] };
+        dispatchData.gws = {indices_dims[3], indices_dims[2], indices_dims[1] * indices_dims[0]};
         break;
 
     case DataLayout::bfzyx:
-        dispatchData.gws = { indices_dims[4] * indices_dims[3], indices_dims[2], indices_dims[1] * indices_dims[0] };
+        dispatchData.gws = {indices_dims[4] * indices_dims[3], indices_dims[2], indices_dims[1] * indices_dims[0]};
         break;
 
     case DataLayout::bfwzyx:
-        dispatchData.gws = { indices_dims[5] * indices_dims[4], indices_dims[3] * indices_dims[2], indices_dims[1] * indices_dims[0] };
+        dispatchData.gws = {indices_dims[5] * indices_dims[4],
+                            indices_dims[3] * indices_dims[2],
+                            indices_dims[1] * indices_dims[0]};
         break;
 
     default:
@@ -123,15 +127,18 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
     jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", GetIndicesLastDim(params)));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"",
+                                      GetDefaultOrder(params.outputs[0].GetDims().size()),
+                                      "val",
+                                      params.inputs[0].GetDType()};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
 }
 
 bool GatherNDKernelRef::Validate(const Params& p) const {
-    if (p.GetType() != KernelType:: GATHER_ND) {
+    if (p.GetType() != KernelType::GATHER_ND) {
         return false;
     }
 
@@ -214,7 +221,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params) const {
                      1,
                      newParams.is_shape_agnostic);
 
-    return { kd };
+    return {kd};
 }
 
 }  // namespace kernel_selector

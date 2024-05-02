@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_ops/augru_cell.hpp"
+
 #include <gtest/gtest.h>
 
-#include "ov_ops/augru_cell.hpp"
 #include "utils.hpp"
 
 using namespace ov;

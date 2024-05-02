@@ -5,16 +5,17 @@
 #include "low_precision_transformations/fake_quantize_with_dq_not_optimal_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
+std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(
+    const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     std::string targetDevice;
@@ -37,17 +38,16 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        netPrecision,
-        inputShape,
-        testValues.fqOnData,
-        testValues.convertOnData,
-        testValues.dequantizationOnData,
-        testValues.constantOnWeights,
-        testValues.fqOnWeights,
-        testValues.convertOnWeights,
-        testValues.dequantizationOnWeights,
-        testValues.dequantizationAfter);
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(netPrecision,
+                                                                              inputShape,
+                                                                              testValues.fqOnData,
+                                                                              testValues.convertOnData,
+                                                                              testValues.dequantizationOnData,
+                                                                              testValues.constantOnWeights,
+                                                                              testValues.fqOnWeights,
+                                                                              testValues.convertOnWeights,
+                                                                              testValues.dequantizationOnWeights,
+                                                                              testValues.dequantizationAfter);
 }
 
 void FakeQuantizeWithNotOptimalTransformation::run() {

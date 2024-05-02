@@ -3,11 +3,11 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/permute.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
 
 namespace cldnn {
 
@@ -21,17 +21,24 @@ struct typed_program_node<permute> : public typed_program_node_base<permute> {
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
-    std::vector<uint16_t> get_permute_order() const { return get_primitive()->permute_order; }
+    program_node& input() const {
+        return get_dependency(0);
+    }
+    std::vector<uint16_t> get_permute_order() const {
+        return get_primitive()->permute_order;
+    }
     bool is_rotating_except_batch() const {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
         // ex) 0(b), 2(f), 3(x), 4(y), 1(z)
         // ex) 0(b), 2(f), 3(x), 1(y)
         auto& order = get_primitive()->permute_order;
-        if ((int32_t) order[order.size() - 2] != order.size() - 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i - 1] != i) return false;
+        if ((int32_t)order[order.size() - 2] != order.size() - 1)
+            return false;
+        if ((int32_t)order[0] != 0)
+            return false;
+        for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
+            if ((int32_t)order[i - 1] != i)
+                return false;
         }
         return true;
     }
@@ -41,15 +48,20 @@ public:
         // ex) 0(b), 4(f), 1(x), 2(y), 3(z)
         // ex) 0(b), 3(f), 1(x), 2(y)
         auto& order = get_primitive()->permute_order;
-        if ((int32_t) order[order.size() - 2] != 1) return false;
-        if ((int32_t) order[0] != 0) return false;
-        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] != i - 1) return false;
+        if ((int32_t)order[order.size() - 2] != 1)
+            return false;
+        if ((int32_t)order[0] != 0)
+            return false;
+        for (int32_t i = 2; i < (int32_t)order.size(); ++i) {
+            if ((int32_t)order[i] != i - 1)
+                return false;
         }
         return true;
     }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using permute_node = typed_program_node<permute>;

@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gather_elements_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gather_elements_shape_inference.hpp"
 #include "openvino/op/ops.hpp"
 #include "utils.hpp"
 

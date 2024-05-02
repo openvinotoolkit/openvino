@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
+#include "behavior/ov_infer_request/inference_chaining.hpp"
+
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -11,7 +14,9 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
@@ -19,11 +24,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "behavior/ov_infer_request/inference_chaining.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
 
 namespace ov {
 namespace test {
@@ -33,7 +35,7 @@ std::string OVInferenceChaining::getTestCaseName(const testing::TestParamInfo<In
     return OVInferRequestTests::getTestCaseName(obj);
 }
 
-std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov::PartialShape& shape) {
     ov::ParameterVector params;
     for (auto&& sp : {shape, shape, shape}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
@@ -52,7 +54,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getFirstStaticFunction(const ov:
     return std::make_shared<ov::Model>(eltwise2, ov::ParameterVector(params));
 }
 
-std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov::PartialShape& shape) {
     ov::ParameterVector params;
     for (auto&& sp : {shape, shape}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));
@@ -68,7 +70,7 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getSecondStaticFunction(const ov
     return std::make_shared<ov::Model>(eltwise, ov::ParameterVector(params));
 }
 
-std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape &shape) {
+std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov::PartialShape& shape) {
     ov::ParameterVector params;
     for (auto&& sp : {shape, shape, shape, shape}) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, sp));

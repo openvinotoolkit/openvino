@@ -5,21 +5,20 @@
 #pragma once
 
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
 
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "openvino/runtime/iremote_context.hpp"
-
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include <string>
+#include <atomic>
 #include <map>
 #include <memory>
-#include <atomic>
+#include <string>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -35,11 +34,16 @@ public:
 
     const ov::AnyMap& get_property() const override;
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
-    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params) override;
 
-
-    cldnn::engine& get_engine() { return *m_engine; }
-    ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
+    cldnn::engine& get_engine() {
+        return *m_engine;
+    }
+    ov::intel_gpu::gpu_handle_param get_external_queue() const {
+        return m_external_queue;
+    }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
@@ -47,11 +51,19 @@ public:
 private:
     std::shared_ptr<RemoteContextImpl> get_this_shared_ptr();
 
-    std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) const;
-    std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
-    std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
+    std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts,
+                                const cldnn::device::ptr current_device) const;
+    std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type,
+                                                     const ov::Shape& shape,
+                                                     const ov::AnyMap& params);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type,
+                                                    const ov::Shape& shape,
+                                                    cldnn::shared_handle mem,
+                                                    TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
-    std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
+    std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type,
+                                                  const ov::Shape& shape,
+                                                  TensorType alloc_type);
     void check_if_shared() const;
 
     void init_properties();
@@ -63,7 +75,8 @@ private:
     ContextType m_type = ContextType::OCL;
     std::string m_device_name = "";
     static const size_t cache_capacity = 100;
-    cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
+    cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache =
+        cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
     std::mutex m_cache_mutex;
 
     ov::AnyMap properties;

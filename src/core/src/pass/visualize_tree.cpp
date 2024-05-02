@@ -156,9 +156,7 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
             item.second.print(ss);
             ss << "}";
         } else {
-            ss << "{"
-               << "[EMPTY]"
-               << "}";
+            ss << "{" << "[EMPTY]" << "}";
         }
 
         first = false;

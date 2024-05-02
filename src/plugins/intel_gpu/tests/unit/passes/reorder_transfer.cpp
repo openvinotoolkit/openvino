@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "program_wrapper.h"
 #include "fully_connected_inst.h"
 #include "permute_inst.h"
+#include "program_wrapper.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -13,17 +13,21 @@ using namespace ::tests;
 TEST(reorder_transfer, transfer_per_permute) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
-    auto weights = engine.allocate_memory({{ 32, 2 }, data_types::f32, format::bfyx });
+    auto input = engine.allocate_memory({{2, 32}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{32, 2}, data_types::f32, format::bfyx});
 
-    topology topology(
-        input_layout("input", input->get_layout()),
-        data("weights", weights),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16,
-                std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
-        permute("permute", input_info("reorder_dt"), {1, 0}),
-        fully_connected("fc", input_info("input"), { "permute" }, "", data_types::f16)
-    );
+    topology topology(input_layout("input", input->get_layout()),
+                      data("weights", weights),
+                      reorder("reorder_dt",
+                              input_info("weights"),
+                              format::bfyx,
+                              data_types::f16,
+                              std::vector<float>(),
+                              reorder_mean_mode::subtract,
+                              padding(),
+                              true),
+                      permute("permute", input_info("reorder_dt"), {1, 0}),
+                      fully_connected("fc", input_info("input"), {"permute"}, "", data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));

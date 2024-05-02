@@ -4,22 +4,19 @@
 
 #include <signal.h>
 #ifdef _WIN32
-#include <process.h>
+#    include <process.h>
 #endif
 
-#include "gtest/gtest.h"
-
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "conformance.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
-#include "base/ov_behavior_test_utils.hpp"
-
 #include "gflag_config.hpp"
-#include "conformance.hpp"
+#include "gtest/gtest.h"
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"
-
 
 void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();

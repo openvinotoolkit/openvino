@@ -10,10 +10,8 @@
 #include <string>
 #include <vector>
 
-
-
-#include "layer_transformation.hpp"
 #include "common/fake_quantize_dequantization.hpp"
+#include "layer_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -31,12 +29,12 @@ class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("ConcatTransformation", "0");
     ConcatTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

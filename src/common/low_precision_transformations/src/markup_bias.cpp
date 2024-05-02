@@ -5,11 +5,11 @@
 #include "low_precision/markup_bias.hpp"
 
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -27,7 +27,9 @@ MarkupBias::MarkupBias() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& const_shape = pattern_map.at(bias_const_m).get_shape();
 
-        const bool per_channel = std::count_if(const_shape.begin(), const_shape.end(), [](size_t x) { return x > 1; }) == 1;
+        const bool per_channel = std::count_if(const_shape.begin(), const_shape.end(), [](size_t x) {
+                                     return x > 1;
+                                 }) == 1;
         if (ov::shape_size(const_shape) == 1 || per_channel) {
             const auto bias = pattern_map.at(bias_m).get_node_shared_ptr();
             ov::mark_as_bias(bias);

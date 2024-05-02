@@ -3,8 +3,10 @@
 //
 
 #include "quantize_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 static const size_t sub_group_size = 32;
 
@@ -43,7 +45,8 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) 
     } else {
         dispatchData.gws[0] = output.Batch().v;
         dispatchData.gws[1] = output.Feature().v;
-        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v * output.W().v * output.U().v * output.V().v, 16);
+        dispatchData.gws[2] =
+            Align(output.X().v * output.Y().v * output.Z().v * output.W().v * output.U().v * output.V().v, 16);
 
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
@@ -53,7 +56,8 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params) 
     return dispatchData;
 }
 
-JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params,
+                                                const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));

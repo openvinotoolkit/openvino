@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from utils import get_image, get_model
+
 import openvino as ov
-from utils import get_model, get_image
 
 model = get_model()
 

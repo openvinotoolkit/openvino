@@ -4,7 +4,7 @@
 import logging as log
 
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
-from openvino.tools.mo.graph.graph import Node, merge_edge_props, Graph
+from openvino.tools.mo.graph.graph import Graph, Node, merge_edge_props
 from openvino.tools.mo.middle.pattern_match import apply_pattern
 from openvino.tools.mo.utils import class_registration
 from openvino.tools.mo.utils.replacement_pattern import ReplacementPattern
@@ -16,10 +16,12 @@ class FrontReplacementPattern(ReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.front.pass_separator import FrontStart
+
         return [FrontStart]
 
     def run_before(self):
         from openvino.tools.mo.front.pass_separator import FrontFinish
+
         return [FrontFinish]
 
     def pattern(self):
@@ -37,14 +39,17 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
     """
     Replace pattern defined set of nodes with a sub-graph.
     """
-    replacement_id = 'None'
+
+    replacement_id = "None"
 
     def run_after(self):
         from openvino.tools.mo.front.pass_separator import FrontStart
+
         return [FrontStart]
 
     def run_before(self):
         from openvino.tools.mo.front.pass_separator import FrontFinish
+
         return [FrontFinish]
 
     def __init__(self):
@@ -68,9 +73,13 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
             old_node = Node(graph, old_node_name)
             src_node_name = old_node.get_sorted_inputs()[old_in_port][0]
             edge_attrs = graph[src_node_name][old_node_name][0].copy()
-            edge_attrs['in'] = new_in_port
+            edge_attrs["in"] = new_in_port
             graph.add_edge(src_node_name, new_node_name, **edge_attrs)
-            log.debug("Created edge from {} to {} with attrs: {}".format(src_node_name, new_node_name, edge_attrs))
+            log.debug(
+                "Created edge from {} to {} with attrs: {}".format(
+                    src_node_name, new_node_name, edge_attrs
+                )
+            )
 
     @staticmethod
     def replace_output_edges(graph: Graph, output_edges_match: dict):
@@ -84,20 +93,31 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
             old_node_name, old_out_port = __class__.extract_port(old_name_port)
             new_node_name, new_out_port = __class__.extract_port(new_name_port)
             for src, dst, edge_attrs in graph.out_edges(old_node_name, data=True):
-                if edge_attrs['out'] == old_out_port:
+                if edge_attrs["out"] == old_out_port:
                     new_edge_attrs = edge_attrs.copy()
-                    new_edge_attrs['out'] = new_out_port
+                    new_edge_attrs["out"] = new_out_port
                     # Add control_flow ports, as we do not copy control flow ports to new node
-                    if 'control_flow_edge' in new_edge_attrs and new_edge_attrs['control_flow_edge'] is True:
-                        in_port_id = 'control_flow_{}'.format(new_edge_attrs['in'])
-                        out_port_id = 'control_flow_{}'.format(new_edge_attrs['out'])
+                    if (
+                        "control_flow_edge" in new_edge_attrs
+                        and new_edge_attrs["control_flow_edge"] is True
+                    ):
+                        in_port_id = "control_flow_{}".format(new_edge_attrs["in"])
+                        out_port_id = "control_flow_{}".format(new_edge_attrs["out"])
                         in_node, out_node = Node(graph, dst), Node(graph, new_node_name)
                         # if not out_node.has_port('out', out_port_id, control_flow=True):
-                        out_node.add_output_port(out_port_id, control_flow=True, skip_if_exist=True)
+                        out_node.add_output_port(
+                            out_port_id, control_flow=True, skip_if_exist=True
+                        )
                         # if not in_node.has_port('in', in_port_id, control_flow=True):
-                        in_node.add_input_port(in_port_id, control_flow=True, skip_if_exist=True)
+                        in_node.add_input_port(
+                            in_port_id, control_flow=True, skip_if_exist=True
+                        )
                     graph.add_edge(new_node_name, dst, **new_edge_attrs)
-                    log.debug("Created edge from {} to {} with attrs: {}".format(new_node_name, dst, new_edge_attrs))
+                    log.debug(
+                        "Created edge from {} to {} with attrs: {}".format(
+                            new_node_name, dst, new_edge_attrs
+                        )
+                    )
 
     def input_edges_match(self, graph: Graph, match: object, new_sub_graph: dict):
         """
@@ -112,7 +132,9 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
         return {}
 
     def generate_sub_graph(self, graph: Graph, match: object):
-        raise Exception("The function 'generate_sub_graph' must be implemented in the sub-class.")
+        raise Exception(
+            "The function 'generate_sub_graph' must be implemented in the sub-class."
+        )
 
     def nodes_to_remove(self, graph: Graph, match: dict):
         """
@@ -121,15 +143,27 @@ class FrontReplacementSubgraph(FrontReplacementPattern):
         return [node.id for node in match.values()]
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        log.debug('replace_sub_graph: "{}" matched nodes: {}'.format(self.replacement_id,
-                                                                     '\n'.join(sorted(match.matched_nodes_names()))))
-        new_sub_graph = self.generate_sub_graph(graph, match)  # pylint: disable=assignment-from-no-return
-        self.replace_input_edges(graph, self.input_edges_match(graph, match, new_sub_graph))
-        self.replace_output_edges(graph, self.output_edges_match(graph, match, new_sub_graph))
+        log.debug(
+            'replace_sub_graph: "{}" matched nodes: {}'.format(
+                self.replacement_id, "\n".join(sorted(match.matched_nodes_names()))
+            )
+        )
+        new_sub_graph = self.generate_sub_graph(
+            graph, match
+        )  # pylint: disable=assignment-from-no-return
+        self.replace_input_edges(
+            graph, self.input_edges_match(graph, match, new_sub_graph)
+        )
+        self.replace_output_edges(
+            graph, self.output_edges_match(graph, match, new_sub_graph)
+        )
 
         remove_nodes = self.nodes_to_remove(graph, match)
         log.debug(
-            'replace_sub_graph: "{}" removing nodes: {}'.format(self.replacement_id, '\n'.join(sorted(remove_nodes))))
+            'replace_sub_graph: "{}" removing nodes: {}'.format(
+                self.replacement_id, "\n".join(sorted(remove_nodes))
+            )
+        )
         graph.remove_nodes_from(remove_nodes)
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -152,25 +186,26 @@ class FrontReplacementOp(FrontReplacementSubgraph):
     Replaces a single operation (identified by 'op' attribute) by a sub-graph of operations.
     It is a convenient specialization of FrontReplacementPattern.
     """
-    op = 'UnknownOp'
+
+    op = "UnknownOp"
 
     def run_after(self):
         from openvino.tools.mo.front.pass_separator import FrontStart
+
         return [FrontStart]
 
     def run_before(self):
         from openvino.tools.mo.front.pass_separator import FrontFinish
+
         return [FrontFinish]
 
     def pattern(self):
-        return dict(
-            nodes=[
-                ('op', dict(op=self.__class__.op))],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(op=self.__class__.op))], edges=[])
 
     def replace_op(self, graph: Graph, node: Node):
-        raise Exception("The function 'replace_op' must be implemented in the sub-class.")
+        raise Exception(
+            "The function 'replace_op' must be implemented in the sub-class."
+        )
 
     @staticmethod
     def gen_output_edges_match(node: Node, out_node_replace: list):
@@ -182,7 +217,10 @@ class FrontReplacementOp(FrontReplacementSubgraph):
                 new_out_port = new_node_desc[1]
             else:
                 new_node_name = new_node_desc
-            out_edges_match_dict[(node.id, old_out_port)] = (new_node_name, new_out_port)
+            out_edges_match_dict[(node.id, old_out_port)] = (
+                new_node_name,
+                new_out_port,
+            )
         return out_edges_match_dict
 
     @staticmethod
@@ -197,15 +235,22 @@ class FrontReplacementOp(FrontReplacementSubgraph):
         for old_u, old_v, old_edge_attrs in graph.in_edges(node.id, data=True):
             for new_u, new_v, new_edge_attrs in graph.in_edges(added_nodes, data=True):
                 if new_u not in added_nodes:  # external input to the sub-graph
-                    if old_u == new_u and old_edge_attrs['out'] == new_edge_attrs['out']:
-                        merge_edge_props(new_edge_attrs, old_edge_attrs)  # copy old edge attributes
+                    if (
+                        old_u == new_u
+                        and old_edge_attrs["out"] == new_edge_attrs["out"]
+                    ):
+                        merge_edge_props(
+                            new_edge_attrs, old_edge_attrs
+                        )  # copy old edge attributes
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        assert 'op' in match
+        assert "op" in match
         assert len(match) == 1
-        node = match['op']
+        node = match["op"]
         nodes_before_replacement = graph.nodes()
-        self.replace_output_edges(graph, self.gen_output_edges_match(node, self.replace_op(graph, node)))
+        self.replace_output_edges(
+            graph, self.gen_output_edges_match(node, self.replace_op(graph, node))
+        )
 
         # nodes added by the 'replace_op' function call
         added_nodes = list(set(graph.nodes()) - set(nodes_before_replacement))

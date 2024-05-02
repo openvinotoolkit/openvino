@@ -3,9 +3,11 @@
 //
 
 #include "space_to_depth_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
@@ -48,14 +50,16 @@ CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::BATCH},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z}};
 
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v,
-                         params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -100,8 +104,17 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }

@@ -22,7 +22,7 @@ protected:
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

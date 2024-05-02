@@ -2,26 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cpu_memory.h>
+#include <dnnl_extension_utils.h>
 #include <gtest/gtest.h>
 
-#include <cpu_memory.h>
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include <dnnl_extension_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/blocked_desc_creator.h"
 
 using namespace ov::intel_cpu;
 using namespace testing;
 
 /* ======================================= BASE ZERO DIM TEST ======================================= */
-class MemDescWithZeroDimsBaseTest: public ::testing::Test {
+class MemDescWithZeroDimsBaseTest : public ::testing::Test {
 protected:
     Shape shape;
     dnnl::memory::format_tag fmt;
     const ov::element::Type precision = ov::element::f32;
 
-    void validate(const BlockedMemoryDesc& desc, const VectorDims& expectedStrieds, size_t offsetSize, size_t offsetPaddingSize,
-                  size_t maxMemSize, bool orderCheckSkip = false) {
+    void validate(const BlockedMemoryDesc& desc,
+                  const VectorDims& expectedStrieds,
+                  size_t offsetSize,
+                  size_t offsetPaddingSize,
+                  size_t maxMemSize,
+                  bool orderCheckSkip = false) {
         VectorDims expectedBlkDims;
         VectorDims expectedOrder;
         {
@@ -80,49 +84,42 @@ protected:
 };
 
 /* ======================================= TEST DATA ======================================= */
-const std::vector<Shape> staticShapes = {
-    Shape(VectorDims{0, 32, 48, 64}),
-    Shape(VectorDims{16, 0, 48, 64}),
-    Shape(VectorDims{16, 32, 0, 64}),
-    Shape(VectorDims{16, 32, 48, 0}),
-    Shape(VectorDims{16, 32, 0, 0}),
-    Shape(VectorDims{0, 0, 48, 64}),
-    Shape(VectorDims{16, 0, 0, 64}),
-    Shape(VectorDims{0, 0, 0, 64}),
-    Shape(VectorDims{16, 0, 0, 0}),
-    Shape(VectorDims{0, 0, 0, 0})
-};
+const std::vector<Shape> staticShapes = {Shape(VectorDims{0, 32, 48, 64}),
+                                         Shape(VectorDims{16, 0, 48, 64}),
+                                         Shape(VectorDims{16, 32, 0, 64}),
+                                         Shape(VectorDims{16, 32, 48, 0}),
+                                         Shape(VectorDims{16, 32, 0, 0}),
+                                         Shape(VectorDims{0, 0, 48, 64}),
+                                         Shape(VectorDims{16, 0, 0, 64}),
+                                         Shape(VectorDims{0, 0, 0, 64}),
+                                         Shape(VectorDims{16, 0, 0, 0}),
+                                         Shape(VectorDims{0, 0, 0, 0})};
 
-const std::vector<Shape> dynamicShapes = {
-    Shape(ov::PartialShape{0, -1, {0, 48}, -1}),
-    Shape(ov::PartialShape{16, 0, -1, {0, 64}}),
-    Shape(ov::PartialShape{-1, -1, 0, -1}),
-    Shape(ov::PartialShape{{0, 16}, -1, {0, 48}, 0}),
-    Shape(ov::PartialShape{-1, 32, 0, 0}),
-    Shape(ov::PartialShape{0, 0, 48, -1}),
-    Shape(ov::PartialShape{{0, 16}, 0, 0, 64}),
-    Shape(ov::PartialShape{0, 0, 0, -1}),
-    Shape(ov::PartialShape{{0, 16}, 0, 0, 0}),
-    Shape(ov::PartialShape{0, 0, 0, 0})
-};
+const std::vector<Shape> dynamicShapes = {Shape(ov::PartialShape{0, -1, {0, 48}, -1}),
+                                          Shape(ov::PartialShape{16, 0, -1, {0, 64}}),
+                                          Shape(ov::PartialShape{-1, -1, 0, -1}),
+                                          Shape(ov::PartialShape{{0, 16}, -1, {0, 48}, 0}),
+                                          Shape(ov::PartialShape{-1, 32, 0, 0}),
+                                          Shape(ov::PartialShape{0, 0, 48, -1}),
+                                          Shape(ov::PartialShape{{0, 16}, 0, 0, 64}),
+                                          Shape(ov::PartialShape{0, 0, 0, -1}),
+                                          Shape(ov::PartialShape{{0, 16}, 0, 0, 0}),
+                                          Shape(ov::PartialShape{0, 0, 0, 0})};
 
-const std::vector<dnnl::memory::format_tag> fmts = {
-    dnnl::memory::format_tag::nchw,
-    dnnl::memory::format_tag::nhwc,
-    dnnl::memory::format_tag::nChw8c,
-    dnnl::memory::format_tag::nChw16c,
-    dnnl::memory::format_tag::NChw16n16c,
-    dnnl::memory::format_tag::Acdb16a
-};
+const std::vector<dnnl::memory::format_tag> fmts = {dnnl::memory::format_tag::nchw,
+                                                    dnnl::memory::format_tag::nhwc,
+                                                    dnnl::memory::format_tag::nChw8c,
+                                                    dnnl::memory::format_tag::nChw16c,
+                                                    dnnl::memory::format_tag::NChw16n16c,
+                                                    dnnl::memory::format_tag::Acdb16a};
 
 /* ======================================= SPECIFIC TEST CASES ======================================= */
-using MemDescWithZeroDimsParams = std::tuple<dnnl::memory::format_tag,
-                                             Shape>;
+using MemDescWithZeroDimsParams = std::tuple<dnnl::memory::format_tag, Shape>;
 
-class MemDescWithZeroDimsFmtTest: public testing::WithParamInterface<MemDescWithZeroDimsParams>,
-                                  public MemDescWithZeroDimsBaseTest {
+class MemDescWithZeroDimsFmtTest : public testing::WithParamInterface<MemDescWithZeroDimsParams>,
+                                   public MemDescWithZeroDimsBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsParams>& obj) {
         Shape shape;
         dnnl::memory::format_tag fmt;
         std::tie(fmt, shape) = obj.param;
@@ -141,7 +138,8 @@ public:
 protected:
     void SetUp() override {
         std::tie(fmt, shape) = this->GetParam();
-        ASSERT_TRUE(shape.hasZeroDims()) << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
+        ASSERT_TRUE(shape.hasZeroDims())
+            << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
     }
 };
 
@@ -149,31 +147,32 @@ TEST_P(MemDescWithZeroDimsFmtTest, CreateDescWithFmt) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_static, MemDescWithZeroDimsFmtTest,
-                         ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(staticShapes)),
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_static,
+                         MemDescWithZeroDimsFmtTest,
+                         ::testing::Combine(::testing::ValuesIn(fmts), ::testing::ValuesIn(staticShapes)),
                          MemDescWithZeroDimsFmtTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_dynamic, MemDescWithZeroDimsFmtTest,
-                         ::testing::Combine(::testing::ValuesIn(fmts),
-                                            ::testing::ValuesIn(dynamicShapes)),
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsFmtTest_dynamic,
+                         MemDescWithZeroDimsFmtTest,
+                         ::testing::Combine(::testing::ValuesIn(fmts), ::testing::ValuesIn(dynamicShapes)),
                          MemDescWithZeroDimsFmtTest::getTestCaseName);
 
-class MemDescWithZeroDimsPlanarTest: public testing::WithParamInterface<Shape>,
-                                     public MemDescWithZeroDimsBaseTest {
+class MemDescWithZeroDimsPlanarTest : public testing::WithParamInterface<Shape>, public MemDescWithZeroDimsBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<Shape> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<Shape>& obj) {
         Shape shape;
         shape = obj.param;
         std::ostringstream result;
         result << "Shape=" << shape.toString();
         return result.str();
     }
+
 protected:
     void SetUp() override {
         shape = this->GetParam();
         fmt = dnnl::memory::format_tag::nchw;
-        ASSERT_TRUE(shape.hasZeroDims()) << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
+        ASSERT_TRUE(shape.hasZeroDims())
+            << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
     }
 };
 
@@ -181,18 +180,19 @@ TEST_P(MemDescWithZeroDimsPlanarTest, CreateDescPlanar) {
     Run();
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsPlanarTest, MemDescWithZeroDimsPlanarTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsPlanarTest,
+                         MemDescWithZeroDimsPlanarTest,
                          ::testing::ValuesIn(staticShapes),
                          MemDescWithZeroDimsPlanarTest::getTestCaseName);
 
-using MemDescWithZeroDimsCloneNewDimsParams = std::tuple<dnnl::memory::format_tag, // memory format
-                                              Shape,                               // dynamic shapes
-                                              Shape>;                              // static shapes
+using MemDescWithZeroDimsCloneNewDimsParams = std::tuple<dnnl::memory::format_tag,  // memory format
+                                                         Shape,                     // dynamic shapes
+                                                         Shape>;                    // static shapes
 
-class MemDescWithZeroDimsCloneNewDimsTest: public testing::WithParamInterface<MemDescWithZeroDimsCloneNewDimsParams>,
-                                           public MemDescWithZeroDimsBaseTest {
+class MemDescWithZeroDimsCloneNewDimsTest : public testing::WithParamInterface<MemDescWithZeroDimsCloneNewDimsParams>,
+                                            public MemDescWithZeroDimsBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsCloneNewDimsParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MemDescWithZeroDimsCloneNewDimsParams>& obj) {
         Shape shapeDynamic, shapeClone;
         dnnl::memory::format_tag fmt;
         std::tie(fmt, shapeDynamic, shapeClone) = obj.param;
@@ -202,12 +202,14 @@ public:
         result << "_Fmt=" << dnnl::utils::fmt2str(fmt);
         return result.str();
     }
+
 protected:
     Shape shapeDynamic;
 
     void SetUp() override {
         std::tie(fmt, shapeDynamic, shape) = this->GetParam();
-        ASSERT_TRUE(shape.hasZeroDims()) << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
+        ASSERT_TRUE(shape.hasZeroDims())
+            << "Can't run MemDescWithZeroDimsTest, because shape doesn't contain zero dims";
     }
 };
 
@@ -222,17 +224,18 @@ TEST_P(MemDescWithZeroDimsCloneNewDimsTest, CloneWithNewDims) {
 
     // can't compute order correct since strides equal
     const auto& dims = shape.getDims();
-    bool skipOrderCheck = std::all_of(dims.begin() + 1, dims.end(), [](const size_t& dim) { return dim == 0; });
+    bool skipOrderCheck = std::all_of(dims.begin() + 1, dims.end(), [](const size_t& dim) {
+        return dim == 0;
+    });
     validate(*clonedDescDnnl->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0, skipOrderCheck);
     validate(*clonedDescCpu->as<BlockedMemoryDesc>(), zeroStrides, offset, offsetPadding, 0);
 }
 
-const std::vector<Shape> srcDynShapes = {
-    Shape(ov::PartialShape({-1, -1, -1, -1})),
-    Shape(ov::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))
-};
+const std::vector<Shape> srcDynShapes = {Shape(ov::PartialShape({-1, -1, -1, -1})),
+                                         Shape(ov::PartialShape({{0, 16}, {0, 32}, {0, 48}, {0, 64}}))};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest, MemDescWithZeroDimsCloneNewDimsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MemDescWithZeroDimsCloneNewDimsTest,
+                         MemDescWithZeroDimsCloneNewDimsTest,
                          ::testing::Combine(::testing::ValuesIn(fmts),
                                             ::testing::ValuesIn(srcDynShapes),
                                             ::testing::ValuesIn(staticShapes)),

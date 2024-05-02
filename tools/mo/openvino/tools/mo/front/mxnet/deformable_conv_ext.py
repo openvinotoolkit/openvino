@@ -10,7 +10,7 @@ from openvino.tools.mo.ops.deformable_convolution import DeformableConvolution
 
 
 class DeformableConvolutionExtractor(FrontExtractorOp):
-    op = '_contrib_DeformableConvolution'
+    op = "_contrib_DeformableConvolution"
     enabled = True
 
     @classmethod
@@ -24,35 +24,35 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
         num_deformable_group = attr.int("num_deformable_group", 1)
         num_group = attr.int("num_group", 1)
         output = attr.int("num_filter", None)
-        bias_term = attr.str("no_bias", 'False') == 'False'
+        bias_term = attr.str("no_bias", "False") == "False"
 
-        final_dilations = int64_array([1, 1, *[d for d in dilate]]) if dilate is not None else None
+        final_dilations = (
+            int64_array([1, 1, *[d for d in dilate]]) if dilate is not None else None
+        )
 
         node_attrs = {
-            'op': __class__.op,
-            'bias_addable': True,
-            'bias_term': bias_term,
-            'pad': int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]]),
-            'pad_spatial_shape': int64_array([[pad, pad] for pad in padding]),
-            'dilation': final_dilations,
-            'output_spatial_shape': None,
-            'output_shape': None,
-            'stride': int64_array([1, 1, *[s for s in stride]]),
-            'group': num_group,
-            'deformable_group': num_deformable_group,
-            'output': output,
-            'kernel_spatial': int64_array([k for k in kernel]),
-
-            'input_feature_channel': 1,
-            'output_feature_channel': 0,
-            'kernel_spatial_idx': None,
-            'reshape_kernel': True,
-            'weights_index': 2,
-
-            'spatial_dims': None,
-            'channel_dims': int64_array([1]),
-            'batch_dims': int64_array([0]),
-            'layout': 'NCHW',
+            "op": __class__.op,
+            "bias_addable": True,
+            "bias_term": bias_term,
+            "pad": int64_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]]),
+            "pad_spatial_shape": int64_array([[pad, pad] for pad in padding]),
+            "dilation": final_dilations,
+            "output_spatial_shape": None,
+            "output_shape": None,
+            "stride": int64_array([1, 1, *[s for s in stride]]),
+            "group": num_group,
+            "deformable_group": num_deformable_group,
+            "output": output,
+            "kernel_spatial": int64_array([k for k in kernel]),
+            "input_feature_channel": 1,
+            "output_feature_channel": 0,
+            "kernel_spatial_idx": None,
+            "reshape_kernel": True,
+            "weights_index": 2,
+            "spatial_dims": None,
+            "channel_dims": int64_array([1]),
+            "batch_dims": int64_array([0]),
+            "layout": "NCHW",
         }
 
         # update the attributes of the node

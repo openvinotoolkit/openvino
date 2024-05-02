@@ -29,7 +29,9 @@ struct group_normalization : public primitive_base<group_normalization> {
                         std::int64_t num_groups,
                         double epsilon,
                         const padding& output_padding = padding())
-    : primitive_base(id, {data, scale, bias}, {output_padding}), num_groups{num_groups}, epsilon{epsilon} {}
+        : primitive_base(id, {data, scale, bias}, {output_padding}),
+          num_groups{num_groups},
+          epsilon{epsilon} {}
 
     /// @brief Number of groups the channel dimension will be divided into
     /// @details
@@ -70,4 +72,4 @@ struct group_normalization : public primitive_base<group_normalization> {
     }
 };
 
-} // namespace cldnn
+}  // namespace cldnn

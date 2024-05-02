@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/normalize_l2.hpp"
-#include "openvino/op/constant.hpp"
 
-#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -21,7 +20,12 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     // params
     auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    OPENVINO_ASSERT(const_axis != nullptr,
+                    "[GPU] Unsupported axis node type in ",
+                    op->get_friendly_name(),
+                    " (",
+                    op->get_type_name(),
+                    ")");
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
@@ -33,8 +37,11 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     }
 
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
-    auto scale = std::make_shared<ov::op::v0::Constant>(op->get_output_element_type(0), ov::Shape{1}, std::vector<float>{1.0});
-    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
+    auto scale =
+        std::make_shared<ov::op::v0::Constant>(op->get_output_element_type(0), ov::Shape{1}, std::vector<float>{1.0});
+    cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                              cldnn::format::bfyx,
+                                              cldnn::tensor{1});
     auto mem = p.get_engine().allocate_memory(constLayout, false);
     cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
     auto buf = tmpPointer.data();
@@ -47,11 +54,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     auto scalesName = layerName + "_cldnn_input_scales";
     p.add_primitive(*op, cldnn::data(scalesName, mem));
 
-    auto normPrim = cldnn::normalize(layerName,
-                                     inputs[0],
-                                     scalesName,
-                                     across_spatial,
-                                     eps);
+    auto normPrim = cldnn::normalize(layerName, inputs[0], scalesName, across_spatial, eps);
 
     p.add_primitive(*op, normPrim);
 }

@@ -1,33 +1,35 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import tests
 from operator import itemgetter
 from pathlib import Path
-from typing import Sequence, Any
-import numpy as np
+from typing import Any, Sequence
 
+import numpy as np
 from tests.tests_python.utils import OpenVinoOnnxBackend
 from tests.tests_python.utils.model_importer import ModelImportRunner
 
+import tests
 from tests import (
-    xfail_issue_67415,
-    xfail_issue_38701,
+    skip_issue_127649,
     xfail_issue_37957,
-    xfail_issue_39669,
     xfail_issue_37973,
+    xfail_issue_38701,
+    xfail_issue_39669,
     xfail_issue_47495,
     xfail_issue_48145,
     xfail_issue_48190,
     xfail_issue_58676,
+    xfail_issue_67415,
     xfail_issue_78843,
     xfail_issue_86911,
     xfail_issue_onnx_models_140,
-    skip_issue_127649)
+)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
-def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
+
+def yolov3_post_processing(outputs: Sequence[Any]) -> Sequence[Any]:
     concat_out_index = 2
     # remove all elements with value -1 from yolonms_layer_1/concat_2:0 output
     concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]
@@ -35,7 +37,8 @@ def yolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
     outputs[concat_out_index] = concat_out
     return outputs
 
-def tinyyolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
+
+def tinyyolov3_post_processing(outputs: Sequence[Any]) -> Sequence[Any]:
     concat_out_index = 2
     # remove all elements with value -1 from yolonms_layer_1:1 output
     concat_out = outputs[concat_out_index][outputs[concat_out_index] != -1]
@@ -43,9 +46,10 @@ def tinyyolov3_post_processing(outputs : Sequence[Any]) -> Sequence[Any]:
     outputs[concat_out_index] = concat_out
     return outputs
 
+
 post_processing = {
-    "yolov3" : {"post_processing" : yolov3_post_processing},
-    "tinyyolov3" : {"post_processing" : tinyyolov3_post_processing},
+    "yolov3": {"post_processing": yolov3_post_processing},
+    "tinyyolov3": {"post_processing": tinyyolov3_post_processing},
     "tiny-yolov3-11": {"post_processing": tinyyolov3_post_processing},
 }
 
@@ -117,14 +121,16 @@ tolerance_map = {
     "GPT2": {"atol": 5e-06, "rtol": 0.01},
     "GPT-2-LM-HEAD": {"atol": 4e-06},
     "test_retinanet_resnet101": {"atol": 1.3e-06},
-    "resnet34-v1-7" : {"atol": 1e-5}
+    "resnet34-v1-7": {"atol": 1e-5},
 }
+
 
 def tolerance_map_key_in_model_path(path):
     for key in tolerance_map:
         if key in path:
             return key
     return None
+
 
 zoo_models = []
 # rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
@@ -154,16 +160,23 @@ if len(zoo_models) > 0:
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
     OpenVinoOnnxBackend.backend_name = tests.BACKEND_NAME
     # import all test cases at global scope to make them visible to pytest
-    backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR)
+    backend_test = ModelImportRunner(
+        OpenVinoOnnxBackend, zoo_models, __name__, MODELS_ROOT_DIR
+    )
     test_cases = backend_test.test_cases["OnnxBackendModelImportTest"]
     # flake8: noqa: E501
     if tests.MODEL_ZOO_XFAIL:
         import_xfail_list = [
             # ONNX Model Zoo
-            (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
-
+            (
+                xfail_issue_38701,
+                "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu",
+            ),
             # Model MSFT
-            (xfail_issue_37957, "test_msft_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
+            (
+                xfail_issue_37957,
+                "test_msft_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu",
+            ),
         ]
         for test_case in import_xfail_list:
             xfail, test_name = test_case
@@ -175,31 +188,59 @@ if len(zoo_models) > 0:
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             # ONNX Model Zoo
-            (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
-            (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
-            (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
-            (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
-            (xfail_issue_onnx_models_140, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_resnet101_duc_7_resnet101_duc_hdc_resnet101_duc_hdc_cpu"),
-            (xfail_issue_78843, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
-            (skip_issue_127649, "test_onnx_model_zoo_vision_classification_resnet_model_resnet50_v1_7_resnet50v1_resnet50_v1_7_cpu"),
-            (skip_issue_127649, "test_onnx_model_zoo_vision_super_resolution_sub_pixel_cnn_2016_model_super_resolution_10_super_resolution_super_resolution_cpu"),
-
+            (
+                xfail_issue_39669,
+                "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu",
+            ),
+            (
+                xfail_issue_39669,
+                "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu",
+            ),
+            (
+                xfail_issue_48145,
+                "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu",
+            ),
+            (
+                xfail_issue_48190,
+                "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu",
+            ),
+            (
+                xfail_issue_onnx_models_140,
+                "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_resnet101_duc_7_resnet101_duc_hdc_resnet101_duc_hdc_cpu",
+            ),
+            (
+                xfail_issue_78843,
+                "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu",
+            ),
+            (
+                skip_issue_127649,
+                "test_onnx_model_zoo_vision_classification_resnet_model_resnet50_v1_7_resnet50v1_resnet50_v1_7_cpu",
+            ),
+            (
+                skip_issue_127649,
+                "test_onnx_model_zoo_vision_super_resolution_sub_pixel_cnn_2016_model_super_resolution_10_super_resolution_super_resolution_cpu",
+            ),
             # Model MSFT
             (xfail_issue_37973, "test_msft_opset7_tf_inception_v2_model_cpu"),
             (xfail_issue_37973, "test_msft_opset8_tf_inception_v2_model_cpu"),
             (xfail_issue_37973, "test_msft_opset9_tf_inception_v2_model_cpu"),
             (xfail_issue_37973, "test_msft_opset11_tf_inception_v2_model_cpu"),
             (xfail_issue_37973, "test_msft_opset10_tf_inception_v2_model_cpu"),
-
-            (xfail_issue_58676, "test_msft_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            (xfail_issue_58676, "test_msft_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-
+            (
+                xfail_issue_58676,
+                "test_msft_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu",
+            ),
+            (
+                xfail_issue_58676,
+                "test_msft_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu",
+            ),
             (xfail_issue_39669, "test_msft_opset9_cgan_cgan_cpu"),
             (xfail_issue_47495, "test_msft_opset10_bert_squad_bertsquad10_cpu"),
-            (xfail_issue_78843, "test_msft_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
-
+            (
+                xfail_issue_78843,
+                "test_msft_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu",
+            ),
             (xfail_issue_86911, "test_msft_opset9_lstm_seq_lens_unpacked_model_cpu"),
-
         ]
         for test_case in import_xfail_list + execution_xfail_list:
             xfail, test_name = test_case

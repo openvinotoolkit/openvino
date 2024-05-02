@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <map>
-#include <string>
-#include <memory>
+#include <bitset>
 #include <cstddef>
 #include <limits>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "common_types.h"
 #include "tensor_type.h"
-#include <vector>
-#include <utility>
-#include <bitset>
 
 namespace kernel_selector {
 using DataTensor = Tensor::DataTensor;
@@ -32,7 +33,10 @@ class JitConstants;
 struct fuse_params {
     virtual ~fuse_params() {}
 
-    KernelType GetType() const { return kType; }
+    KernelType GetType() const {
+        return kType;
+    }
+
 protected:
     explicit fuse_params(KernelType kt) : kType(kt) {}
     KernelType kType;
@@ -47,30 +51,67 @@ public:
         key.machine_features.raw = 0;
     }
 
-    void enable_subgroups() { key.machine_features.val.subgroups = 1; }
-    void enable_blocked_read_write() { key.machine_features.val.subgroup_blocked_read_write = 1; }
-    void enable_blocked_read_write_short() { key.machine_features.val.subgroup_blocked_read_write_short = 1; }
-    void enable_blocked_read_write_char() { key.machine_features.val.subgroup_blocked_read_write_char = 1; }
-    void enable_subgroup_broadcast() { key.machine_features.val.subgroup_broadcast = 1; }
-    void enable_subgroup_shuffle() { key.machine_features.val.subgroup_shuffle = 1; }
-    void enable_subgroup_shuffle_relative() { key.machine_features.val.subgroup_shuffle_relative = 1; }
-    void enable_subgroup_reduce() { key.machine_features.val.subgroup_reduce = 1; }
-    void enable_reqd_subgroup_size() { key.machine_features.val.reqd_subgroup_size = 1; }
+    void enable_subgroups() {
+        key.machine_features.val.subgroups = 1;
+    }
+    void enable_blocked_read_write() {
+        key.machine_features.val.subgroup_blocked_read_write = 1;
+    }
+    void enable_blocked_read_write_short() {
+        key.machine_features.val.subgroup_blocked_read_write_short = 1;
+    }
+    void enable_blocked_read_write_char() {
+        key.machine_features.val.subgroup_blocked_read_write_char = 1;
+    }
+    void enable_subgroup_broadcast() {
+        key.machine_features.val.subgroup_broadcast = 1;
+    }
+    void enable_subgroup_shuffle() {
+        key.machine_features.val.subgroup_shuffle = 1;
+    }
+    void enable_subgroup_shuffle_relative() {
+        key.machine_features.val.subgroup_shuffle_relative = 1;
+    }
+    void enable_subgroup_reduce() {
+        key.machine_features.val.subgroup_reduce = 1;
+    }
+    void enable_reqd_subgroup_size() {
+        key.machine_features.val.reqd_subgroup_size = 1;
+    }
 
     // Aliases for better readability
     // Kernels are supposed to use requires_* functions while eninge uses enable* functions
-    void requires_subgroups() { enable_subgroups(); }
-    void requires_blocked_read_write() { enable_blocked_read_write(); }
-    void requires_blocked_read_write_short() { enable_blocked_read_write_short(); }
-    void requires_blocked_read_write_char() { enable_blocked_read_write_char(); }
-    void requires_subgroup_broadcast() { enable_subgroup_broadcast(); }
-    void requires_subgroup_shuffle() { enable_subgroup_shuffle(); }
-    void requires_subgroup_shuffle_relative() { enable_subgroup_shuffle_relative(); }
-    void requires_subgroup_reduce() { enable_subgroup_reduce(); }
-    void requires_reqd_subgroup_size() { enable_reqd_subgroup_size(); }
+    void requires_subgroups() {
+        enable_subgroups();
+    }
+    void requires_blocked_read_write() {
+        enable_blocked_read_write();
+    }
+    void requires_blocked_read_write_short() {
+        enable_blocked_read_write_short();
+    }
+    void requires_blocked_read_write_char() {
+        enable_blocked_read_write_char();
+    }
+    void requires_subgroup_broadcast() {
+        enable_subgroup_broadcast();
+    }
+    void requires_subgroup_shuffle() {
+        enable_subgroup_shuffle();
+    }
+    void requires_subgroup_shuffle_relative() {
+        enable_subgroup_shuffle_relative();
+    }
+    void requires_subgroup_reduce() {
+        enable_subgroup_reduce();
+    }
+    void requires_reqd_subgroup_size() {
+        enable_reqd_subgroup_size();
+    }
 
-
-    void merge(DeviceFeaturesKey k) { key.machine_features.raw = key.machine_features.raw | k.key.machine_features.raw; }
+    void merge(DeviceFeaturesKey k) {
+        key.machine_features.raw = key.machine_features.raw | k.key.machine_features.raw;
+    }
 
     bool supports(DeviceFeaturesKey k) const {
         return (key.machine_features.raw & k.key.machine_features.raw) == k.key.machine_features.raw;
@@ -280,30 +321,66 @@ public:
     void EnableAllInputWeightsType();
     void EnableOutputWeightsType(WeightsType wt);
     void EnableAllOutputWeightsType();
-    void EnableFP16Emulation() { key.restrict.val.FP16Emulation = 1; }
-    void EnableDifferentTypes() { key.restrict.val.different_types = 1; }
-    void EnableDifferentInputWeightsTypes() { key.restrict.val.different_input_weights_types = 1; }
-    void EnableDynamicShapesSupport() { key.restrict.val.dynamic_shapes = 1; }
-    void EnableInputLayout(DataLayout l) { key.inputLayout.set(static_cast<size_t>(l)); }
-    void EnableAllInputLayout() { key.inputLayout.set(); }
-    void EnableOutputLayout(DataLayout l) { key.outputLayout.set(static_cast<size_t>(l)); }
-    void EnableAllOutputLayout() { key.outputLayout.set(); }
+    void EnableFP16Emulation() {
+        key.restrict.val.FP16Emulation = 1;
+    }
+    void EnableDifferentTypes() {
+        key.restrict.val.different_types = 1;
+    }
+    void EnableDifferentInputWeightsTypes() {
+        key.restrict.val.different_input_weights_types = 1;
+    }
+    void EnableDynamicShapesSupport() {
+        key.restrict.val.dynamic_shapes = 1;
+    }
+    void EnableInputLayout(DataLayout l) {
+        key.inputLayout.set(static_cast<size_t>(l));
+    }
+    void EnableAllInputLayout() {
+        key.inputLayout.set();
+    }
+    void EnableOutputLayout(DataLayout l) {
+        key.outputLayout.set(static_cast<size_t>(l));
+    }
+    void EnableAllOutputLayout() {
+        key.outputLayout.set();
+    }
     void EnableInputWeightsLayout(WeightsLayout l) {
         key.weightsInputLayout.set(static_cast<size_t>(l));
     }
-    void EnableAllInputWeightsLayout() { key.weightsInputLayout.set(); }
+    void EnableAllInputWeightsLayout() {
+        key.weightsInputLayout.set();
+    }
     void EnableOutputWeightsLayout(WeightsLayout l) {
         key.weightsOutputLayout.set(static_cast<size_t>(l));
     }
-    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout.set(); }
-    void EnableTensorOffset() { key.restrict.val.offset = 1; }
-    void EnableTensorPitches() { key.restrict.val.pitches = 1; }
-    void EnableBatching() { key.restrict.val.batching = 1; }
-    void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
-    void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
-    void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }
-    void EnableActivationAdditionalParamsAsInput() { key.restrict.val.activationAdditionalParamsAsInput = 1; }
-    void EnableMomentum() { key.restrict.val.momentum = 1; }
+    void EnableAllOutputWeightsLayout() {
+        key.weightsOutputLayout.set();
+    }
+    void EnableTensorOffset() {
+        key.restrict.val.offset = 1;
+    }
+    void EnableTensorPitches() {
+        key.restrict.val.pitches = 1;
+    }
+    void EnableBatching() {
+        key.restrict.val.batching = 1;
+    }
+    void EnableNonBiasTerm() {
+        key.restrict.val.nonBias = 1;
+    }
+    void EnableBiasPerFeature() {
+        key.restrict.val.biasPerFeatureMap = 1;
+    }
+    void EnableBiasPerOutput() {
+        key.restrict.val.biasPerOutput = 1;
+    }
+    void EnableActivationAdditionalParamsAsInput() {
+        key.restrict.val.activationAdditionalParamsAsInput = 1;
+    }
+    void EnableMomentum() {
+        key.restrict.val.momentum = 1;
+    }
     void EnableLRNMode(LRNMode m);
     void EnableNormalizeMode(NormalizeMode m);
     void EnableMVNMode(MVNMode m);
@@ -312,31 +389,67 @@ public:
     void EnablePoolKernelDividerMode(KernelDividerMode m);
     void EnablePoolType(PoolType t);
     void EnablePoolRemainder(PoolRemainder r);
-    void EnablePoolDilation() { key.restrict.val.dedicated.pooling.dilation = 1; }
-    void EnablePoolIndicesOutput() { key.restrict.val.dedicated.pooling.indices_output = 1; }
-    void EnableWeightsCompression() { key.restrict.val.compressed_weights = 1; }
+    void EnablePoolDilation() {
+        key.restrict.val.dedicated.pooling.dilation = 1;
+    }
+    void EnablePoolIndicesOutput() {
+        key.restrict.val.dedicated.pooling.indices_output = 1;
+    }
+    void EnableWeightsCompression() {
+        key.restrict.val.compressed_weights = 1;
+    }
     void EnableQuantization(QuantizationType q);
-    void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
-    void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
-    void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
-    void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
-    void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }
-    void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
+    void EnablePositionSensitivePooling() {
+        key.restrict.val.dedicated.pooling.position_sensitive = 1;
+    }
+    void EnableDilation() {
+        key.restrict.val.dedicated.conv.dilation = 1;
+    }
+    void EnableGroupedConvolution() {
+        key.restrict.val.dedicated.conv.grouped = 1;
+    }
+    void EnableDeformableMode() {
+        key.restrict.val.dedicated.conv.deformable = 1;
+    }
+    void EnableBilinearInterpolationPad() {
+        key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1;
+    }
+    void EnableDeformableMask() {
+        key.restrict.val.dedicated.conv.deformable_mask_enabled = 1;
+    }
 
-    void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
-    void EnableIndirectGemm() { key.restrict.val.dedicated.gemm.indirect = 1; }
-    void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
-    void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
-    void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
+    void EnableQuantizeScaleShiftOpt() {
+        key.restrict.val.dedicated.quantize.scale_shift_opt = 1;
+    }
+    void EnableIndirectGemm() {
+        key.restrict.val.dedicated.gemm.indirect = 1;
+    }
+    void EnableWinogradReorder() {
+        key.restrict.val.dedicated.reorder.winograd = 1;
+    }
+    void EnableRotateReorder() {
+        key.restrict.val.dedicated.reorder.rotate = 1;
+    }
+    void EnableSurfaceInputSupport() {
+        key.restrict.val.dedicated.reorder.surface_input = 1;
+    }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
     void EnableReampleType(ResampleType a);
     void EnableEltwiseStride();
-    void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
+    void EnableEltwiseBroadcast() {
+        key.restrict.val.dedicated.eltwise.broadcast = 1;
+    }
 
-    void EnableLSTMEltCell() { key.restrict.val.dedicated.lstm_elt.cell = 1; }
-    void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
-    void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
+    void EnableLSTMEltCell() {
+        key.restrict.val.dedicated.lstm_elt.cell = 1;
+    }
+    void EnableConcatKernelPerInput() {
+        key.restrict.val.dedicated.concat.kernelPerInput = 1;
+    }
+    void EnableConcatOneKernel() {
+        key.restrict.val.dedicated.concat.oneKernel = 1;
+    }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
@@ -351,10 +464,7 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Device type
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class dev_type {
-    integrated_gpu = 0,
-    discrete_gpu = 1
-};
+enum class dev_type { integrated_gpu = 0, discrete_gpu = 1 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
@@ -398,13 +508,16 @@ struct EngineInfo {
 struct Params {
     virtual ~Params() {}
 
-    KernelType GetType() const { return kType; }
+    KernelType GetType() const {
+        return kType;
+    }
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
         return;
     }
-    virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
+    virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map,
+                                           std::map<size_t, size_t> out_tensor_to_offset_map) {
         return;
     }
 
@@ -420,8 +533,10 @@ public:
     bool is_shape_agnostic;
     size_t stage_id;
 
-    bool allowStaticInputReordering = true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
-    bool allowInputReordering = false;  // allow kernel to ask graph compiler to reorder the input data before executing its
+    bool allowStaticInputReordering =
+        true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
+    bool allowInputReordering =
+        false;  // allow kernel to ask graph compiler to reorder the input data before executing its
 
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
@@ -437,30 +552,18 @@ struct base_activation_params {
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
-    base_activation_params(const ActivationFunction f, const float m, const float n) : function(f),
-                                                                                       m(m),
-                                                                                       n(n) {}
+    base_activation_params(const ActivationFunction f, const float m, const float n) : function(f), m(m), n(n) {}
 
     virtual ~base_activation_params() = default;
     virtual std::string to_string() const;
 };
 
 struct FusedOpsConfiguration {
-    enum class LoadType {
-        LT_UNALIGNED = 0,
-        LT_ALIGNED_READ = 1,
-        FEATURE_SHUFFLE = 2
-    };
+    enum class LoadType { LT_UNALIGNED = 0, LT_ALIGNED_READ = 1, FEATURE_SHUFFLE = 2 };
 
-    enum class BoundaryCheck {
-        DISABLED = 0,
-        ENABLED = 1
-    };
+    enum class BoundaryCheck { DISABLED = 0, ENABLED = 1 };
 
-    enum class IndexType {
-        TENSOR_COORD = 0,
-        LINEAR_OFFSET = 1
-    };
+    enum class IndexType { TENSOR_COORD = 0, LINEAR_OFFSET = 1 };
 
     // Optional suffix that is added to each macro in the configuration.
     std::string suffix;
@@ -503,31 +606,52 @@ struct FusedOpsConfiguration {
                           bool allow_for_partial_preload = false,
                           std::string shuffle_var_name = "",
                           DataLayout orig_output_layout = DataLayout::DataLayoutCount)
-      : suffix(suffix)
-      , bfzyx_idx_order(bfzyx_idx_order)
-      , input_var_name(input_var_name)
-      , input_dt(input_dt)
-      , vec_size(vec_size)
-      , vec_axis(vec_axis)
-      , load_type(load_type)
-      , boundary_check(boundary_check)
-      , index_type(index_type)
-      , loop_axes(loop_axes)
-      , allow_for_partial_preload(allow_for_partial_preload)
-      , shuffle_var_name(shuffle_var_name)
-      , orig_output_layout(orig_output_layout) { }
+        : suffix(suffix),
+          bfzyx_idx_order(bfzyx_idx_order),
+          input_var_name(input_var_name),
+          input_dt(input_dt),
+          vec_size(vec_size),
+          vec_axis(vec_axis),
+          load_type(load_type),
+          boundary_check(boundary_check),
+          index_type(index_type),
+          loop_axes(loop_axes),
+          allow_for_partial_preload(allow_for_partial_preload),
+          shuffle_var_name(shuffle_var_name),
+          orig_output_layout(orig_output_layout) {}
 
-    FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
-    FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
-    FusedOpsConfiguration& SetBoundaryCheck(BoundaryCheck val) { boundary_check = val; return *this; }
-    FusedOpsConfiguration& SetIndexType(IndexType val) { index_type = val; return *this; }
-    FusedOpsConfiguration& SetVectorAxis(Tensor::DataChannelName val) { vec_axis = val; return *this; }
+    FusedOpsConfiguration& SetVectorSize(size_t val) {
+        vec_size = val;
+        return *this;
+    }
+    FusedOpsConfiguration& SetLoadType(LoadType val) {
+        load_type = val;
+        return *this;
+    }
+    FusedOpsConfiguration& SetBoundaryCheck(BoundaryCheck val) {
+        boundary_check = val;
+        return *this;
+    }
+    FusedOpsConfiguration& SetIndexType(IndexType val) {
+        index_type = val;
+        return *this;
+    }
+    FusedOpsConfiguration& SetVectorAxis(Tensor::DataChannelName val) {
+        vec_axis = val;
+        return *this;
+    }
     FusedOpsConfiguration& SetLoopAxes(std::vector<Tensor::DataChannelName> val, bool partial_preload = false) {
         loop_axes = std::move(val);
         allow_for_partial_preload = partial_preload;
-        return *this; }
-    FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
-    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
+        return *this;
+    }
+    FusedOpsConfiguration& SetShuffleVarName(std::string val) {
+        shuffle_var_name = val;
+        return *this;
+    }
+    bool IsPostReorderFused(void) const {
+        return orig_output_layout != DataLayout::DataLayoutCount;
+    }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
         size_t dims_num = bfzyx_idx_order.size();
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
@@ -543,31 +667,28 @@ struct FusedOpsConfiguration {
 };
 
 // Dependency(Input) type of fusing operation in fused node.
-// There are different ways to generate input var name and type by the dependency(input) type in MakeOpJitConstants in jitter
+// There are different ways to generate input var name and type by the dependency(input) type in MakeOpJitConstants in
+// jitter
 // - ORIGINAL: The input of the operation is the fused node such as Conv
 // - EXTERNAL: The input of the operation is the external node outside the fused node
 // - INTERNAL: The input of the operation is the another fused operation in the fused node
-enum class DepType {
-    UNDEFINED  = -1,
-    ORIGINAL   = 0,
-    EXTERNAL   = 1,
-    INTERNAL   = 2
-};
+enum class DepType { UNDEFINED = -1, ORIGINAL = 0, EXTERNAL = 1, INTERNAL = 2 };
 
 // Dependency(Input) information of fusing operation which is used to generate input var name and type
 // in MakeOpJitConstants in jitter
 struct dep_info {
-    DepType     dep_type = DepType::UNDEFINED;
-    size_t      op_id;
-    Datatype    data_type;
+    DepType dep_type = DepType::UNDEFINED;
+    size_t op_id;
+    Datatype data_type;
 };
 
-// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
-// method. In order to process fused ops following modifications should be done in a kernel:
-// option 1 - using common generator:
+// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using
+// program::fuse_nodes method. In order to process fused ops following modifications should be done in a kernel: option
+// 1 - using common generator:
 //     - create FusedOpsConfiguration object that contains configuration for common code generator.
-//       Multiple objects can be created if a kernel uses different data types at the same time. E.g. kernels that contains scalar and
-//       vector branches that are chosen in runtime. To handle this case, create 2 configurations with different suffixes, like
+//       Multiple objects can be created if a kernel uses different data types at the same time. E.g. kernels that
+//       contains scalar and vector branches that are chosen in runtime. To handle this case, create 2 configurations
+//       with different suffixes, like
 //       "_SCALAR" and "_VEC" and then use generated macros accordingly.
 //     - add jit constants returned by KernelBase::MakeFusedOpsJitConstants method to the kernel's constants.
 //     - insert generated macros in the ocl code:
@@ -580,8 +701,8 @@ struct dep_info {
 //           FUSED_OPS<OPTIONAL_SUFFIX>;
 //           <SOME_VARIABLE> = FUSED_OPS_RESULT<OPTIONAL_SUFFIX>;
 //         #endif
-//   In this case common generator creates set of definitions for each op which are called sequentially in FUSED_OP<OPTIONAL_SUFFIX>
-//   macro. Example:
+//   In this case common generator creates set of definitions for each op which are called sequentially in
+//   FUSED_OP<OPTIONAL_SUFFIX> macro. Example:
 //     #define FUSED_OPS
 //       FUSED_OP0_LOAD_VEC
 //       FUSED_OP0_ACTION_VEC
@@ -599,12 +720,15 @@ struct dep_info {
 //     #define FUSED_OP1_ACTION_VEC
 //       float2 dst_0_2 = convert_float2(eltwise1_data0) + convert_float2(dst_0);
 //     #define FUSED_OPS_RESULT_VEC dst_0_2
-// option 2 - using custom generator in a kernel. It can be used if performance is not optimal in the common one or to handle
-//            some difficult cases that can't be unified. Custom processing of fused ops can be written absolutely independently
-//            in a kernel, but to make it easier set of helper functions exist:
-//     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
+// option 2 - using custom generator in a kernel. It can be used if performance is not optimal in the common one or to
+// handle
+//            some difficult cases that can't be unified. Custom processing of fused ops can be written absolutely
+//            independently in a kernel, but to make it easier set of helper functions exist:
+//     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all
+//     tensors used in
 //       a fused op (requires FusedOpsConfiguration instance).
-//     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
+//     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data
+//     loads
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
     int32_t dep_idx_start;
@@ -615,8 +739,10 @@ struct fused_operation_desc {
     std::vector<dep_info> dep_data = {};
 
     // Helper functions for operation generation
-    KernelType GetType() const { return op_params->GetType(); }
-    template<typename T>
+    KernelType GetType() const {
+        return op_params->GetType();
+    }
+    template <typename T>
     std::shared_ptr<T> GetOpParams() const {
         auto p = std::dynamic_pointer_cast<T>(op_params);
         if (!p)
@@ -635,10 +761,7 @@ struct fused_operation_desc {
 struct base_params : public Params {
     virtual ~base_params() {}
 
-    enum class ArgType {
-        Input,
-        Constant
-    };
+    enum class ArgType { Input, Constant };
 
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
@@ -650,11 +773,15 @@ struct base_params : public Params {
     ParamsKey GetParamsKey() const override;
 
     bool has_dynamic_inputs() const {
-        return std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+        return std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) {
+            return t.is_dynamic();
+        });
     }
 
     bool has_dynamic_outputs() const {
-        return std::any_of(outputs.begin(), outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+        return std::any_of(outputs.begin(), outputs.end(), [](const DataTensor& t) {
+            return t.is_dynamic();
+        });
     }
 
     bool has_dynamic_tensors() const {
@@ -695,17 +822,21 @@ struct base_params : public Params {
         }
     }
 
-    void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) override {
+    void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map,
+                                   std::map<size_t, size_t> out_tensor_to_offset_map) override {
         for (size_t i = 0; i < inputs.size(); i++) {
             auto& in = inputs[i];
-            OPENVINO_ASSERT(in_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all input tensors have mapping to the offset");
+            OPENVINO_ASSERT(in_tensor_to_offset_map.count(i) > 0,
+                            "[GPU] set_dynamic_shape_offsets expects all input tensors have mapping to the offset");
             size_t offset = in_tensor_to_offset_map.at(i);
             in.SetDynamicShapeOffset(offset);
         }
-        OPENVINO_ASSERT(fused_ops.empty(), "[GPU] set_dynamic_shape_offsets with mappings doesn't support fused ops for now");
+        OPENVINO_ASSERT(fused_ops.empty(),
+                        "[GPU] set_dynamic_shape_offsets with mappings doesn't support fused ops for now");
         for (size_t i = 0; i < outputs.size(); i++) {
             auto& out = outputs[i];
-            OPENVINO_ASSERT(out_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all output tensors have mapping to the offset");
+            OPENVINO_ASSERT(out_tensor_to_offset_map.count(i) > 0,
+                            "[GPU] set_dynamic_shape_offsets expects all output tensors have mapping to the offset");
             size_t offset = out_tensor_to_offset_map.at(i);
             out.SetDynamicShapeOffset(offset);
         }

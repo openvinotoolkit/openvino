@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/runtime/itensor.hpp"
-
 #include <memory>
+
+#include "openvino/runtime/itensor.hpp"
 
 namespace ov {
 namespace intel_gpu {

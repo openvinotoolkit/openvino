@@ -4,24 +4,26 @@
 
 #include "low_precision/assign_and_read_value.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "itt.hpp"
+#include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/op/util/assign_base.hpp"
-#include "low_precision/fake_quantize.hpp"
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
 
-AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model, const Params& params) :
-    LayerTransformation(params), model(model) {
+AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::shared_ptr<ov::Model> model,
+                                                                   const Params& params)
+    : LayerTransformation(params),
+      model(model) {
     MATCHER_SCOPE(AssignAndReadValueTransformation);
-    auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
-    auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
+    auto assign3 = pattern::wrap_type<opset3::Assign>({pattern::wrap_type<ov::opset1::Multiply>()});
+    auto assign6 = pattern::wrap_type<opset6::Assign>({pattern::wrap_type<ov::opset1::Multiply>()});
 
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& opsMap = m.get_pattern_value_map();
@@ -43,7 +45,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ assign3, assign6 }),
+        std::make_shared<pass::pattern::op::Or>(OutputVector{assign3, assign6}),
         matcher_name);
     this->register_matcher(m, callback);
 }
@@ -65,7 +67,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     // set new precision for oldVar to update precision in newReadValue
     oldVar->update({variableInfo.data_shape, dequantization.data.get_element_type(), variableInfo.variable_id});
     // transform ReadValue part
-    const auto newConstant = foldConvert(readValue->get_input_node_shared_ptr(0), dequantization.data.get_element_type());
+    const auto newConstant =
+        foldConvert(readValue->get_input_node_shared_ptr(0), dequantization.data.get_element_type());
     const auto newReadValue = readValue->copy_with_new_inputs({newConstant});
     const auto newDequantization = dequantization.copyWithNewInput(newReadValue);
     replace_node(readValue, newDequantization);
@@ -104,7 +107,8 @@ bool AssignAndReadValueTransformation::transform(TransformationContext& context,
     return true;
 }
 
-bool AssignAndReadValueTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+bool AssignAndReadValueTransformation::canBeTransformed(const TransformationContext& context,
+                                                        std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformed(context, op)) {
         return false;
     }
@@ -127,6 +131,6 @@ bool AssignAndReadValueTransformation::isPrecisionPreserved(std::shared_ptr<Node
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

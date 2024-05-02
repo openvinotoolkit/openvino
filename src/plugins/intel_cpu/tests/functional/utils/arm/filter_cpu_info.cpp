@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+
+#include "utils/cpu_test_utils.hpp"
 
 namespace CPUTestUtils {
 
@@ -20,8 +21,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForArch(const std::vector<CPUSpecifi
     for (auto param : CPUParams) {
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
 
-        if (selectedTypeStr.find("acl") == std::string::npos &&
-            selectedTypeStr.find("ref") == std::string::npos)
+        if (selectedTypeStr.find("acl") == std::string::npos && selectedTypeStr.find("ref") == std::string::npos)
             continue;
 #if defined(OPENVINO_ARCH_ARM)
         // disable gemm_acl on 32-bit arm platforms because oneDNN\ACL does not support it
@@ -38,4 +38,4 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
     return CPUParams;
 }
 
-} // namespace CPUTestUtils
+}  // namespace CPUTestUtils

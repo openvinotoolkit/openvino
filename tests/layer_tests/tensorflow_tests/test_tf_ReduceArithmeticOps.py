@@ -8,26 +8,31 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestReduceArithmeticOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input:0']
+        assert "input:0" in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info["input:0"]
         inputs_data = {}
-        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data["input:0"] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
-    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_legacy_frontend):
+    def create_reduce_net(
+        self, shape, axis, operation, keep_dims, ir_version, use_legacy_frontend
+    ):
         import tensorflow as tf
+
         ops_mapping = {
             "Max": tf.raw_ops.Max,
             "Mean": tf.raw_ops.Mean,
             "Min": tf.raw_ops.Min,
             "Prod": tf.raw_ops.Prod,
             "Sum": tf.raw_ops.Sum,
-            "EuclideanNorm": tf.raw_ops.EuclideanNorm
+            "EuclideanNorm": tf.raw_ops.EuclideanNorm,
         }
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(tf.float32, shape, 'input')
-            ops_mapping[operation](input=input, axis=axis, keep_dims=keep_dims, name="reduce")
+            input = tf.compat.v1.placeholder(tf.float32, shape, "input")
+            ops_mapping[operation](
+                input=input, axis=axis, keep_dims=keep_dims, name="reduce"
+            )
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -40,13 +45,34 @@ class TestReduceArithmeticOps(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("operation", ["EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"])
+    @pytest.mark.parametrize(
+        "operation", ["EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"]
+    )
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_legacy_frontend):
-        self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version,
-                                           use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_reduce(
+        self,
+        params,
+        operation,
+        keep_dims,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        self._test(
+            *self.create_reduce_net(
+                **params,
+                operation=operation,
+                keep_dims=keep_dims,
+                ir_version=ir_version,
+                use_legacy_frontend=use_legacy_frontend
+            ),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include "pooling_kernel_base.h"
 #include <vector>
 
+#include "pooling_kernel_base.h"
+
 namespace kernel_selector {
-class PoolingKernelGPU_b_fs_zyx_fsv16_imad: public PoolingKernelBase{
+class PoolingKernelGPU_b_fs_zyx_fsv16_imad : public PoolingKernelBase {
 public:
     PoolingKernelGPU_b_fs_zyx_fsv16_imad() : PoolingKernelBase("pooling_gpu_b_fs_zyx_fsv16_imad") {}
     virtual ~PoolingKernelGPU_b_fs_zyx_fsv16_imad() {}
@@ -20,9 +21,7 @@ public:
     DispatchData SetDefault(const pooling_params& params) const override;
     bool Validate(const Params&) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
 protected:

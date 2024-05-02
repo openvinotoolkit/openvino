@@ -67,7 +67,8 @@ public:
         if (reorder_needed) {
             const std::string r_reverse_input_id = "r_reverse_input";
             const std::string r_axes_id = "r_reverse_axes";
-            tp.add(reorder(r_reverse_input_id, input_info(reverse_input_id), params.input_format, ov::element::from<T>()));
+            tp.add(
+                reorder(r_reverse_input_id, input_info(reverse_input_id), params.input_format, ov::element::from<T>()));
             tp.add(reorder(r_axes_id, input_info(axes_id), params.input_format, ov::element::from<T>()));
             tp.add(reverse(reverse_id, input_info(r_reverse_input_id), input_info(r_axes_id), mode));
             ouput_op_name = "reversed_result";
@@ -76,7 +77,8 @@ public:
             tp.add(reverse(reverse_id, input_info(reverse_input_id), input_info(axes_id), mode));
         }
 
-        cldnn::network::ptr network = get_network(engine, tp, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, tp, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data(reverse_input_id, reverse_input);
         network->set_input_data(axes_id, reverse_axes);
         auto result = network->execute();
@@ -298,30 +300,30 @@ std::vector<ReverseParams<ov::float16, reverse_mode::mask>> generateMaskParams()
         params.push_back({tensor(batch(4), feature(3)),
                           fmt,
                           std::vector<ov::float16>{ov::float16(0),
-                                              ov::float16(1),
-                                              ov::float16(2),
-                                              ov::float16(3),
-                                              ov::float16(4),
-                                              ov::float16(5),
-                                              ov::float16(6),
-                                              ov::float16(7),
-                                              ov::float16(8),
-                                              ov::float16(9),
-                                              ov::float16(10),
-                                              ov::float16(11)},
+                                                   ov::float16(1),
+                                                   ov::float16(2),
+                                                   ov::float16(3),
+                                                   ov::float16(4),
+                                                   ov::float16(5),
+                                                   ov::float16(6),
+                                                   ov::float16(7),
+                                                   ov::float16(8),
+                                                   ov::float16(9),
+                                                   ov::float16(10),
+                                                   ov::float16(11)},
                           {false, true},
                           std::vector<ov::float16>{ov::float16(2),
-                                              ov::float16(1),
-                                              ov::float16(0),
-                                              ov::float16(5),
-                                              ov::float16(4),
-                                              ov::float16(3),
-                                              ov::float16(8),
-                                              ov::float16(7),
-                                              ov::float16(6),
-                                              ov::float16(11),
-                                              ov::float16(10),
-                                              ov::float16(9)}});
+                                                   ov::float16(1),
+                                                   ov::float16(0),
+                                                   ov::float16(5),
+                                                   ov::float16(4),
+                                                   ov::float16(3),
+                                                   ov::float16(8),
+                                                   ov::float16(7),
+                                                   ov::float16(6),
+                                                   ov::float16(11),
+                                                   ov::float16(10),
+                                                   ov::float16(9)}});
     }
 
     return params;
@@ -335,30 +337,30 @@ std::vector<ReverseParams<ov::float16, reverse_mode::index>> generateIndexParams
         params.push_back({tensor(batch(4), feature(3)),
                           fmt,
                           std::vector<ov::float16>{ov::float16(0),
-                                              ov::float16(1),
-                                              ov::float16(2),
-                                              ov::float16(3),
-                                              ov::float16(4),
-                                              ov::float16(5),
-                                              ov::float16(6),
-                                              ov::float16(7),
-                                              ov::float16(8),
-                                              ov::float16(9),
-                                              ov::float16(10),
-                                              ov::float16(11)},
+                                                   ov::float16(1),
+                                                   ov::float16(2),
+                                                   ov::float16(3),
+                                                   ov::float16(4),
+                                                   ov::float16(5),
+                                                   ov::float16(6),
+                                                   ov::float16(7),
+                                                   ov::float16(8),
+                                                   ov::float16(9),
+                                                   ov::float16(10),
+                                                   ov::float16(11)},
                           {1},
                           std::vector<ov::float16>{ov::float16(2),
-                                              ov::float16(1),
-                                              ov::float16(0),
-                                              ov::float16(5),
-                                              ov::float16(4),
-                                              ov::float16(3),
-                                              ov::float16(8),
-                                              ov::float16(7),
-                                              ov::float16(6),
-                                              ov::float16(11),
-                                              ov::float16(10),
-                                              ov::float16(9)}});
+                                                   ov::float16(1),
+                                                   ov::float16(0),
+                                                   ov::float16(5),
+                                                   ov::float16(4),
+                                                   ov::float16(3),
+                                                   ov::float16(8),
+                                                   ov::float16(7),
+                                                   ov::float16(6),
+                                                   ov::float16(11),
+                                                   ov::float16(10),
+                                                   ov::float16(9)}});
     }
     return params;
 }

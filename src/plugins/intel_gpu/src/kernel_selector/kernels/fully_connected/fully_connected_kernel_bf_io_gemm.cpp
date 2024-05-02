@@ -3,6 +3,7 @@
 //
 
 #include "fully_connected_kernel_bf_io_gemm.h"
+
 #include <vector>
 
 namespace kernel_selector {
@@ -19,8 +20,8 @@ ParamsKey FullyConnected_bf_io_GEMM::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    // bfyx -> bf layout transformation works incorrectly when tensor has paddings, so offset support is disabled for now.
-    // k.EnableTensorOffset();
+    // bfyx -> bf layout transformation works incorrectly when tensor has paddings, so offset support is disabled for
+    // now. k.EnableTensorOffset();
     k.EnableTensorPitches();
     return k;
 }
@@ -33,8 +34,8 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     const uint32_t localWorkSizeX = 64;
     const uint32_t globalWorkSizeX = localWorkSizeX;
 
-    dispatchData.gws = { globalWorkSizeX, params.outputs[0].Feature().v, 1 };
-    dispatchData.lws = { localWorkSizeX, 1, 1 };
+    dispatchData.gws = {globalWorkSizeX, params.outputs[0].Feature().v, 1};
+    dispatchData.lws = {localWorkSizeX, 1, 1};
 
     return dispatchData;
 }
@@ -85,10 +86,7 @@ bool FullyConnected_bf_io_GEMM::Validate(const Params& p) const {
 KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    DataLayout::bf,
-                                                    WeightsLayout::oiyx,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, DataLayout::bf, WeightsLayout::oiyx, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

@@ -2,28 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/tensor_iterator.hpp"
+#include "matchers/subgraph/repeat_pattern.hpp"
+
 #include "openvino/op/if.hpp"
 #include "openvino/op/loop.hpp"
-#include "matchers/subgraph/repeat_pattern.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "utils/model.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 
-std::vector<RepeatPatternExtractor::ExtractedPattern>
-RepeatPatternExtractor::extract(const std::shared_ptr<ov::Model> &model) {
+std::vector<RepeatPatternExtractor::ExtractedPattern> RepeatPatternExtractor::extract(
+    const std::shared_ptr<ov::Model>& model) {
     std::vector<ExtractedPattern> extracted_patterns;
     for (const auto& pattern : find_repeat_patterns(model)) {
         for (const auto& pattern_structure : pattern) {
-            extracted_patterns.push_back({std::get<0>(pattern_structure), std::get<2>(pattern_structure), extractor_name});
+            extracted_patterns.push_back(
+                {std::get<0>(pattern_structure), std::get<2>(pattern_structure), extractor_name});
         }
     }
     return extracted_patterns;
 }
 
-std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>
-RepeatPatternExtractor::get_repeat_pattern_borders(const std::shared_ptr<ov::Model> &model) {
+std::vector<std::vector<RepeatPatternExtractor::PatternBorders>> RepeatPatternExtractor::get_repeat_pattern_borders(
+    const std::shared_ptr<ov::Model>& model) {
     std::vector<std::vector<RepeatPatternExtractor::PatternBorders>> extracted_patterns;
     auto a = find_repeat_patterns(model, true);
     for (auto& pattern : a) {
@@ -36,7 +38,7 @@ RepeatPatternExtractor::get_repeat_pattern_borders(const std::shared_ptr<ov::Mod
                 for (size_t out_idx = 0; out_idx < node->outputs().size(); ++out_idx) {
                     size_t idx = 0;
                     const auto target_inputs = node->get_output_target_inputs(out_idx);
-                    for (const auto& target_input :  target_inputs) {
+                    for (const auto& target_input : target_inputs) {
                         const auto target_in_node = target_input.get_node()->shared_from_this();
                         if (std::find(node_vector.begin(), node_vector.end(), target_in_node) == node_vector.end()) {
                             ++idx;
@@ -60,8 +62,8 @@ RepeatPatternExtractor::get_repeat_pattern_borders(const std::shared_ptr<ov::Mod
     return extracted_patterns;
 }
 
-std::vector<std::vector<ov::NodeVector>>
-RepeatPatternExtractor::get_repeat_node_vectors(const std::shared_ptr<ov::Model> &model) {
+std::vector<std::vector<ov::NodeVector>> RepeatPatternExtractor::get_repeat_node_vectors(
+    const std::shared_ptr<ov::Model>& model) {
     std::vector<std::vector<ov::NodeVector>> extracted_patterns;
     for (const auto& pattern : find_repeat_patterns(model)) {
         std::vector<ov::NodeVector> same_pattern_nodes;
@@ -73,8 +75,7 @@ RepeatPatternExtractor::get_repeat_node_vectors(const std::shared_ptr<ov::Model>
     return extracted_patterns;
 }
 
-void
-RepeatPatternExtractor::update_extractor_cache(
+void RepeatPatternExtractor::update_extractor_cache(
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>& extracted_patterns,
     const std::shared_ptr<ov::Model>& pattern,
     const std::vector<ov::NodeVector>& pattern_node_vector,
@@ -85,24 +86,26 @@ RepeatPatternExtractor::update_extractor_cache(
         if (model_comparator->match(pattern, cached_pattern)) {
             try {
                 const auto& cached_in_info = std::get<2>(pattern_structure);
-                ov::util::align_input_info(pattern, cached_pattern,
-                                           pattern_in_info, cached_in_info,
+                ov::util::align_input_info(pattern,
+                                           cached_pattern,
+                                           pattern_in_info,
+                                           cached_in_info,
                                            model_comparator->get_matched_ops_in_graphs(pattern, cached_pattern));
                 for (const auto& p : pattern_node_vector) {
-                    extracted_pattern.push_back({ pattern, p, pattern_in_info });
+                    extracted_pattern.push_back({pattern, p, pattern_in_info});
                 }
                 return;
-            } catch(std::exception) {}
+            } catch (std::exception) {
+            }
         }
     }
-    extracted_patterns.push_back({{ pattern, pattern_node_vector.front(), pattern_in_info }});
+    extracted_patterns.push_back({{pattern, pattern_node_vector.front(), pattern_in_info}});
     for (size_t i = 1; i < pattern_node_vector.size(); ++i) {
-        extracted_patterns.back().push_back({ pattern, pattern_node_vector[i], pattern_in_info });
+        extracted_patterns.back().push_back({pattern, pattern_node_vector[i], pattern_in_info});
     }
 }
 
-void
-RepeatPatternExtractor::update_extractor_cache(
+void RepeatPatternExtractor::update_extractor_cache(
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>& extracted_patterns,
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>& secondary_extracted_patterns) {
     while (!secondary_extracted_patterns.empty()) {
@@ -119,10 +122,9 @@ RepeatPatternExtractor::update_extractor_cache(
     }
 }
 
-
-std::vector<std::vector<ov::NodeVector>>
-RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_op_vec,
-                                              const ov::NodeVector& ordered_ops) {
+std::vector<std::vector<ov::NodeVector>> RepeatPatternExtractor::get_patterns_by_nodes(
+    const std::vector<size_t>& start_op_vec,
+    const ov::NodeVector& ordered_ops) {
     // handle case impossible to extract repeat patterns
     if (start_op_vec.size() < 2 || ordered_ops.size() < 3) {
         return {{}};
@@ -176,7 +178,8 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                             for (size_t input_idx = 0; input_idx < patterns[i_orig][j]->inputs().size(); ++input_idx) {
                                 auto in_orig = patterns[i_orig][j]->get_input_node_shared_ptr(input_idx);
                                 auto in_ref = patterns[i_ref][j]->get_input_node_shared_ptr(input_idx);
-                                if (std::find(pattern_orig.begin(), pattern_orig.end(), in_orig) != pattern_orig.end() &&
+                                if (std::find(pattern_orig.begin(), pattern_orig.end(), in_orig) !=
+                                        pattern_orig.end() &&
                                     std::find(pattern_ref.begin(), pattern_ref.end(), in_ref) != pattern_ref.end()) {
                                     is_input_matched = true;
                                     break;
@@ -208,9 +211,11 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
             }
         }
         // sort patterns by node vectors size
-        std::sort(potential_patterns.begin(), potential_patterns.end(), [](const ov::NodeVector& a, const ov::NodeVector& b) {
-            return a.size() > b.size();
-        });
+        std::sort(potential_patterns.begin(),
+                  potential_patterns.end(),
+                  [](const ov::NodeVector& a, const ov::NodeVector& b) {
+                      return a.size() > b.size();
+                  });
 
         // exclude not repeated pattern
         while (potential_patterns.rbegin()->size() < 2 && !potential_patterns.empty()) {
@@ -257,9 +262,9 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
     return pattern_vec;
 }
 
-std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>>
-RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &model,
-                                             bool is_save_borders_only) {
+std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>> RepeatPatternExtractor::find_repeat_patterns(
+    const std::shared_ptr<ov::Model>& model,
+    bool is_save_borders_only) {
     std::list<std::vector<RepeatPatternExtractor::ExtractedRepeatPattern>> extracted_patterns;
     auto ordered_ops = model->get_ordered_ops();
     if (ordered_ops.size() < 2) {
@@ -277,7 +282,8 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
                 if (nodes_vector.size() < 1) {
                     continue;
                 }
-                auto extracted_pattern = ov::util::generate_model(nodes_vector.front(), is_save_const, is_save_borders_only);
+                auto extracted_pattern =
+                    ov::util::generate_model(nodes_vector.front(), is_save_const, is_save_borders_only);
                 auto extracted_model = extracted_pattern.first;
                 auto extracted_input_info = extracted_pattern.second;
                 if (extracted_model == nullptr) {
@@ -292,14 +298,12 @@ RepeatPatternExtractor::find_repeat_patterns(const std::shared_ptr<ov::Model> &m
                     }
                 }
                 if (is_insert_res) {
-                    update_extractor_cache(extracted_patterns,
-                                           extracted_model,
-                                           nodes_vector,
-                                           extracted_input_info);
+                    update_extractor_cache(extracted_patterns, extracted_model, nodes_vector, extracted_input_info);
                 }
-            } catch(std::exception& e) {
+            } catch (std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model!") == std::string::npos) {
-                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() <<
+                    // std::endl;
                 }
             }
         }

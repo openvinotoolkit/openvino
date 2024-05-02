@@ -3,11 +3,14 @@
 //
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 namespace {
 using namespace ExecutionGraphTests;
 
-INSTANTIATE_TEST_SUITE_P(smoke_inputsNumFusingBinConv, ExecGraphInputsFusingBinConv, ::testing::Values(ov::test::utils::DEVICE_CPU),
-                        ExecGraphInputsFusingBinConv::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_inputsNumFusingBinConv,
+                         ExecGraphInputsFusingBinConv,
+                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                         ExecGraphInputsFusingBinConv::getTestCaseName);
+}  // namespace

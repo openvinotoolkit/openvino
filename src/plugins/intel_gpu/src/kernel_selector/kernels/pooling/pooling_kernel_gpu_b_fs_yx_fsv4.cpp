@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_gpu_b_fs_yx_fsv4.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -35,20 +36,23 @@ PoolingKernelBase::DispatchData PoolingKerneGPU_b_fs_yx_fsv4::SetDefault(const p
     DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
-                                                                     {Tensor::DataChannelName::Y},
-                                                                     {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X},
+        {Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
     dispatchData.gws[0] = params.outputs[0].X().v;  // X
     dispatchData.gws[1] = params.outputs[0].Y().v;  // Y
     // we got b_fs_yx_fsv4 format, we process 4 features per workitem
     dispatchData.gws[2] = CeilDiv(params.outputs[0].Feature().v, 4) * params.outputs[0].Batch().v;
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
 
-JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params& params,
+                                                           DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t in_x_pitch = 4;
@@ -61,14 +65,14 @@ JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params&
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "f", "y", "x"},
-                                     "pool_result",
-                                     input_dt,
-                                     4,
-                                     LoadType::LT_UNALIGNED,
-                                     BoundaryCheck::ENABLED,
-                                     IndexType::TENSOR_COORD,
-                                     Tensor::DataChannelName::FEATURE};
+                                      {"b", "f", "y", "x"},
+                                      "pool_result",
+                                      input_dt,
+                                      4,
+                                      LoadType::LT_UNALIGNED,
+                                      BoundaryCheck::ENABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::FEATURE};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

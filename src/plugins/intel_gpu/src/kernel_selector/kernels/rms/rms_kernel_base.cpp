@@ -3,6 +3,7 @@
 //
 
 #include "rms_kernel_base.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -11,8 +12,9 @@ bool RMSKernelBase::Validate(const Params& p) const {
         return false;
 
     const rms_params& params = static_cast<const rms_params&>(p);
-    auto supported_dyn_layouts = { DataLayout::bfyx, DataLayout::bfzyx };
-    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
+    auto supported_dyn_layouts = {DataLayout::bfyx, DataLayout::bfzyx};
+    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) ||
+                                         !layout_is_one_of(params.outputs, supported_dyn_layouts)))
         return false;
 
     return true;
@@ -87,12 +89,15 @@ Datatype RMSKernelBase::GetAccumulatorType(const rms_params& params) const {
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
-        case Datatype::F32:
-        case Datatype::F16:
-            return Datatype::F32;
-        case Datatype::INT8: return Datatype::INT32;
-        case Datatype::UINT8: return Datatype::INT32;
-        default: return Datatype::F32;
+    case Datatype::F32:
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+        return Datatype::INT32;
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 }  // namespace kernel_selector

@@ -4,10 +4,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -78,7 +76,9 @@ protected:
                 in_data.start_from = 1;
                 in_data.range = 10;
                 // Fill the slice input0 tensor with random data.
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             } else {
                 // Fill the slice input1~input4 with specified data.
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};

@@ -10,13 +10,13 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        InputShape,                  // Input 0 Shape
-        ov::element::Type,           // Element type
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> ExpParams;
+typedef std::tuple<InputShape,         // Input 0 Shape
+                   ov::element::Type,  // Element type
+                   size_t,             // Expected num nodes
+                   size_t,             // Expected num subgraphs
+                   std::string         // Target Device
+                   >
+    ExpParams;
 
 class Exp : public testing::WithParamInterface<ov::test::snippets::ExpParams>,
             virtual public ov::test::SnippetsTestsCommon {
@@ -32,6 +32,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

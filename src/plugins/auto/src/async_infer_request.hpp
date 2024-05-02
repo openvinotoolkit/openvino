@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "schedule.hpp"
 #include "infer_request.hpp"
+#include "schedule.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -20,10 +20,11 @@ public:
     ~AsyncInferRequest();
     void infer_thread_unsafe() override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
 private:
-    Schedule::Ptr       m_schedule;
+    Schedule::Ptr m_schedule;
     WorkerInferRequest* m_worker_inferrequest = nullptr;
-    ISyncInferPtr       m_inferrequest;
+    ISyncInferPtr m_inferrequest;
 };
 
 }  // namespace auto_plugin

@@ -4,14 +4,11 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 
-#include "snippets/lowered/expression.hpp"
-#include "snippets/utils.hpp"
-
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
-
 #include "snippets/itt.hpp"
-
+#include "snippets/lowered/expression.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -36,7 +33,7 @@ void LoopManager::remove_loop_info(size_t index) {
     m_map.erase(index);
 }
 
-const std::map<size_t, LoopInfoPtr> &LoopManager::get_map() const {
+const std::map<size_t, LoopInfoPtr>& LoopManager::get_map() const {
     return m_map;
 }
 
@@ -82,14 +79,17 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<Expres
     return std::vector<size_t>(first_loop_ids.cbegin(), first_loop_ids.cbegin() + common_idx);
 }
 
-std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR &linear_ir, size_t loop_id) const {
+std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR& linear_ir,
+                                                                                     size_t loop_id) const {
     const auto loop_info = get_loop_info(loop_id);
     return get_loop_bounds(linear_ir, loop_id, loop_info->get_entry_points(), loop_info->get_exit_points());
 }
 
-std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR &linear_ir, size_t loop_id,
-                                                                                     const std::vector<LoopPort>& entries,
-                                                                                     const std::vector<LoopPort>& exits) {
+std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(
+    const LinearIR& linear_ir,
+    size_t loop_id,
+    const std::vector<LoopPort>& entries,
+    const std::vector<LoopPort>& exits) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
     OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
 
@@ -123,13 +123,16 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
         }
     }
 
-    OPENVINO_ASSERT(loop_begin_pos != linear_ir.cend() && loop_end_pos != linear_ir.cend(), "Loop bounds haven't been found!");
+    OPENVINO_ASSERT(loop_begin_pos != linear_ir.cend() && loop_end_pos != linear_ir.cend(),
+                    "Loop bounds haven't been found!");
     return std::make_pair(loop_begin_pos, loop_end_pos);
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
     auto get_loop_port = [&](const std::vector<LoopPort>& ports) {
-        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
+        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) {
+            return *p.expr_port == expr_port;
+        });
         if (it == ports.cend())
             OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
         return *it;
@@ -141,8 +144,8 @@ LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
                                     LinearIR::constExprIt loop_end_pos,
-                                    std::vector<ExpressionPort> &entries,
-                                    std::vector<ExpressionPort> &exits) {
+                                    std::vector<ExpressionPort>& entries,
+                                    std::vector<ExpressionPort>& exits) {
     entries.clear();
     exits.clear();
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
@@ -171,7 +174,8 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
 
 void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                             LinearIR::constExprIt loop_end_pos,
-                            size_t loop_depth, size_t vector_size) {
+                            size_t loop_depth,
+                            size_t vector_size) {
     const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
     std::vector<ExpressionPort> loop_entry_points, loop_exit_points;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_entry_points, loop_exit_points);
@@ -190,7 +194,9 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     };
 
     auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
+        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) {
+            return lhs == FULL_DIM;
+        });
     };
 
     std::vector<size_t> loop_subtensor;
@@ -209,8 +215,9 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         if (loop_subtensor.empty())
             loop_subtensor = subtensor;
 
-        OPENVINO_ASSERT(std::equal(loop_subtensor.crbegin(), loop_subtensor.crbegin() + loop_depth, subtensor.crbegin()),
-                        "Incorrect scheduling parameters for loop");
+        OPENVINO_ASSERT(
+            std::equal(loop_subtensor.crbegin(), loop_subtensor.crbegin() + loop_depth, subtensor.crbegin()),
+            "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
             if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
@@ -243,7 +250,8 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
                                           const size_t old_id) {
     const auto is_bound_explicit_loop_begin = ov::is_type<op::LoopBegin>(loop_begin_pos->get()->get_node());
     const auto is_bound_explicit_loop_end = ov::is_type<op::LoopEnd>(std::prev(loop_end_pos)->get()->get_node());
-    OPENVINO_ASSERT((is_bound_explicit_loop_begin && is_bound_explicit_loop_end) || (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end),
+    OPENVINO_ASSERT((is_bound_explicit_loop_begin && is_bound_explicit_loop_end) ||
+                        (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end),
                     "Incorrect LoopBounds!");
     const auto explicit_loop_bounds = is_bound_explicit_loop_begin && is_bound_explicit_loop_end;
 
@@ -254,7 +262,8 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
         replace_loop_id(*expr_it, old_id, loop_id);
     }
 
-    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop manager
+    // Check that other expression in LinearIR doesn't have the old loop ID - otherwise completely removed from loop
+    // manager
     const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
@@ -264,13 +273,19 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
     return loop_id;
 }
 
-void LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
+void LoopManager::fuse_loops(const LinearIR& linear_ir,
+                             size_t loop_id_upper,
+                             size_t loop_id_lower,
+                             bool fuse_into_upper) {
     const auto loop_bounds = get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper);
     fuse_loops(loop_bounds.first, loop_bounds.second, loop_id_upper, loop_id_lower, fuse_into_upper);
 }
 
-void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
-                             size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
+void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
+                             LinearIR::constExprIt loop_end_target,
+                             size_t loop_id_upper,
+                             size_t loop_id_lower,
+                             bool fuse_into_upper) {
     OPENVINO_ASSERT(m_map.count(loop_id_upper) == 1 && m_map.count(loop_id_lower) == 1,
                     "Failed Loop Fusion: the Loop with the Loop ID isn't existed");
 
@@ -292,7 +307,8 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     loop_info->set_entry_points(new_entries);
     loop_info->set_exit_points(new_exits);
 
-    loop_info->set_handlers(SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers()));
+    loop_info->set_handlers(
+        SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers()));
     // Since fusion can be called for broadcastable loops (one of the loops has work_amount = increment = 1),
     // maximum value is set to the fused loop
     loop_info->set_work_amount(std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount()));
@@ -322,10 +338,10 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& exit_points,
         std::set<LoopPort> mapped_entry_points;
         std::set<ExpressionPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
-            const auto entry_point_it = std::find_if(entry_points.begin(), entry_points.end(),
-                                                     [&consumer_input](const LoopPort& point) {
-                                                             return *point.expr_port.get() == consumer_input;
-                                                         });
+            const auto entry_point_it =
+                std::find_if(entry_points.begin(), entry_points.end(), [&consumer_input](const LoopPort& point) {
+                    return *point.expr_port.get() == consumer_input;
+                });
             if (entry_point_it != entry_points.end()) {
                 mapped_entry_points.insert(*entry_point_it);
                 continue;
@@ -354,20 +370,27 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& exit_points,
     exit_points = new_exit_points;
 }
 
-template<>
-void LoopManager::update_loop_port(size_t loop_id, const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
+template <>
+void LoopManager::update_loop_port(size_t loop_id,
+                                   const ExpressionPort& actual_port,
+                                   const std::vector<ExpressionPort>& target_ports,
+                                   bool is_entry) {
     const auto& loop_info = get_loop_info(loop_id);
     auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return *point.expr_port.get() == actual_port; });
-    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
-    // For example, not all inner loop ports are ports of outer loops
+    auto port_it = std::find_if(ports.begin(), ports.end(), [&actual_port](const LoopPort& point) {
+        return *point.expr_port.get() == actual_port;
+    });
+    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort
+    // is not strong condition as LoopPort For example, not all inner loop ports are ports of outer loops
     if (port_it == ports.end())
         return;
 
     // to save other parameters except expression port
     std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
-    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
+    std::transform(target_loop_ports.begin(),
+                   target_loop_ports.end(),
+                   target_ports.begin(),
+                   target_loop_ports.begin(),
                    [](LoopPort loop_port, const ExpressionPort& expr_port) {
                        LoopPort copy = std::move(loop_port);  // to save loop port parameters
                        copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
@@ -378,12 +401,16 @@ void LoopManager::update_loop_port(size_t loop_id, const ExpressionPort& actual_
     is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
 }
 
-template<>
-void LoopManager::update_loop_port(size_t loop_id, const LoopPort& actual_port, const std::vector<LoopPort>& target_ports, bool is_entry) {
+template <>
+void LoopManager::update_loop_port(size_t loop_id,
+                                   const LoopPort& actual_port,
+                                   const std::vector<LoopPort>& target_ports,
+                                   bool is_entry) {
     const auto& loop_info = get_loop_info(loop_id);
     auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return point == actual_port; });
+    auto port_it = std::find_if(ports.begin(), ports.end(), [&actual_port](const LoopPort& point) {
+        return point == actual_port;
+    });
     OPENVINO_ASSERT(port_it != ports.end(), "Failed update_loop_port: existing loop ports has not been found");
     port_it = ports.erase(port_it);
     ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
@@ -395,19 +422,29 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     for (size_t i = 0; i < expr->get_input_count(); ++i) {
         const auto& source = expr->get_input_port_connector(i)->get_source();
         const auto common_outer_loop_ids = get_common_outer_loops(expr, source.get_expr());
-        // The source output port can have several consumers (including the current expr) that can be potential exit points
-        // So we should verify on the possible future exit points
+        // The source output port can have several consumers (including the current expr) that can be potential exit
+        // points So we should verify on the possible future exit points
         size_t count_of_common_outer_loops = common_outer_loop_ids.size();
         for (const auto& source_consumer : source.get_connected_ports()) {
             if (source_consumer.get_expr() == expr)
                 continue;
-            count_of_common_outer_loops = std::min(count_of_common_outer_loops, get_common_outer_loops(source.get_expr(), source_consumer.get_expr()).size());
+            count_of_common_outer_loops =
+                std::min(count_of_common_outer_loops,
+                         get_common_outer_loops(source.get_expr(), source_consumer.get_expr()).size());
         }
-        update_loops_port({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports, false);
+        update_loops_port(
+            {common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops},
+            source,
+            output_ports,
+            false);
         // Save previous port
         if (count_of_common_outer_loops != common_outer_loop_ids.size()) {
             output_ports.insert(output_ports.begin(), source);
-            update_loops_port({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports, false);
+            update_loops_port(
+                {common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()},
+                source,
+                output_ports,
+                false);
         }
     }
     const auto input_ports = expr->get_input_ports();
@@ -420,9 +457,13 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     }
 }
 
-void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, LinearIR::constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
-                                         size_t loop_id, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits) {
-    for (auto it = new_expr_begin; it!= new_expr_end; ++it) {
+void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin,
+                                         LinearIR::constExprIt new_expr_end,
+                                         const ExpressionPtr& decomposed_expr,
+                                         size_t loop_id,
+                                         const std::vector<ExpressionPort>& entries,
+                                         const std::vector<ExpressionPort>& exits) {
+    for (auto it = new_expr_begin; it != new_expr_end; ++it) {
         insert_loop_id(*it, loop_id, true);
     }
     remove_loop_id(decomposed_expr, loop_id);
@@ -441,7 +482,9 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
     }
 }
 
-void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
+void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos,
+                                  LinearIR::constExprIt& loop_end_pos,
+                                  size_t loop_id) {
     // The method sorts Loop ports again
     // [113536] Update this logic please, when expression numeration will be implemented
     auto push = [](const std::vector<LoopPort>& ports, std::vector<LoopPort>& sorted_ports, const ExpressionPtr& expr) {
@@ -467,7 +510,8 @@ void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearI
 }
 
 void LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
-    OPENVINO_ASSERT(m_map.count(new_id) == 1, "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
+    OPENVINO_ASSERT(m_map.count(new_id) == 1,
+                    "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
     auto loop_ids = expr->get_loop_ids();
     auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
@@ -479,8 +523,15 @@ void LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool 
     expr->set_loop_ids(loop_ids);
 }
 
-void LoopManager::insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before, size_t target_id) {
-    OPENVINO_ASSERT(std::all_of(new_ids.cbegin(), new_ids.cend(), [this](const size_t& id) { return m_map.count(id) == 1; }),
+void LoopManager::insert_loop_ids(const ExpressionPtr& expr,
+                                  const std::vector<size_t>& new_ids,
+                                  bool before,
+                                  size_t target_id) {
+    OPENVINO_ASSERT(std::all_of(new_ids.cbegin(),
+                                new_ids.cend(),
+                                [this](const size_t& id) {
+                                    return m_map.count(id) == 1;
+                                }),
                     "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     auto loop_ids = expr->get_loop_ids();
     auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
@@ -495,12 +546,12 @@ void LoopManager::insert_loop_ids(const ExpressionPtr& expr, const std::vector<s
 }
 
 void LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {
-    OPENVINO_ASSERT(m_map.count(new_id), "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
+    OPENVINO_ASSERT(m_map.count(new_id),
+                    "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
     auto loop_ids = expr->get_loop_ids();
     auto it = std::find(loop_ids.begin(), loop_ids.end(), prev_id);
-    OPENVINO_ASSERT(it != loop_ids.end(),
-                    "Expression doesn't have the Loop with ID " + std::to_string(prev_id));
+    OPENVINO_ASSERT(it != loop_ids.end(), "Expression doesn't have the Loop with ID " + std::to_string(prev_id));
     (*it) = new_id;
     expr->set_loop_ids(loop_ids);
 }
@@ -518,6 +569,6 @@ bool LoopManager::is_loop_id_found(const ExpressionPtr& expr, size_t id) {
     return std::find(loop_ids.cbegin(), loop_ids.cend(), id) != loop_ids.cend();
 }
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

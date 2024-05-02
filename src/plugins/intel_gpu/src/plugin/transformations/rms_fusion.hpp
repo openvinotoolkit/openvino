@@ -15,5 +15,5 @@ public:
     RMSFusion(uint64_t max_work_group_size);
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

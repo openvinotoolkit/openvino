@@ -3,8 +3,10 @@
 //
 
 #include "lrn_kernel_across_channel_multiple_features_fsv16.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
@@ -32,7 +34,8 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeaturesFSV16::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey LRNKernelAcrossChannelMultipleFeaturesFSV16::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -43,17 +46,17 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
     CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X },
-                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X},
+        {Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH}};
 
     const auto& out = params.outputs[0];
     const unsigned int alignment = 16;
 
-    dispatchData.gws = { Align(out.Feature().v, alignment),
-                         out.X().v,
-                         out.Y().v * out.Batch().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {Align(out.Feature().v, alignment), out.X().v, out.Y().v * out.Batch().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -62,7 +65,8 @@ KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(
     return FORCE_PRIORITY_6;
 }
 
-JitConstants LRNKernelAcrossChannelMultipleFeaturesFSV16::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+JitConstants LRNKernelAcrossChannelMultipleFeaturesFSV16::GetJitConstants(const lrn_params& params,
+                                                                          const DispatchData& dispatchData) const {
     JitConstants jit = LRNKernelBase::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 

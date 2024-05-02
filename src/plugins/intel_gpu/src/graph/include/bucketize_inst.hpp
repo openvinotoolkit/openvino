@@ -16,8 +16,9 @@ public:
     using parent = typed_primitive_inst_base<bucketize>;
     using parent::parent;
 
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(bucketize_node const& /*node*/, const kernel_impl_params& impl_param) {
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(bucketize_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }
 

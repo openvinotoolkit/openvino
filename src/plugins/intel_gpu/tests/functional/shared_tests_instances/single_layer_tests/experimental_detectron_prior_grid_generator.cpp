@@ -16,13 +16,13 @@ std::vector<std::vector<ov::test::InputShape>> shapes = {
 };
 
 std::vector<ov::op::v6::ExperimentalDetectronPriorGridGenerator::Attributes> attributes = {
-        // flatten = true (output tensor is 2D)
-        {true, 0, 0, 4.0f, 4.0f},
-        // flatten = false (output tensor is 4D)
-        {false, 0, 0, 8.0f, 8.0f},
-        // task #72587
-        //        {true, 3, 6, 64.0f, 64.0f},
-        //        {false, 5, 3, 32.0f, 32.0f},
+    // flatten = true (output tensor is 2D)
+    {true, 0, 0, 4.0f, 4.0f},
+    // flatten = false (output tensor is 4D)
+    {false, 0, 0, 8.0f, 8.0f},
+    // task #72587
+    //        {true, 3, 6, 64.0f, 64.0f},
+    //        {false, 5, 3, 32.0f, 32.0f},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalDetectronPriorGridGenerator_f32,

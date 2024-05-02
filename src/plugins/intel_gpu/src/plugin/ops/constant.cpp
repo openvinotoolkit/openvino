@@ -2,28 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/op/convolution.hpp"
-
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/roi_align.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/util/op_types.hpp"
-#include "openvino/op/loop.hpp"
-#include "openvino/op/tensor_iterator.hpp"
 
+#include "intel_gpu/op/convolution.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -41,26 +40,41 @@ static cldnn::tensor getConstTensor(const ov::Shape constDims) {
     case 7:
         constTensor = cldnn::tensor(shuffled_dims);
         break;
-    case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
-                                        TensorValue(constDims[5]), TensorValue(constDims[4]),
-                                        TensorValue(constDims[3]), TensorValue(constDims[2]));
+    case 6:
+        constTensor = cldnn::tensor(TensorValue(constDims[0]),
+                                    TensorValue(constDims[1]),
+                                    TensorValue(constDims[5]),
+                                    TensorValue(constDims[4]),
+                                    TensorValue(constDims[3]),
+                                    TensorValue(constDims[2]));
         break;
-    case 5: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
-                                        TensorValue(constDims[4]), TensorValue(constDims[3]), TensorValue(constDims[2]));
+    case 5:
+        constTensor = cldnn::tensor(TensorValue(constDims[0]),
+                                    TensorValue(constDims[1]),
+                                    TensorValue(constDims[4]),
+                                    TensorValue(constDims[3]),
+                                    TensorValue(constDims[2]));
         break;
-    case 4: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
-                                        TensorValue(constDims[3]), TensorValue(constDims[2]));
+    case 4:
+        constTensor = cldnn::tensor(TensorValue(constDims[0]),
+                                    TensorValue(constDims[1]),
+                                    TensorValue(constDims[3]),
+                                    TensorValue(constDims[2]));
         break;
-    case 3: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
-                                        1, TensorValue(constDims[2]));
+    case 3:
+        constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]), 1, TensorValue(constDims[2]));
         break;
-    case 2: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]), 1, 1);
+    case 2:
+        constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]), 1, 1);
         break;
-    case 1: constTensor = cldnn::tensor(1, TensorValue(constDims[0]), 1, 1);
+    case 1:
+        constTensor = cldnn::tensor(1, TensorValue(constDims[0]), 1, 1);
         break;
-    case 0: constTensor = cldnn::tensor(1, 1, 1, 1);
+    case 0:
+        constTensor = cldnn::tensor(1, 1, 1, 1);
         break;
-    default: OPENVINO_THROW("Invalid constant blob dimensions");
+    default:
+        OPENVINO_THROW("Invalid constant blob dimensions");
     }
     return constTensor;
 }
@@ -69,7 +83,10 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
-static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
+static void create_data(ProgramBuilder& p,
+                        const ov::Shape& const_shape,
+                        const std::shared_ptr<ov::op::v0::Constant>& op,
+                        const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
@@ -84,8 +101,8 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         constTensor = cldnn::tensor{1};
 
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
-                                                          cldnn::layout(out_dtype, constFormat, constTensor);
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat)
+                                                        : cldnn::layout(out_dtype, constFormat, constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
@@ -111,8 +128,8 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
         }
 
-        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
-                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: " << constLayout.to_short_string()
+                      << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)" << std::endl;
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
@@ -129,13 +146,10 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     ov::Shape constDims = op->get_shape();
     auto constUsers = op->get_output_target_inputs(0);
 
-    std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties> consts = {
-        {op, {false}}
-    };
+    std::unordered_map<std::shared_ptr<ov::op::v0::Constant>, ConstProperties> consts = {{op, {false}}};
 
-    auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
-        if (ov::op::util::is_binary_elementwise_arithmetic(op) ||
-            ov::op::util::is_binary_elementwise_logical(op) ||
+    auto is_binary_eltwise = [&](ov::Node* op) -> bool {
+        if (ov::op::util::is_binary_elementwise_arithmetic(op) || ov::op::util::is_binary_elementwise_logical(op) ||
             ov::op::util::is_binary_elementwise_comparison(op)) {
             return true;
         } else {
@@ -143,7 +157,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         }
     };
 
-    auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
+    auto is_all_inputs_1d = [&](ov::Node* op) -> bool {
         for (size_t i = 0; i < op->get_input_size(); i++) {
             auto& in_shape = op->get_input_partial_shape(i);
             if (in_shape.size() > 1)
@@ -152,13 +166,12 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         return true;
     };
 
-    auto is_convert_into_binary_eltwise = [&] (ov::Node* op) -> bool {
+    auto is_convert_into_binary_eltwise = [&](ov::Node* op) -> bool {
         if (ov::is_type<ov::op::v0::Convert>(op)) {
             for (size_t i = 0; i < op->get_output_size(); ++i) {
                 auto convertUsers = op->get_output_target_inputs(i);
                 for (auto user : convertUsers) {
-                    if (is_binary_eltwise(user.get_node()) &&
-                        is_all_inputs_1d(user.get_node())) {
+                    if (is_binary_eltwise(user.get_node()) && is_all_inputs_1d(user.get_node())) {
                         return true;
                     }
                 }
@@ -187,19 +200,19 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
-        } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
-                     is_convert_into_binary_eltwise(outOp)) {
+        } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) &&
+                    is_all_inputs_1d(outOp)) ||
+                   is_convert_into_binary_eltwise(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::Gather>(outOp) ||
-                   ov::is_type<ov::op::v7::Gather>(outOp) ||
-                   ov::is_type<ov::op::v8::Gather>(outOp) ||
-                   ov::is_type<ov::op::v1::Split>(outOp) ||
+        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) ||
+                   ov::is_type<ov::op::v8::Gather>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
                    ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy
             //
-            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of input).
+            // 1. 1-dim slope is handled by 'getConstTensor' (if slope dimension is equal to the feature dimension of
+            // input).
             //   ex) [1] --> [1, 1, 1, 1]
             //       [N] --> [1, N, 1, 1]
             //
@@ -209,7 +222,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
             if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
-                (constDims.size() == 1 && input_shape.is_static() && static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
+                (constDims.size() == 1 && input_shape.is_static() &&
+                 static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ov::Shape slope_shape(input_shape.size(), 1);
                 for (size_t j = 1; j <= constDims.size(); j++)
@@ -218,8 +232,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             }
         } else if (is_grouped_conv(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
-            if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
-                constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
+            if (constDims.size() == 4 && input_shape.size() == 3) {  // In case of weight dim 4 and input dim 3,
+                constDims.push_back(1);  // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
@@ -233,8 +247,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (ov::is_type<ov::op::v0::Result>(outOp) && !p.use_new_shape_infer() && p.is_inner_program()) {
             // When IF-operation generates branch-true and branch-false,
             // simple nodes for both can be created such as Parameter->Result, Constant->Result
-            // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces layout mismatch error.
-            // For that case, Constant->Result needs to be [N, 1, 1, 1]
+            // And each layout will be like Parameter->Result [N, 1, 1, 1], Constant->Result [1, N, 1, 1], that produces
+            // layout mismatch error. For that case, Constant->Result needs to be [N, 1, 1, 1]
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         }
     }

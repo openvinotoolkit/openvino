@@ -5,10 +5,10 @@
 #pragma once
 
 #include <memory>
-#include "openvino/op/constant.hpp"
 
-#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "openvino/op/constant.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 
 namespace ov {
 namespace builder {
@@ -26,16 +26,15 @@ public:
         std::shared_ptr<ov::op::v0::Constant> weightsConst,
         const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const ov::Shape& outputShape,
-        const size_t groupCount,
-        const int groupCalculationDimention,
-        const FakeQuantizeOnData& fakeQuantizeOnData,
-        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-        const bool addReshape = true,
-        const bool addPrecisionPreserved = false);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const ov::Shape& outputShape,
+                                                  const size_t groupCount,
+                                                  const int groupCalculationDimention,
+                                                  const FakeQuantizeOnData& fakeQuantizeOnData,
+                                                  const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+                                                  const bool addReshape = true,
+                                                  const bool addPrecisionPreserved = false);
 
     static std::shared_ptr<ov::Model> get(
         const ov::element::Type precision,

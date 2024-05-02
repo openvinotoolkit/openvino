@@ -23,7 +23,8 @@ public:
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     /**
-     * @brief Makes a copy of a loop body with id 'loop_id' and inserts it to the LinearIR before the 'insert_pos' position
+     * @brief Makes a copy of a loop body with id 'loop_id' and inserts it to the LinearIR before the 'insert_pos'
+     * position
      * @param linear_ir LinearIR which should be modified
      * @param loop_id id of the loop which should be copied
      * @param insert_pos position before which the loop body copy should be inserted
@@ -34,7 +35,7 @@ public:
                                                   const LinearIR::constExprIt& insert_pos);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

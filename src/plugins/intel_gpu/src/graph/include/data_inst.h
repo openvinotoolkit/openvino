@@ -3,11 +3,11 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/data.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
 
 namespace cldnn {
 
@@ -17,8 +17,12 @@ struct typed_program_node<data> : public typed_program_node_base<data> {
 
     typed_program_node(const std::shared_ptr<data> prim, program& prog);
 
-    memory& get_attached_memory() const { return *mem; }
-    memory::ptr get_attached_memory_ptr() const { return mem; }
+    memory& get_attached_memory() const {
+        return *mem;
+    }
+    memory::ptr get_attached_memory_ptr() const {
+        return mem;
+    }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
 
 private:

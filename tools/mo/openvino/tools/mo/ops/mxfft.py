@@ -15,24 +15,29 @@ class MXFFT(Op):
     The transformation MXFFTToDFT converts the operation MXFFT into MO DFT (if the attribute 'is_inverse'
     is False), or into MO IDFT (otherwise).
     """
-    op = 'MXFFT'
+
+    op = "MXFFT"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': self.op,
-            'out_ports_count': 1,
-            'in_ports_count': 1,
-            'infer': self.infer
+            "op": self.op,
+            "out_ports_count": 1,
+            "in_ports_count": 1,
+            "infer": self.infer,
         }
-        assert 'is_inverse' in attrs, 'Attribute is_inverse is not given for the operation MXFFT.'
+        assert (
+            "is_inverse" in attrs
+        ), "Attribute is_inverse is not given for the operation MXFFT."
         super().__init__(graph, mandatory_props, attrs)
 
     def infer(self, node: Node):
-        node_name = node.soft_get('name', node.id)
+        node_name = node.soft_get("name", node.id)
         input_shape = node.in_port(0).data.get_shape()
-        assert input_shape is not None, 'Input shape of MXFFT node {} must not be None'.format(node_name)
-        is_inverse = node.soft_get('is_inverse', False)
+        assert (
+            input_shape is not None
+        ), "Input shape of MXFFT node {} must not be None".format(node_name)
+        is_inverse = node.soft_get("is_inverse", False)
         output_shape = input_shape.copy()
         if is_inverse:
             output_shape[-1] = output_shape[-1] // 2

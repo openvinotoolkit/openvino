@@ -5,11 +5,12 @@
 #pragma once
 
 #include <node.h>
-#include "kernels/x64/gather_uni_kernel.hpp"
 
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "kernels/x64/gather_uni_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -112,6 +113,6 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

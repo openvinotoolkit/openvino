@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common_test_utils/ov_test_utils.hpp>
+
 #include "snippets/shape_types.hpp"
 
 namespace ov {
@@ -17,14 +18,15 @@ struct OptimizeDomainParams {
     size_t min_jit_work_amount = 0;
     size_t min_parallel_work_amount = 0;
     std::vector<ov::PartialShape> input_shapes;
-    ov::snippets::VectorDims exp_master_shape;        // Expected master_shape
-    size_t exp_loop_depth = 0;                        // Expected loop depth (aka tile rank)
+    ov::snippets::VectorDims exp_master_shape;  // Expected master_shape
+    size_t exp_loop_depth = 0;                  // Expected loop depth (aka tile rank)
 };
 
 class OptimizeDomainTest : public testing::TestWithParam<OptimizeDomainParams> {
 public:
     using VectorDims = ov::snippets::VectorDims;
     static std::string getTestCaseName(testing::TestParamInfo<OptimizeDomainParams> obj);
+
 protected:
     void SetUp() override;
     std::shared_ptr<ov::Model> m_model;

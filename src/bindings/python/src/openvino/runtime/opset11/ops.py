@@ -9,10 +9,7 @@ from typing import List, Optional
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.types import (
-    NodeInput,
-    as_nodes,
-)
+from openvino.runtime.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset11 = partial(_get_node_factory, "opset11")
 
@@ -72,7 +69,11 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, scales_or_sizes, name=name) if axes is None else as_nodes(image, scales_or_sizes, axes, name=name)
+    inputs = (
+        as_nodes(image, scales_or_sizes, name=name)
+        if axes is None
+        else as_nodes(image, scales_or_sizes, axes, name=name)
+    )
 
     return _get_node_factory_opset11().create("Interpolate", inputs, attrs)
 
@@ -103,5 +104,11 @@ def topk(
     return _get_node_factory_opset11().create(
         "TopK",
         as_nodes(data, k, name=name),
-        {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type, "stable": stable},
+        {
+            "axis": axis,
+            "mode": mode,
+            "sort": sort,
+            "index_element_type": index_element_type,
+            "stable": stable,
+        },
     )

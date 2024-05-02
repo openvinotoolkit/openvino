@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 

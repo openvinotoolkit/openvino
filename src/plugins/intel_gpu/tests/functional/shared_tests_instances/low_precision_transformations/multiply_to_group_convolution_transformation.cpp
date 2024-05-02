@@ -10,10 +10,7 @@ namespace {
 const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
 namespace shape4d {
-const std::vector<ov::PartialShape> inputShapes = {
-    { 1ul, 3ul, 16ul, 16ul },
-    { 4ul, 3ul, 16ul, 16ul }
-};
+const std::vector<ov::PartialShape> inputShapes = {{1ul, 3ul, 16ul, 16ul}, {4ul, 3ul, 16ul, 16ul}};
 
 const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
     {{256ul, ov::Shape{1, 1, 1, 1}, {0.f}, {25.5f}, {0.f}, {25.5f}},
@@ -47,13 +44,13 @@ const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
      true},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(inputShapes),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(params)),
-    MultiplyToGroupConvolutionTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyToGroupConvolutionTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(params)),
+                         MultiplyToGroupConvolutionTransformation::getTestCaseName);
 }  // namespace shape4d
 
 }  // namespace

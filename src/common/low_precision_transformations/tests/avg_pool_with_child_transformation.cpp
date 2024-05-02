@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/avg_pool.hpp"
-#include "low_precision/convolution.hpp"
 #include <memory>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/avg_pool.hpp"
+#include "low_precision/convolution.hpp"
 #include "ov_lpt_models/avg_pool.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -56,28 +56,27 @@ public:
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
         actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
-                                                                                 testValues.actual.inputPrecision,
-                                                                                 shape,
-                                                                                 false,
-                                                                                 testValues.additionalOperations,
-                                                                                 testValues.actual.dequantization);
+                                                                             testValues.actual.inputPrecision,
+                                                                             shape,
+                                                                             false,
+                                                                             testValues.additionalOperations,
+                                                                             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
-        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
-            testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction =
             ov::builder::subgraph::AvgPoolFunction::getReference(precision,
-                                                                     testValues.expected.inputPrecision,
-                                                                     shape,
-                                                                     false,
-                                                                     testValues.additionalOperations,
-                                                                     testValues.expected.dequantizationBefore,
-                                                                     testValues.expected.preicsionAfterOperation,
-                                                                     testValues.expected.dequantizationAfter,
-                                                                     testValues.expected.dequantizationEnd);
+                                                                 testValues.expected.inputPrecision,
+                                                                 shape,
+                                                                 false,
+                                                                 testValues.additionalOperations,
+                                                                 testValues.expected.dequantizationBefore,
+                                                                 testValues.expected.preicsionAfterOperation,
+                                                                 testValues.expected.dequantizationAfter,
+                                                                 testValues.expected.dequantizationEnd);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {

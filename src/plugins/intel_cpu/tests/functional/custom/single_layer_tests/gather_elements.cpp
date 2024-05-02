@@ -72,7 +72,9 @@ public:
             in_data.start_from = 0;
             in_data.range = 15;
             in_data.resolution = 32768;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

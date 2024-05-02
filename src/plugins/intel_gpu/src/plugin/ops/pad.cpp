@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "openvino/op/pad.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/border.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::util::PadBase>& op, bool allow_negative_pad) {
+static void CreatePadOpInternal(ProgramBuilder& p,
+                                const std::shared_ptr<op::util::PadBase>& op,
+                                bool allow_negative_pad) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -21,7 +22,8 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     std::vector<cldnn::input_info> non_constant_inputs = {inputs[0]};
     int32_t non_constant_input_mask = 0;
 
-    auto pads_begin_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    auto pads_begin_constant =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     std::vector<int64_t> pads_begin = std::vector<int64_t>{};
     if (pads_begin_constant) {
         pads_begin = pads_begin_constant->cast_vector<int64_t>();
@@ -46,7 +48,11 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
         if (const_node) {
             const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
             OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
-                            "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                            "Invalid parameter size in ",
+                            op->get_friendly_name(),
+                            " (",
+                            op->get_type_name(),
+                            ")");
             is_value_const = true;
         }
     }
@@ -57,13 +63,13 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     }
 
     const auto borderPrim = cldnn::border(layerName,
-                                  non_constant_inputs,
-                                  non_constant_input_mask,
-                                  pads_begin,
-                                  pads_end,
-                                  op->get_pad_mode(),
-                                  pad_value,
-                                  allow_negative_pad);
+                                          non_constant_inputs,
+                                          non_constant_input_mask,
+                                          pads_begin,
+                                          pads_end,
+                                          op->get_pad_mode(),
+                                          pad_value,
+                                          allow_negative_pad);
     p.add_primitive(*op, borderPrim);
 }
 

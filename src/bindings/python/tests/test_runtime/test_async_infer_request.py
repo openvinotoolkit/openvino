@@ -2,24 +2,17 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import time
 from collections.abc import Iterable
 from copy import deepcopy
-import numpy as np
-import pytest
-import time
 
+import numpy as np
 import openvino.runtime.opset13 as ops
-from openvino import (
-    Core,
-    InferRequest,
-    AsyncInferQueue,
-    Model,
-    Shape,
-    Type,
-    Tensor,
-)
-from tests import skip_need_mock_op
+import pytest
 from tests.utils.helpers import generate_image, get_relu_model
+
+from openvino import AsyncInferQueue, Core, InferRequest, Model, Shape, Tensor, Type
+from tests import skip_need_mock_op
 
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
@@ -246,8 +239,9 @@ def test_results_async_infer(device, share_inputs):
     outputs = request.infer({0: img})
 
     for i in range(num_request):
-        assert np.allclose(list(outputs.values()), list(
-            infer_queue[i].results.values()))
+        assert np.allclose(
+            list(outputs.values()), list(infer_queue[i].results.values())
+        )
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
@@ -271,8 +265,7 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
     compiled_model = core.compile_model(model, "CPU")
 
     model_input_object = ArrayLikeObject(input_data)
-    model_input_list = [
-        [ArrayLikeObject(deepcopy(input_data))] for _ in range(jobs)]
+    model_input_list = [[ArrayLikeObject(deepcopy(input_data))] for _ in range(jobs)]
 
     # Test single array-like object in AsyncInferQueue.start_async()
     infer_queue_object = AsyncInferQueue(compiled_model, jobs)
@@ -282,21 +275,24 @@ def test_array_like_input_async_infer_queue(device, share_inputs):
 
     for i in range(jobs):
         assert np.array_equal(
-            infer_queue_object[i].get_output_tensor().data, np.abs(input_data))
+            infer_queue_object[i].get_output_tensor().data, np.abs(input_data)
+        )
 
     # Test list of array-like objects in AsyncInferQueue.start_async()
     infer_queue_list = AsyncInferQueue(compiled_model, jobs)
     for i in range(jobs):
-        infer_queue_list.start_async(
-            model_input_list[i], share_inputs=share_inputs)
+        infer_queue_list.start_async(model_input_list[i], share_inputs=share_inputs)
     infer_queue_list.wait_all()
 
     for i in range(jobs):
         assert np.array_equal(
-            infer_queue_list[i].get_output_tensor().data, np.abs(input_data))
+            infer_queue_list[i].get_output_tensor().data, np.abs(input_data)
+        )
 
 
-@pytest.mark.skip(reason="Sporadically failed. Need further investigation. Ticket - 95967")
+@pytest.mark.skip(
+    reason="Sporadically failed. Need further investigation. Ticket - 95967"
+)
 def test_cancel(device):
     core = Core()
     model = get_relu_model()
@@ -343,41 +339,49 @@ def test_start_async(device, share_inputs):
     assert callbacks_info["finished"] == jobs
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.bf16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.u32, np.uint32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-    (Type.u64, np.uint64),
-    (Type.boolean, bool),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.bf16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.u32, np.uint32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+        (Type.u64, np.uint64),
+        (Type.boolean, bool),
+    ],
+)
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(
+        request.output_tensors[0].data, np.concatenate((tensor1.data, array1))
+    )
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f64, np.float64),
-    (Type.f16, np.float16),
-    (Type.i8, np.int8),
-    (Type.u8, np.uint8),
-    (Type.i32, np.int32),
-    (Type.i16, np.int16),
-    (Type.u16, np.uint16),
-    (Type.i64, np.int64),
-])
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f64, np.float64),
+        (Type.f16, np.float16),
+        (Type.i8, np.int8),
+        (Type.u8, np.uint8),
+        (Type.i32, np.int32),
+        (Type.i16, np.int16),
+        (Type.u16, np.uint16),
+        (Type.i64, np.int64),
+    ],
+)
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_async_single_input(device, ov_type, numpy_dtype, share_inputs):
     _, request, tensor1, array1 = abs_model_with_data(device, ov_type, numpy_dtype)

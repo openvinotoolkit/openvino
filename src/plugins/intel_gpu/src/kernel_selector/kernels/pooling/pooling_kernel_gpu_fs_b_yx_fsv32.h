@@ -22,9 +22,7 @@ protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

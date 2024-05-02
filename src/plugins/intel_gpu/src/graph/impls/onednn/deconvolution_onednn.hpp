@@ -6,9 +6,10 @@
 namespace cldnn {
 namespace onednn {
 
-static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvolution_primitive_descriptor(const kernel_impl_params& impl_params,
-                                            const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
-                                            dnnl::memory::format_tag tag_in_out = dnnl::memory::format_tag::undef) {
+static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvolution_primitive_descriptor(
+    const kernel_impl_params& impl_params,
+    const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
+    dnnl::memory::format_tag tag_in_out = dnnl::memory::format_tag::undef) {
     auto& engine = impl_params.prog->get_engine();
     auto prim = impl_params.typed_desc<deconvolution>();
 
@@ -37,34 +38,33 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     }
 
     if (!prim->bias.empty()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
-        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            dnnl::algorithm::deconvolution_direct,
-            input_md,
-            weights_md,
-            bias_md,
-            output_md,
-            stride,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
+        auto bias_md =
+            onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                             dnnl::prop_kind::forward_inference,
+                                                                             dnnl::algorithm::deconvolution_direct,
+                                                                             input_md,
+                                                                             weights_md,
+                                                                             bias_md,
+                                                                             output_md,
+                                                                             stride,
+                                                                             dilation,
+                                                                             pad_l,
+                                                                             pad_r,
+                                                                             attr);
     } else {
-        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            dnnl::algorithm::deconvolution_direct,
-            input_md,
-            weights_md,
-            output_md,
-            stride,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
+        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                             dnnl::prop_kind::forward_inference,
+                                                                             dnnl::algorithm::deconvolution_direct,
+                                                                             input_md,
+                                                                             weights_md,
+                                                                             output_md,
+                                                                             stride,
+                                                                             dilation,
+                                                                             pad_l,
+                                                                             pad_r,
+                                                                             attr);
     }
 }
-} // namespace onednn
-} // namespace cldnn
+}  // namespace onednn
+}  // namespace cldnn

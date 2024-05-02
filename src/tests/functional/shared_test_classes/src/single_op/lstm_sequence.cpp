@@ -4,24 +4,23 @@
 
 #include "shared_test_classes/single_op/lstm_sequence.hpp"
 
-#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-
+#include "openvino/op/constant.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 
 namespace ov {
 namespace test {
-using ov::test::utils::SequenceTestsMode;
 using ov::test::utils::InputLayerType;
+using ov::test::utils::SequenceTestsMode;
 
-std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj) {
+std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams>& obj) {
     SequenceTestsMode mode;
     size_t seq_lengths;
     size_t batch;
@@ -35,11 +34,24 @@ std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMS
     InputLayerType WRBType;
     ov::element::Type model_type;
     std::string targetDevice;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
-                WRBType, model_type, targetDevice) = obj.param;
+    std::tie(mode,
+             seq_lengths,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             direction,
+             WRBType,
+             model_type,
+             targetDevice) = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {
-            {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
-                    {4 * hidden_size, hidden_size}, {4 * hidden_size}},
+        {{batch, input_size},
+         {batch, hidden_size},
+         {batch, hidden_size},
+         {4 * hidden_size, input_size},
+         {4 * hidden_size, hidden_size},
+         {4 * hidden_size}},
     };
     std::ostringstream result;
     result << "mode=" << mode << "_";
@@ -70,19 +82,28 @@ void LSTMSequenceTest::SetUp() {
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType WRBType;
     ov::element::Type model_type;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
-                WRBType, model_type, targetDevice) = this->GetParam();
+    std::tie(mode,
+             seq_lengths,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             direction,
+             WRBType,
+             model_type,
+             targetDevice) = this->GetParam();
 
     max_seq_lengths = seq_lengths;
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
     std::vector<ov::Shape> inputShapes = {
-            {batch, seq_lengths, input_size},
-            {batch, num_directions, hidden_size},
-            {batch, num_directions, hidden_size},
-            {batch},
-            {num_directions, 4 * hidden_size, input_size},
-            {num_directions, 4 * hidden_size, hidden_size},
-            {num_directions, 4 * hidden_size},
+        {batch, seq_lengths, input_size},
+        {batch, num_directions, hidden_size},
+        {batch, num_directions, hidden_size},
+        {batch},
+        {num_directions, 4 * hidden_size, input_size},
+        {num_directions, 4 * hidden_size, hidden_size},
+        {num_directions, 4 * hidden_size},
     };
 
     const auto& W_shape = inputShapes[4];
@@ -151,8 +172,19 @@ void LSTMSequenceTest::SetUp() {
         B = std::make_shared<ov::op::v0::Constant>(tensor_b);
     }
 
-    auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0], params[1], params[2], seq_lengths_node, W, R, B, hidden_size, direction,
-                                                                    std::vector<float>{}, std::vector<float>{}, activations, clip);
+    auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(params[0],
+                                                                    params[1],
+                                                                    params[2],
+                                                                    seq_lengths_node,
+                                                                    W,
+                                                                    R,
+                                                                    B,
+                                                                    hidden_size,
+                                                                    direction,
+                                                                    std::vector<float>{},
+                                                                    std::vector<float>{},
+                                                                    activations,
+                                                                    clip);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(lstm_sequence->output(0)),
                              std::make_shared<ov::op::v0::Result>(lstm_sequence->output(1)),
@@ -193,9 +225,12 @@ void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInput
             in_data.range = 10;
         }
 
-        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(),
+                                                         targetInputStaticShapes[i],
+                                                         in_data);
 
         inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
-    }}
+    }
+}
 }  // namespace test
 }  // namespace ov

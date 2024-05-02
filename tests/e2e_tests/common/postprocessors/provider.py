@@ -4,7 +4,6 @@
 import inspect
 
 import torch
-
 from e2e_tests.common.common.base_provider import BaseProvider, BaseStepProvider
 
 
@@ -13,13 +12,13 @@ class ClassProvider(BaseProvider):
 
     @classmethod
     def validate(cls):
-        methods = [
-            f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)
-        ]
-        if 'apply' not in methods:
+        methods = [f[0] for f in inspect.getmembers(cls, predicate=inspect.isfunction)]
+        if "apply" not in methods:
             raise AttributeError(
-                "Requested class {} registred as '{}' doesn't provide required method 'apply'"
-                .format(cls.__name__, cls.__action_name__))
+                "Requested class {} registred as '{}' doesn't provide required method 'apply'".format(
+                    cls.__name__, cls.__action_name__
+                )
+            )
 
 
 class StepProvider(BaseStepProvider):
@@ -31,7 +30,7 @@ class StepProvider(BaseStepProvider):
             self.executors.append(ClassProvider.provide(name, params))
 
     def execute(self, passthrough_data):
-        data = passthrough_data.strict_get('output', self)
+        data = passthrough_data.strict_get("output", self)
         if isinstance(data, list):
             # case when input is torch tensor without names
             if isinstance(data[0], torch.Tensor):
@@ -44,5 +43,5 @@ class StepProvider(BaseStepProvider):
         else:
             for executor in self.executors:
                 data = executor.apply(data)
-        passthrough_data['output'] = data
+        passthrough_data["output"] = data
         return passthrough_data

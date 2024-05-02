@@ -6,7 +6,6 @@ from typing import List
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -42,7 +41,7 @@ class TestListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                a, b = in1.size()[self.start: self.stop: self.step]
+                a, b = in1.size()[self.start : self.stop : self.step]
                 return a, b
 
         ref_net = None
@@ -99,7 +98,7 @@ class TestListUnpack(PytorchLayerTest):
             *self.create_model_size_slice_listunpack(slices),
             ie_device,
             precision,
-            ir_version
+            ir_version,
         )
 
     @pytest.mark.nightly
@@ -109,14 +108,14 @@ class TestListUnpack(PytorchLayerTest):
             *self.create_model_listconstruct_append_listunpack(),
             ie_device,
             precision,
-            ir_version
+            ir_version,
         )
 
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_listconstruct_getitem_listunpack(
-            self, idx, ie_device, precision, ir_version
+        self, idx, ie_device, precision, ir_version
     ):
         self._test(
             *self.create_model_listconstruct_getitem_listunpack(idx),
@@ -143,9 +142,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                (
-                    a,
-                ) = torch.meshgrid(in1, indexing=self.idx)
+                (a,) = torch.meshgrid(in1, indexing=self.idx)
                 return a
 
         ref_net = None
@@ -190,8 +187,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                a, b, c, d = torch.meshgrid(
-                    in1, in2, in3, in4, indexing=self.idx)
+                a, b, c, d = torch.meshgrid(in1, in2, in3, in4, indexing=self.idx)
                 return a, b, c, d
 
         ref_net = None
@@ -209,20 +205,23 @@ class TestMeshgridListUnpack(PytorchLayerTest):
 
 class TestMeshgridListUnpackStack(PytorchLayerTest):
     def _prepare_input(self):
-        return (
-            np.random.randn(28, 28),
-        )
+        return (np.random.randn(28, 28),)
 
     def create_model(self):
         class meshgrid_model(torch.nn.Module):
             def forward(self, x):
                 h, w = x.shape
                 coords1, coords2 = torch.meshgrid(
-                    torch.arange(h), torch.arange(w), indexing="ij")
+                    torch.arange(h), torch.arange(w), indexing="ij"
+                )
                 coords = torch.stack([coords2, coords1], dim=0)
                 return coords.float()
 
-        return meshgrid_model(), None, ["aten::meshgrid", "aten::stack", "prim::ListUnpack"]
+        return (
+            meshgrid_model(),
+            None,
+            ["aten::meshgrid", "aten::stack", "prim::ListUnpack"],
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -234,11 +233,13 @@ class TestListUnpackParameterSingle(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
-        return ((tensor_gen(), tensor_gen()), )
+
+        return ((tensor_gen(), tensor_gen()),)
 
     def create_model(self):
-        import torch
         from typing import List
+
+        import torch
 
         class model(torch.nn.Module):
 
@@ -257,15 +258,18 @@ class TestListUnpackParameterSingleMixed(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+
         # generate tensor with a different shape for easier mismatch detection in case of mixed input order
 
         def tensor_gen_2():
             return np.random.uniform(0, 50, (2, 3)).astype(np.float32)
+
         return (tensor_gen_2(), (tensor_gen(), tensor_gen()), tensor_gen_2())
 
     def create_model(self):
-        import torch
         from typing import List
+
+        import torch
 
         class model(torch.nn.Module):
 
@@ -284,11 +288,13 @@ class TestListUnpackParameterNested(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
-        return (((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())), )
+
+        return (((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen())),)
 
     def create_model(self):
-        import torch
         from typing import List
+
+        import torch
 
         class model(torch.nn.Module):
 
@@ -309,11 +315,13 @@ class TestListUnpackParameterMultiple(PytorchLayerTest):
     def _prepare_input(self):
         def tensor_gen():
             return np.random.uniform(0, 50, (1, 2, 10)).astype(np.float32)
+
         return ((tensor_gen(), tensor_gen()), (tensor_gen(), tensor_gen()))
 
     def create_model(self):
-        import torch
         from typing import List
+
+        import torch
 
         class model(torch.nn.Module):
 

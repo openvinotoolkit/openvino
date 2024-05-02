@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.extractor import FrontExtractorOp
-from openvino.tools.mo.front.kaldi.extractors.fixed_affine_component_ext import FixedAffineComponentFrontExtractor
+from openvino.tools.mo.front.kaldi.extractors.fixed_affine_component_ext import (
+    FixedAffineComponentFrontExtractor,
+)
 from openvino.tools.mo.front.kaldi.utils import read_learning_info
 
 
 class NaturalGradientAffineComponentFrontExtractor(FrontExtractorOp):
-    op = 'naturalgradientaffinecomponent'
+    op = "naturalgradientaffinecomponent"
     enabled = True
 
     @classmethod

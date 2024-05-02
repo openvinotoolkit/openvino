@@ -3,9 +3,5 @@
 
 
 def tf_pack_ext(pb):
-    assert (pb.attr["N"].i == len(pb.input))
-    return {
-        'axis': pb.attr["axis"].i,
-        'N': pb.attr["N"].i,
-        'infer': None
-    }
+    assert pb.attr["N"].i == len(pb.input)
+    return {"axis": pb.attr["axis"].i, "N": pb.attr["N"].i, "infer": None}

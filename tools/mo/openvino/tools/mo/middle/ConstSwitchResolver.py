@@ -10,15 +10,17 @@ class ConstSwitchEraser(MiddleReplacementPattern):
     """
     Erases switch operation and its constant input after data and control flow infer
     """
+
     enabled = True
 
     def run_after(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.pseudo_topological_sort():
-            if node.kind == 'data' or node.op != 'Switch':
+            if node.kind == "data" or node.op != "Switch":
                 continue
             switch_op_node = node
             pred_id_data_node = switch_op_node.in_node(1)

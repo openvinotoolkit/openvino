@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "brgemm_to_brgemm_tpp.hpp"
 
-#include "snippets/utils.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "transformations/tpp/x64/op/brgemm.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-
 #include "cpu_shape.h"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/utils.hpp"
+#include "transformations/tpp/x64/op/brgemm.hpp"
 #include "utils/general_utils.h"
-
 
 namespace ov {
 namespace intel_cpu {
@@ -26,11 +22,11 @@ namespace pass {
 using namespace snippets::lowered;
 
 namespace {
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 void set_port_desc(const T& port, Args... params) {
     PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
 }
-} // namespace
+}  // namespace
 
 BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
     MATCHER_SCOPE(BrgemmToBrgemmTPP);
@@ -70,7 +66,9 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         if (element_type_a == ov::element::f32) {
             brgemm_tpp = std::make_shared<tpp::op::BrgemmTPP>(brgemm->input_value(0),
                                                               brgemm->input_value(1),
-                                                              offset_a, offset_b, offset_c,
+                                                              offset_a,
+                                                              offset_b,
+                                                              offset_c,
                                                               brgemm_in0_desc->get_layout(),
                                                               brgemm_in1_desc->get_layout(),
                                                               brgemm_out_desc->get_layout());
@@ -98,10 +96,20 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         brgemm_tpp->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_tpp);
 
-        // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate transformation)
-        set_port_desc(brgemm_tpp->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
-        set_port_desc(brgemm_tpp->input(1), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
-        set_port_desc(brgemm_tpp->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
+        // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate
+        // transformation)
+        set_port_desc(brgemm_tpp->input(0),
+                      brgemm_in0_desc->get_shape(),
+                      brgemm_in0_desc->get_subtensor(),
+                      brgemm_in0_desc->get_layout());
+        set_port_desc(brgemm_tpp->input(1),
+                      brgemm_in1_desc->get_shape(),
+                      brgemm_in1_desc->get_subtensor(),
+                      brgemm_in1_desc->get_layout());
+        set_port_desc(brgemm_tpp->output(0),
+                      brgemm_out_desc->get_shape(),
+                      brgemm_out_desc->get_subtensor(),
+                      brgemm_out_desc->get_layout());
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
@@ -113,7 +121,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_brgemm, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace pass
-} // namespace tpp
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace pass
+}  // namespace tpp
+}  // namespace intel_cpu
+}  // namespace ov

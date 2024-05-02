@@ -6,11 +6,11 @@ from openvino.tools.mo.ops.concat import Concat
 
 
 class ConcatFrontExtractor(FrontExtractorOp):
-    op = 'Concat'
+    op = "Concat"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        attrs = {'N': node.pb.attr["N"].i, 'simple_concat': True}
+        attrs = {"N": node.pb.attr["N"].i, "simple_concat": True}
         Concat.update_node_stat(node, attrs)
         return cls.enabled

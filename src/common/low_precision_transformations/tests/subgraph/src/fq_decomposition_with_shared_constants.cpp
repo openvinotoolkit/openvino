@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/low_precision.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
@@ -13,6 +11,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
+#include "low_precision/low_precision.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
@@ -57,8 +57,7 @@ public:
 
         {
             auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, shape);
-            auto fqStructure =
-                FakeQuantizeOnData{256ul, Shape({}), {0.f}, {25.5f}, {0.f}, {255.f}, ov::element::u8};
+            auto fqStructure = FakeQuantizeOnData{256ul, Shape({}), {0.f}, {25.5f}, {0.f}, {255.f}, ov::element::u8};
             auto deqStructure = DequantizationOperations{{element::f32}, {}, {0.1f}};
             auto fq_before = makeFakeQuantizeTypeRelaxed(input, input_precision, fqStructure);
             auto dq_before = makeDequantization(fq_before, deqStructure);

@@ -2,19 +2,19 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-import numpy as np
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
-from openvino.runtime import PartialShape, Type
-import openvino.runtime.opset10 as ops
-import pytest
-
 import glob
 import itertools
 import math
 import os
 import re
 from pathlib import Path
+
+import numpy as np
+import openvino.runtime.opset10 as ops
+import pytest
+import torch
+from openvino.frontend import ConversionExtension, FrontEndManager, NodeContext
+from openvino.runtime import PartialShape, Type
 
 
 class aten_relu(torch.nn.Module):
@@ -50,8 +50,7 @@ def test_pytorch_fe_set_input_shape():
     place = im.get_place_by_tensor_name("x.1")
     im.set_partial_shape(place, PartialShape([1, 2, 3, 4]))
     om = fe.convert(im)
-    assert om.get_parameters()[0].get_partial_shape(
-    ) == PartialShape([1, 2, 3, 4])
+    assert om.get_parameters()[0].get_partial_shape() == PartialShape([1, 2, 3, 4])
 
 
 def test_pytorch_fe_set_input_type():
@@ -152,14 +151,32 @@ def test_conversion_extension():
         inp = node.get_input(0)
         approximate = node.get_values_from_const_input(1)
         if approximate == "none":
-            f = ops.erf(ops.divide(inp, ops.constant(
-                np.array([math.sqrt(2.0)], dtype=np.float32))))
+            f = ops.erf(
+                ops.divide(
+                    inp, ops.constant(np.array([math.sqrt(2.0)], dtype=np.float32))
+                )
+            )
         elif approximate == "tanh":
-            f = ops.tanh(ops.multiply(ops.constant(np.array([math.sqrt(2.0 / math.pi)], dtype=np.float32)),
-                                      ops.add(inp, ops.multiply(ops.constant(np.array([0.044715], dtype=np.float32)),
-                                                                ops.power(inp, ops.constant(np.array([3], dtype=np.float32)))))))
-        mul = ops.multiply(ops.multiply(ops.constant(np.array([0.5], dtype=np.float32)), inp),
-                           ops.add(ops.constant(np.array([1], dtype=np.float32)), f))
+            f = ops.tanh(
+                ops.multiply(
+                    ops.constant(
+                        np.array([math.sqrt(2.0 / math.pi)], dtype=np.float32)
+                    ),
+                    ops.add(
+                        inp,
+                        ops.multiply(
+                            ops.constant(np.array([0.044715], dtype=np.float32)),
+                            ops.power(
+                                inp, ops.constant(np.array([3], dtype=np.float32))
+                            ),
+                        ),
+                    ),
+                )
+            )
+        mul = ops.multiply(
+            ops.multiply(ops.constant(np.array([0.5], dtype=np.float32)), inp),
+            ops.add(ops.constant(np.array([1], dtype=np.float32)), f),
+        )
         return mul.outputs()
 
     def convert_softmax(node: NodeContext):
@@ -192,26 +209,57 @@ def test_conversion_extension():
     fe.add_extension(ConversionExtension("aten::elu", convert_elu))
     fe.add_extension(ConversionExtension("aten::gelu", convert_gelu))
     fe.add_extension(ConversionExtension("aten::softmax", convert_softmax))
-    fe.add_extension(ConversionExtension(
-        "aten::linalg_vector_norm", convert_vector_norm))
+    fe.add_extension(
+        ConversionExtension("aten::linalg_vector_norm", convert_vector_norm)
+    )
     input_model = fe.load(decoder)
     assert input_model
     converted_model = fe.convert(input_model)
     assert converted_model
-    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Constant", "Constant",
-                                                                              "Constant", "Greater", "Exp",
-                                                                              "Constant", "Subtract", "Constant",
-                                                                              "Multiply", "Select", "Multiply",
-                                                                              "Constant", "Constant", "Divide",
-                                                                              "Erf", "Add", "Multiply",
-                                                                              "Multiply", "Constant", "Constant",
-                                                                              "Constant", "Constant", "Power",
-                                                                              "Multiply", "Add", "Multiply",
-                                                                              "Tanh", "Add", "Multiply",
-                                                                              "Constant", "ReduceMax", "Subtract",
-                                                                              "Exp", "ReduceSum", "Divide",
-                                                                              "Constant", "Reshape", "Abs",
-                                                                              "Constant", "ReduceMax", "Result"]
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter",
+        "Constant",
+        "Constant",
+        "Constant",
+        "Greater",
+        "Exp",
+        "Constant",
+        "Subtract",
+        "Constant",
+        "Multiply",
+        "Select",
+        "Multiply",
+        "Constant",
+        "Constant",
+        "Divide",
+        "Erf",
+        "Add",
+        "Multiply",
+        "Multiply",
+        "Constant",
+        "Constant",
+        "Constant",
+        "Constant",
+        "Power",
+        "Multiply",
+        "Add",
+        "Multiply",
+        "Tanh",
+        "Add",
+        "Multiply",
+        "Constant",
+        "ReduceMax",
+        "Subtract",
+        "Exp",
+        "ReduceSum",
+        "Divide",
+        "Constant",
+        "Reshape",
+        "Abs",
+        "Constant",
+        "ReduceMax",
+        "Result",
+    ]
 
 
 def get_builtin_extensions_path():
@@ -221,8 +269,9 @@ def get_builtin_extensions_path():
         base_paths.append(repo_dir)
 
     for base_path in base_paths:
-        paths = glob.glob(os.path.join(
-            base_path, "**", "*test_builtin_extensions*"), recursive=True)
+        paths = glob.glob(
+            os.path.join(base_path, "**", "*test_builtin_extensions*"), recursive=True
+        )
         for path in paths:
             if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
                 return path
@@ -252,13 +301,22 @@ def test_so_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        'Parameter', 'Elu', 'Constant', 'ConvertLike', 'Multiply', 'Result']
+        "Parameter",
+        "Elu",
+        "Constant",
+        "ConvertLike",
+        "Multiply",
+        "Result",
+    ]
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "CustomElu", "Result"]
+        "Parameter",
+        "CustomElu",
+        "Result",
+    ]
 
 
 def test_framework_map_macros():
@@ -283,13 +341,19 @@ def test_framework_map_macros():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Relu", "Result"]
+        "Parameter",
+        "Relu",
+        "Result",
+    ]
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "ReluCustom", "Result"]
+        "Parameter",
+        "ReluCustom",
+        "Result",
+    ]
 
 
 class CosModel(torch.nn.Module):
@@ -301,8 +365,8 @@ class CosModel(torch.nn.Module):
 
 
 def test_op_extension():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
@@ -316,18 +380,26 @@ def test_op_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Cos", "Result"]
+        "Parameter",
+        "Convert",
+        "Cos",
+        "Result",
+    ]
 
     fe.add_extension(OpExtension("Sin", "aten::cos"))
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Sin", "Result"]
+        "Parameter",
+        "Convert",
+        "Sin",
+        "Result",
+    ]
 
 
 def test_op_extension_generic():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend import OpExtension
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
@@ -341,18 +413,27 @@ def test_op_extension_generic():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Cos", "Result"]
+        "Parameter",
+        "Convert",
+        "Cos",
+        "Result",
+    ]
 
     fe.add_extension(OpExtension("Sin", "aten::cos"))
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Sin", "Result"]
+        "Parameter",
+        "Convert",
+        "Sin",
+        "Result",
+    ]
 
 
 def test_module_extension():
+    from openvino.frontend.pytorch import ConversionExtension, ModuleExtension
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
-    from openvino.frontend.pytorch import ModuleExtension, ConversionExtension
+
     from openvino import convert_model
 
     class ModelWithModule(torch.nn.Module):
@@ -375,39 +456,71 @@ def test_module_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Cos", "Result"]
+        "Parameter",
+        "Convert",
+        "Cos",
+        "Result",
+    ]
 
-    converted_model = convert_model(model, example_input=(
-        torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin")])
+    converted_model = convert_model(
+        model,
+        example_input=(torch.randn(100),),
+        extension=[ModuleExtension(CosModel, "aten::sin")],
+    )
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Sin", "Result"]
+        "Parameter",
+        "Sin",
+        "Result",
+    ]
 
-    converted_model = convert_model(model, example_input=(torch.randn(
-        100),), extension=[ModuleExtension(model.cos_module, "aten::sin")])
+    converted_model = convert_model(
+        model,
+        example_input=(torch.randn(100),),
+        extension=[ModuleExtension(model.cos_module, "aten::sin")],
+    )
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Sin", "Result"]
+        "Parameter",
+        "Sin",
+        "Result",
+    ]
 
-    converted_model = convert_model(model, example_input=(torch.randn(
-        100),), extension=[ModuleExtension("cos_module", "aten::sin")])
+    converted_model = convert_model(
+        model,
+        example_input=(torch.randn(100),),
+        extension=[ModuleExtension("cos_module", "aten::sin")],
+    )
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Sin", "Result"]
+        "Parameter",
+        "Sin",
+        "Result",
+    ]
 
     def sin_op(context):
         return ops.sin(context.get_input(0)).outputs()
 
-    converted_model = convert_model(model, example_input=(torch.randn(100),), extension=[
-                                    ModuleExtension("cos_module", "MyOp"), ConversionExtension("MyOp", sin_op)])
+    converted_model = convert_model(
+        model,
+        example_input=(torch.randn(100),),
+        extension=[
+            ModuleExtension("cos_module", "MyOp"),
+            ConversionExtension("MyOp", sin_op),
+        ],
+    )
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Sin", "Result"]
+        "Parameter",
+        "Sin",
+        "Result",
+    ]
 
 
 def test_multiple_module_extension():
-    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import ModuleExtension
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
     from openvino import convert_model
 
     class ModelWithModule(torch.nn.Module):
@@ -432,13 +545,33 @@ def test_multiple_module_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Convert", "Cos", "Constant", "Relu", "Multiply", "Add", "Result"]
+        "Parameter",
+        "Convert",
+        "Convert",
+        "Cos",
+        "Constant",
+        "Relu",
+        "Multiply",
+        "Add",
+        "Result",
+    ]
 
-    converted_model = convert_model(model, example_input=(
-        torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin"), ModuleExtension(model.relu_module, "aten::tan")])
+    converted_model = convert_model(
+        model,
+        example_input=(torch.randn(100),),
+        extension=[
+            ModuleExtension(CosModel, "aten::sin"),
+            ModuleExtension(model.relu_module, "aten::tan"),
+        ],
+    )
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Sin", "Tan", "Add", "Result"]
+        "Parameter",
+        "Sin",
+        "Tan",
+        "Add",
+        "Result",
+    ]
 
 
 def test_pytorch_telemetry():
@@ -460,10 +593,11 @@ def test_pytorch_telemetry():
 
     def add_ext(front_end, stat):
         tel = MockTelemetry(stat)
-        front_end.add_extension(TelemetryExtension("mock",
-                                                   tel.send_event,
-                                                   tel.send_error,
-                                                   tel.send_stack_trace))
+        front_end.add_extension(
+            TelemetryExtension(
+                "mock", tel.send_event, tel.send_error, tel.send_stack_trace
+            )
+        )
 
     tel_stat = {"send_event": 0, "send_error": 0, "send_stack_trace": 0}
     # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
@@ -501,23 +635,23 @@ def test_shared_consts_reused():
 
     model = ShareWeghtsConvAndShareLinearModel()
     decoder = TorchScriptPythonDecoder(
-        model, example_input=(torch.rand(model.INPUT_SIZE),))
+        model, example_input=(torch.rand(model.INPUT_SIZE),)
+    )
     fe_manager = FrontEndManager()
     fe = fe_manager.load_by_framework("pytorch")
     im = fe.load(decoder)
     om = fe.convert(im)
-    const_names = ["self.conv.weight",
-                   "self.linear.weight", "self.linear.bias"]
+    const_names = ["self.conv.weight", "self.linear.weight", "self.linear.bias"]
     # self.conv.bias is not reused because of ConstantFolding
     for n in om.get_ops():
         if "Constant" in n.get_type_name():
             for name in n.output(0).names:
                 if name in const_names:
                     const_names.remove(name)
-                    assert len(n.output(0).get_target_inputs()
-                               ) == 2, f"Constant {n} is not reused"
-    assert len(
-        const_names) == 0, f"Not all constants were found: {const_names}"
+                    assert (
+                        len(n.output(0).get_target_inputs()) == 2
+                    ), f"Constant {n} is not reused"
+    assert len(const_names) == 0, f"Not all constants were found: {const_names}"
 
 
 @pytest.mark.parametrize(
@@ -543,8 +677,10 @@ def test_shared_consts_reused():
 @pytest.mark.parametrize("l_scalar", [True, False])
 @pytest.mark.parametrize("r_scalar", [True, False])
 def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
-    from openvino.frontend.pytorch.ts_decoder import (TorchScriptPythonDecoder,
-                                                      pt_to_ov_type_map)
+    from openvino.frontend.pytorch.ts_decoder import (
+        TorchScriptPythonDecoder,
+        pt_to_ov_type_map,
+    )
 
     class aten_add_t_t(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: torch.Tensor):
@@ -586,31 +722,25 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
     r_t = "t"
 
     if isinstance(l_type, type):
-        ov_lhs = ops.parameter(PartialShape(
-            []), pt_to_ov_type_map.get(l_type.__name__))
+        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(l_type.__name__))
         pt_lhs = l_type(5)
         l_t = l_type.__name__
     elif l_scalar:
-        ov_lhs = ops.parameter(PartialShape(
-            []), pt_to_ov_type_map.get(str(l_type)))
+        ov_lhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(l_type)))
         pt_lhs = torch.tensor(1, dtype=l_type)
     else:
-        ov_lhs = ops.parameter(PartialShape(
-            [2, 2]), pt_to_ov_type_map.get(str(l_type)))
+        ov_lhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(l_type)))
         pt_lhs = torch.rand([2, 2]).to(dtype=l_type)
 
     if isinstance(r_type, type):
-        ov_rhs = ops.parameter(PartialShape(
-            []), pt_to_ov_type_map.get(r_type.__name__))
+        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(r_type.__name__))
         pt_rhs = r_type(5)
         r_t = r_type.__name__
     elif r_scalar:
-        ov_rhs = ops.parameter(PartialShape(
-            []), pt_to_ov_type_map.get(str(r_type)))
+        ov_rhs = ops.parameter(PartialShape([]), pt_to_ov_type_map.get(str(r_type)))
         pt_rhs = torch.tensor(1, dtype=r_type)
     else:
-        ov_rhs = ops.parameter(PartialShape(
-            [2, 2]), pt_to_ov_type_map.get(str(r_type)))
+        ov_rhs = ops.parameter(PartialShape([2, 2]), pt_to_ov_type_map.get(str(r_type)))
         pt_rhs = torch.rand([2, 2]).to(dtype=r_type)
     model = get_scripted_model(locals().get(f"aten_add_{l_t}_{r_t}")())
     decoder = TorchScriptPythonDecoder(model)
@@ -652,12 +782,15 @@ def test_output_dict_names():
 
     model = ModelTest1()
     decoder = TorchScriptPythonDecoder(
-        model, example_input=(torch.randn(1, 3, 224, 224),))
+        model, example_input=(torch.randn(1, 3, 224, 224),)
+    )
     fe_manager = FrontEndManager()
     fe = fe_manager.load_by_framework("pytorch")
     im = fe.load(decoder)
     om = fe.convert(im)
-    assert om.outputs[0].any_name == "x1" and om.outputs[1].any_name == "x2", "Output dict names are not expected"
+    assert (
+        om.outputs[0].any_name == "x1" and om.outputs[1].any_name == "x2"
+    ), "Output dict names are not expected"
 
 
 class ModelTest2(torch.nn.Module):
@@ -674,10 +807,12 @@ def test_output_tuple_names():
 
     model = ModelTest2()
     decoder = TorchScriptPythonDecoder(
-        model, example_input=(torch.randn(1, 3, 224, 224),))
+        model, example_input=(torch.randn(1, 3, 224, 224),)
+    )
     fe_manager = FrontEndManager()
     fe = fe_manager.load_by_framework("pytorch")
     im = fe.load(decoder)
     om = fe.convert(im)
-    assert len(om.outputs[0].names) == 0 and len(
-        om.outputs[1].names) == 0, "Output tuple names must be empty"
+    assert (
+        len(om.outputs[0].names) == 0 and len(om.outputs[1].names) == 0
+    ), "Output tuple names must be empty"

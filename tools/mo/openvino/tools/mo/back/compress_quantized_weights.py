@@ -5,16 +5,19 @@ from typing import Dict
 
 import numpy as np
 
-from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.elementwise import Sub, Div, Mul, Equal
-from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.select import Select
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.graph.graph import Graph, Node
-from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
+from openvino.tools.mo.middle.passes.convert_data_type import (
+    data_type_str_to_np,
+    np_data_type_to_destination_type,
+    packed_I4,
+)
 from openvino.tools.mo.middle.pattern_match import apply_pattern
+from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.elementwise import Div, Equal, Mul, Sub
+from openvino.tools.mo.ops.select import Select
 
 
 class CompressQuantizeWeights(BackReplacementPattern):
@@ -95,44 +98,64 @@ class CompressQuantizeWeights(BackReplacementPattern):
     def pattern1(self):
         return dict(
             nodes=[
-                ('const', dict(type='Const')),
-                ('const_d', dict()),
-                ('fake_quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
+                ("const", dict(type="Const")),
+                ("const_d", dict()),
+                (
+                    "fake_quantize",
+                    dict(
+                        type="FakeQuantize",
+                        levels=lambda x: x is not None and 2 < x <= 256,
+                    ),
+                ),
             ],
             edges=[
-                ('const', 'const_d'),
-                ('const_d', 'fake_quantize', {'in': 0}),
-            ]
+                ("const", "const_d"),
+                ("const_d", "fake_quantize", {"in": 0}),
+            ],
         )
 
     def pattern2(self):
         return dict(
             nodes=[
-                ('const', dict(type='Const')),
-                ('const_d', dict()),
-                ('convert', dict(type='Convert')),
-                ('convert_d', dict()),
-                ('fake_quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
+                ("const", dict(type="Const")),
+                ("const_d", dict()),
+                ("convert", dict(type="Convert")),
+                ("convert_d", dict()),
+                (
+                    "fake_quantize",
+                    dict(
+                        type="FakeQuantize",
+                        levels=lambda x: x is not None and 2 < x <= 256,
+                    ),
+                ),
             ],
             edges=[
-                ('const', 'const_d'),
-                ('const_d', 'convert'),
-                ('convert', 'convert_d'),
-                ('convert_d', 'fake_quantize', {'in': 0}),
-            ]
+                ("const", "const_d"),
+                ("const_d", "convert"),
+                ("convert", "convert_d"),
+                ("convert_d", "fake_quantize", {"in": 0}),
+            ],
         )
 
     def find_and_replace_pattern(self, graph: Graph):
-        apply_pattern(graph, **self.pattern1(), action=self.replace_pattern)  # pylint: disable=no-member
-        apply_pattern(graph, **self.pattern2(), action=self.replace_pattern)  # pylint: disable=no-member
+        apply_pattern(
+            graph, **self.pattern1(), action=self.replace_pattern
+        )  # pylint: disable=no-member
+        apply_pattern(
+            graph, **self.pattern2(), action=self.replace_pattern
+        )  # pylint: disable=no-member
 
     @staticmethod
-    def quantize_data(fake_quantize: Node, dst_type: type, quantized_type: type, mode: str):
+    def quantize_data(
+        fake_quantize: Node, dst_type: type, quantized_type: type, mode: str
+    ):
         graph = fake_quantize.graph
-        name = fake_quantize.soft_get('name', fake_quantize.id)
+        name = fake_quantize.soft_get("name", fake_quantize.id)
         levels = fake_quantize.levels
 
-        quantize = fake_quantize.copy_node(dict(name=name + '/Copy', stop_value_propagation=False), graph)
+        quantize = fake_quantize.copy_node(
+            dict(name=name + "/Copy", stop_value_propagation=False), graph
+        )
         fake_quantize.in_port(0).get_connection().set_destination(quantize.in_port(0))
 
         # inherit input limits
@@ -143,12 +166,20 @@ class CompressQuantizeWeights(BackReplacementPattern):
         assert mode in ["signed", "unsigned"]
         i_min_value = -(levels // 2) if mode == "signed" else 0
 
-        i_min = mo_array(i_min_value, dtype=dst_type) if not quantize.in_node(0).shape.size else mo_array([i_min_value], dtype=dst_type)
+        i_min = (
+            mo_array(i_min_value, dtype=dst_type)
+            if not quantize.in_node(0).shape.size
+            else mo_array([i_min_value], dtype=dst_type)
+        )
         i_max = mo_array(levels + i_min - 1, dtype=dst_type)
 
         assert i_max - i_min == levels - 1
-        out_low = Const(graph, dict(name=name + '/Copy/out_low', value=i_min)).create_node()
-        out_high = Const(graph, dict(name=name + '/Copy/out_high', value=i_max)).create_node()
+        out_low = Const(
+            graph, dict(name=name + "/Copy/out_low", value=i_min)
+        ).create_node()
+        out_high = Const(
+            graph, dict(name=name + "/Copy/out_high", value=i_max)
+        ).create_node()
 
         out_low.out_port(0).connect(quantize.in_port(3))
         out_high.out_port(0).connect(quantize.in_port(4))
@@ -156,27 +187,49 @@ class CompressQuantizeWeights(BackReplacementPattern):
         out_high.out_port(0).connect(fake_quantize.in_port(2))
 
         original_const = quantize.in_port(0).get_source().node
-        quantized_data_name = original_const.soft_get('name', original_const.id) + '/quantized'
-        cast = Cast(graph, dict(name=quantized_data_name, dst_type=quantized_type,
-                                stop_value_propagation=False)).create_node()
+        quantized_data_name = (
+            original_const.soft_get("name", original_const.id) + "/quantized"
+        )
+        cast = Cast(
+            graph,
+            dict(
+                name=quantized_data_name,
+                dst_type=quantized_type,
+                stop_value_propagation=False,
+            ),
+        ).create_node()
 
         quantize.out_port(0).connect(cast.in_port(0))
 
         cast.out_port(0).connect(fake_quantize.in_port(0))
 
     @staticmethod
-    def dequantize_data(fake_quantize: Node, dst_type: type, quantized_type: type) -> Node:
+    def dequantize_data(
+        fake_quantize: Node, dst_type: type, quantized_type: type
+    ) -> Node:
         graph = fake_quantize.graph
         quantized_data = fake_quantize.in_port(0).get_source().node
-        name = fake_quantize.soft_get('name', fake_quantize.id)
+        name = fake_quantize.soft_get("name", fake_quantize.id)
 
-        assert quantized_data.soft_get('type') == 'Convert' and quantized_data.dst_type == quantized_type, \
-            'Weights aren`t compressed as expected for node {}'.format(fake_quantize.soft_get('name', fake_quantize.id))
+        assert (
+            quantized_data.soft_get("type") == "Convert"
+            and quantized_data.dst_type == quantized_type
+        ), "Weights aren`t compressed as expected for node {}".format(
+            fake_quantize.soft_get("name", fake_quantize.id)
+        )
 
-        dequantizing_cast = Cast(graph, dict(
-            name=quantized_data.name + "/to_{}".format(np_data_type_to_destination_type(dst_type)),
-            dst_type=dst_type, stop_value_propagation=True)).create_node()
-        fake_quantize.in_port(0).get_connection().set_destination(dequantizing_cast.in_port(0))
+        dequantizing_cast = Cast(
+            graph,
+            dict(
+                name=quantized_data.name
+                + "/to_{}".format(np_data_type_to_destination_type(dst_type)),
+                dst_type=dst_type,
+                stop_value_propagation=True,
+            ),
+        ).create_node()
+        fake_quantize.in_port(0).get_connection().set_destination(
+            dequantizing_cast.in_port(0)
+        )
 
         # limits of dequantize
         in_low = fake_quantize.in_port(1).get_source()
@@ -184,71 +237,93 @@ class CompressQuantizeWeights(BackReplacementPattern):
         out_low = fake_quantize.in_port(3).get_source()
         out_high = fake_quantize.in_port(4).get_source()
 
-        need_cast_to_f32 = fake_quantize.out_port(0).is_data_type_defined() and fake_quantize.out_port(0).get_data_type() < np.float32
+        need_cast_to_f32 = (
+            fake_quantize.out_port(0).is_data_type_defined()
+            and fake_quantize.out_port(0).get_data_type() < np.float32
+        )
         if need_cast_to_f32:
-            in_low_cast = Cast(graph, {'name': name + '/in_low/convert_to_f32', 'dst_type': np.float32}).create_node()
+            in_low_cast = Cast(
+                graph, {"name": name + "/in_low/convert_to_f32", "dst_type": np.float32}
+            ).create_node()
             in_low_cast.in_port(0).connect(in_low)
             in_low = in_low_cast.out_port(0)
 
-            in_high_cast = Cast(graph, {'name': name + '/in_high/convert_to_f32', 'dst_type': np.float32}).create_node()
+            in_high_cast = Cast(
+                graph,
+                {"name": name + "/in_high/convert_to_f32", "dst_type": np.float32},
+            ).create_node()
             in_high_cast.in_port(0).connect(in_high)
             in_high = in_high_cast.out_port(0)
 
-            out_low_cast = Cast(graph, {'name': name + '/out_low/convert_to_f32', 'dst_type': np.float32}).create_node()
+            out_low_cast = Cast(
+                graph,
+                {"name": name + "/out_low/convert_to_f32", "dst_type": np.float32},
+            ).create_node()
             out_low_cast.in_port(0).connect(out_low)
             out_low = out_low_cast.out_port(0)
 
-            out_high_cast = Cast(graph, {'name': name + '/out_high/convert_to_f32', 'dst_type': np.float32}).create_node()
+            out_high_cast = Cast(
+                graph,
+                {"name": name + "/out_high/convert_to_f32", "dst_type": np.float32},
+            ).create_node()
             out_high_cast.in_port(0).connect(out_high)
             out_high = out_high_cast.out_port(0)
 
         # scale calculation
-        output_range = Sub(graph, {'name': name + '/output_range'}).create_node()
+        output_range = Sub(graph, {"name": name + "/output_range"}).create_node()
         output_range.in_port(0).connect(out_high)
         output_range.in_port(1).connect(out_low)
 
-        input_range = Sub(graph, {'name': name + '/input_range'}).create_node()
+        input_range = Sub(graph, {"name": name + "/input_range"}).create_node()
         input_range.in_port(0).connect(in_high)
         input_range.in_port(1).connect(in_low)
 
-        scale = Div(graph, {'name': name + '/scale'}).create_node()
+        scale = Div(graph, {"name": name + "/scale"}).create_node()
         scale.in_port(0).connect(output_range.out_port(0))
         scale.in_port(1).connect(input_range.out_port(0))
 
         # shift calculation
-        descaled_output_low = Div(graph, {'name': name + '/descaled_output_low'}).create_node()
+        descaled_output_low = Div(
+            graph, {"name": name + "/descaled_output_low"}
+        ).create_node()
         descaled_output_low.in_port(0).connect(out_low)
         descaled_output_low.in_port(1).connect(scale.out_port(0))
 
-        shift = Sub(graph, {'name': name + '/shift'}).create_node()
+        shift = Sub(graph, {"name": name + "/shift"}).create_node()
         shift.in_port(0).connect(in_low)
         shift.in_port(1).connect(descaled_output_low.out_port(0))
 
-        zero = Const(graph, {'name': name + '/zero', 'value': mo_array(0, dtype=dst_type)}).create_node()
-        scale_eq_zero = Equal(graph, {'name': name + '/scale_eq_zero'}).create_node()
+        zero = Const(
+            graph, {"name": name + "/zero", "value": mo_array(0, dtype=dst_type)}
+        ).create_node()
+        scale_eq_zero = Equal(graph, {"name": name + "/scale_eq_zero"}).create_node()
         scale_eq_zero.in_port(0).connect(scale.out_port(0))
         scale_eq_zero.in_port(1).connect(zero.out_port(0))
 
-        zero_point = Select(graph, {'name': name + '/zero_point'}).create_node()
+        zero_point = Select(graph, {"name": name + "/zero_point"}).create_node()
         zero_point.in_port(0).connect(scale_eq_zero.out_port(0))
         zero_point.in_port(1).connect(zero.out_port(0))
         zero_point.in_port(2).connect(shift.out_port(0))
 
         if need_cast_to_f32:
             fq_dtype = fake_quantize.out_port(0).get_data_type()
-            scale_cast = Cast(graph, {'name': name + '/scale/convert_back', 'dst_type': fq_dtype}).create_node()
+            scale_cast = Cast(
+                graph, {"name": name + "/scale/convert_back", "dst_type": fq_dtype}
+            ).create_node()
             scale_cast.in_port(0).connect(scale.out_port(0))
             scale = scale_cast
-            zero_point_cast = Cast(graph, {'name': name + '/zero_point/convert_back', 'dst_type': fq_dtype}).create_node()
+            zero_point_cast = Cast(
+                graph, {"name": name + "/zero_point/convert_back", "dst_type": fq_dtype}
+            ).create_node()
             zero_point_cast.in_port(0).connect(zero_point.out_port(0))
             zero_point = zero_point_cast
 
         # DeQuantize(x) == Mul(Sub(x, zero_point), scale)
-        sub_zp = Sub(graph, {'name': name + '/minus_zp'}).create_node()
+        sub_zp = Sub(graph, {"name": name + "/minus_zp"}).create_node()
         sub_zp.in_port(0).connect(dequantizing_cast.out_port(0))
         sub_zp.in_port(1).connect(zero_point.out_port(0))
 
-        mul_scale = Mul(graph, {'name': name + '/mulpiply_by_scale'}).create_node()
+        mul_scale = Mul(graph, {"name": name + "/mulpiply_by_scale"}).create_node()
         mul_scale.in_port(0).connect(sub_zp.out_port(0))
         mul_scale.in_port(1).connect(scale.out_port(0))
 
@@ -257,17 +332,17 @@ class CompressQuantizeWeights(BackReplacementPattern):
         graph.remove_nodes_from([fake_quantize.id, fake_quantize.out_node(0)])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
-        fake_quantize = match['fake_quantize']
+        fake_quantize = match["fake_quantize"]
 
-        if fake_quantize.has_and_set('stop_compression'):
+        if fake_quantize.has_and_set("stop_compression"):
             return
 
-        if 'convert' in match:
-            dst_type = match['convert'].dst_type
-            match['convert']['stop_value_propagation'] = False
-            Cast.infer(match['convert'])
+        if "convert" in match:
+            dst_type = match["convert"].dst_type
+            match["convert"]["stop_value_propagation"] = False
+            Cast.infer(match["convert"])
         else:
-            dst_type = match['const'].value.dtype
+            dst_type = match["const"].value.dtype
 
         quantized_type, mode = None, None
         for quantization_levels in sorted(self.QUANTIZATION_MAP):
@@ -286,6 +361,7 @@ class ZeroPointOptimizer(BackReplacementPattern):
 
     Step 2: From the nature of Subtract operation it may be optimized out if zero_point == 0
     """
+
     enabled = True
     force_clean_up = True
 
@@ -295,34 +371,34 @@ class ZeroPointOptimizer(BackReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('const', dict(type='Const')),
-                ('const_d', dict()),
-                ('convert', dict(type='Convert')),
-                ('convert_d', dict()),
-                ('const_zp', dict(type='Const')),
-                ('const_zp_d', dict()),
-                ('sub', dict(type='Subtract')),
+                ("const", dict(type="Const")),
+                ("const_d", dict()),
+                ("convert", dict(type="Convert")),
+                ("convert_d", dict()),
+                ("const_zp", dict(type="Const")),
+                ("const_zp_d", dict()),
+                ("sub", dict(type="Subtract")),
             ],
             edges=[
-                ('const', 'const_d'),
-                ('const_d', 'convert'),
-                ('convert', 'convert_d'),
-                ('convert_d', 'sub', {'in': 0}),
-                ('const_zp', 'const_zp_d'),
-                ('const_zp_d', 'sub', {'in': 1}),
-            ]
+                ("const", "const_d"),
+                ("const_d", "convert"),
+                ("convert", "convert_d"),
+                ("convert_d", "sub", {"in": 0}),
+                ("const_zp", "const_zp_d"),
+                ("const_zp_d", "sub", {"in": 1}),
+            ],
         )
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
-        zero_point = match['const_zp'].out_port(0).data.get_value()
+        zero_point = match["const_zp"].out_port(0).data.get_value()
         assert zero_point is not None
-        convert = match['convert']
-        sub = match['sub']
+        convert = match["convert"]
+        sub = match["sub"]
         if np.allclose(zero_point, 0):
             sub.out_port(0).get_connection().set_source(convert.out_port(0))
             return
 
-        weights = match['const'].out_port(0).data.get_value()
+        weights = match["const"].out_port(0).data.get_value()
         if weights is None or weights.dtype != np.int8:
             return
         dst_type = convert.dst_type
@@ -333,8 +409,10 @@ class ZeroPointOptimizer(BackReplacementPattern):
         original = weights.astype(dst_type) - zero_point
         transformed = (weights - int8_zero_point).astype(np.int8) - adj_zero_point
 
-        if not np.allclose(original, transformed) or not np.allclose(adj_zero_point, 0, atol=1.e-04):
+        if not np.allclose(original, transformed) or not np.allclose(
+            adj_zero_point, 0, atol=1.0e-04
+        ):
             return
 
-        match['const_d']['value'] = (weights - int8_zero_point).astype(np.int8)
+        match["const_d"]["value"] = (weights - int8_zero_point).astype(np.int8)
         sub.out_port(0).get_connection().set_source(convert.out_port(0))

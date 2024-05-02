@@ -9,16 +9,13 @@ from typing import Optional
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.types import (
-    NodeInput,
-    as_nodes,
-    as_node,
-)
+from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 _get_node_factory_opset12 = partial(_get_node_factory, "opset12")
 
 
 # -------------------------------------------- ops ------------------------------------------------
+
 
 @nameable_op
 def pad(
@@ -45,7 +42,9 @@ def pad(
         input_nodes.append(as_node(arg_pad_value, name=name))
 
     pad_mode = pad_mode.upper()
-    return _get_node_factory_opset12().create("Pad", input_nodes, {"pad_mode": pad_mode})
+    return _get_node_factory_opset12().create(
+        "Pad", input_nodes, {"pad_mode": pad_mode}
+    )
 
 
 @nameable_op

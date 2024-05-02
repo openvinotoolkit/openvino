@@ -2,32 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/experimental_detectron_roi_feature.hpp"
-
-#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
-                                                             const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
+static void CreateExperimentalDetectronROIFeatureExtractorOp(
+    ProgramBuilder& p,
+    const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op) + ".out0";
 
-    cldnn::layout mutableLayout = cldnn::layout(
-        cldnn::element_type_to_data_type(op->get_output_element_type(1)),
-        cldnn::format::get_default_format(op->get_output_shape(1).size()),
-        tensor_from_dims(op->get_output_shape(1)));
+    cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(1)),
+                                                cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                                                tensor_from_dims(op->get_output_shape(1)));
 
-    cldnn::memory::ptr shared_memory {p.get_engine().allocate_memory(mutableLayout)};
+    cldnn::memory::ptr shared_memory{p.get_engine().allocate_memory(mutableLayout)};
 
     cldnn::primitive_id experimental_detectron_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-    cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w,
-                                                           shared_memory);
+    cldnn::mutable_data experimenta_detectron_mutable_prim(experimental_detectron_mutable_id_w, shared_memory);
     p.add_primitive(*op, experimenta_detectron_mutable_prim);
     inputs.push_back(cldnn::input_info(experimental_detectron_mutable_id_w));
 

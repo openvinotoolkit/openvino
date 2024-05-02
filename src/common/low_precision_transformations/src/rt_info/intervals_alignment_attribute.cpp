@@ -15,31 +15,26 @@ using namespace ov;
 using namespace ov;
 using namespace ov::pass::low_precision;
 
-IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
-    const IntervalsAlignmentSharedValue::Interval combinedInterval,
-    size_t levels) :
-    SharedAttribute(IntervalsAlignmentSharedValue{combinedInterval, combinedInterval, levels}),
-    levels(levels) {
-}
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const IntervalsAlignmentSharedValue::Interval combinedInterval,
+                                                         size_t levels)
+    : SharedAttribute(IntervalsAlignmentSharedValue{combinedInterval, combinedInterval, levels}),
+      levels(levels) {}
 
-IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
-    const IntervalsAlignmentSharedValue::Interval combinedInterval,
-    const size_t levels,
-    const IntervalsAlignmentSharedValue::Interval minInterval,
-    const size_t minLevels) :
-    SharedAttribute(IntervalsAlignmentSharedValue{combinedInterval, minInterval, minLevels}),
-    levels(levels) {
-}
+IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(const IntervalsAlignmentSharedValue::Interval combinedInterval,
+                                                         const size_t levels,
+                                                         const IntervalsAlignmentSharedValue::Interval minInterval,
+                                                         const size_t minLevels)
+    : SharedAttribute(IntervalsAlignmentSharedValue{combinedInterval, minInterval, minLevels}),
+      levels(levels) {}
 
-ov::Any IntervalsAlignmentAttribute::create(
-    const std::shared_ptr<ov::Node>& node,
-    const AttributeParameters& params) {
+ov::Any IntervalsAlignmentAttribute::create(const std::shared_ptr<ov::Node>& node, const AttributeParameters& params) {
     if (!ov::is_type<opset1::FakeQuantize>(node)) {
         return nullptr;
     }
 
     auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
-    if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) || !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
+    if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) ||
+        !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
         return nullptr;
     }
 
@@ -70,11 +65,11 @@ ov::Any IntervalsAlignmentAttribute::create(
             highInterval = *std::max_element(highIntervals.begin(), highIntervals.end());
         } else {
             {
-                auto multiplyResult = dequantization.multiplyConstant == nullptr ?
-                    node->get_input_node_ptr(3)->shared_from_this() :
-                    fold<opset1::Multiply>(
-                        foldConvert(node->input_value(3), params.deqPrecision),
-                        dequantization.multiplyConstant);
+                auto multiplyResult =
+                    dequantization.multiplyConstant == nullptr
+                        ? node->get_input_node_ptr(3)->shared_from_this()
+                        : fold<opset1::Multiply>(foldConvert(node->input_value(3), params.deqPrecision),
+                                                 dequantization.multiplyConstant);
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
@@ -82,11 +77,11 @@ ov::Any IntervalsAlignmentAttribute::create(
             }
 
             {
-                auto multiplyResult = dequantization.multiplyConstant == nullptr ?
-                    node->get_input_node_ptr(4)->shared_from_this() :
-                    fold<opset1::Multiply>(
-                        foldConvert(node->input_value(4), params.deqPrecision),
-                        dequantization.multiplyConstant);
+                auto multiplyResult =
+                    dequantization.multiplyConstant == nullptr
+                        ? node->get_input_node_ptr(4)->shared_from_this()
+                        : fold<opset1::Multiply>(foldConvert(node->input_value(4), params.deqPrecision),
+                                                 dequantization.multiplyConstant);
 
                 auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
@@ -106,18 +101,16 @@ ov::Any IntervalsAlignmentAttribute::create(
         assert(!std::isinf(highInterval));
 
         auto& rtInfo = node->get_rt_info();
-        const IntervalsAlignmentSharedValue::Interval interval{ lowInterval, highInterval };
-        auto attribute = IntervalsAlignmentAttribute(
-                interval,
-                fakeQuantize->get_levels());
+        const IntervalsAlignmentSharedValue::Interval interval{lowInterval, highInterval};
+        auto attribute = IntervalsAlignmentAttribute(interval, fakeQuantize->get_levels());
         auto& result = (rtInfo[IntervalsAlignmentAttribute::get_type_info_static()] = attribute);
 
-        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
-        LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(
-            fakeQuantize->get_levels(),
-            outputLowValues,
-            outputHighValues);
+        const std::vector<float> outputLowValues =
+            ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const std::vector<float> outputHighValues =
+            ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+        LayerTransformation::PrecisionDetails preferablePrecision =
+            LayerTransformation::getPrecisionDetails(fakeQuantize->get_levels(), outputLowValues, outputHighValues);
 
         if (preferablePrecision.precision != element::undefined) {
             attribute.value().preferablePrecisions.insert(preferablePrecision.precision);
@@ -131,8 +124,7 @@ ov::Any IntervalsAlignmentAttribute::create(
     }
 }
 
-void IntervalsAlignmentAttribute::merge_attributes(
-    std::vector<ov::Any>& attributes) {
+void IntervalsAlignmentAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
     for (const auto& attributeWrapper : attributes) {
         auto attribute = attributeWrapper.as<IntervalsAlignmentAttribute>().attribute;
 
@@ -156,7 +148,8 @@ void IntervalsAlignmentAttribute::merge_attributes(
         assert(!std::isinf(resultSharedValue.combinedInterval.low));
         assert(!std::isinf(resultSharedValue.combinedInterval.high));
 
-        resultSharedValue.preferablePrecisions.insert(sharedValue.preferablePrecisions.begin(), sharedValue.preferablePrecisions.end());
+        resultSharedValue.preferablePrecisions.insert(sharedValue.preferablePrecisions.begin(),
+                                                      sharedValue.preferablePrecisions.end());
 
         const auto resultSize = std::abs(resultSharedValue.minInterval.high - resultSharedValue.minInterval.low);
         const auto size = std::abs(sharedValue.minInterval.high - sharedValue.minInterval.low);
@@ -168,17 +161,16 @@ void IntervalsAlignmentAttribute::merge_attributes(
                 float updatedOutputLowValue;
                 float updatedOutputHighValue;
 
-                const size_t minLevels = NetworkHelper::calculateLevels(
-                        0.f,
-                        DataPrecision::getMaxValue(levels),
-                        resultSharedValue.combinedInterval.low,
-                        resultSharedValue.combinedInterval.high,
-                        resultSharedValue.minInterval.low,
-                        resultSharedValue.minInterval.high,
-                        dequantizationMul,
-                        dequantizationSub,
-                        updatedOutputLowValue,
-                        updatedOutputHighValue);
+                const size_t minLevels = NetworkHelper::calculateLevels(0.f,
+                                                                        DataPrecision::getMaxValue(levels),
+                                                                        resultSharedValue.combinedInterval.low,
+                                                                        resultSharedValue.combinedInterval.high,
+                                                                        resultSharedValue.minInterval.low,
+                                                                        resultSharedValue.minInterval.high,
+                                                                        dequantizationMul,
+                                                                        dequantizationSub,
+                                                                        updatedOutputLowValue,
+                                                                        updatedOutputHighValue);
 
                 resultSharedValue.minLevels = minLevels;
             }
@@ -202,10 +194,12 @@ std::string IntervalsAlignmentAttribute::to_string() const {
 
     std::stringstream ss;
     ss << attribute->get_string();
-    ss << "levels: " + std::to_string(levels) << ", " <<
-        "combined: { " << value().combinedInterval.low << ", " << value().combinedInterval.high << " }, " <<
-        "min: { " << value().minInterval.low << ", " << value().minInterval.high << " }, "
-        "minLevels: " << value().minLevels <<
+    ss << "levels: " + std::to_string(levels) << ", " << "combined: { " << value().combinedInterval.low << ", "
+       << value().combinedInterval.high << " }, " << "min: { " << value().minInterval.low << ", "
+       << value().minInterval.high
+       << " }, "
+          "minLevels: "
+       << value().minLevels <<
 #ifdef LPT_DEBUG
         ", minLevelsOperation: " << value().minLevelsOperation <<
 #endif

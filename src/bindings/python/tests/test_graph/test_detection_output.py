@@ -34,7 +34,9 @@ integral_np_types = [
         (np.int32, np.float64),
     ],
 )
-@pytest.mark.parametrize("op_name", ["Detection", "DetectionOutput", "DetectionOutput_1"])
+@pytest.mark.parametrize(
+    "op_name", ["Detection", "DetectionOutput", "DetectionOutput_1"]
+)
 def test_detection_output(int_dtype, fp_dtype, op_name):
     attributes = {
         "keep_top_k": np.array([64], dtype=int_dtype),
@@ -47,8 +49,15 @@ def test_detection_output(int_dtype, fp_dtype, op_name):
     aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
     aux_box_preds = ov.parameter([4, 8], fp_dtype, "aux_box_preds")
 
-    node = ov.detection_output(box_logits, class_preds, proposals, attributes,
-                               aux_class_preds, aux_box_preds, name=op_name)
+    node = ov.detection_output(
+        box_logits,
+        class_preds,
+        proposals,
+        attributes,
+        aux_class_preds,
+        aux_box_preds,
+        name=op_name,
+    )
 
     assert node.get_type_name() == "DetectionOutput"
     assert node.get_friendly_name() == op_name
@@ -71,7 +80,9 @@ def test_detection_output(int_dtype, fp_dtype, op_name):
         (np.int32, np.float64),
     ],
 )
-@pytest.mark.parametrize("op_name", ["Detection", "DetectionOutput", "DetectionOutput_1"])
+@pytest.mark.parametrize(
+    "op_name", ["Detection", "DetectionOutput", "DetectionOutput_1"]
+)
 def test_dynamic_get_attribute_value(int_dtype, fp_dtype, op_name):
     attributes = {
         "background_label_id": int_dtype(13),
@@ -97,14 +108,23 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype, op_name):
     aux_class_preds = ov.parameter([4, 4], fp_dtype, "aux_class_preds")
     aux_box_preds = ov.parameter([4, 680], fp_dtype, "aux_box_preds")
 
-    node = ov.detection_output(box_logits, class_preds, proposals, attributes,
-                               aux_class_preds, aux_box_preds, name=op_name)
+    node = ov.detection_output(
+        box_logits,
+        class_preds,
+        proposals,
+        attributes,
+        aux_class_preds,
+        aux_box_preds,
+        name=op_name,
+    )
 
     assert node.get_background_label_id() == int_dtype(13)
     assert node.get_friendly_name() == op_name
     assert node.get_top_k() == int_dtype(16)
     assert node.get_variance_encoded_in_target()
-    assert np.all(np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
+    assert np.all(
+        np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype))
+    )
     assert node.get_code_type() == "caffe.PriorBoxParameter.CENTER_SIZE"
     assert not node.get_share_location()
     assert np.isclose(node.get_nms_threshold(), fp_dtype(0.645))

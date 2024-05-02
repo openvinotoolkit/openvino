@@ -3,15 +3,15 @@
 //
 
 #include "ov_lpt_models/move_fake_quantize.hpp"
+
 #include <low_precision/relu.hpp>
 
-#include "openvino/opsets/opset1.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
-
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace builder {
@@ -19,21 +19,20 @@ namespace subgraph {
 
 using namespace ov::pass;
 
-std::shared_ptr<ov::Model> MoveFakeQuantize::get(
-    const ov::element::Type inputPrecision,
-    const std::vector<ov::PartialShape>& inputShapes,
-    const size_t concatInputsCount,
-    const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDataBefore,
-    const DequantizationOperations::Convert& convertBefore,
-    const DequantizationOperations& dequantizationBefore,
-    const std::string& operation,
-    const FakeQuantizeOnDataWithConstant& fqOnDataAfter,
-    const DequantizationOperations::Convert& convertAfter,
-    const DequantizationOperations& dequantizationAfter,
-    const std::vector<ov::Any>& concatAttributes,
-    const ov::element::Type precisionAfterOperation,
-    const std::int64_t& axis,
-    const bool oneInputWithSplit) {
+std::shared_ptr<ov::Model> MoveFakeQuantize::get(const ov::element::Type inputPrecision,
+                                                 const std::vector<ov::PartialShape>& inputShapes,
+                                                 const size_t concatInputsCount,
+                                                 const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDataBefore,
+                                                 const DequantizationOperations::Convert& convertBefore,
+                                                 const DequantizationOperations& dequantizationBefore,
+                                                 const std::string& operation,
+                                                 const FakeQuantizeOnDataWithConstant& fqOnDataAfter,
+                                                 const DequantizationOperations::Convert& convertAfter,
+                                                 const DequantizationOperations& dequantizationAfter,
+                                                 const std::vector<ov::Any>& concatAttributes,
+                                                 const ov::element::Type precisionAfterOperation,
+                                                 const std::int64_t& axis,
+                                                 const bool oneInputWithSplit) {
     std::vector<std::shared_ptr<ov::opset1::Parameter>> inputs(oneInputWithSplit ? 1 : concatInputsCount);
     std::vector<ov::Output<ov::Node>> concatParents(concatInputsCount);
     if (oneInputWithSplit) {
@@ -100,12 +99,11 @@ std::shared_ptr<ov::Model> MoveFakeQuantize::get(
         }
     }
 
-    const auto concat = std::make_shared<ov::opset1::Concat>(
-        ov::OutputVector(concatParents.begin(), concatParents.end()),
-        axis);
+    const auto concat =
+        std::make_shared<ov::opset1::Concat>(ov::OutputVector(concatParents.begin(), concatParents.end()), axis);
     concat->set_friendly_name("concat");
     std::shared_ptr<ov::Node> parent = concat;
-    addAttributes({ parent }, concatAttributes);
+    addAttributes({parent}, concatAttributes);
     if (!fqOnDataAfter.empty()) {
         std::shared_ptr<ov::Node> fq;
         if (operation == "relu") {
@@ -124,11 +122,9 @@ std::shared_ptr<ov::Model> MoveFakeQuantize::get(
         }
     }
     parent->set_friendly_name("output");
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(parent) };
-    std::shared_ptr<ov::Model> function = std::make_shared<ov::Model>(
-        results,
-        ov::ParameterVector(inputs.begin(), inputs.end()),
-        "MoveFakeQuantize");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(parent)};
+    std::shared_ptr<ov::Model> function =
+        std::make_shared<ov::Model>(results, ov::ParameterVector(inputs.begin(), inputs.end()), "MoveFakeQuantize");
     return function;
 }
 

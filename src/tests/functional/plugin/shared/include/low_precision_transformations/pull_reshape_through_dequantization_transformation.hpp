@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/common/reshape.hpp"
 #include "ov_lpt_models/common/transpose.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -34,17 +34,17 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ov::Shape,
-    PullReshapeThroughDequantizationTestValues> PullReshapeThroughDequantizationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   ov::Shape,
+                   PullReshapeThroughDequantizationTestValues>
+    PullReshapeThroughDequantizationParams;
 
-class PullReshapeThroughDequantizationTransformation :
-    public testing::WithParamInterface<PullReshapeThroughDequantizationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class PullReshapeThroughDequantizationTransformation
+    : public testing::WithParamInterface<PullReshapeThroughDequantizationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj);
 

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "range_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
-#include "range_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

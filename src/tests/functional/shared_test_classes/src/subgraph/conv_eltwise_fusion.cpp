@@ -5,10 +5,10 @@
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
@@ -58,12 +58,14 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                            weights_shape,
-                                                            std::vector<float>(shape_size(weights_shape), 2));
-        auto eltwise_const = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                                  const_shape,
-                                                                  std::vector<float>(shape_size(const_shape), 3));
+        auto weights =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              weights_shape,
+                                                              std::vector<float>(shape_size(weights_shape), 2));
+        auto eltwise_const =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              const_shape,
+                                                              std::vector<float>(shape_size(const_shape), 3));
         std::shared_ptr<Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -76,19 +78,19 @@ void ConvEltwiseFusion::SetUp() {
                     Shape{spatial_dims},
                     std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
                 conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
-                                                                          weights,
-                                                                          output_shape,
-                                                                          strides,
-                                                                          pad_begin,
-                                                                          pad_end,
-                                                                          strides);
+                                                                             weights,
+                                                                             output_shape,
+                                                                             strides,
+                                                                             pad_begin,
+                                                                             pad_end,
+                                                                             strides);
             } else {
                 conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
-                                                                          weights,
-                                                                          strides,
-                                                                          pad_begin,
-                                                                          pad_end,
-                                                                          strides);
+                                                                             weights,
+                                                                             strides,
+                                                                             pad_begin,
+                                                                             pad_end,
+                                                                             strides);
             }
         } else if (conv_type == ov::op::v1::GroupConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
@@ -97,19 +99,19 @@ void ConvEltwiseFusion::SetUp() {
                     Shape{spatial_dims},
                     std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
                 conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
-                                                                               weights,
-                                                                               output_shape,
-                                                                               strides,
-                                                                               pad_begin,
-                                                                               pad_end,
-                                                                               strides);
+                                                                                  weights,
+                                                                                  output_shape,
+                                                                                  strides,
+                                                                                  pad_begin,
+                                                                                  pad_end,
+                                                                                  strides);
             } else {
                 conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
-                                                                               weights,
-                                                                               strides,
-                                                                               pad_begin,
-                                                                               pad_end,
-                                                                               strides);
+                                                                                  weights,
+                                                                                  strides,
+                                                                                  pad_begin,
+                                                                                  pad_end,
+                                                                                  strides);
             }
         } else {
             OPENVINO_THROW("Unsupported type");
@@ -143,9 +145,10 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                            weights_shape,
-                                                            std::vector<float>(shape_size(weights_shape), 6));
+        auto weights =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              weights_shape,
+                                                              std::vector<float>(shape_size(weights_shape), 6));
         std::shared_ptr<Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -158,19 +161,19 @@ void ConvEltwiseFusion::SetUp() {
                     Shape{spatial_dims},
                     std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
                 conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
-                                                                          weights,
-                                                                          output_shape,
-                                                                          strides,
-                                                                          pad_begin,
-                                                                          pad_end,
-                                                                          strides);
+                                                                             weights,
+                                                                             output_shape,
+                                                                             strides,
+                                                                             pad_begin,
+                                                                             pad_end,
+                                                                             strides);
             } else {
                 conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(param,
-                                                                          weights,
-                                                                          strides,
-                                                                          pad_begin,
-                                                                          pad_end,
-                                                                          strides);
+                                                                             weights,
+                                                                             strides,
+                                                                             pad_begin,
+                                                                             pad_end,
+                                                                             strides);
             }
         } else if (conv_type == ov::op::v1::GroupConvolutionBackpropData::get_type_info_static()) {
             if (num_inputs == 3) {
@@ -179,19 +182,19 @@ void ConvEltwiseFusion::SetUp() {
                     Shape{spatial_dims},
                     std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
                 conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
-                                                                               weights,
-                                                                               output_shape,
-                                                                               strides,
-                                                                               pad_begin,
-                                                                               pad_end,
-                                                                               strides);
+                                                                                  weights,
+                                                                                  output_shape,
+                                                                                  strides,
+                                                                                  pad_begin,
+                                                                                  pad_end,
+                                                                                  strides);
             } else {
                 conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(param,
-                                                                               weights,
-                                                                               strides,
-                                                                               pad_begin,
-                                                                               pad_end,
-                                                                               strides);
+                                                                                  weights,
+                                                                                  strides,
+                                                                                  pad_begin,
+                                                                                  pad_end,
+                                                                                  strides);
             }
         }
 

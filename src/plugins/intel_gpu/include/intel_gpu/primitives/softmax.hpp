@@ -28,12 +28,13 @@ struct softmax : public primitive_base<softmax> {
             const input_info& input,
             const int64_t dimension = 1,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), dimension(dimension) {}
+        : primitive_base(id, {input}, {output_padding}),
+          dimension(dimension) {}
 
     /// @brief Defines a scope of a single softmax normalization.
     /// @details
-    /// Being given a 4-dimensional input, which consists of b,f,y,x dimensions, softmax normalizes data which are divided into multiple independent sets.
-    /// Specific behaviour is determined by this parameter, as follows:
+    /// Being given a 4-dimensional input, which consists of b,f,y,x dimensions, softmax normalizes data which are
+    /// divided into multiple independent sets. Specific behaviour is determined by this parameter, as follows:
     /// - when softmax dimension is set to 0 (b dim) each batch vector of input is normalized independently,
     /// - when softmax dimension is set to 1 (f dim) each in-depth vector of input is normalized independently,
     /// - when softmax dimension is set to 2 (y dim) each input column is normalized independently,

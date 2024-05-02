@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
-#include "range_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
 #include "openvino/op/range.hpp"
+
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "range_inst.h"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -39,7 +38,8 @@ struct range_impl : public typed_primitive_impl<range> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "range::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -61,7 +61,8 @@ struct range_impl : public typed_primitive_impl<range> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
@@ -73,7 +74,8 @@ struct range_impl : public typed_primitive_impl<range> {
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute range primitive with id ", instance.id());
+                        "[GPU] Couldn't execute range primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -89,7 +91,7 @@ struct range_impl : public typed_primitive_impl<range> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -98,7 +100,6 @@ public:
         return make_unique<range_impl>();
     }
 };
-
 
 namespace detail {
 

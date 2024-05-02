@@ -6,7 +6,6 @@
 
 #include "pass.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -30,7 +29,7 @@ private:
     size_t m_vector_size;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

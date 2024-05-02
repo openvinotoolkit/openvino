@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "behavior/ov_infer_request/infer_consistency.hpp"
+
+#include <string>
+#include <vector>
 
 using namespace ov::test::behavior;
 
@@ -20,10 +20,10 @@ auto configs = []() {
     return std::vector<Configs>{{{ov::test::utils::DEVICE_GPU, {}}, {ov::test::utils::DEVICE_GPU, {}}}};
 };
 
-INSTANTIATE_TEST_SUITE_P(BehaviorTests, OVInferConsistencyTest,
-    ::testing::Combine(
-        ::testing::Values(10),// inferRequest num
-        ::testing::Values(10),// infer counts
-        ::testing::ValuesIn(configs())),
-    OVInferConsistencyTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(BehaviorTests,
+                         OVInferConsistencyTest,
+                         ::testing::Combine(::testing::Values(10),  // inferRequest num
+                                            ::testing::Values(10),  // infer counts
+                                            ::testing::ValuesIn(configs())),
+                         OVInferConsistencyTest::getTestCaseName);
 }  // namespace

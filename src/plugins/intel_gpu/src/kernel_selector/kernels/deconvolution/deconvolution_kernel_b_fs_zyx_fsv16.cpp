@@ -3,9 +3,10 @@
 //
 
 #include "deconvolution_kernel_b_fs_zyx_fsv16.h"
-#include "kernel_selector_utils.h"
 
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -43,13 +44,14 @@ DeviceFeaturesKey DeconvolutionKernel_b_fs_zyx_fsv16::get_required_device_featur
     return k;
 }
 
-DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDefault(const deconvolution_params& params) const {
+DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDefault(
+    const deconvolution_params& params) const {
     DispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
 
-    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
-        || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                           params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -74,7 +76,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
         size_t x_block_size = 16;
         while (x_block_size > 1) {
             if (x % x_block_size == 0)
-               break;
+                break;
             x_block_size--;
         }
         x_block_size = std::max(x_block_size, (size_t)8);
@@ -112,7 +114,8 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 ||
+        params.outputs[0].Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;
@@ -123,8 +126,8 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params);
 
-    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
-        || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+    bool ver_bsv16_fsv16 = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+                           params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
 
     if (ver_bsv16_fsv16) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
@@ -144,7 +147,8 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     auto iw_block = 1;
     auto icb = 64;
     while (icb > 16) {
-        if (Align(output.Feature().v, 16) % icb == 0) break;
+        if (Align(output.Feature().v, 16) % icb == 0)
+            break;
         icb /= 2;
     }
 
@@ -205,7 +209,6 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     jit.AddConstant(MakeJitConstant("IH_FULL", params.outputs[0].Y().LogicalDimPadded()));
     jit.AddConstant(MakeJitConstant("IW_FULL", params.outputs[0].X().LogicalDimPadded()));
 
-
     DispatchData dispatchData = SetDefault(params);
     jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
@@ -218,47 +221,46 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
         std::vector<std::string> idx_order_block_ci;
 
         if (params.outputs[0].Dimentions() <= 4) {
-            idx_order_block_c00 = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
-            idx_order_block_c01 = { "(mb + 8)", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
-            idx_order_block_ci = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "(iw + i)" };
+            idx_order_block_c00 = {"mb", "(g * IC + gic * IC_BLOCK)", "ih", "iw"};
+            idx_order_block_c01 = {"(mb + 8)", "(g * IC + gic * IC_BLOCK)", "ih", "iw"};
+            idx_order_block_ci = {"mb", "(g * IC + gic * IC_BLOCK)", "ih", "(iw + i)"};
         } else {
-            idx_order_block_c00 = { "mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw" };
-            idx_order_block_c01 = { "(mb + 8)", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw" };
-            idx_order_block_ci = { "mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "(iw + i)" };
+            idx_order_block_c00 = {"mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw"};
+            idx_order_block_c01 = {"(mb + 8)", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw"};
+            idx_order_block_ci = {"mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "(iw + i)"};
         }
 
-        FusedOpsConfiguration conf_c00 = {
-            "_BLOCK_C00",
-            idx_order_block_c00,
-            "blockC00",
-            fused_dt,
-            8,
-            LoadType::LT_ALIGNED_READ,
-            BoundaryCheck::ENABLED,
-            IndexType::TENSOR_COORD,
-            Tensor::DataChannelName::BATCH };
-        FusedOpsConfiguration conf_c01 = {
-            "_BLOCK_C01",
-            idx_order_block_c01,
-            "blockC01",
-            fused_dt,
-            8,
-            LoadType::LT_ALIGNED_READ,
-            BoundaryCheck::ENABLED,
-            IndexType::TENSOR_COORD,
-            Tensor::DataChannelName::BATCH };
+        FusedOpsConfiguration conf_c00 = {"_BLOCK_C00",
+                                          idx_order_block_c00,
+                                          "blockC00",
+                                          fused_dt,
+                                          8,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::BATCH};
+        FusedOpsConfiguration conf_c01 = {"_BLOCK_C01",
+                                          idx_order_block_c01,
+                                          "blockC01",
+                                          fused_dt,
+                                          8,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::BATCH};
 
         auto load_type = LoadType::LT_ALIGNED_READ;
         for (auto& fused_op : params.fused_ops) {
             if (!fused_op.output_tensor.SameDims(params.outputs[0]) &&
-                (fused_op.output_tensor.X().v > 1 || fused_op.output_tensor.Y().v > 1 || fused_op.output_tensor.Z().v > 1)) {
+                (fused_op.output_tensor.X().v > 1 || fused_op.output_tensor.Y().v > 1 ||
+                 fused_op.output_tensor.Z().v > 1)) {
                 load_type = LoadType::LT_UNALIGNED;
                 idx_order_block_ci[1] = "(g * IC + gic * IC_BLOCK + local_id)";
             }
         }
-        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, load_type };
+        FusedOpsConfiguration conf_ci = {"_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, load_type};
 
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf_c00, conf_c01, conf_ci }));
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_c00, conf_c01, conf_ci}));
     }
 
     return jit;
@@ -269,7 +271,7 @@ KernelsData DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsData(const Params& par
 
     const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);
     if (!kds.empty() && orgParams.inputs[0].Feature().v % 16 != 0) {
-        kds[0].can_reuse_memory = false; // Set memory_reuse = false when input feature size is not 16 aligned.
+        kds[0].can_reuse_memory = false;  // Set memory_reuse = false when input feature size is not 16 aligned.
     }
 
     return kds;

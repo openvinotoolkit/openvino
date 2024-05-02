@@ -3,11 +3,11 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
 
 namespace cldnn {
 

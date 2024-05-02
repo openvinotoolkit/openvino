@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "non_zero_inst.h"
 #include "non_zero/count_nonzero_kernel_ref.h"
 #include "non_zero/count_nonzero_kernel_selector.h"
 #include "non_zero/gather_nonzero_kernel_ref.h"
 #include "non_zero/gather_nonzero_kernel_selector.h"
+#include "non_zero_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -36,7 +35,8 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, count_nonzero_inst& instance) override {
         if (instance.get_impl_params()->input_layouts[0].count() == 0) {
-            // set count of non-zero elements to 0 in case if input tensor is empty to have correct memory alloc for gather_nonzero
+            // set count of non-zero elements to 0 in case if input tensor is empty to have correct memory alloc for
+            // gather_nonzero
             return instance.output_memory(0).fill(instance.get_network().get_stream(), 0);
         } else {
             return parent::execute_impl(events, instance);
@@ -90,47 +90,53 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
 namespace detail {
 
 attach_count_nonzero_impl::attach_count_nonzero_impl() {
-    implementation_map<count_nonzero>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
+    implementation_map<count_nonzero>::add(impl_types::ocl,
+                                           shape_types::any,
+                                           typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>,
+                                           {
+                                               std::make_tuple(data_types::f32, format::bfyx),
+                                               std::make_tuple(data_types::f16, format::bfyx),
+                                               std::make_tuple(data_types::i32, format::bfyx),
+                                               std::make_tuple(data_types::i8, format::bfyx),
+                                               std::make_tuple(data_types::u8, format::bfyx),
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
+                                               std::make_tuple(data_types::f32, format::bfzyx),
+                                               std::make_tuple(data_types::f16, format::bfzyx),
+                                               std::make_tuple(data_types::i32, format::bfzyx),
+                                               std::make_tuple(data_types::i8, format::bfzyx),
+                                               std::make_tuple(data_types::u8, format::bfzyx),
 
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-    });
+                                               std::make_tuple(data_types::f32, format::bfwzyx),
+                                               std::make_tuple(data_types::f16, format::bfwzyx),
+                                               std::make_tuple(data_types::i32, format::bfwzyx),
+                                               std::make_tuple(data_types::i8, format::bfwzyx),
+                                               std::make_tuple(data_types::u8, format::bfwzyx),
+                                           });
 }
 
 attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
-    implementation_map<gather_nonzero>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
+    implementation_map<gather_nonzero>::add(impl_types::ocl,
+                                            shape_types::any,
+                                            typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>,
+                                            {
+                                                std::make_tuple(data_types::f32, format::bfyx),
+                                                std::make_tuple(data_types::f16, format::bfyx),
+                                                std::make_tuple(data_types::i32, format::bfyx),
+                                                std::make_tuple(data_types::i8, format::bfyx),
+                                                std::make_tuple(data_types::u8, format::bfyx),
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
+                                                std::make_tuple(data_types::f32, format::bfzyx),
+                                                std::make_tuple(data_types::f16, format::bfzyx),
+                                                std::make_tuple(data_types::i32, format::bfzyx),
+                                                std::make_tuple(data_types::i8, format::bfzyx),
+                                                std::make_tuple(data_types::u8, format::bfzyx),
 
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-    });
+                                                std::make_tuple(data_types::f32, format::bfwzyx),
+                                                std::make_tuple(data_types::f16, format::bfwzyx),
+                                                std::make_tuple(data_types::i32, format::bfwzyx),
+                                                std::make_tuple(data_types::i8, format::bfwzyx),
+                                                std::make_tuple(data_types::u8, format::bfwzyx),
+                                            });
 }
 
 }  // namespace detail

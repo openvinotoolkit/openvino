@@ -7,7 +7,7 @@
 namespace ov {
 namespace test {
 std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
-        const testing::TestParamInfo<ExperimentalDetectronROIFeatureExtractorTestParams>& obj) {
+    const testing::TestParamInfo<ExperimentalDetectronROIFeatureExtractorTestParams>& obj) {
     std::vector<InputShape> shapes;
     int64_t outputSize, sampling_ratio;
     std::vector<int64_t> pyramid_scales;
@@ -19,7 +19,7 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
     std::ostringstream result;
     if (shapes.front().first.size() != 0) {
         result << "IS=(";
-        for (const auto &shape : shapes) {
+        for (const auto& shape : shapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
@@ -68,11 +68,12 @@ void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
         params.push_back(param);
         inputs.push_back(param);
     }
-    auto experimentalDetectronROIFeatureExtractor = std::make_shared<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(inputs, attrs);
-    function = std::make_shared<ov::Model>(
-        ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0), experimentalDetectronROIFeatureExtractor->output(1)},
-        params,
-        "ExperimentalDetectronROIFeatureExtractor");
+    auto experimentalDetectronROIFeatureExtractor =
+        std::make_shared<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(inputs, attrs);
+    function = std::make_shared<ov::Model>(ov::OutputVector{experimentalDetectronROIFeatureExtractor->output(0),
+                                                            experimentalDetectronROIFeatureExtractor->output(1)},
+                                           params,
+                                           "ExperimentalDetectronROIFeatureExtractor");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

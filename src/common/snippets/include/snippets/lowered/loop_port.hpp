@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expression.hpp"
-
+#include "snippets/lowered/expression_port.hpp"
 
 namespace ov {
 namespace snippets {
@@ -33,9 +32,9 @@ struct LoopPort {
     int64_t ptr_increment = 0;
     int64_t finalization_offset = 0;
     int64_t data_size = 0;
-    size_t dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
+    size_t dim_idx = 0;  // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

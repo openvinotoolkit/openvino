@@ -3,6 +3,6 @@
 //
 
 class name {
-public:
-    name() = default;
+ public:
+  name() = default;
 };

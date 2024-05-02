@@ -3,13 +3,13 @@
 
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestInplaceNormal(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
     def create_model(self, mean, std):
@@ -25,17 +25,23 @@ class TestInplaceNormal(PytorchLayerTest):
 
         return aten_normal(mean, std), None, "aten::normal_"
 
-    @pytest.mark.parametrize("mean,std", [(0., 1.), (5., 20.)])
+    @pytest.mark.parametrize("mean,std", [(0.0, 1.0), (5.0, 20.0)])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_inplace_normal(self, mean, std, ie_device, precision, ir_version):
-        self._test(*self.create_model(mean, std),
-                   ie_device, precision, ir_version, custom_eps=1e30)
+        self._test(
+            *self.create_model(mean, std),
+            ie_device,
+            precision,
+            ir_version,
+            custom_eps=1e30
+        )
 
 
 class TestNormal(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         if isinstance(self.inputs, list):
             return (np.random.randn(*self.inputs).astype(np.float32),)
         return self.inputs
@@ -61,36 +67,52 @@ class TestNormal(PytorchLayerTest):
     class aten_normal5(torch.nn.Module):
         def forward(self, mean):
             x = torch.empty_like(mean, dtype=torch.float32)
-            return torch.normal(mean, 2., out=x), x
+            return torch.normal(mean, 2.0, out=x), x
 
     class aten_normal6(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape)
+            return torch.normal(0.0, 1.0, x.shape)
 
     class aten_normal7(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape, out=x), x
+            return torch.normal(0.0, 1.0, x.shape, out=x), x
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("model,inputs", [
-        (aten_normal1(), (torch.arange(1., 11.).numpy(), torch.arange(1, 0, -0.1).numpy())),
-        (aten_normal2(), (torch.arange(1., 11.).numpy(), torch.arange(1, 0, -0.1).numpy())),
-        (aten_normal3(), (torch.arange(1., 11.).numpy(),)),
-        (aten_normal4(), (torch.arange(1., 11.).numpy(),)),
-        (aten_normal5(), (torch.arange(1., 11.).numpy(),)),
-        (aten_normal6(), [1, 3, 224, 224]),
-        (aten_normal7(), [1, 3, 224, 224]),
-    ])
+    @pytest.mark.parametrize(
+        "model,inputs",
+        [
+            (
+                aten_normal1(),
+                (torch.arange(1.0, 11.0).numpy(), torch.arange(1, 0, -0.1).numpy()),
+            ),
+            (
+                aten_normal2(),
+                (torch.arange(1.0, 11.0).numpy(), torch.arange(1, 0, -0.1).numpy()),
+            ),
+            (aten_normal3(), (torch.arange(1.0, 11.0).numpy(),)),
+            (aten_normal4(), (torch.arange(1.0, 11.0).numpy(),)),
+            (aten_normal5(), (torch.arange(1.0, 11.0).numpy(),)),
+            (aten_normal6(), [1, 3, 224, 224]),
+            (aten_normal7(), [1, 3, 224, 224]),
+        ],
+    )
     def test_inplace_normal(self, model, inputs, ie_device, precision, ir_version):
         self.inputs = inputs
-        self._test(model, None, "aten::normal",
-                   ie_device, precision, ir_version, custom_eps=1e30)
+        self._test(
+            model,
+            None,
+            "aten::normal",
+            ie_device,
+            precision,
+            ir_version,
+            custom_eps=1e30,
+        )
 
 
-class TestStatistics():
+class TestStatistics:
     class aten_normal(torch.nn.Module):
         def forward(self, mean, std):
             return torch.normal(mean, std)
@@ -101,36 +123,42 @@ class TestStatistics():
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("fw_model,inputs", [
-        (aten_normal(), (0, 1, (1000000,))),
-        (aten_normal(), (0, 1, (10000, 100))),
-        (aten_normal(), (0, 3, (100000, 100))),
-        (aten_normal(), (1, 6, (100000, 100))),
-        (aten_normal(), (-20, 2, (10000, 100))),
-        (aten_normal(), (-20, 100, (10000, 100))),
-
-        (aten_randn(), (0, 1, (1000000,))),
-        (aten_randn(), (0, 1, (10000, 100))),
-        (aten_randn(), (0, 1, (100000, 100))),
-    ])
+    @pytest.mark.parametrize(
+        "fw_model,inputs",
+        [
+            (aten_normal(), (0, 1, (1000000,))),
+            (aten_normal(), (0, 1, (10000, 100))),
+            (aten_normal(), (0, 3, (100000, 100))),
+            (aten_normal(), (1, 6, (100000, 100))),
+            (aten_normal(), (-20, 2, (10000, 100))),
+            (aten_normal(), (-20, 100, (10000, 100))),
+            (aten_randn(), (0, 1, (1000000,))),
+            (aten_randn(), (0, 1, (10000, 100))),
+            (aten_randn(), (0, 1, (100000, 100))),
+        ],
+    )
     def test_normal_statistics(self, fw_model, inputs, ie_device, precision):
-        import numpy.testing as npt
         import numpy as np
+        import numpy.testing as npt
+
         import openvino as ov
+
         mean_scalar, std_scalar, size = inputs
         mean = torch.full(size, mean_scalar, dtype=torch.float32)
         std = torch.full(size, std_scalar, dtype=torch.float32)
 
         if isinstance(fw_model, self.aten_randn):
-            example_input = (torch.tensor(size), )
+            example_input = (torch.tensor(size),)
             input_size = [len(size)]
         else:
             example_input = (mean, std)
             input_size = [size, size]
 
-        ov_model = ov.convert_model(input_model=fw_model, example_input=example_input, input=input_size)
-        if ie_device == 'GPU' and precision == 'FP32':
-            config = {'INFERENCE_PRECISION_HINT': 'f32'}
+        ov_model = ov.convert_model(
+            input_model=fw_model, example_input=example_input, input=input_size
+        )
+        if ie_device == "GPU" and precision == "FP32":
+            config = {"INFERENCE_PRECISION_HINT": "f32"}
         else:
             config = {}
         compiled_model = ov.Core().compile_model(ov_model, ie_device, config)

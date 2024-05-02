@@ -8,23 +8,33 @@ from re import match
 import numpy as np
 
 # do not print INFO and WARNING messages from TensorFlow
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 try:
     import tensorflow.compat.v1 as tf_v1
 except ImportError:
     import tensorflow as tf_v1
 
-#in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
+# in some environment suppressing through TF_CPP_MIN_LOG_LEVEL does not work
 tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
-from tensorflow.python.eager.context import graph_mode  # pylint: disable=no-name-in-module,import-error
+from tensorflow.python.eager.context import (  # pylint: disable=no-name-in-module,import-error
+    graph_mode,
+)
 
-from openvino.tools.mo.front.extractor import node_defs_to_str
-from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
-from openvino.tools.mo.graph.graph import Node
-from openvino.tools.mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.extractor import node_defs_to_str
+from openvino.tools.mo.front.tf.extractors.utils import (
+    get_tf_node_port,
+    tf_dtype_extractor,
+    tf_tensor_shape,
+)
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.graph import (
+    node_incoming_neighbourhood,
+    node_outcoming_neighbourhood,
+)
+
 
 def tf_native_tf_node_infer(node: Node):
     """
@@ -38,23 +48,29 @@ def tf_native_tf_node_infer(node: Node):
     # depth 10. The number 10 is quite big to be sure that determine_data_type function will be able to identify the
     # data type of input tensors, but not too huge to contain the whole graph.
     # Also the sub-graph contains names of the output nodes of the node to perform native infer.
-    nodes_to_extract = node_incoming_neighbourhood(node.graph, node.id, 10) + node_outcoming_neighbourhood(node.graph,
-                                                                                                           node.id, 1)
+    nodes_to_extract = node_incoming_neighbourhood(
+        node.graph, node.id, 10
+    ) + node_outcoming_neighbourhood(node.graph, node.id, 1)
     tmp_graph = node.graph.create_sub_graph_copy(nodes_to_extract)
 
     tmp_node_attrs = tmp_graph.node[node.id]
     tmp_node = Node(tmp_graph, node.id)
 
     # node attributes that are required by 'infer_subgraph_output_nodes' function
-    lists_to_init = ['input_nodes_names', 'output_tensors_names', 'nodes_order', 'internal_output_node_name',
-                     'real_input_dims']
+    lists_to_init = [
+        "input_nodes_names",
+        "output_tensors_names",
+        "nodes_order",
+        "internal_output_node_name",
+        "real_input_dims",
+    ]
 
     for item in lists_to_init:
         tmp_node_attrs[item] = list()
-    tmp_node_attrs['pbs'] = {tmp_node.name: tmp_node.pb}
-    tmp_node_attrs['nodes_order'].append(tmp_node.id)
+    tmp_node_attrs["pbs"] = {tmp_node.name: tmp_node.pb}
+    tmp_node_attrs["nodes_order"].append(tmp_node.id)
     for ind in range(len(tmp_node.out_edges())):
-        tmp_node_attrs['output_tensors_names'].append(tmp_node.id + ":" + str(ind))
+        tmp_node_attrs["output_tensors_names"].append(tmp_node.id + ":" + str(ind))
 
     with graph_mode():
         tf_subgraph_infer(tmp_node)
@@ -84,15 +100,19 @@ def generate_feed_dict(graph: tf_v1.Graph, node: Node):
     all_constants = True
     feed_dict = dict()
     for in_data_node_name, edge_attrs in node.get_inputs():
-        if 'control_flow_edge' in edge_attrs and edge_attrs['control_flow_edge']:
+        if "control_flow_edge" in edge_attrs and edge_attrs["control_flow_edge"]:
             continue
-        value = node.in_node(edge_attrs['in']).value
+        value = node.in_node(edge_attrs["in"]).value
         if value is None:
             all_constants = False
-            placeholder_pb = node['pbs'][edge_attrs['placeholder_name']]
-            value = np.ones(shape=tf_tensor_shape(placeholder_pb.attr['shape'].shape),
-                            dtype=tf_dtype_extractor(placeholder_pb.attr['dtype'].type))
-        feed_dict[graph.get_tensor_by_name(edge_attrs['placeholder_name'] + ":0")] = value
+            placeholder_pb = node["pbs"][edge_attrs["placeholder_name"]]
+            value = np.ones(
+                shape=tf_tensor_shape(placeholder_pb.attr["shape"].shape),
+                dtype=tf_dtype_extractor(placeholder_pb.attr["dtype"].type),
+            )
+        feed_dict[graph.get_tensor_by_name(edge_attrs["placeholder_name"] + ":0")] = (
+            value
+        )
     return all_constants, feed_dict
 
 
@@ -113,12 +133,14 @@ def get_subgraph_output_tensors(node: Node):
     sess = tf_v1.Session(graph=graph)
     with graph.as_default():  # pylint: disable=not-context-manager
         with sess.as_default():  # pylint: disable=not-context-manager
-            tf_v1.import_graph_def(graph_def, name='')
+            tf_v1.import_graph_def(graph_def, name="")
             all_constants, feed_dict = generate_feed_dict(graph, node)
-            for out_port, out_tensor_name in enumerate(node['output_tensors_names']):
-                if not match(r'.*:\d+', out_tensor_name):
+            for out_port, out_tensor_name in enumerate(node["output_tensors_names"]):
+                if not match(r".*:\d+", out_tensor_name):
                     out_tensor_name = out_tensor_name + ":" + str(out_port)
-                result_tensor = sess.run(graph.get_tensor_by_name(out_tensor_name), feed_dict=feed_dict)
+                result_tensor = sess.run(
+                    graph.get_tensor_by_name(out_tensor_name), feed_dict=feed_dict
+                )
                 result[out_port] = result_tensor
     return all_constants, result
 
@@ -138,15 +160,22 @@ def tf_subgraph_infer(node: Node):
         out_node = node.out_node(out_port)
         out_node.shape = mo_array([dim for dim in tensor_value.shape])
         out_node.data_type = tensor_value.dtype
-        log.debug("Inferred shape of the output tensor with index '{}' of the node '{}': '{}'".format(str(out_port),
-                                                                                                      node.name,
-                                                                                                      out_node.shape))
+        log.debug(
+            "Inferred shape of the output tensor with index '{}' of the node '{}': '{}'".format(
+                str(out_port), node.name, out_node.shape
+            )
+        )
         if all_constants:
             out_node.value = tensor_value
 
 
-def add_node_def_to_subgraph(subgraph_node: Node, node_def: tf_v1.NodeDef, name: str = None, position: int = 0,
-                             is_input: bool = False):
+def add_node_def_to_subgraph(
+    subgraph_node: Node,
+    node_def: tf_v1.NodeDef,
+    name: str = None,
+    position: int = 0,
+    is_input: bool = False,
+):
     """
     Adds NodeDef definition of the node to the internal structures of the sub-graph's_node object that represents a
     sub-graph of operations.
@@ -158,11 +187,11 @@ def add_node_def_to_subgraph(subgraph_node: Node, node_def: tf_v1.NodeDef, name:
     :return: None
     """
     name = name or node_def.name
-    assert (name not in subgraph_node['pbs'].keys())
+    assert name not in subgraph_node["pbs"].keys()
     if is_input:
-        subgraph_node['input_nodes_names'].append(name)
-    subgraph_node['pbs'][node_def.name] = node_def
-    subgraph_node['nodes_order'].insert(position, name)
+        subgraph_node["input_nodes_names"].append(name)
+    subgraph_node["pbs"][node_def.name] = node_def
+    subgraph_node["nodes_order"].insert(position, name)
 
 
 def determine_data_type(node: Node):
@@ -172,16 +201,16 @@ def determine_data_type(node: Node):
     :param node: node to determine data type.
     :return: data type of the node output in the numpy format.
     """
-    if node.has_and_set('data_type'):
+    if node.has_and_set("data_type"):
         return node.data_type
-    if node.has_and_set('kind') and node.kind == 'op':
-        if node.has_and_set('pb'):
-            if 'dtype' in node.pb.attr:
-                return tf_dtype_extractor(node.pb.attr['dtype'].type)
-            if 'T' in node.pb.attr:
-                return tf_dtype_extractor(node.pb.attr['T'].type)
-    if node.has_and_set('kind') and node.kind == 'data':
-        if 'value' in node and node.value is not None:
+    if node.has_and_set("kind") and node.kind == "op":
+        if node.has_and_set("pb"):
+            if "dtype" in node.pb.attr:
+                return tf_dtype_extractor(node.pb.attr["dtype"].type)
+            if "T" in node.pb.attr:
+                return tf_dtype_extractor(node.pb.attr["T"].type)
+    if node.has_and_set("kind") and node.kind == "data":
+        if "value" in node and node.value is not None:
             return node.value.dtype
     if len(node.in_nodes()) != 0:  # try to guess data type from the first parent
         return determine_data_type(node.in_node(0))
@@ -200,24 +229,26 @@ def add_placeholders_to_subgraph(node: Node):
     """
     inputs_replacements = list()
     for index, (in_data_node, edge_attrs) in enumerate(node.get_sorted_inputs()):
-        if 'control_flow_edge' in edge_attrs and edge_attrs['control_flow_edge']:
+        if "control_flow_edge" in edge_attrs and edge_attrs["control_flow_edge"]:
             continue
 
-        if 'internal_input_node_name' in edge_attrs.keys():
-            input_tensor_name = edge_attrs['internal_input_node_name']
+        if "internal_input_node_name" in edge_attrs.keys():
+            input_tensor_name = edge_attrs["internal_input_node_name"]
         else:
-            input_tensor_name = node['pb'].input[index]
+            input_tensor_name = node["pb"].input[index]
 
         input_node_name, port = get_tf_node_port(input_tensor_name)
 
         placeholder_name = placeholder_name_for_node(input_node_name, port)
-        edge_attrs['placeholder_name'] = placeholder_name
+        edge_attrs["placeholder_name"] = placeholder_name
         in_node = node.in_node(index)
 
         assert in_node.shape is not None
 
-        if placeholder_name not in node['pbs'].keys():
-            placeholder = tf_v1.placeholder(determine_data_type(in_node), in_node.shape, placeholder_name)
+        if placeholder_name not in node["pbs"].keys():
+            placeholder = tf_v1.placeholder(
+                determine_data_type(in_node), in_node.shape, placeholder_name
+            )
             inputs_replacements.append((input_tensor_name, placeholder_name))
             add_node_def_to_subgraph(node, placeholder.op.node_def, is_input=True)
             log.debug("Added placeholder with name '{}'".format(placeholder_name))
@@ -233,15 +264,24 @@ def update_input_in_pbs(node: Node, old_input_tensor_name: str, new_input_name: 
     new input with name 'new_input_name'. This transformation is applied
     for all NodeDef objects in the 'pbs' list.
     """
-    log.debug("update_input_in_pbs: replace input '%s' with input '%s'" % (old_input_tensor_name, new_input_name))
+    log.debug(
+        "update_input_in_pbs: replace input '%s' with input '%s'"
+        % (old_input_tensor_name, new_input_name)
+    )
     old_input_tensor_name_without_port = old_input_tensor_name.split(":")[0]
-    for pb in node['pbs'].values():
-        if hasattr(pb, 'input'):
+    for pb in node["pbs"].values():
+        if hasattr(pb, "input"):
             for ind in range(len(pb.input)):
-                if pb.input[ind] == old_input_tensor_name or pb.input[ind] == old_input_tensor_name_without_port:
+                if (
+                    pb.input[ind] == old_input_tensor_name
+                    or pb.input[ind] == old_input_tensor_name_without_port
+                ):
                     pb.input[ind] = new_input_name
-                    log.debug("Replacing input '{}' of the node '{}' with placeholder '{}'".format(ind, pb.name,
-                                                                                                   new_input_name))
+                    log.debug(
+                        "Replacing input '{}' of the node '{}' with placeholder '{}'".format(
+                            ind, pb.name, new_input_name
+                        )
+                    )
 
 
 def placeholder_name_for_node(node_name: str, output_port: int):

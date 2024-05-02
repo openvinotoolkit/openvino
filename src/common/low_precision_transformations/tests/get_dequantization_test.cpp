@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ov_lpt_models/get_dequantization.hpp"
+
 #include <gtest/gtest.h>
 
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include "ov_lpt_models/get_dequantization.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 using namespace testing;
@@ -37,11 +38,10 @@ public:
         std::tie(isConvert, isSubtract, subDataInput, mulDataInput) = this->GetParam();
 
         actualFunction = ov::builder::subgraph::GetDequantizationFunction::getOriginal(isConvert,
-                                                                                           isSubtract,
-                                                                                           subDataInput,
-                                                                                           mulDataInput);
-        auto dequantization =
-            ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
+                                                                                       isSubtract,
+                                                                                       subDataInput,
+                                                                                       mulDataInput);
+        auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
         referenceFunction = ov::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
     }
 

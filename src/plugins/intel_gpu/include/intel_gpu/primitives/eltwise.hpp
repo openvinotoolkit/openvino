@@ -3,8 +3,9 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -88,7 +89,7 @@ struct eltwise : public primitive_base<eltwise> {
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
           broadcast_spec(spec.m_type, spec.m_axis),
-          m_pythondiv(true) { }
+          m_pythondiv(true) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -109,7 +110,7 @@ struct eltwise : public primitive_base<eltwise> {
           coefficients(std::vector<float>(0)),
           stride(stride),
           broadcast_spec(spec.m_type, spec.m_axis),
-          m_pythondiv(true) { }
+          m_pythondiv(true) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -128,7 +129,7 @@ struct eltwise : public primitive_base<eltwise> {
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
           broadcast_spec(spec.m_type, spec.m_axis),
-          m_pythondiv(true) { }
+          m_pythondiv(true) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -145,7 +146,7 @@ struct eltwise : public primitive_base<eltwise> {
           coefficients(std::vector<float>(0)),
           stride(std::vector<tensor>(0)),
           broadcast_spec(spec.m_type, spec.m_axis),
-          m_pythondiv(true) { }
+          m_pythondiv(true) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -202,10 +203,8 @@ struct eltwise : public primitive_base<eltwise> {
 
         auto rhs_casted = downcast<const eltwise>(rhs);
 
-        return mode == rhs_casted.mode &&
-               coefficients == rhs_casted.coefficients &&
-               broadcast_spec == rhs_casted.broadcast_spec &&
-               stride == rhs_casted.stride &&
+        return mode == rhs_casted.mode && coefficients == rhs_casted.coefficients &&
+               broadcast_spec == rhs_casted.broadcast_spec && stride == rhs_casted.stride &&
                m_pythondiv == rhs_casted.m_pythondiv;
     }
 

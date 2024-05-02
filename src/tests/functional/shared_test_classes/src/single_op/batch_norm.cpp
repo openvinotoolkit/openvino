@@ -38,7 +38,7 @@ void BatchNormLayerTest::SetUp() {
     double epsilon;
     std::tie(epsilon, model_type, shapes, targetDevice) = this->GetParam();
     init_input_shapes(shapes);
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 0;

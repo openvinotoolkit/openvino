@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "scatter_elements_update_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "scatter_elements_update_inst.h"
 #include "scatter_elements_update_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_elements_update)
 
-layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_node const& node, kernel_impl_params const& impl_param) {
+layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_node const& node,
+                                                        kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scatter_elements_update>();
 
     const int32_t axis = desc->axis;
@@ -31,7 +31,9 @@ layout scatter_elements_update_inst::calc_output_layout(scatter_elements_update_
     }
 
     if (static_cast<size_t>(axis) < 0 || static_cast<size_t>(axis) >= input_number_of_dims)
-        CLDNN_ERROR_MESSAGE(desc->id, "Incorrect axis value for ScatterElementsUpdate: Axis must be positive and less than the input tensor dimension.");
+        CLDNN_ERROR_MESSAGE(desc->id,
+                            "Incorrect axis value for ScatterElementsUpdate: Axis must be positive and less than the "
+                            "input tensor dimension.");
 
     return layout{output_shape, output_type, input_format};
 }
@@ -53,7 +55,8 @@ std::string scatter_elements_update_inst::to_string(scatter_elements_update_node
     return primitive_description.str();
 }
 
-scatter_elements_update_inst::typed_primitive_inst(network& network, scatter_elements_update_node const& node) : parent(network, node) {}
+scatter_elements_update_inst::typed_primitive_inst(network& network, scatter_elements_update_node const& node)
+    : parent(network, node) {}
 void scatter_elements_update_inst::on_execute() {
     auto input1_shape = _impl_params->input_layouts[1].get_partial_shape();
     auto input2_shape = _impl_params->input_layouts[2].get_partial_shape();
@@ -63,8 +66,8 @@ void scatter_elements_update_inst::on_execute() {
 }
 
 void scatter_elements_update_inst::update_output_memory() {
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) &&
+        _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     if (_node != nullptr)

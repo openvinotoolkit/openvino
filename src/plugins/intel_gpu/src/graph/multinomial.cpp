@@ -1,13 +1,14 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <string>
+
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
-#include "primitive_type_base.h"
 #include "multinomial_inst.h"
 #include "multinomial_shape_inference.hpp"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(multinomial)
@@ -16,21 +17,18 @@ layout multinomial_inst::calc_output_layout(multinomial_node const& node, kernel
     auto primitive = impl_param.typed_desc<multinomial>();
     auto input_layout = impl_param.get_input_layout(0);
     if (input_layout.get_shape().size() == 1) {
-        return {primitive->output_data_type, input_layout.format,
-            tensor{std::vector<tensor::value_type>{
-                static_cast<tensor::value_type>(primitive->num_samples)
-            }}};
+        return {primitive->output_data_type,
+                input_layout.format,
+                tensor{std::vector<tensor::value_type>{static_cast<tensor::value_type>(primitive->num_samples)}}};
     } else {
-        return {primitive->output_data_type, input_layout.format,
-            tensor{std::vector<tensor::value_type>{
-                input_layout.batch(),
-                static_cast<tensor::value_type>(primitive->num_samples)
-            }}};
+        return {primitive->output_data_type,
+                input_layout.format,
+                tensor{std::vector<tensor::value_type>{input_layout.batch(),
+                                                       static_cast<tensor::value_type>(primitive->num_samples)}}};
     }
 }
 
-multinomial_inst::typed_primitive_inst(network& network, multinomial_node const& node)
-    : parent{network, node} {}
+multinomial_inst::typed_primitive_inst(network& network, multinomial_node const& node) : parent{network, node} {}
 
 std::string multinomial_inst::to_string(multinomial_node const& node) {
     auto desc = node.get_primitive();

@@ -3,9 +3,10 @@
 //
 
 #include "acl_interpolate.hpp"
+
 #include "acl_utils.hpp"
 
-static bool getIndices(const ov::intel_cpu::MemoryDescPtr &desc, int& index_h, int& index_w) {
+static bool getIndices(const ov::intel_cpu::MemoryDescPtr& desc, int& index_h, int& index_w) {
     if (desc->hasLayoutType(ov::intel_cpu::LayoutType::ncsp)) {
         index_h = 2;
         index_w = 3;
@@ -14,36 +15,41 @@ static bool getIndices(const ov::intel_cpu::MemoryDescPtr &desc, int& index_h, i
         index_h = 1;
         index_w = 2;
         return true;
-    } else { return false; }
+    } else {
+        return false;
+    }
 }
 
-bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpolateAttrs,
-                                                 const std::vector <MemoryDescPtr> &srcDescs,
-                                                 const std::vector <MemoryDescPtr> &dstDescs,
-                                                 const dnnl::primitive_attr &attr) {
+bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
+                                                 const std::vector<MemoryDescPtr>& srcDescs,
+                                                 const std::vector<MemoryDescPtr>& dstDescs,
+                                                 const dnnl::primitive_attr& attr) {
     aclInterpolateAttrs = interpolateAttrs;
     InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
     auto& out_shape = dstDescs[0]->getShape().getDims();
 
     int index_h, index_w;
-    if (!getIndices(dstDescs[0], index_h, index_w)) { return false; }
+    if (!getIndices(dstDescs[0], index_h, index_w)) {
+        return false;
+    }
 
-    if ((aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
+    if ((aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel &&
+         out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
         acl_coord = arm_compute::SamplingPolicy::CENTER;
     }
 
     switch (aclInterpolateAttrs.mode) {
-        case InterpolateMode::linear:
-        case InterpolateMode::linear_onnx:
-            acl_policy = arm_compute::InterpolationPolicy::BILINEAR;
-            break;
-        case InterpolateMode::nearest:
-            acl_policy = arm_compute::InterpolationPolicy::NEAREST_NEIGHBOR;
-            break;
-        default:
-            return false;
+    case InterpolateMode::linear:
+    case InterpolateMode::linear_onnx:
+        acl_policy = arm_compute::InterpolationPolicy::BILINEAR;
+        break;
+    case InterpolateMode::nearest:
+        acl_policy = arm_compute::InterpolationPolicy::NEAREST_NEIGHBOR;
+        break;
+    default:
+        return false;
     }
 
     auto srcDims = shapeCast(srcDescs[0]->getShape().getDims());
@@ -53,22 +59,25 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
         changeLayoutToNH_C({&srcDims, &dstDims});
     }
 
-    auto srcTensorInfo = arm_compute::TensorInfo(srcDims, 1,
+    auto srcTensorInfo = arm_compute::TensorInfo(srcDims,
+                                                 1,
                                                  precisionToAclDataType(srcDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    auto dstTensorInfo = arm_compute::TensorInfo(dstDims, 1,
+    auto dstTensorInfo = arm_compute::TensorInfo(dstDims,
+                                                 1,
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    if (!arm_compute::NEScale::validate(&srcTensorInfo,
-                                        &dstTensorInfo,
-                                        arm_compute::ScaleKernelInfo(acl_policy,
-                                                                     arm_compute::BorderMode::REPLICATE,
-                                                                     arm_compute::PixelValue(),
-                                                                     acl_coord,
-                                                                     false,
-                                                                     aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
-                                                                     getAclDataLayoutByMemoryDesc(srcDescs[0]))))
+    if (!arm_compute::NEScale::validate(
+            &srcTensorInfo,
+            &dstTensorInfo,
+            arm_compute::ScaleKernelInfo(acl_policy,
+                                         arm_compute::BorderMode::REPLICATE,
+                                         arm_compute::PixelValue(),
+                                         acl_coord,
+                                         false,
+                                         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
+                                         getAclDataLayoutByMemoryDesc(srcDescs[0]))))
         return false;
 
     srcTensor.allocator()->init(srcTensorInfo);
@@ -76,21 +85,25 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
 
     acl_scale = std::make_unique<arm_compute::NEScale>();
     configureThreadSafe([&] {
-        acl_scale->configure(&srcTensor, &dstTensor, arm_compute::ScaleKernelInfo(acl_policy,
-                                                                                  arm_compute::BorderMode::REPLICATE,
-                                                                                  arm_compute::PixelValue(),
-                                                                                  acl_coord,
-                                                                                  false,
-                                                                                  aclInterpolateAttrs.coordTransMode ==
-                                                                                  InterpolateCoordTransMode::align_corners,
-                                                                                  getAclDataLayoutByMemoryDesc(srcDescs[0])));
+        acl_scale->configure(
+            &srcTensor,
+            &dstTensor,
+            arm_compute::ScaleKernelInfo(acl_policy,
+                                         arm_compute::BorderMode::REPLICATE,
+                                         arm_compute::PixelValue(),
+                                         acl_coord,
+                                         false,
+                                         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
+                                         getAclDataLayoutByMemoryDesc(srcDescs[0])));
     });
     return true;
 }
 
-void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
+void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
+                                                 const std::vector<MemoryPtr>& dst,
+                                                 const void* post_ops_data_) {
     auto in_ptr_ = padPreprocess(src, dst);
-    srcTensor.allocator()->import_memory(const_cast<void *>(reinterpret_cast<const void *>(in_ptr_)));
+    srcTensor.allocator()->import_memory(const_cast<void*>(reinterpret_cast<const void*>(in_ptr_)));
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
     acl_scale->run();
@@ -100,15 +113,18 @@ void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& 
 }
 
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
-        const ov::intel_cpu::InterpolateAttrs &interpolateAttrs, const std::vector<MemoryDescPtr> &srcDescs,
-        const std::vector<MemoryDescPtr> &dstDescs) {
+    const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
+    const std::vector<MemoryDescPtr>& srcDescs,
+    const std::vector<MemoryDescPtr>& dstDescs) {
     OPENVINO_ASSERT(srcDescs[0]->getShape().getDims().size() == 4);
 
     auto& inp_shape = srcDescs[0]->getShape().getDims();
     auto& out_shape = dstDescs[0]->getShape().getDims();
 
     int index_h, index_w;
-    if (!getIndices(srcDescs[0], index_h, index_w)) { return false; }
+    if (!getIndices(srcDescs[0], index_h, index_w)) {
+        return false;
+    }
 
     float scale_h = static_cast<float>(out_shape[index_h]) / inp_shape[index_h];
     float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
@@ -117,8 +133,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     auto& coord_mode = interpolateAttrs.coordTransMode;
     auto& nearest_mode = interpolateAttrs.nearestMode;
 
-    if (coord_mode == InterpolateCoordTransMode::asymmetric &&
-        nearest_mode == InterpolateNearestMode::floor) {
+    if (coord_mode == InterpolateCoordTransMode::asymmetric && nearest_mode == InterpolateNearestMode::floor) {
         return is_upsample;
     }
 
@@ -140,14 +155,15 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     if (is_upsample) {
         bool int_factor = scale_h == static_cast<int>(scale_h) && scale_w == static_cast<int>(scale_w);
         if (int_factor && coord_mode != InterpolateCoordTransMode::asymmetric &&
-            (nearest_mode == InterpolateNearestMode::round_prefer_ceil
-             || nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
+            (nearest_mode == InterpolateNearestMode::round_prefer_ceil ||
+             nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
             return true;
         }
     } else if (scale_h < 1 && scale_w < 1) {
         float down_scale_h = static_cast<float>(inp_shape[index_h]) / out_shape[index_h];
         float down_scale_w = static_cast<float>(inp_shape[index_w]) / out_shape[index_w];
-        bool int_factor = down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
+        bool int_factor =
+            down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&
             nearest_mode == InterpolateNearestMode::simple) {
@@ -155,25 +171,32 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         }
 
         if (int_factor && nearest_mode == InterpolateNearestMode::round_prefer_ceil &&
-            ((out_shape[index_h] > 1 && out_shape[index_w] > 1) || coord_mode != InterpolateCoordTransMode::half_pixel)) {
+            ((out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
+             coord_mode != InterpolateCoordTransMode::half_pixel)) {
             return true;
         }
     }
     return false;
 }
 
-bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs &interpolateAttrs,
-                                                               const std::vector<MemoryDescPtr> &srcDescs,
-                                                               const std::vector<MemoryDescPtr> &dstDescs) const {
+bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
+                                                               const std::vector<MemoryDescPtr>& srcDescs,
+                                                               const std::vector<MemoryDescPtr>& dstDescs) const {
     if (srcDescs[0]->getShape().getDims().size() != 4u) {
         return false;
     }
 
     auto& pads_begin = interpolateAttrs.padBegin;
-    auto& pads_end   = interpolateAttrs.padEnd;
+    auto& pads_end = interpolateAttrs.padEnd;
 
-    if (!std::all_of(pads_begin.begin(), pads_begin.end(), [](int i){return i == 0;}) ||
-        !std::all_of(pads_end.begin(), pads_end.end(), [](int i){return i == 0;})) {
+    if (!std::all_of(pads_begin.begin(),
+                     pads_begin.end(),
+                     [](int i) {
+                         return i == 0;
+                     }) ||
+        !std::all_of(pads_end.begin(), pads_end.end(), [](int i) {
+            return i == 0;
+        })) {
         return false;
     }
 
@@ -183,8 +206,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
         return false;
     }
 
-    if (interpolateAttrs.mode == InterpolateMode::cubic ||
-        interpolateAttrs.mode == InterpolateMode::bilinear_pillow ||
+    if (interpolateAttrs.mode == InterpolateMode::cubic || interpolateAttrs.mode == InterpolateMode::bilinear_pillow ||
         interpolateAttrs.mode == InterpolateMode::bicubic_pillow) {
         return false;
     }

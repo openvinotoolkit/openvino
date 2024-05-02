@@ -53,7 +53,6 @@ void GatherNDLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gatherND");
 }
 
-
 std::string GatherND8LayerTest::getTestCaseName(const testing::TestParamInfo<GatherNDParams>& obj) {
     return GatherNDLayerTest::getTestCaseName(obj);
 }

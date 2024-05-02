@@ -7,7 +7,6 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 
@@ -110,15 +109,20 @@ protected:
                     // fill tensor with all zero, so the NonZero op will create 0 shape as the input of reshape op
                     in_data.start_from = 0;
                     in_data.range = 1;
-                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                           targetInputStaticShapes[i],
+                                                           in_data);
                 } else {
                     if (funcInput.get_element_type().is_real()) {
                         in_data.start_from = 0;
                         in_data.range = 10;
                         in_data.resolution = 1000;
-                        tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                        tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                               targetInputStaticShapes[i],
+                                                               in_data);
                     } else {
-                        tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                        tensor =
+                            utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                     }
                 }
             }
@@ -169,7 +173,8 @@ protected:
             secondaryInput = param;
             inputs.push_back(param);
         } else {
-            secondaryInput = ov::test::utils::deprecated::make_constant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
+            secondaryInput =
+                ov::test::utils::deprecated::make_constant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
         }
 
         std::shared_ptr<ov::Node> shapeOps;

@@ -12,19 +12,18 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<InputShape>,   // Input shape
-        int,                       // Sequence lengths
-        ov::element::Type,         // Probabilities precision
-        ov::element::Type,         // Indices precision
-        int,                       // Blank index
-        bool,                      // Merge repeated
-        std::string                // Device name
-    > ctcGreedyDecoderSeqLenParams;
+typedef std::tuple<std::vector<InputShape>,  // Input shape
+                   int,                      // Sequence lengths
+                   ov::element::Type,        // Probabilities precision
+                   ov::element::Type,        // Indices precision
+                   int,                      // Blank index
+                   bool,                     // Merge repeated
+                   std::string               // Device name
+                   >
+    ctcGreedyDecoderSeqLenParams;
 
-class CTCGreedyDecoderSeqLenLayerTest
-    :  public testing::WithParamInterface<ctcGreedyDecoderSeqLenParams>,
-       virtual public ov::test::SubgraphBaseTest {
+class CTCGreedyDecoderSeqLenLayerTest : public testing::WithParamInterface<ctcGreedyDecoderSeqLenParams>,
+                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderSeqLenParams>& obj);
 

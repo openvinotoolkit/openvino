@@ -12,8 +12,8 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-class ScaledDotProductAttentionV13StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v13::ScaledDotProductAttention> {
-};
+class ScaledDotProductAttentionV13StaticShapeInferenceTest
+    : public OpStaticShapeInferenceTest<op::v13::ScaledDotProductAttention> {};
 
 TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, default_ctor) {
     op = make_op();

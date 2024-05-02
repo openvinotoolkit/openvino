@@ -6,10 +6,10 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class LSTMCell_extender(Extender):
-    op = 'LSTMCell'
+    op = "LSTMCell"
 
     @staticmethod
     def extend(op: Node):
-        if not op.has_valid('activations'):
-            op['activations'] = None
-        op['infer'] = Extender.use_shapes_from_ir
+        if not op.has_valid("activations"):
+            op["activations"] = None
+        op["infer"] = Extender.use_shapes_from_ir

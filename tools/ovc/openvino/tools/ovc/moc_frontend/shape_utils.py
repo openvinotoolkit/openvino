@@ -4,7 +4,11 @@
 import sys
 
 import numpy as np
-from openvino.runtime import Shape, PartialShape, Dimension  # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import (  # pylint: disable=no-name-in-module,import-error
+    Dimension,
+    PartialShape,
+    Shape,
+)
 from openvino.tools.ovc.error import Error
 
 
@@ -67,22 +71,29 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
 
 
 def tensor_to_int_list(tensor):
-    assert hasattr(tensor, 'numpy'), "Could not get value of provided tensor: {}".format(tensor)
+    assert hasattr(
+        tensor, "numpy"
+    ), "Could not get value of provided tensor: {}".format(tensor)
     tensor_numpy = tensor.numpy()
-    assert tensor_numpy.dtype == np.int32, "Unexpected type of provided tensor. Expected int32, got: {}".format(
-        tensor_numpy.dtype)
+    assert (
+        tensor_numpy.dtype == np.int32
+    ), "Unexpected type of provided tensor. Expected int32, got: {}".format(
+        tensor_numpy.dtype
+    )
     return tensor_numpy.tolist()
 
 
 def to_partial_shape(shape):
-    if 'tensorflow' in sys.modules:
+    if "tensorflow" in sys.modules:
         import tensorflow as tf  # pylint: disable=import-error
+
         if isinstance(shape, tf.Tensor):
             return PartialShape(tensor_to_int_list(shape))
         if isinstance(shape, tf.TensorShape):
             return PartialShape(list(shape))
-    if 'paddle' in sys.modules:
+    if "paddle" in sys.modules:
         import paddle
+
         if isinstance(shape, paddle.Tensor):
             return PartialShape(tensor_to_int_list(shape))
     return PartialShape(shape)
@@ -91,12 +102,14 @@ def to_partial_shape(shape):
 def is_shape_type(value):
     if isinstance(value, PartialShape):
         return True
-    if 'tensorflow' in sys.modules:
-        import tensorflow as tf # pylint: disable=import-error
+    if "tensorflow" in sys.modules:
+        import tensorflow as tf  # pylint: disable=import-error
+
         if isinstance(value, (tf.TensorShape, tf.Tensor)):
             return True
-    if 'paddle' in sys.modules:
+    if "paddle" in sys.modules:
         import paddle
+
         if isinstance(value, paddle.Tensor):
             return True
     if isinstance(value, Shape):

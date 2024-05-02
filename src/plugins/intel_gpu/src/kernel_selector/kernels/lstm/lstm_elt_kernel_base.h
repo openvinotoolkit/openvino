@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <map>
+#include <vector>
+
 #include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
-#include <vector>
-#include <map>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,12 +40,22 @@ struct lstm_elt_params : public base_params {
         return offset_map.at(type)[idx];
     }
 
-    size_t GetOffsetIndexI() const { return GetOffsetIndex(gate_order, 0); }
-    size_t GetOffsetIndexO() const { return GetOffsetIndex(gate_order, 1); }
-    size_t GetOffsetIndexF() const { return GetOffsetIndex(gate_order, 2); }
-    size_t GetOffsetIndexZ() const { return GetOffsetIndex(gate_order, 3); }
+    size_t GetOffsetIndexI() const {
+        return GetOffsetIndex(gate_order, 0);
+    }
+    size_t GetOffsetIndexO() const {
+        return GetOffsetIndex(gate_order, 1);
+    }
+    size_t GetOffsetIndexF() const {
+        return GetOffsetIndex(gate_order, 2);
+    }
+    size_t GetOffsetIndexZ() const {
+        return GetOffsetIndex(gate_order, 3);
+    }
 
-    void SetOffsetOrder(int32_t t) { gate_order = static_cast<order_type>(t); }
+    void SetOffsetOrder(int32_t t) {
+        gate_order = static_cast<order_type>(t);
+    }
 
     void SetCell(const DataTensor& v) {
         cell = v;

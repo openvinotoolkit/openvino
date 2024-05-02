@@ -9,20 +9,20 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnique(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info["x:0"]
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape)
+        inputs_data["x:0"] = np.random.randint(-10, 10, x_shape)
         return inputs_data
 
     def create_unique_net(self, x_shape, data_type, out_idx):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(data_type, x_shape, 'x')
+            x = tf.compat.v1.placeholder(data_type, x_shape, "x")
             unique = tf.unique(x, out_idx)
-            tf.identity(unique[0], name='unique_elements')
-            tf.identity(unique[1], name='unique_indices')
+            tf.identity(unique[0], name="unique_elements")
+            tf.identity(unique[1], name="unique_indices")
             tf.compat.v1.global_variables_initializer()
 
             tf_net = sess.graph_def
@@ -38,13 +38,19 @@ class TestUnique(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_unique_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_unique_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
         if not use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
-        self._test(*self.create_unique_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_unique_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
 
     test_data_other_types = [
         dict(x_shape=[10], data_type=tf.int32, out_idx=tf.int32),
@@ -53,10 +59,16 @@ class TestUnique(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_other_types)
     @pytest.mark.nightly
-    def test_unique_other_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+    def test_unique_other_types(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
         if not use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
-        self._test(*self.create_unique_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_unique_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

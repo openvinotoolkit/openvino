@@ -3,12 +3,12 @@
 //
 
 #include "openvino/op/prior_box.hpp"
-#include "openvino/op/prior_box_clustered.hpp"
-#include "openvino/op/constant.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/prior_box.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -31,7 +31,8 @@ static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<o
     auto img_pshape = op->get_input_partial_shape(1);
     auto output_pshape = op->get_output_partial_shape(0);
 
-    OPENVINO_ASSERT(input_pshape.is_static() && img_pshape.is_static(), "Dynamic shapes are not supported for PriorBoxClustered operation yet");
+    OPENVINO_ASSERT(input_pshape.is_static() && img_pshape.is_static(),
+                    "Dynamic shapes are not supported for PriorBoxClustered operation yet");
 
     if (!output_pshape.is_dynamic()) {
         auto input_shape = input_pshape.to_shape();
@@ -39,7 +40,7 @@ static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<o
 
         int img_w = static_cast<int>(img_shape.back());
         int img_h = static_cast<int>(img_shape.at(img_shape.size() - 2));
-        cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(img_w), TensorValue(img_h));
+        cldnn::tensor img_size = (cldnn::tensor)cldnn::spatial(TensorValue(img_w), TensorValue(img_h));
 
         auto step_w = attrs.step_widths;
         auto step_h = attrs.step_heights;
@@ -111,12 +112,18 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
-                        "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                        "[GPU] Unsupported parameter nodes type in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
 
         const auto output_size = output_size_constant->cast_vector<int64_t>();
         const auto width = output_size[0];
@@ -124,12 +131,13 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
         cldnn::tensor img_size_tensor{};
-        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
+        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will
+        // be determined in execute_impl time.
         if (image_size_constant) {
             const auto image_size = image_size_constant->cast_vector<int64_t>();
             const auto image_width = image_size[0];
             const auto image_height = image_size[1];
-            img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+            img_size_tensor = (cldnn::tensor)cldnn::spatial(image_width, image_height);
         }
 
         auto priorBoxPrim = cldnn::prior_box(layerName,
@@ -183,12 +191,18 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8
     auto output_pshape = op->get_output_partial_shape(0);
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
-                        "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+                        "[GPU] Unsupported parameter nodes type in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
 
         const auto output_size = output_size_constant->cast_vector<int64_t>();
         const auto width = output_size[0];
@@ -196,12 +210,13 @@ static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8
         const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
         cldnn::tensor img_size_tensor{};
-        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
+        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will
+        // be determined in execute_impl time.
         if (image_size_constant) {
             const auto image_size = image_size_constant->cast_vector<int64_t>();
             const auto image_width = image_size[0];
             const auto image_height = image_size[1];
-            img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+            img_size_tensor = (cldnn::tensor)cldnn::spatial(image_width, image_height);
         }
 
         const cldnn::prior_box prior_box{layer_name,

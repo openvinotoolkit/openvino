@@ -2,20 +2,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
 import re
 
+import numpy as np
 import openvino.runtime.opset13 as ov
+import pytest
+
 from openvino import Type
 
 
-@pytest.mark.parametrize("op_name", [
-    "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
-])
+@pytest.mark.parametrize(
+    "op_name",
+    [
+        "ABC",
+        "Fakeee",
+        "123456",
+        "FakeQuantize",
+    ],
+)
 def test_affix_not_applied_on_nodes(op_name):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
@@ -25,16 +29,24 @@ def test_affix_not_applied_on_nodes(op_name):
     parameter_data = ov.parameter(data_shape, name=data_name, dtype=np.float32)
 
     input_low_name = "input_low"
-    parameter_input_low = ov.parameter(bound_shape, name=input_low_name, dtype=np.float32)
+    parameter_input_low = ov.parameter(
+        bound_shape, name=input_low_name, dtype=np.float32
+    )
 
     input_high_name = "input_high"
-    parameter_input_high = ov.parameter(bound_shape, name=input_high_name, dtype=np.float32)
+    parameter_input_high = ov.parameter(
+        bound_shape, name=input_high_name, dtype=np.float32
+    )
 
     output_low_name = "output_low"
-    parameter_output_low = ov.parameter(bound_shape, name=output_low_name, dtype=np.float32)
+    parameter_output_low = ov.parameter(
+        bound_shape, name=output_low_name, dtype=np.float32
+    )
 
     output_high_name = "output_high"
-    parameter_output_high = ov.parameter(bound_shape, name=output_high_name, dtype=np.float32)
+    parameter_output_high = ov.parameter(
+        bound_shape, name=output_high_name, dtype=np.float32
+    )
 
     model = ov.fake_quantize(
         parameter_data,
@@ -59,12 +71,15 @@ def test_affix_not_applied_on_nodes(op_name):
     assert output_high_name == parameter_output_high.friendly_name
 
 
-@pytest.mark.parametrize("op_name", [
-    "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
-])
+@pytest.mark.parametrize(
+    "op_name",
+    [
+        "ABC",
+        "Fakeee",
+        "123456",
+        "FakeQuantize",
+    ],
+)
 def test_affix_not_applied_on_output(op_name):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
@@ -78,16 +93,24 @@ def test_affix_not_applied_on_output(op_name):
     data_output = data.output(0)
 
     input_low_name = "input_low"
-    parameter_input_low = ov.parameter(bound_shape, name=input_low_name, dtype=np.float32)
+    parameter_input_low = ov.parameter(
+        bound_shape, name=input_low_name, dtype=np.float32
+    )
 
     input_high_name = "input_high"
-    parameter_input_high = ov.parameter(bound_shape, name=input_high_name, dtype=np.float32)
+    parameter_input_high = ov.parameter(
+        bound_shape, name=input_high_name, dtype=np.float32
+    )
 
     output_low_name = "output_low"
-    parameter_output_low = ov.parameter(bound_shape, name=output_low_name, dtype=np.float32)
+    parameter_output_low = ov.parameter(
+        bound_shape, name=output_low_name, dtype=np.float32
+    )
 
     output_high_name = "output_high"
-    parameter_output_high = ov.parameter(bound_shape, name=output_high_name, dtype=np.float32)
+    parameter_output_high = ov.parameter(
+        bound_shape, name=output_high_name, dtype=np.float32
+    )
 
     model = ov.fake_quantize(
         data_output,
@@ -112,12 +135,15 @@ def test_affix_not_applied_on_output(op_name):
     assert output_high_name == parameter_output_high.friendly_name
 
 
-@pytest.mark.parametrize("op_name", [
-    "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
-])
+@pytest.mark.parametrize(
+    "op_name",
+    [
+        "ABC",
+        "Fakeee",
+        "123456",
+        "FakeQuantize",
+    ],
+)
 def test_fake_quantize_prefix(op_name):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]

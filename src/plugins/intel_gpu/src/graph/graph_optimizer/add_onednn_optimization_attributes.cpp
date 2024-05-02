@@ -6,8 +6,9 @@
 #include "program_node.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include "fully_connected_inst.h"
-#include <impls/onednn/utils.hpp>
+#    include <impls/onednn/utils.hpp>
+
+#    include "fully_connected_inst.h"
 #endif
 
 using namespace cldnn;
@@ -19,5 +20,5 @@ void add_onednn_optimization_attributes::run(program& p) {
             node->init_onednn_primitive_attributes();
         }
     }
-#endif // ENABLE_ONEDNN_FOR_GPU
+#endif  // ENABLE_ONEDNN_FOR_GPU
 }

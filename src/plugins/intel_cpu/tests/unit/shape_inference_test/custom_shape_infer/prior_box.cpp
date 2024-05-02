@@ -20,14 +20,14 @@ using namespace testing;
 
 // TODO should support v8::PriorBox
 
-using PriorBoxV0TestParams = std::tuple<unit_test::ShapeVector,            // Input shapes
+using PriorBoxV0TestParams = std::tuple<unit_test::ShapeVector,  // Input shapes
                                         op::v0::PriorBox::Attributes,
-                                        std::vector<std::vector<int32_t>>, // layer_data, image_data
-                                        StaticShape                        // Expected shape
+                                        std::vector<std::vector<int32_t>>,  // layer_data, image_data
+                                        StaticShape                         // Expected shape
                                         >;
 
-class PriorBoxV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<ov::op::v0::PriorBox>,
-                                      public WithParamInterface<PriorBoxV0TestParams> {
+class PriorBoxV0CpuShapeInferenceTest : public unit_test::OpCpuShapeInferenceTest<ov::op::v0::PriorBox>,
+                                        public WithParamInterface<PriorBoxV0TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxV0TestParams>& obj) {
         unit_test::ShapeVector tmp_input_shapes;
@@ -66,32 +66,30 @@ protected:
 };
 
 namespace prior_box {
-const op::v0::PriorBox::Attributes createAttrs(
-    std::vector<float> min_size,
-    std::vector<float> max_size,
-    std::vector<float> aspect_ratio,
-    std::vector<float> density,
-    std::vector<float> fixed_ratio,
-    std::vector<float> fixed_size,
-    bool clip,
-    bool flip,
-    float step,
-    float offset,
-    std::vector<float> variance,
-    bool scale_all_sizes);
-const op::v0::PriorBox::Attributes createAttrs(
-    std::vector<float> min_size,
-    std::vector<float> max_size,
-    std::vector<float> aspect_ratio,
-    std::vector<float> density,
-    std::vector<float> fixed_ratio,
-    std::vector<float> fixed_size,
-    bool clip,
-    bool flip,
-    float step,
-    float offset,
-    std::vector<float> variance,
-    bool scale_all_sizes) {
+const op::v0::PriorBox::Attributes createAttrs(std::vector<float> min_size,
+                                               std::vector<float> max_size,
+                                               std::vector<float> aspect_ratio,
+                                               std::vector<float> density,
+                                               std::vector<float> fixed_ratio,
+                                               std::vector<float> fixed_size,
+                                               bool clip,
+                                               bool flip,
+                                               float step,
+                                               float offset,
+                                               std::vector<float> variance,
+                                               bool scale_all_sizes);
+const op::v0::PriorBox::Attributes createAttrs(std::vector<float> min_size,
+                                               std::vector<float> max_size,
+                                               std::vector<float> aspect_ratio,
+                                               std::vector<float> density,
+                                               std::vector<float> fixed_ratio,
+                                               std::vector<float> fixed_size,
+                                               bool clip,
+                                               bool flip,
+                                               float step,
+                                               float offset,
+                                               std::vector<float> variance,
+                                               bool scale_all_sizes) {
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = min_size;
     attrs.max_size = max_size;
@@ -107,76 +105,76 @@ const op::v0::PriorBox::Attributes createAttrs(
     attrs.scale_all_sizes = scale_all_sizes;
     return attrs;
 }
-const op::v0::PriorBox::Attributes attrs1 = createAttrs(
-    {16.0f},                  // min_size         Desired min_size of prior boxes
-    {38.46f},                 // max_size         Desired max_size of prior boxes
-    {2.0f},                   // aspect_ratio     Aspect ratios of prior boxes
-    {},                       // density
-    {},                       // fixed_ratio
-    {},                       // fixed_size
-    false,                    // clip             Clip output to [0,  1]
-    true,                     // flip             Flip aspect ratios
-    16.0f,                    // step             Distance between prior box centers
-    0.5f,                     // offset           Box offset relative to top center of image
-    {0.1f, 0.1f, 0.2f, 0.2f}, // variance         Values to adjust prior boxes with
-    true                      // scale_all_sizes  Scale all sizes
-);
+const op::v0::PriorBox::Attributes attrs1 =
+    createAttrs({16.0f},                   // min_size         Desired min_size of prior boxes
+                {38.46f},                  // max_size         Desired max_size of prior boxes
+                {2.0f},                    // aspect_ratio     Aspect ratios of prior boxes
+                {},                        // density
+                {},                        // fixed_ratio
+                {},                        // fixed_size
+                false,                     // clip             Clip output to [0,  1]
+                true,                      // flip             Flip aspect ratios
+                16.0f,                     // step             Distance between prior box centers
+                0.5f,                      // offset           Box offset relative to top center of image
+                {0.1f, 0.1f, 0.2f, 0.2f},  // variance         Values to adjust prior boxes with
+                true                       // scale_all_sizes  Scale all sizes
+    );
 
-const op::v0::PriorBox::Attributes attrs2 = createAttrs(
-    {2.0f, 3.0f},       // min_size         Desired min_size of prior boxes
-    {},                 // max_size         Desired max_size of prior boxes
-    {1.5f, 2.0f, 2.5f}, // aspect_ratio     Aspect ratios of prior boxes
-    {},                 // density
-    {},                 // fixed_ratio
-    {},                 // fixed_size
-    false,              // clip             Clip output to [0,  1]
-    false,              // flip             Flip aspect ratios
-    0.0f,               // step             Distance between prior box centers
-    0.0f,               // offset           Box offset relative to top center of image
-    {},                 // variance         Values to adjust prior boxes with
-    false               // scale_all_sizes  Scale all sizes
-);
+const op::v0::PriorBox::Attributes attrs2 =
+    createAttrs({2.0f, 3.0f},        // min_size         Desired min_size of prior boxes
+                {},                  // max_size         Desired max_size of prior boxes
+                {1.5f, 2.0f, 2.5f},  // aspect_ratio     Aspect ratios of prior boxes
+                {},                  // density
+                {},                  // fixed_ratio
+                {},                  // fixed_size
+                false,               // clip             Clip output to [0,  1]
+                false,               // flip             Flip aspect ratios
+                0.0f,                // step             Distance between prior box centers
+                0.0f,                // offset           Box offset relative to top center of image
+                {},                  // variance         Values to adjust prior boxes with
+                false                // scale_all_sizes  Scale all sizes
+    );
 
-const op::v0::PriorBox::Attributes attrs3 = createAttrs(
-    {2.0f, 3.0f},       // min_size         Desired min_size of prior boxes
-    {},                 // max_size         Desired max_size of prior boxes
-    {1.5f, 2.0f, 2.5f}, // aspect_ratio     Aspect ratios of prior boxes
-    {},                 // density
-    {},                 // fixed_ratio
-    {},                 // fixed_size
-    false,              // clip             Clip output to [0,  1]
-    true,               // flip             Flip aspect ratios
-    0.0f,               // step             Distance between prior box centers
-    0.0f,               // offset           Box offset relative to top center of image
-    {},                 // variance         Values to adjust prior boxes with
-    false               // scale_all_sizes  Scale all sizes
-);
+const op::v0::PriorBox::Attributes attrs3 =
+    createAttrs({2.0f, 3.0f},        // min_size         Desired min_size of prior boxes
+                {},                  // max_size         Desired max_size of prior boxes
+                {1.5f, 2.0f, 2.5f},  // aspect_ratio     Aspect ratios of prior boxes
+                {},                  // density
+                {},                  // fixed_ratio
+                {},                  // fixed_size
+                false,               // clip             Clip output to [0,  1]
+                true,                // flip             Flip aspect ratios
+                0.0f,                // step             Distance between prior box centers
+                0.0f,                // offset           Box offset relative to top center of image
+                {},                  // variance         Values to adjust prior boxes with
+                false                // scale_all_sizes  Scale all sizes
+    );
 
-const op::v0::PriorBox::Attributes attrs4 = createAttrs(
-    {256.0f}, // min_size         Desired min_size of prior boxes
-    {315.0f}, // max_size         Desired max_size of prior boxes
-    {2.0f},   // aspect_ratio     Aspect ratios of prior boxes
-    {},       // density
-    {},       // fixed_ratio
-    {},       // fixed_size
-    false,    // clip             Clip output to [0,  1]
-    true,     // flip             Flip aspect ratios
-    0.0f,     // step             Distance between prior box centers
-    0.0f,     // offset           Box offset relative to top center of image
-    {},       // variance         Values to adjust prior boxes with
-    true      // scale_all_sizes  Scale all sizes
-);
+const op::v0::PriorBox::Attributes attrs4 =
+    createAttrs({256.0f},  // min_size         Desired min_size of prior boxes
+                {315.0f},  // max_size         Desired max_size of prior boxes
+                {2.0f},    // aspect_ratio     Aspect ratios of prior boxes
+                {},        // density
+                {},        // fixed_ratio
+                {},        // fixed_size
+                false,     // clip             Clip output to [0,  1]
+                true,      // flip             Flip aspect ratios
+                0.0f,      // step             Distance between prior box centers
+                0.0f,      // offset           Box offset relative to top center of image
+                {},        // variance         Values to adjust prior boxes with
+                true       // scale_all_sizes  Scale all sizes
+    );
 
-} // namespace prior_box
+}  // namespace prior_box
 
-TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_empty_const_map) {
+TEST_P(PriorBoxV0CpuShapeInferenceTest, shape_inference_empty_const_map) {
     const auto layer_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[0]);
     const auto image_const = std::make_shared<op::v0::Constant>(element::i32, ov::Shape{2}, data[1]);
     auto op = make_op(layer_const, image_const, attrs);
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
+TEST_P(PriorBoxV0CpuShapeInferenceTest, shape_inference_with_const_map) {
     const auto layer_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     const auto image_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
     auto op = make_op(layer_shape, image_shape, attrs);
@@ -187,20 +185,27 @@ TEST_P(PriorBoxV0CpuShapeInferenceTest , shape_inference_with_const_map) {
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, const_data);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    CpuShapeInfer,
-    PriorBoxV0CpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs1,
-                        std::vector<std::vector<int32_t>>{{24, 42}, {384, 672}}, StaticShape({2, 16128})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs2,
-                        std::vector<std::vector<int32_t>>{{32, 32}, {384, 672}}, StaticShape({2, 20480})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs3,
-                        std::vector<std::vector<int32_t>>{{32, 32}, {300, 300}}, StaticShape({2, 32768})),
-           make_tuple(unit_test::ShapeVector{{2}, {2}}, prior_box::attrs4,
-                        std::vector<std::vector<int32_t>>{{1, 1}, {300, 300}}, StaticShape({2, 16}))),
-    PriorBoxV0CpuShapeInferenceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         PriorBoxV0CpuShapeInferenceTest,
+                         Values(make_tuple(unit_test::ShapeVector{{2}, {2}},
+                                           prior_box::attrs1,
+                                           std::vector<std::vector<int32_t>>{{24, 42}, {384, 672}},
+                                           StaticShape({2, 16128})),
+                                make_tuple(unit_test::ShapeVector{{2}, {2}},
+                                           prior_box::attrs2,
+                                           std::vector<std::vector<int32_t>>{{32, 32}, {384, 672}},
+                                           StaticShape({2, 20480})),
+                                make_tuple(unit_test::ShapeVector{{2}, {2}},
+                                           prior_box::attrs3,
+                                           std::vector<std::vector<int32_t>>{{32, 32}, {300, 300}},
+                                           StaticShape({2, 32768})),
+                                make_tuple(unit_test::ShapeVector{{2}, {2}},
+                                           prior_box::attrs4,
+                                           std::vector<std::vector<int32_t>>{{1, 1}, {300, 300}},
+                                           StaticShape({2, 16}))),
+                         PriorBoxV0CpuShapeInferenceTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

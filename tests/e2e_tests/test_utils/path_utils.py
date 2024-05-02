@@ -18,7 +18,9 @@ from glob import iglob
 from pathlib import Path, PurePath
 from typing import Union
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
 
 
 @contextmanager
@@ -66,12 +68,14 @@ def prepend_with_env_path(config_key, *paths):
     """Prepend given paths with base path specified in env_config.yml for given config_key"""
     # Local import to avoid circular dependency
     from e2e_tests.test_utils.env_tools import Environment
+
     return Environment.abs_path(config_key, *paths)
 
 
 def search_model_path_recursively(config_key, model_name):
     from e2e_tests.test_utils.env_tools import Environment
-    search_pattern = Environment.abs_path(config_key) + '/**/' + model_name
+
+    search_pattern = Environment.abs_path(config_key) + "/**/" + model_name
     path_found = list(iglob(search_pattern, recursive=True))
     if len(path_found) == 1:
         return path_found[0]
@@ -86,13 +90,18 @@ def proto_from_model(caffemodel):
     return str(PurePath(caffemodel).with_suffix(".prototxt"))
 
 
-def ref_from_model(model_name, framework, opset="", check_empty_ref_path=True, extension=".npz"):
+def ref_from_model(
+    model_name, framework, opset="", check_empty_ref_path=True, extension=".npz"
+):
     """Construct reference path from model base name."""
-    ref_filename = os.path.splitext(os.path.basename(model_name))[
-                       0] + extension  # split is needed in case filename contains . symbol
+    ref_filename = (
+        os.path.splitext(os.path.basename(model_name))[0] + extension
+    )  # split is needed in case filename contains . symbol
     ref_path = prepend_with_env_path("references", framework, opset, ref_filename)
     if check_empty_ref_path and not os.path.isfile(ref_path):
-        ref_path = prepend_with_env_path("references_repo", framework, opset, ref_filename)
+        ref_path = prepend_with_env_path(
+            "references_repo", framework, opset, ref_filename
+        )
     return ref_path
 
 
@@ -100,9 +109,9 @@ def symbol_from_model(mxnetmodel):
     """Construct symbolic graph path from mxnet model path."""
     # If mxnet model contains -NNNN patter (epochs number) it will be stripped
     if re.search(r"(-[0-9]{4})", mxnetmodel):
-        return os.path.splitext(mxnetmodel)[0][:-5] + '-symbol.json'
+        return os.path.splitext(mxnetmodel)[0][:-5] + "-symbol.json"
     else:
-        return os.path.splitext(mxnetmodel)[0] + '-symbol.json'
+        return os.path.splitext(mxnetmodel)[0] + "-symbol.json"
 
 
 def md5(file_path):
@@ -121,7 +130,7 @@ class DirLockingHandler:
         self.target_dir = resolve_dir_path(target_dir, as_str=True)
         self.fallback_dir = os.getcwd()
         self.writable = is_writable(self.target_dir)
-        self._lock_file = Path(self.target_dir) / '.lock'
+        self._lock_file = Path(self.target_dir) / ".lock"
 
     def is_locked(self):
         return self._lock_file.exists()
@@ -129,23 +138,32 @@ class DirLockingHandler:
     def lock(self):
         # Local import to avoid cyclic import
         from e2e_tests.test_utils.env_tools import Environment
+
         if self.writable:
             if not self.is_locked():
                 log.info("Marking {} directory as locked".format(self.target_dir))
                 self._lock_file.touch(exist_ok=False)
                 Environment.locked_dirs.append(self.target_dir)
-                lock_info = "Locked at {} by host {} process PID {} running under {}".format(datetime.datetime.now(),
-                                                                                             socket.gethostname(),
-                                                                                             os.getpid(),
-                                                                                             getpass.getuser())
+                lock_info = (
+                    "Locked at {} by host {} process PID {} running under {}".format(
+                        datetime.datetime.now(),
+                        socket.gethostname(),
+                        os.getpid(),
+                        getpass.getuser(),
+                    )
+                )
                 self._lock_file.write_text(lock_info)
         else:
             raise PermissionError(
-                "Failed to lock target directory {} because it's not writable!".format(self.target_dir))
+                "Failed to lock target directory {} because it's not writable!".format(
+                    self.target_dir
+                )
+            )
 
     def unlock(self):
         # Local import to avoid cyclic import
         from e2e_tests.test_utils.env_tools import Environment
+
         if self.is_locked():
             self._lock_file.unlink()
             if self.target_dir in Environment.locked_dirs:
@@ -154,11 +172,16 @@ class DirLockingHandler:
         else:
             log.warning("Target directory {} is not locked".format(self.target_dir))
 
-    def execute_after_unlock(self, max_wait_time: int = 600,
-                             exec_after_unlock: callable = lambda *args, **kwargs: log.info("Directory unlocked"),
-                             fallback_to_cwd=True,
-                             *args,
-                             **kwargs):
+    def execute_after_unlock(
+        self,
+        max_wait_time: int = 600,
+        exec_after_unlock: callable = lambda *args, **kwargs: log.info(
+            "Directory unlocked"
+        ),
+        fallback_to_cwd=True,
+        *args,
+        **kwargs,
+    ):
         wait_iters = math.ceil(max_wait_time / 30)
         if self.is_locked():
             log.info("Target directory {} locked".format(self.target_dir))
@@ -179,15 +202,17 @@ class DirLockingHandler:
             if self.is_locked():
                 if not fallback_to_cwd:
                     raise TimeoutError(
-                        "Timeout exceeded. Directory {} was not unlocked after {} seconds.".format(self.target_dir,
-                                                                                                   max_wait_time))
+                        "Timeout exceeded. Directory {} was not unlocked after {} seconds.".format(
+                            self.target_dir, max_wait_time
+                        )
+                    )
                 else:
                     # TODO: think about fallback latter
                     pass
 
 
 def get_abs_path(entry: Union[str, Path]) -> Path:
-    """ Return pathlib.Path object representing absolute path for the entry """
+    """Return pathlib.Path object representing absolute path for the entry"""
     try:
         path = Path(entry).expanduser().absolute()
     except TypeError as type_error:
@@ -196,7 +221,7 @@ def get_abs_path(entry: Union[str, Path]) -> Path:
 
 
 def get_rel_path(entry: Union[str, Path], start_path: Union[str, Path]) -> Path:
-    """ Return pathlib.Path object representing path for the entry relative to start_path """
+    """Return pathlib.Path object representing path for the entry relative to start_path"""
     return Path(entry).resolve().relative_to(Path(start_path).resolve())
 
 

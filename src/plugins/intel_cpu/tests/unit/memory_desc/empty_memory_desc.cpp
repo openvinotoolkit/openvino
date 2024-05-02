@@ -3,11 +3,12 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace ov::intel_cpu;

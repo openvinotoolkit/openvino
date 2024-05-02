@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "reduce_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
-#include "reduce_shape_inference.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -98,7 +99,13 @@ REGISTER_TYPED_TEST_SUITE_P(ReduceStaticShapeInferenceTest,
                             axes_param_keep_dims,
                             axes_constant_keep_dims);
 
-using ReduceOpTypes =
-    Types<op::v4::ReduceL1, op::v4::ReduceL2, op::v1::ReduceMax, op::v1::ReduceMean, op::v1::ReduceMin, op::v1::ReduceProd, op::v1::ReduceSum,
-          op::v1::ReduceLogicalAnd, op::v1::ReduceLogicalOr>;
+using ReduceOpTypes = Types<op::v4::ReduceL1,
+                            op::v4::ReduceL2,
+                            op::v1::ReduceMax,
+                            op::v1::ReduceMean,
+                            op::v1::ReduceMin,
+                            op::v1::ReduceProd,
+                            op::v1::ReduceSum,
+                            op::v1::ReduceLogicalAnd,
+                            op::v1::ReduceLogicalOr>;
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_inference, ReduceStaticShapeInferenceTest, ReduceOpTypes);

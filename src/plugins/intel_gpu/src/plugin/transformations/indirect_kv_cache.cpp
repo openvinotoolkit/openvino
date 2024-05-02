@@ -3,6 +3,7 @@
 //
 
 #include "indirect_kv_cache.hpp"
+
 #include <memory>
 
 #include "intel_gpu/op/gemm.hpp"
@@ -10,7 +11,6 @@
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -18,8 +18,8 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -63,11 +63,13 @@ IndirectKVCache::IndirectKVCache() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto kv_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache).get_node_shared_ptr());
+        auto kv_cache_node =
+            std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache).get_node_shared_ptr());
 
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node = pattern_map.at(gather_input).get_node_shared_ptr();
-        auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
+        auto gather_node =
+            std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
         ov::replace_node(gather_node, gather_input_node);
 
         auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
@@ -90,14 +92,15 @@ IndirectKVCache::IndirectKVCache() {
         auto order_in1 = gemm_node->get_input1_transpose_order();
         auto order_out = gemm_node->get_output_transpose_order();
 
-        auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
-                                                                               gemm_node->get_input_node_shared_ptr(1),
-                                                                               indirect_kv_cache->output(1), // beam table
-                                                                               matmul_kv_cache_index == 0,
-                                                                               matmul_kv_cache_index == 1,
-                                                                               order_in0,
-                                                                               order_in1,
-                                                                               order_out);
+        auto indirect_gemm =
+            std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
+                                                              gemm_node->get_input_node_shared_ptr(1),
+                                                              indirect_kv_cache->output(1),  // beam table
+                                                              matmul_kv_cache_index == 0,
+                                                              matmul_kv_cache_index == 1,
+                                                              order_in0,
+                                                              order_in1,
+                                                              order_out);
 
         indirect_gemm->set_friendly_name(gemm_node->get_friendly_name());
         ov::copy_runtime_info(gemm_node, indirect_gemm);

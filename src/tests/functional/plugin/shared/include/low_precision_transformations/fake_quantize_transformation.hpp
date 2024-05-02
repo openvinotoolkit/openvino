@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
+
 #include "ov_lpt_models/fake_quantize.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
@@ -18,17 +19,16 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    FakeQuantizeTransformationParam,
-    bool> FakeQuantizeTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   FakeQuantizeTransformationParam,
+                   bool>
+    FakeQuantizeTransformationParams;
 
-class FakeQuantizeTransformation :
-    public testing::WithParamInterface<FakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FakeQuantizeTransformation : public testing::WithParamInterface<FakeQuantizeTransformationParams>,
+                                   public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 

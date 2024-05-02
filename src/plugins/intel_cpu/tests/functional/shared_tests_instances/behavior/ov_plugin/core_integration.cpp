@@ -3,6 +3,7 @@
 //
 
 #include <openvino/runtime/properties.hpp>
+
 #include "behavior/ov_plugin/query_model.hpp"
 #include "openvino/runtime/core.hpp"
 
@@ -13,6 +14,5 @@ namespace {
 // OV Class Query model
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("CPU"));
-
 
 }  // namespace

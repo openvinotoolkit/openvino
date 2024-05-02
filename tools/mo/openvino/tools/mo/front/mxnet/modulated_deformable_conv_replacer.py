@@ -11,12 +11,14 @@ class DeformableConvolutionReplacer(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
 
-        for deform_conv in graph.get_op_nodes(type='DeformableConvolution'):
+        for deform_conv in graph.get_op_nodes(type="DeformableConvolution"):
             if len(deform_conv.get_inputs()) != 4:
                 return
 
             m_source = deform_conv.in_port(2).get_source()
             deform_conv.in_port(2).disconnect()
 
-            deform_conv.in_port(3).get_connection().set_destination(deform_conv.in_port(2))
+            deform_conv.in_port(3).get_connection().set_destination(
+                deform_conv.in_port(2)
+            )
             m_source.connect(deform_conv.in_port(3))

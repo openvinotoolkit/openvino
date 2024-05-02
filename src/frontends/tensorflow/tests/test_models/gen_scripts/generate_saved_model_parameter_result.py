@@ -18,7 +18,7 @@ class ModelParameterResult(tf.Module):
         identity1 = tf.raw_ops.Identity(input=params)
         identity2 = tf.raw_ops.Identity(input=identity1)
         identity3 = tf.raw_ops.Identity(input=identity2)
-        return {'test_output_name': identity3}
+        return {"test_output_name": identity3}
 
 
 module = ModelParameterResult()

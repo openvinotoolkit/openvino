@@ -7,8 +7,7 @@
 namespace cldnn {
 namespace common {
 
-#define REGISTER_COMMON(prim)                      \
-    static detail::attach_##prim##_common attach_##prim
+#define REGISTER_COMMON(prim) static detail::attach_##prim##_common attach_##prim
 
 void register_implementations() {
     REGISTER_COMMON(condition);

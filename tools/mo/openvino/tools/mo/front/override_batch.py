@@ -11,4 +11,4 @@ class OverrideBatch(FrontReplacementPattern):
     run_not_recursively = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        override_batch(graph, graph.graph['cmd_params'].batch)
+        override_batch(graph, graph.graph["cmd_params"].batch)

@@ -3,10 +3,12 @@
 //
 
 #include "eltwise_kernel_mixed_byxf_and_fs_b_yx_fsv32.h"
-#include "kernel_selector_utils.h"
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -28,7 +30,8 @@ ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::get_required_device_features_key(
+    const Params& params) const {
     return get_common_subgroups_device_features_key(params);
 }
 
@@ -83,14 +86,14 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
         cldnn_jit.AddConstants({
             MakeJitConstant("INPUT_0_0", "tmp_input_0"),
             MakeJitConstant("INPUT_0_1", "tmp_input_1"),
-            });
+        });
 
         auto input0 = newParams.inputs[0];
-        std::vector<size_t> inp0_bfyx = { input0.Batch().v, input0.Feature().v, input0.Y().v, input0.X().v };
+        std::vector<size_t> inp0_bfyx = {input0.Batch().v, input0.Feature().v, input0.Y().v, input0.X().v};
         auto input1 = newParams.inputs[1];
-        std::vector<size_t> inp1_bfyx = { input1.Batch().v, input1.Feature().v, input1.Y().v, input1.X().v };
-        std::vector<std::string> bfyx_str   = { "b", "f0", "y", "x" };
-        std::vector<std::string> dims_names = { "BATCH_NUM", "FEATURE_NUM", "SIZE_Y", "SIZE_X" };
+        std::vector<size_t> inp1_bfyx = {input1.Batch().v, input1.Feature().v, input1.Y().v, input1.X().v};
+        std::vector<std::string> bfyx_str = {"b", "f0", "y", "x"};
+        std::vector<std::string> dims_names = {"BATCH_NUM", "FEATURE_NUM", "SIZE_Y", "SIZE_X"};
         for (size_t dim = 0; dim < inp0_bfyx.size(); dim++) {
             std::string dim_str = bfyx_str[dim];
             std::string jit_str_inp0 = dim_str;
@@ -100,10 +103,8 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
             } else if (inp0_bfyx[dim] < inp1_bfyx[dim]) {
                 jit_str_inp0 += " % INPUT0_" + dims_names[dim];
             }
-            cldnn_jit.AddConstants({
-                MakeJitConstant("INPUT0_DIM_" + dim_str, jit_str_inp0),
-                MakeJitConstant("INPUT1_DIM_" + dim_str, jit_str_inp1)
-                });
+            cldnn_jit.AddConstants({MakeJitConstant("INPUT0_DIM_" + dim_str, jit_str_inp0),
+                                    MakeJitConstant("INPUT1_DIM_" + dim_str, jit_str_inp1)});
         }
 
         jit = CreateJit(kernelName, cldnn_jit, entry_point);

@@ -25,15 +25,20 @@ class TFFFT(Op):
         3) RFFT, RFFT2D, RFFT3D are converted into RDFT;
         4) IRFFT, IRFFT2D, IRFFT3D are converted into IRDFT.
     """
-    op = 'TFFFT'
+
+    op = "TFFFT"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': self.op,
-            'out_ports_count': 1,
-            'in_ports_count': 1,
+            "op": self.op,
+            "out_ports_count": 1,
+            "in_ports_count": 1,
         }
-        assert 'fft_kind' in attrs, 'Attribute fft_kind is not given for the operation TFFFT.'
-        assert 'num_of_dimensions' in attrs, 'Attribute num_of_dimensions is not given for the operation TFFFT.'
+        assert (
+            "fft_kind" in attrs
+        ), "Attribute fft_kind is not given for the operation TFFFT."
+        assert (
+            "num_of_dimensions" in attrs
+        ), "Attribute num_of_dimensions is not given for the operation TFFFT."
         super().__init__(graph, mandatory_props, attrs)

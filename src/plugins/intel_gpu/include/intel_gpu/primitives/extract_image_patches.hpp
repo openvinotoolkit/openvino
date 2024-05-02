@@ -72,9 +72,7 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
 
         auto rhs_casted = downcast<const extract_image_patches>(rhs);
 
-        return sizes == rhs_casted.sizes &&
-               strides == rhs_casted.strides &&
-               rates == rhs_casted.rates &&
+        return sizes == rhs_casted.sizes && strides == rhs_casted.strides && rates == rhs_casted.rates &&
                auto_pad == rhs_casted.auto_pad;
     }
 

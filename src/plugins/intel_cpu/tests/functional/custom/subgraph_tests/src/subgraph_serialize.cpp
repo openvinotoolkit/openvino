@@ -4,14 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/core/model.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/runtime/core.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::opset9;
@@ -24,7 +23,7 @@ class SubgraphSnippetSerializationTest : public ::testing::Test, public CPUTests
 TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto model = ([] () -> std::shared_ptr<ov::Model> {
+    auto model = ([]() -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({2, 2});
         auto input0 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto input1 = std::make_shared<Parameter>(ov::element::f32, shape);
@@ -32,7 +31,8 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
         auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
+        auto subgraph =
+            std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
@@ -62,8 +62,8 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
     auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
     auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
-                                .enable(FunctionsComparator::CONST_VALUES)
-                                .enable(FunctionsComparator::ATTRIBUTES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::ATTRIBUTES);
     const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
 
     ASSERT_TRUE(results.valid) << results.message;
@@ -71,7 +71,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
 
 TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    auto model = ([] () -> std::shared_ptr<ov::Model> {
+    auto model = ([]() -> std::shared_ptr<ov::Model> {
         auto shape = ov::Shape({1});
         auto input = std::make_shared<Parameter>(ov::element::f32, shape);
         auto internal_input = std::make_shared<Parameter>(ov::element::f32, shape);
@@ -79,7 +79,8 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
         auto internal_constant = std::make_shared<Constant>(ov::element::f32, shape, 2);
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
+        auto subgraph_body =
+            std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
         auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
         return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
     })();
@@ -107,8 +108,8 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
     auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
     auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
-                                .enable(FunctionsComparator::CONST_VALUES)
-                                .enable(FunctionsComparator::ATTRIBUTES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::ATTRIBUTES);
     const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
 
     ASSERT_TRUE(results.valid) << results.message;
@@ -119,7 +120,7 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stO
     auto precision = ov::element::f32;
     auto shape = ov::Shape{1, 3, 16, 16};
 
-    auto model = [&] () -> std::shared_ptr<ov::Model> {
+    auto model = [&]() -> std::shared_ptr<ov::Model> {
         auto input1 = std::make_shared<Parameter>(precision, shape);
         auto input2 = std::make_shared<Parameter>(precision, shape);
         auto sinh1 = std::make_shared<Sinh>(input1);
@@ -145,8 +146,8 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithResultAs1stO
     auto compiled_model_runtime = compiled_model.get_runtime_model()->clone();
     auto imported_compiled_model_runtime = imported_compiled_model.get_runtime_model()->clone();
     const auto fc = FunctionsComparator::with_default()
-                                .enable(FunctionsComparator::CONST_VALUES)
-                                .enable(FunctionsComparator::ATTRIBUTES);
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::ATTRIBUTES);
     const auto results = fc.compare(compiled_model_runtime, imported_compiled_model_runtime);
 
     ASSERT_TRUE(results.valid) << results.message;

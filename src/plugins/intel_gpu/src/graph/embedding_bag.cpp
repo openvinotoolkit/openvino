@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "embedding_bag_inst.h"
+#include <string>
 
-#include "primitive_type_base.h"
+#include "embedding_bag_inst.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(embedding_bag)
@@ -50,6 +50,5 @@ std::string embedding_bag_inst::to_string(embedding_bag_node const& node) {
     return primitive_description.str();
 }
 
-embedding_bag_inst::typed_primitive_inst(network& network, embedding_bag_node const& node)
-    : parent(network, node) {}
+embedding_bag_inst::typed_primitive_inst(network& network, embedding_bag_node const& node) : parent(network, node) {}
 }  // namespace cldnn

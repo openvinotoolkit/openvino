@@ -4,15 +4,18 @@
 
 #pragma once
 
-#include <vector>
 #include <type_traits>
+#include <vector>
+
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 
 namespace cldnn {
 template <typename BufferType>
-class Serializer<BufferType, ov::PartialShape, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::PartialShape,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const ov::PartialShape& partial_shape) {
         std::vector<ov::Dimension> dimensions(partial_shape);
@@ -25,7 +28,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, ov::PartialShape, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 ov::PartialShape,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, ov::PartialShape& partial_shape) {
         size_t num_dimensions;
@@ -39,7 +44,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::format_traits, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::format_traits,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const cldnn::format_traits& traits) {
         buffer << traits.str;
@@ -59,7 +66,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::format_traits, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::format_traits,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, cldnn::format_traits& traits) {
         buffer >> traits.str;
@@ -84,7 +93,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::format, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::format,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const cldnn::format& format) {
         cldnn::format::type fmt_type = format;
@@ -95,7 +106,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::format, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::format,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, cldnn::format& format) {
         cldnn::format::type fmt_type = cldnn::format::type::any;
@@ -111,7 +124,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::layout, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::layout,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const cldnn::layout& _layout) {
         buffer << make_data(&_layout.data_type, sizeof(cldnn::data_types));
@@ -122,7 +137,9 @@ public:
 };
 
 template <typename BufferType>
-class Serializer<BufferType, cldnn::layout, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 cldnn::layout,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, cldnn::layout& _layout) {
         buffer >> make_data(&_layout.data_type, sizeof(cldnn::data_types));

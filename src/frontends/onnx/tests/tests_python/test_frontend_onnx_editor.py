@@ -8,7 +8,6 @@ import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-
 from openvino.frontend import FrontEndManager, GeneralFailure
 from openvino.runtime import Dimension, PartialShape, Type
 
@@ -65,9 +64,12 @@ from openvino.runtime import Dimension, PartialShape, Type
 def create_test_onnx_models():
     models = {}
     # Input model 1
-    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"], name="onnx_add_op")
-    split = onnx.helper.make_node("Split", inputs=["add_out"],
-                                  outputs=["out1", "out2"], name="split1", axis=0)
+    add = onnx.helper.make_node(
+        "Add", inputs=["in1", "in2"], outputs=["add_out"], name="onnx_add_op"
+    )
+    split = onnx.helper.make_node(
+        "Split", inputs=["add_out"], outputs=["out1", "out2"], name="split1", axis=0
+    )
     relu = onnx.helper.make_node("Relu", inputs=["in3"], outputs=["out3"])
     mul = onnx.helper.make_node("Mul", inputs=["add_out", "add_out"], outputs=["out4"])
 
@@ -82,14 +84,26 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["input_model.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+    graph = make_graph(
+        [add, split, relu, mul], "test_graph", input_tensors, output_tensors
+    )
+    models["input_model.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Input model 2
-    split_2 = onnx.helper.make_node("Split", inputs=["add_out"],
-                                    outputs=["sp_out1", "sp_out2"], name="split2", axis=0)
-    absolute = onnx.helper.make_node("Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1")
+    split_2 = onnx.helper.make_node(
+        "Split",
+        inputs=["add_out"],
+        outputs=["sp_out1", "sp_out2"],
+        name="split2",
+        axis=0,
+    )
+    absolute = onnx.helper.make_node(
+        "Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1"
+    )
     sin = onnx.helper.make_node("Sin", inputs=["sp_out2"], outputs=["out2"])
 
     input_tensors = [
@@ -100,12 +114,19 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
     ]
-    graph = make_graph([add, split_2, absolute, sin], "test_graph_2", input_tensors, output_tensors)
-    models["input_model_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
+    graph = make_graph(
+        [add, split_2, absolute, sin], "test_graph_2", input_tensors, output_tensors
+    )
+    models["input_model_2.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Input model 3
-    add_2 = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op")
+    add_2 = onnx.helper.make_node(
+        "Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op"
+    )
     relu_2 = onnx.helper.make_node("Relu", inputs=["in2"], outputs=["out2"])
 
     input_tensors = [
@@ -118,8 +139,11 @@ def create_test_onnx_models():
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add_2, relu_2], "test_graph_3", input_tensors, output_tensors)
-    models["input_model_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["input_model_3.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for extract_subgraph
     input_tensors = [
@@ -130,8 +154,11 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["extract_subgraph.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for extract_subgraph 2
     input_tensors = [
@@ -144,41 +171,73 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["extract_subgraph_2.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for extract_subgraph 3
     input_tensors = [
-        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info(
+            "out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
+        ),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"], name="split1", axis=0)
+    expected_split = onnx.helper.make_node(
+        "Split",
+        inputs=["out1/placeholder_port_0"],
+        outputs=["out1", "out2"],
+        name="split1",
+        axis=0,
+    )
     graph = make_graph([expected_split], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["extract_subgraph_3.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for extract_subgraph 4
     input_tensors = [
-        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info(
+            "out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
+        ),
+        make_tensor_value_info(
+            "out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
+        ),
+        make_tensor_value_info(
+            "out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)
+        ),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"], name="split1", axis=0)
-    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
-                                         outputs=["out4"])
-    graph = make_graph([expected_split, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_4.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+    expected_split = onnx.helper.make_node(
+        "Split",
+        inputs=["out1/placeholder_port_0"],
+        outputs=["out1", "out2"],
+        name="split1",
+        axis=0,
+    )
+    expected_mul = onnx.helper.make_node(
+        "Mul",
+        inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
+        outputs=["out4"],
+    )
+    graph = make_graph(
+        [expected_split, expected_mul], "test_graph", input_tensors, output_tensors
+    )
+    models["extract_subgraph_4.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for extract_subgraph 5
     input_tensors = [
@@ -189,8 +248,11 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    models["extract_subgraph_5.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["extract_subgraph_5.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for test_override_all_outputs
     input_tensors = [
@@ -203,8 +265,11 @@ def create_test_onnx_models():
         make_tensor_value_info("add_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                          opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["test_override_all_outputs.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for test_override_all_outputs 2
     input_tensors = [
@@ -215,8 +280,11 @@ def create_test_onnx_models():
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_outputs_2.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["test_override_all_outputs_2.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for test_override_all_outputs 3
     input_tensors = [
@@ -228,15 +296,24 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add_2], "test_graph_3", input_tensors, output_tensors)
-    models["test_override_all_outputs_3.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["test_override_all_outputs_3.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for test_override_all_inputs
     input_tensors = [
         make_tensor_value_info("in3", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)),
-        make_tensor_value_info("out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info(
+            "out1/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
+        ),
+        make_tensor_value_info(
+            "out4/placeholder_port_0", onnx.TensorProto.FLOAT, (2, 2)
+        ),
+        make_tensor_value_info(
+            "out4/placeholder_port_1", onnx.TensorProto.FLOAT, (2, 2)
+        ),
     ]
     output_tensors = [
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
@@ -244,13 +321,29 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    expected_split = onnx.helper.make_node("Split", inputs=["out1/placeholder_port_0"],
-                                           outputs=["out1", "out2"], name="split1", axis=0)
-    expected_mul = onnx.helper.make_node("Mul", inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
-                                         outputs=["out4"])
-    graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
-    models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])
+    expected_split = onnx.helper.make_node(
+        "Split",
+        inputs=["out1/placeholder_port_0"],
+        outputs=["out1", "out2"],
+        name="split1",
+        axis=0,
+    )
+    expected_mul = onnx.helper.make_node(
+        "Mul",
+        inputs=["out4/placeholder_port_0", "out4/placeholder_port_1"],
+        outputs=["out4"],
+    )
+    graph = make_graph(
+        [expected_split, relu, expected_mul],
+        "test_graph",
+        input_tensors,
+        output_tensors,
+    )
+    models["test_override_all_inputs.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for cut_and_add_new_input_edge
     input_tensors = [
@@ -265,10 +358,17 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "add_out"], outputs=["out4"])
-    graph = make_graph([add, split, relu, new_mul], "test_graph", input_tensors, output_tensors)
-    models["cut_and_add_new_input_edge.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                           opset_imports=[onnx.helper.make_opsetid("", 13)])
+    new_mul = onnx.helper.make_node(
+        "Mul", inputs=["new_input", "add_out"], outputs=["out4"]
+    )
+    graph = make_graph(
+        [add, split, relu, new_mul], "test_graph", input_tensors, output_tensors
+    )
+    models["cut_and_add_new_input_edge.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for cut_and_add_new_input_place
     input_tensors = [
@@ -281,12 +381,20 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
     ]
-    new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "new_input"], outputs=["out4"])
-    new_split = onnx.helper.make_node("Split", inputs=["new_input"],
-                                      outputs=["out1", "out2"], name="split1", axis=0)
-    graph = make_graph([new_split, relu, new_mul], "test_graph", input_tensors, output_tensors)
-    models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                            opset_imports=[onnx.helper.make_opsetid("", 13)])
+    new_mul = onnx.helper.make_node(
+        "Mul", inputs=["new_input", "new_input"], outputs=["out4"]
+    )
+    new_split = onnx.helper.make_node(
+        "Split", inputs=["new_input"], outputs=["out1", "out2"], name="split1", axis=0
+    )
+    graph = make_graph(
+        [new_split, relu, new_mul], "test_graph", input_tensors, output_tensors
+    )
+    models["cut_and_add_new_input_place.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Expected for remove_output
     input_tensors = [
@@ -300,8 +408,11 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     graph = make_graph([add, relu, split], "test_graph", input_tensors, output_tensors)
-    models["remove_output.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                              opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["remove_output.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # test partial shape
     input_tensors = [
@@ -315,16 +426,24 @@ def create_test_onnx_models():
         make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (4, 6)),
         make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (8, 16)),
     ]
-    graph = make_graph([add, split, relu, mul], "test_graph", input_tensors, output_tensors)
-    models["test_partial_shape.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+    graph = make_graph(
+        [add, split, relu, mul], "test_graph", input_tensors, output_tensors
+    )
+    models["test_partial_shape.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # test place names model
     add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["add_out"])
     sub = onnx.helper.make_node("Sub", inputs=["in1", "in2"], outputs=["sub_out"])
-    split = onnx.helper.make_node("Split", inputs=["add_out"], outputs=["out1", "out2"],
-                                  name="split1", axis=0)
-    mul = onnx.helper.make_node("Mul", inputs=["one_const", "sub_out"], outputs=["out3"])
+    split = onnx.helper.make_node(
+        "Split", inputs=["add_out"], outputs=["out1", "out2"], name="split1", axis=0
+    )
+    mul = onnx.helper.make_node(
+        "Mul", inputs=["one_const", "sub_out"], outputs=["out3"]
+    )
 
     input_tensors = [
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
@@ -341,19 +460,28 @@ def create_test_onnx_models():
     initializers = [
         onnx.helper.make_tensor("one_const", 1, [1], [1]),
     ]
-    graph = make_graph([add, sub, split, mul], "test_graph", input_tensors, output_tensors,
-                       value_info=value_infos, initializer=initializers)
-    models["test_place_names.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                 opset_imports=[onnx.helper.make_opsetid("", 13)])
+    graph = make_graph(
+        [add, sub, split, mul],
+        "test_graph",
+        input_tensors,
+        output_tensors,
+        value_info=value_infos,
+        initializer=initializers,
+    )
+    models["test_place_names.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     # Input model with integer types
     add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
-    const_tensor = onnx.helper.make_tensor("const_tensor",
-                                           onnx.TensorProto.INT32,
-                                           (2, 2),
-                                           [5, 1, 4, 20])
-    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
-                                       value=const_tensor, name="const_node")
+    const_tensor = onnx.helper.make_tensor(
+        "const_tensor", onnx.TensorProto.INT32, (2, 2), [5, 1, 4, 20]
+    )
+    const_node = onnx.helper.make_node(
+        "Constant", [], outputs=["const_node"], value=const_tensor, name="const_node"
+    )
     mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
     input_tensors = [
         make_tensor_value_info("x", onnx.TensorProto.INT32, (2, 2)),
@@ -361,8 +489,11 @@ def create_test_onnx_models():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    models["input_model_int32.onnx"] = make_model(graph, producer_name="OpenVINO ONNX Frontend",
-                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
+    models["input_model_int32.onnx"] = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
 
     return models
 
@@ -409,8 +540,10 @@ def compare_models(current, expected):  # noqa: C901 the function is too complex
         msg += f"Current: {len(current_ops)}, expected: {len(expected_ops)}. "
 
     for i in range(len(current_ops)):
-        if (current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()
-                and current_ops[i].get_type_name() != "Constant"):  # const have different names
+        if (
+            current_ops[i].get_friendly_name() != expected_ops[i].get_friendly_name()
+            and current_ops[i].get_type_name() != "Constant"
+        ):  # const have different names
             result = False
             msg += "Not equal op name. "
             msg += f"Current: {current_ops[i].get_friendly_name()}, "
@@ -419,12 +552,16 @@ def compare_models(current, expected):  # noqa: C901 the function is too complex
             result = False
             msg += f"Not equal output size of {current_ops[i].get_friendly_name()}. "
         for idx in range(current_ops[i].get_output_size()):
-            if current_ops[i].get_output_partial_shape(idx) != expected_ops[i].get_output_partial_shape(idx):
+            if current_ops[i].get_output_partial_shape(idx) != expected_ops[
+                i
+            ].get_output_partial_shape(idx):
                 result = False
                 msg += f"Not equal op partial shapes of {current_ops[i].get_friendly_name()}. "
                 msg += f"Current: {current_ops[i].get_partial_shape({idx})}, "
                 msg += f"expected: {expected_ops[i].get_partial_shape({idx})}. "
-            if current_ops[i].get_output_element_type(idx) != expected_ops[i].get_output_element_type(idx):
+            if current_ops[i].get_output_element_type(idx) != expected_ops[
+                i
+            ].get_output_element_type(idx):
                 result = False
                 msg += f"Not equal output element type of {current_ops[i].get_friendly_name()}. "
                 msg += f"Current: {current_ops[i].get_output_element_type(idx)}, "
@@ -444,8 +581,12 @@ def test_extract_subgraph():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(input_port_index=0)  # in1
-    place2 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(input_port_index=1)  # in2
+    place1 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(
+        input_port_index=0
+    )  # in1
+    place2 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(
+        input_port_index=1
+    )  # in2
     place3 = model.get_place_by_tensor_name(tensor_name="add_out")
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
     result_model = fe.convert(model)
@@ -483,7 +624,9 @@ def test_extract_subgraph_3():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place1 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     place2 = model.get_place_by_tensor_name(tensor_name="out1")
     place3 = model.get_place_by_tensor_name(tensor_name="out2")
     model.extract_subgraph(inputs=[place1], outputs=[place2, place3])
@@ -504,13 +647,17 @@ def test_extract_subgraph_4():
     assert model
 
     out4_tensor = model.get_place_by_tensor_name(tensor_name="out4")
-    place1 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place1 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     place2 = out4_tensor.get_producing_operation().get_input_port(input_port_index=0)
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
     place4 = model.get_place_by_tensor_name(tensor_name="out1")
     place5 = model.get_place_by_tensor_name(tensor_name="out2")
     place6 = model.get_place_by_tensor_name(tensor_name="out4")
-    model.extract_subgraph(inputs=[place1, place2, place3], outputs=[place4, place5, place6])
+    model.extract_subgraph(
+        inputs=[place1, place2, place3], outputs=[place4, place5, place6]
+    )
     result_func = fe.convert(model)
 
     expected_model = fe.convert(fe.load("extract_subgraph_4.onnx"))
@@ -696,7 +843,8 @@ def test_override_all_inputs():
     assert model
 
     place1 = model.get_place_by_operation_name_and_input_port(
-        operation_name="split1", input_port_index=0)
+        operation_name="split1", input_port_index=0
+    )
     out4_tensor = model.get_place_by_tensor_name(tensor_name="out4")
     place2 = out4_tensor.get_producing_operation().get_input_port(input_port_index=0)
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
@@ -722,7 +870,9 @@ def test_override_all_inputs_invalid_place():
     assert model2
 
     out3_tensor = model2.get_place_by_tensor_name(tensor_name="out3")
-    invalid_place = out3_tensor.get_producing_operation().get_input_port(input_port_index=0)
+    invalid_place = out3_tensor.get_producing_operation().get_input_port(
+        input_port_index=0
+    )
 
     out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
     place1 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
@@ -757,7 +907,8 @@ def test_is_input_output():
     assert not place3.is_output()
 
     place4 = model.get_place_by_operation_name_and_input_port(
-        operation_name="split1", input_port_index=0)
+        operation_name="split1", input_port_index=0
+    )
     assert not place4.is_input()
     assert not place4.is_output()
 
@@ -853,7 +1004,9 @@ def test_is_equal():
     assert place3.is_equal(place4)
 
     out1_tensor = model.get_place_by_tensor_name(tensor_name="out1")
-    place5 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place5 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     place6 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
     assert place5.is_equal(place6)
 
@@ -901,7 +1054,9 @@ def test_is_equal_data():
     place6 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
     assert place6.is_equal_data(place5)
 
-    place7 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place7 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     assert place7.is_equal_data(place7)
 
     place8 = model.get_place_by_tensor_name(tensor_name="out1")
@@ -1046,7 +1201,9 @@ def test_get_consuming_ports():
     place1 = model.get_place_by_tensor_name(tensor_name="add_out")
     add_tensor_consuming_ports = place1.get_consuming_ports()
     assert len(add_tensor_consuming_ports) == 3
-    place2 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place2 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     assert add_tensor_consuming_ports[0].is_equal(place2)
     out4_tensor = model.get_place_by_tensor_name(tensor_name="out4")
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=0)
@@ -1070,10 +1227,14 @@ def test_get_consuming_ports_2():
     split_op = model.get_place_by_operation_name(operation_name="split2")
     split_op_consuming_ports = split_op.get_consuming_ports()
     assert len(split_op_consuming_ports) == 2
-    abs_input_port = model.get_place_by_operation_name(operation_name="abs1").get_input_port(input_port_index=0)
+    abs_input_port = model.get_place_by_operation_name(
+        operation_name="abs1"
+    ).get_input_port(input_port_index=0)
     assert split_op_consuming_ports[0].is_equal(abs_input_port)
     out2_tensor = model.get_place_by_tensor_name(tensor_name="out2")
-    sin_input_port = out2_tensor.get_producing_operation().get_input_port(input_port_index=0)
+    sin_input_port = out2_tensor.get_producing_operation().get_input_port(
+        input_port_index=0
+    )
     assert split_op_consuming_ports[1].is_equal(sin_input_port)
 
     split_out_port_0 = split_op.get_output_port(output_port_index=0)
@@ -1133,7 +1294,9 @@ def test_get_consuming_operations():
     split_op = model.get_place_by_operation_name(operation_name="split2")
     split_op_consuming_ops = split_op.get_consuming_operations()
     abs_op = model.get_place_by_operation_name(operation_name="abs1")
-    sin_op = model.get_place_by_tensor_name(tensor_name="out2").get_producing_operation()
+    sin_op = model.get_place_by_tensor_name(
+        tensor_name="out2"
+    ).get_producing_operation()
 
     assert len(split_op_consuming_ops) == 2
     assert split_op_consuming_ops[0].is_equal(abs_op)
@@ -1145,7 +1308,9 @@ def test_get_consuming_operations():
     assert len(split_op_port_consuming_ops) == 1
     assert split_op_port_consuming_ops[0].is_equal(split_op)
 
-    add_out_port = model.get_place_by_tensor_name(tensor_name="add_out").get_producing_port()
+    add_out_port = model.get_place_by_tensor_name(
+        tensor_name="add_out"
+    ).get_producing_port()
     add_out_port_consuming_ops = add_out_port.get_consuming_operations()
     assert len(add_out_port_consuming_ops) == 1
     assert add_out_port_consuming_ops[0].is_equal(split_op)
@@ -1158,12 +1323,16 @@ def test_get_consuming_operations():
     out2_tensor = model.get_place_by_tensor_name(tensor_name="out2")
     out2_tensor_consuming_ops = out2_tensor.get_consuming_operations()
     assert len(out2_tensor_consuming_ops) == 0
-    out2_port_consuming_ops = out2_tensor.get_producing_port().get_consuming_operations()
+    out2_port_consuming_ops = (
+        out2_tensor.get_producing_port().get_consuming_operations()
+    )
     assert len(out2_port_consuming_ops) == 0
 
     split_out_1_consuming_ops = split_op.get_consuming_operations(output_port_index=1)
     assert len(split_out_1_consuming_ops) == 1
-    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(output_name="sp_out2")
+    split_out_sp_out_2_consuming_ops = split_op.get_consuming_operations(
+        output_name="sp_out2"
+    )
     assert len(split_out_sp_out_2_consuming_ops) == 1
     assert split_out_1_consuming_ops[0].is_equal(split_out_sp_out_2_consuming_ops[0])
     assert split_out_1_consuming_ops[0].is_equal(sin_op)
@@ -1275,7 +1444,9 @@ def test_get_place_by_operation_name_and_input_port():
     model = fe.load("input_model.onnx")
     assert model
 
-    place1 = model.get_place_by_operation_name_and_input_port(operation_name="split1", input_port_index=0)
+    place1 = model.get_place_by_operation_name_and_input_port(
+        operation_name="split1", input_port_index=0
+    )
     sp_out1_tensor = model.get_place_by_tensor_name("out2")
     place2 = sp_out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
 
@@ -1290,9 +1461,13 @@ def test_get_place_by_operation_name_and_output_port():
     model = fe.load("input_model_2.onnx")
     assert model
 
-    place1 = model.get_place_by_operation_name_and_output_port(operation_name="split2", output_port_index=0)
+    place1 = model.get_place_by_operation_name_and_output_port(
+        operation_name="split2", output_port_index=0
+    )
     sp_out1_tensor = model.get_place_by_tensor_name("sp_out1")
-    place2 = sp_out1_tensor.get_producing_operation().get_output_port(output_port_index=0)
+    place2 = sp_out1_tensor.get_producing_operation().get_output_port(
+        output_port_index=0
+    )
 
     assert place1.is_equal(place2)
 
@@ -1356,7 +1531,7 @@ def test_set_tensor_value():
     current_ops = model_converted.get_ordered_ops()
 
     for i in range(len(current_ops)):
-        if (current_ops[i].get_friendly_name() == "in1"):
+        if current_ops[i].get_friendly_name() == "in1":
             iteration = i
 
     assert current_ops[iteration] is not None
@@ -1446,14 +1621,22 @@ def test_set_name_for_operation_without_name():
     output_name = "add_out"
     new_name = "Add_new"
 
-    operation = model.get_place_by_tensor_name(tensor_name=output_name).get_producing_operation()
+    operation = model.get_place_by_tensor_name(
+        tensor_name=output_name
+    ).get_producing_operation()
     # assure the test is performed on node with empty name
-    assert not operation.get_names() or len(operation.get_names()) == 0 or not operation.get_names()[0]
+    assert (
+        not operation.get_names()
+        or len(operation.get_names()) == 0
+        or not operation.get_names()[0]
+    )
 
     # actual rename
     model.set_name_for_operation(operation=operation, new_name=new_name)
 
-    new_operation = model.get_place_by_tensor_name(tensor_name=output_name).get_producing_operation()
+    new_operation = model.get_place_by_tensor_name(
+        tensor_name=output_name
+    ).get_producing_operation()
     assert new_operation
     assert new_operation.is_equal(operation)  # previous Place object holds the handle
 
@@ -1473,7 +1656,9 @@ def test_free_name_for_operation():
     operation = model.get_place_by_operation_name(operation_name=name)
     assert not operation
 
-    new_split1 = model.get_place_by_tensor_name(tensor_name="out1").get_producing_operation()
+    new_split1 = model.get_place_by_tensor_name(
+        tensor_name="out1"
+    ).get_producing_operation()
     assert split1.is_equal(new_split1)
 
 
@@ -1653,7 +1838,9 @@ def test_add_name_for_tensor_and_cut_it_off():
     tensor = model.get_place_by_tensor_name(tensor_name="in2")
     model.add_name_for_tensor(tensor, "extra_name")
 
-    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
+    split_in = model.get_place_by_operation_name("split2").get_input_port(
+        input_port_index=0
+    )
     model.extract_subgraph(inputs=[split_in], outputs=[])
 
     ov_model = fe.convert(model)
@@ -1669,7 +1856,9 @@ def test_add_name_for_tensor_and_override_all_inputs():
     model = fe.load("input_model_2.onnx")
 
     # test with an InputEdge type of Place
-    split_in = model.get_place_by_operation_name("split2").get_input_port(input_port_index=0)
+    split_in = model.get_place_by_operation_name("split2").get_input_port(
+        input_port_index=0
+    )
     model.add_name_for_tensor(split_in, "extra_name")
     model.override_all_inputs([split_in])
 
@@ -1720,7 +1909,9 @@ def test_invalidate_output_place_after_extraction():
     split_op = model.get_place_by_operation_name(operation_name="split1")
     out1 = model.get_place_by_tensor_name(tensor_name="out1")
     out2 = model.get_place_by_tensor_name(tensor_name="out2")
-    place_to_cut = model.get_place_by_tensor_name(tensor_name="out3").get_producing_port()
+    place_to_cut = model.get_place_by_tensor_name(
+        tensor_name="out3"
+    ).get_producing_port()
     model.extract_subgraph(inputs=[split_op], outputs=[out1, out2])
 
     with pytest.raises(GeneralFailure) as e:
@@ -1747,8 +1938,12 @@ def test_override_cut_inputs():
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("input_model_2.onnx")
 
-    split = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_operation()
-    place_to_cut = model.get_place_by_tensor_name(tensor_name="add_out").get_consuming_ports()[0]
+    split = model.get_place_by_tensor_name(
+        tensor_name="sp_out1"
+    ).get_producing_operation()
+    place_to_cut = model.get_place_by_tensor_name(
+        tensor_name="add_out"
+    ).get_consuming_ports()[0]
     model.override_all_inputs(inputs=[split])
 
     with pytest.raises(GeneralFailure) as e:
@@ -1762,7 +1957,9 @@ def test_override_cut_outputs():
     model = fe.load("input_model_2.onnx")
 
     add_out = model.get_place_by_tensor_name(tensor_name="add_out")
-    place_to_cut = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_port()
+    place_to_cut = model.get_place_by_tensor_name(
+        tensor_name="sp_out1"
+    ).get_producing_port()
     model.override_all_outputs(outputs=[add_out])
 
     with pytest.raises(GeneralFailure) as e:

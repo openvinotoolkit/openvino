@@ -2,27 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-#include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
-#include "intel_gpu/runtime/memory_caps.hpp"
-#include "intel_gpu/runtime/layout.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <memory>
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/memory_caps.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
-    : VariableStateBase{info.m_id, context}
-    , m_layout(info.m_layout)
-    , m_user_specified_type(info.m_user_specified_type)
-    , m_shape_predictor(shape_predictor)
-    , m_initial_layout(info.m_layout) {
+VariableState::VariableState(const VariableStateInfo& info,
+                             RemoteContextImpl::Ptr context,
+                             std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
+    : VariableStateBase{info.m_id, context},
+      m_layout(info.m_layout),
+      m_user_specified_type(info.m_user_specified_type),
+      m_shape_predictor(shape_predictor),
+      m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
 
@@ -59,7 +62,10 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_layout.set_partial_shape(state->get_shape());
     size_t rank = state->get_shape().size();
-    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(rank, 0), std::vector<int32_t>(rank, 0), 0, m_layout.data_padding.get_dynamic_pad_dims());
+    m_layout.data_padding = cldnn::padding(std::vector<int32_t>(rank, 0),
+                                           std::vector<int32_t>(rank, 0),
+                                           0,
+                                           m_layout.data_padding.get_dynamic_pad_dims());
     update_device_buffer();
     convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream());
     set();
@@ -74,10 +80,13 @@ void VariableState::update_device_buffer() {
     }
 
     if (actual_size < m_layout.bytes_count()) {
-        const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
+        const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device
+                                                                                    : cldnn::allocation_type::cl_mem;
         const auto current_buf_size = m_layout.get_buffer_size().sizes();
         ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
-        const auto alloc_shape = predict_shape(m_name, cldnn::layout(current_shape, m_layout.data_type, m_layout.format), *m_shape_predictor);
+        const auto alloc_shape = predict_shape(m_name,
+                                               cldnn::layout(current_shape, m_layout.data_type, m_layout.format),
+                                               *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
@@ -86,7 +95,8 @@ void VariableState::update_device_buffer() {
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+    return m_user_specified_type != ov::element::undefined ? m_user_specified_type
+                                                           : ov::element::Type(m_layout.data_type);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {

@@ -3,7 +3,6 @@
 
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
@@ -34,10 +33,11 @@ def x1_add_x2_shape(shapes):
 
 
 class TestKerasLambda(CommonTF2LayerTest):
-    def create_keras_lambda_net(self, input_names, input_shapes, input_type, lmbd, exp_shapes,
-                                ir_version):
+    def create_keras_lambda_net(
+        self, input_names, input_shapes, input_type, lmbd, exp_shapes, ir_version
+    ):
         """
-                create TensorFlow 2 model with Keras Lambda operation
+        create TensorFlow 2 model with Keras Lambda operation
         """
         lambda_operations = {
             "x2_fun": x2_fun,
@@ -45,7 +45,7 @@ class TestKerasLambda(CommonTF2LayerTest):
             "x1_plus_x2": x1_plus_x2,
             "x1_plus_x2_shape": x1_plus_x2_shape,
             "x1_add_x2": x1_add_x2,
-            "x1_add_x2_shape": x1_add_x2_shape
+            "x1_add_x2_shape": x1_add_x2_shape,
         }
 
         lmbd = lambda_operations[lmbd]
@@ -53,12 +53,16 @@ class TestKerasLambda(CommonTF2LayerTest):
 
         tf.keras.backend.clear_session()  # For easy reset of notebook state
 
-        inputs = [tf.keras.Input(shape=input_shapes[idx][1:], name=input_names[idx]) for idx in
-                  range(len(input_shapes))]
+        inputs = [
+            tf.keras.Input(shape=input_shapes[idx][1:], name=input_names[idx])
+            for idx in range(len(input_shapes))
+        ]
         if len(inputs) > 1:
             y = tf.keras.layers.Lambda(function=lmbd, output_shape=exp_shapes)(inputs)
         else:
-            y = tf.keras.layers.Lambda(function=lmbd, output_shape=exp_shapes)(inputs[0])
+            y = tf.keras.layers.Lambda(function=lmbd, output_shape=exp_shapes)(
+                inputs[0]
+            )
 
         tf2_net = tf.keras.Model(inputs=inputs, outputs=[y])
 
@@ -68,19 +72,41 @@ class TestKerasLambda(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        dict(input_names=["x1"], input_shapes=[[5, 4, 3]], input_type=tf.float32,
-             lmbd="x2_fun", exp_shapes="x2_fun_shape"),
-        dict(input_names=["x1", "x2"], input_shapes=[[5, 4, 3], [5, 4, 3]], input_type=tf.float32,
-             lmbd="x1_plus_x2", exp_shapes="x1_plus_x2_shape"),
-        dict(input_names=["x1", "x2"], input_shapes=[[5, 4, 3], [5, 4, 3]], input_type=tf.float32,
-             lmbd="x1_add_x2", exp_shapes="x1_add_x2_shape"),
+        dict(
+            input_names=["x1"],
+            input_shapes=[[5, 4, 3]],
+            input_type=tf.float32,
+            lmbd="x2_fun",
+            exp_shapes="x2_fun_shape",
+        ),
+        dict(
+            input_names=["x1", "x2"],
+            input_shapes=[[5, 4, 3], [5, 4, 3]],
+            input_type=tf.float32,
+            lmbd="x1_plus_x2",
+            exp_shapes="x1_plus_x2_shape",
+        ),
+        dict(
+            input_names=["x1", "x2"],
+            input_shapes=[[5, 4, 3], [5, 4, 3]],
+            input_type=tf.float32,
+            lmbd="x1_add_x2",
+            exp_shapes="x1_add_x2_shape",
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_lambda_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                  use_legacy_frontend):
-        self._test(*self.create_keras_lambda_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+    def test_keras_lambda_float32(
+        self, params, ie_device, precision, temp_dir, ir_version, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_keras_lambda_net(**params, ir_version=ir_version),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            **params
+        )

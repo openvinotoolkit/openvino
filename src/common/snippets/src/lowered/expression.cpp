@@ -4,19 +4,21 @@
 
 #include "snippets/lowered/expression.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
-
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 
 Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
-        : m_source_node{n}, m_emitter{nullptr},
-        m_input_port_connectors{}, m_output_port_connectors{}, m_shapeInference(make_shape_inference(n, factory)) {
+    : m_source_node{n},
+      m_emitter{nullptr},
+      m_input_port_connectors{},
+      m_output_port_connectors{},
+      m_shapeInference(make_shape_inference(n, factory)) {
     m_input_port_descriptors.reserve(n->get_input_size());
     m_output_port_descriptors.reserve(n->get_output_size());
     for (const auto& input : n->inputs()) {
@@ -27,9 +29,12 @@ Expression::Expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ISh
     }
 }
 
-Expression::Expression(const Expression& other) :
-    std::enable_shared_from_this<Expression>(other), m_source_node(other.m_source_node),
-    m_emitter(other.m_emitter), m_loop_ids(other.m_loop_ids), m_shapeInference(other.m_shapeInference) {
+Expression::Expression(const Expression& other)
+    : std::enable_shared_from_this<Expression>(other),
+      m_source_node(other.m_source_node),
+      m_emitter(other.m_emitter),
+      m_loop_ids(other.m_loop_ids),
+      m_shapeInference(other.m_shapeInference) {
     auto clone_ports_descriptors = [](const std::vector<PortDescriptorPtr>& src, std::vector<PortDescriptorPtr>& dst) {
         dst.resize(src.size());
         for (size_t i = 0; i < src.size(); i++)
@@ -44,27 +49,31 @@ Expression::Expression(const Expression& other) :
 }
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
-    OPENVINO_ASSERT(i < m_input_port_connectors.size(), "Failed to get input port connector: target input port must be less than input count!");
+    OPENVINO_ASSERT(i < m_input_port_connectors.size(),
+                    "Failed to get input port connector: target input port must be less than input count!");
     return m_input_port_connectors[i];
 }
 const PortConnectorPtr& Expression::get_output_port_connector(size_t i) const {
-    OPENVINO_ASSERT(i < m_output_port_connectors.size(), "Failed to get output port connector: target output port must be less than output count!");
+    OPENVINO_ASSERT(i < m_output_port_connectors.size(),
+                    "Failed to get output port connector: target output port must be less than output count!");
     return m_output_port_connectors[i];
 }
 
 const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
-    OPENVINO_ASSERT(i < m_input_port_descriptors.size(), "Failed to get input port descriptor: target input port must be less than input count!");
+    OPENVINO_ASSERT(i < m_input_port_descriptors.size(),
+                    "Failed to get input port descriptor: target input port must be less than input count!");
     return m_input_port_descriptors[i];
 }
 const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const {
-    OPENVINO_ASSERT(i < m_output_port_descriptors.size(), "Failed to get output port descriptor: target output port must be less than output count!");
+    OPENVINO_ASSERT(i < m_output_port_descriptors.size(),
+                    "Failed to get output port descriptor: target output port must be less than output count!");
     return m_output_port_descriptors[i];
 }
 
 std::shared_ptr<Node> Expression::get_node() const {
     if (!m_source_node)
         OPENVINO_THROW("An attempt to get uninitialized node from lowered expression");
-    return  m_source_node;
+    return m_source_node;
 }
 
 std::shared_ptr<Emitter> Expression::get_emitter() const {
@@ -100,12 +109,12 @@ void Expression::validate() const {
                     "The count of input ports and input port connectors must be equal");
     OPENVINO_ASSERT(m_output_port_descriptors.size() == m_output_port_connectors.size(),
                     "The count of output ports and output port connectors must be equal");
-    OPENVINO_ASSERT(m_source_node != nullptr,
-                    "The expression has null source node");
+    OPENVINO_ASSERT(m_source_node != nullptr, "The expression has null source node");
 }
 
 void Expression::set_input_port_connector(size_t port, PortConnectorPtr to) {
-    OPENVINO_ASSERT(port < get_input_count(), "Failed to set input PortConnector: target input port must be less than input count!");
+    OPENVINO_ASSERT(port < get_input_count(),
+                    "Failed to set input PortConnector: target input port must be less than input count!");
     const auto& from = get_input_port_connector(port);
     if (from == to)
         return;
@@ -217,22 +226,30 @@ void Expression::updateShapes() {
         }
 
         result = m_shapeInference->infer(input_shapes);
-    }
-    catch (const std::exception& exp) {
+    } catch (const std::exception& exp) {
         OPENVINO_THROW("Shape inference of " + (get_node()->get_friendly_name()) + " failed: " + exp.what());
     }
     OPENVINO_ASSERT(result.status == ShapeInferStatus::success,
                     "Shape inference of " + (get_node()->get_friendly_name()) + " didn't return success status");
     const auto& out_descriptors = get_output_port_descriptors();
-    OPENVINO_ASSERT(result.dims.size() == out_descriptors.size(), "shapeInference call returned invalid number of output shapes");
+    OPENVINO_ASSERT(result.dims.size() == out_descriptors.size(),
+                    "shapeInference call returned invalid number of output shapes");
     for (size_t i = 0; i < out_descriptors.size(); i++)
         out_descriptors[i]->set_shape(result.dims[i]);
 }
 
-IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Parameter>& par, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
-        : Expression(par, factory), m_index(index), m_type{io_type::INPUT} {}
-IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Result>& res, int64_t index, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
-        : Expression(res, factory), m_index(index), m_type{io_type::OUTPUT} {}
+IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Parameter>& par,
+                           int64_t index,
+                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+    : Expression(par, factory),
+      m_index(index),
+      m_type{io_type::INPUT} {}
+IOExpression::IOExpression(const std::shared_ptr<ov::opset1::Result>& res,
+                           int64_t index,
+                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+    : Expression(res, factory),
+      m_index(index),
+      m_type{io_type::OUTPUT} {}
 
 ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
                                                   const std::shared_ptr<Node>& new_node) const {
@@ -241,6 +258,6 @@ ExpressionPtr IOExpression::clone_with_new_inputs(const std::vector<PortConnecto
     return expr;
 }
 
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

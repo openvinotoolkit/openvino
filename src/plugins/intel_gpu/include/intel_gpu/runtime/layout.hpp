@@ -4,22 +4,20 @@
 
 #pragma once
 
-#include "tensor.hpp"
-
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <vector>
-#include <algorithm>
+#include <functional>
 #include <limits>
 #include <string>
-#include <functional>
-
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/element_type_traits.hpp"
+#include <vector>
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "tensor.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -35,7 +33,10 @@ using data_types = ov::element::Type_t;
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
         auto et = ov::element::Type(data_type);
-        OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
+        OPENVINO_ASSERT(et.bitwidth() >= 8,
+                        "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (",
+                        et.get_type_name(),
+                        ")");
         return et.size();
     }
 
@@ -68,41 +69,41 @@ struct data_type_traits {
     template <typename T>
     static T max(data_types data_type) {
         switch (data_type) {
-            case data_types::i8:
-                return static_cast<T>(std::numeric_limits<int8_t>::max());
-            case data_types::u8:
-                return static_cast<T>(std::numeric_limits<uint8_t>::max());
-            case data_types::i32:
-                return static_cast<T>(std::numeric_limits<int32_t>::max());
-            case data_types::i64:
-                return static_cast<T>(std::numeric_limits<int64_t>::max());
-            case data_types::f16:
-                return static_cast<T>(std::numeric_limits<ov::float16>::max());
-            case data_types::f32:
-                return static_cast<T>(std::numeric_limits<float>::max());
-            default:
-                assert(0);
-                return static_cast<T>(0);
+        case data_types::i8:
+            return static_cast<T>(std::numeric_limits<int8_t>::max());
+        case data_types::u8:
+            return static_cast<T>(std::numeric_limits<uint8_t>::max());
+        case data_types::i32:
+            return static_cast<T>(std::numeric_limits<int32_t>::max());
+        case data_types::i64:
+            return static_cast<T>(std::numeric_limits<int64_t>::max());
+        case data_types::f16:
+            return static_cast<T>(std::numeric_limits<ov::float16>::max());
+        case data_types::f32:
+            return static_cast<T>(std::numeric_limits<float>::max());
+        default:
+            assert(0);
+            return static_cast<T>(0);
         }
     }
     template <typename T>
     static T min(data_types data_type) {
         switch (data_type) {
-            case data_types::i8:
-                return static_cast<T>(std::numeric_limits<int8_t>::lowest());
-            case data_types::u8:
-                return static_cast<T>(std::numeric_limits<uint8_t>::lowest());
-            case data_types::i32:
-                return static_cast<T>(std::numeric_limits<int32_t>::lowest());
-            case data_types::i64:
-                return static_cast<T>(std::numeric_limits<int64_t>::lowest());
-            case data_types::f16:
-                return static_cast<T>(std::numeric_limits<ov::float16>::lowest());
-            case data_types::f32:
-                return static_cast<T>(std::numeric_limits<float>::lowest());
-            default:
-                assert(0);
-                return static_cast<T>(0);
+        case data_types::i8:
+            return static_cast<T>(std::numeric_limits<int8_t>::lowest());
+        case data_types::u8:
+            return static_cast<T>(std::numeric_limits<uint8_t>::lowest());
+        case data_types::i32:
+            return static_cast<T>(std::numeric_limits<int32_t>::lowest());
+        case data_types::i64:
+            return static_cast<T>(std::numeric_limits<int64_t>::lowest());
+        case data_types::f16:
+            return static_cast<T>(std::numeric_limits<ov::float16>::lowest());
+        case data_types::f32:
+            return static_cast<T>(std::numeric_limits<float>::lowest());
+        default:
+            assert(0);
+            return static_cast<T>(0);
         }
     }
 };
@@ -122,22 +123,29 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
         return cldnn::data_types::i32;
     case ov::element::Type_t::boolean:
         return cldnn::data_types::u8;
-    default: return t;
+    default:
+        return t;
     }
 }
 
 /// @brief Represents data padding information.
 struct padding {
     /// @brief Filling value for padding area.
-    float filling_value() const { return _filling_value; }
+    float filling_value() const {
+        return _filling_value;
+    }
 
     /// @brief Gets lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     /// @return Tensor with padding for top/left/lower bounds of data.
-    tensor lower_size() const { return _lower_size; }
+    tensor lower_size() const {
+        return _lower_size;
+    }
 
     /// @brief Gets upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
     /// @return Tensor with padding for bottom/right/upper bounds of data.
-    tensor upper_size() const { return _upper_size; }
+    tensor upper_size() const {
+        return _upper_size;
+    }
 
     void set_dynamic_pad(const tensor& dynamic_pad_dims) {
         _dynamic_pad_dims = dynamic_pad_dims;
@@ -147,8 +155,10 @@ struct padding {
         return _dynamic_pad_dims;
     }
     /// @brief
-    /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
-    /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type) for details.
+    /// @param lower_sizes Top-left padding sizes. See @ref tensor::tensor(const std::vector<value_type>&, value_type)
+    /// for details.
+    /// @param upper_sizes Bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
+    /// value_type) for details.
     /// @param filling_value Filling value for padding area.
     padding(const std::vector<tensor::value_type>& lower_sizes,
             const std::vector<tensor::value_type>& upper_sizes,
@@ -163,7 +173,9 @@ struct padding {
     /// @param sizes Top-left and bottom-right padding sizes. See @ref tensor::tensor(const std::vector<value_type>&,
     /// value_type) for details.
     /// @param filling_value Filling value for padding area.
-    explicit padding(const std::vector<tensor::value_type>& sizes, float filling_value = 0.0f, const tensor& dynamic_pad_dims = tensor(0))
+    explicit padding(const std::vector<tensor::value_type>& sizes,
+                     float filling_value = 0.0f,
+                     const tensor& dynamic_pad_dims = tensor(0))
         : padding(sizes, sizes, filling_value, dynamic_pad_dims) {}
 
     /// @brief Constructs "zero-sized" padding.
@@ -171,8 +183,14 @@ struct padding {
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        return std::any_of(_lower_size.raw.begin(), _lower_size.raw.end(), [](const tensor::value_type& el) { return el != 0; }) ||
-               std::any_of(_upper_size.raw.begin(), _upper_size.raw.end(), [](const tensor::value_type& el) { return el != 0; });
+        return std::any_of(_lower_size.raw.begin(),
+                           _lower_size.raw.end(),
+                           [](const tensor::value_type& el) {
+                               return el != 0;
+                           }) ||
+               std::any_of(_upper_size.raw.begin(), _upper_size.raw.end(), [](const tensor::value_type& el) {
+                   return el != 0;
+               });
     }
 
     friend bool operator==(const padding& lhs, const padding& rhs) {
@@ -230,15 +248,17 @@ private:
     tensor _lower_size;  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
     tensor _upper_size;  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
     // TODO: Add support for non-zero filling value (if necessary) or remove variable (if not necessary).
-    float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than float it is converted
-                           ///< to it using round-towards-nearest-even (for floating-point data types) or round-towards-zero (for integral
-                           ///< data types).
+    float _filling_value;  ///< Filling value for an element of padding. If data type of elements is different than
+                           ///< float it is converted to it using round-towards-nearest-even (for floating-point data
+                           ///< types) or round-towards-zero (for integral data types).
     tensor _dynamic_pad_dims = tensor(0);
 
     static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
         std::vector<tensor::value_type> result;
         result.reserve(sizes.size());
-        std::transform(sizes.cbegin(), sizes.cend(), std::back_inserter(result), [](const tensor::value_type& el) { return abs(el); });
+        std::transform(sizes.cbegin(), sizes.cend(), std::back_inserter(result), [](const tensor::value_type& el) {
+            return abs(el);
+        });
         return result;  // NRVO
     }
 };
@@ -247,36 +267,37 @@ private:
 /// @details Contains information about data stored in @ref memory.
 struct layout {
     struct Hasher {
-        size_t operator()(const layout &l) const {
+        size_t operator()(const layout& l) const {
             return l.hash();
         }
     };
 
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type)
-        , format(fmt)
-        , data_padding(apadding) {
-            auto sizes = fmt == format::any ? size.sizes() : size.sizes(format::get_default_format(fmt.dimension(),
-                                                                                                   format::is_weights_format(fmt),
-                                                                                                   format::is_grouped(fmt)));
-            ov::Shape shape(sizes.begin(), sizes.end());
-            this->size = ov::PartialShape(shape);
-        }
+        : data_type(data_type),
+          format(fmt),
+          data_padding(apadding) {
+        auto sizes = fmt == format::any ? size.sizes()
+                                        : size.sizes(format::get_default_format(fmt.dimension(),
+                                                                                format::is_weights_format(fmt),
+                                                                                format::is_grouped(fmt)));
+        ov::Shape shape(sizes.begin(), sizes.end());
+        this->size = ov::PartialShape(shape);
+    }
 
     layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
-        : data_type(data_type)
-        , format(fmt)
-        , data_padding(apadding)
-        , size(size) { }
+        : data_type(data_type),
+          format(fmt),
+          data_padding(apadding),
+          size(size) {}
 
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::undefined)
-        , format(cldnn::format::any)
-        , data_padding(padding())
-        , size(ov::PartialShape()) { }
+        : data_type(cldnn::data_types::undefined),
+          format(cldnn::format::any),
+          data_padding(padding()),
+          size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -289,7 +310,8 @@ struct layout {
     }
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
-        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
+        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size &&
+               lhs.data_padding == rhs.data_padding;
     }
 
     friend bool operator!=(const layout& lhs, const layout& rhs) {
@@ -338,7 +360,9 @@ struct layout {
     padding data_padding;
 
     /// Number of bytes needed to store this layout
-    size_t bytes_count() const { return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3; }
+    size_t bytes_count() const {
+        return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+    }
 
     size_t get_rank() const;
 
@@ -389,7 +413,7 @@ struct layout {
 
     tensor get_tensor() const;
 
-    template<typename T>
+    template <typename T>
     T get() const;
 
     void set_tensor(const tensor& size);
@@ -400,13 +424,15 @@ struct layout {
     bool compatible(const layout& other) const;
 
     // Returns true if other layout is identical to this.
-    // Note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
-    // nor dropped). If layouts describe two buffers with different size, consider them not to be identical even if
-    // smaller buffer can be considered to hold subsequence of larger buffer,  this behavior is required to force buffer allocation
-    // for smaller buffer which, currently, should always be performed
+    // Note: layouts can only be considered identical if data size described by both layouts match (so no data are
+    // genereted nor dropped). If layouts describe two buffers with different size, consider them not to be identical
+    // even if smaller buffer can be considered to hold subsequence of larger buffer,  this behavior is required to
+    // force buffer allocation for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    static size_t max_rank() { return 8; }
+    static size_t max_rank() {
+        return 8;
+    }
     static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
 
     size_t hash() const {

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "pooling_kernel_base.h"
-
 #include <vector>
+
+#include "pooling_kernel_base.h"
 
 namespace kernel_selector {
 class PoolingKernelGPUInt8Ref : public PoolingKernelBase {
@@ -19,9 +19,7 @@ public:
     bool Validate(const Params&) const override;
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
     ParamsKey GetSupportedKey() const override;
 };

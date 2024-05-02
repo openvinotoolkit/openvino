@@ -4,10 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_compiled_model.hpp"
-#include "common.hpp"
+
 #include <memory>
 
 #include "async_infer_request.hpp"
+#include "common.hpp"
 #include "itt.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -22,12 +23,12 @@ AutoCompiledModel::AutoCompiledModel(const std::shared_ptr<ov::Model>& model,
                                      Schedule::Ptr& scheduler)
     : CompiledModel(model, plugin, remote_context, schedule_context, scheduler),
       m_model(model) {
-      m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
+    m_scheduler = std::dynamic_pointer_cast<AutoSchedule>(scheduler);
 }
 
 void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
-        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
-                                       "Set property to Core::compile_model during compilation");
+    OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
+                                   "Set property to Core::compile_model during compilation");
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
@@ -94,8 +95,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
         if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            real = m_scheduler->m_compile_context[ACTUALDEVICE].
-                m_compiled_model->get_property(name).as<unsigned int>();
+            real = m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<unsigned int>();
         } else {
             std::unique_lock<std::mutex> lock(m_context->m_mutex);
             auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
@@ -109,7 +109,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                       actual_dev_supported_properties.end(),
                                                       ov::hint::num_requests) != actual_dev_supported_properties.end();
             auto reqs_iter = device_info.config.find(ov::hint::num_requests.name());
-            auto ireq_iter = std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), name);
+            auto ireq_iter =
+                std::find(actual_dev_supported_properties.begin(), actual_dev_supported_properties.end(), name);
             if (ireq_iter != actual_dev_supported_properties.end()) {
                 real = m_context->m_ov_core->get_property(device_info.device_name,
                                                           ov::optimal_number_of_infer_requests,
@@ -200,7 +201,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                 real = requests > 0 ? (std::min)(requests, real) : real;
             }
         }
-        return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{real};
     } else if (name == ov::execution_devices) {
         ov::Any execution_devices;
         auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
@@ -208,7 +209,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             if (exe_devices_string == "CPU_HELP")
                 exe_devices_string = "(CPU)";
             exe_devices.push_back(exe_devices_string);
-            execution_devices = decltype(ov::execution_devices)::value_type {exe_devices};
+            execution_devices = decltype(ov::execution_devices)::value_type{exe_devices};
         };
         {
             std::lock_guard<std::mutex> lock(m_context->m_mutex);
@@ -260,5 +261,5 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
 void AutoCompiledModel::export_model(std::ostream& model_stream) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

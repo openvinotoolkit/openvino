@@ -5,8 +5,8 @@
 
 #include "dummy_node.hpp"
 #include "graph.h"
-#include "nodes/input.h"
 #include "nodes/concat.h"
+#include "nodes/input.h"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -32,7 +32,7 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
                   |
                 Output
 
-        Dummy1, Dummy2 and Dummy3 can be inplace. In ResolveEdgeConflicts(), detect Dummy3 is 
+        Dummy1, Dummy2 and Dummy3 can be inplace. In ResolveEdgeConflicts(), detect Dummy3 is
         a modifying node. Collect consumers of edge Input->Dummy1 and find consumer execution
         order is after Dummy3. Then insert Reorder in edge Input->Dummy2.
     */
@@ -52,14 +52,24 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     auto inputNode = std::make_shared<node::Input>(params[0], context);
     auto outputNode = std::make_shared<node::Input>(results[0], context);
     auto concatNode = std::make_shared<node::Concat>(concat, context);
-    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-        testShape, testPrec, "Dummy1", "DummyNode", context);
-    auto dummyNode2 = std::make_shared<cpu_unit_test::DummyNode>(
-        testShape, testPrec, "Dummy2", "DummyNode", context);
-    auto dummyNode3 = std::make_shared<cpu_unit_test::DummyNode>(
-        testShape, testPrec, "Dummy3", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
-    auto dummyNode4 = std::make_shared<cpu_unit_test::DummyNode>(
-        testShape, testPrec, "Dummy4", "DummyNode", context, LayoutType::ncsp, 0, true);
+    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(testShape, testPrec, "Dummy1", "DummyNode", context);
+    auto dummyNode2 = std::make_shared<cpu_unit_test::DummyNode>(testShape, testPrec, "Dummy2", "DummyNode", context);
+    auto dummyNode3 = std::make_shared<cpu_unit_test::DummyNode>(testShape,
+                                                                 testPrec,
+                                                                 "Dummy3",
+                                                                 "DummyNode",
+                                                                 context,
+                                                                 LayoutType::ncsp,
+                                                                 Edge::LOOK::LOOK_UP,
+                                                                 true);
+    auto dummyNode4 = std::make_shared<cpu_unit_test::DummyNode>(testShape,
+                                                                 testPrec,
+                                                                 "Dummy4",
+                                                                 "DummyNode",
+                                                                 context,
+                                                                 LayoutType::ncsp,
+                                                                 0,
+                                                                 true);
 
     std::vector<NodePtr> graphNodes;
     std::vector<EdgePtr> graphEdges;
@@ -79,7 +89,8 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     addEdge(inputNode, dummyNode1, 0, 0);
     addEdge(dummyNode1, concatNode, 0, 0);
     addEdge(concatNode, outputNode, 0, 0);
-    for (auto &node : nodesSet) graphNodes.emplace_back(node);
+    for (auto& node : nodesSet)
+        graphNodes.emplace_back(node);
     graph->CreateGraph(graphNodes, graphEdges, context, "test_graph");
 
     // Check whether reorder is inserted

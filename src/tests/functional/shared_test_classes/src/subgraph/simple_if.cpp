@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/subgraph/simple_if.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -178,7 +178,9 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -5;
             in_data.range = 10;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
         }
 
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -303,11 +305,13 @@ void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
 
     const size_t axis = 1;
     const size_t dim = inputDynamicShapes[0][axis].get_length();  // should be static for this test suit
-    auto thenOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto thenOp_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto thenOp = std::make_shared<ov::op::v1::Split>(p1, thenOp_axis_op, dim);
     auto thenRes = std::make_shared<ov::op::v0::Result>(thenOp->output(dim / 2));
 
-    auto elseOp_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    auto elseOp_axis_op =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
     auto elseOp = std::make_shared<ov::op::v1::Split>(p2, elseOp_axis_op, dim);
     auto elseRes = std::make_shared<ov::op::v0::Result>(elseOp->output(dim - 1));
 

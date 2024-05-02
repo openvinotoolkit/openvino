@@ -4,18 +4,18 @@
 
 #pragma once
 
+#include <chrono>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <thread>
+#include <utility>
+#include <vector>
+
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
-
-#include <memory>
-#include <chrono>
-#include <thread>
-#include <iostream>
-#include <sstream>
-#include <utility>
-#include <vector>
 
 namespace cldnn {
 namespace ocl {
@@ -47,18 +47,20 @@ enum class sync_methods {
 };
 class ocl_stream : public stream {
 public:
-    const ocl_queue_type& get_cl_queue() const { return _command_queue; }
+    const ocl_queue_type& get_cl_queue() const {
+        return _command_queue;
+    }
 
     explicit ocl_stream(const ocl_engine& engine, const ExecutionConfig& config);
-    ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle);
+    ocl_stream(const ocl_engine& engine, const ExecutionConfig& config, void* handle);
     ocl_stream(ocl_stream&& other)
-        : stream(other.queue_type)
-        , _engine(other._engine)
-        , _command_queue(other._command_queue)
-        , _queue_counter(other._queue_counter.load())
-        , _last_barrier(other._last_barrier.load())
-        , _last_barrier_ev(other._last_barrier_ev)
-        , sync_method(other.sync_method) {}
+        : stream(other.queue_type),
+          _engine(other._engine),
+          _command_queue(other._command_queue),
+          _queue_counter(other._queue_counter.load()),
+          _last_barrier(other._last_barrier.load()),
+          _last_barrier_ev(other._last_barrier_ev),
+          sync_method(other.sync_method) {}
 
     ~ocl_stream() = default;
 
@@ -66,7 +68,9 @@ public:
     void finish() const override;
     void wait() override;
 
-    void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) override;
+    void set_arguments(kernel& kernel,
+                       const kernel_arguments_desc& args_desc,
+                       const kernel_arguments_data& args) override;
     event::ptr enqueue_kernel(kernel& kernel,
                               const kernel_arguments_desc& args_desc,
                               const kernel_arguments_data& args,
@@ -79,7 +83,9 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
 
-    const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
+    const cl::UsmHelper& get_usm_helper() const {
+        return _engine.get_usm_helper();
+    }
 
     static QueueTypes detect_queue_type(void* queue_handle);
 

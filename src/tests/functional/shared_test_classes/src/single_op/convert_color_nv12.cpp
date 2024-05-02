@@ -4,14 +4,14 @@
 
 #include "shared_test_classes/single_op/convert_color_nv12.hpp"
 
-#include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorNV12ParamsTuple> &obj) {
+std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorNV12ParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type type;
     bool conversion, single_plane;
@@ -41,8 +41,8 @@ void ConvertColorNV12LayerTest::SetUp() {
     std::vector<InputShape> shapes;
     ov::element::Type net_type;
     bool conversionToRGB, single_plane;
-    abs_threshold = 1.1f; // NV12 conversion can use various algorithms, thus some absolute deviation is allowed
-    rel_threshold = 1.1f; // Ignore relative comparison for NV12 convert (allow 100% relative deviation)
+    abs_threshold = 1.1f;  // NV12 conversion can use various algorithms, thus some absolute deviation is allowed
+    rel_threshold = 1.1f;  // Ignore relative comparison for NV12 convert (allow 100% relative deviation)
     std::tie(shapes, net_type, conversionToRGB, single_plane, targetDevice) = GetParam();
     init_input_shapes(shapes);
 
@@ -56,9 +56,10 @@ void ConvertColorNV12LayerTest::SetUp() {
             convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
-                                                      ov::ParameterVector{param}, "ConvertColorNV12");
+                                               ov::ParameterVector{param},
+                                               "ConvertColorNV12");
     } else {
-        auto param_y  = std::make_shared<ov::op::v0::Parameter>(net_type, inputDynamicShapes[0]);
+        auto param_y = std::make_shared<ov::op::v0::Parameter>(net_type, inputDynamicShapes[0]);
         auto param_uv = std::make_shared<ov::op::v0::Parameter>(net_type, inputDynamicShapes[1]);
 
         std::shared_ptr<ov::Node> convert_color;
@@ -68,8 +69,9 @@ void ConvertColorNV12LayerTest::SetUp() {
             convert_color = std::make_shared<ov::op::v8::NV12toBGR>(param_y, param_uv);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
-                                                      ov::ParameterVector{param_y, param_uv}, "ConvertColorNV12");
+                                               ov::ParameterVector{param_y, param_uv},
+                                               "ConvertColorNV12");
     }
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

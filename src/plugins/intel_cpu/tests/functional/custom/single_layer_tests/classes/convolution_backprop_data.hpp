@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
+#include <openvino/opsets/opset8.hpp>
+
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu_shape.h"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include <openvino/opsets/opset8.hpp>
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -21,29 +22,29 @@ namespace test {
 using DeconvSpecParams = ov::test::convBackpropDataSpecificParams;
 
 using DeconvInputData = std::tuple<InputShape,                          // data shape
-        ov::test::utils::InputLayerType,     // 'output_shape' input type
-        std::vector<std::vector<int32_t>>>;  // values for 'output_shape'
+                                   ov::test::utils::InputLayerType,     // 'output_shape' input type
+                                   std::vector<std::vector<int32_t>>>;  // values for 'output_shape'
 
 using DeconvLayerCPUTestParamsSet =
-        std::tuple<DeconvSpecParams, DeconvInputData, ElementType, fusingSpecificParams, CPUSpecificParams, ov::AnyMap>;
+    std::tuple<DeconvSpecParams, DeconvInputData, ElementType, fusingSpecificParams, CPUSpecificParams, ov::AnyMap>;
 
 class DeconvolutionLayerCPUTest : public testing::WithParamInterface<DeconvLayerCPUTestParamsSet>,
                                   virtual public SubgraphBaseTest,
                                   public CpuTestWithFusing {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerCPUTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerCPUTestParamsSet> obj);
 
-void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
-void configure_model() override;
+    void configure_model() override;
 
-std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes,
-                                       ov::test::utils::InputLayerType outShapeType);
+    std::shared_ptr<ov::Model> createGraph(const std::vector<ov::PartialShape>& inShapes,
+                                           ov::test::utils::InputLayerType outShapeType);
 
 protected:
-std::vector<size_t> kernel, stride;
+    std::vector<size_t> kernel, stride;
 
-void SetUp() override;
+    void SetUp() override;
 
 private:
     ElementType prec;
@@ -56,13 +57,11 @@ private:
 };
 
 /* COMMON PARAMS */
-const std::vector<fusingSpecificParams> fusingParamsSet{
-        emptyFusingSpec,
+const std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec,
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_ARM)
-        fusingScaleShift
+                                                        fusingScaleShift
 #endif
 };
-
 
 /* COMMON PARAMS */
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
@@ -95,5 +94,5 @@ const std::vector<std::vector<size_t>> deconvAmxStrides3d = {{2, 2, 2}};
 
 /* ============= */
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

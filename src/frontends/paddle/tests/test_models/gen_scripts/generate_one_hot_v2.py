@@ -1,13 +1,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
+import numpy as np
+
 #
 # one_hot_v2 paddle model generator
 #
 import paddle
-import numpy as np
 from save_model import saveModel
-import sys
 
 
 def one_hot_v2(name: str, x, num_classes, is_tensor):
@@ -15,16 +17,30 @@ def one_hot_v2(name: str, x, num_classes, is_tensor):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         x_node = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
-        depth_node = paddle.static.data(name="depth_tensor", shape=num_classes.shape, dtype=num_classes.dtype) if is_tensor else num_classes
+        depth_node = (
+            paddle.static.data(
+                name="depth_tensor", shape=num_classes.shape, dtype=num_classes.dtype
+            )
+            if is_tensor
+            else num_classes
+        )
         out = paddle.nn.functional.one_hot(x_node, num_classes=depth_node)
         place = paddle.CPUPlace()
         exe = paddle.static.Executor(place)
         feed_list = {"x": x, "depth_tensor": num_classes} if is_tensor else {"x": x}
         outs = exe.run(feed=feed_list, fetch_list=[out])
-        feedkey_list = ["x", "depth_tensor"] if is_tensor else ['x']
+        feedkey_list = ["x", "depth_tensor"] if is_tensor else ["x"]
         input_list = [x, num_classes] if is_tensor else [x]
-        saveModel(name, exe, feedkeys=feedkey_list, fetchlist=[out], inputs=input_list, outputs=[outs[0]], target_dir=sys.argv[1])
-    
+        saveModel(
+            name,
+            exe,
+            feedkeys=feedkey_list,
+            fetchlist=[out],
+            inputs=input_list,
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
+
     return outs[0]
 
 

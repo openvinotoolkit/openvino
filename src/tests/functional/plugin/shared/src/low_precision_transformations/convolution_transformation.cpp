@@ -5,17 +5,17 @@
 #include "low_precision_transformations/convolution_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
+std::string ConvolutionTransformation::getTestCaseName(
+    const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -24,10 +24,9 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) <<
-           "_rank=" << inputShape.rank().get_length() <<
-        "D_fq_on_data={" << param.fakeQuantizeOnData <<
-        "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}";
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params)
+           << "_rank=" << inputShape.rank().get_length() << "D_fq_on_data={" << param.fakeQuantizeOnData
+           << "}_fq_on_weights={" << param.fakeQuantizeOnWeights << "}";
     return result.str();
 }
 
@@ -40,12 +39,11 @@ void ConvolutionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        netPrecision,
-        inputShape,
-        // TODO: pass from test parameters
-        param.fakeQuantizeOnData,
-        param.fakeQuantizeOnWeights);
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(netPrecision,
+                                                                              inputShape,
+                                                                              // TODO: pass from test parameters
+                                                                              param.fakeQuantizeOnData,
+                                                                              param.fakeQuantizeOnWeights);
 }
 
 void ConvolutionTransformation::run() {

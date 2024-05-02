@@ -70,10 +70,10 @@ protected:
                                                    : std::vector<InputShape>{input_shape};
         init_input_shapes(shapes);
         function = ov::builder::subgraph::MarkupBiasFunction::get(ov::element::f32,
-                                                                      inputDynamicShapes[0],
-                                                                      {},
-                                                                      layer_type,
-                                                                      extra_multiply);
+                                                                  inputDynamicShapes[0],
+                                                                  {},
+                                                                  layer_type,
+                                                                  extra_multiply);
     }
 
     std::string node_type;

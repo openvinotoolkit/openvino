@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino as ov
-
-from utils import get_path_to_model, get_image
 
 #! [properties_example]
 import openvino.runtime.opset12 as ops
+from utils import get_image, get_path_to_model
+
+import openvino as ov
 
 core = ov.Core()
 
@@ -29,12 +29,12 @@ compiled_model = ov.compile_model(model)
 #! [auto_compilation]
 
 #! [tensor_basics]
-data_float64 = np.ones(shape=(2,8))
+data_float64 = np.ones(shape=(2, 8))
 
 tensor = ov.Tensor(data_float64)
 assert tensor.element_type == ov.Type.f64
 
-data_int32 = np.ones(shape=(2,8), dtype=np.int32)
+data_int32 = np.ones(shape=(2, 8), dtype=np.int32)
 
 tensor = ov.Tensor(data_int32)
 assert tensor.element_type == ov.Type.i32
@@ -42,7 +42,7 @@ assert tensor.element_type == ov.Type.i32
 
 
 #! [tensor_shared_mode]
-data_to_share = np.ones(shape=(2,8))
+data_to_share = np.ones(shape=(2, 8))
 
 shared_tensor = ov.Tensor(data_to_share, shared_memory=True)
 
@@ -128,9 +128,11 @@ results = infer_queue[3].get_output_tensor().data
 #! [asyncinferqueue_set_callback]
 data_done = [False for _ in range(jobs)]
 
+
 def f(request, userdata):
     print(f"Done! Result: {request.get_output_tensor().data}")
     data_done[userdata] = True
+
 
 infer_queue.set_callback(f)
 
@@ -155,18 +157,20 @@ t = ov.Tensor(packed_buffer, [100], ov.Type.u4)
 from openvino.helpers import unpack_data
 
 unpacked_data = unpack_data(t.data, t.element_type, t.shape)
-assert np.array_equal(unpacked_data , unt8_data)
+assert np.array_equal(unpacked_data, unt8_data)
 #! [unpacking]
 
 model_path = get_path_to_model()
 image = get_image()
 
 
-#! [releasing_gil]
-import openvino as ov
 from threading import Thread
 
+#! [releasing_gil]
+import openvino as ov
+
 input_data = []
+
 
 # Processing input data will be done in a separate thread
 # while compilation of the model and creation of the infer request
@@ -175,6 +179,7 @@ def prepare_data(input, image):
     shape = list(input.shape)
     resized_img = np.resize(image, shape)
     input_data.append(resized_img)
+
 
 core = ov.Core()
 model = core.read_model(model_path)

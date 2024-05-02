@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/transpose.hpp"
-#include "subgraph_transpose.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -31,7 +32,10 @@ void Transpose::SetUp() {
     ov::PartialShape inputShape;
     std::vector<int> order;
     std::tie(inputShape, order, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{{inputShape}, {inputShape.get_shape(), }}});
+    init_input_shapes({{{inputShape},
+                        {
+                            inputShape.get_shape(),
+                        }}});
 
     auto f = ov::test::snippets::TransposeFunction({inputShape}, order);
     function = f.getOriginal();
@@ -81,6 +85,6 @@ TEST_P(TransposeMul, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

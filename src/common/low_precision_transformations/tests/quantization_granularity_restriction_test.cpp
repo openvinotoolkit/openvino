@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
+#include "low_precision/common/quantization_granularity_restriction.hpp"
 
 #include <gtest/gtest.h>
 
-#include "low_precision/common/port_quantization_granularity_restriction.hpp"
-#include "low_precision/common/quantization_granularity_restriction.hpp"
-#include "low_precision/markup_quantization_granularity.hpp"
+#include <memory>
+#include <sstream>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/common/port_quantization_granularity_restriction.hpp"
+#include "low_precision/markup_quantization_granularity.hpp"
 #include "ov_lpt_models/convolution.hpp"
 
 using namespace testing;
@@ -26,12 +25,11 @@ public:
     std::vector<ov::pass::low_precision::PortQuantizationGranularityRestriction> restrictions;
 };
 
-typedef std::tuple<
-    OperationQuantizationRestrictionTestValues,
-    bool
-> OperationQuantizationRestrictionParams;
+typedef std::tuple<OperationQuantizationRestrictionTestValues, bool> OperationQuantizationRestrictionParams;
 
-class OperationQuantizationRestrictionTest : public LayerTransformation, public testing::WithParamInterface<OperationQuantizationRestrictionParams> {
+class OperationQuantizationRestrictionTest
+    : public LayerTransformation,
+      public testing::WithParamInterface<OperationQuantizationRestrictionParams> {
 public:
     void SetUp() override {
         const auto testValues = std::get<0>(GetParam());
@@ -45,27 +43,28 @@ public:
         }
 
         actualFunction = ov::builder::subgraph::ConvolutionFunction::get(
-            Shape({ 1, 3, 16, 16 }),
+            Shape({1, 3, 16, 16}),
             element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            std::vector<float>({ 1.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } });
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            std::vector<float>({1.f}),
+            {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}});
 
         ov::pass::Manager manager;
-        const auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
-            explicitly ?
-                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(testValues.restrictions, false) :
-                ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(ports)
-        });
+        const auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>(
+            {explicitly ? ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(
+                              testValues.restrictions,
+                              false)
+                        : ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::opset1::Convolution>(
+                              ports)});
         manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.run_passes(actualFunction);
 
         referenceFunction = ov::builder::subgraph::ConvolutionFunction::get(
-            Shape({ 1, 3, 16, 16 }),
+            Shape({1, 3, 16, 16}),
             element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            std::vector<float>({ 1.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            std::vector<float>({1.f}),
+            {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
             quantizationRestrictions);
     }
 
@@ -85,23 +84,14 @@ TEST_P(OperationQuantizationRestrictionTest, CompareFunctions) {
 }
 
 const std::vector<OperationQuantizationRestrictionTestValues> testValues = {
-    {
-        {}
-    },
-    {
-        {{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor}}
-    },
-    {
-        {{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor}, {1, ov::QuantizationGranularityAttribute::Granularity::PerChannel}}
-    }
-};
+    {{}},
+    {{{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor}}},
+    {{{0, ov::QuantizationGranularityAttribute::Granularity::PerTensor},
+      {1, ov::QuantizationGranularityAttribute::Granularity::PerChannel}}}};
 
-const std::vector<bool> explicitly = { true, false };
+const std::vector<bool> explicitly = {true, false};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    OperationQuantizationRestrictionTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(explicitly)),
-    OperationQuantizationRestrictionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         OperationQuantizationRestrictionTest,
+                         ::testing::Combine(::testing::ValuesIn(testValues), ::testing::ValuesIn(explicitly)),
+                         OperationQuantizationRestrictionTest::getTestCaseName);

@@ -3,11 +3,13 @@
 //
 
 #include "shared_test_classes/single_op/embedding_bag_packed_sum.hpp"
+
 #include "common_test_utils/node_builders/embedding_bag_packed_sum.hpp"
 
 namespace ov {
 namespace test {
-std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet>& obj) {
+std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(
+    const testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet>& obj) {
     embeddingBagPackedSumParams emb_params;
     ov::element::Type model_type, ind_type;
     std::vector<InputShape> shapes;

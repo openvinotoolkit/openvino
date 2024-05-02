@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/lrn.hpp"
-#include "openvino/op/constant.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -27,7 +26,12 @@ static void CreateLRNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::LRN
     std::string layerName = layer_type_name_ID(op);
 
     auto axis_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    OPENVINO_ASSERT(axis_const != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    OPENVINO_ASSERT(axis_const != nullptr,
+                    "[GPU] Unsupported parameter nodes type in ",
+                    op->get_friendly_name(),
+                    " (",
+                    op->get_type_name(),
+                    ")");
     auto axis_value = axis_const->cast_vector<int64_t>();
     auto localSize = static_cast<uint32_t>(op->get_nsize());
 

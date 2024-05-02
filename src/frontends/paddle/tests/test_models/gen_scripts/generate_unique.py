@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # unique paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import sys
+from save_model import saveModel
 
 data_type = "float32"
 

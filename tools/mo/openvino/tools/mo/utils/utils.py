@@ -21,14 +21,16 @@ except ImportError:
 def refer_to_faq_msg(question_num: int):
     try:
         t = tm.Telemetry()
-        t.send_event('mo', 'error_info', "faq:" + str(question_num))
+        t.send_event("mo", "error_info", "faq:" + str(question_num))
     except Exception:
         # Telemetry can be not initialized if it is used in MO IR Reader
         pass
 
-    return '\n For more information please refer to Model Conversion API FAQ, question #{0}. ' \
-           '(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
-           '?question={0}#question-{0})'.format(question_num)
+    return (
+        "\n For more information please refer to Model Conversion API FAQ, question #{0}. "
+        "(https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html"
+        "?question={0}#question-{0})".format(question_num)
+    )
 
 
 def check_values_equal(val1, val2):
@@ -49,16 +51,18 @@ class NamedAttrsClass:
 
 
 def match_shapes(pattern: np.array, shape: np.array):
-    """ Check if shape matches shape pattern handling undefined dimension and 0 in the pattern. """
+    """Check if shape matches shape pattern handling undefined dimension and 0 in the pattern."""
     # Elements with value 0 and undefined values in pattern are just ignored. Other elements should match.
     if pattern.size != shape.size:
         return False
-    indices = [i for i, n in enumerate(pattern) if n != 0 and n is not dynamic_dimension]
+    indices = [
+        i for i, n in enumerate(pattern) if n != 0 and n is not dynamic_dimension
+    ]
     return np.ma.allequal(pattern[indices], shape[indices])
 
 
 def symm_match_shapes(shape1: np.array, shape2: np.array):
-    """ Check if shape matches shape pattern handling -1 and 0 in the pattern. """
+    """Check if shape matches shape pattern handling -1 and 0 in the pattern."""
     # Elements with values -1 and 0 in both shapes are just ignored.
     # Other elements should match. Undefined elements can be one side only.
     return match_shapes(shape1, shape2) or match_shapes(shape2, shape1)
@@ -70,9 +74,14 @@ def deprecated_api(class_name=None, new_method_name=None):
         def deprecation_message(*args, **kwargs):
             dep_msg = "Call to deprecated function {}. ".format(func.__name__)
             if class_name is not None:
-                dep_msg += "Please use {}.{} method" \
-                           "".format(class_name.__name__ if not isinstance(class_name, str) else class_name,
-                                     func.__name__ if new_method_name is None else new_method_name)
+                dep_msg += "Please use {}.{} method" "".format(
+                    (
+                        class_name.__name__
+                        if not isinstance(class_name, str)
+                        else class_name
+                    ),
+                    func.__name__ if new_method_name is None else new_method_name,
+                )
             warnings.warn(dep_msg, DeprecationWarning, stacklevel=2)
             return func(*args, **kwargs)
 
@@ -85,13 +94,13 @@ def array_to_str(node, attr):
     if not node.has_valid(attr):
         return None
     else:
-        return ','.join(map(str, node[attr]))
+        return ",".join(map(str, node[attr]))
 
 
 def shrink_str_value(value: np.array, max_symbols=100):
     value = str(value)
     if len(value) > max_symbols:
-        value = value.strip('\n')[:max_symbols - 3] + '...'
+        value = value.strip("\n")[: max_symbols - 3] + "..."
     return value
 
 
@@ -108,8 +117,12 @@ def files_by_pattern(dir: str, pattern: str, files_only=True, add_prefix=False):
     pattern_compiled = re.compile(pattern)
     matched_file_names = []
     for file_name in os.listdir(dir):
-        if re.match(pattern_compiled, file_name) and (not files_only or os.path.isfile(os.path.join(dir, file_name))):
-            matched_file_names.append(os.path.join(dir, file_name) if add_prefix else file_name)
+        if re.match(pattern_compiled, file_name) and (
+            not files_only or os.path.isfile(os.path.join(dir, file_name))
+        ):
+            matched_file_names.append(
+                os.path.join(dir, file_name) if add_prefix else file_name
+            )
     return matched_file_names
 
 
@@ -118,8 +131,13 @@ def get_mo_root_dir():
     Return the absolute path to the Model Optimizer root directory (where mo folder is located)
     :return: path to the MO root directory
     """
-    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
-                                         os.pardir))
+    return os.path.normpath(
+        os.path.join(
+            os.path.dirname(os.path.abspath(os.path.realpath(__file__))),
+            os.pardir,
+            os.pardir,
+        )
+    )
 
 
 def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:

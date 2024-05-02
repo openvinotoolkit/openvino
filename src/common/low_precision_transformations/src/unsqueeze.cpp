@@ -7,11 +7,10 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +18,8 @@ namespace low_precision {
 
 UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(UnsqueezeTransformation);
-    auto matcher = pattern::wrap_type<opset1::Unsqueeze>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<opset1::Unsqueeze>(
+        {pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -33,14 +33,14 @@ UnsqueezeTransformation::UnsqueezeTransformation(const Params& params) : LayerTr
     this->register_matcher(m, callback);
 }
 
-bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
     auto unsqueezeOnConstant = [](const std::shared_ptr<ov::Node>& unsqueeze,
-                                const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
-                                const ov::PartialShape& inputShape) {
+                                  const std::shared_ptr<ov::opset1::Constant>& dequantizationOpConstant,
+                                  const ov::PartialShape& inputShape) {
         const size_t inputRankValue = inputShape.rank().get_length();
         const auto constantShape = dequantizationOpConstant->get_shape();
         if (shape_size(constantShape) == 1ul) {
@@ -48,27 +48,31 @@ bool UnsqueezeTransformation::transform(TransformationContext& context, ov::pass
         }
 
         if (constantShape.size() == inputRankValue) {
-            return ov::as_type_ptr<opset1::Constant>(fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->input_value(1)));
+            return ov::as_type_ptr<opset1::Constant>(
+                fold<opset1::Unsqueeze>(dequantizationOpConstant, unsqueeze->input_value(1)));
         }
 
         return dequantizationOpConstant;
     };
 
-
-    const std::shared_ptr<Node> unsqueeze = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const std::shared_ptr<Node> unsqueeze =
+        NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(unsqueeze, defaultPrecisions);
 
     if (dequantization.multiply != nullptr) {
-        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.multiplyConstant, dequantization.data.get_partial_shape());
+        auto newConstant =
+            unsqueezeOnConstant(unsqueeze, dequantization.multiplyConstant, dequantization.data.get_partial_shape());
         replace_node(dequantization.multiplyConstant, newConstant);
     }
 
     if (dequantization.subtract != nullptr) {
-        auto newConstant = unsqueezeOnConstant(unsqueeze, dequantization.subtractConstant, dequantization.data.get_partial_shape());
+        auto newConstant =
+            unsqueezeOnConstant(unsqueeze, dequantization.subtractConstant, dequantization.data.get_partial_shape());
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    const auto newOperation = moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
+    const auto newOperation =
+        moveDequantizationAfter(context, unsqueeze, NetworkHelper::getDequantization(unsqueeze, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
@@ -78,11 +82,12 @@ bool UnsqueezeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) 
     return true;
 }
 
-bool UnsqueezeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) && LayerTransformation::canBeTransformed(context, layer);
+bool UnsqueezeTransformation::canBeTransformed(const TransformationContext& context,
+                                               std::shared_ptr<Node> layer) const {
+    return (!NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) &&
+           LayerTransformation::canBeTransformed(context, layer);
 }
 
-
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

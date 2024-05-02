@@ -15,6 +15,7 @@ This plugin adds the following command-line options:
 import hashlib
 import json
 import logging
+
 # pylint:disable=import-error
 import os
 import shutil
@@ -24,15 +25,24 @@ from pathlib import Path
 
 import pytest
 import yaml
-from jsonschema import validate, ValidationError
+from jsonschema import ValidationError, validate
 
 # add utils folder to imports
-UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+UTILS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "utils",
+)
 sys.path.insert(0, str(UTILS_DIR))
 
 from path_utils import check_positive_int
-from platform_utils import get_os_name, get_os_version, get_cpu_info
-from utils import upload_data, metadata_from_manifest, push_to_db_facade, modify_data_for_push_to_new_db, DB_COLLECTIONS
+from platform_utils import get_cpu_info, get_os_name, get_os_version
+from utils import (
+    DB_COLLECTIONS,
+    metadata_from_manifest,
+    modify_data_for_push_to_new_db,
+    push_to_db_facade,
+    upload_data,
+)
 
 # -------------------- CLI options --------------------
 
@@ -44,91 +54,91 @@ def pytest_addoption(parser):
         "--test_conf",
         type=Path,
         help="Path to a test config",
-        default=Path(__file__).parent / "test_config.yml"
+        default=Path(__file__).parent / "test_config.yml",
     )
     test_args_parser.addoption(
         "--exe",
         required=True,
         dest="executable",
         type=Path,
-        help="Path to a timetest binary to execute"
+        help="Path to a timetest binary to execute",
     )
     test_args_parser.addoption(
         "--niter",
         type=check_positive_int,
         help="Number of iterations to run executable and aggregate results",
-        default=3
+        default=3,
     )
     test_args_parser.addoption(
         "--model_cache",
-        action='store_true',
+        action="store_true",
         help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
-        '--db_submit',
+        "--db_submit",
         metavar="RUN_ID",
         type=str,
-        help='Submit results to the database. ' \
-             '`RUN_ID` should be a string uniquely identifying the run' \
-             ' (like Jenkins URL or time)'
+        help="Submit results to the database. "
+        "`RUN_ID` should be a string uniquely identifying the run"
+        " (like Jenkins URL or time)",
     )
     is_db_used = db_args_parser.parser.parse_known_args(sys.argv).db_submit
     db_args_parser.addoption(
-        '--db_url',
+        "--db_url",
         type=str,
         required=is_db_used,
-        help='MongoDB URL in a form "mongodb://server:port"'
+        help='MongoDB URL in a form "mongodb://server:port"',
     )
     db_args_parser.addoption(
-        '--db_collection',
+        "--db_collection",
         type=str,
         required=is_db_used,
-        help='Collection name in database',
-        choices=DB_COLLECTIONS
+        help="Collection name in database",
+        choices=DB_COLLECTIONS,
     )
     db_args_parser.addoption(
-        '--db_metadata',
+        "--db_metadata",
         type=str,
         default=None,
-        help='Path to JSON-formatted file to extract additional information'
+        help="Path to JSON-formatted file to extract additional information",
     )
     db_args_parser.addoption(
-        '--manifest',
+        "--manifest",
         type=Path,
         required=is_db_used,
-        help='Path to build manifest to extract commit information'
+        help="Path to build manifest to extract commit information",
     )
     db_args_parser.addoption(
-        '--db_api_handler',
+        "--db_api_handler",
         type=str,
-        help='API handler url for push data to database',
-        default=''
+        help="API handler url for push data to database",
+        default="",
     )
 
 
 @pytest.fixture(scope="session")
 def test_conf(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('test_conf')
+    return request.config.getoption("test_conf")
 
 
 @pytest.fixture(scope="session")
 def executable(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('executable')
+    return request.config.getoption("executable")
 
 
 @pytest.fixture(scope="session")
 def niter(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('niter')
+    return request.config.getoption("niter")
 
 
 @pytest.fixture(scope="session")
 def model_cache(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('model_cache')
+    return request.config.getoption("model_cache")
 
 
 # -------------------- CLI options --------------------
@@ -190,9 +200,11 @@ def test_info(request, pytestconfig):
     fixtures with timetests information which will be used for
     internal purposes.
     """
-    setattr(request.node._request, "test_info", {"results": {},
-                                                 "raw_results": {},
-                                                 "db_info": {}})
+    setattr(
+        request.node._request,
+        "test_info",
+        {"results": {}, "raw_results": {}, "db_info": {}},
+    )
 
     yield request.node._request.test_info
 
@@ -243,7 +255,7 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     is parsing of build information from build manifest. After preparation,
     it checks if data contains required properties.
     """
-    FIELDS_FOR_ID = ['run_id', 'timetest', 'model', 'device', 'niter']
+    FIELDS_FOR_ID = ["run_id", "timetest", "model", "device", "niter"]
 
     run_id = request.config.getoption("db_submit")
     if not run_id:
@@ -257,7 +269,9 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
             test_info["db_info"].update(json.load(db_meta_f))
 
     # add model cache status
-    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
+    test_info["db_info"].update(
+        {"model_cache": request.config.getoption("model_cache")}
+    )
 
     # add test info
     info = {
@@ -268,10 +282,11 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
         "device": request.node.funcargs["instance"]["device"],
         "niter": niter,
         "test_name": request.node.name,
-        "os": "_".join([str(item) for item in [get_os_name(), *get_os_version()]])
+        "os": "_".join([str(item) for item in [get_os_name(), *get_os_version()]]),
     }
-    info['_id'] = hashlib.sha256(
-        ''.join([str(info[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
+    info["_id"] = hashlib.sha256(
+        "".join([str(info[key]) for key in FIELDS_FOR_ID]).encode()
+    ).hexdigest()
     test_info["db_info"].update(info)
 
     # add manifest metadata
@@ -363,7 +378,7 @@ def pytest_generate_tests(metafunc):
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
-    with open(metafunc.config.getoption('test_conf'), "r") as file:
+    with open(metafunc.config.getoption("test_conf"), "r") as file:
         test_cases = yaml.safe_load(file)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
@@ -416,12 +431,13 @@ def pytest_runtest_makereport(item, call):
 
         db_url = item.config.getoption("db_url")
         db_collection = item.config.getoption("db_collection")
-        logging.info(f"Upload data to {db_url}/{'timetests'}.{db_collection}. "
-                     f"Data: {data}")
-        upload_data(data, db_url, 'timetests', db_collection)
+        logging.info(
+            f"Upload data to {db_url}/{'timetests'}.{db_collection}. " f"Data: {data}"
+        )
+        upload_data(data, db_url, "timetests", db_collection)
 
         db_api_handler = item.config.getoption("db_api_handler")
         if db_api_handler and call.when == "call":
             new_format_records = modify_data_for_push_to_new_db(data)
-            new_format_records['data'][0]["log"] = item._request.test_info["logs"]
+            new_format_records["data"][0]["log"] = item._request.test_info["logs"]
             push_to_db_facade(new_format_records, db_api_handler)

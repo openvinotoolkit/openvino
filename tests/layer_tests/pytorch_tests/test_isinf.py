@@ -4,11 +4,12 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (torch.tensor([1, float('inf'), 2, float('-inf'), float('nan')])))
+@pytest.mark.parametrize(
+    "input_tensor", (torch.tensor([1, float("inf"), 2, float("-inf"), float("nan")]))
+)
 class TestIsInf(PytorchLayerTest):
 
     def _prepare_input(self):

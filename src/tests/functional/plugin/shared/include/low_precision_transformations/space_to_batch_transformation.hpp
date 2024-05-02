@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 class SpaceToBatchTransformationParam {
@@ -23,15 +22,10 @@ public:
     std::string expected_kernel_type;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    std::string,
-    SpaceToBatchTransformationParam
-> SpaceToBatchTransformationParams;
+typedef std::tuple<ov::element::Type, std::string, SpaceToBatchTransformationParam> SpaceToBatchTransformationParams;
 
-class SpaceToBatchTransformation :
-    public testing::WithParamInterface<SpaceToBatchTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class SpaceToBatchTransformation : public testing::WithParamInterface<SpaceToBatchTransformationParams>,
+                                   public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SpaceToBatchTransformationParams>& obj);
 

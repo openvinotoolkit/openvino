@@ -18,8 +18,9 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
 
     // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision
     // may vary
-    test->core->set_property(ov::test::utils::DEVICE_GPU, {{ov::hint::inference_precision.name(), hint.get_type_name()}});
+    test->core->set_property(ov::test::utils::DEVICE_GPU,
+                             {{ov::hint::inference_precision.name(), hint.get_type_name()}});
 }
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

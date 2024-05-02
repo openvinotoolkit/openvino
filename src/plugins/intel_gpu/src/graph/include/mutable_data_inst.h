@@ -3,11 +3,11 @@
 //
 
 #pragma once
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
 
 namespace cldnn {
 
@@ -17,12 +17,18 @@ struct typed_program_node<mutable_data> : public typed_program_node_base<mutable
 
     typed_program_node(const std::shared_ptr<mutable_data> prim, program& prog);
 
-    memory& get_attached_memory() const { return *mem; }
-    memory::ptr get_attached_memory_ptr() const { return mem; }
+    memory& get_attached_memory() const {
+        return *mem;
+    }
+    memory::ptr get_attached_memory_ptr() const {
+        return mem;
+    }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
     void replace_memory(memory::ptr new_mem, bool invalidate_users_if_changed = false);
 
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
+    program_node& input(size_t idx = 0) const {
+        return get_dependency(idx);
+    }
 
 private:
     memory::ptr mem;
@@ -44,7 +50,9 @@ public:
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
-    const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
+    const std::list<primitive_id>& get_user_ids() const {
+        return _user_ids;
+    }
 
 private:
     std::list<primitive_id> _user_ids;

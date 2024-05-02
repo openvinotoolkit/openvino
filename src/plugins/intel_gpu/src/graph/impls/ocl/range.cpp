@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "range_inst.h"
-#include "range/range_kernel_selector.h"
 #include "range/range_kernel_ref.h"
+#include "range/range_kernel_selector.h"
+#include "range_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -41,26 +40,17 @@ struct range_impl : typed_primitive_impl_ocl<range> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_range_impl::attach_range_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i32,
-        data_types::i64,
-        data_types::i8,
-        data_types::u8
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i32, data_types::i64, data_types::i8, data_types::u8};
 
-    auto formats = {
-        format::bfyx
-    };
+    auto formats = {format::bfyx};
 
     implementation_map<range>::add(impl_types::ocl,
                                    shape_types::any,

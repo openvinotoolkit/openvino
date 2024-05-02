@@ -6,11 +6,11 @@
 
 #pragma once
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
+#ifdef MULTIUNITTEST
+#    define MOCKTESTMACRO virtual
+#    define auto_plugin   mock_auto_plugin
 #else
-#define MOCKTESTMACRO
+#    define MOCKTESTMACRO
 #endif
 
 namespace ov {
@@ -27,5 +27,5 @@ protected:
     NonCopyable() = default;
     virtual ~NonCopyable() = default;
 };
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

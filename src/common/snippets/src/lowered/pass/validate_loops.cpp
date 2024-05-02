@@ -39,7 +39,8 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
 
     std::vector<size_t> dim_indexes;
 
-    auto validate_loop_ports = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](const std::vector<LoopPort>& loop_ports) {
+    auto validate_loop_ports = [&loop_manager, &dim_indexes, &validated_nested_loops, &is_already_verified](
+                                   const std::vector<LoopPort>& loop_ports) {
         for (const auto& loop_port : loop_ports) {
             const auto expr = loop_port.expr_port->get_expr();
             const auto& loop_ids = expr->get_loop_ids();
@@ -53,14 +54,18 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
             for (size_t i = 0; i < loop_ids.size(); ++i) {
                 const auto id = loop_ids[i];
                 const auto dim_idx = loop_manager->get_loop_info(id)->get_dim_idx();
-                // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
+                // if the loop has different dimension indexes, it don't have to meet the split loop related
+                // requirements
                 if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
                     continue;
                 if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
                     OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
-                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
-                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
+                                    "successively nested");
+                    OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() ==
+                                        loop_manager->get_loop_info(id)->get_work_amount(),
+                                    "Incorrect Loop ID configuration: the Loops with splitted dimension should be "
+                                    "successively nested");
                 }
                 dim_indexes.push_back(dim_idx);
             }
@@ -68,18 +73,19 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
         }
     };
 
-    auto add_ports_dims_to_unique_dims = [](const std::vector<LoopPort>& loop_ports, std::set<size_t>& unique_dims, bool is_entry) {
-        for (const auto& loop_port : loop_ports) {
-            if (!loop_port.is_incremented)
-                continue;
-            const auto planar_shape = is_entry ? ov::snippets::utils::get_planar_vdims(*loop_port.expr_port)
-                                               : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
-            const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
-            // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
-            if (!utils::is_dynamic_value(dim) && dim != 1)
-                unique_dims.insert(dim);
-        }
-    };
+    auto add_ports_dims_to_unique_dims =
+        [](const std::vector<LoopPort>& loop_ports, std::set<size_t>& unique_dims, bool is_entry) {
+            for (const auto& loop_port : loop_ports) {
+                if (!loop_port.is_incremented)
+                    continue;
+                const auto planar_shape = is_entry ? ov::snippets::utils::get_planar_vdims(*loop_port.expr_port)
+                                                   : ov::snippets::utils::get_preordered_vdims(*loop_port.expr_port);
+                const auto& dim = *(planar_shape.rbegin() + loop_port.dim_idx);
+                // Since dim == 1 can be broadcasted to any value, it's not necessary to add it to unique dims
+                if (!utils::is_dynamic_value(dim) && dim != 1)
+                    unique_dims.insert(dim);
+            }
+        };
 
     for (const auto& pair : loops) {
         const auto& loop_info = pair.second;
@@ -98,7 +104,7 @@ bool ValidateLoops::run(LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -5,8 +5,9 @@
 #pragma once
 
 #include <string>
-#include "openvino/core/runtime_attribute.hpp"
+
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
 
@@ -14,10 +15,7 @@ class LP_TRANSFORMATIONS_API QuantizationModeAttribute : public ov::RuntimeAttri
 public:
     OPENVINO_RTTI("LowPrecision::QuantizationModeAttribute", "", ov::RuntimeAttribute);
 
-    enum class Mode {
-        Asymmetric,
-        Symmetric
-    };
+    enum class Mode { Asymmetric, Symmetric };
 
     QuantizationModeAttribute() : mode(Mode::Asymmetric) {}
     QuantizationModeAttribute(const Mode mode) : mode(mode) {}
@@ -30,4 +28,4 @@ public:
 
     Mode mode;
 };
-} // namespace ov
+}  // namespace ov

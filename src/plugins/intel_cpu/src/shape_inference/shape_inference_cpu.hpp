@@ -5,8 +5,9 @@
 #pragma once
 
 #include <cpu_memory.h>
-#include <openvino/core/node.hpp>
+
 #include <openvino/core/coordinate_diff.hpp>
+#include <openvino/core/node.hpp>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
@@ -39,9 +40,8 @@ public:
      * @return ShapeInferResult which contains resulting array of calculated shapes (per each output port) plus status
      * of the shape infer call
      */
-    virtual Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) = 0;
+    virtual Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                         const std::unordered_map<size_t, MemoryPtr>& data_dependency) = 0;
 
     /**
      * @brief Shape inference implementation may generate padding as by-product, these APIs is designed to retrieve them
@@ -69,12 +69,13 @@ public:
  */
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() override final { // NOLINT
+    const ov::CoordinateDiff& get_pads_begin() override final {  // NOLINT
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() override final { // NOLINT
+    const ov::CoordinateDiff& get_pads_end() override final {  // NOLINT
         return m_emptyVec;
     }
+
 private:
     static const ov::CoordinateDiff m_emptyVec;
 };
@@ -104,11 +105,14 @@ public:
      * @param port_mask port mask should be defined by the user. Will be stored in the shape infer object and returned
      * by the get_port_mask() call
      */
-    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
+    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask)
+        : m_op(op),
+          m_port_mask(port_mask) {}
     ShapeInferPtr makeShapeInfer() const override;
+
 private:
     std::shared_ptr<ov::Node> m_op;
     IShapeInfer::port_mask_t m_port_mask;
 };
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

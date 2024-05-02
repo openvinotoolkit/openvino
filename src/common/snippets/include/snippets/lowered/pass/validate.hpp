@@ -27,7 +27,7 @@ private:
     std::unordered_map<ov::DiscreteTypeInfo, Validator> m_validation_map;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

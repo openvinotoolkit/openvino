@@ -7,8 +7,7 @@ import tempfile
 import pytest
 import torch
 import torchvision.transforms.functional as F
-
-from torch_utils import process_pytest_marks, TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, process_pytest_marks
 
 
 def get_all_models() -> list:
@@ -26,6 +25,7 @@ def get_video():
     """
     from pathlib import Path
     from urllib.request import urlretrieve
+
     from torchvision.io import read_video
 
     video_url = "https://download.pytorch.org/tutorial/pexelscom_pavel_danilyuk_basketball_hd.mp4"
@@ -38,8 +38,9 @@ def get_video():
 
 
 def prepare_frames_for_raft(name, frames1, frames2):
-    w = torch.hub.load("pytorch/vision", "get_model_weights",
-                       name=name, skip_validation=True).DEFAULT
+    w = torch.hub.load(
+        "pytorch/vision", "get_model_weights", name=name, skip_validation=True
+    ).DEFAULT
     img1_batch = torch.stack(frames1)
     img2_batch = torch.stack(frames2)
     img1_batch = F.resize(img1_batch, size=[520, 960], antialias=False)
@@ -54,10 +55,13 @@ torch.manual_seed(0)
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
-        m = torch.hub.load("pytorch/vision", model_name,
-                           weights='DEFAULT', skip_validation=True)
+        m = torch.hub.load(
+            "pytorch/vision", model_name, weights="DEFAULT", skip_validation=True
+        )
         m.eval()
-        if model_name == "s3d" or any([m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]]):
+        if model_name == "s3d" or any(
+            [m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]]
+        ):
             self.example = (torch.randn([1, 3, 224, 224, 224]),)
             self.inputs = (torch.randn([1, 3, 224, 224, 224]),)
         elif "mvit" in model_name:
@@ -66,12 +70,12 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             self.inputs = (torch.randn(1, 3, 16, 224, 224),)
         elif "raft" in model_name:
             frames = get_video()
-            self.example = prepare_frames_for_raft(model_name,
-                                                   [frames[100], frames[150]],
-                                                   [frames[101], frames[151]])
-            self.inputs = prepare_frames_for_raft(model_name,
-                                                  [frames[75], frames[125]],
-                                                  [frames[76], frames[126]])
+            self.example = prepare_frames_for_raft(
+                model_name, [frames[100], frames[150]], [frames[101], frames[151]]
+            )
+            self.inputs = prepare_frames_for_raft(
+                model_name, [frames[75], frames[125]], [frames[76], frames[126]]
+            )
         elif "vit_h_14" in model_name:
             self.example = (torch.randn(1, 3, 518, 518),)
             self.inputs = (torch.randn(1, 3, 518, 518),)
@@ -91,7 +95,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
+    @pytest.mark.parametrize(
+        "model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"]
+    )
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.mode = "trace"
@@ -103,8 +109,12 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "export"
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize(
+        "name",
+        process_pytest_marks(
+            os.path.join(os.path.dirname(__file__), "torchvision_models")
+        ),
+    )
     @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, mode, name, ie_device):

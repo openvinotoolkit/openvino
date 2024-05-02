@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "openvino/op/interpolate.hpp"
-
 #include <map>
+
+#include "openvino/op/interpolate.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -147,7 +147,8 @@ struct resample : public primitive_base<resample> {
     int32_t antialias = 0;
     /// @param cube_coeff specifies the parameter a for cubic interpolation. cube_coeff is used only when mode == cubic.
     float cube_coeff = -0.75f;
-    /// @param coord_trans_mode specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
+    /// @param coord_trans_mode specifies how to transform the coordinate in the resized tensor to the coordinate in the
+    /// original tensor
     InterpolateOp::CoordinateTransformMode coord_trans_mode = InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.
     InterpolateOp::NearestMode round_mode = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR;
@@ -174,20 +175,12 @@ struct resample : public primitive_base<resample> {
 
         auto rhs_casted = downcast<const resample>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(num_filter) &&
-               cmp_fields(sizes) &&
-               cmp_fields(scales) &&
-               cmp_fields(axes) &&
-               cmp_fields(pads_begin) &&
-               cmp_fields(pads_end) &&
-               cmp_fields(operation_type) &&
-               cmp_fields(shape_calc_mode) &&
-               cmp_fields(antialias) &&
-               cmp_fields(cube_coeff) &&
-               cmp_fields(coord_trans_mode) &&
-               cmp_fields(round_mode);
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(num_filter) && cmp_fields(sizes) && cmp_fields(scales) && cmp_fields(axes) &&
+               cmp_fields(pads_begin) && cmp_fields(pads_end) && cmp_fields(operation_type) &&
+               cmp_fields(shape_calc_mode) && cmp_fields(antialias) && cmp_fields(cube_coeff) &&
+               cmp_fields(coord_trans_mode) && cmp_fields(round_mode);
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

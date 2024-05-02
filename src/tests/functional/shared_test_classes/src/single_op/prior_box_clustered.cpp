@@ -4,15 +4,16 @@
 
 #include "shared_test_classes/single_op/prior_box_clustered.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/prior_box_clustered.hpp"
 
 namespace ov {
 namespace test {
-std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
+std::string PriorBoxClusteredLayerTest::getTestCaseName(
+    const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::string target_device;
@@ -38,20 +39,20 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
         }
         result << "}_";
     }
-    result << "netPRC="  << model_type.get_type_name()   << separator;
-    result << "widths="  << ov::test::utils::vec2str(widths)  << separator;
+    result << "netPRC=" << model_type.get_type_name() << separator;
+    result << "widths=" << ov::test::utils::vec2str(widths) << separator;
     result << "heights=" << ov::test::utils::vec2str(heights) << separator;
     result << "variances=";
     if (variances.empty())
         result << "()" << separator;
     else
         result << ov::test::utils::vec2str(variances) << separator;
-    result << "stepWidth="  << step_width  << separator;
+    result << "stepWidth=" << step_width << separator;
     result << "stepHeight=" << step_height << separator;
-    result << "step="       << step << separator;
-    result << "offset="     << offset      << separator;
-    result << "clip="       << std::boolalpha << clip << separator;
-    result << "trgDev="     << target_device;
+    result << "step=" << step << separator;
+    result << "offset=" << offset << separator;
+    result << "clip=" << std::boolalpha << clip << separator;
+    result << "trgDev=" << target_device;
     return result.str();
 }
 

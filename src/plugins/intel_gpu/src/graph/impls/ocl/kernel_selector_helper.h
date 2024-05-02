@@ -4,28 +4,27 @@
 
 #pragma once
 
-#include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/graph/fused_primitive_desc.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "intel_gpu/runtime/tensor.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
-#include "intel_gpu/primitives/quantize.hpp"
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/primitive.hpp"
-
-#include "kernel_selector_params.h"
-#include "weight_bias_params.h"
-#include "kernel_selector_common.h"
-#include "tensor_type.h"
-
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
+
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/tensor.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "kernel_selector_common.h"
+#include "kernel_selector_params.h"
+#include "tensor_type.h"
+#include "weight_bias_params.h"
 
 namespace kernel_selector {
 using n_dims = kernel_selector::Tensor::NDims;
@@ -85,8 +84,8 @@ using weights_reorder_params = kernel_selector::WeightsReorderParams;
 namespace ov {
 namespace element {
 enum class Type_t;
-}  // namespaec element
-}  // namespaec ov
+}  // namespace element
+}  // namespace ov
 namespace cldnn {
 struct format;
 struct layout;
@@ -101,7 +100,7 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor{});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
@@ -118,11 +117,14 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 }
 
 std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p);
-void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
+void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info,
+                                             std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
-void set_default_params(const kernel_impl_params& param_info, kernel_selector::base_params& params, bool is_shape_agnostic);
+void set_default_params(const kernel_impl_params& param_info,
+                        kernel_selector::base_params& params,
+                        bool is_shape_agnostic);
 void set_dynamic_shape_offsets(kernel_selector::params& params);
 void set_weights_bias_default_params(const kernel_impl_params& param_info,
                                      kernel_selector::weight_bias_params& params,
@@ -141,14 +143,18 @@ inline params_t get_default_params(const kernel_impl_params& param_info, bool is
 }
 
 template <typename params_t>
-inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
+inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info,
+                                                bool has_group_dimension = false,
+                                                bool is_shape_agnostic = false) {
     params_t params;
     set_weights_bias_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
 }
 
 template <typename params_t>
-params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false, bool is_shape_agnostic = false) {
+params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info,
+                                                   bool has_group_dimension = false,
+                                                   bool is_shape_agnostic = false) {
     params_t params;
     set_weight_bias_zero_point_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
@@ -156,52 +162,52 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
     switch (mode) {
-        case eltwise_mode::sum:
-            return kernel_selector::eltwise_mode::ADD;
-        case eltwise_mode::sub:
-            return kernel_selector::eltwise_mode::SUB;
-        case eltwise_mode::max:
-            return kernel_selector::eltwise_mode::MAX;
-        case eltwise_mode::prod:
-            return kernel_selector::eltwise_mode::MUL;
-        case eltwise_mode::div:
-            return kernel_selector::eltwise_mode::DIV;
-        case eltwise_mode::min:
-            return kernel_selector::eltwise_mode::MIN;
-        case eltwise_mode::pow:
-            return kernel_selector::eltwise_mode::POW;
-        case eltwise_mode::mod:
-            return kernel_selector::eltwise_mode::MODULU;
-        case eltwise_mode::eq:
-            return kernel_selector::eltwise_mode::EQ;
-        case eltwise_mode::ne:
-            return kernel_selector::eltwise_mode::NE;
-        case eltwise_mode::lt:
-            return kernel_selector::eltwise_mode::LT;
-        case eltwise_mode::le:
-            return kernel_selector::eltwise_mode::LE;
-        case eltwise_mode::gt:
-            return kernel_selector::eltwise_mode::GT;
-        case eltwise_mode::ge:
-            return kernel_selector::eltwise_mode::GE;
-        case eltwise_mode::logic_and:
-            return kernel_selector::eltwise_mode::LOGIC_AND;
-        case eltwise_mode::logic_or:
-            return kernel_selector::eltwise_mode::LOGIC_OR;
-        case eltwise_mode::logic_xor:
-            return kernel_selector::eltwise_mode::LOGIC_XOR;
-        case eltwise_mode::squared_diff:
-            return kernel_selector::eltwise_mode::SQUARED_DIFF;
-        case eltwise_mode::floor_mod:
-            return kernel_selector::eltwise_mode::FLOOR_MOD;
-        case eltwise_mode::is_finite:
-            return kernel_selector::eltwise_mode::IS_FINITE;
-        case eltwise_mode::is_inf:
-            return kernel_selector::eltwise_mode::IS_INF;
-        case eltwise_mode::is_nan:
-            return kernel_selector::eltwise_mode::IS_NAN;
-        default:
-            return kernel_selector::eltwise_mode::ADD;
+    case eltwise_mode::sum:
+        return kernel_selector::eltwise_mode::ADD;
+    case eltwise_mode::sub:
+        return kernel_selector::eltwise_mode::SUB;
+    case eltwise_mode::max:
+        return kernel_selector::eltwise_mode::MAX;
+    case eltwise_mode::prod:
+        return kernel_selector::eltwise_mode::MUL;
+    case eltwise_mode::div:
+        return kernel_selector::eltwise_mode::DIV;
+    case eltwise_mode::min:
+        return kernel_selector::eltwise_mode::MIN;
+    case eltwise_mode::pow:
+        return kernel_selector::eltwise_mode::POW;
+    case eltwise_mode::mod:
+        return kernel_selector::eltwise_mode::MODULU;
+    case eltwise_mode::eq:
+        return kernel_selector::eltwise_mode::EQ;
+    case eltwise_mode::ne:
+        return kernel_selector::eltwise_mode::NE;
+    case eltwise_mode::lt:
+        return kernel_selector::eltwise_mode::LT;
+    case eltwise_mode::le:
+        return kernel_selector::eltwise_mode::LE;
+    case eltwise_mode::gt:
+        return kernel_selector::eltwise_mode::GT;
+    case eltwise_mode::ge:
+        return kernel_selector::eltwise_mode::GE;
+    case eltwise_mode::logic_and:
+        return kernel_selector::eltwise_mode::LOGIC_AND;
+    case eltwise_mode::logic_or:
+        return kernel_selector::eltwise_mode::LOGIC_OR;
+    case eltwise_mode::logic_xor:
+        return kernel_selector::eltwise_mode::LOGIC_XOR;
+    case eltwise_mode::squared_diff:
+        return kernel_selector::eltwise_mode::SQUARED_DIFF;
+    case eltwise_mode::floor_mod:
+        return kernel_selector::eltwise_mode::FLOOR_MOD;
+    case eltwise_mode::is_finite:
+        return kernel_selector::eltwise_mode::IS_FINITE;
+    case eltwise_mode::is_inf:
+        return kernel_selector::eltwise_mode::IS_INF;
+    case eltwise_mode::is_nan:
+        return kernel_selector::eltwise_mode::IS_NAN;
+    default:
+        return kernel_selector::eltwise_mode::ADD;
     }
 }
 
@@ -222,7 +228,9 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape,
     return extended_pshape;
 }
 
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
+inline bool broadcastable(const ov::PartialShape& first_pshape,
+                          const ov::PartialShape& second_pshape,
+                          bool use_new_shape_infer,
                           bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
         return false;
@@ -239,7 +247,8 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
+        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) ||
+              first_pshape[i] == second_pshape[i])) {
             return false;
         }
     }
@@ -267,12 +276,15 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     return updated_impl_params;
 }
 
-inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const kernel_selector::WeightsReorderParams& params) {
+inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(
+    const kernel_selector::WeightsReorderParams& params) {
     if (!params.is_initialized) {
         return nullptr;
     }
 
-    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
+    return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
+                                                  from_weights_tensor(params.dest),
+                                                  params.rotate);
 }
 
 }  // namespace cldnn

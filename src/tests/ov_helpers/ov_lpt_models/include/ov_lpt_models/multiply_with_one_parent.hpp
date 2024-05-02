@@ -15,10 +15,9 @@ namespace subgraph {
 
 class MultiplyWithOneParentFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const FakeQuantizeOnData& fakeQuantize);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const FakeQuantizeOnData& fakeQuantize);
 };
 
 }  // namespace subgraph

@@ -7,9 +7,9 @@
 #include <map>
 #include <ostream>
 
-#include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 
@@ -39,12 +39,24 @@ inline impl_types operator~(impl_types a) {
 
 inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) {
     switch (impl_type) {
-        case impl_types::cpu: out << "cpu"; break;
-        case impl_types::common: out << "common"; break;
-        case impl_types::ocl: out << "ocl"; break;
-        case impl_types::onednn: out << "onednn"; break;
-        case impl_types::any: out << "any"; break;
-        default: out << "unknown"; break;
+    case impl_types::cpu:
+        out << "cpu";
+        break;
+    case impl_types::common:
+        out << "common";
+        break;
+    case impl_types::ocl:
+        out << "ocl";
+        break;
+    case impl_types::onednn:
+        out << "onednn";
+        break;
+    case impl_types::any:
+        out << "any";
+        break;
+    default:
+        out << "unknown";
+        break;
     }
 
     return out;
@@ -93,10 +105,18 @@ inline shape_types operator~(shape_types a) {
 
 inline std::ostream& operator<<(std::ostream& out, const shape_types& shape_type) {
     switch (shape_type) {
-        case shape_types::static_shape: out << "static_shape"; break;
-        case shape_types::dynamic_shape: out << "dynamic_shape"; break;
-        case shape_types::any: out << "any"; break;
-        default: out << "unknown"; break;
+    case shape_types::static_shape:
+        out << "static_shape";
+        break;
+    case shape_types::dynamic_shape:
+        out << "dynamic_shape";
+        break;
+    case shape_types::any:
+        out << "any";
+        break;
+    default:
+        out << "unknown";
+        break;
     }
 
     return out;
@@ -112,17 +132,14 @@ struct ImplementationDesc {
     std::string kernel_name;            ///< GPU kernel name.
     cldnn::impl_types impl_type;        ///< GPU implementation type.
 
-    ImplementationDesc() :
-        output_format(cldnn::format::any),
-        kernel_name(""),
-        impl_type(cldnn::impl_types::any) {}
+    ImplementationDesc() : output_format(cldnn::format::any), kernel_name(""), impl_type(cldnn::impl_types::any) {}
 
     ImplementationDesc(cldnn::format::type output_format,
-                        std::string kernel_name,
-                        cldnn::impl_types impl_type = cldnn::impl_types::any) :
-        output_format(output_format),
-        kernel_name(kernel_name),
-        impl_type(impl_type) {}
+                       std::string kernel_name,
+                       cldnn::impl_types impl_type = cldnn::impl_types::any)
+        : output_format(output_format),
+          kernel_name(kernel_name),
+          impl_type(impl_type) {}
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ImplementationDesc& desc) {

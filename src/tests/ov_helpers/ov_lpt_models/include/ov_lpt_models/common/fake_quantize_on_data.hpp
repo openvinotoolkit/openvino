@@ -19,15 +19,14 @@ class FakeQuantizeOnData {
 public:
     FakeQuantizeOnData();
 
-    FakeQuantizeOnData(
-        const uint64_t quantizationLevel,
-        const ov::Shape& constantShape,
-        const std::vector<float>& inputLowValues,
-        const std::vector<float>& inputHighValues,
-        const std::vector<float>& outputLowValues,
-        const std::vector<float>& outputHighValues,
-        const ov::element::Type outputPrecision = ov::element::undefined,
-        const std::vector<ov::Any>& attributes = {});
+    FakeQuantizeOnData(const uint64_t quantizationLevel,
+                       const ov::Shape& constantShape,
+                       const std::vector<float>& inputLowValues,
+                       const std::vector<float>& inputHighValues,
+                       const std::vector<float>& outputLowValues,
+                       const std::vector<float>& outputHighValues,
+                       const ov::element::Type outputPrecision = ov::element::undefined,
+                       const std::vector<ov::Any>& attributes = {});
 
     virtual ~FakeQuantizeOnData();
 
@@ -60,29 +59,25 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
     if (data.empty()) {
         return out << "{}";
     }
-    return out << "level=" << data.quantizationLevel <<
-        "_shape=" << data.constantShape <<
-        "_input_low=" << data.inputLowValues <<
-        "_input_high=" << data.inputHighValues <<
-        "_output_low=" << data.outputLowValues <<
-        "_output_high" << data.outputHighValues <<
-        "_precision=" << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
+    return out << "level=" << data.quantizationLevel << "_shape=" << data.constantShape
+               << "_input_low=" << data.inputLowValues << "_input_high=" << data.inputHighValues
+               << "_output_low=" << data.outputLowValues << "_output_high" << data.outputHighValues << "_precision="
+               << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 class FakeQuantizeOnDataWithConstant {
 public:
     FakeQuantizeOnDataWithConstant();
 
-    FakeQuantizeOnDataWithConstant(
-        const uint64_t quantizationLevel,
-        const std::vector<ov::Shape>& constantShapes,
-        const std::vector<float>& inputLowValues,
-        const std::vector<float>& inputHighValues,
-        const std::vector<float>& outputLowValues,
-        const std::vector<float>& outputHighValues,
-        const ov::element::Type outputPrecision = ov::element::undefined,
-        const std::vector<ov::Any>& attributes = {},
-        const bool addConverts = false);
+    FakeQuantizeOnDataWithConstant(const uint64_t quantizationLevel,
+                                   const std::vector<ov::Shape>& constantShapes,
+                                   const std::vector<float>& inputLowValues,
+                                   const std::vector<float>& inputHighValues,
+                                   const std::vector<float>& outputLowValues,
+                                   const std::vector<float>& outputHighValues,
+                                   const ov::element::Type outputPrecision = ov::element::undefined,
+                                   const std::vector<ov::Any>& attributes = {},
+                                   const bool addConverts = false);
     virtual ~FakeQuantizeOnDataWithConstant();
 
     virtual bool empty() const;
@@ -102,13 +97,11 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataWithC
     if (data.empty()) {
         return out << "{}";
     }
-    return out << "level=" << data.quantizationLevel <<
-        "_shape=" <<(data.constantShapes.empty() ? ov::Shape{} : data.constantShapes[0]) <<
-        "_input_low=" << data.inputLowValues <<
-        "_input_high=" << data.inputHighValues <<
-        "_output_low=" << data.outputLowValues <<
-        "_output_high=" << data.outputHighValues <<
-        "_precision=" << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
+    return out << "level=" << data.quantizationLevel
+               << "_shape=" << (data.constantShapes.empty() ? ov::Shape{} : data.constantShapes[0])
+               << "_input_low=" << data.inputLowValues << "_input_high=" << data.inputHighValues
+               << "_output_low=" << data.outputLowValues << "_output_high=" << data.outputHighValues << "_precision="
+               << (data.outputPrecision == ov::element::undefined ? "" : data.outputPrecision.get_type_name());
 }
 
 }  // namespace subgraph

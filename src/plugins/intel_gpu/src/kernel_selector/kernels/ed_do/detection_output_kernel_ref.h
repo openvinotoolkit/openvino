@@ -41,13 +41,9 @@ private:
                              const std::string& stage_name,
                              size_t stage_index,
                              clKernelData& kernel) const;
-    void PrepareRefineBoxesKernel(const experimental_detectron_detection_output_params&,
-                                  clKernelData&) const;
-    void PrepareNmsClassWiseKernel(const experimental_detectron_detection_output_params&,
-                                   clKernelData&) const;
-    void PrepareTopKDetectionsKernel(const experimental_detectron_detection_output_params&,
-                                     clKernelData&) const;
-    void PrepareCopyOutputKernel(const experimental_detectron_detection_output_params&,
-                                 clKernelData&) const;
+    void PrepareRefineBoxesKernel(const experimental_detectron_detection_output_params&, clKernelData&) const;
+    void PrepareNmsClassWiseKernel(const experimental_detectron_detection_output_params&, clKernelData&) const;
+    void PrepareTopKDetectionsKernel(const experimental_detectron_detection_output_params&, clKernelData&) const;
+    void PrepareCopyOutputKernel(const experimental_detectron_detection_output_params&, clKernelData&) const;
 };
 }  // namespace kernel_selector

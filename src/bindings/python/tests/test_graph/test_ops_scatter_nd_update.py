@@ -4,9 +4,9 @@
 
 import numpy as np
 import pytest
+from openvino.runtime import opset4, opset15
 
 from openvino import PartialShape, Type
-from openvino.runtime import opset4, opset15
 
 scatter_version_opset = pytest.mark.parametrize("opset", [opset4, opset15])
 
@@ -25,7 +25,9 @@ def test_scatter_nd_update(opset):
 
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data_shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data_shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type.f32
 
 
@@ -38,7 +40,9 @@ def test_scatter_nd_update_basic(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -51,7 +55,9 @@ def test_scatter_nd_update_multidimensional(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -84,7 +90,9 @@ def test_scatter_nd_update_negative_indices(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -97,7 +105,9 @@ def test_scatter_nd_update_multi_index_per_update(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -110,7 +120,9 @@ def test_scatter_nd_update_non_contiguous_indices(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -123,7 +135,9 @@ def test_scatter_nd_update_large_updates(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -136,7 +150,9 @@ def test_scatter_nd_update_opseterlapping_indices(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -149,7 +165,9 @@ def test_scatter_nd_update_3d_data(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -162,7 +180,9 @@ def test_scatter_nd_update_all_indices(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -185,7 +205,9 @@ def test_scatter_nd_update_negative_updates(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -198,7 +220,9 @@ def test_scatter_nd_update_empty_indices_and_updates(opset):
     scatter_nd_node = opset.scatter_nd_update(data, indices, updates)
     assert scatter_nd_node.get_type_name() == "ScatterNDUpdate"
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)
 
 
@@ -227,5 +251,7 @@ def test_scatter_nd_update_reduction(reduction):
     else:
         assert op_attrs["reduction"] == reduction.lower()
     assert scatter_nd_node.get_output_size() == 1
-    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(PartialShape(data.shape))
+    assert scatter_nd_node.get_output_partial_shape(0).same_scheme(
+        PartialShape(data.shape)
+    )
     assert scatter_nd_node.get_output_element_type(0) == Type(data.dtype)

@@ -96,7 +96,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_pinning = {
     true,                                    // param[in]: simulated setting for enableCpuPinning
     true,                                    // param[in]: simulated setting for changedCpuPinning
     ov::hint::PerformanceMode::LATENCY,      // param[in]: simulated setting for performance mode (throughput/latency)
-    {},  // param[in]: simulated setting for model distribution policy
+    {},                                      // param[in]: simulated setting for model distribution policy
     {{20, 6, 8, 6, 0, 0}},  // param[in]: simulated proc_type_table for platform which has one socket, 6 Pcores, 8
                             // Ecores and hyper threading enabled
     ov::hint::SchedulingCoreType::ANY_CORE,  // param[expected out]: scheduling core type needs to be the same as input

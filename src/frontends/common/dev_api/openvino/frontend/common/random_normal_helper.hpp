@@ -19,11 +19,11 @@ namespace frontend {
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
 FRONTEND_API OutputVector make_random_normal(pass::NodeRegistry& registry,
-                                       const Output<Node>& sizes,
-                                       element::Type target_type,
-                                       const Output<Node>& mean,
-                                       const Output<Node>& scale,
-                                       float seed);
+                                             const Output<Node>& sizes,
+                                             element::Type target_type,
+                                             const Output<Node>& mean,
+                                             const Output<Node>& scale,
+                                             float seed);
 
 /// \brief Creates a random normal tensor with the given shape and type.
 /// \details Uses Box-Mueller algorithm to generate random numbers from a Gauassian distribution
@@ -33,10 +33,10 @@ FRONTEND_API OutputVector make_random_normal(pass::NodeRegistry& registry,
 /// \param scale Standard deviation of the distribution
 /// \param seed Seed for the random number generator
 FRONTEND_API std::pair<OutputVector, pass::NodeRegistry> make_random_normal(const Output<Node>& sizes,
-                                                                      element::Type target_type,
-                                                                      const Output<Node>& mean,
-                                                                      const Output<Node>& scale,
-                                                                      float seed);
+                                                                            element::Type target_type,
+                                                                            const Output<Node>& mean,
+                                                                            const Output<Node>& scale,
+                                                                            float seed);
 
 }  // namespace frontend
 }  // namespace ov

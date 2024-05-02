@@ -2,8 +2,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
 import numpy as np
+import openvino.runtime.opset8 as ov
 
 
 def test_roll():

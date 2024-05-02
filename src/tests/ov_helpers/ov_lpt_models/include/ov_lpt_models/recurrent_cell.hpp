@@ -6,9 +6,10 @@
 
 #include <algorithm>
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
-#include "common/fake_quantize_on_data.hpp"
+
 #include "common/dequantization_operations.hpp"
+#include "common/fake_quantize_on_data.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ov {
 namespace builder {
@@ -18,14 +19,13 @@ class RecurrentCellFunction {
 public:
     enum class RNNType { LSTMSequence, GRUSequence };
 
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type inputPrecision,
-        const std::vector<ov::PartialShape>& inputActivationsShapes,
-        const std::vector<ov::Shape>& inputWeightsShapes,
-        const RNNType type,
-        const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDatas,
-        const std::vector<DequantizationOperations::Convert>& converts,
-        const std::vector<DequantizationOperations>& dequantizations);
+    static std::shared_ptr<ov::Model> get(const ov::element::Type inputPrecision,
+                                          const std::vector<ov::PartialShape>& inputActivationsShapes,
+                                          const std::vector<ov::Shape>& inputWeightsShapes,
+                                          const RNNType type,
+                                          const std::vector<FakeQuantizeOnDataWithConstant>& fqOnDatas,
+                                          const std::vector<DequantizationOperations::Convert>& converts,
+                                          const std::vector<DequantizationOperations>& dequantizations);
 };
 
 std::shared_ptr<Node> makeQuantizationAndDequantization(const std::shared_ptr<Node> input,

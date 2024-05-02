@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.crop import Crop
 
 
 class CropFrontExtractor(FrontExtractorOp):
-    op = 'Crop'
+    op = "Crop"
     enabled = True
 
     @classmethod
@@ -14,10 +14,10 @@ class CropFrontExtractor(FrontExtractorOp):
         pb = node.parameters
 
         mapping_rule = {
-            'dim': pb['dim'],
-            'offset': pb['offset'],
-            'axis': pb['axis'],
-            'layout': 'NCHW'
+            "dim": pb["dim"],
+            "offset": pb["offset"],
+            "axis": pb["axis"],
+            "layout": "NCHW",
         }
 
         Crop.update_node_stat(node, attrs=mapping_rule)

@@ -1,10 +1,11 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from enum import Enum
 import json
+from enum import Enum
 
-class TestData():
+
+class TestData:
     __test__ = False
     actualDataReceived = False  # prevent slider running before config actualized
 
@@ -13,11 +14,11 @@ class TestData():
 
     def getTestName(self):
         raise NotImplementedError("getTestName() is not implemented")
-    
+
     def fillActualData(self, markedVersionList):
         # redefine for non trivial cases
-        self.start=markedVersionList[0]['commit']
-        self.end=markedVersionList[-1]['commit']
+        self.start = markedVersionList[0]["commit"]
+        self.end = markedVersionList[-1]["commit"]
 
     def formatConfig(self, content):
         # redefine for non trivial cases
@@ -27,9 +28,9 @@ class TestData():
             buildPath="tests/{}/build".format(self.repoName),
             gitPath="tests/{}".format(self.repoName),
             start=self.start,
-            end=self.end
+            end=self.end,
         )
-    
+
     @staticmethod
     def checkTestSet():
         testCases = [td.getTestCase() for td in TestData.__subclasses__()]
@@ -37,12 +38,11 @@ class TestData():
             raise TestError("Test cases don't differ correctly")
         elif TestData.TestCase.DeadTest in testCases:
             raise TestError("Test containing undefined getTestCase() found")
-    
+
     @staticmethod
     def getTestByCase(tc):
         TestData.checkTestSet()
-        foundTest = [td for td in TestData.__subclasses__()
-                if td.getTestCase() == tc]
+        foundTest = [td for td in TestData.__subclasses__() if td.getTestCase() == tc]
         if not foundTest:
             raise TestError("Test {} is not found".format(tc))
         return foundTest[0]
@@ -52,18 +52,18 @@ class TestData():
         return TestData.getTestByCase(testCase)(testCase)
 
     class TestCase(Enum):
-        DeadTest = 0,
-        FirstBadVersion = 1,
-        FirstValidVersion = 2,
-        BmValidatorStable = 3,
-        BmValidatorSteppedBreak = 4,
-        BmValidatorSteppedBreak2 = 5,
-        BmBinarySearch = 6,
-        BmBinarySearchUnstable = 7,
-        BmNoDegradation = 8,
-        BmUnstableDev = 9,
-        BmWrongPath = 10,
-        BmPathFound = 11,
+        DeadTest = (0,)
+        FirstBadVersion = (1,)
+        FirstValidVersion = (2,)
+        BmValidatorStable = (3,)
+        BmValidatorSteppedBreak = (4,)
+        BmValidatorSteppedBreak2 = (5,)
+        BmBinarySearch = (6,)
+        BmBinarySearchUnstable = (7,)
+        BmNoDegradation = (8,)
+        BmUnstableDev = (9,)
+        BmWrongPath = (10,)
+        BmPathFound = (11,)
         BmFirstFixed = 12
 
     def requireTestData(self, reqLambda):
@@ -85,9 +85,9 @@ class FirstBadVersionData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppDataUnstable(TestData):
     def getTestCase():
@@ -98,9 +98,9 @@ class BenchmarkAppDataUnstable(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppDataStable(TestData):
     def getTestCase():
@@ -111,9 +111,9 @@ class BenchmarkAppDataStable(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkFirstFixedAppData(TestData):
     def getTestCase():
@@ -124,9 +124,9 @@ class BenchmarkFirstFixedAppData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppNoDegradationData(TestData):
     def getTestCase():
@@ -137,9 +137,9 @@ class BenchmarkAppNoDegradationData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppUnstableDevData(TestData):
     def getTestCase():
@@ -150,9 +150,9 @@ class BenchmarkAppUnstableDevData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppWrongPathData(TestData):
     def getTestCase():
@@ -163,9 +163,9 @@ class BenchmarkAppWrongPathData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BenchmarkAppPathFoundData(TestData):
     def getTestCase():
@@ -176,9 +176,9 @@ class BenchmarkAppPathFoundData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class FirstValidVersionData(TestData):
     def getTestCase():
@@ -189,9 +189,9 @@ class FirstValidVersionData(TestData):
 
     def __init__(self):
         from test_util import requireBinarySearchData
-        self.requireTestData(
-            requireBinarySearchData
-        )
+
+        self.requireTestData(requireBinarySearchData)
+
 
 class BmStableData(TestData):
     def getTestCase():
@@ -204,9 +204,8 @@ class BmStableData(TestData):
         self.requireTestData(
             lambda td, rsc: [
                 setattr(td, key, rsc[td.getTestName()][key])
-                for key in [
-            'bmOutputMap', 'breakCommit', 'dev'
-            ]]
+                for key in ["bmOutputMap", "breakCommit", "dev"]
+            ]
         )
 
 
@@ -237,10 +236,15 @@ class BmValidatorSteppedBreakData(TestData):
             lambda td, rsc: [
                 setattr(td, key, rsc[td.getTestName()][key])
                 for key in [
-            'bmOutputMap', 'wrongBreakCommit', 'realBreakCommit',
-            'highDev', 'lowDev'
-            ]]
+                    "bmOutputMap",
+                    "wrongBreakCommit",
+                    "realBreakCommit",
+                    "highDev",
+                    "lowDev",
+                ]
+            ]
         )
+
 
 class BmValidatorSteppedBreakData2(TestData):
     # throughput degrades gradually,
@@ -265,9 +269,8 @@ class BmValidatorSteppedBreakData2(TestData):
         self.requireTestData(
             lambda td, rsc: [
                 setattr(td, key, rsc[td.getTestName()][key])
-                for key in [
-            'bmOutputMap', 'breakCommit', 'dev'
-            ]]
+                for key in ["bmOutputMap", "breakCommit", "dev"]
+            ]
         )
 
 

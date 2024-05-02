@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "normalize_inst.h"
-#include "primitive_type_base.h"
+#include <string>
+
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "normalize_inst.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(normalize)
@@ -51,7 +52,8 @@ std::string normalize_inst::to_string(normalize_node const& node) {
 normalize_inst::typed_primitive_inst(network& network, normalize_node const& node) : parent(network, node) {
     if (node.input().is_dynamic() || node.scale().is_dynamic())
         return;
-    /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
+    /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale
+    /// per channel).
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.get_tensor();
     auto scale_feature_size = scale_size.feature[0];

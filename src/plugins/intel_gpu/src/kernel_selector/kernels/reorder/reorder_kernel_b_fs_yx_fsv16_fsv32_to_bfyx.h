@@ -16,6 +16,7 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
+
 protected:
     JitConstants GetJitConstants(const reorder_params& params) const override;
     CommonDispatchData SetDefault(const reorder_params& params) const override;

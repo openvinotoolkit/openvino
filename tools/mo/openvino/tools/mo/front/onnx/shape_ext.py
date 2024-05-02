@@ -8,10 +8,10 @@ from openvino.tools.mo.ops.shape import Shape
 
 
 class ShapeFrontExtractor(FrontExtractorOp):
-    op = 'Shape'
+    op = "Shape"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Shape.update_node_stat(node, {'output_type': np.int64})
+        Shape.update_node_stat(node, {"output_type": np.int64})
         return cls.enabled

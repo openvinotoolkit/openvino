@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/abs.hpp"
-#include "openvino/op/parameter.hpp"
-
 #include "matchers/single_op/manager.hpp"
-#include "matchers/single_op/single_op.hpp"
 
 #include "base_test.hpp"
+#include "matchers/single_op/single_op.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
 
 // ======================= MatcherManager Unit tests =======================
-class MatchersManagerTest : public MatchersManager,
-                            public SubgraphsDumperBaseTest {
+class MatchersManagerTest : public MatchersManager, public SubgraphsDumperBaseTest {
 protected:
     MatchersManager::MatchersMap test_map;
     std::shared_ptr<ov::op::v0::Abs> test_abs;
@@ -25,12 +23,10 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_map = {
-            { "test_matcher", SingleOpMatcher::Ptr(new SingleOpMatcher) },
+            {"test_matcher", SingleOpMatcher::Ptr(new SingleOpMatcher)},
         };
-        test_parameter =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
-        test_abs =
-            std::make_shared<ov::op::v0::Abs>(test_parameter);
+        test_parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+        test_abs = std::make_shared<ov::op::v0::Abs>(test_parameter);
     }
 };
 

@@ -9,12 +9,11 @@ class CopyOp(Op):
     """
     Empty Op for Copy layer. It will be replaced by FrontReplacer
     """
-    op = 'copy'
+
+    op = "copy"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': __class__.op,
-            'infer': None
-        }, attrs)
+        super().__init__(
+            graph, {"type": None, "op": __class__.op, "infer": None}, attrs
+        )

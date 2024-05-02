@@ -1,9 +1,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import openvino.properties.hint as hints
+
 #! [ov:execution_mode:part0]
 import openvino as ov
-import openvino.properties.hint as hints
 
 core = ov.Core()
 # in case of Accuracy

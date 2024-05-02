@@ -3,11 +3,14 @@
 //
 
 #include "reverse_sequence_kernel_selector.h"
+
 #include "reverse_sequence_kernel_ref.h"
 
 namespace kernel_selector {
 
-reverse_sequence_kernel_selector::reverse_sequence_kernel_selector() { Attach<ReverseSequenceKernelRef>(); }
+reverse_sequence_kernel_selector::reverse_sequence_kernel_selector() {
+    Attach<ReverseSequenceKernelRef>();
+}
 
 KernelsData reverse_sequence_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::REVERSE_SEQUENCE);

@@ -2,34 +2,34 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-import sys
-import numpy as np
 import os
+import sys
 from pathlib import Path
 
-from openvino import (
-    Model,
-    Core,
-    Tensor,
-    PartialShape,
-    CompiledModel,
-    tensor_from_file,
-    compile_model,
-    serialize,
-)
-
+import numpy as np
 import openvino.properties as props
 import openvino.properties.hint as hints
+import pytest
 from openvino.runtime import Extension
 from tests.utils.helpers import (
-    generate_image,
-    generate_relu_compiled_model,
-    get_relu_model,
-    plugins_path,
     compare_models,
     create_filename_for_test,
+    generate_image,
+    generate_relu_compiled_model,
     get_model_with_template_extension,
+    get_relu_model,
+    plugins_path,
+)
+
+from openvino import (
+    CompiledModel,
+    Core,
+    Model,
+    PartialShape,
+    Tensor,
+    compile_model,
+    serialize,
+    tensor_from_file,
 )
 
 
@@ -50,9 +50,13 @@ def test_compact_api_wrong_path():
     class TestClass:
         def __str__(self):
             return "test class"
+
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
+    assert (
+        "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path"
+        in str(e.value)
+    )
 
 
 def test_core_class(device):
@@ -71,10 +75,13 @@ def test_core_class(device):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("device_name", [
-    None,
-    "CPU",
-])
+@pytest.mark.parametrize(
+    "device_name",
+    [
+        None,
+        "CPU",
+    ],
+)
 def test_compile_model(request, tmp_path, device_name):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
@@ -102,25 +109,36 @@ def get_model_path(request, tmp_path):
     return Path(xml_path)
 
 
-@pytest.mark.parametrize("model_type", [
-    "get_model",
-    "get_model_path",
-])
-@pytest.mark.parametrize("device_name", [
-    None,
-    "CPU",
-])
-@pytest.mark.parametrize("config", [
-    None,
-    {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
-    {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
-])
+@pytest.mark.parametrize(
+    "model_type",
+    [
+        "get_model",
+        "get_model_path",
+    ],
+)
+@pytest.mark.parametrize(
+    "device_name",
+    [
+        None,
+        "CPU",
+    ],
+)
+@pytest.mark.parametrize(
+    "config",
+    [
+        None,
+        {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+        {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
+    ],
+)
 def test_compact_api(model_type, device_name, config, request):
     compiled_model = None
 
     model = request.getfixturevalue(model_type)
     if device_name is not None:
-        compiled_model = compile_model(model=model, device_name=device_name, config=config)
+        compiled_model = compile_model(
+            model=model, device_name=device_name, config=config
+        )
     else:
         compiled_model = compile_model(model=model, config=config)
 
@@ -143,7 +161,9 @@ def test_read_model_from_ir(request, tmp_path):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
+    xml_path, bin_path = create_filename_for_test(
+        request.node.name, tmp_path, is_xml_path=True, is_bin_path=True
+    )
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     arr = np.ones(shape=(10), dtype=np.int8)
@@ -158,13 +178,18 @@ def test_read_model_with_wrong_input():
     core = Core()
     with pytest.raises(RuntimeError) as e:
         core.read_model(model=3, weights=3)
-    assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
+    assert (
+        "Provided python object type <class 'int'> isn't supported as 'model' argument."
+        in str(e.value)
+    )
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_as_path(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, True, True)
+    xml_path, bin_path = create_filename_for_test(
+        request.node.name, tmp_path, True, True
+    )
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
 
@@ -214,8 +239,12 @@ def test_get_version(device):
     assert device in version, f"{device} plugin version wasn't found in versions"
     assert hasattr(version[device], "major"), "Returned version has no field 'major'"
     assert hasattr(version[device], "minor"), "Returned version has no field 'minor'"
-    assert hasattr(version[device], "description"), "Returned version has no field 'description'"
-    assert hasattr(version[device], "build_number"), "Returned version has no field 'build_number'"
+    assert hasattr(
+        version[device], "description"
+    ), "Returned version has no field 'description'"
+    assert hasattr(
+        version[device], "build_number"
+    ), "Returned version has no field 'build_number'"
 
 
 def test_available_devices(device):
@@ -306,14 +335,18 @@ def test_query_model(device):
     assert [
         key for key in query_model.keys() if key not in ops_model_names
     ] == [], "Not all network layers present in query_model results"
-    assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
+    assert device in next(
+        iter(set(query_model.values()))
+    ), "Wrong device for some layers"
 
 
 @pytest.mark.dynamic_library
 def test_register_plugin():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
-    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    full_lib_name = (
+        lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    )
 
     core = Core()
     core.register_plugin(lib_name, device)
@@ -326,7 +359,9 @@ def test_register_plugin():
 def test_register_plugins():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
-    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    full_lib_name = (
+        lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    )
     plugins_xml = plugins_path(device, full_lib_name)
 
     core = Core()
@@ -436,7 +471,8 @@ def test_read_model_from_buffer_no_weights():
     <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
     <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
     </edges>
-</net>""")
+</net>"""
+    )
     core = Core()
     model = core.read_model(model=bytes_model)
     assert isinstance(model, Model)

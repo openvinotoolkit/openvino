@@ -16,7 +16,9 @@ class TestLogSoftmax(CommonTFLayerTest):
         input_name = list(inputs_info.keys())[0]
         logits_shape = inputs_info[input_name]
         inputs_data = {}
-        inputs_data[input_name] = np.random.randint(1, 5, logits_shape).astype(np.float32)
+        inputs_data[input_name] = np.random.randint(1, 5, logits_shape).astype(
+            np.float32
+        )
 
         return inputs_data
 
@@ -25,7 +27,7 @@ class TestLogSoftmax(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            logits = tf.compat.v1.placeholder(tf.float32, logits_shape, 'logits')
+            logits = tf.compat.v1.placeholder(tf.float32, logits_shape, "logits")
             tf.raw_ops.LogSoftmax(logits=logits)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -41,10 +43,18 @@ class TestLogSoftmax(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_log_softmax_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
-        self._test(*self.create_log_softmax_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_log_softmax_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_log_softmax_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

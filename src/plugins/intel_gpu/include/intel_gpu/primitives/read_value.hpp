@@ -6,9 +6,9 @@
 
 #include <vector>
 
+#include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "primitive.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
 
@@ -28,10 +28,10 @@ struct read_value : public primitive_base<read_value> {
                const std::string& variable_id,
                const layout& output_layout,
                const ov::element::Type& user_specified_type = ov::element::undefined)
-            : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
-              variable_id{variable_id},
-              output_layout{output_layout},
-              user_specified_type(user_specified_type) {}
+        : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
+          variable_id{variable_id},
+          output_layout{output_layout},
+          user_specified_type(user_specified_type) {}
 
     std::string variable_id;
     layout output_layout;
@@ -43,8 +43,7 @@ struct read_value : public primitive_base<read_value> {
 
         auto rhs_casted = downcast<const read_value>(rhs);
 
-        return variable_id == rhs_casted.variable_id &&
-               user_specified_type == rhs_casted.user_specified_type;
+        return variable_id == rhs_casted.variable_id && user_specified_type == rhs_casted.user_specified_type;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -5,14 +5,12 @@
 #include "low_precision_transformations/subtract_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/subtract.hpp"
-
-
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 

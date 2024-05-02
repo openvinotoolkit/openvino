@@ -8,15 +8,13 @@
 
 namespace ov {
 namespace test {
-using adapoolParams = std::tuple<
-        std::vector<InputShape>,            // feature map shape
-        std::vector<int>,                   // pooled spatial shape
-        std::string,                        // pooling mode
-        ov::element::Type,                  // model type
-        std::string>;                       // device name
+using adapoolParams = std::tuple<std::vector<InputShape>,  // feature map shape
+                                 std::vector<int>,         // pooled spatial shape
+                                 std::string,              // pooling mode
+                                 ov::element::Type,        // model type
+                                 std::string>;             // device name
 
-class AdaPoolLayerTest : public testing::WithParamInterface<adapoolParams>,
-                         virtual public ov::test::SubgraphBaseTest {
+class AdaPoolLayerTest : public testing::WithParamInterface<adapoolParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj);
 

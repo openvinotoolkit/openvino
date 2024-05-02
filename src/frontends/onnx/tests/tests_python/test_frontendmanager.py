@@ -2,45 +2,50 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pickle
 import os
+import pickle
 from pathlib import Path
 
-from openvino.runtime import PartialShape
-from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
-from openvino.runtime.utils.types import get_element_type
-
 import numpy as np
-
 import pytest
+from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
+from openvino.runtime import PartialShape
+from openvino.runtime.utils.types import get_element_type
 
 mock_available = True
 try:
     from pybind_mock_frontend import (
-        get_fe_stat,
         clear_fe_stat,
-        get_mdl_stat,
         clear_mdl_stat,
-        get_place_stat,
         clear_place_stat,
+        get_fe_stat,
+        get_mdl_stat,
+        get_place_stat,
     )
 except Exception:
     mock_available = False
 
-mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
-                                                            f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
-                                                            f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
+mock_needed = pytest.mark.skipif(
+    not mock_available,
+    reason="Mock frontend is not available. Check paths in:"
+    f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
+    f", PYTHONPATH={os.environ.get('PYTHONPATH','')}",
+)
 
 MOCK_PY_FRONTEND_NAME = "mock_py"
 
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
-if (mock_available):
+if mock_available:
     import glob
+
     import pybind_mock_frontend
+
     # Assume "mock_py" frontend is nearby to "pybind_mock_frontend"
-    mock_py_fe_path_l = glob.glob(str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*"))
+    mock_py_fe_path_l = glob.glob(
+        str(Path(pybind_mock_frontend.__file__).parent / f"*{MOCK_PY_FRONTEND_NAME}*")
+    )
     if not mock_py_fe_path_l:
         raise Exception(f"Path to frontend '{MOCK_PY_FRONTEND_NAME}' can't be found")
     # If multiple "mock_py" frontends found, use any - only one is real, the rest are symlinks to real
@@ -105,6 +110,7 @@ def test_load_wrong_path():
     class TestClass:
         def __str__(self):
             return "test class"
+
     fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     with pytest.raises(RuntimeError) as e:
@@ -127,6 +133,7 @@ def test_load_by_model():
 def test_load_by_model_path():
     clear_all_stat()
     import pathlib
+
     fe = fem.load_by_model(pathlib.Path("abc.test_mock_py_mdl"))
     assert fe is not None
     assert fe.get_name() == MOCK_PY_FRONTEND_NAME
@@ -241,7 +248,9 @@ def test_model_get_place_by_operation_name_and_input_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_name_and_input_port(operation_name=name, input_port_index=i * 2)
+        model.get_place_by_operation_name_and_input_port(
+            operation_name=name, input_port_index=i * 2
+        )
         stat = get_mdl_stat()
         assert stat.get_place_by_operation_and_input_port == i
         assert stat.lastArgString == name
@@ -253,7 +262,9 @@ def test_model_get_place_by_operation_name_and_output_port():
     model = init_model()
     for i in range(1, 10):
         name = str(i)
-        model.get_place_by_operation_name_and_output_port(operation_name=name, output_port_index=i * 2)
+        model.get_place_by_operation_name_and_output_port(
+            operation_name=name, output_port_index=i * 2
+        )
         stat = get_mdl_stat()
         assert stat.get_place_by_operation_and_output_port == i
         assert stat.lastArgString == name
@@ -471,10 +482,11 @@ def test_model_telemetry():
 
     def add_ext(front_end, stat):
         tel = MockTelemetry(stat)
-        front_end.add_extension(TelemetryExtension("mock",
-                                                   tel.send_event,
-                                                   tel.send_error,
-                                                   tel.send_stack_trace))
+        front_end.add_extension(
+            TelemetryExtension(
+                "mock", tel.send_event, tel.send_error, tel.send_stack_trace
+            )
+        )
 
     clear_all_stat()
     tel_stat = {}
@@ -558,7 +570,10 @@ def test_place_get_consuming_operations():
     assert stat.get_consuming_operations == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert (place.get_consuming_operations(output_name="3", output_port_index=33) is not None)
+    assert (
+        place.get_consuming_operations(output_name="3", output_port_index=33)
+        is not None
+    )
     stat = get_place_stat()
     assert stat.get_consuming_operations == 4
     assert stat.lastArgInt == 33
@@ -604,7 +619,9 @@ def test_place_get_producing_operation():
     assert stat.get_producing_operation == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert (place.get_producing_operation(input_name="3", input_port_index=33) is not None)
+    assert (
+        place.get_producing_operation(input_name="3", input_port_index=33) is not None
+    )
     stat = get_place_stat()
     assert stat.get_producing_operation == 4
     assert stat.lastArgInt == 33

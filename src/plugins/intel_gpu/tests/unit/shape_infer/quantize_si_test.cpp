@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "quantize_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "quantize_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -25,7 +22,7 @@ struct quantize_test_params {
     layout expected_layout;
 };
 
-class quantize_test : public testing::TestWithParam<quantize_test_params> { };
+class quantize_test : public testing::TestWithParam<quantize_test_params> {};
 
 TEST_P(quantize_test, shape_infer) {
     auto p = GetParam();
@@ -42,8 +39,14 @@ TEST_P(quantize_test, shape_infer) {
     auto in_hi_prim = std::make_shared<data>("in_hi", in_hi_mem);
     auto out_lo_prim = std::make_shared<data>("out_lo", out_lo_mem);
     auto out_hi_prim = std::make_shared<data>("out_hi", out_hi_mem);
-    auto quantize_prim = std::make_shared<quantize>("output", input_info("data"), input_info("in_lo"), input_info("in_hi"),
-                                                    input_info("out_lo"), input_info("out_hi"), 255, p.expected_layout.data_type);
+    auto quantize_prim = std::make_shared<quantize>("output",
+                                                    input_info("data"),
+                                                    input_info("in_lo"),
+                                                    input_info("in_hi"),
+                                                    input_info("out_lo"),
+                                                    input_info("out_hi"),
+                                                    255,
+                                                    p.expected_layout.data_type);
 
     cldnn::program prog(engine);
 
@@ -66,24 +69,18 @@ TEST_P(quantize_test, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, quantize_test,
-    testing::ValuesIn(std::vector<quantize_test_params>{
-        {
-            layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{1, 2, 3, 4}, data_types::i8, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx},
-            layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::u8, format::bfzyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            layout{ov::PartialShape::dynamic(4), data_types::i8, format::bfyx},
-        },
-        {
-            layout{ov::PartialShape{2, 3}, data_types::f16, format::bfyx},
-            layout{ov::PartialShape{2, 3}, data_types::i8, format::bfyx}
-        }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         quantize_test,
+                         testing::ValuesIn(std::vector<quantize_test_params>{
+                             {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{1, 2, 3, 4}, data_types::i8, format::bfyx}},
+                             {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx},
+                              layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::u8, format::bfzyx}},
+                             {
+                                 layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+                                 layout{ov::PartialShape::dynamic(4), data_types::i8, format::bfyx},
+                             },
+                             {layout{ov::PartialShape{2, 3}, data_types::f16, format::bfyx},
+                              layout{ov::PartialShape{2, 3}, data_types::i8, format::bfyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

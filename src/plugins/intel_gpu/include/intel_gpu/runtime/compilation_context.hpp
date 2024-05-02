@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 

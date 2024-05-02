@@ -29,8 +29,9 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     auto body = ov::test::snippets::AddFunction(in_shapes).getOriginal();
     auto shape_infer_factory = std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
     linear_ir = LinearIR(body, shape_infer_factory);
-    auto expr_it = std::find_if(linear_ir.cbegin(), linear_ir.cend(),
-                                [](const ExpressionPtr& expr) { return ov::is_type<ov::op::v1::Add>(expr->get_node()); });
+    auto expr_it = std::find_if(linear_ir.cbegin(), linear_ir.cend(), [](const ExpressionPtr& expr) {
+        return ov::is_type<ov::op::v1::Add>(expr->get_node());
+    });
     ASSERT_TRUE(expr_it != linear_ir.cend());
     const auto add = *expr_it;
     const auto loop_entry_points = std::vector<ExpressionPort>{add->get_input_port(0), add->get_input_port(1)};
@@ -45,12 +46,17 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
-    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
+    loop_manager
+        ->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
+    const auto loop_id =
+        loop_manager
+            ->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
     const auto& outer_loop_info = loop_manager->get_loop_info(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {
-        outer_loop_info->register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
+        outer_loop_info
+            ->register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, pass::TransformInnerSplitLoop>(
+                outer_tail_size);
     }
 }
 
@@ -70,7 +76,8 @@ static void validate(const LinearIR& linear_ir, const ref_map& reference) {
     size_t loop_num = 0;
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
-        ASSERT_TRUE(!ov::is_type<ov::snippets::op::LoopBeginDynamic>(node) && !ov::is_type<ov::snippets::op::LoopEndDynamic>(node));
+        ASSERT_TRUE(!ov::is_type<ov::snippets::op::LoopBeginDynamic>(node) &&
+                    !ov::is_type<ov::snippets::op::LoopEndDynamic>(node));
         const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEndStatic>(node);
         if (!loop_end)
             continue;
@@ -96,9 +103,9 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_OriginalPtrShifts) {
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
-    reference[0] = { std::vector<int64_t>(3, 1), std::vector<int64_t>(3, -20)};
-    reference[1] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)};
-    reference[2] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -320)};
+    reference[0] = {std::vector<int64_t>(3, 1), std::vector<int64_t>(3, -20)};
+    reference[1] = {std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)};
+    reference[2] = {std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -320)};
 
     validate(linear_ir, reference);
 }
@@ -116,9 +123,9 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_CleanUpPtrShifts) {
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
-    reference[0] = { std::vector<int64_t>(3, 1), std::vector<int64_t>(3, 0)};
-    reference[1] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};
-    reference[2] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};
+    reference[0] = {std::vector<int64_t>(3, 1), std::vector<int64_t>(3, 0)};
+    reference[1] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};
+    reference[2] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};
 
     validate(linear_ir, reference);
 }
@@ -135,15 +142,15 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
-    reference[0] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
-    reference[1] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -16)};  // Blocked Inner
-    reference[2] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)};  // Vector Blocked
-    reference[3] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, 0)}; // Vector Outer
+    reference[0] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};    // Vector Inner
+    reference[1] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -16)};   // Blocked Inner
+    reference[2] = {std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -80)};  // Vector Blocked
+    reference[3] = {std::vector<int64_t>(3, 20), std::vector<int64_t>(3, 0)};    // Vector Outer
 
-    reference[4] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
-    reference[5] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -16)};  // Blocked Inner
-    reference[6] = { std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)};  // Tail Blocked
-    reference[7] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -320)};  // Tail Blocked
+    reference[4] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};    // Vector Inner
+    reference[5] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -16)};   // Blocked Inner
+    reference[6] = {std::vector<int64_t>(3, 20), std::vector<int64_t>(3, -40)};  // Tail Blocked
+    reference[7] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, -320)};  // Tail Blocked
 
     validate(linear_ir, reference);
 }
@@ -158,15 +165,15 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
-    reference[0] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
-    reference[1] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 4)};  // Blocked Inner
+    reference[0] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
+    reference[1] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 4)};   // Blocked Inner
     reference[2] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};   // Vector Blocked
-    reference[3] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)}; // Vector Outer
+    reference[3] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};   // Vector Outer
 
-    reference[4] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
-    reference[5] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 4)};  // Blocked Inner
-    reference[6] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};  // Tail Blocked
-    reference[7] = { std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};  // Tail Blocked
+    reference[4] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 16)};  // Vector Inner
+    reference[5] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 4)};   // Blocked Inner
+    reference[6] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};   // Tail Blocked
+    reference[7] = {std::vector<int64_t>(3, 0), std::vector<int64_t>(3, 0)};   // Tail Blocked
 
     validate(linear_ir, reference);
 }

@@ -1,12 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # strided_slice paddle model generator
 #
 import numpy as np
 from save_model import saveModel
-import sys
 
 
 def strided_slice(name: str, input_data, attrs: dict):
@@ -19,7 +20,7 @@ def strided_slice(name: str, input_data, attrs: dict):
             name="x", shape=input_data.shape, dtype=input_data.dtype
         )
 
-        if paddle.__version__ >= '2.0.0':
+        if paddle.__version__ >= "2.0.0":
             out = paddle.strided_slice(
                 Input,
                 axes=attrs["axes"],
@@ -28,10 +29,13 @@ def strided_slice(name: str, input_data, attrs: dict):
                 strides=attrs["strides"],
             )
         else:
-            out = paddle.fluid.layers.strided_slice(Input, axes=attrs['axes'],
-                                                    starts=attrs['starts'],
-                                                    ends=attrs['ends'],
-                                                    strides=attrs['strides'])
+            out = paddle.fluid.layers.strided_slice(
+                Input,
+                axes=attrs["axes"],
+                starts=attrs["starts"],
+                ends=attrs["ends"],
+                strides=attrs["strides"],
+            )
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])

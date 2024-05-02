@@ -12,16 +12,15 @@
 
 namespace ov {
 namespace test {
-using constantParamsTuple = typename std::tuple<
-    ov::Shape,                   // Constant data shape
-    ov::element::Type,           // Constant data precision
-    std::vector<std::string>,    // Constant elements
-    std::string>;                // Device name
+using constantParamsTuple = typename std::tuple<ov::Shape,                 // Constant data shape
+                                                ov::element::Type,         // Constant data precision
+                                                std::vector<std::string>,  // Constant elements
+                                                std::string>;              // Device name
 
 class ConstantLayerTest : public testing::WithParamInterface<constantParamsTuple>,
                           virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<constantParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<constantParamsTuple>& obj);
 
 protected:
     void SetUp() override;

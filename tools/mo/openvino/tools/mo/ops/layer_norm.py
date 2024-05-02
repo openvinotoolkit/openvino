@@ -24,17 +24,21 @@ class LayerNorm(Op):
                       is not supported
     """
 
-    op = 'LayerNorm'
+    op = "LayerNorm"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-            'axis': -1,
-            'epsilon': 0.001,
-            'output_mean_var': False,
-            'infer': copy_shape_infer,
-            'in_ports_count': 3 if attrs.get('output_mean_var') is True else 1,
-            'out_ports_count': 3,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": self.op,
+                "type": None,
+                "axis": -1,
+                "epsilon": 0.001,
+                "output_mean_var": False,
+                "infer": copy_shape_infer,
+                "in_ports_count": 3 if attrs.get("output_mean_var") is True else 1,
+                "out_ports_count": 3,
+            },
+            attrs,
+        )

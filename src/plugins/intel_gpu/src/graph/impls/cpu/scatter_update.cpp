@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_update.hpp"
+
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "register.hpp"
 #include "scatter_update_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/scatter_update.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -53,7 +52,8 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "scatter_update::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -77,7 +77,8 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         input_host_tensors.push_back(axis_tensor);
 
@@ -88,7 +89,8 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute scatter_update primitive with id ", instance.id());
+                        "[GPU] Couldn't execute scatter_update primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -104,16 +106,16 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
 public:
-    static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const scatter_update_node& arg,
+                                                  const kernel_impl_params& impl_param) {
         return make_unique<scatter_update_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -133,8 +135,16 @@ attach_scatter_update_impl::attach_scatter_update_impl() {
         data_types::u8,
     };
 
-    implementation_map<scatter_update>::add(impl_types::cpu, shape_types::static_shape, scatter_update_impl::create, types, formats);
-    implementation_map<scatter_update>::add(impl_types::cpu, shape_types::dynamic_shape, scatter_update_impl::create, types, formats);
+    implementation_map<scatter_update>::add(impl_types::cpu,
+                                            shape_types::static_shape,
+                                            scatter_update_impl::create,
+                                            types,
+                                            formats);
+    implementation_map<scatter_update>::add(impl_types::cpu,
+                                            shape_types::dynamic_shape,
+                                            scatter_update_impl::create,
+                                            types,
+                                            formats);
 }
 
 }  // namespace detail

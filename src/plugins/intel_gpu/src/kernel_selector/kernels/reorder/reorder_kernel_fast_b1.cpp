@@ -3,6 +3,7 @@
 //
 
 #include "reorder_kernel_fast_b1.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -72,8 +73,7 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
 
     if (input.GetLayout() == output.GetLayout() && input.SameDimsSizes(output) &&
         !input.PitchesDifferFromLogicalDims() && !output.PitchesDifferFromLogicalDims() &&
-        input.GetDType() != output.GetDType() && !params.has_padded_output &&
-        params.mode == MeanSubtractMode::NONE) {
+        input.GetDType() != output.GetDType() && !params.has_padded_output && params.mode == MeanSubtractMode::NONE) {
         jit.AddConstant(MakeJitConstant("CHANGE_DATA_TYPE_ONLY", 1));
     }
 

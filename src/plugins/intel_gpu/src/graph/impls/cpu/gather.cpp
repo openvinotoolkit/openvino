@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
+#include "openvino/op/gather.hpp"
+
 #include "gather_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/gather.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -61,7 +60,8 @@ struct gather_impl : public typed_primitive_impl<gather> {
             return stream.group_events(events);
         }
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -88,7 +88,8 @@ struct gather_impl : public typed_primitive_impl<gather> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(
+                make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
         auto axis_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
 
@@ -96,7 +97,8 @@ struct gather_impl : public typed_primitive_impl<gather> {
         input_host_tensors.push_back(axis_tensor);
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute gather primitive with id ", instance.id());
+                        "[GPU] Couldn't execute gather primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -112,7 +114,7 @@ struct gather_impl : public typed_primitive_impl<gather> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -121,7 +123,6 @@ public:
         return make_unique<gather_impl>();
     }
 };
-
 
 namespace detail {
 

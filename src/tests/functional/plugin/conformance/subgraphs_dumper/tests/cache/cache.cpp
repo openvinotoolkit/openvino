@@ -2,26 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cache/cache.hpp"
+
 #include <memory>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/util/file_util.hpp"
-#include "openvino/openvino.hpp"
-
+#include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "cache/cache.hpp"
 #include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "op_conformance_utils/utils/file.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/cache.hpp"
-
-#include "base_test.hpp"
 
 namespace {
 
-class ICacheUnitTest : public SubgraphsDumperBaseTest,
-                       public virtual ov::tools::subgraph_dumper::ICache {
+class ICacheUnitTest : public SubgraphsDumperBaseTest, public virtual ov::tools::subgraph_dumper::ICache {
 protected:
     std::shared_ptr<ov::Model> test_model;
     ov::conformance::MetaInfo test_meta;
@@ -32,10 +29,10 @@ protected:
         SubgraphsDumperBaseTest::SetUp();
         model_name = "test_model";
         test_artifacts_dir = "test_artifacts";
-        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
+        test_model_path = ov::util::path_join({test_artifacts_dir, model_name + ".xml"});
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
-            auto params = ov::ParameterVector {
+            auto params = ov::ParameterVector{
                 std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::PartialShape{1, 1, 1, 1}),
             };
             // params->begin()->set_friendly_name("in_0");
@@ -44,7 +41,8 @@ protected:
             test_model = std::make_shared<ov::Model>(convert, params);
             test_model->set_friendly_name(model_name);
         }
-        test_meta = ov::conformance::MetaInfo(test_model_path, {{"in_0", ov::conformance::InputInfo({1, 2}, 0, 1, true)}});
+        test_meta =
+            ov::conformance::MetaInfo(test_model_path, {{"in_0", ov::conformance::InputInfo({1, 2}, 0, 1, true)}});
     }
 
     void TearDown() override {
@@ -68,14 +66,13 @@ TEST_F(ICacheUnitTest, serialize_cache) {
 }
 
 TEST_F(ICacheUnitTest, serialize_model) {
-    std::pair<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo> graph_info({ test_model, test_meta });
+    std::pair<std::shared_ptr<ov::Model>, ov::conformance::MetaInfo> graph_info({test_model, test_meta});
     ASSERT_TRUE(this->serialize_model(graph_info, test_artifacts_dir));
     auto xml_path = test_model_path;
     auto bin_path = ov::util::replace_extension(test_model_path, "bin");
     auto meta_path = ov::util::replace_extension(test_model_path, "meta");
     try {
-        if (!ov::util::file_exists(xml_path) ||
-            !ov::util::file_exists(bin_path)) {
+        if (!ov::util::file_exists(xml_path) || !ov::util::file_exists(bin_path)) {
             throw std::runtime_error("Model was not serilized!");
         }
         if (!ov::util::file_exists(meta_path)) {
@@ -86,7 +83,7 @@ TEST_F(ICacheUnitTest, serialize_model) {
         if (!res.first) {
             throw std::runtime_error("Serialized and runtime model are not equal!");
         }
-    } catch(std::exception& e) {
+    } catch (std::exception& e) {
         ov::test::utils::removeFile(xml_path);
         ov::test::utils::removeFile(bin_path);
         ov::test::utils::removeFile(meta_path);

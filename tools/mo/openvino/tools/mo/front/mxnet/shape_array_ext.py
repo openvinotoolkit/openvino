@@ -6,11 +6,10 @@ from openvino.tools.mo.ops.shape import Shape
 
 
 class ShapeArrayExtractor(FrontExtractorOp):
-    op = 'shape_array'
+    op = "shape_array"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         Shape.update_node_stat(node, {})
         return cls.enabled
-

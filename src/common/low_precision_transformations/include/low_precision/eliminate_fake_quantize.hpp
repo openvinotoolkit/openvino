@@ -24,11 +24,11 @@ class LP_TRANSFORMATIONS_API EliminateFakeQuantizeTransformation : public Cleanu
 public:
     OPENVINO_RTTI("EliminateFakeQuantizeTransformation", "0");
     EliminateFakeQuantizeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

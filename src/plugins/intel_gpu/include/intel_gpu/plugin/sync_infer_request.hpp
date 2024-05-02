@@ -4,32 +4,29 @@
 
 #pragma once
 
-#include "intel_gpu/plugin/variable_state.hpp"
-#include "openvino/runtime/isync_infer_request.hpp"
+#include <atomic>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-
-#include <string>
-#include <map>
-#include <vector>
-#include <memory>
-#include <atomic>
+#include "intel_gpu/plugin/variable_state.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 class CompiledModel;
 
-enum class TensorOwner : uint8_t {
-    USER = 0,
-    PLUGIN = 1
-};
+enum class TensorOwner : uint8_t { USER = 0, PLUGIN = 1 };
 
 struct TensorWrapper {
     TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner)
-        : ptr(_ptr)
-        , owner(_owner)
-        , actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
+        : ptr(_ptr),
+          owner(_owner),
+          actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
 
     TensorWrapper(const TensorWrapper& other) = default;
     TensorWrapper() = default;
@@ -44,7 +41,7 @@ public:
     using Ptr = std::shared_ptr<SyncInferRequest>;
 
     explicit SyncInferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);
-    SyncInferRequest(const SyncInferRequest &) = delete;
+    SyncInferRequest(const SyncInferRequest&) = delete;
     ~SyncInferRequest() override = default;
 
     void infer() override;
@@ -52,7 +49,8 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port,
+                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
@@ -64,7 +62,9 @@ public:
     void enqueue();
     void wait();
 
-    bool use_external_queue() const { return m_use_external_queue; }
+    bool use_external_queue() const {
+        return m_use_external_queue;
+    }
 
 private:
     void check_tensors() const override;
@@ -95,7 +95,9 @@ private:
                                                  size_t input_idx,
                                                  const ov::Output<const ov::Node>& port,
                                                  const TensorWrapper& user_tensor_wrapper);
-    std::vector<cldnn::event::ptr> prepare_output(size_t output_idx, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
+    std::vector<cldnn::event::ptr> prepare_output(size_t output_idx,
+                                                  const ov::Output<const ov::Node>& port,
+                                                  const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(size_t input_idx,
                                                          const ov::Output<const ov::Node>& port,
                                                          const std::vector<ov::SoPtr<ov::ITensor>>& user_tensors);
@@ -105,9 +107,13 @@ private:
                                                 const ov::PartialShape& pshape,
                                                 ov::element::Type element_type,
                                                 bool need_lockable_mem) const;
-    std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor, const ov::Shape new_shape) const;
-    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::PartialShape& port_shape, const ov::element::Type& port_element_type) const;
-    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& pshape, ov::element::Type element_type, bool need_lockable_memory = false) const;
+    std::shared_ptr<ov::ITensor> reinterpret_device_tensor(std::shared_ptr<RemoteTensorImpl> tensor,
+                                                           const ov::Shape new_shape) const;
+    std::shared_ptr<ov::ITensor> create_host_tensor(const ov::PartialShape& port_shape,
+                                                    const ov::element::Type& port_element_type) const;
+    std::shared_ptr<ov::ITensor> create_device_tensor(const ov::PartialShape& pshape,
+                                                      ov::element::Type element_type,
+                                                      bool need_lockable_memory = false) const;
 
     void allocate_inputs();
     void allocate_outputs();

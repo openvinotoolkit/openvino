@@ -7,14 +7,14 @@ from openvino.tools.mo.ops.concat import Concat
 
 
 class RNNParamConcatFrontExtractor(FrontExtractorOp):
-    op = '_rnn_param_concat'
+    op = "_rnn_param_concat"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         data = {
-            'axis': attrs.int("dim", 1),
+            "axis": attrs.int("dim", 1),
         }
 
         # update the attributes of the node

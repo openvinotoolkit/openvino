@@ -4,23 +4,24 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include <memory>
 
 #include "common_test_utils/test_common.hpp"
 
 namespace ExecutionGraphTests {
 
-using ExecGraphDisableLoweringPrecisionSpecificParams = std::tuple<
-    bool,                               //Disable lowering precision on device
-    std::string,                        //Target Device
-    ov::element::Type                   //Infer precision on target device
->;
+using ExecGraphDisableLoweringPrecisionSpecificParams =
+    std::tuple<bool,              // Disable lowering precision on device
+               std::string,       // Target Device
+               ov::element::Type  // Infer precision on target device
+               >;
 
-class ExecGraphDisableLoweringPrecision : public testing::WithParamInterface<ExecGraphDisableLoweringPrecisionSpecificParams>,
-                                 public ov::test::TestsCommon {
+class ExecGraphDisableLoweringPrecision
+    : public testing::WithParamInterface<ExecGraphDisableLoweringPrecisionSpecificParams>,
+      public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj);
 

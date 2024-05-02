@@ -15,6 +15,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 protected:
     JitConstants GetJitConstants(const reorder_params& params) const override;
     CommonDispatchData SetDefault(const reorder_params& params) const override;

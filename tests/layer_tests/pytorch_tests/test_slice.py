@@ -22,7 +22,15 @@ class TestSlice1D(PytorchLayerTest):
 
     @pytest.mark.parametrize(
         "params",
-        [[0, -1, 1], [0, -1, 3], [0, 5, 3], [2, 7, 3], [-7, -15, 2], [-1, -7, 2], [5, 2, 1]],
+        [
+            [0, -1, 1],
+            [0, -1, 3],
+            [0, 5, 3],
+            [2, 7, 3],
+            [-7, -15, 2],
+            [-1, -7, 2],
+            [5, 2, 1],
+        ],
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -47,7 +55,10 @@ class TestSlice2D(PytorchLayerTest):
     def create_model(self):
         class aten_slice(torch.nn.Module):
             def forward(self, x, params_0a, params_1a):
-                return x[params_0a[0] : params_0a[1] : params_0a[2], params_1a[0] : params_1a[1] : params_1a[2]]
+                return x[
+                    params_0a[0] : params_0a[1] : params_0a[2],
+                    params_1a[0] : params_1a[1] : params_1a[2],
+                ]
 
         ref_net = None
 
@@ -55,11 +66,27 @@ class TestSlice2D(PytorchLayerTest):
 
     @pytest.mark.parametrize(
         "params_0a",
-        [[0, -1, 1], [0, -1, 3], [0, 5, 3], [2, 7, 3], [-7, -15, 2], [-1, -7, 2], [5, 2, 1]],
+        [
+            [0, -1, 1],
+            [0, -1, 3],
+            [0, 5, 3],
+            [2, 7, 3],
+            [-7, -15, 2],
+            [-1, -7, 2],
+            [5, 2, 1],
+        ],
     )
     @pytest.mark.parametrize(
         "params_1a",
-        [[0, -1, 1], [0, -1, 3], [0, 5, 3], [2, 7, 3], [-7, -15, 2], [-1, -7, 2], [5, 2, 1]],
+        [
+            [0, -1, 1],
+            [0, -1, 3],
+            [0, 5, 3],
+            [2, 7, 3],
+            [-7, -15, 2],
+            [-1, -7, 2],
+            [5, 2, 1],
+        ],
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -94,4 +121,6 @@ class TestSliceAndSqueeze(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_slice_and_squeeze(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(
+            *self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False
+        )

@@ -5,11 +5,14 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
-from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from openvino.tools.mo.front.tf.graph_utils import (
+    create_op_node_with_second_input,
+    create_op_with_const_inputs,
+)
 from openvino.tools.mo.graph.graph import Graph, rename_node
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.reshape import Reshape
 
 
@@ -22,21 +25,25 @@ class GatherNDDecomposition(MiddleReplacementPattern):
           for this particular case or only if the plugin does not support GatherND.
           And the best place for the transformation is nGraph so we need to move it.
     """
+
     enabled = True
     force_clean_up = True
 
     def run_before(self):
-        from openvino.tools.mo.middle.BlockLSTMtoLSTMSequence import BlockLSTMtoLSTMSequence
+        from openvino.tools.mo.middle.BlockLSTMtoLSTMSequence import (
+            BlockLSTMtoLSTMSequence,
+        )
+
         return [BlockLSTMtoLSTMSequence]
 
     def run_after(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def pattern(self):
         return dict(
-            nodes=[('GatherND', dict(kind='op', op='GatherND', batch_dims=0))],
-            edges=[]
+            nodes=[("GatherND", dict(kind="op", op="GatherND", batch_dims=0))], edges=[]
         )
 
     @staticmethod
@@ -58,8 +65,8 @@ class GatherNDDecomposition(MiddleReplacementPattern):
         return non_zero
 
     def replace_pattern(self, graph: Graph, match: dict):
-        gather = match['GatherND']
-        gather_name = gather.soft_get('name', gather.id)
+        gather = match["GatherND"]
+        gather_name = gather.soft_get("name", gather.id)
         input_shape = gather.in_node(0).shape
         indices = gather.in_node(1).value
         if indices is None:
@@ -70,24 +77,30 @@ class GatherNDDecomposition(MiddleReplacementPattern):
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
             log.warning(
-                'Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
+                "Node {} with op=GatherND can't be normalized to op=Gather.".format(
+                    gather_name
+                )
+            )
             return
 
         # 1. Add Reshape and connect
-        new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
-        reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
-                                                   {'name': gather_name + '/Reshape_for_GatherND/'})
+        new_shape = int64_array([-1] + list(input_shape[indices.shape[-1] :]))
+        reshape = create_op_node_with_second_input(
+            graph, Reshape, new_shape, {"name": gather_name + "/Reshape_for_GatherND/"}
+        )
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
 
         # 2. Eliminate last dim (n_dims values) from indices shape:
         new_indices = np.reshape(
-            np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1])
+            np.take(indices, indices=[gather_idx], axis=-1), indices.shape[:-1]
+        )
 
-        rename_node(gather, gather_name + '/to_delete')
+        rename_node(gather, gather_name + "/to_delete")
 
         # 3. Create new Gather operation and reconnect all inputs/outputs
-        new_gather = create_op_with_const_inputs(graph, Gather, {1: new_indices, 2: int64_array(0)},
-                                                 {'name': gather_name})
+        new_gather = create_op_with_const_inputs(
+            graph, Gather, {1: new_indices, 2: int64_array(0)}, {"name": gather_name}
+        )
         rename_node(new_gather, gather_name)
 
         reshape.out_port(0).connect(new_gather.in_port(0))

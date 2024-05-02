@@ -10,6 +10,7 @@ class BackStart(BackReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.ApplyPermutations import ApplyPermutation
+
         return [ApplyPermutation]
 
     def run_before(self):

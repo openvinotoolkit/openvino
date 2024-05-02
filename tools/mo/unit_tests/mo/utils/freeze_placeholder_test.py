@@ -3,18 +3,18 @@
 
 import argparse
 import os
-import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 import onnx
+import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-
-from openvino.frontend import (
-    FrontEndManager,
+from openvino.frontend import (  # pylint: disable=no-name-in-module,import-error
     FrontEnd,
-)  # pylint: disable=no-name-in-module,import-error
+    FrontEndManager,
+)
 from openvino.runtime import Core
+
 from openvino.tools.mo.convert_impl import prepare_ir
 
 
@@ -60,7 +60,7 @@ def get_test_default_frontends():
     return {"onnx": "new", "tf": "legacy"}
 
 
-class TestMoFreezePlaceholder():
+class TestMoFreezePlaceholder:
     @classmethod
     def setup_method(cls):
         tm.Telemetry.__init__ = Mock(return_value=None)
@@ -118,46 +118,51 @@ class TestMoFreezePlaceholder():
 
         for name, model in cls.models.items():
             onnx.save(model, name)
+
     @classmethod
     def teardown_method(cls):
         for name in cls.models.keys():
             os.remove(name)
 
     @pytest.mark.parametrize(
-        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",
+        [
             (
-                    "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
-                    True,
-                    {},
-                    np.array([2.0, 4.0, 6.0, 8.0]),
-                    np.float32,
+                "in1[1 4]{f32}->[1.0 2.0 3.0 4.0],in2[1 4]{f32}->[1.0 2.0 3.0 4.0]",
+                True,
+                {},
+                np.array([2.0, 4.0, 6.0, 8.0]),
+                np.float32,
             ),
             (
-                    "in2{f32}->[0.0 0.0 0.0 0.0]",
-                    True,
-                    {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
-                    np.array([[1.0, 2.0], [3.0, 4.0]]),
-                    np.float32,
+                "in2{f32}->[0.0 0.0 0.0 0.0]",
+                True,
+                {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
+                np.array([[1.0, 2.0], [3.0, 4.0]]),
+                np.float32,
             ),
             (
-                    "in2{f32}->[1.0 15.0 15.5 1.0]",
-                    True,
-                    {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
-                    np.array([[3.0, 19.0], [27.5, 9.0]]),
-                    np.float32,
+                "in2{f32}->[1.0 15.0 15.5 1.0]",
+                True,
+                {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
+                np.array([[3.0, 19.0], [27.5, 9.0]]),
+                np.float32,
             ),
             (
-                    "in1[1 4]{i32}->[1 2 3 4],in2[1 4]{i32}->[1 2 3 4]",
-                    True,
-                    {},
-                    np.array([2.0, 4.0, 6.0, 8.0]),
-                    np.int32,
+                "in1[1 4]{i32}->[1 2 3 4],in2[1 4]{i32}->[1 2 3 4]",
+                True,
+                {},
+                np.array([2.0, 4.0, 6.0, 8.0]),
+                np.int32,
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_onnx_fe(self, input_freezing_value, use_new_fe, inputs, expected,
-                                                   dtype):
-        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+    def test_freeze_placeholder_with_value_onnx_fe(
+        self, input_freezing_value, use_new_fe, inputs, expected, dtype
+    ):
+        with patch(
+            "openvino.tools.mo.convert_impl.get_default_frontends"
+        ) as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model.onnx"
@@ -175,56 +180,61 @@ class TestMoFreezePlaceholder():
             assert np.allclose(values, expected)
 
     @pytest.mark.parametrize(
-        "input_freezing_value, use_new_fe, inputs, expected, dtype",[
+        "input_freezing_value, use_new_fe, inputs, expected, dtype",
+        [
             (
-                    "in1{f32}->[1.0 15.0 1.0]",
-                    True,
-                    {"in2": np.array([2])},
-                    np.array([2.0, 30.0, 2.0]),
-                    np.float32,
+                "in1{f32}->[1.0 15.0 1.0]",
+                True,
+                {"in2": np.array([2])},
+                np.array([2.0, 30.0, 2.0]),
+                np.float32,
             ),
             (
-                    "in1{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
-                    True,
-                    {},
-                    np.array([21.0, 33.0, -3.0]),
-                    np.float32,
+                "in1{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
+                True,
+                {},
+                np.array([21.0, 33.0, -3.0]),
+                np.float32,
             ),
             (
-                    None,
-                    True,
-                    {
-                        "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3),
-                        "in2": np.array([-1.0]),
-                    },
-                    np.array([-2.0, -2.0, -2.0]),
-                    np.float32,
+                None,
+                True,
+                {
+                    "in1": np.array([2.0, 2.0, 2.0]).reshape(1, 1, 3),
+                    "in2": np.array([-1.0]),
+                },
+                np.array([-2.0, -2.0, -2.0]),
+                np.float32,
             ),
             (
-                    "in1[3 1]{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
-                    True,
-                    {},
-                    np.array([21.0, 33.0, -3.0]).reshape(3, 1),
-                    np.float32,
+                "in1[3 1]{f32}->[7.0 11.0 -1.0],in2{f32}->3.0",
+                True,
+                {},
+                np.array([21.0, 33.0, -3.0]).reshape(3, 1),
+                np.float32,
             ),
             (
-                    "in1[3 1]{f16}->[7.0 11.0 -1.0],in2{f16}->3.0",
-                    True,
-                    {},
-                    np.array([21.0, 33.0, -3.0]).reshape(3, 1),
-                    np.float16,
+                "in1[3 1]{f16}->[7.0 11.0 -1.0],in2{f16}->3.0",
+                True,
+                {},
+                np.array([21.0, 33.0, -3.0]).reshape(3, 1),
+                np.float16,
             ),
             (
-                    "in1[3 1]{i32}->[7 11 -1],in2{i32}->3.0",
-                    True,
-                    {},
-                    np.array([21, 33, -3]).reshape(3, 1),
-                    np.int32,
+                "in1[3 1]{i32}->[7 11 -1],in2{i32}->3.0",
+                True,
+                {},
+                np.array([21, 33, -3]).reshape(3, 1),
+                np.int32,
             ),
         ],
     )
-    def test_freeze_placeholder_with_value_mul(self, input_freezing_value, use_new_fe, inputs, expected, dtype):
-        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+    def test_freeze_placeholder_with_value_mul(
+        self, input_freezing_value, use_new_fe, inputs, expected, dtype
+    ):
+        with patch(
+            "openvino.tools.mo.convert_impl.get_default_frontends"
+        ) as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
@@ -242,19 +252,23 @@ class TestMoFreezePlaceholder():
             assert np.allclose(values, expected)
 
     @pytest.mark.parametrize(
-        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",
+        [
             (
-                    "in1->[1.0 15.0 1.0]",
-                    True,
-                    {"in2": np.array([2])},
-                    np.array([2.0, 30.0, 2.0]),
-                    np.float32,
+                "in1->[1.0 15.0 1.0]",
+                True,
+                {"in2": np.array([2])},
+                np.array([2.0, 30.0, 2.0]),
+                np.float32,
             ),
         ],
     )
-    def test_value_without_type(self, input_freezing_value, use_new_fe, inputs, expected,
-                                dtype):
-        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+    def test_value_without_type(
+        self, input_freezing_value, use_new_fe, inputs, expected, dtype
+    ):
+        with patch(
+            "openvino.tools.mo.convert_impl.get_default_frontends"
+        ) as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_2.onnx"
@@ -272,19 +286,23 @@ class TestMoFreezePlaceholder():
             assert np.allclose(values, expected)
 
     @pytest.mark.parametrize(
-        "input_freezing_value, use_new_fe, inputs, expected,dtype",[
+        "input_freezing_value, use_new_fe, inputs, expected,dtype",
+        [
             (
-                    "in2->[3 2 5]",
-                    True,
-                    {"in1": np.array([[2, 1, 3], [1, 5, 6]], dtype=np.int32)},
-                    np.array([[6, 2, 15], [3, 10, 30]], dtype=np.int32),
-                    np.int32,
+                "in2->[3 2 5]",
+                True,
+                {"in1": np.array([[2, 1, 3], [1, 5, 6]], dtype=np.int32)},
+                np.array([[6, 2, 15], [3, 10, 30]], dtype=np.int32),
+                np.int32,
             ),
         ],
     )
-    def test_value_without_type_int32(self, input_freezing_value, use_new_fe, inputs, expected,
-                                      dtype):
-        with patch("openvino.tools.mo.convert_impl.get_default_frontends") as default_fe:
+    def test_value_without_type_int32(
+        self, input_freezing_value, use_new_fe, inputs, expected, dtype
+    ):
+        with patch(
+            "openvino.tools.mo.convert_impl.get_default_frontends"
+        ) as default_fe:
             default_fe.return_value = get_test_default_frontends()
             args = base_args_config(use_new_fe=use_new_fe)
             args.input_model = "test_model_int.onnx"

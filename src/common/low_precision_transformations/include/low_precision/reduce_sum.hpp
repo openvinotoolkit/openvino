@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include "low_precision/reduce_base_transformation.hpp"
-
 #include <memory>
 
 #include "layer_transformation.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -30,12 +29,11 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 
 protected:
-    void changeDequantizationValues(
-        const std::shared_ptr<Node>& reduce,
-        FakeQuantizeDequantization& dequantization) const override;
+    void changeDequantizationValues(const std::shared_ptr<Node>& reduce,
+                                    FakeQuantizeDequantization& dequantization) const override;
     bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

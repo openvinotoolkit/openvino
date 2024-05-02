@@ -4,19 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/pull_reshape_through_dequantization.hpp"
-#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -113,9 +113,9 @@ public:
         std::ostringstream result;
         result << toString(testValues.params) << "_" << inputShape << "_" << dequantizationElementwiseShape.first << "_"
                << dequantizationElementwiseShape.second << "_" << testValues.actual.precisionBeforeDequantization << "_"
-               << testValues.actual.dequantizationOnActivations << "_"
-               << "_weights_" << testValues.actual.weights.outPrecision << "_"
-               << "{ " << testValues.actual.weights.values[0] << " }_" << testValues.actual.dequantizationOnWeights;
+               << testValues.actual.dequantizationOnActivations << "_" << "_weights_"
+               << testValues.actual.weights.outPrecision << "_" << "{ " << testValues.actual.weights.values[0] << " }_"
+               << testValues.actual.dequantizationOnWeights;
         return result.str();
     }
 };

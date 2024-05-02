@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-
 from openvino.runtime import Node, Shape
 from openvino.runtime.op import Constant, Parameter, loop
 from openvino.runtime.opset_utils import _get_node_factory
@@ -61,7 +60,9 @@ def batch_norm_inference(
     :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(data, gamma, beta, mean, variance, name=name)
-    return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
+    return _get_node_factory_opset5().create(
+        "BatchNormInference", inputs, {"epsilon": epsilon}
+    )
 
 
 @nameable_op
@@ -95,7 +96,9 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param axis: An axis along which LogSoftmax should be calculated
     :return: The new node with LogSoftmax operation applied on each element.
     """
-    return _get_node_factory_opset5().create("LogSoftmax", [as_node(data, name=name)], {"axis": axis})
+    return _get_node_factory_opset5().create(
+        "LogSoftmax", [as_node(data, name=name)], {"axis": axis}
+    )
 
 
 @nameable_op
@@ -162,7 +165,9 @@ def non_max_suppression(
 
 
 @nameable_op
-def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
+def round(
+    data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None
+) -> Node:
     """Apply Round operation on each element of input tensor.
 
     :param data: The tensor providing input data.
@@ -172,7 +177,9 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     :param name: An optional name of the output node.
     :return: The new node with Round operation applied on each element.
     """
-    return _get_node_factory_opset5().create("Round", as_nodes(data, name=name), {"mode": mode.upper()})
+    return _get_node_factory_opset5().create(
+        "Round", as_nodes(data, name=name), {"mode": mode.upper()}
+    )
 
 
 @nameable_op
@@ -226,7 +233,16 @@ def lstm_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, name=name)
+    node_inputs = as_nodes(
+        X,
+        initial_hidden_state,
+        initial_cell_state,
+        sequence_lengths,
+        W,
+        R,
+        B,
+        name=name,
+    )
 
     attributes = {
         "hidden_size": hidden_size,
@@ -298,7 +314,9 @@ def gru_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B, name=name)
+    node_inputs = as_nodes(
+        X, initial_hidden_state, sequence_lengths, W, R, B, name=name
+    )
 
     attributes = {
         "hidden_size": hidden_size,

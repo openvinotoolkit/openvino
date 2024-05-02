@@ -4,22 +4,21 @@
 
 #pragma once
 
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
 
-#include "data_inst.h"
-#include "reorder_inst.h"
 #include "convolution_inst.h"
+#include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "quantize_inst.h"
-
-#include <vector>
-#include <memory>
-#include <map>
-#include <utility>
+#include "reorder_inst.h"
 
 namespace cldnn {
 
@@ -50,8 +49,9 @@ public:
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 
-    std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
-                                                                    std::shared_ptr<WeightsReorderParams> reorder_params);
+    std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(
+        primitive_id input_id,
+        std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
     struct cache_key {
@@ -61,7 +61,7 @@ private:
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
             bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                    lhs.needs_split_reorder == rhs.needs_split_reorder;
+                       lhs.needs_split_reorder == rhs.needs_split_reorder;
 
             if (ret && lhs.expected_layout.format == cldnn::format::custom) {
                 ret &= (lhs.expected_layout.format.traits().block_sizes ==
@@ -70,7 +70,9 @@ private:
             return ret;
         }
 
-        friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
+        friend bool operator!=(cache_key const& lhs, cache_key const& rhs) {
+            return !(lhs == rhs);
+        }
 
         friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
             if (lhs.data_source != rhs.data_source)
@@ -78,7 +80,8 @@ private:
             else if (lhs.expected_layout != rhs.expected_layout)
                 return (lhs.expected_layout < rhs.expected_layout);
             else if (lhs.expected_layout.format == cldnn::format::custom)
-                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+                return lhs.expected_layout.format.traits().block_sizes <
+                       rhs.expected_layout.format.traits().block_sizes;
             return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
@@ -118,7 +121,8 @@ private:
     bool _output_size_handling_enabled;
 
     std::map<primitive_id, std::pair<format::type, impl_types>> _forcing_map;
-    static const std::vector<std::pair<format::type, bool>> optimized_formats;  // pair of format type and allowed weak restriction
+    static const std::vector<std::pair<format::type, bool>>
+        optimized_formats;  // pair of format type and allowed weak restriction
     size_t _total_conv;
     std::map<std::pair<format::type, bool>, size_t> _optimized_conv_count;
 
@@ -132,8 +136,10 @@ private:
     // custom_list
     // - first is i8_u8 formats as b_fs_yx_fsv32, bs_fs_yx_bsv32_fsv32.
     // - second is float formats as b_fs_yx_fsv16, bs_fs_yx_bsv32_fsv16.
-    bool is_mixed_layout(program_node& prev, program_node& next,
-                         bool check_data_type = true, std::vector<std::pair<format, format>> custom_list = {}) const;
+    bool is_mixed_layout(program_node& prev,
+                         program_node& next,
+                         bool check_data_type = true,
+                         std::vector<std::pair<format, format>> custom_list = {}) const;
 
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
@@ -155,7 +161,7 @@ private:
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
-    bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout &input_layout,
+    bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout& input_layout,
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
@@ -164,11 +170,11 @@ private:
                                        const layout& weights_layout,
                                        std::shared_ptr<const convolution> conv,
                                        bool weak_restrictions = false);
-    bool deconvolution_b_fs_zyx_fsv16_opt(const layout &input_layout,
-                                          const layout &weights_layout,
+    bool deconvolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
+                                          const layout& weights_layout,
                                           std::shared_ptr<const deconvolution> conv);
-    bool deconvolution_b_fs_yx_fsv16_opt(const layout &input_layout,
-                                         const layout &weights_layout,
+    bool deconvolution_b_fs_yx_fsv16_opt(const layout& input_layout,
+                                         const layout& weights_layout,
                                          std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
     bool deps_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
@@ -177,7 +183,10 @@ public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
     format get_preferred_format(program_node& node);
-    bool all_users_simple_format_until_output(program_node& origin_node, program_node& cur_node, int32_t cur_depth, int32_t max_depth);
+    bool all_users_simple_format_until_output(program_node& origin_node,
+                                              program_node& cur_node,
+                                              int32_t cur_depth,
+                                              int32_t max_depth);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     impl_types get_forced_impl_type_by_config(program_node& node);
@@ -198,7 +207,9 @@ public:
     bool can_fuse_reorder_to_prev(program_node& prev, reorder_node& target_node, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
-    optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
+    optimization_attributes get_optimization_attributes() {
+        return _optimization_attributes;
+    }
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
@@ -212,7 +223,8 @@ public:
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
+    void select_preferred_formats_for_onednn(program_node& node,
+                                             dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
 #endif
 };
 }  // namespace cldnn

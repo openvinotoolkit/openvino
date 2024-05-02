@@ -3,9 +3,10 @@
 //
 
 #include "openvino/op/bucketize.hpp"
-#include "intel_gpu/primitives/bucketize.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/bucketize.hpp"
 
 namespace ov {
 namespace intel_gpu {

@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/fake_quantize.hpp"
 #include <map>
 #include <memory>
 #include <string>
@@ -12,6 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -82,24 +82,22 @@ public:
                                                                 testValues.actual.constValues);
         }
 
-        std::shared_ptr<Node> fq =
-            ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
-                                                                   element::f32,
-                                                                   testValues.actual.fakeQuantize);
+        std::shared_ptr<Node> fq = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(dataSource,
+                                                                                      element::f32,
+                                                                                      testValues.actual.fakeQuantize);
         ov::pass::low_precision::NetworkHelper::setOutDataPrecision(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
-                                                                        testValues.actual.fqOutPrecision);
+                                                                    testValues.actual.fqOutPrecision);
         fq = ov::pass::low_precision::NetworkHelper::fold_fake_quantize(as_type_ptr<ov::op::v0::FakeQuantize>(fq),
-                                                                            testValues.roundValues);
+                                                                        testValues.roundValues);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(fq)};
-        actualFunction = std::make_shared<ov::Model>(
-            results,
-            parameter ? ov::ParameterVector{parameter} : ov::ParameterVector{},
-            "FoldFakeQuantizeFunction");
+        actualFunction = std::make_shared<ov::Model>(results,
+                                                     parameter ? ov::ParameterVector{parameter} : ov::ParameterVector{},
+                                                     "FoldFakeQuantizeFunction");
 
         referenceFunction =
             ov::builder::subgraph::FoldFakeQuantizeFunction::getReference(testValues.expected.constPrecision,
-                                                                              testValues.constShape,
-                                                                              testValues.expected.constValues);
+                                                                          testValues.constShape,
+                                                                          testValues.expected.constValues);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FoldFakeQuantizeInTransformationsTestValues> obj) {

@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "roi_align_inst.h"
 #include "roi_align/roi_align_kernel_ref.h"
 #include "roi_align/roi_align_kernel_selector.h"
+#include "roi_align_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -87,7 +86,10 @@ attach_roi_align_impl::attach_roi_align_impl() {
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
 
-    implementation_map<roi_align>::add(impl_types::ocl, typed_primitive_impl_ocl<roi_align>::create<roi_align_impl>, types, formats);
+    implementation_map<roi_align>::add(impl_types::ocl,
+                                       typed_primitive_impl_ocl<roi_align>::create<roi_align_impl>,
+                                       types,
+                                       formats);
 }
 
 }  // namespace detail

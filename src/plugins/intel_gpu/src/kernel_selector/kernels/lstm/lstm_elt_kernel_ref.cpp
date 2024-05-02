@@ -3,6 +3,7 @@
 //
 
 #include "lstm_elt_kernel_ref.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {

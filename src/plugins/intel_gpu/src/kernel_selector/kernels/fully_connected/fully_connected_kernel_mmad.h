@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "fully_connected_kernel_base.h"
 #include <vector>
+
+#include "fully_connected_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -32,11 +33,11 @@ public:
 
 protected:
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
+    DispatchData SetDefault(const fully_connected_params& params,
+                            int autoTuneIndex = -1,
+                            int kernel_number = 0) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
     bool Validate(const Params& params) const override;
     FullyConnectedTuningData GetTuningParams(const fully_connected_params& params) const;

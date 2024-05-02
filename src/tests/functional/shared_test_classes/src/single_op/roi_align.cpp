@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random>
-
 #include "shared_test_classes/single_op/roi_align.hpp"
+
+#include <random>
 
 #include "openvino/core/enum_names.hpp"
 
@@ -20,8 +20,15 @@ std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roia
     std::string pooling_mode;
     ov::element::Type model_type;
     std::string target_device;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, model_type, target_device) = obj.param;
+    std::tie(input_shapes,
+             coords_shape,
+             pooled_h,
+             pooled_w,
+             spatial_scale,
+             pooling_ratio,
+             pooling_mode,
+             model_type,
+             target_device) = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -55,8 +62,13 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 
-void ROIAlignLayerTest::fillCoordTensor(std::vector<float>& coords, int height, int width,
-                                        float spatial_scale, int pooled_ratio, int pooled_h, int pooled_w) {
+void ROIAlignLayerTest::fillCoordTensor(std::vector<float>& coords,
+                                        int height,
+                                        int width,
+                                        float spatial_scale,
+                                        int pooled_ratio,
+                                        int pooled_h,
+                                        int pooled_w) {
     int min_roi_width = pooled_w;
     int max_roi_width = width / pooled_ratio;
     int min_roi_height = pooled_h;
@@ -91,8 +103,15 @@ void ROIAlignLayerTest::SetUp() {
     int pooling_ratio;
     std::string pooling_mode;
     ov::element::Type model_type;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, model_type, targetDevice) = this->GetParam();
+    std::tie(input_shapes,
+             coords_shape,
+             pooled_h,
+             pooled_w,
+             spatial_scale,
+             pooling_ratio,
+             pooling_mode,
+             model_type,
+             targetDevice) = this->GetParam();
 
     init_input_shapes(input_shapes);
 
@@ -102,8 +121,13 @@ void ROIAlignLayerTest::SetUp() {
     proposal_vector.resize(coords_shape[0] * 4);
     roi_idx_vector.resize(coords_shape[0]);
 
-    fillCoordTensor(proposal_vector, inputDynamicShapes[0][2].get_length(), inputDynamicShapes[0][3].get_length(),
-                    spatial_scale, pooling_ratio, pooled_h, pooled_w);
+    fillCoordTensor(proposal_vector,
+                    inputDynamicShapes[0][2].get_length(),
+                    inputDynamicShapes[0][3].get_length(),
+                    spatial_scale,
+                    pooling_ratio,
+                    pooled_h,
+                    pooled_w);
     fillIdxTensor(roi_idx_vector, inputDynamicShapes[0][0].get_length());
     auto idx_shape = ov::Shape{coords_shape[0]};
 
@@ -131,8 +155,16 @@ std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<ro
     std::string roi_aligned_mode;
     ov::element::Type model_type;
     std::string target_device;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, roi_aligned_mode, model_type, target_device) = obj.param;
+    std::tie(input_shapes,
+             coords_shape,
+             pooled_h,
+             pooled_w,
+             spatial_scale,
+             pooling_ratio,
+             pooling_mode,
+             roi_aligned_mode,
+             model_type,
+             target_device) = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -170,8 +202,16 @@ void ROIAlignV9LayerTest::SetUp() {
     std::string pooling_mode;
     std::string roi_aligned_mode;
     ov::element::Type model_type;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, roi_aligned_mode, model_type, targetDevice) = this->GetParam();
+    std::tie(input_shapes,
+             coords_shape,
+             pooled_h,
+             pooled_w,
+             spatial_scale,
+             pooling_ratio,
+             pooling_mode,
+             roi_aligned_mode,
+             model_type,
+             targetDevice) = this->GetParam();
 
     init_input_shapes(input_shapes);
 
@@ -181,22 +221,28 @@ void ROIAlignV9LayerTest::SetUp() {
     proposal_vector.resize(coords_shape[0] * 4);
     roi_idx_vector.resize(coords_shape[0]);
 
-    ROIAlignLayerTest::fillCoordTensor(proposal_vector, inputDynamicShapes[0][2].get_length(), inputDynamicShapes[0][3].get_length(),
-                                       spatial_scale, pooling_ratio, pooled_h, pooled_w);
+    ROIAlignLayerTest::fillCoordTensor(proposal_vector,
+                                       inputDynamicShapes[0][2].get_length(),
+                                       inputDynamicShapes[0][3].get_length(),
+                                       spatial_scale,
+                                       pooling_ratio,
+                                       pooled_h,
+                                       pooled_w);
     ROIAlignLayerTest::fillIdxTensor(roi_idx_vector, inputDynamicShapes[0][0].get_length());
     auto idx_shape = ov::Shape{coords_shape[0]};
 
     auto coords = std::make_shared<ov::op::v0::Constant>(model_type, coords_shape, proposal_vector.data());
     auto rois_Idx = std::make_shared<ov::op::v0::Constant>(ov::element::i32, idx_shape, roi_idx_vector.data());
-    auto roi_align = std::make_shared<ov::op::v9::ROIAlign>(param,
-                                                            coords,
-                                                            rois_Idx,
-                                                            pooled_h,
-                                                            pooled_w,
-                                                            pooling_ratio,
-                                                            spatial_scale,
-                                                            ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(pooling_mode),
-                                                            ov::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(roi_aligned_mode));
+    auto roi_align = std::make_shared<ov::op::v9::ROIAlign>(
+        param,
+        coords,
+        rois_Idx,
+        pooled_h,
+        pooled_w,
+        pooling_ratio,
+        spatial_scale,
+        ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(pooling_mode),
+        ov::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(roi_aligned_mode));
     function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align");
 }
 }  // namespace test

@@ -5,14 +5,13 @@
 import os
 
 import numpy as np
-import pytest
-
 import openvino.runtime.opset10 as ops
-from openvino import Core, Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
-
+import pytest
+from openvino.runtime.passes import ConstantFolding, Manager, Serialize, Version
 from tests.test_graph.util import count_ops_of_type
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import compare_models, create_filename_for_test
+
+from openvino import Core, Model
 
 
 def create_model():
@@ -20,13 +19,17 @@ def create_model():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
-    floor_op = ops.floor(ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c)))
+    floor_op = ops.floor(
+        ops.minimum(ops.abs(parameter_a), ops.multiply(parameter_b, parameter_c))
+    )
     model = Model(floor_op, [parameter_a, parameter_b, parameter_c], "Model")
     return model
 
 
 def test_constant_folding():
-    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
+    node_constant = ops.constant(
+        np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32)
+    )
     node_ceil = ops.ceiling(node_constant)
     model = Model(node_ceil, [], "TestModel")
 
@@ -142,13 +145,17 @@ def test_serialize_pass_wrong_num_of_args(request, tmp_path):
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
-        pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, model=5))
+        pass_manager.register_pass(
+            Serialize(path_to_xml=xml_path, path_to_bin=bin_path, model=5)
+        )
     assert "Invoked with:" in str(e.value)
 
 
 def test_serialize_results(prepare_ir_paths):
     core = Core()
-    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
+    node_constant = ops.constant(
+        np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32)
+    )
     node_ceil = ops.ceiling(node_constant)
     model = Model(node_ceil, [], "Model")
 
@@ -182,7 +189,9 @@ def test_default_version_ir_v11_separate_paths(prepare_ir_paths):
     xml_path, bin_path = prepare_ir_paths
     model = create_model()
     pass_manager = Manager()
-    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version=Version.IR_V11))
+    pass_manager.register_pass(
+        Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version=Version.IR_V11)
+    )
     pass_manager.run_passes(model)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)

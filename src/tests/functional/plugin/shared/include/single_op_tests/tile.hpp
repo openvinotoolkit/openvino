@@ -13,4 +13,3 @@ TEST_P(TileLayerTest, Inference) {
 }
 }  // namespace test
 }  // namespace ov
-

@@ -1,18 +1,19 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
- 
-#! [py_ov_property_import_header]
-import openvino as ov
+
 import openvino.properties as properties
 import openvino.properties.device as device
 import openvino.properties.hint as hints
-import openvino.properties.streams as streams
 import openvino.properties.intel_auto as intel_auto
+
 #! [py_ov_property_import_header]
 import openvino.properties.log as log
-
+import openvino.properties.streams as streams
 from utils import get_model
+
+#! [py_ov_property_import_header]
+import openvino as ov
 
 model = get_model()
 
@@ -38,9 +39,7 @@ def part0():
 
     # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
-    core.set_property(
-        device_name="AUTO", properties={device.priorities: "GPU,CPU"}
-    )
+    core.set_property(device_name="AUTO", properties={device.priorities: "GPU,CPU"})
     #! [part0]
 
 
@@ -53,17 +52,13 @@ def part3():
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={
-            hints.performance_mode: hints.PerformanceMode.THROUGHPUT
-        },
+        config={hints.performance_mode: hints.PerformanceMode.THROUGHPUT},
     )
     # To use the “LATENCY” mode:
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={
-            hints.performance_mode: hints.PerformanceMode.LATENCY
-        },
+        config={hints.performance_mode: hints.PerformanceMode.LATENCY},
     )
     # To use the “CUMULATIVE_THROUGHPUT” mode:
     # To use the ROUND_ROBIN schedule policy:
@@ -72,7 +67,7 @@ def part3():
         device_name="AUTO",
         config={
             hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT,
-            intel_auto.schedule_policy: intel_auto.SchedulePolicy.ROUND_ROBIN
+            intel_auto.schedule_policy: intel_auto.SchedulePolicy.ROUND_ROBIN,
         },
     )
     #! [part3]
@@ -91,9 +86,7 @@ def part4():
     compiled_model1 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={
-            hints.model_priority: hints.Priority.MEDIUM
-        },
+        config={hints.model_priority: hints.Priority.MEDIUM},
     )
     compiled_model2 = core.compile_model(
         model=model,
@@ -112,9 +105,7 @@ def part4():
     compiled_model4 = core.compile_model(
         model=model,
         device_name="AUTO",
-        config={
-            hints.model_priority: hints.Priority.MEDIUM
-        },
+        config={hints.model_priority: hints.Priority.MEDIUM},
     )
     compiled_model5 = core.compile_model(
         model=model,
@@ -133,20 +124,20 @@ def part5():
     # gpu_config and cpu_config will load during compile_model()
     gpu_config = {
         hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
-        streams.num: 4
+        streams.num: 4,
     }
     cpu_config = {
         hints.performance_mode: hints.PerformanceMode.LATENCY,
         streams.num: 8,
-        properties.enable_profiling: True
+        properties.enable_profiling: True,
     }
     compiled_model = core.compile_model(
         model=model,
         device_name="AUTO",
         config={
             device.priorities: "GPU,CPU",
-            device.properties: {'CPU': cpu_config, 'GPU': gpu_config}
-        }
+            device.properties: {"CPU": cpu_config, "GPU": gpu_config},
+        },
     )
     #! [part5]
 

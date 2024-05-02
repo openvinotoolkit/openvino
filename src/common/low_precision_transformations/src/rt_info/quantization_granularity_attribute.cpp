@@ -17,18 +17,18 @@ std::string QuantizationGranularityAttribute::to_string() const {
 
     std::stringstream ss;
     switch (granularity) {
-        case Granularity::PerChannel: {
-            ss << "PerChannel";
-            break;
-        }
-        case Granularity::PerTensor: {
-            ss << "PerTensor";
-            break;
-        }
-        default: {
-            ss << "UNKNOWN";
-            break;
-        }
+    case Granularity::PerChannel: {
+        ss << "PerChannel";
+        break;
+    }
+    case Granularity::PerTensor: {
+        ss << "PerTensor";
+        break;
+    }
+    default: {
+        ss << "UNKNOWN";
+        break;
+    }
     }
     return ss.str();
 }

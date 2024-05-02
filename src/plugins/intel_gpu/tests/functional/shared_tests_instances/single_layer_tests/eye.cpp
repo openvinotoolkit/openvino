@@ -7,13 +7,8 @@
 namespace {
 using ov::test::EyeLayerTest;
 
-const std::vector<ov::element::Type> model_types = {
-    ov::element::f32,
-    ov::element::f16,
-    ov::element::i32,
-    ov::element::i8,
-    ov::element::u8,
-    ov::element::i64};
+const std::vector<ov::element::Type> model_types =
+    {ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8, ov::element::i64};
 
 const std::vector<std::vector<int>> eyePars = {
     // rows, cols, diag_shift

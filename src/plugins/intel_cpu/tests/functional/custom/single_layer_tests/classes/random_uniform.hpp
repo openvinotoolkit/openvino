@@ -10,22 +10,23 @@
 namespace ov {
 namespace test {
 
-typedef std::tuple<
-        ov::Shape,                        // Output shapes
-        std::tuple<double, double>,       // Min and Max values
-        ov::test::ElementType,            // Shape precision
-        ov::test::ElementType,            // Output precision
-        uint64_t,                         // Global seed
-        uint64_t,                         // Operational seed
-        bool,                             // Is 1st input constant
-        bool,                             // Is 2nd input constant
-        bool,                             // Is 3rd input constant
-        CPUTestUtils::CPUSpecificParams,  // CPU specific params
-        ov::AnyMap                        // Additional plugin configuration
-> RandomUniformLayerTestCPUParamSet;
+typedef std::tuple<ov::Shape,                        // Output shapes
+                   std::tuple<double, double>,       // Min and Max values
+                   ov::test::ElementType,            // Shape precision
+                   ov::test::ElementType,            // Output precision
+                   uint64_t,                         // Global seed
+                   uint64_t,                         // Operational seed
+                   bool,                             // Is 1st input constant
+                   bool,                             // Is 2nd input constant
+                   bool,                             // Is 3rd input constant
+                   CPUTestUtils::CPUSpecificParams,  // CPU specific params
+                   ov::AnyMap                        // Additional plugin configuration
+                   >
+    RandomUniformLayerTestCPUParamSet;
 
 class RandomUniformLayerTestCPU : public testing::WithParamInterface<RandomUniformLayerTestCPUParamSet>,
-                                  public ov::test::SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
+                                  public ov::test::SubgraphBaseTest,
+                                  public CPUTestUtils::CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj);
 
@@ -36,7 +37,7 @@ protected:
 
     void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
 
-    template<typename T>
+    template <typename T>
     void rndUCompare(const ov::Tensor& expected, const ov::Tensor& actual);
 
 private:

@@ -55,7 +55,9 @@ def einsum(
         "equation": equation,
     }
 
-    return _get_node_factory_opset7().create("Einsum", as_nodes(*inputs, name=name), attributes)
+    return _get_node_factory_opset7().create(
+        "Einsum", as_nodes(*inputs, name=name), attributes
+    )
 
 
 @nameable_op

@@ -15,11 +15,14 @@
 */
 
 #include "gather_elements_kernel_selector.h"
+
 #include "gather_elements_kernel_ref.h"
 
 namespace kernel_selector {
 
-gather_elements_kernel_selector::gather_elements_kernel_selector() { Attach<GatherElementsKernelRef>(); }
+gather_elements_kernel_selector::gather_elements_kernel_selector() {
+    Attach<GatherElementsKernelRef>();
+}
 
 KernelsData gather_elements_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::GATHER_ELEMENTS);

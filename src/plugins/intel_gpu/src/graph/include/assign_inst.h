@@ -17,19 +17,23 @@ private:
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using assign_node = typed_program_node<assign>;
 
-template<>
+template <>
 class typed_primitive_inst<assign> : public typed_primitive_inst_base<assign>, public memory_state::variable {
     using parent = typed_primitive_inst_base<assign>;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(assign_node const& /*node*/, const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }
@@ -46,4 +50,4 @@ public:
 
 using assign_inst = typed_primitive_inst<assign>;
 
-} // namespace cldnn
+}  // namespace cldnn

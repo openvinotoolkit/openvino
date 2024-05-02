@@ -3,13 +3,16 @@
 
 """Postprocessor for image modification tasks such as super-resolution, style transfer.
    It takes normalized image and converts it back to colored picture"""
-from .provider import ClassProvider
-import numpy as np
 import logging as log
+
+import numpy as np
+
+from .provider import ClassProvider
 
 
 class ParseImageModification(ClassProvider):
     """Image modification parser"""
+
     __action_name__ = "parse_image_modification"
 
     def __init__(self, config):
@@ -23,8 +26,12 @@ class ParseImageModification(ClassProvider):
             for batch_num in range(len(data[layer])):
                 data[layer][batch_num][data[layer][batch_num] > 1] = 1
                 data[layer][batch_num][data[layer][batch_num] < 0] = 0
-                data[layer][batch_num] = data[layer][batch_num]*255
+                data[layer][batch_num] = data[layer][batch_num] * 255
             postprocessed = True
         if postprocessed == False:
-            log.info("Postprocessor {} has nothing to process".format(str(self.__action_name__)))
+            log.info(
+                "Postprocessor {} has nothing to process".format(
+                    str(self.__action_name__)
+                )
+            )
         return data

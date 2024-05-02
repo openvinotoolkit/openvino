@@ -36,6 +36,6 @@ private:
     size_t _indicesPerBag = 0;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

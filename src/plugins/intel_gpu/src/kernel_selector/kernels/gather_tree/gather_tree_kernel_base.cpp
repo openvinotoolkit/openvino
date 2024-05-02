@@ -3,25 +3,27 @@
 //
 
 #include "gather_tree_kernel_base.h"
+
 #include <vector>
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-JitConstants GatherTreeKernelBase::GetJitConstants(const gather_tree_params & params) const {
+JitConstants GatherTreeKernelBase::GetJitConstants(const gather_tree_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     return jit;
 }
 
-GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather_tree_params & params) const {
+GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather_tree_params& params) const {
     DispatchData dispatchData;
     /*
         b -> time
         f -> batch
         y -> beam
     */
-    dispatchData.gws = { params.outputs[0].Y().v,        // beam
-                         params.outputs[0].Feature().v,  // batch
-                         1 };
+    dispatchData.gws = {params.outputs[0].Y().v,        // beam
+                        params.outputs[0].Feature().v,  // batch
+                        1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     return dispatchData;
 }
@@ -45,6 +47,6 @@ KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params) con
                      false,
                      false,
                      static_cast<int>(gt_params.inputs.size()));
-    return { kernel_data };
+    return {kernel_data};
 }
 }  // namespace kernel_selector

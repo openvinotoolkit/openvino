@@ -38,6 +38,6 @@ std::shared_ptr<Node> KernelDynamic::clone_with_new_inputs(const OutputVector& i
     return std::make_shared<KernelDynamic>(region);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -11,7 +11,9 @@ class TestPack(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
         for input_name, input_shape in inputs_info.items():
-            inputs_data[input_name] = np.random.randint(-5, 5, input_shape).astype(self.input_type)
+            inputs_data[input_name] = np.random.randint(-5, 5, input_shape).astype(
+                self.input_type
+            )
         return inputs_data
 
     def create_pack_net(self, input_shape, input_num, axis, input_type):
@@ -27,7 +29,9 @@ class TestPack(CommonTFLayerTest):
             assert input_type in type_map, "Test error: need to update type_map"
             tf_type = type_map[input_type]
             for ind in range(input_num):
-                inputs.append(tf.compat.v1.placeholder(tf_type, input_shape, 'input' + str(ind)))
+                inputs.append(
+                    tf.compat.v1.placeholder(tf_type, input_shape, "input" + str(ind))
+                )
             if axis is not None:
                 tf.raw_ops.Pack(values=inputs, axis=axis)
             else:
@@ -46,8 +50,14 @@ class TestPack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_pack_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                        use_legacy_frontend):
-        self._test(*self.create_pack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_pack_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_pack_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

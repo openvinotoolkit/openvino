@@ -5,6 +5,7 @@
 #include "low_precision/fuse_elementwise_to_fake_quantize.hpp"
 
 #include <memory>
+
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -12,10 +13,11 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-FuseElementwiseToFakeQuantizeTransformation::FuseElementwiseToFakeQuantizeTransformation(const Params& params) : CleanupTransformation(params) {
-}
+FuseElementwiseToFakeQuantizeTransformation::FuseElementwiseToFakeQuantizeTransformation(const Params& params)
+    : CleanupTransformation(params) {}
 
-bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context,
+                                                                   std::shared_ptr<Node> operation) const {
     if (!CleanupTransformation::canBeTransformed(context, operation)) {
         return false;
     }
@@ -47,6 +49,6 @@ bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const Transfo
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

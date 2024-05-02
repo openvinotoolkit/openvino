@@ -20,10 +20,9 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVClassHeteroCompiledModelGetMetricTest :
-        public OVClassNetworkTest,
-        public ::testing::WithParamInterface<std::string>,
-        public OVCompiledNetworkTestBase {
+class OVClassHeteroCompiledModelGetMetricTest : public OVClassNetworkTest,
+                                                public ::testing::WithParamInterface<std::string>,
+                                                public OVCompiledNetworkTestBase {
 protected:
     std::string heteroDeviceName;
     void SetCpuAffinity(ov::Core& core, std::vector<std::string>& expectedTargets);

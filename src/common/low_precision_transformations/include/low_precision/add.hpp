@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "low_precision/eltwise_base_transformation.hpp"
 
 namespace ov {
@@ -24,10 +23,10 @@ class LP_TRANSFORMATIONS_API AddTransformation : public EltwiseBaseTransformatio
 public:
     OPENVINO_RTTI("AddTransformation", "0");
     AddTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

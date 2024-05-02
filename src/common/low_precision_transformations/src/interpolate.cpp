@@ -10,13 +10,12 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
+#include "low_precision/network_helper.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
-#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -26,20 +25,15 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
     MATCHER_SCOPE(InterpolateTransformation);
     auto mul = pattern::wrap_type<opset1::Multiply>();
 
-    auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({
-        mul,
-        pattern::wrap_type<opset1::Constant>() });
+    auto interpolate1 = pattern::wrap_type<opset1::Interpolate>({mul, pattern::wrap_type<opset1::Constant>()});
 
-    auto interpolate4 = pattern::wrap_type<opset4::Interpolate>({
-        mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+    auto interpolate4 = pattern::wrap_type<opset4::Interpolate>(
+        {mul, pattern::wrap_type<opset1::Constant>(), pattern::wrap_type<opset1::Constant>()});
 
-    auto interpolate4_2 = pattern::wrap_type<opset4::Interpolate>({
-        mul,
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+    auto interpolate4_2 = pattern::wrap_type<opset4::Interpolate>({mul,
+                                                                   pattern::wrap_type<opset1::Constant>(),
+                                                                   pattern::wrap_type<opset1::Constant>(),
+                                                                   pattern::wrap_type<opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -50,19 +44,20 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
-        std::make_shared<pass::pattern::op::Or>(OutputVector{ interpolate1, interpolate4, interpolate4_2 }),
+        std::make_shared<pass::pattern::op::Or>(OutputVector{interpolate1, interpolate4, interpolate4_2}),
         matcher_name);
 
     this->register_matcher(matcher, callback);
 }
 
-bool InterpolateTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool InterpolateTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
+    const auto newOperation =
+        moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
@@ -84,7 +79,8 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     return false;
 }
 
-bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool InterpolateTransformation::canBeTransformed(const TransformationContext& context,
+                                                 std::shared_ptr<Node> layer) const {
     if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
     }

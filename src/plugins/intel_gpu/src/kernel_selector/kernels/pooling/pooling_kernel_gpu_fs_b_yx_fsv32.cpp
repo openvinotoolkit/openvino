@@ -65,7 +65,8 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params,
+                                                            DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     auto pp = static_cast<const pooling_params&>(params);
 
@@ -80,14 +81,14 @@ JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "((fs * 32) + sglid)", "out_y", "out_x"},
-                                     "pool_result",
-                                     input_dt,
-                                     2,
-                                     LoadType::LT_ALIGNED_READ,
-                                     BoundaryCheck::ENABLED,
-                                     IndexType::TENSOR_COORD,
-                                     Tensor::DataChannelName::FEATURE};
+                                      {"b", "((fs * 32) + sglid)", "out_y", "out_x"},
+                                      "pool_result",
+                                      input_dt,
+                                      2,
+                                      LoadType::LT_ALIGNED_READ,
+                                      BoundaryCheck::ENABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::FEATURE};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

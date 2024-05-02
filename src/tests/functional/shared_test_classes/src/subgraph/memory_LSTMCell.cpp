@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
@@ -72,7 +72,8 @@ void MemoryLSTMCellTest::SetUp() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant =
+        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
     auto var_cell = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape(cell_memory_dims), element_type, "cell_state_1"});
     auto var_hidden = std::make_shared<ov::op::util::Variable>(
@@ -91,9 +92,11 @@ void MemoryLSTMCellTest::SetUp() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
-    auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::deprecated::make_constant<float>(element_type,
+                                                                                    {4 * hiddenSize, hiddenSize},
+                                                                                    reccurrenceWeights_vals);
     auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
@@ -163,7 +166,8 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
 
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant =
+        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
         ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
@@ -172,9 +176,11 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(unsqueeze_input, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
-    auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::deprecated::make_constant<float>(element_type,
+                                                                                    {4 * hiddenSize, hiddenSize},
+                                                                                    reccurrenceWeights_vals);
     auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        hidden_memory_constant,
@@ -222,7 +228,8 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant =
+        ov::test::utils::deprecated::make_constant<float>(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
         ov::test::utils::deprecated::make_constant<float>(element_type, hidden_memory_dims, hidden_memory_init);
@@ -237,9 +244,11 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
-    auto reccurrenceWeightsNode =
-        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto reccurrenceWeightsNode = ov::test::utils::deprecated::make_constant<float>(element_type,
+                                                                                    {4 * hiddenSize, hiddenSize},
+                                                                                    reccurrenceWeights_vals);
     auto biasNode = ov::test::utils::deprecated::make_constant<float>(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
@@ -274,7 +283,8 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(out_unsqueeze, final_reshape_pattern, false);
     final_reshape->set_friendly_name("Reshape_1");
 
-    functionRefs = std::make_shared<Model>(OutputVector{final_reshape, out_hidden, out_cell}, input_parameter, "PureTI");
+    functionRefs =
+        std::make_shared<Model>(OutputVector{final_reshape, out_hidden, out_cell}, input_parameter, "PureTI");
 }
 
 void MemoryLSTMCellTest::compile_model() {

@@ -3,15 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime as ov
 import pytest
 
-import openvino.runtime as ov
 
-
-@pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "expected_shape"), [
-    (2, 5, 10, -1, [3, 2]),
-    (3, 1, 0, 0, [3, 3]),
-])
+@pytest.mark.parametrize(
+    ("depth", "on_value", "off_value", "axis", "expected_shape"),
+    [
+        (2, 5, 10, -1, [3, 2]),
+        (3, 1, 0, 0, [3, 3]),
+    ],
+)
 def test_one_hot(depth, on_value, off_value, axis, expected_shape):
     param = ov.opset11.parameter([3], dtype=np.int32)
     node = ov.opset11.one_hot(param, depth, on_value, off_value, axis)
@@ -33,11 +35,14 @@ def test_range_1():
 
 
 # Test Range-4
-@pytest.mark.parametrize(("destination_type", "expected_type"), [
-    ("i64", ov.Type.i64),
-    ("i32", ov.Type.i32),
-    ("f32", ov.Type.f32),
-])
+@pytest.mark.parametrize(
+    ("destination_type", "expected_type"),
+    [
+        ("i64", ov.Type.i64),
+        ("i32", ov.Type.i32),
+        ("f32", ov.Type.f32),
+    ],
+)
 def test_range_4(destination_type, expected_type):
     start = 5
     stop = 35

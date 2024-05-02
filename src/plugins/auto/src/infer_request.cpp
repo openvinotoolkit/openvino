@@ -22,7 +22,9 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace {
 
-void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
+void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
+                          const ov::element::Type& element_type,
+                          const ov::Shape& shape) {
     if (!tensor || tensor->get_element_type() != element_type) {
         tensor = ov::make_tensor(element_type, shape);
     } else {
@@ -42,16 +44,16 @@ ov::auto_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::auto
             allocate_tensor(input, [input](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
-                                    input.get_element_type(),
-                                    input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
+                                     input.get_element_type(),
+                                     input.get_partial_shape().is_dynamic() ? ov::Shape{0} : input.get_shape());
             });
         }
         for (const auto& output : get_outputs()) {
             allocate_tensor(output, [output](ov::SoPtr<ov::ITensor>& tensor) {
                 // Can add a check to avoid double work in case of shared tensors
                 allocate_tensor_impl(tensor,
-                                    output.get_element_type(),
-                                    output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
+                                     output.get_element_type(),
+                                     output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
             });
         }
     } else {
@@ -72,7 +74,6 @@ ov::auto_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::auto
     }
 }
 
-
 const ov::auto_plugin::SoAsyncInferRequest& ov::auto_plugin::InferRequest::get_shared_request() {
     return m_shared_request;
 }
@@ -82,21 +83,21 @@ void ov::auto_plugin::InferRequest::set_scheduled_request(SoAsyncInferRequest re
 }
 
 void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsyncInferRequest& req) {
-    for (const auto &it : get_inputs()) {
+    for (const auto& it : get_inputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
         auto type = tensor->get_element_type();
-        bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
-            std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
         if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type))
             req->set_tensor(it, tensor);
     }
-    for (const auto &it : get_outputs()) {
+    for (const auto& it : get_outputs()) {
         // this request is already in BUSY state, so using the internal functions safely
         auto tensor = get_tensor(it);
         auto type = tensor->get_element_type();
-        bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
-            std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
+        bool is_remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
+                         std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
         if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
             // temp workaround for NMS-like operations been converted to static shape with upper bound in gpu plugin
             if (it.get_partial_shape().is_dynamic() && req->get_tensor(it)->get_size() != 0)
@@ -106,12 +107,12 @@ void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsync
     }
 }
 
-void ov::auto_plugin::InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+void ov::auto_plugin::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                               const ov::SoPtr<ov::ITensor>& tensor) {
     if (m_shared_request)
         m_shared_request->set_tensor(port, tensor);
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
-
 
 void ov::auto_plugin::InferRequest::infer() {
     OPENVINO_NOT_IMPLEMENTED;

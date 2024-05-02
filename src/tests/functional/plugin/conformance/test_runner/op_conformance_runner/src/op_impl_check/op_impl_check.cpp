@@ -4,17 +4,15 @@
 
 #include <signal.h>
 #ifdef _WIN32
-#include <process.h>
+#    include <process.h>
 #endif
 
-#include "common_test_utils/postgres_link.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/postgres_link.hpp"
+#include "conformance.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-
 #include "op_impl_check/op_impl_check.hpp"
 #include "op_impl_check/single_op_graph.hpp"
-
-#include "conformance.hpp"
 
 using namespace ov::test::utils;
 
@@ -53,7 +51,7 @@ void OpImplCheckTest::SetUp() {
 #endif
 }
 
-std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj) {
+std::string OpImplCheckTest::getTestCaseName(const testing::TestParamInfo<OpImplParams>& obj) {
     std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>> funcInfo;
     std::string targetDevice = ov::test::utils::target_device;
     ov::AnyMap config = ov::test::utils::global_plugin_config;
@@ -95,12 +93,12 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
             auto queryNetworkResult = core->query_model(function, targetDevice);
             {
                 std::set<std::string> expected;
-                for (auto &&node : function->get_ops()) {
+                for (auto&& node : function->get_ops()) {
                     expected.insert(node->get_friendly_name());
                 }
 
                 std::set<std::string> actual;
-                for (auto &&res : queryNetworkResult) {
+                for (auto&& res : queryNetworkResult) {
                     actual.insert(res.first);
                 }
 
@@ -108,7 +106,7 @@ TEST_P(OpImplCheckTest, checkPluginImplementation) {
                     summary.updateOPsImplStatus(function, true);
                 }
             }
-        } catch (const std::exception &e) {
+        } catch (const std::exception& e) {
             GTEST_FAIL() << "Exception in the Core::compile_model() method call: " << e.what();
         } catch (...) {
             GTEST_FAIL() << "Error in the Core::compile_model() method call!";
@@ -125,7 +123,7 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          OpImplCheckTest,
                          ::testing::ValuesIn(createFunctions()),
                          OpImplCheckTest::getTestCaseName);
-}   // namespace
-}   // namespace op_conformance
-}   // namespace test
-}   // namespace ov
+}  // namespace
+}  // namespace op_conformance
+}  // namespace test
+}  // namespace ov

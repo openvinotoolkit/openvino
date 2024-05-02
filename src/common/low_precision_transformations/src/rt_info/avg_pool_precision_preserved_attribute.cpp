@@ -10,9 +10,7 @@
 using namespace ov;
 using namespace ov;
 
-
-void AvgPoolPrecisionPreservedAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
-}
+void AvgPoolPrecisionPreservedAttribute::merge_attributes(std::vector<ov::Any>& attributes) {}
 
 bool AvgPoolPrecisionPreservedAttribute::is_skipped() const {
     return false;

@@ -2,33 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tile.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using ROIPoolingShapes = std::vector<ov::test::InputShape>;
 
-typedef std::tuple<
-    ROIPoolingShapes,                   // Input shapes
-    std::vector<size_t>,                // Pooled shape {pooled_h, pooled_w}
-    float,                              // Spatial scale
-    ov::test::utils::ROIPoolingTypes,   // ROIPooling method
-    ov::element::Type                   // Model type
-> ROIPoolingParams;
+typedef std::tuple<ROIPoolingShapes,                  // Input shapes
+                   std::vector<size_t>,               // Pooled shape {pooled_h, pooled_w}
+                   float,                             // Spatial scale
+                   ov::test::utils::ROIPoolingTypes,  // ROIPooling method
+                   ov::element::Type                  // Model type
+                   >
+    ROIPoolingParams;
 
-typedef std::tuple<
-    ROIPoolingParams,
-    ProposalGenerationMode
-> ROIPoolingGPUTestParams;
+typedef std::tuple<ROIPoolingParams, ProposalGenerationMode> ROIPoolingGPUTestParams;
 
 class ROIPoolingLayerGPUTest : public testing::WithParamInterface<ROIPoolingGPUTestParams>,
                                virtual public ov::test::SubgraphBaseTest {
@@ -49,7 +45,7 @@ public:
         std::ostringstream result;
         result << "netPRC=" << model_type << "_";
         for (const auto& shape : shapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : shapes) {
@@ -74,13 +70,13 @@ public:
             break;
         }
         switch (prop_mode) {
-            case ProposalGenerationMode::ULTIMATE_RIGHT_BORDER:
-                result << "_UltimateRightBorderProposal";
-                break;
-            case ProposalGenerationMode::RANDOM:
-            default:
-                result << "_RandomProposal";
-                break;
+        case ProposalGenerationMode::ULTIMATE_RIGHT_BORDER:
+            result << "_UltimateRightBorderProposal";
+            break;
+        case ProposalGenerationMode::RANDOM:
+        default:
+            result << "_RandomProposal";
+            break;
         }
 
         return result.str();
@@ -107,10 +103,11 @@ protected:
             if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 if (prop_mode == ULTIMATE_RIGHT_BORDER) {
-                    // because of nonalgebraic character of floating point operation, the following values causes inequity:
-                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) * (input_h - 1)
-                    // and as result excess of right limit for proposal value if the border case (current_h == pooled_h - 1)
-                    // will not be handled explicitly
+                    // because of nonalgebraic character of floating point operation, the following values causes
+                    // inequity:
+                    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) > (end_h - start_h) *
+                    // (input_h - 1) and as result excess of right limit for proposal value if the border case
+                    // (current_h == pooled_h - 1) will not be handled explicitly
                     switch (funcInput.get_element_type()) {
                     case ov::element::f32: {
                         auto* dataPtr = tensor.data<float>();
@@ -141,7 +138,12 @@ protected:
                     switch (funcInput.get_element_type()) {
                     case ov::element::f32:
                     case ov::element::bf16: {
-                        ov::test::utils::fill_data_roi(tensor, feat_map_shape[0] - 1, height, width, 1.f, is_roi_max_mode);
+                        ov::test::utils::fill_data_roi(tensor,
+                                                       feat_map_shape[0] - 1,
+                                                       height,
+                                                       width,
+                                                       1.f,
+                                                       is_roi_max_mode);
                         break;
                     }
                     default:
@@ -153,10 +155,12 @@ protected:
                 in_data.start_from = 0;
                 in_data.range = 10;
                 in_data.resolution = 1000;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
 
-            inputs.insert({ funcInput.get_node_shared_ptr(), tensor });
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
@@ -181,9 +185,11 @@ protected:
 
         std::shared_ptr<ov::Node> roi_pooling;
         if (ov::test::utils::ROIPoolingTypes::ROI_MAX == pool_method) {
-            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], pool_shape, spatial_scale, "max");
+            roi_pooling =
+                std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], pool_shape, spatial_scale, "max");
         } else {
-            roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], pool_shape, spatial_scale, "bilinear");
+            roi_pooling =
+                std::make_shared<ov::op::v0::ROIPooling>(params[0], params[1], pool_shape, spatial_scale, "bilinear");
         }
         ov::ResultVector results;
         for (size_t i = 0; i < roi_pooling->get_output_size(); i++)
@@ -204,79 +210,55 @@ const std::vector<ROIPoolingShapes> inShapes = {
     ROIPoolingShapes{{{}, {{3, 4, 50, 50}}}, {{}, {{5, 5}}}},
     ROIPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {-1, -1, -1, -1},
-            // static
-            {
-                {3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {3, 4, 50, 50}
-            }
-        },
+        {// dynamic
+         {-1, -1, -1, -1},
+         // static
+         {{3, 4, 50, 50}, {3, 4, 50, 50}, {3, 4, 50, 50}, {1, 3, 8, 8}, {1, 3, 8, 8}, {3, 4, 50, 50}}},
         // input 1
-        {
-            // dynamic
-            {-1, 5},
-            // static
-            {
-                {1, 5}, {3, 5}, {5, 5}, {1, 5}, {3, 5}, {5, 5}
-            }
-        },
+        {// dynamic
+         {-1, 5},
+         // static
+         {{1, 5}, {3, 5}, {5, 5}, {1, 5}, {3, 5}, {5, 5}}},
     },
     ROIPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {-1, {3, 5}, {7, 60}, -1},
-            // static
-            {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {3, 4, 50, 50}, {1, 3, 7, 8},
-            }
-        },
+        {// dynamic
+         {-1, {3, 5}, {7, 60}, -1},
+         // static
+         {
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+         }},
         // input 1
-        {
-            // dynamic
-            {{1, 5}, 5},
-            // static
-            {
-                {1, 5}, {2, 5}, {1, 5}, {2, 5}
-            }
-        },
+        {// dynamic
+         {{1, 5}, 5},
+         // static
+         {{1, 5}, {2, 5}, {1, 5}, {2, 5}}},
     },
     ROIPoolingShapes{
         // input 0
-        {
-            // dynamic
-            {{1, 8}, {3, 5}, {7, 60}, {5, 50}},
-            // static
-            {
-                {3, 4, 50, 50}, {1, 3, 7, 8}, {8, 5, 59, 5}, {1, 3, 7, 8},
-            }
-        },
+        {// dynamic
+         {{1, 8}, {3, 5}, {7, 60}, {5, 50}},
+         // static
+         {
+             {3, 4, 50, 50},
+             {1, 3, 7, 8},
+             {8, 5, 59, 5},
+             {1, 3, 7, 8},
+         }},
         // input 1
-        {
-            // dynamic
-            {{1, 5}, 5},
-            // static
-            {
-                {1, 5}, {2, 5}, {1, 5}, {2, 5}
-            }
-        },
+        {// dynamic
+         {{1, 5}, 5},
+         // static
+         {{1, 5}, {2, 5}, {1, 5}, {2, 5}}},
     },
 };
 
-const std::vector<std::vector<size_t>> pooledShapes_max = {
-    {1, 1},
-    {2, 2},
-    {3, 3},
-    {6, 6}
-};
+const std::vector<std::vector<size_t>> pooledShapes_max = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
 
-const std::vector<std::vector<size_t>> pooledShapes_bilinear = {
-    {1, 1},
-    {2, 2},
-    {3, 3},
-    {6, 6}
-};
+const std::vector<std::vector<size_t>> pooledShapes_bilinear = {{1, 1}, {2, 2}, {3, 3}, {6, 6}};
 
 const std::vector<ov::element::Type> model_types = {ov::element::f32};
 
@@ -288,29 +270,33 @@ const auto test_ROIPooling_max = ::testing::Combine(::testing::ValuesIn(inShapes
                                                     ::testing::Values(ov::test::utils::ROIPoolingTypes::ROI_MAX),
                                                     ::testing::ValuesIn(model_types));
 
-const auto test_ROIPooling_bilinear = ::testing::Combine(::testing::ValuesIn(inShapes),
-                                                         ::testing::ValuesIn(pooledShapes_bilinear),
-                                                         ::testing::Values(spatial_scales[1]),
-                                                         ::testing::Values(ov::test::utils::ROIPoolingTypes::ROI_BILINEAR),
-                                                         ::testing::ValuesIn(model_types));
+const auto test_ROIPooling_bilinear =
+    ::testing::Combine(::testing::ValuesIn(inShapes),
+                       ::testing::ValuesIn(pooledShapes_bilinear),
+                       ::testing::Values(spatial_scales[1]),
+                       ::testing::Values(ov::test::utils::ROIPoolingTypes::ROI_BILINEAR),
+                       ::testing::ValuesIn(model_types));
 
-INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_max, ROIPoolingLayerGPUTest,
-                        ::testing::Combine(test_ROIPooling_max,
-                                           ::testing::Values(ProposalGenerationMode::RANDOM)),
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_max,
+                         ROIPoolingLayerGPUTest,
+                         ::testing::Combine(test_ROIPooling_max, ::testing::Values(ProposalGenerationMode::RANDOM)),
                          ROIPoolingLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_bilinear, ROIPoolingLayerGPUTest,
-                        ::testing::Combine(test_ROIPooling_bilinear,
-                                           ::testing::Values(ProposalGenerationMode::RANDOM)),
-                        ROIPoolingLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_bilinear,
+                         ROIPoolingLayerGPUTest,
+                         ::testing::Combine(test_ROIPooling_bilinear,
+                                            ::testing::Values(ProposalGenerationMode::RANDOM)),
+                         ROIPoolingLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ROIPoolingGPU_bilinear_ultimateRightBorderProposal, ROIPoolingLayerGPUTest,
-                        ::testing::Combine(::testing::Combine(::testing::Values(ROIPoolingShapes{{{}, {{1, 1, 50, 50}}}, {{}, {{1, 5}}}}),
-                                                              ::testing::Values(std::vector<size_t> { 4, 4 }),
-                                                              ::testing::Values(spatial_scales[1]),
-                                                              ::testing::Values(ov::test::utils::ROIPoolingTypes::ROI_BILINEAR),
-                                                              ::testing::Values(ov::element::f32)),
-                                           ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER)),
-                        ROIPoolingLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ROIPoolingGPU_bilinear_ultimateRightBorderProposal,
+    ROIPoolingLayerGPUTest,
+    ::testing::Combine(::testing::Combine(::testing::Values(ROIPoolingShapes{{{}, {{1, 1, 50, 50}}}, {{}, {{1, 5}}}}),
+                                          ::testing::Values(std::vector<size_t>{4, 4}),
+                                          ::testing::Values(spatial_scales[1]),
+                                          ::testing::Values(ov::test::utils::ROIPoolingTypes::ROI_BILINEAR),
+                                          ::testing::Values(ov::element::f32)),
+                       ::testing::Values(ProposalGenerationMode::ULTIMATE_RIGHT_BORDER)),
+    ROIPoolingLayerGPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace

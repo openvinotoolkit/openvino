@@ -21,8 +21,8 @@ inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, 
     }
 }
 
-inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node> &node) {
-    const auto &rtInfo = node->get_rt_info();
+inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {
+    const auto& rtInfo = node->get_rt_info();
 
     auto it_info = rtInfo.find(ov::PrimitivesPriority::get_type_info_static());
 
@@ -49,5 +49,5 @@ inline bool isDynamicNgraphNode(const std::shared_ptr<const ov::Node>& op) {
     return ret;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

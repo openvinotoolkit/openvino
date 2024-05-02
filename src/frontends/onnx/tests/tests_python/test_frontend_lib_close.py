@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -12,7 +13,9 @@ from openvino.frontend import FrontEndManager
 def make_onnx_model(model_name: str) -> None:
     """Make onnyx model file as `model_name`."""
     # Input model
-    add = onnx.helper.make_node("Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op")
+    add = onnx.helper.make_node(
+        "Add", inputs=["in1", "in2"], outputs=["out1"], name="onnx_add_op"
+    )
 
     input_tensors = [
         make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
@@ -22,7 +25,11 @@ def make_onnx_model(model_name: str) -> None:
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="OpenVINO ONNX Frontend", opset_imports=[onnx.helper.make_opsetid("", 13)])
+    model = make_model(
+        graph,
+        producer_name="OpenVINO ONNX Frontend",
+        opset_imports=[onnx.helper.make_opsetid("", 13)],
+    )
     onnx.save_model(model, model_name)
 
 

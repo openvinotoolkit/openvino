@@ -4,6 +4,8 @@
 
 #include "convert_convolution.hpp"
 
+#include <memory>
+
 #include "intel_gpu/op/convolution.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -17,8 +19,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <memory>
-
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
 
@@ -26,7 +26,7 @@ namespace ov {
 namespace intel_gpu {
 namespace {
 
-template<typename W_T, typename AZP_T>
+template <typename W_T, typename AZP_T>
 ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Tensor* wzp_tensor, int64_t groups) {
     const auto weights_shape = w_tensor->get_shape();
     const auto output_channels = groups > 0 ? weights_shape[1] : weights_shape[0];
@@ -52,10 +52,8 @@ ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Te
                 for (size_t k = 0; k < total_spatial_size; k++) {
                     size_t azp_offset = (g * input_channels + ic) % azp_total;
                     size_t wzp_offset = (g * output_channels + oc) % wzp_total;
-                    const auto w_offset = g * output_channels * input_channels * total_spatial_size
-                                        + oc * input_channels * total_spatial_size
-                                        + ic * total_spatial_size
-                                        + k;
+                    const auto w_offset = g * output_channels * input_channels * total_spatial_size +
+                                          oc * input_channels * total_spatial_size + ic * total_spatial_size + k;
 
                     if (azp) {
                         c += w[w_offset] * azp[azp_offset];
@@ -72,7 +70,10 @@ ov::Tensor get_compensation(ov::Tensor* w_tensor, ov::Tensor* azp_tensor, ov::Te
     return compensation;
 }
 
-ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Node> azp, std::shared_ptr<ov::Node> wzp, int64_t groups) {
+ov::Tensor get_compensation(std::shared_ptr<ov::Node> w,
+                            std::shared_ptr<ov::Node> azp,
+                            std::shared_ptr<ov::Node> wzp,
+                            int64_t groups) {
     auto w_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(w);
     auto azp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(azp);
     auto wzp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(wzp);
@@ -80,10 +81,14 @@ ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Nod
     OPENVINO_ASSERT(w_const != nullptr && azp_const != nullptr);
 
     ov::Tensor w_tensor(w_const->get_element_type(), w_const->get_shape(), const_cast<void*>(w_const->get_data_ptr()));
-    ov::Tensor azp_tensor(azp_const->get_element_type(), azp_const->get_shape(), const_cast<void*>(azp_const->get_data_ptr()));
+    ov::Tensor azp_tensor(azp_const->get_element_type(),
+                          azp_const->get_shape(),
+                          const_cast<void*>(azp_const->get_data_ptr()));
     ov::Tensor wzp_tensor;
     if (wzp_const) {
-        wzp_tensor = ov::Tensor(wzp_const->get_element_type(), wzp_const->get_shape(), const_cast<void*>(wzp_const->get_data_ptr()));
+        wzp_tensor = ov::Tensor(wzp_const->get_element_type(),
+                                wzp_const->get_shape(),
+                                const_cast<void*>(wzp_const->get_data_ptr()));
     }
 
     if (w_const->get_element_type() == ov::element::u8 && azp_const->get_element_type() == ov::element::u8)
@@ -114,17 +119,20 @@ public:
 
 AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
     auto input_m = any_input(type_matches_any({ov::element::u8, ov::element::i8}));
-    auto azp_const_m = wrap_type<ov::op::v0::Constant>(all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
+    auto azp_const_m = wrap_type<ov::op::v0::Constant>(
+        all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
     auto azp_subtract_m = wrap_type<ov::op::v1::Subtract>({input_m, azp_const_m});
 
     auto weights_m = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u8, ov::element::i8}));
-    auto wzp_const_m = wrap_type<ov::op::v0::Constant>(all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
+    auto wzp_const_m = wrap_type<ov::op::v0::Constant>(
+        all_of({consumers_count(1), type_matches_any({ov::element::u8, ov::element::i8})}));
     auto wzp_subtract_m = wrap_type<ov::op::v1::Subtract>({weights_m, wzp_const_m});
 
     auto conv_activations_m = std::make_shared<Or>(OutputVector{input_m, azp_subtract_m});
     auto conv_weights_m = std::make_shared<Or>(OutputVector{weights_m, wzp_subtract_m});
 
-    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ conv_activations_m, conv_weights_m });
+    auto convolution_m =
+        wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({conv_activations_m, conv_weights_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -132,7 +140,8 @@ AsymmetricConvolutionMatcher::AsymmetricConvolutionMatcher() {
             return false;
         }
 
-        auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(pattern_map.at(convolution_m).get_node_shared_ptr());
+        auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(
+            pattern_map.at(convolution_m).get_node_shared_ptr());
 
         int64_t groups = -1;
         if (auto grouped_conv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(conv_node)) {
@@ -188,7 +197,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
     auto input_m = any_input();
     auto weights_m = any_input(has_static_dim(0));
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
-    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ input_m, weights_m });
+    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({input_m, weights_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -196,7 +205,8 @@ ConvolutionMatcher::ConvolutionMatcher() {
             return false;
         }
 
-        auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(pattern_map.at(convolution_m).get_node_shared_ptr());
+        auto conv_node = std::dynamic_pointer_cast<ov::op::util::ConvolutionFwdPropBase>(
+            pattern_map.at(convolution_m).get_node_shared_ptr());
 
         int64_t groups = -1;
         if (auto grouped_conv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(conv_node)) {

@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
-#include "ed_gpsi/generate_proposals_single_image_kernel_selector.h"
 #include "ed_gpsi/generate_proposals_single_image_kernel_ref.h"
+#include "ed_gpsi/generate_proposals_single_image_kernel_selector.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
 struct experimental_detectron_generate_proposals_single_image_impl
-        : public typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image> {
+    : public typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image> {
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector;
@@ -24,7 +23,8 @@ struct experimental_detectron_generate_proposals_single_image_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance) const override {
+    kernel_arguments_data get_arguments(
+        const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -32,7 +32,7 @@ protected:
         }
 
         args.outputs.push_back(instance.output_memory_ptr());
-        //TODO: Future improvement: To add second output parameter only when it's needed
+        // TODO: Future improvement: To add second output parameter only when it's needed
         args.inputs.push_back(instance.output_roi_scores_memory());
 
         return args;
@@ -41,10 +41,12 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
-        auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
+        auto params =
+            get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(
+                impl_param);
 
         params.min_size = primitive->min_size;
-        params.nms_threshold  = primitive->nms_threshold;
+        params.nms_threshold = primitive->nms_threshold;
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
 
@@ -57,22 +59,23 @@ public:
 };
 
 namespace detail {
-attach_experimental_detectron_generate_proposals_single_image_impl::attach_experimental_detectron_generate_proposals_single_image_impl() {
+attach_experimental_detectron_generate_proposals_single_image_impl::
+    attach_experimental_detectron_generate_proposals_single_image_impl() {
     auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32
-    };
+    auto formats = {format::bfyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv16_fsv32,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32};
 
     implementation_map<experimental_detectron_generate_proposals_single_image>::add(
         impl_types::ocl,
-        typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>::create<experimental_detectron_generate_proposals_single_image_impl>,
-        types, formats);
+        typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>::create<
+            experimental_detectron_generate_proposals_single_image_impl>,
+        types,
+        formats);
 }
 }  // namespace detail
 }  // namespace ocl

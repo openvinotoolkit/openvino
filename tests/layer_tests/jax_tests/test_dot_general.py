@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 from jax import lax
-
 from jax_layer_test_class import JaxLayerTest
 
 
@@ -31,11 +30,21 @@ class TestDotGeneral(JaxLayerTest):
         # matrix mxk dot vector k
         dict(lhs_shape=[2, 5], rhs_shape=[5], dimension_numbers=(((1), (0)), ((), ()))),
         # matrix mxk dot matrix kxn
-        dict(lhs_shape=[2, 5], rhs_shape=[5, 6], dimension_numbers=(((1), (0)), ((), ()))),
+        dict(
+            lhs_shape=[2, 5], rhs_shape=[5, 6], dimension_numbers=(((1), (0)), ((), ()))
+        ),
         # batch matmul case
-        dict(lhs_shape=[3, 2, 3, 4], rhs_shape=[3, 2, 2, 4], dimension_numbers=(((3), (3)), ((0, 1), (0, 1)))),
+        dict(
+            lhs_shape=[3, 2, 3, 4],
+            rhs_shape=[3, 2, 2, 4],
+            dimension_numbers=(((3), (3)), ((0, 1), (0, 1))),
+        ),
         # batch matmul case: different batch and contracting dimensions
-        dict(lhs_shape=[2, 3, 4, 5], rhs_shape=[4, 2, 5, 3], dimension_numbers=(((2, 3), (0, 2)), ((0, 1), (1, 3)))),
+        dict(
+            lhs_shape=[2, 3, 4, 5],
+            rhs_shape=[4, 2, 5, 3],
+            dimension_numbers=(((2, 3), (0, 2)), ((0, 1), (1, 3))),
+        ),
     ]
 
     @pytest.mark.nightly
@@ -43,5 +52,9 @@ class TestDotGeneral(JaxLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("input_type", [np.float32, np.int32])
     def test_dot_general(self, ie_device, precision, ir_version, params, input_type):
-        self._test(*self.create_model(**params, input_type=input_type), ie_device, precision,
-                   ir_version)
+        self._test(
+            *self.create_model(**params, input_type=input_type),
+            ie_device,
+            precision,
+            ir_version
+        )

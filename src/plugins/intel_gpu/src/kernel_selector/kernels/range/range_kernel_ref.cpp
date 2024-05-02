@@ -10,11 +10,14 @@ namespace kernel_selector {
 
 namespace {
 
-CommonDispatchData SetDefault(const range_params &params) {
+CommonDispatchData SetDefault(const range_params& params) {
     CommonDispatchData dispatchData;
 
     const auto& out = params.outputs[0];
-    dispatchData.gws = { 1, 1, out.Batch().v * out.Feature().v * out.X().v * out.Y().v * out.W().v * out.Z().v }; // TODO: these could be split better
+    dispatchData.gws = {1,
+                        1,
+                        out.Batch().v * out.Feature().v * out.X().v * out.Y().v * out.W().v *
+                            out.Z().v};  // TODO: these could be split better
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -33,7 +36,7 @@ void RangeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData RangeKernelRef::GetKernelsData(const Params &params) const {
+KernelsData RangeKernelRef::GetKernelsData(const Params& params) const {
     if (!Validate(params))
         return {};
 
@@ -47,13 +50,24 @@ KernelsData RangeKernelRef::GetKernelsData(const Params &params) const {
 
     GetUpdateDispatchDataFunc(kernel_data);
 
-    auto &clKernelData = kernel_data.kernels[0];
+    auto& clKernelData = kernel_data.kernels[0];
     bool is_dynamic = prim_params.has_dynamic_tensors();
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 3, 0, 1, is_dynamic);
+    FillCLKernelData(clKernelData,
+                     dispatch_data,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     3,
+                     0,
+                     1,
+                     is_dynamic);
 
-    auto &arguments = clKernelData.params.arguments;
-    arguments.erase(arguments.begin() + 1 + static_cast<int>(is_dynamic)); // stop is not used by kernel
+    auto& arguments = clKernelData.params.arguments;
+    arguments.erase(arguments.begin() + 1 + static_cast<int>(is_dynamic));  // stop is not used by kernel
 
     return {kernel_data};
 }
@@ -89,15 +103,15 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool RangeKernelRef::Validate(const Params &p) const {
+bool RangeKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::RANGE)
         return false;
 
-    auto &params = dynamic_cast<const range_params&>(p);
+    auto& params = dynamic_cast<const range_params&>(p);
     if (params.inputs.size() != 3)
         return false;
 
-    for (auto &input : params.inputs)
+    for (auto& input : params.inputs)
         if (input.LogicalSize() != 1)
             return false;
     return true;

@@ -1,10 +1,10 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "primitive_base.hpp"
-#include "multinomial_inst.h"
 #include "multinomial/multinomial_kernel_ref.h"
 #include "multinomial/multinomial_kernel_selector.h"
+#include "multinomial_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -41,10 +41,11 @@ namespace detail {
 
 attach_multinomial_impl::attach_multinomial_impl() {
     auto types = {data_types::f16, data_types::f32};
-    implementation_map<multinomial>::add(impl_types::ocl, shape_types::static_shape,
-                                     typed_primitive_impl_ocl<multinomial>::create<multinomial_impl>,
-                                     types,
-                                     {format::bfyx});
+    implementation_map<multinomial>::add(impl_types::ocl,
+                                         shape_types::static_shape,
+                                         typed_primitive_impl_ocl<multinomial>::create<multinomial_impl>,
+                                         types,
+                                         {format::bfyx});
 }
 
 }  // namespace detail

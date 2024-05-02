@@ -3,14 +3,15 @@
 //
 
 #include "shared_test_classes/single_op/convert_color_i420.hpp"
-#include "openvino/op/i420_to_rgb.hpp"
+
 #include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string ConvertColorI420LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorI420ParamsTuple> &obj) {
+std::string ConvertColorI420LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorI420ParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type type;
     bool conversion, single_plane;
@@ -41,8 +42,8 @@ void ConvertColorI420LayerTest::SetUp() {
     ov::element::Type net_type;
     bool conversion_to_rgb;
     bool single_plane;
-    abs_threshold = 1.1f; // I420 conversion can use various algorithms, thus some absolute deviation is allowed
-    rel_threshold = 1.1f; // Ignore relative comparison for I420 convert (allow 100% relative deviation)
+    abs_threshold = 1.1f;  // I420 conversion can use various algorithms, thus some absolute deviation is allowed
+    rel_threshold = 1.1f;  // Ignore relative comparison for I420 convert (allow 100% relative deviation)
     std::tie(shapes, net_type, conversion_to_rgb, single_plane, targetDevice) = GetParam();
     init_input_shapes(shapes);
 
@@ -55,7 +56,8 @@ void ConvertColorI420LayerTest::SetUp() {
             convert_color = std::make_shared<ov::op::v8::I420toBGR>(param);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
-                                                      ov::ParameterVector{param}, "ConvertColorI420");
+                                               ov::ParameterVector{param},
+                                               "ConvertColorI420");
     } else {
         auto param_y = std::make_shared<ov::op::v0::Parameter>(net_type, inputDynamicShapes[0]);
         auto param_u = std::make_shared<ov::op::v0::Parameter>(net_type, inputDynamicShapes[1]);
@@ -67,9 +69,9 @@ void ConvertColorI420LayerTest::SetUp() {
             convert_color = std::make_shared<ov::op::v8::I420toBGR>(param_y, param_u, param_v);
         }
         function = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(convert_color),
-                                                      ov::ParameterVector{param_y, param_u, param_v},
-                                                      "ConvertColorI420");
+                                               ov::ParameterVector{param_y, param_u, param_v},
+                                               "ConvertColorI420");
     }
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

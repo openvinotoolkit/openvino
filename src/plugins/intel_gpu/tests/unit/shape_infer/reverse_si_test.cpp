@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reverse.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "reverse_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "reverse_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -25,7 +22,7 @@ struct reverse_test_params {
     reverse_mode mode;
 };
 
-class reverse_test : public testing::TestWithParam<reverse_test_params> { };
+class reverse_test : public testing::TestWithParam<reverse_test_params> {};
 
 TEST_P(reverse_test, shape_infer) {
     auto p = GetParam();
@@ -44,20 +41,22 @@ TEST_P(reverse_test, shape_infer) {
     auto& reverse_node = prog.get_or_create(reverse_prim);
     program_wrapper::add_connection(prog, input0_layout_node, reverse_node);
     program_wrapper::add_connection(prog, input1_layout_node, reverse_node);
-    auto res = reverse_inst::calc_output_layouts<ov::PartialShape>(reverse_node, *reverse_node.get_kernel_impl_params());
+    auto res =
+        reverse_inst::calc_output_layouts<ov::PartialShape>(reverse_node, *reverse_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     auto expected_layout = p.input_layout;
     ASSERT_EQ(res[0], expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, reverse_test,
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    reverse_test,
     testing::ValuesIn(std::vector<reverse_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, reverse_mode::index },
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, reverse_mode::mask },
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, reverse_mode::index },
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, reverse_mode::mask },
-        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, reverse_mode::index }
-    }));
+        {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, reverse_mode::index},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, reverse_mode::mask},
+        {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, reverse_mode::index},
+        {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, reverse_mode::mask},
+        {layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, reverse_mode::index}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

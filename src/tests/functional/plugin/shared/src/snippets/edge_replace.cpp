@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/edge_replace.hpp"
-#include "subgraph_simple.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
@@ -43,6 +44,6 @@ TEST_P(EdgeReplace, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

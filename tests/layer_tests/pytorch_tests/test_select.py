@@ -4,12 +4,11 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_dim', list(range(-3, 4)))
-@pytest.mark.parametrize('input_index', list(range(-3, 4)))
+@pytest.mark.parametrize("input_dim", list(range(-3, 4)))
+@pytest.mark.parametrize("input_index", list(range(-3, 4)))
 class TestSelect(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -34,5 +33,6 @@ class TestSelect(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_select(self, ie_device, precision, ir_version, input_dim, input_index):
-        self._test(*self.create_model(input_dim, input_index),
-                   ie_device, precision, ir_version)
+        self._test(
+            *self.create_model(input_dim, input_index), ie_device, precision, ir_version
+        )

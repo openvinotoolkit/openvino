@@ -1,27 +1,26 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
-
-#include "openvino/op/parameter.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<
-        InputShape, // input shapes
-        ov::element::Type, // Network precision
-        std::string, // Device name
-        ov::test::utils::ActivationTypes, // Activation type
-        std::vector<size_t>, //inShape
-        std::vector<float> //constantValue
-> shapeofActivationDynamicGPUTestParamsSet;
+typedef std::tuple<InputShape,                        // input shapes
+                   ov::element::Type,                 // Network precision
+                   std::string,                       // Device name
+                   ov::test::utils::ActivationTypes,  // Activation type
+                   std::vector<size_t>,               // inShape
+                   std::vector<float>                 // constantValue
+                   >
+    shapeofActivationDynamicGPUTestParamsSet;
 
 const std::vector<ov::element::Type> model_types = {
     ov::element::f16,
@@ -66,7 +65,9 @@ protected:
             in_data.start_from = 0;
             in_data.range = 80;
             in_data.resolution = 8;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -87,7 +88,8 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(netType, shape));
 
         std::vector<int> shape_pattern = {0, 1, -1, 0};
-        auto shapePatternsNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({4}), shape_pattern);
+        auto shapePatternsNode =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape({4}), shape_pattern);
         auto reshapeOp = std::make_shared<ov::op::v1::Reshape>(params[0], shapePatternsNode, true);
         reshapeOp->set_friendly_name("reshape");
 
@@ -104,11 +106,8 @@ protected:
         auto convertOp = std::make_shared<ov::op::v0::Convert>(gatherOp, ov::element::f32);
         convertOp->set_friendly_name("convert");
 
-        auto activationOp = ov::test::utils::make_activation(convertOp,
-                                                             netType,
-                                                             activationType,
-                                                             inShape,
-                                                             constantValue);
+        auto activationOp =
+            ov::test::utils::make_activation(convertOp, netType, activationType, inShape, constantValue);
         activationOp->set_friendly_name("sqrt");
 
         ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(activationOp)};
@@ -116,41 +115,27 @@ protected:
     }
 };
 
-
 TEST_P(shapeofActivationDynamicGPUTest, Inference) {
     run();
 }
 
 std::vector<ov::test::InputShape> inShapesDynamic4d = {
-        {
-            {-1, -1, 1, 64},
-            {
-                { 1, 3136, 1, 64 },
-                { 1, 49, 1, 64 },
-                { 2, 49, 1, 64 }
-            }
-        },
-        {
-            {-1, -1, -1, -1},
-            {
-                { 1, 2, 3, 4 },
-                { 1, 2, 3, 3 },
-                { 1, 2, 3, 2 }
-            }
-        }
-};
+    {{-1, -1, 1, 64}, {{1, 3136, 1, 64}, {1, 49, 1, 64}, {2, 49, 1, 64}}},
+    {{-1, -1, -1, -1}, {{1, 2, 3, 4}, {1, 2, 3, 3}, {1, 2, 3, 2}}}};
 
 std::vector<size_t> inShape_sqrt = {};
 std::vector<float> constantValue_sqrt = {};
 
 const auto testParams_sqrt = ::testing::Combine(::testing::ValuesIn(inShapesDynamic4d),
-                                                 ::testing::ValuesIn(model_types), // netprec
-                                                 ::testing::Values(ov::test::utils::DEVICE_GPU),
-                                                 ::testing::Values(ov::test::utils::ActivationTypes::Sqrt),
-                                                 ::testing::Values(inShape_sqrt),
-                                                 ::testing::Values(constantValue_sqrt));
+                                                ::testing::ValuesIn(model_types),  // netprec
+                                                ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                                ::testing::Values(ov::test::utils::ActivationTypes::Sqrt),
+                                                ::testing::Values(inShape_sqrt),
+                                                ::testing::Values(constantValue_sqrt));
 
 // Activation type Sqrt should be supported in activation cpu_impl whic is selected after shapeOf
-INSTANTIATE_TEST_SUITE_P(smoke_dynamic_shapeof_activation_sqrt, shapeofActivationDynamicGPUTest,
-                         testParams_sqrt, shapeofActivationDynamicGPUTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_dynamic_shapeof_activation_sqrt,
+                         shapeofActivationDynamicGPUTest,
+                         testParams_sqrt,
+                         shapeofActivationDynamicGPUTest::getTestCaseName);
+}  // namespace

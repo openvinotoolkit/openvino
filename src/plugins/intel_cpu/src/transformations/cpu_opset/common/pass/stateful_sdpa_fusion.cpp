@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
@@ -18,6 +17,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/gen_pattern.hpp"
@@ -57,7 +57,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
-        auto check_one = [] (Output<Node> output) -> bool {
+        auto check_one = [](Output<Node> output) -> bool {
             auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
@@ -66,8 +66,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto constant_bcst = wrap_type<opset1::Constant>(check_one);
 
-        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
-            any_input(), any_input()}, {{"mode", "numpy"}});
+        auto computed_bcst =
+            makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one), any_input(), any_input()},
+                                           {{"mode", "numpy"}});
 
         auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         return wrap_type<opset6::Reshape>({multiply_kv, any_input()});
@@ -150,22 +151,22 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         for (auto&& item : {concat_k_node, concat_v_node}) {
             auto&& children = item->get_output_target_inputs(0);
             switch (children.size()) {
-                case 2:
-                    // pass, as the existence of Assign will be checked later
-                    break;
-                case 3:
-                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
-                    // the second one leads to Assign, and this is checked later
-                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
-                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
-                            return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
-                                ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
-                        })) {
-                        return false;
-                    }
-                    break;
-                default:
+            case 2:
+                // pass, as the existence of Assign will be checked later
+                break;
+            case 3:
+                // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                // the second one leads to Assign, and this is checked later
+                // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                        return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
+                               ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                    })) {
                     return false;
+                }
+                break;
+            default:
+                return false;
             }
         }
 

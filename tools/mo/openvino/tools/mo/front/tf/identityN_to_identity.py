@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.identity import Identity
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.ops.identity import Identity
 
 
 class IdentityN_to_Identity(FrontReplacementPattern):
@@ -22,22 +22,34 @@ class IdentityN_to_Identity(FrontReplacementPattern):
     For example, output_1 may be not be used during network output computations.
     To preserve this unused in/output ports we disconnect the corresponding out/input port.
     """
+
     enabled = True
 
     @staticmethod
     def replace_identityN(node: Node):
         graph = node.graph
-        name = node.soft_get('name', node.id)
+        name = node.soft_get("name", node.id)
 
-        assert node.has_valid('data_types'), 'IdentityN {} has no `data_types` attribute'.format(name)
+        assert node.has_valid(
+            "data_types"
+        ), "IdentityN {} has no `data_types` attribute".format(name)
         dtypes = node.data_types
 
         for idx, port in node.in_ports().items():
-            if not node.is_in_port_connected(idx) or not node.is_out_port_connected(idx):
+            if not node.is_in_port_connected(idx) or not node.is_out_port_connected(
+                idx
+            ):
                 # ATTENTION section in the description above
                 continue
-            assert idx < len(dtypes), 'IdentityN {} has inconsistent `data_types` attribute {}'.format(name, dtypes)
-            identity = Identity(graph, {'name': '{}/{}_port'.format(name, idx), 'data_type': dtypes[idx]}).create_node()
+            assert idx < len(
+                dtypes
+            ), "IdentityN {} has inconsistent `data_types` attribute {}".format(
+                name, dtypes
+            )
+            identity = Identity(
+                graph,
+                {"name": "{}/{}_port".format(name, idx), "data_type": dtypes[idx]},
+            ).create_node()
             port.get_connection().set_destination(identity.in_port(0))
             node.out_port(idx).get_connection().set_source(identity.out_port(0))
 
@@ -48,5 +60,5 @@ class IdentityN_to_Identity(FrontReplacementPattern):
             out_port.disconnect()
 
     def find_and_replace_pattern(self, graph: Graph):
-        for identityN in graph.get_op_nodes(op='IdentityN'):
+        for identityN in graph.get_op_nodes(op="IdentityN"):
             self.replace_identityN(identityN)

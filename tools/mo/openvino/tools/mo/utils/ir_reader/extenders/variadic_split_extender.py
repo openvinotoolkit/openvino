@@ -6,8 +6,8 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class VariadicSplit_extender(Extender):
-    op = 'VariadicSplit'
+    op = "VariadicSplit"
 
     @staticmethod
     def extend(op: Node):
-        op['out_ports_count'] = len(op.ports)
+        op["out_ports_count"] = len(op.ports)

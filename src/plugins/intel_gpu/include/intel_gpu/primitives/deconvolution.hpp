@@ -3,11 +3,11 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-
-#include "openvino/core/strides.hpp"
-#include "openvino/core/coordinate_diff.hpp"
 #include <vector>
+
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/strides.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -24,7 +24,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
@@ -56,7 +57,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param input Input primitive id.
     /// @param groups Number of filter groups.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
@@ -126,7 +128,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id> &weights,
+                  const std::vector<primitive_id>& weights,
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
@@ -151,7 +153,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
@@ -186,7 +189,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param groups Number of filter groups.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
@@ -224,7 +228,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param groups Number of filter groups.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
@@ -294,7 +299,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
+    /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without
+    /// bias.
     /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
@@ -310,15 +316,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  ov::CoordinateDiff pad = {0, 0},
                                                  ov::Strides dilations = {1, 1},
                                                  const padding& output_padding = padding()) {
-        return deconvolution(id,
-                             input,
-                             weights,
-                             bias,
-                             stride,
-                             pad,
-                             dilations,
-                             output_size,
-                             output_padding);
+        return deconvolution(id, input, weights, bias, stride, pad, dilations, output_size, output_padding);
     }
 
     /// @brief Constructs deconvolution primitive (w/o bias; computes input paddings to match output size).
@@ -338,15 +336,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
                                                  ov::Strides dilations = {1, 1},
-                                                 const padding& output_padding = padding())     {
-        return deconvolution(id,
-                             input,
-                             weights,
-                             stride,
-                             pad,
-                             dilations,
-                             output_size,
-                             output_padding);
+                                                 const padding& output_padding = padding()) {
+        return deconvolution(id, input, weights, stride, pad, dilations, output_size, output_padding);
     }
 
     /// @brief Defines logical pad value added to input tensor.
@@ -396,19 +387,12 @@ struct deconvolution : public primitive_base<deconvolution> {
 
         auto rhs_casted = downcast<const deconvolution>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(pad) &&
-               cmp_fields(stride) &&
-               cmp_fields(dilations) &&
-               cmp_fields(groups) &&
-               cmp_fields(pads_begin) &&
-               cmp_fields(pads_end) &&
-               cmp_fields(out_padding) &&
-               cmp_fields(grouped_weights_shape) &&
-               cmp_fields(weights.size()) &&
-               cmp_fields(bias.size()) &&
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) && cmp_fields(stride) && cmp_fields(dilations) && cmp_fields(groups) &&
+               cmp_fields(pads_begin) && cmp_fields(pads_end) && cmp_fields(out_padding) &&
+               cmp_fields(grouped_weights_shape) && cmp_fields(weights.size()) && cmp_fields(bias.size()) &&
                cmp_fields(output_shape_id.empty());
-        #undef cmp_fields
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -451,9 +435,12 @@ protected:
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
         ret.reserve(weights.size() + bias.size() + (output_shape_id.empty() ? 0 : 1));
-        for (auto& w : weights) ret.push_back(w);
-        for (auto& b : bias) ret.push_back(b);
-        if (!output_shape_id.empty()) ret.push_back(output_shape_id);
+        for (auto& w : weights)
+            ret.push_back(w);
+        for (auto& b : bias)
+            ret.push_back(b);
+        if (!output_shape_id.empty())
+            ret.push_back(output_shape_id);
 
         return ret;
     }

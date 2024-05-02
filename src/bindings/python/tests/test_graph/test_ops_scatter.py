@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset13 as ov
 import pytest
 
-import openvino.runtime.opset13 as ov
 from openvino import Type
 
 
@@ -55,7 +55,9 @@ def test_scatter_update_elements_props(reduction):
     parameter_u = ov.parameter([2, 2, 2, 2], dtype=dtype, name="updates")
     axis = np.array([1], dtype=np.int8)
 
-    node = ov.scatter_elements_update(parameter_r, parameter_i, parameter_u, axis, reduction, False)
+    node = ov.scatter_elements_update(
+        parameter_r, parameter_i, parameter_u, axis, reduction, False
+    )
     assert node.get_type_name() == "ScatterElementsUpdate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2, 4, 5, 7]

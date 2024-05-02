@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include "kernel_base.h"
-#include "jitter.h"
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
+
+#include "jitter.h"
+#include "kernel_base.h"
 
 namespace kernel_selector {
 
@@ -18,10 +19,12 @@ public:
     virtual ~KernelBaseOpenCL() {}
 
 protected:
-    virtual bool Validate(const Params&) const { return true; }
+    virtual bool Validate(const Params&) const {
+        return true;
+    }
     std::pair<std::string, std::string> CreateJit(const std::string& template_name,
-                          const JitConstants& constants,
-                          const std::string& kernel_name) const;
+                                                  const JitConstants& constants,
+                                                  const std::string& kernel_name) const;
     std::string GetEntryPoint(const std::string& templateName,
                               const std::string& layerID,
                               const Params& params,
@@ -38,7 +41,7 @@ protected:
                                                   const EngineInfo& engine_info,
                                                   const std::string& exe_mode = EXE_MODE_DEFAULT) const;
 
-    uint32_t GetFusedPrimitiveInputsCount(const Params &params) const;
+    uint32_t GetFusedPrimitiveInputsCount(const Params& params) const;
 
     void FillCLKernelData(clKernelData& kernel,
                           const CommonDispatchData& dispatchData,

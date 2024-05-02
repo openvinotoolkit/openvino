@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_fs_byx_fsv32_1x1.h"
+
 #include <vector>
 
 namespace kernel_selector {
@@ -70,7 +71,7 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
 
     if (cp.outputs[0].X().v <= 8) {
         selected_w = cp.outputs[0].X().v;
-     } else {
+    } else {
         for (auto w : blockSizes) {
             if (cp.outputs[0].X().v % w == 0) {
                 selected_w = w;
@@ -158,12 +159,18 @@ JitConstants ConvolutionKernel_fs_byx_fsv32_1x1::GetJitConstants(const convoluti
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
-                                               {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or + out_y", "oc + out_x"},
-                                               "tmp_write[out_f]", input_dt, 1 };
-        FusedOpsConfiguration conf_scalar = {"_SCALAR",
-                                             {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or + out_y", "oc + out_x"},
-                                             "out[out_idx]", input_dt, 1 };
+        FusedOpsConfiguration conf_vec_elem = {
+            "_VEC_ELEM",
+            {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or + out_y", "oc + out_x"},
+            "tmp_write[out_f]",
+            input_dt,
+            1};
+        FusedOpsConfiguration conf_scalar = {
+            "_SCALAR",
+            {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or + out_y", "oc + out_x"},
+            "out[out_idx]",
+            input_dt,
+            1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
     }
 

@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <memory>
-#include <vector>
-#include <string>
 #include <map>
-
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -18,13 +17,12 @@ namespace subgraph {
 
 class NormalizeL2Function {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const std::pair<ov::PartialShape, ov::Shape>& shapes,
-        const ov::element::Type precisionOnActivation,
-        const std::vector<uint64_t>& axes,
-        const bool fuseMultiply,
-        const bool shift);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const std::pair<ov::PartialShape, ov::Shape>& shapes,
+                                                  const ov::element::Type precisionOnActivation,
+                                                  const std::vector<uint64_t>& axes,
+                                                  const bool fuseMultiply,
+                                                  const bool shift);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,

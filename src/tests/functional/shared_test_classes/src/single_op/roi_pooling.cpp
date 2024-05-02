@@ -32,12 +32,12 @@ std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<ro
     result << "PS=" << ov::test::utils::vec2str(pool_shape) << "_";
     result << "Scale=" << spatial_scale << "_";
     switch (pool_method) {
-        case utils::ROIPoolingTypes::ROI_MAX:
-            result << "Max_";
-            break;
-        case utils::ROIPoolingTypes::ROI_BILINEAR:
-            result << "Bilinear_";
-            break;
+    case utils::ROIPoolingTypes::ROI_MAX:
+        result << "Max_";
+        break;
+    case utils::ROIPoolingTypes::ROI_BILINEAR:
+        result << "Bilinear_";
+        break;
     }
     result << "modelType=" << model_type.to_string() << "_";
     result << "trgDev=" << target_device;
@@ -67,8 +67,10 @@ void ROIPoolingLayerTest::SetUp() {
     } else {
         FAIL() << "Incorrect type of ROIPooling operation";
     }
-    auto roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(param, coord_param, pool_shape, spatial_scale, pool_method_str);
-    function = std::make_shared<ov::Model>(roi_pooling->outputs(), ov::ParameterVector{param, coord_param}, "roi_pooling");
+    auto roi_pooling =
+        std::make_shared<ov::op::v0::ROIPooling>(param, coord_param, pool_shape, spatial_scale, pool_method_str);
+    function =
+        std::make_shared<ov::Model>(roi_pooling->outputs(), ov::ParameterVector{param, coord_param}, "roi_pooling");
 }
 }  // namespace test
 }  // namespace ov

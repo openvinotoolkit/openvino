@@ -3,11 +3,12 @@
 //
 
 #include "intel_gpu/op/swiglu.hpp"
-#include "swiglu_inst.h"
 
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "swiglu_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(swiglu);
@@ -21,8 +22,9 @@ layout swiglu_inst::calc_output_layout(swiglu_node const& node, kernel_impl_para
     return layout(output_type, output_format, desc->output_size);
 }
 
-template<typename ShapeType>
-std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/,
+                                                     const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<swiglu>();
     auto input_layout = impl_param.get_input_layout();
     auto output_type = impl_param.desc->output_data_types[0].value_or(input_layout.data_type);
@@ -32,15 +34,13 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     op.set_axis(desc->axis);
     op.set_split_lengths(desc->split_lengths);
 
-    std::vector<ShapeType> input_shapes = {
-        impl_param.get_input_layout(0).get<ShapeType>(),
-        ShapeType(ov::Shape({})),
-        ShapeType(ov::Shape{2})
-    };
+    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
+                                           ShapeType(ov::Shape({})),
+                                           ShapeType(ov::Shape{2})};
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
-    return { layout(output_shapes[0], output_type, output_format) };
+    return {layout(output_shapes[0], output_type, output_format)};
 }
 
 template std::vector<layout> swiglu_inst::calc_output_layouts<ov::PartialShape>(swiglu_node const& node,

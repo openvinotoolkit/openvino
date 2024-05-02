@@ -4,18 +4,21 @@
 
 #pragma once
 
-#include <memory>
 #include <exception>
+#include <memory>
 #include <type_traits>
-#include "intel_gpu/runtime/engine.hpp"
-#include "buffer.hpp"
+
 #include "bind.hpp"
+#include "buffer.hpp"
 #include "helpers.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 
 namespace cldnn {
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::unique_ptr<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::unique_ptr<T>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::unique_ptr<T>& ptr) {
         const auto& type = ptr->get_type_info();
@@ -26,7 +29,9 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::unique_ptr<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::unique_ptr<T>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, std::unique_ptr<T>& ptr, engine& engine) {
         std::string type;
@@ -48,7 +53,9 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::shared_ptr<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::shared_ptr<T>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::shared_ptr<T>& ptr) {
         const std::string& type = ptr->get_type_info();
@@ -61,7 +68,9 @@ public:
 };
 
 template <typename BufferType, typename T>
-class Serializer<BufferType, std::shared_ptr<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::shared_ptr<T>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, std::shared_ptr<T>& ptr, engine& engine) {
         std::string type;

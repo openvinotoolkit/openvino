@@ -3,8 +3,6 @@
 //
 
 #include "pass_manager.h"
-#include "program_dump_graph.h"
-#include "intel_gpu/graph/program.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -12,6 +10,9 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+
+#include "intel_gpu/graph/program.hpp"
+#include "program_dump_graph.h"
 
 using namespace cldnn;
 
@@ -25,23 +26,11 @@ pass_manager::pass_manager(program& p) {
             graph_opt_log << std::setprecision(4);
             // print graph_opt_log header
             graph_opt_log << "program number: " << p.get_prog_id() << "\n"
-                << "Pass\t"
-                << "Proc.\t"
-                << "primitives\t"
-                << "Pass\t\t"
-                << "Pass\n"
+                          << "Pass\t" << "Proc.\t" << "primitives\t" << "Pass\t\t" << "Pass\n"
 
-                << "ID  \t"
-                << "order\t\t"
-                << "optimized\t"
-                << "time,\t\t"
-                << "name\n"
+                          << "ID  \t" << "order\t\t" << "optimized\t" << "time,\t\t" << "name\n"
 
-                << "   \t"
-                << "size\t"
-                << "out\t\t\t"
-                << "millisec\t"
-                << "   \n";
+                          << "   \t" << "size\t" << "out\t\t\t" << "millisec\t" << "   \n";
         }
     }
 }
@@ -62,11 +51,9 @@ void pass_manager::run(program& p, base_pass& pass) {
     p.save_pass_info(pass.get_name());
 
     if (graph_opt_log.is_open()) {
-        graph_opt_log << std::setw(4) << get_pass_count() << "\t"
-            << std::setw(5) << p.get_processing_order().size() << "\t"
-            << std::setw(4) << p.get_optimized_out().size() << "\t\t"
-            << std::setw(8) << opt_pass_time.count() << "\t"
-            << pass.get_name() << "\n";
+        graph_opt_log << std::setw(4) << get_pass_count() << "\t" << std::setw(5) << p.get_processing_order().size()
+                      << "\t" << std::setw(4) << p.get_optimized_out().size() << "\t\t" << std::setw(8)
+                      << opt_pass_time.count() << "\t" << pass.get_name() << "\n";
     }
 
     std::string dump_file_name;

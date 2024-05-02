@@ -5,7 +5,6 @@
 import numpy as np
 import onnx
 import pytest
-
 from tests.tests_python.utils import run_node
 
 
@@ -37,7 +36,9 @@ def test_logical(onnx_op, numpy_func, data_type):
 
 
 def test_logical_not():
-    input_data = np.array([[False, True, True], [False, True, False], [False, False, True]])
+    input_data = np.array(
+        [[False, True, True], [False, True, False], [False, False, True]]
+    )
     expected_output = np.logical_not(input_data)
 
     node = onnx.helper.make_node("Not", inputs=["X"], outputs=["Y"])

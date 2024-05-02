@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
-#include "program_node.h"
-#include "pass_manager.h"
+#include <algorithm>
+
 #include "convolution_inst.h"
 #include "mvn_inst.h"
+#include "pass_manager.h"
+#include "pooling_inst.h"
+#include "program_node.h"
 #include "sliding_window_utils.hpp"
-#include <algorithm>
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -36,9 +37,10 @@ void prepare_padding::run(program& p) {
                         is_usr_onednn = true;
 
                 if ((input.get_preferred_impl_type() == impl_types::onednn || is_usr_onednn) &&
-                    node.get_preferred_impl_type() == impl_types::ocl &&
-                    static_cast<bool>(needed_padding)) {
-                    auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+                    node.get_preferred_impl_type() == impl_types::ocl && static_cast<bool>(needed_padding)) {
+                    auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(),
+                                                                 input.id(),
+                                                                 input.get_output_layout());
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, node, input);
                 }
@@ -51,23 +53,30 @@ void prepare_padding::run(program& p) {
                 const auto& prim = prim_node.get_primitive();
 
                 auto format = node->get_output_layout().format;
-                if (format == format::b_fs_zyx_fsv16 ||
-                    format == format::bs_fs_zyx_bsv16_fsv16 ||
-                    format == format::bs_fs_yx_bsv16_fsv16 ||
-                    format == format::bs_fs_yx_bsv32_fsv32 ||
+                if (format == format::b_fs_zyx_fsv16 || format == format::bs_fs_zyx_bsv16_fsv16 ||
+                    format == format::bs_fs_yx_bsv16_fsv16 || format == format::bs_fs_yx_bsv32_fsv32 ||
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
 
-                tensor::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
-                tensor::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
-                tensor::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
+                tensor::value_type pb_z =
+                    std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0,
+                                             0);
+                tensor::value_type pb_y =
+                    std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0,
+                                             0);
+                tensor::value_type pb_x =
+                    std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0,
+                                             0);
 
-                tensor::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
-                tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
-                tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
+                tensor::value_type pe_z =
+                    std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
+                tensor::value_type pe_y =
+                    std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
+                tensor::value_type pe_x =
+                    std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
 
                 tensor pad_l = tensor(0);
                 tensor pad_u = tensor(0);
@@ -124,14 +133,15 @@ void prepare_padding::run(program& p) {
                 }
 
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
-                    needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
-                                                                              prim->output_size,
-                                                                              size,
-                                                                              ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
-                                                                              prim->stride,
-                                                                              ov::Strides(prim->size.size(), 1),
-                                                                              false,
-                                                                              1);
+                    needed_padding = calc_sliding_window_needed_input_padding(
+                        prim_node.get_input_layout(),
+                        prim->output_size,
+                        size,
+                        ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
+                        prim->stride,
+                        ov::Strides(prim->size.size(), 1),
+                        false,
+                        1);
                 else
                     needed_padding = prim_node.get_input_layout().data_padding;
 
@@ -156,12 +166,10 @@ void prepare_padding::run(program& p) {
         auto conv_layout = node.get_output_layout();
 
         // right now output padding optimization is only available for bfyx format and data type = float32
-        if (conv_layout.format != cldnn::format::bfyx &&
-            conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
+        if (conv_layout.format != cldnn::format::bfyx && conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
             conv_layout.format != cldnn::format::b_fs_zyx_fsv16 &&
             conv_layout.format != cldnn::format::bs_fs_yx_bsv16_fsv16 &&
-            conv_layout.format != cldnn::format::b_fs_yx_fsv4 &&
-            conv_layout.format != cldnn::format::fs_b_yx_fsv32) {
+            conv_layout.format != cldnn::format::b_fs_yx_fsv4 && conv_layout.format != cldnn::format::fs_b_yx_fsv32) {
             continue;
         }
 
@@ -188,11 +196,15 @@ void prepare_padding::run(program& p) {
         auto needed_padding = get_needed_padding_for_convolution(node);
 
         auto& input = node.get_dependency(0);
-        // WA to add reorder between MVN and Conv because Conv need input data with padding but MVN opt kernel with default format does not support padding.
+        // WA to add reorder between MVN and Conv because Conv need input data with padding but MVN opt kernel with
+        // default format does not support padding.
         // TODO: MVN opt kernel should support padding.
-        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()
-            && format::is_default_format(input.get_output_layout().format)) { // check the allowed format to avoid perf drop by unnecessary reorder addition.
-            auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>() &&
+            format::is_default_format(input.get_output_layout().format)) {  // check the allowed format to avoid perf
+                                                                            // drop by unnecessary reorder addition.
+            auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(),
+                                                         input.id(),
+                                                         input.get_output_layout());
             auto& new_reorder_node = p.get_or_create(new_reorder);
             p.add_intermediate(new_reorder_node, node, input);
         }
@@ -248,12 +260,12 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         padding_end_y = std::max(pad_y, 0);
         padding_end_z = std::max(pad_z, 0);
     } else {
-        auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
-                            (filter_layout.spatial(0) - 1) * dilation_x + 1;
-        auto input_limit_y = -pad_y + (conv_layout.spatial(1) - 1) * stride_y +
-                            (filter_layout.spatial(1) - 1) * dilation_y + 1;
-        auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
-                            (filter_layout.spatial(2) - 1) * dilation_z + 1;
+        auto input_limit_x =
+            -pad_x + (conv_layout.spatial(0) - 1) * stride_x + (filter_layout.spatial(0) - 1) * dilation_x + 1;
+        auto input_limit_y =
+            -pad_y + (conv_layout.spatial(1) - 1) * stride_y + (filter_layout.spatial(1) - 1) * dilation_y + 1;
+        auto input_limit_z =
+            -pad_z + (conv_layout.spatial(2) - 1) * stride_z + (filter_layout.spatial(2) - 1) * dilation_z + 1;
 
         padding_begin_x = std::max(pad_x, 0);
         padding_begin_y = std::max(pad_y, 0);
@@ -269,7 +281,9 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
     // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 
-    cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
+    cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z},
+                                  {0, 0, padding_end_x, padding_end_y, padding_end_z},
+                                  0);
     needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
 
     return needed_padding;

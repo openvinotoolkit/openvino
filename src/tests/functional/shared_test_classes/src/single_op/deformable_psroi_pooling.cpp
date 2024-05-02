@@ -4,15 +4,16 @@
 
 #include "shared_test_classes/single_op/deformable_psroi_pooling.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
 
-std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<deformablePSROILayerTestParams>& obj) {
+std::string DeformablePSROIPoolingLayerTest::getTestCaseName(
+    const testing::TestParamInfo<deformablePSROILayerTestParams>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type model_type;
     int64_t outputDim;
@@ -25,8 +26,7 @@ std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::Test
     deformablePSROISpecificParams opParams;
 
     std::tie(opParams, shapes, model_type, target_device) = obj.param;
-    std::tie(outputDim, groupSize, spatialScale, spatialBinsXY,
-    trans_std, part_size) = opParams;
+    std::tie(outputDim, groupSize, spatialScale, spatialBinsXY, trans_std, part_size) = opParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -71,7 +71,7 @@ void DeformablePSROIPoolingLayerTest::SetUp() {
     ov::ParameterVector params;
     std::shared_ptr<ov::op::v1::DeformablePSROIPooling> defomablePSROIPooling;
 
-    if (2 == inputDynamicShapes.size()) { // Test without optional third input (offsets)
+    if (2 == inputDynamicShapes.size()) {  // Test without optional third input (offsets)
         params = ov::ParameterVector{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),
                                      std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[1])};
 

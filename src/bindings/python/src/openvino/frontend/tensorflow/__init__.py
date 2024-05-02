@@ -9,8 +9,17 @@ Low level wrappers for the FrontEnd C++ API.
 # flake8: noqa
 
 try:
-    from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
-    from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
-    from openvino.frontend.tensorflow.py_tensorflow_frontend import OpExtensionTensorflow as OpExtension
+    from openvino.frontend.tensorflow.py_tensorflow_frontend import (
+        ConversionExtensionTensorflow as ConversionExtension,
+    )
+    from openvino.frontend.tensorflow.py_tensorflow_frontend import (
+        OpExtensionTensorflow as OpExtension,
+    )
+    from openvino.frontend.tensorflow.py_tensorflow_frontend import (
+        _FrontEndPyGraphIterator as GraphIterator,
+    )
 except ImportError as err:
-    raise ImportError("OpenVINO Tensorflow frontend is not available, please make sure the frontend is built. " "{}".format(err))
+    raise ImportError(
+        "OpenVINO Tensorflow frontend is not available, please make sure the frontend is built. "
+        "{}".format(err)
+    )

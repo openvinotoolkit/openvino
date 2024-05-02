@@ -3,19 +3,20 @@
 //
 
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/network_helper.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
 #include <memory>
-#include <string>
-#include <utility>
-#include <unordered_set>
-#include <vector>
 #include <queue>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {
@@ -23,29 +24,24 @@ namespace pass {
 namespace low_precision {
 
 const std::vector<element::Type>& precision_set::get_int8_support() {
-    static const std::vector<element::Type> int8_support = {
-        ov::element::u8,  ov::element::i8
-    };
+    static const std::vector<element::Type> int8_support = {ov::element::u8, ov::element::i8};
     return int8_support;
 }
 
 const std::vector<element::Type>& precision_set::get_int8_int16_int32_support() {
-    static const std::vector<element::Type> int8_int16_int32_support = {
-        ov::element::u8,  ov::element::i8,
-        ov::element::u16, ov::element::i16,
-        ov::element::u32, ov::element::i32
-    };
+    static const std::vector<element::Type> int8_int16_int32_support =
+        {ov::element::u8, ov::element::i8, ov::element::u16, ov::element::i16, ov::element::u32, ov::element::i32};
     return int8_int16_int32_support;
 }
 
 constexpr char LayerTransformation::originalLayerPostfix[];
 
-LayerTransformation::LayerTransformation(const Params& params) :
-    updatePrecisions(params.updatePrecisions),
-    deqPrecision(params.deqPrecision),
-    defaultPrecisions(params.defaultPrecisions),
-    reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
-    context(nullptr) {}
+LayerTransformation::LayerTransformation(const Params& params)
+    : updatePrecisions(params.updatePrecisions),
+      deqPrecision(params.deqPrecision),
+      defaultPrecisions(params.defaultPrecisions),
+      reshapeIgnorePerTensorQuantizationCheck(params.reshapeIgnorePerTensorQuantizationCheck),
+      context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
@@ -68,10 +64,11 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
 }
 
 bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) {
+                                                 const std::vector<ov::element::Type>& defaultPrecisions) {
     const auto outputs = layer->outputs();
-    if (std::any_of(outputs.begin(), outputs.end(),
-        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+    if (std::any_of(outputs.begin(), outputs.end(), [](const Output<Node>& out) {
+            return out.get_partial_shape().rank().is_dynamic();
+        })) {
         return false;
     }
 
@@ -107,17 +104,17 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
             return true;
         };
 
-        if ((dequantization.subtract != nullptr) && (!perChannelQuantization(
-            dequantization.subtract->get_output_partial_shape(0),
-            dequantization.subtractConstant->get_shape(),
-            dequantization.channelDimIndex))) {
+        if ((dequantization.subtract != nullptr) &&
+            (!perChannelQuantization(dequantization.subtract->get_output_partial_shape(0),
+                                     dequantization.subtractConstant->get_shape(),
+                                     dequantization.channelDimIndex))) {
             return false;
         }
 
-        if ((dequantization.multiply != nullptr) && (!perChannelQuantization(
-            dequantization.multiply->get_output_partial_shape(0),
-            dequantization.multiplyConstant->get_shape(),
-            dequantization.channelDimIndex))) {
+        if ((dequantization.multiply != nullptr) &&
+            (!perChannelQuantization(dequantization.multiply->get_output_partial_shape(0),
+                                     dequantization.multiplyConstant->get_shape(),
+                                     dequantization.channelDimIndex))) {
             return false;
         }
     }
@@ -125,21 +122,24 @@ bool LayerTransformation::canBeTransformedStatic(const std::shared_ptr<Node>& la
     return true;
 }
 
-bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool LayerTransformation::canBeTransformedSpatialDimension(const TransformationContext& context,
+                                                           std::shared_ptr<Node> layer) const {
     if (!isQuantized(layer, defaultPrecisions)) {
         OPENVINO_DEBUG << "LPT: early exit: not quantized";
         return false;
     }
     const auto outputs = layer->outputs();
-    if (std::any_of(outputs.begin(), outputs.end(),
-        [](const Output<Node>& out) { return out.get_partial_shape().rank().is_dynamic(); })) {
+    if (std::any_of(outputs.begin(), outputs.end(), [](const Output<Node>& out) {
+            return out.get_partial_shape().rank().is_dynamic();
+        })) {
         OPENVINO_DEBUG << "LPT: early exit: rank is dynamic";
         return false;
     }
     return true;
 }
 
-bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const FakeQuantizeDequantization& dequantization) const {
+bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op,
+                                               const FakeQuantizeDequantization& dequantization) const {
     if (dequantization.empty() || (dequantization.subtract == nullptr)) {
         return true;
     }
@@ -148,9 +148,9 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         return true;
     }
 
-    const element::Type operationType = dequantization.convert == nullptr ?
-        dequantization.subtract->input(0).get_element_type() :
-        dequantization.convert->input(0).get_element_type();
+    const element::Type operationType = dequantization.convert == nullptr
+                                            ? dequantization.subtract->input(0).get_element_type()
+                                            : dequantization.convert->input(0).get_element_type();
 
     if ((operationType != element::i8) && (operationType != element::u8)) {
         return false;
@@ -160,7 +160,8 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     if (ov::is_type<ov::opset1::Constant>(parent)) {
         return true;
-    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
+    } else if (ov::is_type<ov::opset1::Convert>(parent) &&
+               ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
         const auto constant = parent->get_input_node_shared_ptr(0);
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
@@ -184,11 +185,12 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
 void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
     auto fq = as_type_ptr<opset1::FakeQuantize>(layer);
     if (fq) {
-        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
-        std::cout <<
-            layer->get_type_name() << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ") <<
-            layer->get_friendly_name() << ":" << std::endl <<
-            "   details  : " << quantizationDetails << std::endl;
+        const QuantizationDetails quantizationDetails =
+            QuantizationDetails::getDetails(ov::as_type_ptr<opset1::FakeQuantize>(layer));
+        std::cout << layer->get_type_name()
+                  << (NetworkHelper::isConstantPath(layer) ? " on weights " : " on activations ")
+                  << layer->get_friendly_name() << ":" << std::endl
+                  << "   details  : " << quantizationDetails << std::endl;
     }
 }
 
@@ -196,12 +198,10 @@ void LayerTransformation::printDequantizationInfo(const DataPrecision& dataPreci
     std::cout << "   precision: " << dataPrecision << std::endl;
 }
 
-void LayerTransformation::printDequantizationValues(
-    const std::vector<float>& dequantizationScales,
-    const std::vector<float>& dequantizationShifts) {
-    std::cout <<
-        "   scales   : " << toStream(dequantizationScales).str() << std::endl <<
-        "   shifts   : " << toStream(dequantizationShifts).str() << std::endl;
+void LayerTransformation::printDequantizationValues(const std::vector<float>& dequantizationScales,
+                                                    const std::vector<float>& dequantizationShifts) {
+    std::cout << "   scales   : " << toStream(dequantizationScales).str() << std::endl
+              << "   shifts   : " << toStream(dequantizationShifts).str() << std::endl;
 }
 #endif
 
@@ -221,7 +221,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     bool hasZeroPoint = false;
     bool thereIsAtLeastOneNormalValue = false;
 
-    std::vector<size_t> fullRangeLevels = { levels::int4, levels::int8, levels::int16, levels::int32 };
+    std::vector<size_t> fullRangeLevels = {levels::int4, levels::int8, levels::int16, levels::int32};
 
     for (size_t i = 0; i < outputLowValues.size(); ++i) {
         if ((std::fabs(outputLowValues[i]) < zeroThreshold) && (std::fabs(outputHighValues[i]) < zeroThreshold)) {
@@ -251,7 +251,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             }
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
             if (hasZeroPoint) {
-                std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold << std::endl;
+                std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold
+                          << std::endl;
                 std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
             }
 #endif
@@ -264,9 +265,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
             if (hasZeroPoint) {
-                const float actual = quantizationDetails.outputLowValues[i] > 0.f ?
-                    quantizationDetails.outputLowValues[i] :
-                    quantizationDetails.outputHighValues[i];
+                const float actual = quantizationDetails.outputLowValues[i] > 0.f
+                                         ? quantizationDetails.outputLowValues[i]
+                                         : quantizationDetails.outputHighValues[i];
                 std::cout << "   actual: " << actual << ", threshold: 0.0" << std::endl;
                 std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
             }
@@ -276,7 +277,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
 
     if (!thereIsAtLeastOneNormalValue) {
         // all values are small and didn't define 'signedPrecision'
-        signedPrecision = std::any_of(outputLowValues.begin(), outputLowValues.end(), [](const float& value) { return value < 0.f; });
+        signedPrecision = std::any_of(outputLowValues.begin(), outputLowValues.end(), [](const float& value) {
+            return value < 0.f;
+        });
         unsignedPrecision = !signedPrecision;
     }
 
@@ -285,35 +288,35 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     if (!hasZeroPoint) {
         if (signedPrecision && (!unsignedPrecision)) {
             switch (quantizationLevels) {
-                case levels::int4:
-                case levels::int8:
-                case levels::int8_narrow_range:
-                    resultPrecision = element::i8;
-                    break;
-                case levels::int16:
-                case levels::int16_narrow_range:
-                    resultPrecision = element::i16;
-                    break;
-                case levels::int32:
-                case levels::int32_narrow_range:
-                    resultPrecision = element::i32;
+            case levels::int4:
+            case levels::int8:
+            case levels::int8_narrow_range:
+                resultPrecision = element::i8;
+                break;
+            case levels::int16:
+            case levels::int16_narrow_range:
+                resultPrecision = element::i16;
+                break;
+            case levels::int32:
+            case levels::int32_narrow_range:
+                resultPrecision = element::i32;
             }
         }
 
         if ((!signedPrecision) && unsignedPrecision) {
             switch (quantizationLevels) {
-                case levels::int4:
-                case levels::int8:
-                case levels::int8_narrow_range:
-                    resultPrecision = element::u8;
-                    break;
-                case levels::int16:
-                case levels::int16_narrow_range:
-                    resultPrecision = element::u16;
-                    break;
-                case levels::int32:
-                case levels::int32_narrow_range:
-                    resultPrecision = element::u32;
+            case levels::int4:
+            case levels::int8:
+            case levels::int8_narrow_range:
+                resultPrecision = element::u8;
+                break;
+            case levels::int16:
+            case levels::int16_narrow_range:
+                resultPrecision = element::u16;
+                break;
+            case levels::int32:
+            case levels::int32_narrow_range:
+                resultPrecision = element::u32;
             }
         }
     }
@@ -321,12 +324,15 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     return LayerTransformation::PrecisionDetails(resultPrecision, hasNegative, hasZeroPoint);
 }
 
-LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) {
-    return getPrecisionDetails(quantizationDetails.levels, quantizationDetails.outputLowValues, quantizationDetails.outputHighValues);
+LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
+    const QuantizationDetails& quantizationDetails) {
+    return getPrecisionDetails(quantizationDetails.levels,
+                               quantizationDetails.outputLowValues,
+                               quantizationDetails.outputHighValues);
 }
 
 bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) {
+                                                   const std::vector<ov::element::Type>& defaultPrecisions) {
     const auto nonConstNode = const_cast<ov::Node*>(layer.get())->shared_from_this();
     const auto dequantization = NetworkHelper::getDequantization(nonConstNode, defaultPrecisions);
     if (dequantization.empty()) {
@@ -335,14 +341,14 @@ bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const N
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer, const std::vector<ov::element::Type>& defaultPrecisions) const {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer,
+                                      const std::vector<ov::element::Type>& defaultPrecisions) const {
     return true;
 }
 
-DataPrecision LayerTransformation::getDataPrecision(
-        const std::shared_ptr<Node>& layer,
-        const QuantizationDetails& quantizationDetails,
-        const std::vector<element::Type>& requiredPrecisions) {
+DataPrecision LayerTransformation::getDataPrecision(const std::shared_ptr<Node>& layer,
+                                                    const QuantizationDetails& quantizationDetails,
+                                                    const std::vector<element::Type>& requiredPrecisions) {
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     printDequantizationInfo(layer);
 #endif
@@ -351,10 +357,12 @@ DataPrecision LayerTransformation::getDataPrecision(
     if (precisionDetailsAtOutputIntervals.precision != element::undefined) {
         // FakeQuantize optimal precision not deined
         if (!requiredPrecisions.empty()) {
-            const auto foundIt = std::find(requiredPrecisions.begin(), requiredPrecisions.end(), precisionDetailsAtOutputIntervals.precision);
-            const element::Type resultPrecision = foundIt != requiredPrecisions.end() ?
-                precisionDetailsAtOutputIntervals.precision :
-                *requiredPrecisions.begin();
+            const auto foundIt = std::find(requiredPrecisions.begin(),
+                                           requiredPrecisions.end(),
+                                           precisionDetailsAtOutputIntervals.precision);
+            const element::Type resultPrecision = foundIt != requiredPrecisions.end()
+                                                      ? precisionDetailsAtOutputIntervals.precision
+                                                      : *requiredPrecisions.begin();
 
             if (!DataPrecision::check(resultPrecision, quantizationDetails.levels)) {
                 return DataPrecision();
@@ -375,11 +383,10 @@ DataPrecision LayerTransformation::getDataPrecision(
                 return DataPrecision();
             }
 
-            return DataPrecision(
-                resultPrecision,
-                DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
-                DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
-                true);
+            return DataPrecision(resultPrecision,
+                                 DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
+                                 DataPrecision::getMaxValue(resultPrecision, quantizationDetails.levels),
+                                 true);
         } else {
             // required precisions are not defined, not possible to get precision from FakeQuantize: something wrong
             // return not valid value
@@ -395,17 +402,16 @@ DataPrecision LayerTransformation::getDataPrecision(
         precisionDetailsAtOutputIntervals.hasZeroPoint);
 }
 
-std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(
-    TransformationContext &context,
-    const std::shared_ptr<ov::Node>& operation,
-    const FakeQuantizeDequantization& dequantization,
-    const bool updateOutputPrecision,
-    const bool moveSubtract) const {
+std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationAfter(TransformationContext& context,
+                                                                       const std::shared_ptr<ov::Node>& operation,
+                                                                       const FakeQuantizeDequantization& dequantization,
+                                                                       const bool updateOutputPrecision,
+                                                                       const bool moveSubtract) const {
     const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation,
-        dequantization,
-        updateOutputPrecision,
-        moveSubtract,
-        defaultPrecisions);
+                                                                                        dequantization,
+                                                                                        updateOutputPrecision,
+                                                                                        moveSubtract,
+                                                                                        defaultPrecisions);
     updateOutput(context, result.lastDequantization, result.newOperation);
     return result.newOperation;
 }
@@ -415,17 +421,15 @@ std::shared_ptr<ov::Node> LayerTransformation::moveDequantizationBefore(
     const std::shared_ptr<ov::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool moveSubtract) const {
-    const auto result = ov::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation,
-        dequantization,
-        moveSubtract);
+    const auto result =
+        ov::pass::low_precision::NetworkHelper::moveDequantizationBefore(operation, dequantization, moveSubtract);
     updateOutput(context, result.newOperation, result.lastDequantization);
     return result.newOperation;
 }
 
-bool LayerTransformation::updateOutput(
-    TransformationContext &context,
-    std::shared_ptr<ov::Node> lastNode,
-    std::shared_ptr<ov::Node> originalNode) const {
+bool LayerTransformation::updateOutput(TransformationContext& context,
+                                       std::shared_ptr<ov::Node> lastNode,
+                                       std::shared_ptr<ov::Node> originalNode) const {
     bool was_updated = false;
     for (auto output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
@@ -441,10 +445,9 @@ bool LayerTransformation::updateOutput(
     return was_updated;
 }
 
-void LayerTransformation::updateOutput(
-    TransformationContext& context,
-    std::shared_ptr<ov::Node> lastNode,
-    std::string originalName) const {
+void LayerTransformation::updateOutput(TransformationContext& context,
+                                       std::shared_ptr<ov::Node> lastNode,
+                                       std::string originalName) const {
     const size_t outputSize = context.model->get_output_size();
     for (size_t i = 0; i < outputSize; ++i) {
         std::shared_ptr<ov::Node> result = context.model->get_output_op(i);
@@ -456,19 +459,21 @@ void LayerTransformation::updateOutput(
     }
 }
 
-void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) {
+void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass,
+                                     TransformationContext& context,
+                                     std::shared_ptr<Node> patternRoot) {
     MATCHER_SCOPE(SingleNodeMatcher);
-    ov::graph_rewrite_callback internal_callback = [this, &context](ov::pass::pattern::Matcher &m) {
+    ov::graph_rewrite_callback internal_callback = [this, &context](ov::pass::pattern::Matcher& m) {
         const bool result = transform(context, m);
         (void)result;
 #ifdef LPT_DISPLAY_PRECISION
         if (result) {
             auto operationNode = m.get_match_root();
-            std::cout << "Operation was transformed: " <<
-                operationNode->get_type_name() << ", " <<
-                operationNode->get_friendly_name() << ", output operation precision: " <<
-                ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0) : ov::element::Type()) <<
-                std::endl;
+            std::cout << "Operation was transformed: " << operationNode->get_type_name() << ", "
+                      << operationNode->get_friendly_name() << ", output operation precision: "
+                      << ((operationNode->get_output_size() == 1u) ? operationNode->get_output_element_type(0)
+                                                                   : ov::element::Type())
+                      << std::endl;
         }
 #endif
         return false;
@@ -476,22 +481,22 @@ void LayerTransformation::addPattern(ov::pass::GraphRewrite& pass, Transformatio
     // TODO: better name for matcher? required?
     auto m = std::make_shared<ov::pass::pattern::Matcher>(patternRoot, matcher_name);
     auto match_pass = std::make_shared<ov::pass::MatcherPass>(
-            m->get_name(),
-            m,
-            [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-                OV_PASS_CALLBACK(m);
-                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                    bool status = internal_callback(*m.get());
-                    // explicitly clear Matcher state because it holds pointers to matched nodes
-                    m->clear_state();
-                    return status;
-                }
+        m->get_name(),
+        m,
+        [m, internal_callback](const std::shared_ptr<Node>& node) -> bool {
+            OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+            OV_PASS_CALLBACK(m);
+            if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                bool status = internal_callback(*m.get());
+                // explicitly clear Matcher state because it holds pointers to matched nodes
+                m->clear_state();
+                return status;
+            }
             m->clear_state();
             return false;
-            },
-            ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+        },
+        ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     pass.add_matcher(match_pass);
 }
 

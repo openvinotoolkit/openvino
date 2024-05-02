@@ -64,4 +64,4 @@ TEST_P(QuantizedModelsTests, ConvolutionFQ) {
     run_model("convolution_fq.onnx", {{"902_original", {ov::element::u8, ov::element::i8}}}, 1.5e-2);
 }
 
-} // namespace ONNXTestsDefinitions
+}  // namespace ONNXTestsDefinitions

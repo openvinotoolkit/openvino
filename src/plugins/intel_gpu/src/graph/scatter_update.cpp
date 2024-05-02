@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "scatter_update_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "scatter_update_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_update)
@@ -55,8 +55,8 @@ void scatter_update_inst::on_execute() {
 }
 
 void scatter_update_inst::update_output_memory() {
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) &&
+        _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     if (_node != nullptr)

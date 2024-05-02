@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -22,18 +21,22 @@ class TestNarrow(PytorchLayerTest):
                 self.length = length
 
             def forward(self, input_tensor):
-                return torch.narrow(input_tensor, dim=self.dim, start=self.start, length=self.length)
+                return torch.narrow(
+                    input_tensor, dim=self.dim, start=self.start, length=self.length
+                )
 
         return aten_narrow(dim, start, length), None, "aten::narrow"
 
-    @pytest.mark.parametrize("input_shape", [
-        [3, 3], [3, 4, 5]
-    ])
+    @pytest.mark.parametrize("input_shape", [[3, 3], [3, 4, 5]])
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.parametrize("start", [0, 1])
     @pytest.mark.parametrize("length", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_narrow(self, input_shape, dim, start, length, ie_device, precision, ir_version):
+    def test_narrow(
+        self, input_shape, dim, start, length, ie_device, precision, ir_version
+    ):
         self.input_shape = input_shape
-        self._test(*self.create_model(dim, start, length), ie_device, precision, ir_version)
+        self._test(
+            *self.create_model(dim, start, length), ie_device, precision, ir_version
+        )

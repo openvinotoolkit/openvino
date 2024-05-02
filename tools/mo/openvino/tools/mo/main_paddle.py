@@ -3,11 +3,15 @@
 
 import sys
 
-from openvino.tools.mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
+from openvino.frontend import (  # pylint: disable=no-name-in-module,import-error
+    FrontEndManager,
+)
 
-from openvino.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
-
+from openvino.tools.mo.utils.cli_parser import (  # pylint: disable=no-name-in-module,import-error
+    get_all_cli_parser,
+)
 
 if __name__ == "__main__":
     from openvino.tools.mo.main import main
-    sys.exit(main(get_all_cli_parser(), 'paddle'))
+
+    sys.exit(main(get_all_cli_parser(), "paddle"))

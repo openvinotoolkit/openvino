@@ -1,11 +1,11 @@
 {
-    "3D-pose-estimation": [
-        "Convert Model",
-        "Download Model",
-        "ONNX"
-    ],
-    "3D-segmentation-point-clouds": [
-        "Dynamic Shape",
-        "ONNX"
-    ]
+  "3D-pose-estimation": [
+    "Convert Model",
+    "Download Model",
+    "ONNX"
+  ],
+  "3D-segmentation-point-clouds": [
+    "Dynamic Shape",
+    "ONNX"
+  ]
 }

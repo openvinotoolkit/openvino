@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 class PyIDecoder : public ov::frontend::IDecoder {
 public:
-    using IDecoder::IDecoder; // Inherit constructors
+    using IDecoder::IDecoder;  // Inherit constructors
 };
 
 void regclass_frontend_IDecoder(py::module m);

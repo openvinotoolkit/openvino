@@ -3,6 +3,7 @@
 //
 
 #include "convolution_params.h"
+
 #include <sstream>
 #include <string>
 
@@ -12,8 +13,7 @@ std::string convolution_params::to_string() const {
 
     s << parent::to_string() << "_";
     if (bias.empty()) {
-        s << "no_bias"
-          << "_";
+        s << "no_bias" << "_";
     } else {
         s << "bias_" << bias[0].PhysicalSize() << "_";
     }

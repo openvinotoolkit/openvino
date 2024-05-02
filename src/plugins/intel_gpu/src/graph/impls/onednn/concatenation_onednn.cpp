@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "concatenation_inst.h"
-#include "eltwise_inst.h"
-#include "quantize_inst.h"
-#include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
-
-#include <oneapi/dnnl/dnnl.hpp>
-
 #include <algorithm>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+
+#include "concatenation_inst.h"
+#include "eltwise_inst.h"
+#include "implementation_map.hpp"
+#include "kernel_selector_common.h"
+#include "primitive_onednn_base.h"
+#include "quantize_inst.h"
 namespace cldnn {
 namespace onednn {
 
@@ -34,8 +32,11 @@ protected:
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i), _pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)));
-            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)), offset)});
+            auto offset = onednn::get_offset(instance.get_input_layout(i),
+                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)));
+            args.insert(
+                {input_idx++,
+                 input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<uint8_t>(i)), offset)});
         }
 
         {
@@ -49,21 +50,21 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                      cldnn::engine& engine,
-                                                                                      const dnnl::primitive_attr& attr,
-                                                                                      const int64_t axis) {
+    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_primitive_descriptor(
+        const kernel_impl_params& impl_params,
+        cldnn::engine& engine,
+        const dnnl::primitive_attr& attr,
+        const int64_t axis) {
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
         }
         auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout());
-        return std::make_shared<dnnl::concat::primitive_desc>(
-            engine.get_onednn_engine(),
-            output_md,
-            axis,
-            input_mds,
-            attr);
+        return std::make_shared<dnnl::concat::primitive_desc>(engine.get_onednn_engine(),
+                                                              output_md,
+                                                              axis,
+                                                              input_mds,
+                                                              attr);
     }
 
 public:
@@ -114,14 +115,16 @@ public:
 #endif
     }
 
-    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg,
+                                                  const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         if (impl_params.can_be_optimized())
             return make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = arg.get_onednn_primitive_attributes();
-        auto prim_desc = get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);
+        auto prim_desc =
+            get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);
 
         return cldnn::make_unique<concatenation_onednn>(engine, config, attr, *prim_desc);
     }

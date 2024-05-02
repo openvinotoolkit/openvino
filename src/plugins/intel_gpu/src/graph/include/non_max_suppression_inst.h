@@ -3,11 +3,11 @@
 //
 
 #pragma once
-#include "intel_gpu/primitives/non_max_suppression.hpp"
-#include "primitive_inst.h"
-
 #include <memory>
 #include <string>
+
+#include "intel_gpu/primitives/non_max_suppression.hpp"
+#include "primitive_inst.h"
 
 namespace cldnn {
 
@@ -16,11 +16,11 @@ struct typed_program_node<non_max_suppression> : public typed_program_node_base<
     using parent = typed_program_node_base<non_max_suppression>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog)
-    {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
     program_node& input_boxes() const {
         return get_dependency(0);
@@ -30,19 +30,25 @@ public:
         return get_dependency(1);
     }
 
-    bool has_num_select_per_class() const { return !get_primitive()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const {
+        return !get_primitive()->num_select_per_class.empty();
+    }
     program_node& num_select_per_class_node() const {
         return get_dependency(2);
     }
 
-    bool has_iou_threshold() const { return !get_primitive()->iou_threshold.empty(); }
+    bool has_iou_threshold() const {
+        return !get_primitive()->iou_threshold.empty();
+    }
     program_node& iou_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
         return get_dependency(offset);
     }
 
-    bool has_score_threshold() const { return !get_primitive()->score_threshold.empty(); }
+    bool has_score_threshold() const {
+        return !get_primitive()->score_threshold.empty();
+    }
     program_node& score_threshold_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -50,7 +56,9 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_soft_nms_sigma() const { return !get_primitive()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const {
+        return !get_primitive()->soft_nms_sigma.empty();
+    }
     program_node& soft_nms_sigma_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -59,7 +67,9 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
+    bool has_second_output() const {
+        return !get_primitive()->second_output.empty();
+    }
     program_node& second_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -69,7 +79,9 @@ public:
         return get_dependency(offset);
     }
 
-    bool has_third_output() const { return !get_primitive()->third_output.empty(); }
+    bool has_third_output() const {
+        return !get_primitive()->third_output.empty();
+    }
     program_node& third_output_node() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -79,9 +91,13 @@ public:
         offset += has_second_output();
         return get_dependency(offset);
     }
-    bool use_multiple_outputs() const { return get_primitive()->output_size() == 3; }
+    bool use_multiple_outputs() const {
+        return get_primitive()->output_size() == 3;
+    }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {2};
+    }
 };
 
 using non_max_suppression_node = typed_program_node<non_max_suppression>;
@@ -113,12 +129,11 @@ class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_ba
     }
 
 public:
-    typed_primitive_inst(network& network, non_max_suppression_node const& node)
-        : parent(network, node)
-    {}
+    typed_primitive_inst(network& network, non_max_suppression_node const& node) : parent(network, node) {}
 
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(non_max_suppression_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(non_max_suppression_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(non_max_suppression_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(non_max_suppression_node const& node);
 
@@ -130,7 +145,9 @@ public:
         return dep_memory_ptr(1);
     }
 
-    bool has_num_select_per_class() const { return !get_typed_desc<non_max_suppression>()->num_select_per_class.empty(); }
+    bool has_num_select_per_class() const {
+        return !get_typed_desc<non_max_suppression>()->num_select_per_class.empty();
+    }
     memory::ptr num_select_per_class_mem() const {
         return dep_memory_ptr(2);
     }
@@ -138,7 +155,9 @@ public:
         return dependencies().at(2).first;
     }
 
-    bool has_iou_threshold() const { return !get_typed_desc<non_max_suppression>()->iou_threshold.empty(); }
+    bool has_iou_threshold() const {
+        return !get_typed_desc<non_max_suppression>()->iou_threshold.empty();
+    }
     memory::ptr iou_threshold_mem() const {
         return dep_memory_ptr(get_iou_threshold_offset());
     }
@@ -146,7 +165,9 @@ public:
         return dependencies().at(get_iou_threshold_offset()).first;
     }
 
-    bool has_score_threshold() const { return !get_typed_desc<non_max_suppression>()->score_threshold.empty(); }
+    bool has_score_threshold() const {
+        return !get_typed_desc<non_max_suppression>()->score_threshold.empty();
+    }
     memory::ptr score_threshold_mem() const {
         return dep_memory_ptr(get_score_threshold_offset());
     }
@@ -154,7 +175,9 @@ public:
         return dependencies().at(get_score_threshold_offset()).first;
     }
 
-    bool has_soft_nms_sigma() const { return !get_typed_desc<non_max_suppression>()->soft_nms_sigma.empty(); }
+    bool has_soft_nms_sigma() const {
+        return !get_typed_desc<non_max_suppression>()->soft_nms_sigma.empty();
+    }
     memory::ptr soft_nms_sigma_mem() const {
         return dep_memory_ptr(get_soft_nms_sigma_offset());
     }
@@ -162,7 +185,9 @@ public:
         return dependencies().at(get_soft_nms_sigma_offset()).first;
     }
 
-    bool has_second_output() const { return !get_typed_desc<non_max_suppression>()->second_output.empty(); }
+    bool has_second_output() const {
+        return !get_typed_desc<non_max_suppression>()->second_output.empty();
+    }
     memory::ptr second_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();
@@ -172,7 +197,9 @@ public:
         return dep_memory_ptr(offset);
     }
 
-    bool has_third_output() const { return !get_typed_desc<non_max_suppression>()->third_output.empty(); }
+    bool has_third_output() const {
+        return !get_typed_desc<non_max_suppression>()->third_output.empty();
+    }
     memory::ptr third_output_mem() const {
         size_t offset = 2;
         offset += has_num_select_per_class();

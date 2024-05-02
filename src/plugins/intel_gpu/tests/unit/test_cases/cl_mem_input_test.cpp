@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "opencl_helper_instance.hpp"
-#include "ocl/ocl_device.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/runtime/device_query.hpp>
+
+#include "ocl/ocl_device.hpp"
+#include "opencl_helper_instance.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;

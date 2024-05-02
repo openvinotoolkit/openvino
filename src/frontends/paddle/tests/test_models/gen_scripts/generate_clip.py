@@ -1,20 +1,23 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # clip paddle model generator
 #
 import numpy as np
 from save_model import saveModel
-import sys
+
 
 def clip(name: str, x, min, max):
     import paddle
+
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
-        if paddle.__version__ >= '2.0.0':
+        node_x = paddle.static.data(name="x", shape=x.shape, dtype="float32")
+        if paddle.__version__ >= "2.0.0":
             out = paddle.clip(node_x, min=min, max=max)
         else:
             out = paddle.fluid.layers.clip(node_x, min=min, max=max)
@@ -24,17 +27,23 @@ def clip(name: str, x, min, max):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'x': x},
-            fetch_list=[out])
+        outs = exe.run(feed={"x": x}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x"],
+            fetchlist=[out],
+            inputs=[x],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 
 
 def main():
-    data = np.random.random([2, 3, 4]).astype('float32')
+    data = np.random.random([2, 3, 4]).astype("float32")
     min = 0
     max = 0.8
 

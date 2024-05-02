@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_gpu_b_fs_zyx_fsv16_imad.h"
+
 #include "kernel_selector_utils.h"
 
 #define FEATURE_SLICE_SIZE 16
@@ -73,18 +74,21 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault
 
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
     return dispatchData;
 }
 
-JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling_params& params,
+                                                                   DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t in_x_pitch = FEATURE_SLICE_SIZE;
     const size_t in_y_pitch = FEATURE_SLICE_SIZE * params.inputs[0].X().LogicalDimPadded();
-    const size_t in_z_pitch = FEATURE_SLICE_SIZE * params.inputs[0].Y().LogicalDimPadded() * params.inputs[0].X().LogicalDimPadded();
+    const size_t in_z_pitch =
+        FEATURE_SLICE_SIZE * params.inputs[0].Y().LogicalDimPadded() * params.inputs[0].X().LogicalDimPadded();
     const size_t in_size_x = params.inputs[0].X().v;
     const size_t in_size_y = params.inputs[0].Y().v;
     const size_t in_size_z = params.inputs[0].Z().v;
@@ -130,10 +134,10 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "(f+i)", "y", "x"}, "pool_result[i]", input_dt, 1};
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-            conf = {"", {"b", "(f+i)", "z", "y", "x"}, "pool_result[i]", input_dt, 1 };
+            conf = {"", {"b", "(f+i)", "z", "y", "x"}, "pool_result[i]", input_dt, 1};
         }
-        conf.SetLoopAxes({ Tensor::DataChannelName::FEATURE }, true);
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        conf.SetLoopAxes({Tensor::DataChannelName::FEATURE}, true);
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

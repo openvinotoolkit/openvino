@@ -8,9 +8,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/core/node.hpp"
-
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/node.hpp"
 
 template <class T>
 class LP_TRANSFORMATIONS_API SharedAttribute : public ov::RuntimeAttribute {

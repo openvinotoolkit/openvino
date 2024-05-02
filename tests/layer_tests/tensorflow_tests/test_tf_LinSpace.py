@@ -13,8 +13,8 @@ class TestLinSpace(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            start = tf.compat.v1.placeholder(tf.float32, [], 'start')
-            stop = tf.compat.v1.placeholder(tf.float32, [], 'stop')
+            start = tf.compat.v1.placeholder(tf.float32, [], "start")
+            stop = tf.compat.v1.placeholder(tf.float32, [], "stop")
             tf.raw_ops.LinSpace(start=start, stop=stop, num=num_value)
             tf.compat.v1.global_variables_initializer()
 
@@ -30,10 +30,18 @@ class TestLinSpace(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_lin_space_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        self._test(*self.create_lin_space_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_lin_space_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_lin_space_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

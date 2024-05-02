@@ -8,7 +8,6 @@ import numpy as np
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from openvino.runtime import Core
-
 from tests.runtime import get_runtime
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 

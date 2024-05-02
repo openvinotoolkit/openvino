@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino as ov
-
 #! [py_frontend_extension_ThresholdedReLU_header]
 import openvino.runtime.opset12 as ops
 from openvino.frontend import ConversionExtension
+from utils import get_path_to_extension_library
+
+import openvino as ov
+
 #! [py_frontend_extension_ThresholdedReLU_header]
 
 #! [add_extension]
@@ -17,7 +19,6 @@ from openvino.frontend import ConversionExtension
 # Not implemented
 #! [add_frontend_extension]
 
-from utils import get_path_to_extension_library
 
 path_to_extension_lib = get_path_to_extension_library()
 
@@ -29,16 +30,21 @@ core.add_extension(path_to_extension_lib)
 
 #! [py_frontend_extension_MyRelu]
 from openvino.frontend import OpExtension
+
 core.add_extension(OpExtension("Relu", "MyRelu"))
 #! [py_frontend_extension_MyRelu]
+
 
 #! [py_frontend_extension_ThresholdedReLU]
 def conversion(node):
     input_node = node.get_input(0)
     input_type = input_node.get_element_type()
-    greater = ops.greater(input_node, ops.constant([node.get_attribute("alpha")], input_type))
+    greater = ops.greater(
+        input_node, ops.constant([node.get_attribute("alpha")], input_type)
+    )
     casted = ops.convert(greater, input_type.get_type_name())
     return ops.multiply(input_node, casted).outputs()
+
 
 core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 #! [py_frontend_extension_ThresholdedReLU]
@@ -47,6 +53,7 @@ core.add_extension(ConversionExtension("ThresholdedRelu", conversion))
 #! [py_frontend_extension_aten_hardtanh]
 import torch
 from openvino.frontend import ConversionExtension, NodeContext
+
 from openvino.tools.mo import convert_model
 
 

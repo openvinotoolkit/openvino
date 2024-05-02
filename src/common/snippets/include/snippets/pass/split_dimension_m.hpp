@@ -16,7 +16,7 @@ namespace pass {
  *        to split dimension M for MatMuls. It allows to increase work amount for parallelism
  * @ingroup snippets
  */
-class SplitDimensionM: public CommonOptimizations::SubgraphPass {
+class SplitDimensionM : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
     SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}
@@ -30,15 +30,22 @@ public:
 
 private:
     static std::shared_ptr<ov::op::v0::MatMul> get_matmul(const std::shared_ptr<op::Subgraph>& subgraph);
-    static std::pair<size_t, size_t> get_splited_dimensions(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
-    static bool split(const ov::Shape& shape, size_t optimal_parallelism_work_amount, size_t& batch_m_dim, size_t& new_m_dim);
+    static std::pair<size_t, size_t> get_splited_dimensions(size_t batch_dim,
+                                                            size_t m_dim,
+                                                            size_t optimal_parallelism_work_amount);
+    static bool split(const ov::Shape& shape,
+                      size_t optimal_parallelism_work_amount,
+                      size_t& batch_m_dim,
+                      size_t& new_m_dim);
 
-    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim);
+    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
+                          const ov::Shape& shape,
+                          size_t batch_m_dim,
+                          size_t new_m_dim);
 
     size_t m_concurrency;
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/two_inputs_and_outputs.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
+std::string TwoInputsAndOutputs::getTestCaseName(
+    testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
     std::vector<InputShape> inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -64,6 +66,6 @@ TEST_P(TwoInputsAndOutputsWithReversedOutputs, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

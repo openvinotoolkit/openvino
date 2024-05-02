@@ -11,7 +11,7 @@ import sys
 from enum import Enum
 from pathlib import Path
 
-from ldap3 import Server, Connection, ALL, SUBTREE
+from ldap3 import ALL, SUBTREE, Connection, Server
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from github_org_control.configs import Config
@@ -106,7 +106,10 @@ class LdapApi:
         self._cfg = Config()
         self.server = Server(self._cfg.LDAP_SERVER, get_info=ALL)
         self.connection = Connection(
-            self.server, user=self._cfg.LDAP_USER, password=self._cfg.LDAP_PASSWORD, auto_bind=True
+            self.server,
+            user=self._cfg.LDAP_USER,
+            password=self._cfg.LDAP_PASSWORD,
+            auto_bind=True,
         )
         self.connection.bind()
 
@@ -127,7 +130,10 @@ class LdapApi:
                     print(7 * " ", group)
 
                 return
-            processed_ldap_members[member] = {"email": None, "parent_groups": [parent_group]}
+            processed_ldap_members[member] = {
+                "email": None,
+                "parent_groups": [parent_group],
+            }
 
             # AD moves terminated users to the boneyard OU in case the user returns,
             # so it can be reactivated with little effort.
@@ -146,12 +152,13 @@ class LdapApi:
             # The response can contain several items, but the first item is valid only
             if "OU=Workers" in member:
                 if self.connection.response[0]["attributes"]["mail"]:
-                    processed_ldap_members[member]["email"] = self.connection.response[0][
-                        "attributes"
-                    ]["mail"].lower()
+                    processed_ldap_members[member]["email"] = self.connection.response[
+                        0
+                    ]["attributes"]["mail"].lower()
                     return
                 raise LdapApiException(
-                    f"ERROR: no mail. LDAP worker: {member}\n" f"{self.connection.entries}"
+                    f"ERROR: no mail. LDAP worker: {member}\n"
+                    f"{self.connection.entries}"
                 )
 
             if len(self.connection.response) > 1:
@@ -165,13 +172,17 @@ class LdapApi:
                 for group_member in self.connection.response[0]["attributes"]["member"]:
                     process_group_members(group_member, member)
             else:
-                print(f"\nERROR: no members in LDAP group: {member}\n{self.connection.entries}")
+                print(
+                    f"\nERROR: no members in LDAP group: {member}\n{self.connection.entries}"
+                )
 
         for group in groups or self._cfg.LDAP_PDLs:
             print("\nProcess ROOT LDAP group:", group)
             process_group_members(group, "ROOT")
         return {
-            member.get("email") for member in processed_ldap_members.values() if member.get("email")
+            member.get("email")
+            for member in processed_ldap_members.values()
+            if member.get("email")
         }
 
     def _get_user_info(self, query):

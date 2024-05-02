@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "fully_connected_kernel_imad.h"
+
+#include <vector>
 
 // IMAD Fully_Connected primitive implementation.
 // Limitations are:
@@ -56,7 +56,8 @@ DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(con
     return k;
 }
 
-FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
+FullyConnectedKernelIMAD::Parent::DispatchData
+FullyConnectedKernelIMAD::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
     if (!params.has_dynamic_tensors()) {
@@ -67,8 +68,9 @@ FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefa
             dispatchData.gws[1] = params.outputs[0].Batch().v;
             dispatchData.gws[2] = params.outputs[0].Feature().v / tuning_data.tile_batch;
         } else {
-            dispatchData.gws[0] = RoundUp(params.outputs[0].Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
-                                  tuning_data.tile_ofm * tuning_data.slm_div_factor;
+            dispatchData.gws[0] =
+                RoundUp(params.outputs[0].Feature().v, tuning_data.sub_group_size * tuning_data.tile_ofm) /
+                tuning_data.tile_ofm * tuning_data.slm_div_factor;
             dispatchData.gws[1] = params.outputs[0].Batch().v / tuning_data.tile_batch;
             dispatchData.gws[2] = 1;
         }
@@ -93,13 +95,11 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params) const {
 
     // Dynamic kernel doesn't support dynamic weights
     if (fc_params.is_shape_agnostic && in.is_dynamic()) {
-        if ((out_l == DataLayout::bfyx && in.Y().v == 0) ||
-            (out_l == DataLayout::bf && in.Feature().v == 0))
+        if ((out_l == DataLayout::bfyx && in.Y().v == 0) || (out_l == DataLayout::bf && in.Feature().v == 0))
             return false;
     }
 
-    if ((in.X().pad.before != 0) || (in.X().pad.after != 0) ||
-        (in.Y().pad.before != 0) || (in.Y().pad.after != 0)) {
+    if ((in.X().pad.before != 0) || (in.X().pad.after != 0) || (in.Y().pad.before != 0) || (in.Y().pad.after != 0)) {
         // Padding is not supported
         return false;
     }
@@ -118,7 +118,10 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params) const {
     return true;
 }
 
-float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& params, size_t tile_ofm, size_t tile_batch, size_t slm_div_factor) const {
+float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& params,
+                                                  size_t tile_ofm,
+                                                  size_t tile_batch,
+                                                  size_t slm_div_factor) const {
     FullyConnectedTuningData tuning_data;
 
     auto of_num = params.outputs[0].Feature().v;
@@ -129,7 +132,8 @@ float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& 
         of_num = params.outputs[0].Y().v;
     }
 
-    size_t blocks_f = RoundUp(of_num, tuning_data.sub_group_size) / tile_ofm * slm_div_factor / tuning_data.sub_group_size;
+    size_t blocks_f =
+        RoundUp(of_num, tuning_data.sub_group_size) / tile_ofm * slm_div_factor / tuning_data.sub_group_size;
     size_t blocks_b = ob_num / tile_batch;
 
     auto threads = blocks_f * blocks_b;
@@ -137,7 +141,8 @@ float FullyConnectedKernelIMAD::EstimateOccupancy(const fully_connected_params& 
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::GetTuningParams(const fully_connected_params& params) const {
+FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::GetTuningParams(
+    const fully_connected_params& params) const {
     FullyConnectedTuningData tuning_data;
 
     auto of_num = params.outputs[0].Feature().v;
@@ -190,7 +195,8 @@ FullyConnectedKernelIMAD::FullyConnectedTuningData FullyConnectedKernelIMAD::Get
     return tuning_data;
 }
 
-JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params,
+                                                       const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     auto tuning_data = GetTuningParams(params);
 
@@ -224,31 +230,27 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
 
         std::vector<std::string> idx_order_slm_split, idx_order_batch_scalar, idx_order_batch_vec;
         if (output_3d) {
-            idx_order_slm_split = { "batch", "skip_f", "feature", "0" };
-            idx_order_batch_scalar = { "batch", "skip_f", "(feature + SIMD_SIZE * of_idx)", "0" };
-            idx_order_batch_vec = { "batch", "(skip_f + ob_idx)", "(feature + SIMD_SIZE * of_idx)", "0" };
+            idx_order_slm_split = {"batch", "skip_f", "feature", "0"};
+            idx_order_batch_scalar = {"batch", "skip_f", "(feature + SIMD_SIZE * of_idx)", "0"};
+            idx_order_batch_vec = {"batch", "(skip_f + ob_idx)", "(feature + SIMD_SIZE * of_idx)", "0"};
         } else {
-            idx_order_slm_split = { "batch", "feature", "0", "0" };
-            idx_order_batch_scalar = { "batch", "(feature + SIMD_SIZE * of_idx)", "0", "0" };
-            idx_order_batch_vec = { "(batch + ob_idx)", "(feature + SIMD_SIZE * of_idx)", "0", "0" };
+            idx_order_slm_split = {"batch", "feature", "0", "0"};
+            idx_order_batch_scalar = {"batch", "(feature + SIMD_SIZE * of_idx)", "0", "0"};
+            idx_order_batch_vec = {"(batch + ob_idx)", "(feature + SIMD_SIZE * of_idx)", "0", "0"};
         }
 
-        FusedOpsConfiguration conf_slm_split = { "_SLM_SPLIT",
-                                                 idx_order_slm_split,
-                                                 "dequantized",
-                                                 input_dt,
-                                                 1 };
-        FusedOpsConfiguration conf_batch_scalar = { "_BATCH_SCALAR",
-                                                    idx_order_batch_scalar,
-                                                    "dequantized[of_idx]",
-                                                    input_dt,
-                                                    1 };
-        FusedOpsConfiguration conf_batch_vec = { "_BATCH_VEC",
-                                                 idx_order_batch_vec,
-                                                 "dequantized[ob_idx][of_idx]",
-                                                 input_dt,
-                                                 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf_slm_split, conf_batch_scalar, conf_batch_vec }));
+        FusedOpsConfiguration conf_slm_split = {"_SLM_SPLIT", idx_order_slm_split, "dequantized", input_dt, 1};
+        FusedOpsConfiguration conf_batch_scalar = {"_BATCH_SCALAR",
+                                                   idx_order_batch_scalar,
+                                                   "dequantized[of_idx]",
+                                                   input_dt,
+                                                   1};
+        FusedOpsConfiguration conf_batch_vec = {"_BATCH_VEC",
+                                                idx_order_batch_vec,
+                                                "dequantized[ob_idx][of_idx]",
+                                                input_dt,
+                                                1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_slm_split, conf_batch_scalar, conf_batch_vec}));
     }
 
     return jit;
@@ -261,12 +263,11 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params) const
 
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    input.GetLayout(),
-                                                    tuning_data.sub_group_size == 8 ?
-                                                    WeightsLayout::os_is_yx_osv8_isv4 :
-                                                    WeightsLayout::os_is_yx_osv16_isv4,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(
+            params,
+            input.GetLayout(),
+            tuning_data.sub_group_size == 8 ? WeightsLayout::os_is_yx_osv8_isv4 : WeightsLayout::os_is_yx_osv16_isv4,
+            static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

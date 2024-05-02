@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 /*This test runs the following subgraph:
 
@@ -30,9 +30,9 @@
                        Concat
                           |
                         Softmax
-                          
+
                         Result
-  
+
   The main purpose of this test is checking the code path when all the nodes except Softmax use "in-place" memory mode.
   Softmax is used as a model of an arbitrary subgraph preceding the pattern.
 */
@@ -88,8 +88,12 @@ public:
             first_level_reshapes.push_back(reshape);
         }
 
-        auto concat1 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[0], first_level_reshapes[1]}, concat_axis);
-        auto concat2 = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[2], first_level_reshapes[3]}, concat_axis);
+        auto concat1 =
+            std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[0], first_level_reshapes[1]},
+                                                 concat_axis);
+        auto concat2 =
+            std::make_shared<ov::op::v0::Concat>(ov::NodeVector{first_level_reshapes[2], first_level_reshapes[3]},
+                                                 concat_axis);
 
         ov::NodeVector second_level_reshapes;
         ov::NodeVector first_level_concats = {concat1, concat2};
@@ -120,23 +124,24 @@ namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
     {
         // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-        {{2, 64}, {{2, 64}}}, // input 0
-        {{2, 64}, {{2, 64}}}, // input 1
-        {{2, 64}, {{2, 64}}}, // input 2
-        {{2, 64}, {{2, 64}}}  // input 3
+        {{2, 64}, {{2, 64}}},  // input 0
+        {{2, 64}, {{2, 64}}},  // input 1
+        {{2, 64}, {{2, 64}}},  // input 2
+        {{2, 64}, {{2, 64}}}   // input 3
     },
     {
         // {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-        {{2, -1}, {{2, 64}}}, // input 0
-        {{2, -1}, {{2, 64}}}, // input 1
-        {{2, -1}, {{2, 64}}}, // input 2
-        {{2, -1}, {{2, 64}}}  // input 3
+        {{2, -1}, {{2, 64}}},  // input 0
+        {{2, -1}, {{2, 64}}},  // input 1
+        {{2, -1}, {{2, 64}}},  // input 2
+        {{2, -1}, {{2, 64}}}   // input 3
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Concat_Reshape_Concat, ConcatReshapeConcatSubgraphTest,
-                        ::testing::ValuesIn(inputShapes),
-                        ConcatReshapeConcatSubgraphTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_Reshape_Concat,
+                         ConcatReshapeConcatSubgraphTest,
+                         ::testing::ValuesIn(inputShapes),
+                         ConcatReshapeConcatSubgraphTest::getTestCaseName);
+}  // namespace
 }  // namespace test
 }  // namespace ov

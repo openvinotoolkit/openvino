@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/op/buffer.hpp"
 
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
-
 
 namespace ov {
 namespace snippets {
 namespace op {
 
 Buffer::Buffer(const OutputVector& arguments, const ov::Shape& shape, size_t id, ov::element::Type element_type)
-    : Op(arguments), m_shape(shape), m_id(id), m_element_type(std::move(element_type)), m_offset(0) {
+    : Op(arguments),
+      m_shape(shape),
+      m_id(id),
+      m_element_type(std::move(element_type)),
+      m_offset(0) {
     constructor_validate_and_infer_types();
 }
 
@@ -42,7 +44,8 @@ IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& a
     constructor_validate_and_infer_types();
 }
 
-ov::Shape IntermediateMemoryBuffer::compute_shape_from_allocation_rank(const ov::Output<ov::Node>& arg, int32_t allocation_rank) {
+ov::Shape IntermediateMemoryBuffer::compute_shape_from_allocation_rank(const ov::Output<ov::Node>& arg,
+                                                                       int32_t allocation_rank) {
     const auto& pshape = arg.get_partial_shape();
     OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
     const auto shape = pshape.get_shape();
@@ -103,6 +106,6 @@ IShapeInferSnippets::Result NewMemoryBuffer::ShapeInfer::infer(const std::vector
     return {{m_shape}, ShapeInferStatus::success};
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

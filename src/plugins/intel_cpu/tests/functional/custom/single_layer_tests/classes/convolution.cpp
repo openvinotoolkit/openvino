@@ -178,8 +178,15 @@ void ConvolutionLayerCPUTest::SetUp() {
     ov::ParameterVector inputParams;
     for (auto&& shape : inputDynamicShapes)
         inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
-    auto convolutionNode = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
-                                                            padEnd, dilation, padType, convOutChannels);
+    auto convolutionNode = ov::test::utils::make_convolution(inputParams[0],
+                                                             netType,
+                                                             kernel,
+                                                             stride,
+                                                             padBegin,
+                                                             padEnd,
+                                                             dilation,
+                                                             padType,
+                                                             convOutChannels);
 
     function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");
 }
@@ -187,11 +194,13 @@ void ConvolutionLayerCPUTest::SetUp() {
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
-    if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
+    if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) &&
+        selectedType.find("jit_sse") != std::string::npos) {
         auto inpChannels = function->get_parameters().front()->get_partial_shape()[1].get_length();
         auto outChannels = function->get_output_partial_shape(0)[1].get_length();
         if ((inpChannels % 8) || (outChannels % 8)) {
-            GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
+            GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout."
+                         << std::endl;
         }
     }
 
@@ -200,42 +209,56 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         // This convolution test code has already covered brgconv avx2 primitive.
         // @todo: Remove this once brgconv_avx2 is enabled for convolution node.
         if (priority[0].find("brgconv_avx2") != std::string::npos)
-                GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
+            GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
         // Skip tests for brgconv convolution where kernel size = 1x1
         if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
-                bool is_1x1 = true;
-                for (const auto &i : kernel) {
+            bool is_1x1 = true;
+            for (const auto& i : kernel) {
                 if (i != 1) {
-                        is_1x1 = false;
-                        break;
+                    is_1x1 = false;
+                    break;
                 }
-                }
-                if (is_1x1) {
-                GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
-                }
+            }
+            if (is_1x1) {
+                GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel."
+                             << std::endl;
+            }
         }
 
         // Skip tests for brgconv_amx convolution where dilation is not 1
         if (priority[0].find("amx") != std::string::npos) {
-                bool dilation_is_1x1 = true;
-                for (const auto &i : dilation) {
+            bool dilation_is_1x1 = true;
+            for (const auto& i : dilation) {
                 if (i != 1) {
-                        dilation_is_1x1 = false;
-                        break;
+                    dilation_is_1x1 = false;
+                    break;
                 }
-                }
-                if (!dilation_is_1x1) {
-                GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
-                }
+            }
+            if (!dilation_is_1x1) {
+                GTEST_SKIP()
+                    << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel."
+                    << std::endl;
+            }
         }
     }
 
 // FIXME: ACL output shape check fails if kernel, stride and padding equal to 1
-// CpuGemm::validate checks that 2nd and 3rd dimention of the input and output shapes are equal and fails (ticket 114201)
+// CpuGemm::validate checks that 2nd and 3rd dimention of the input and output shapes are equal and fails (ticket
+// 114201)
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (std::all_of(kernel.begin(), kernel.end(), [](size_t i){return i == 1;}) &&
-        std::all_of(stride.begin(), stride.end(), [](size_t i){return i == 1;}) &&
-        std::all_of(padBegin.begin(), padBegin.end(), [](ptrdiff_t i){return i == 1;})) {
+    if (std::all_of(kernel.begin(),
+                    kernel.end(),
+                    [](size_t i) {
+                        return i == 1;
+                    }) &&
+        std::all_of(stride.begin(),
+                    stride.end(),
+                    [](size_t i) {
+                        return i == 1;
+                    }) &&
+        std::all_of(padBegin.begin(), padBegin.end(), [](ptrdiff_t i) {
+            return i == 1;
+        })) {
         GTEST_SKIP() << "Disabled test due to output shape check failed" << std::endl;
     }
 #endif
@@ -248,394 +271,311 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
 }
 
 const ov::Shape& numOutChannels() {
-    static const ov::Shape numOutChannels = { 64, 63 };
+    static const ov::Shape numOutChannels = {64, 63};
     return numOutChannels;
 }
 
 const ov::Shape& numOutChannels_Gemm() {
-    static const ov::Shape numOutChannels_Gemm = { 6 };
+    static const ov::Shape numOutChannels_Gemm = {6};
     return numOutChannels_Gemm;
 }
 
 const std::vector<SizeVector>& kernels1d() {
-    static const std::vector<SizeVector> kernels1d = { {3}, {1} };
+    static const std::vector<SizeVector> kernels1d = {{3}, {1}};
     return kernels1d;
 }
 
 const std::vector<SizeVector>& strides1d() {
-    static const std::vector<SizeVector> strides1d = { {1}, {2} };
+    static const std::vector<SizeVector> strides1d = {{1}, {2}};
     return strides1d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padBegins1d() {
-    static const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {0}, {1} };
+    static const std::vector<std::vector<ptrdiff_t>> padBegins1d = {{0}, {1}};
     return padBegins1d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padEnds1d() {
-    static const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {0} };
+    static const std::vector<std::vector<ptrdiff_t>> padEnds1d = {{0}};
     return padEnds1d;
 }
 
 const std::vector<SizeVector>& dilations1d() {
-    static const std::vector<SizeVector> dilations1d = { {1}, {2} };
+    static const std::vector<SizeVector> dilations1d = {{1}, {2}};
     return dilations1d;
 }
 
 const std::vector<SizeVector>& kernels2d() {
-    static const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
+    static const std::vector<SizeVector> kernels2d = {{3, 3}, {1, 1}};
     return kernels2d;
 }
 
 const std::vector<SizeVector>& strides2d() {
-    static const std::vector<SizeVector> strides2d = { {1, 1}, {2, 2} };
+    static const std::vector<SizeVector> strides2d = {{1, 1}, {2, 2}};
     return strides2d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padBegins2d() {
-    static const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0}, {1, 1} };
+    static const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}, {1, 1}};
     return padBegins2d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padEnds2d() {
-    static const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
+    static const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
     return padEnds2d;
 }
 
 const std::vector<SizeVector>& dilations2d() {
-    static const std::vector<SizeVector> dilations2d = { {1, 1} };
+    static const std::vector<SizeVector> dilations2d = {{1, 1}};
     return dilations2d;
 }
 
 const std::vector<InputShape>& inShapesGemm2D() {
-    static const std::vector<InputShape> inShapesGemm2D = {
-            {{}, {{ 2, 12, 7, 7 }}},
-            {
-                //dynamic shape
-                { {1, 200}, 12, -1, {1, 200} },
-                { //target static shapes
-                    { 2, 12, 7, 7 },
-                    { 1, 12, 5, 5 }
-                }
-            }
-    };
+    static const std::vector<InputShape> inShapesGemm2D = {{{}, {{2, 12, 7, 7}}},
+                                                           {// dynamic shape
+                                                            {{1, 200}, 12, -1, {1, 200}},
+                                                            {// target static shapes
+                                                             {2, 12, 7, 7},
+                                                             {1, 12, 5, 5}}}};
     return inShapesGemm2D;
 }
 
 const std::vector<InputShape>& inShapesGemm2D_cache() {
-    static const std::vector<InputShape> inShapesGemm2D_cache = {
-            {{}, {{ 2, 12, 7, 7 }}},
-            {
-                //dynamic shape
-                { {1, 200}, 12, -1, {1, 200} },
-                { //target static shapes
-                    { 1, 12, 5, 5 },
-                    { 1, 12, 7, 7 },
-                    { 1, 12, 5, 5 }
-                }
-            }
-    };
+    static const std::vector<InputShape> inShapesGemm2D_cache = {{{}, {{2, 12, 7, 7}}},
+                                                                 {// dynamic shape
+                                                                  {{1, 200}, 12, -1, {1, 200}},
+                                                                  {// target static shapes
+                                                                   {1, 12, 5, 5},
+                                                                   {1, 12, 7, 7},
+                                                                   {1, 12, 5, 5}}}};
     return inShapesGemm2D_cache;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_2D() {
-    static const std::vector<CPUSpecificParams> CPUParams_2D = {
-        conv_sse42_2D,
-        conv_avx2_2D,
-        conv_avx512_2D,
-        conv_sse42_2D_nspc,
-        conv_avx2_2D_nspc,
-        conv_avx2_2D_nspc_brgconv,
-        conv_avx512_2D_nspc,
-        conv_avx512_2D_nspc_brgconv
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_2D = {conv_sse42_2D,
+                                                                conv_avx2_2D,
+                                                                conv_avx512_2D,
+                                                                conv_sse42_2D_nspc,
+                                                                conv_avx2_2D_nspc,
+                                                                conv_avx2_2D_nspc_brgconv,
+                                                                conv_avx512_2D_nspc,
+                                                                conv_avx512_2D_nspc_brgconv};
     return CPUParams_2D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_3D() {
-    static const std::vector<CPUSpecificParams> CPUParams_3D = {
-        //conv_sse42_3D, // not supported jit_sse42 for 3d
-        conv_avx2_3D,
-        conv_avx512_3D,
-        conv_avx2_3D_nspc,
-        conv_avx2_3D_nspc_brgconv,
-        conv_avx512_3D_nspc,
-        conv_avx512_3D_nspc_brgconv
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_3D = {// conv_sse42_3D, // not supported jit_sse42 for 3d
+                                                                conv_avx2_3D,
+                                                                conv_avx512_3D,
+                                                                conv_avx2_3D_nspc,
+                                                                conv_avx2_3D_nspc_brgconv,
+                                                                conv_avx512_3D_nspc,
+                                                                conv_avx512_3D_nspc_brgconv};
     return CPUParams_3D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D() {
-    static const std::vector<CPUSpecificParams> CPUParams_GEMM_1D = {
-            conv_gemm_1D,
-            conv_gemm_1D_nspc
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_1D = {conv_gemm_1D, conv_gemm_1D_nspc};
     return CPUParams_GEMM_1D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D() {
-    static const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {
-        conv_gemm_2D,
-        conv_gemm_2D_nspc,
-        conv_gemm_acl_2D_nspc
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_2D = {conv_gemm_2D,
+                                                                     conv_gemm_2D_nspc,
+                                                                     conv_gemm_acl_2D_nspc};
     return CPUParams_GEMM_2D;
 }
 
 const std::vector<InputShape>& inputShapes1d() {
-    static const std::vector<InputShape> inputShapes1d = {
-            {{}, {{ 2, 64, 7 }}},
-            {{}, {{ 1, 67, 7 }}},
-            {
-                //dynamic shape
-                { -1, 64, {1, 200} },
-                { //target static shapes
-                    { 2, 64, 7 },
-                    { 1, 64, 9 }
-                }
-            },
-            {
-                //dynamic shape
-                { -1, 67, {1, 200} },
-                { //target static shapes
-                    { 2, 67, 7 },
-                    { 1, 67, 9 }
-                }
-            },
-            {
-                //dynamic shape
-                { {1, 200}, 64, -1 },
-                { //target static shapes
-                    { 2, 64, 7 },
-                    { 1, 64, 5 }
-                }
-            }
-    };
+    static const std::vector<InputShape> inputShapes1d = {{{}, {{2, 64, 7}}},
+                                                          {{}, {{1, 67, 7}}},
+                                                          {// dynamic shape
+                                                           {-1, 64, {1, 200}},
+                                                           {// target static shapes
+                                                            {2, 64, 7},
+                                                            {1, 64, 9}}},
+                                                          {// dynamic shape
+                                                           {-1, 67, {1, 200}},
+                                                           {// target static shapes
+                                                            {2, 67, 7},
+                                                            {1, 67, 9}}},
+                                                          {// dynamic shape
+                                                           {{1, 200}, 64, -1},
+                                                           {// target static shapes
+                                                            {2, 64, 7},
+                                                            {1, 64, 5}}}};
     return inputShapes1d;
 }
 
 const std::vector<InputShape>& inputShapes2d() {
-    static const std::vector<InputShape> inputShapes2d = {
-            {{}, {{ 1, 64, 7, 7 }}},
-            {{}, {{ 1, 67, 7, 7 }}},
-            {
-                //dynamic shape
-                { -1, 64, -1, {1, 200} },
-                { //target static shapes
-                    { 2, 64, 7, 7 },
-                    { 1, 64, 9, 9}
-                }
-            },
-            {
-                //dynamic shape
-                { -1, 67, -1, {1, 200} },
-                { //target static shapes
-                    { 2, 67, 7, 7 },
-                    { 1, 67, 9, 9}
-                }
-            }
-    };
+    static const std::vector<InputShape> inputShapes2d = {{{}, {{1, 64, 7, 7}}},
+                                                          {{}, {{1, 67, 7, 7}}},
+                                                          {// dynamic shape
+                                                           {-1, 64, -1, {1, 200}},
+                                                           {// target static shapes
+                                                            {2, 64, 7, 7},
+                                                            {1, 64, 9, 9}}},
+                                                          {// dynamic shape
+                                                           {-1, 67, -1, {1, 200}},
+                                                           {// target static shapes
+                                                            {2, 67, 7, 7},
+                                                            {1, 67, 9, 9}}}};
     return inputShapes2d;
 }
 
 const std::vector<InputShape>& inputShapesPlain2Blocked2d() {
-    static const std::vector<InputShape> inputShapesPlain2Blocked2d = {
-            {{}, {{ 1, 1, 7, 7 }}},
-            {{}, {{ 1, 2, 7, 7 }}},
-            {{}, {{ 1, 3, 7, 7 }}},
-            {
-                //dynamic shape
-                { -1, 1, -1, {1, 200} },
-                { //target static shapes
-                    { 2, 1, 7, 7 },
-                    { 1, 1, 9, 9}
-                }
-            },
-            {
-                //dynamic shape
-                { -1, 3, -1, {1, 200} },
-                { //target static shapes
-                    { 2, 3, 7, 7 },
-                    { 1, 3, 9, 9}
-                }
-            }
-    };
+    static const std::vector<InputShape> inputShapesPlain2Blocked2d = {{{}, {{1, 1, 7, 7}}},
+                                                                       {{}, {{1, 2, 7, 7}}},
+                                                                       {{}, {{1, 3, 7, 7}}},
+                                                                       {// dynamic shape
+                                                                        {-1, 1, -1, {1, 200}},
+                                                                        {// target static shapes
+                                                                         {2, 1, 7, 7},
+                                                                         {1, 1, 9, 9}}},
+                                                                       {// dynamic shape
+                                                                        {-1, 3, -1, {1, 200}},
+                                                                        {// target static shapes
+                                                                         {2, 3, 7, 7},
+                                                                         {1, 3, 9, 9}}}};
     return inputShapesPlain2Blocked2d;
 }
 
 const std::vector<InputShape>& inputShapes2d_dynBatch() {
     static const std::vector<InputShape> inputShapes2d_dynBatch = {
-            {
-                //dynamic shape
-                { {1, 10}, 64, 7, 7 },
-                { //target static shapes
-                    { 2, 64, 7, 7 },
-                    { 1, 64, 7, 7 }
-                }
-            },
+        {// dynamic shape
+         {{1, 10}, 64, 7, 7},
+         {// target static shapes
+          {2, 64, 7, 7},
+          {1, 64, 7, 7}}},
     };
     return inputShapes2d_dynBatch;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_1x1_1D() {
-    static const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
-            conv_sse42_1D_1x1,
-            conv_avx2_1D_1x1,
-            conv_avx512_1D_1x1,
-            conv_sse42_1D_1x1_nspc,
-            conv_avx2_1D_1x1_nspc,
-            conv_avx2_1D_1x1_nspc_brgconv,
-            conv_avx512_1D_1x1_nspc,
-            conv_avx512_1D_1x1_nspc_brgconv
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {conv_sse42_1D_1x1,
+                                                                    conv_avx2_1D_1x1,
+                                                                    conv_avx512_1D_1x1,
+                                                                    conv_sse42_1D_1x1_nspc,
+                                                                    conv_avx2_1D_1x1_nspc,
+                                                                    conv_avx2_1D_1x1_nspc_brgconv,
+                                                                    conv_avx512_1D_1x1_nspc,
+                                                                    conv_avx512_1D_1x1_nspc_brgconv};
     return CPUParams_1x1_1D;
 }
 
 const std::vector<SizeVector>& kernels3d() {
-    static const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
+    static const std::vector<SizeVector> kernels3d = {{3, 3, 3}, {1, 1, 1}};
     return kernels3d;
 }
 
 const std::vector<SizeVector>& strides3d() {
-    static const std::vector<SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
+    static const std::vector<SizeVector> strides3d = {{1, 1, 1}, {2, 2, 2}};
     return strides3d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padBegins3d() {
-    static const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0}, {1, 1, 1} };
+    static const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}, {1, 1, 1}};
     return padBegins3d;
 }
 
 const std::vector<std::vector<ptrdiff_t>>& padEnds3d() {
-    static const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
+    static const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
     return padEnds3d;
 }
 
 const std::vector<SizeVector>& dilations3d() {
-    static const std::vector<SizeVector> dilations3d = { {1, 1, 1} };
+    static const std::vector<SizeVector> dilations3d = {{1, 1, 1}};
     return dilations3d;
 }
 
-const std::vector<InputShape> & inputShapes3d() {
-    static const std::vector<InputShape> inputShapes3d = {
-            {{}, {{ 1, 64, 7, 7, 7 }}},
-            {{}, {{ 1, 67, 7, 7, 7 }}},
-            {
-                //dynamic shapes
-                { -1, 64, -1, {1, 200}, -1 },
-                { //target static shapes
-                    { 1, 64, 7, 7, 7 },
-                    { 1, 64, 9, 9, 9}
-                }
-            },
-            {
-                //dynamic shapes
-                { -1, 67, -1, {1, 200}, -1 },
-                { //target static shapes
-                    { 1, 67, 7, 7, 7 },
-                    { 1, 67, 9, 9, 9}
-                }
-            }
-    };
+const std::vector<InputShape>& inputShapes3d() {
+    static const std::vector<InputShape> inputShapes3d = {{{}, {{1, 64, 7, 7, 7}}},
+                                                          {{}, {{1, 67, 7, 7, 7}}},
+                                                          {// dynamic shapes
+                                                           {-1, 64, -1, {1, 200}, -1},
+                                                           {// target static shapes
+                                                            {1, 64, 7, 7, 7},
+                                                            {1, 64, 9, 9, 9}}},
+                                                          {// dynamic shapes
+                                                           {-1, 67, -1, {1, 200}, -1},
+                                                           {// target static shapes
+                                                            {1, 67, 7, 7, 7},
+                                                            {1, 67, 9, 9, 9}}}};
     return inputShapes3d;
 }
 
-const std::vector<InputShape> & inShapesGemm3D() {
-    static const std::vector<InputShape> inShapesGemm3D = {
-            {{}, {{ 2, 12, 7, 7, 7 }}},
-            {
-                //dynamic shape
-                { {1, 200}, 12, -1, {1, 200}, -1 },
-                { //target static shapes
-                    { 2, 12, 7, 7, 7 },
-                    { 1, 12, 5, 5, 5 }
-                }
-            }
-    };
+const std::vector<InputShape>& inShapesGemm3D() {
+    static const std::vector<InputShape> inShapesGemm3D = {{{}, {{2, 12, 7, 7, 7}}},
+                                                           {// dynamic shape
+                                                            {{1, 200}, 12, -1, {1, 200}, -1},
+                                                            {// target static shapes
+                                                             {2, 12, 7, 7, 7},
+                                                             {1, 12, 5, 5, 5}}}};
     return inShapesGemm3D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D() {
-    static const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {
-            conv_gemm_3D,
-            conv_gemm_3D_nspc,
-            conv_gemm_acl_3D,
-            conv_gemm_acl_3D_nspc
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_GEMM_3D = {conv_gemm_3D,
+                                                                     conv_gemm_3D_nspc,
+                                                                     conv_gemm_acl_3D,
+                                                                     conv_gemm_acl_3D_nspc};
     return CPUParams_GEMM_3D;
 }
 
 const std::vector<CPUSpecificParams>& CPUParams_1x1_2D() {
-    static const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
-            conv_sse42_2D_1x1,
-            conv_avx2_2D_1x1,
-            conv_avx512_2D_1x1,
-            conv_sse42_2D_1x1_nspc,
-            conv_avx2_2D_1x1_nspc,
-            conv_avx2_2D_1x1_nspc_brgconv,
-            conv_avx512_2D_1x1_nspc,
-            conv_avx512_2D_1x1_nspc_brgconv
-    };
+    static const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {conv_sse42_2D_1x1,
+                                                                    conv_avx2_2D_1x1,
+                                                                    conv_avx512_2D_1x1,
+                                                                    conv_sse42_2D_1x1_nspc,
+                                                                    conv_avx2_2D_1x1_nspc,
+                                                                    conv_avx2_2D_1x1_nspc_brgconv,
+                                                                    conv_avx512_2D_1x1_nspc,
+                                                                    conv_avx512_2D_1x1_nspc_brgconv};
     return CPUParams_1x1_2D;
 }
 
 const std::vector<InputShape>& inputShapes2d_cache() {
-    static const std::vector<InputShape> inputShapes2d_cache = {
-            {{}, {{ 1, 64, 7, 7 }}},
-            {{}, {{ 1, 67, 7, 7 }}},
-            {
-                //dynamic shape
-                { -1, 64, -1, {1, 200} },
-                { //target static shapes
-                    { 1, 64, 7, 7 },
-                    { 1, 64, 9, 9 },
-                    { 1, 64, 7, 7 }
-                }
-            },
-            {
-                //dynamic shape
-                { -1, 67, -1, {1, 200} },
-                { //target static shapes
-                    { 1, 67, 7, 7 },
-                    { 1, 67, 9, 9}
-                }
-            }
-    };
+    static const std::vector<InputShape> inputShapes2d_cache = {{{}, {{1, 64, 7, 7}}},
+                                                                {{}, {{1, 67, 7, 7}}},
+                                                                {// dynamic shape
+                                                                 {-1, 64, -1, {1, 200}},
+                                                                 {// target static shapes
+                                                                  {1, 64, 7, 7},
+                                                                  {1, 64, 9, 9},
+                                                                  {1, 64, 7, 7}}},
+                                                                {// dynamic shape
+                                                                 {-1, 67, -1, {1, 200}},
+                                                                 {// target static shapes
+                                                                  {1, 67, 7, 7},
+                                                                  {1, 67, 9, 9}}}};
     return inputShapes2d_cache;
 }
 
 const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty() {
-    static const std::vector<fusingSpecificParams> fusingParamsSetWithEmpty = {
-            emptyFusingSpec,
-            // eltwise
-            fusingRelu,
-            fusingPRelu1DScaleShift,
-            // depthwise
-            fusingReluScaleShift,
-            // fake quantize
-            fusingFakeQuantizePerTensorRelu,
-            fusingFakeQuantizePerChannelRelu,
-            // sum
-            fusingSumEluFQ,
-            fusingSum,
-            // bias
-            fusingAddPerChannel
-    };
+    static const std::vector<fusingSpecificParams> fusingParamsSetWithEmpty = {emptyFusingSpec,
+                                                                               // eltwise
+                                                                               fusingRelu,
+                                                                               fusingPRelu1DScaleShift,
+                                                                               // depthwise
+                                                                               fusingReluScaleShift,
+                                                                               // fake quantize
+                                                                               fusingFakeQuantizePerTensorRelu,
+                                                                               fusingFakeQuantizePerChannelRelu,
+                                                                               // sum
+                                                                               fusingSumEluFQ,
+                                                                               fusingSum,
+                                                                               // bias
+                                                                               fusingAddPerChannel};
     return fusingParamsSetWithEmpty;
 }
 
 const std::vector<InputShape>& inShapesGemm1D() {
-    static const std::vector<InputShape> inShapesGemm1D = {
-            {{}, {{ 2, 12, 7 }}},
-            {
-                //dynamic shape
-                { {1, 200}, 12, {1, 200} },
-                { //target static shapes
-                    { 2, 12, 7 },
-                    { 1, 12, 5 }
-                }
-            }
-    };
+    static const std::vector<InputShape> inShapesGemm1D = {{{}, {{2, 12, 7}}},
+                                                           {// dynamic shape
+                                                            {{1, 200}, 12, {1, 200}},
+                                                            {// target static shapes
+                                                             {2, 12, 7},
+                                                             {1, 12, 5}}}};
     return inShapesGemm1D;
 }
 

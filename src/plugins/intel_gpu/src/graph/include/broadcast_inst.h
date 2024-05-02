@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "intel_gpu/primitives/broadcast.hpp"
-
-#include "primitive_inst.h"
-#include <string>
 #include <memory>
+#include <string>
+
+#include "intel_gpu/primitives/broadcast.hpp"
+#include "primitive_inst.h"
 
 namespace cldnn {
 template <>
@@ -22,8 +22,12 @@ public:
     typed_program_node(const std::shared_ptr<broadcast> prim, program& prog) : parent(prim, prog) {
         support_padding_all(true);
     }
-    program_node& input() const { return get_dependency(0); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
+    program_node& input() const {
+        return get_dependency(0);
+    }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {1};
+    }
 };
 
 using broadcast_node = typed_program_node<broadcast>;
@@ -34,8 +38,9 @@ class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadca
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(broadcast_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param);
     static layout calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(broadcast_node const& node);
     typed_primitive_inst(network& network, broadcast_node const& node);

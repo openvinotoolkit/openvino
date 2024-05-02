@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Semantic segmentation postprocessor"""
-from .provider import ClassProvider
-import numpy as np
 import logging as log
+
+import numpy as np
+
+from .provider import ClassProvider
 
 
 class ParseSemanticSegmentation(ClassProvider):
     """Semantic segmentation parser"""
+
     __action_name__ = "parse_semantic_segmentation"
 
     def __init__(self, config):
@@ -27,5 +30,9 @@ class ParseSemanticSegmentation(ClassProvider):
         for layer in data.keys() - target_layers:
             predictions[layer] = data[layer]
         if postprocessed == False:
-            log.info("Postprocessor {} has nothing to process".format(str(self.__action_name__)))
+            log.info(
+                "Postprocessor {} has nothing to process".format(
+                    str(self.__action_name__)
+                )
+            )
         return predictions

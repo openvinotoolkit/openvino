@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "program_helpers.h"
-#include "implementation_map.hpp"
-
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
+#include "implementation_map.hpp"
 #include "intel_gpu/runtime/format.hpp"
+#include "pass_manager.h"
+#include "program_helpers.h"
 
 namespace cldnn {
 
 post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
-    : base_pass("post_optimize_weights"), _rf(rf_ref) {}
+    : base_pass("post_optimize_weights"),
+      _rf(rf_ref) {}
 
-template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
-    return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
+template <typename T>
+post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
+    return weights_bias_offset(node.get_primitive()->input.size(),
+                               program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
 // function which prepares given primitive for weights optimization
-template<typename T>
+template <typename T>
 void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto offsets = get_weights_bias_offset(node);
     auto impl = node.get_selected_impl();
@@ -37,11 +39,12 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             return;
         }
         // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
-        // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked format is not fully verified yet.
-        // So we need to enable other primitives such as convolution with verifying reorder b/w the possible layouts
-        // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
-        // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
-        // This situation might be changed once onednn shape agnostic kernel is used in the future.
+        // In dynamic shape, selected weight format can change in runtime. However reordering blocked format to blocked
+        // format is not fully verified yet. So we need to enable other primitives such as convolution with verifying
+        // reorder b/w the possible layouts Also we skip weight reorder for onednn impl because onednn fully connected
+        // layer is using simple format, therefore reordering to cldnn shape_agnostic_kernel's preferred blocked format
+        // at build time does not helpful for the performance. This situation might be changed once onednn shape
+        // agnostic kernel is used in the future.
         if (p.is_internal_program())
             return;
         if (node.get_preferred_impl_type() == impl_types::onednn)
@@ -54,7 +57,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
         if (!weights_reorder_node.is_constant()) {
             auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
-            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn
+                                                                                                    : impl_types::ocl;
             auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
             reorder_kernel_params->prog = &p;
             auto reorder_impl = factory(*reorder_kernel_params);
@@ -73,10 +77,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         program_node& prev_node = node.get_dependency(i);
 
         if (weights_reorder_params != nullptr) {
-            bool can_be_fused = prev_node.is_type<reorder>() &&
-                                prev_node.as<reorder>().is_simple_reorder() &&
-                                prev_node.get_users().size() == 1 &&
-                                prev_node.get_dependencies().size() == 1 &&
+            bool can_be_fused = prev_node.is_type<reorder>() && prev_node.as<reorder>().is_simple_reorder() &&
+                                prev_node.get_users().size() == 1 && prev_node.get_dependencies().size() == 1 &&
                                 (format::is_weights_format(prev_node.get_input_layout().format) ||
                                  format::is_simple_data_format(prev_node.get_input_layout().format));
 
@@ -91,8 +93,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
-                auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
-                                                               weights_reorder_params);
+                auto weights_reorder =
+                    _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid, weights_reorder_params);
                 auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
                 p.replace(prev_node, weights_reorder_node);
                 weights_reorder_node.recalc_output_layout(false);

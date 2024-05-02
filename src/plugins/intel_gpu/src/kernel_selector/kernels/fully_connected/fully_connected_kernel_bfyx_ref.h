@@ -21,11 +21,11 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
+    DispatchData SetDefault(const fully_connected_params& params,
+                            int autoTuneIndex = -1,
+                            int kernel_number = 0) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
     bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;

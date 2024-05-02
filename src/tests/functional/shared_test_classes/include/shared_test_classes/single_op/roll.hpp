@@ -4,20 +4,20 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<InputShape>,     // Input shapes
-        ov::element::Type,           // Model type
-        std::vector<int64_t>,        // Shift
-        std::vector<int64_t>,        // Axes
-        ov::test::TargetDevice       // Device name
-> rollParams;
+typedef std::tuple<std::vector<InputShape>,  // Input shapes
+                   ov::element::Type,        // Model type
+                   std::vector<int64_t>,     // Shift
+                   std::vector<int64_t>,     // Axes
+                   ov::test::TargetDevice    // Device name
+                   >
+    rollParams;
 
 class RollLayerTest : public testing::WithParamInterface<rollParams>, virtual public ov::test::SubgraphBaseTest {
 public:

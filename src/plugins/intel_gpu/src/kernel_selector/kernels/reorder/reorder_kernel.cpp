@@ -3,6 +3,7 @@
 //
 
 #include "reorder_kernel.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {

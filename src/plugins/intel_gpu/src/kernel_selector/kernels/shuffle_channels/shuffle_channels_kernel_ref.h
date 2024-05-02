@@ -24,6 +24,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 protected:
     bool Validate(const Params&) const override;
     virtual CommonDispatchData SetDefault(const shuffle_channels_params& params) const;

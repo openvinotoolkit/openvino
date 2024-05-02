@@ -1,11 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # pool2d paddle model generator
 #
 import numpy as np
-import sys
 from save_model import saveModel
 
 data_type = "float32"
@@ -26,7 +27,7 @@ def pool2d(name: str, x, attrs: dict):
                 stride=attrs["pool_stride"],
                 padding=attrs["pool_padding"],
                 ceil_mode=attrs["ceil_mode"],
-                data_format=attrs["data_format"]
+                data_format=attrs["data_format"],
             )
         else:
             out = paddle.nn.functional.avg_pool2d(
@@ -35,7 +36,7 @@ def pool2d(name: str, x, attrs: dict):
                 stride=attrs["pool_stride"],
                 padding=attrs["pool_padding"],
                 ceil_mode=attrs["ceil_mode"],
-                data_format=attrs["data_format"]
+                data_format=attrs["data_format"],
             )
 
         cpu = paddle.static.cpu_places(1)
@@ -67,13 +68,11 @@ def adaptive_pool2d(name: str, x, attrs: dict):
         node_x = paddle.static.data(name="x", shape=x.shape, dtype=data_type)
         if attrs["pool_type"] == "max":
             out = paddle.nn.functional.adaptive_max_pool2d(
-                x=node_x,
-                output_size=attrs["pool_size"]
+                x=node_x, output_size=attrs["pool_size"]
             )
         else:
             out = paddle.nn.functional.adaptive_avg_pool2d(
-                x=node_x,
-                output_size=attrs["pool_size"]
+                x=node_x, output_size=attrs["pool_size"]
             )
 
         cpu = paddle.static.cpu_places(1)
@@ -292,10 +291,7 @@ def main():
 
     # adaptive_pool2d
     for i, pooling_type in enumerate(pooling_types):
-        paddle_attrs = {
-            "pool_size": [3, 3],
-            "pool_type": pooling_type
-        }
+        paddle_attrs = {"pool_size": [3, 3], "pool_type": pooling_type}
         adaptive_pool2d(pooling_type + "AdaptivePool2D_test1", data_NCHW, paddle_attrs)
 
 

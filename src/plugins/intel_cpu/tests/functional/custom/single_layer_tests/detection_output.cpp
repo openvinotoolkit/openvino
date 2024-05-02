@@ -10,7 +10,7 @@ namespace DetectionOutput {
 static std::ostream& operator<<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
-    result << "topK="  << attrs.top_k << "_";
+    result << "topK=" << attrs.top_k << "_";
     result << "varEnc=" << attrs.variance_encoded_in_target << "_";
     result << "keepTopK=" << ov::test::utils::vec2str(attrs.keep_top_k) << "_";
     result << "codeType=" << attrs.code_type << "_";

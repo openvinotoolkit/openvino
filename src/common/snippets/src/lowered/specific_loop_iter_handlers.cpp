@@ -8,7 +8,6 @@
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/utils.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -40,15 +39,14 @@ const pass::PassPipeline& SpecificIterationHandlers::get_last_iter_handlers() co
     return m_last_iter_handlers;
 }
 
-SpecificIterationHandlers SpecificIterationHandlers::merge_handlers(
-    const SpecificIterationHandlers& lhs,
-    const SpecificIterationHandlers& rhs) {
+SpecificIterationHandlers SpecificIterationHandlers::merge_handlers(const SpecificIterationHandlers& lhs,
+                                                                    const SpecificIterationHandlers& rhs) {
     return SpecificIterationHandlers(
         pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handlers(), rhs.get_first_iter_handlers()),
         pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handlers(), rhs.get_main_iter_handlers()),
         pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handlers(), rhs.get_last_iter_handlers()));
 }
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

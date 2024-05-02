@@ -2,21 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import sys
-import os
-import io
 import importlib
-from contextlib import redirect_stdout, redirect_stderr
-
+import io
+import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
 
 skip_snippets = ["main.py", "__init__.py", "utils.py", "ov_common.py"]
 
+
 def import_python_modules(directory, subdirectory=""):
     for item in os.listdir(directory):
-        if item.endswith('.py') and item not in skip_snippets:
+        if item.endswith(".py") and item not in skip_snippets:
             imported_item = item[:-3]
             if subdirectory != "":
-                imported_item=subdirectory + "." + imported_item
+                imported_item = subdirectory + "." + imported_item
             print(f"Snippet {item} is executing...")
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 mod = importlib.import_module(imported_item)
@@ -29,7 +29,6 @@ def import_python_modules(directory, subdirectory=""):
 
             print(f"Snippet {item} succesfully executed.")
 
-        
         if os.path.isdir(os.path.join(directory, item)):
             dir_path = os.path.join(directory, item)
             import_python_modules(dir_path, item)

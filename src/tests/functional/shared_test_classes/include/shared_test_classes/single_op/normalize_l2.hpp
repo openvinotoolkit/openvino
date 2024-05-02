@@ -12,14 +12,13 @@
 
 namespace ov {
 namespace test {
-using NormalizeL2LayerTestParams = std::tuple<
-        std::vector<int64_t>,       // axes
-        float,                      // eps
-        ov::op::EpsMode,            // eps mode
-        std::vector<InputShape>,    // input shape
-        ov::element::Type,          // model type
-        std::string                 // target device
->;
+using NormalizeL2LayerTestParams = std::tuple<std::vector<int64_t>,     // axes
+                                              float,                    // eps
+                                              ov::op::EpsMode,          // eps mode
+                                              std::vector<InputShape>,  // input shape
+                                              ov::element::Type,        // model type
+                                              std::string               // target device
+                                              >;
 
 class NormalizeL2LayerTest : public testing::WithParamInterface<NormalizeL2LayerTestParams>,
                              virtual public ov::test::SubgraphBaseTest {

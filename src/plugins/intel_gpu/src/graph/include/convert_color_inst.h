@@ -3,9 +3,10 @@
 //
 #pragma once
 
+#include <string>
+
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "primitive_inst.h"
-#include <string>
 
 namespace cldnn {
 template <>
@@ -14,7 +15,9 @@ struct typed_program_node<convert_color> : public typed_program_node_base<conver
 
 public:
     using parent::parent;
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
+    program_node& input(size_t index = 0) const {
+        return get_dependency(index);
+    }
 };
 
 using convert_color_node = typed_program_node<convert_color>;

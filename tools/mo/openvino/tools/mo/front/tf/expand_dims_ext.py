@@ -12,7 +12,8 @@ class ExpandDimsExtractor(FrontExtractorOp):
     which specifies the dimension to expand. But in the TensorFlow the ExpandDims operation has 2 inputs where the
     second input specifies the dimensions to expand. In the Model Optimizer this operation corresponds to the Unsqueeze.
     """
-    op = 'ExpandDims'
+
+    op = "ExpandDims"
     enabled = True
 
     @classmethod

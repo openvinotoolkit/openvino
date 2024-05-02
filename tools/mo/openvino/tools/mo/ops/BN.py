@@ -9,14 +9,19 @@ class BN(Op):
     """
     BN operation comes from caffe and will be replaced by BNToScaleShift FrontReplacer.
     """
-    op = 'BN'
+
+    op = "BN"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 5,
-            'out_ports_count': 1,
-            'infer': None
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 5,
+                "out_ports_count": 1,
+                "infer": None,
+            },
+            attrs,
+        )

@@ -14,7 +14,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyWithOneParentTransformationParams>& obj) {
+std::string MultiplyWithOneParentTransformation::getTestCaseName(
+    const testing::TestParamInfo<MultiplyWithOneParentTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -36,7 +37,9 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
+    function = ov::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision,
+                                                                                 inputShape,
+                                                                                 values.fakeQuantize);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

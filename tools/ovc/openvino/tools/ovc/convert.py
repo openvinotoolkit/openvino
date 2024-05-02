@@ -11,16 +11,15 @@ from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
 
 
 def convert_model(
-        input_model: [str, pathlib.Path, Any, list],
-        # TODO: Instead of list just accept arbitrary number of positional arguments
-
-        # Framework-agnostic parameters
-        input: [list, dict, str] = None,
-        output: [str, list] = None,
-        example_input: Any = None,
-        extension: [str, pathlib.Path, list, Any] = None,
-        verbose: bool = False,
-        share_weights: bool = True,
+    input_model: [str, pathlib.Path, Any, list],
+    # TODO: Instead of list just accept arbitrary number of positional arguments
+    # Framework-agnostic parameters
+    input: [list, dict, str] = None,
+    output: [str, list] = None,
+    example_input: Any = None,
+    extension: [str, pathlib.Path, list, Any] = None,
+    verbose: bool = False,
+    share_weights: bool = True,
 ) -> Model:
     """
     Converts the model from original framework to OpenVino Model.

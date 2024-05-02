@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -24,7 +23,7 @@ class TestEmptyNumeric(PytorchLayerTest):
                     "int64": torch.int64,
                     "int32": torch.int32,
                     "uint8": torch.uint8,
-                    "int8": torch.int8
+                    "int8": torch.int8,
                 }
                 super().__init__()
                 self.dtype = dtype_map[dtype]
@@ -41,7 +40,9 @@ class TestEmptyNumeric(PytorchLayerTest):
 
         return aten_empty(dtype), ref_net, "aten::empty"
 
-    @pytest.mark.parametrize('dtype', ("float32", "float64", "int64", "int32", "uint8", "int8"))
+    @pytest.mark.parametrize(
+        "dtype", ("float32", "float64", "int64", "int32", "uint8", "int8")
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_empty(self, ie_device, precision, ir_version, dtype):
@@ -52,13 +53,20 @@ class TestEmptyLike(PytorchLayerTest):
 
     def _prepare_input(self, shape, dtype=np.float32, out=False):
         if not out:
-            return (np.random.randn(*shape).astype(dtype if dtype is not None else np.float32),)
-        return (np.random.randn(*shape), np.ones(shape, dtype=(dtype if dtype is not None else np.float32)))
+            return (
+                np.random.randn(*shape).astype(
+                    dtype if dtype is not None else np.float32
+                ),
+            )
+        return (
+            np.random.randn(*shape),
+            np.ones(shape, dtype=(dtype if dtype is not None else np.float32)),
+        )
 
     def create_model(self, dtype, out, no_expose_dtype=False):
 
         class aten_empty_like(torch.nn.Module):
-                
+
             def __init__(self, dtype=None, out=False, no_expose_dtype=False):
                 dtype_map = {
                     "float32": torch.float32,
@@ -66,7 +74,7 @@ class TestEmptyLike(PytorchLayerTest):
                     "int64": torch.int64,
                     "int32": torch.int32,
                     "uint8": torch.uint8,
-                    "int8": torch.int8
+                    "int8": torch.int8,
                 }
                 super().__init__()
                 self.dtype = dtype_map.get(dtype, None)
@@ -101,22 +109,58 @@ class TestEmptyLike(PytorchLayerTest):
 
         return aten_empty_like(dtype, out, no_expose_dtype), ref_net, "aten::empty_like"
 
-    @pytest.mark.parametrize('dtype', (None, "float32", "float64", "int64", "int32", "uint8", "int8"))
-    @pytest.mark.parametrize("input_shape", [[2,], [1, 10], [10, 5, 2]])
+    @pytest.mark.parametrize(
+        "dtype", (None, "float32", "float64", "int64", "int32", "uint8", "int8")
+    )
+    @pytest.mark.parametrize(
+        "input_shape",
+        [
+            [
+                2,
+            ],
+            [1, 10],
+            [10, 5, 2],
+        ],
+    )
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty_like(self, ie_device, precision, ir_version, dtype, input_shape, out):
-        self._test(*self.create_model(dtype, out), ie_device, precision, ir_version, 
-                   kwargs_to_prepare_input={"shape": input_shape, "out": out, "dtype": dtype})
+    def test_empty_like(
+        self, ie_device, precision, ir_version, dtype, input_shape, out
+    ):
+        self._test(
+            *self.create_model(dtype, out),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"shape": input_shape, "out": out, "dtype": dtype}
+        )
 
-    @pytest.mark.parametrize('dtype', (None, "float32", "float64", "int64", "int32", "uint8", "int8"))
-    @pytest.mark.parametrize("input_shape", [[2,], [1, 10], [10, 5, 2]])
+    @pytest.mark.parametrize(
+        "dtype", (None, "float32", "float64", "int64", "int32", "uint8", "int8")
+    )
+    @pytest.mark.parametrize(
+        "input_shape",
+        [
+            [
+                2,
+            ],
+            [1, 10],
+            [10, 5, 2],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty_like_no_dtype(self, ie_device, precision, ir_version, dtype, input_shape):
-        self._test(*self.create_model(dtype, out=False, no_expose_dtype=True), ie_device, precision, ir_version, 
-                   kwargs_to_prepare_input={"shape": input_shape, "out": False, "dtype": dtype})
+    def test_empty_like_no_dtype(
+        self, ie_device, precision, ir_version, dtype, input_shape
+    ):
+        self._test(
+            *self.create_model(dtype, out=False, no_expose_dtype=True),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"shape": input_shape, "out": False, "dtype": dtype}
+        )
 
 
 class TestEmptyBoolean(PytorchLayerTest):
@@ -145,8 +189,14 @@ class TestEmptyBoolean(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_empty_bool(self, ie_device, precision, ir_version, ):
+    def test_empty_bool(
+        self,
+        ie_device,
+        precision,
+        ir_version,
+    ):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
 
 class TestNewEmpty(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32):
@@ -154,6 +204,7 @@ class TestNewEmpty(PytorchLayerTest):
 
     def create_model(self, shape, dtype=None, used_dtype=False):
         import torch
+
         dtype_map = {
             "float32": torch.float32,
             "float64": torch.float64,
@@ -161,7 +212,7 @@ class TestNewEmpty(PytorchLayerTest):
             "int32": torch.int32,
             "uint8": torch.uint8,
             "int8": torch.int8,
-            "bool": torch.bool
+            "bool": torch.bool,
         }
 
         class aten_empty(torch.nn.Module):
@@ -200,18 +251,43 @@ class TestNewEmpty(PytorchLayerTest):
 
         return model, ref_net, "aten::new_empty"
 
-    @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
-    @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
+    @pytest.mark.parametrize(
+        "shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]]
+    )
+    @pytest.mark.parametrize(
+        "input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64]
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_new_empty(self, shape, input_dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(shape), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
+        self._test(
+            *self.create_model(shape),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"input_dtype": input_dtype},
+            use_convert_model=True
+        )
 
-    @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
-    @pytest.mark.parametrize("input_dtype", [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
-    @pytest.mark.parametrize("dtype", ["bool", "uint8", "int8", "int32", "int64", "float32", "float64"])
+    @pytest.mark.parametrize(
+        "shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]]
+    )
+    @pytest.mark.parametrize(
+        "input_dtype",
+        [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64],
+    )
+    @pytest.mark.parametrize(
+        "dtype", ["bool", "uint8", "int8", "int32", "int64", "float32", "float64"]
+    )
     @pytest.mark.nightly
-    def test_new_empty_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
+    def test_new_empty_with_dtype(
+        self, shape, dtype, input_dtype, ie_device, precision, ir_version
+    ):
+        self._test(
+            *self.create_model(shape, dtype=dtype, used_dtype=True),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"input_dtype": input_dtype},
+            use_convert_model=True
+        )

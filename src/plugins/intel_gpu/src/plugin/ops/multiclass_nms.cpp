@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/multiclass_nms.hpp"
+
 #include <intel_gpu/primitives/multiclass_nms.hpp>
-#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-
-static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
+static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p,
+                                            const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
 
     auto inputs = p.GetInputInfo(op);
@@ -56,10 +57,7 @@ static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared
         OPENVINO_THROW("multiclass_nms primitive requires 5 inputs");
     }
 
-    const cldnn::multiclass_nms prim{layer_name,
-                                     inputs,
-                                     op->get_attrs(),
-                                     op_friendly_name};
+    const cldnn::multiclass_nms prim{layer_name, inputs, op->get_attrs(), op_friendly_name};
 
     p.add_primitive(*op, prim);
 

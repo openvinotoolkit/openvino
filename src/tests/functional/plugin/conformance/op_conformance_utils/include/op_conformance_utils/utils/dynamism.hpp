@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace util {

@@ -36,7 +36,9 @@ public:
      * @brief Get count of loops
      * @return count of loops in the map
      */
-    size_t get_loop_count() const { return m_map.size(); }
+    size_t get_loop_count() const {
+        return m_map.size();
+    }
     /**
      * @brief Get loop map [loop_id -> loop info]
      * @return loop map
@@ -72,7 +74,8 @@ public:
      */
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
-                   size_t loop_depth, size_t vector_size);
+                   size_t loop_depth,
+                   size_t vector_size);
     /**
      * @brief Create new LoopInfo and mark all expressions in loop bounds by new loop ID with more manual parameters
      * @param loop_begin_pos the first expression iterator
@@ -81,7 +84,8 @@ public:
      * @param increment the step of loop counter increment
      * @param entries input loop ports
      * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or not
+     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
+     * not
      * @return new loop ID
      */
     template <typename T>
@@ -92,10 +96,10 @@ public:
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
                      bool set_default_handlers = true) {
-        const auto normalized_increment = utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
-        const auto handlers = set_default_handlers
-                                  ? SpecificIterationHandlers(work_amount, normalized_increment)
-                                  : SpecificIterationHandlers();
+        const auto normalized_increment =
+            utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
+        const auto handlers = set_default_handlers ? SpecificIterationHandlers(work_amount, normalized_increment)
+                                                   : SpecificIterationHandlers();
         const auto loop_info = std::make_shared<LoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
@@ -112,7 +116,8 @@ public:
      * @param dim_idx loop iterates by this index of dimension
      * @param entries input loop ports
      * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or not
+     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
+     * not
      * @return new loop ID
      */
     template <typename T>
@@ -124,7 +129,8 @@ public:
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
                      bool set_default_handlers = true) {
-        const auto loop_id = mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
+        const auto loop_id =
+            mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
         const auto loop_info = get_loop_info(loop_id);
         loop_info->set_dim_idx(dim_idx);
         return loop_id;
@@ -134,9 +140,11 @@ public:
      *        remove the old LoopInfo from the map if no one expression isn't mark by this `old_id`
      * @param linear_ir linear IR
      * @param loop_begin_pos the first expression iterator. Must be the iterator of the `linear_ir`.
-     *                       If there is explicit LoopBegin expressions in IR, loop_begin_pos must be the iterator of the LoopBegin
+     *                       If there is explicit LoopBegin expressions in IR, loop_begin_pos must be the iterator of
+     * the LoopBegin
      * @param loop_end_pos the next iterator after last expression iterator. Must be the iterator of the `linear_ir`.
-     *                     If there is explicit LoopEnd expressions in IR, loop_end_pos must be the next iterator of the LoopEnd
+     *                     If there is explicit LoopEnd expressions in IR, loop_end_pos must be the next iterator of the
+     * LoopEnd
      * @param work_amount work amount of the loop
      * @param work_amount_increment increment of the loop
      * @param entries input loop ports
@@ -157,7 +165,8 @@ public:
      * @param linear_ir linear IR
      * @param loop_id_upper Loop ID of the Loop that is earlier in the linear IR
      * @param loop_id_lower Loop ID of the Loop that is later in the linear IR
-     * @param fuse_into_upper True if the Loop with `loop_id_upper` ID is left and the Loop with `loop_id_lower` is removed
+     * @param fuse_into_upper True if the Loop with `loop_id_upper` ID is left and the Loop with `loop_id_lower` is
+     * removed
      */
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     /**
@@ -166,23 +175,31 @@ public:
      * @param loop_end_target the next ietartor for the last expression of the Loop that will be left after fusion
      * @param loop_id_upper Loop ID of the Loop that is earlier in the linear IR
      * @param loop_id_lower Loop ID of the Loop that is later in the linear IR
-     * @param fuse_into_upper True if the Loop with `loop_id_upper` ID is left and the Loop with `loop_id_lower` is removed
+     * @param fuse_into_upper True if the Loop with `loop_id_upper` ID is left and the Loop with `loop_id_lower` is
+     * removed
      */
-    void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
-                    size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
+    void fuse_loops(LinearIR::constExprIt loop_begin_target,
+                    LinearIR::constExprIt loop_end_target,
+                    size_t loop_id_upper,
+                    size_t loop_id_lower,
+                    bool fuse_into_upper = true);
     /**
      * @brief Update Loop ports for one Loop. The method saves the order of ports since
-     *        the order of expression defines Loop bounds before explicit loop insertion (the most first and the most last expressions).
-     *        Note:
+     *        the order of expression defines Loop bounds before explicit loop insertion (the most first and the most
+     * last expressions). Note:
      *         - Update LoopPort - insert new loop target ports instead of existing.
-     *         - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since ExpressionPort may not be port of Loop
+     *         - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since
+     * ExpressionPort may not be port of Loop
      * @param loop_id the target Loop ID
      * @param actual_port the current port
      * @param target_ports vector of the new ports (the order is important!)
      * @param is_entry True if these ports are input, otherwise - output
      */
-    template<typename T>
-    void update_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports, bool is_entry = true);
+    template <typename T>
+    void update_loop_port(size_t loop_id,
+                          const T& actual_port,
+                          const std::vector<T>& target_ports,
+                          bool is_entry = true);
     /**
      * @brief Update Loop ports for several Loops.
      * @param loop_ids the target Loop IDs
@@ -190,24 +207,28 @@ public:
      * @param target_ports vector of the new ports (the order is important!)
      * @param is_entry True if these ports are input, otherwise - output
      */
-    template<typename T>
-    void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port,
-                           const std::vector<T>& target_ports, bool is_entry = true) {
+    template <typename T>
+    void update_loops_port(const std::vector<size_t>& loop_ids,
+                           const T& actual_port,
+                           const std::vector<T>& target_ports,
+                           bool is_entry = true) {
         for (auto loop_id : loop_ids) {
             update_loop_port(loop_id, actual_port, target_ports, is_entry);
         }
     }
     /**
-     * @brief The method checks the loops (LoopInfo) that the target expression is marked with and update the corresponding loop ports if needed:
-     *           - If parent of the target expression and this expression are marked by one Loop and the parent is an exit port of this Loop,
-     *             the method replace parent output port with the target expression output ports as new exit LoopPorts.
-     *             If there are other consumers of parent output port that are not by the same Loop (like in the example below),
-     *             the method just adds inserted expression output ports to existing parent output port as new exit LoopPorts.
-     *                     Parent [1, 0]
-     *                    /              \                        <- Adds the target expression outputs to the existing LoopPort (parent output) of Loop[1]
-     *               Another expr [2]   Target expression [1, 3]     (If Another expr is marked by Loop [1] too, the method will replace loop ports (not add))
-     *           - If the target expression and its consumers have the same outer loop ids and some of consumers are entry ports of these Loops,
-     *             the method just replace the existing entry loop ports (that contains consumer input ports) with the target expression input ports.
+     * @brief The method checks the loops (LoopInfo) that the target expression is marked with and update the
+     * corresponding loop ports if needed:
+     *           - If parent of the target expression and this expression are marked by one Loop and the parent is an
+     * exit port of this Loop, the method replace parent output port with the target expression output ports as new exit
+     * LoopPorts. If there are other consumers of parent output port that are not by the same Loop (like in the example
+     * below), the method just adds inserted expression output ports to existing parent output port as new exit
+     * LoopPorts. Parent [1, 0] /              \                        <- Adds the target expression outputs to the
+     * existing LoopPort (parent output) of Loop[1] Another expr [2]   Target expression [1, 3]     (If Another expr is
+     * marked by Loop [1] too, the method will replace loop ports (not add))
+     *           - If the target expression and its consumers have the same outer loop ids and some of consumers are
+     * entry ports of these Loops, the method just replace the existing entry loop ports (that contains consumer input
+     * ports) with the target expression input ports.
      * @param expr the target expression
      */
     void update_loop_ports(const ExpressionPtr& expr);
@@ -219,8 +240,9 @@ public:
      */
     void sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id);
     /**
-     * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
-     *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
+     * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the
+     * corresponding Loop. If ports of decomposed expression were the Loop ports, these Loop ports may be updated by
+     * parameters `entries` and `exits`
      * @param new_expr_begin the first expression iterator
      * @param new_expr_end the next iterator after the last expression
      * @param decomposed_expr the expression that is decomposed into several other exprs
@@ -228,35 +250,42 @@ public:
      * @param new_entries new input loop ports
      * @param new_exits new output loop ports
      */
-    void expression_replacement(LinearIR::constExprIt new_expr_begin, LinearIR::constExprIt new_expr_end, const ExpressionPtr& decomposed_expr,
-                                size_t loop_id, const std::vector<ExpressionPort>& new_entries, const std::vector<ExpressionPort>& exits);
+    void expression_replacement(LinearIR::constExprIt new_expr_begin,
+                                LinearIR::constExprIt new_expr_end,
+                                const ExpressionPtr& decomposed_expr,
+                                size_t loop_id,
+                                const std::vector<ExpressionPort>& new_entries,
+                                const std::vector<ExpressionPort>& exits);
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
-     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
-     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
-     *          are in this Loop but have another `loop_id`).
+     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another
+     * LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or
+     * another LoopEnd that are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
+    std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir,
+                                                                            size_t loop_id) const;
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
-     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
-     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
-     *          are in this Loop but have another `loop_id`).
+     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another
+     * LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or
+     * another LoopEnd that are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
      * @param entries input loop ports
      * @param exits output loop ports
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    static std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir, size_t loop_id,
-                                                                                   const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
+    static std::pair<LinearIR::constExprIt, LinearIR::constExprIt> get_loop_bounds(const LinearIR& linear_ir,
+                                                                                   size_t loop_id,
+                                                                                   const std::vector<LoopPort>& entries,
+                                                                                   const std::vector<LoopPort>& exits);
 
     /**
      * @brief Get LoopPort by ExpressionPort
@@ -295,7 +324,9 @@ private:
      * @param entry_points ref of entry LoopPorts of lower Loop
      * @param loop_id ID of the new Loop after fusion
      */
-    static void fuse_loop_ports(std::vector<LoopPort>& exit_points, std::vector<LoopPort>& entry_points, size_t loop_id);
+    static void fuse_loop_ports(std::vector<LoopPort>& exit_points,
+                                std::vector<LoopPort>& entry_points,
+                                size_t loop_id);
 
     /* ===== The methods for work with Loop IDs of Expression ===== */
     // Notes:
@@ -308,7 +339,10 @@ private:
     // Default value of target ID - SIZE_MAX - for `after` the new Loop is the most inner Loop
     //                                         for `before` the new Loop is the most outer Loop
     void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
-    void insert_loop_ids(const ExpressionPtr& expr, const std::vector<size_t>& new_ids, bool before = true, size_t target_id = SIZE_MAX);
+    void insert_loop_ids(const ExpressionPtr& expr,
+                         const std::vector<size_t>& new_ids,
+                         bool before = true,
+                         size_t target_id = SIZE_MAX);
     static bool is_loop_id_found(const ExpressionPtr& expr, size_t id);
 
     std::map<size_t, LoopInfoPtr> m_map = {};
@@ -316,6 +350,6 @@ private:
 };
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

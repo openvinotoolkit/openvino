@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "openvino/runtime/iplugin.hpp"
+#include <map>
+#include <memory>
+#include <string>
+
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/engine.hpp"
-#include <map>
-#include <string>
-#include <memory>
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -26,7 +27,8 @@ private:
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
-    std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network, const ExecutionConfig& config) const;
+    std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network,
+                                                         const ExecutionConfig& config) const;
     void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
     void register_primitives() const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;

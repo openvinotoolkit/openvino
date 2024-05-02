@@ -6,9 +6,9 @@
 
 #include <map>
 
+#include "common_test_utils/test_enums.hpp"
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {

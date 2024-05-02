@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "opencl_helper_instance.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+
+#include "opencl_helper_instance.hpp"
+#include "test_utils.h"
 
 static size_t img_size = 800;
-static std::string kernel_code =
-    "__attribute__((intel_reqd_sub_group_size(16)))"
-    "__attribute__((reqd_work_group_size(16, 1, 1)))"
-    "void kernel simple_reorder(const __global uchar* src, __global float* dst) {"
-    "    uint gid = get_global_id(0);"
-    "    dst[gid] = convert_float(src[gid]) * 0.33f;"
-    "}";
+static std::string kernel_code = "__attribute__((intel_reqd_sub_group_size(16)))"
+                                 "__attribute__((reqd_work_group_size(16, 1, 1)))"
+                                 "void kernel simple_reorder(const __global uchar* src, __global float* dst) {"
+                                 "    uint gid = get_global_id(0);"
+                                 "    dst[gid] = convert_float(src[gid]) * 0.33f;"
+                                 "}";
 static size_t max_iter = 1000;
 
 using time_interval = std::chrono::microseconds;
 static std::string time_suffix = "us";
 
 static void printTimings(double avg, int64_t max) {
-    std::cout << "img_size=" << img_size << " iters=" << max_iter << " exec time: avg="
-              << avg << time_suffix << ", max=" << max << time_suffix << std::endl;
+    std::cout << "img_size=" << img_size << " iters=" << max_iter << " exec time: avg=" << avg << time_suffix
+              << ", max=" << max << time_suffix << std::endl;
 }
 
 static void fill_input(uint8_t* ptr, size_t size) {
@@ -33,9 +32,10 @@ static void fill_input(uint8_t* ptr, size_t size) {
     }
 }
 
-static void run_test(std::function<void()> preprocessing,
-                     std::function<void()> body,
-                     std::function<void()> postprocessing = [](){}) {
+static void run_test(
+    std::function<void()> preprocessing,
+    std::function<void()> body,
+    std::function<void()> postprocessing = []() {}) {
     using Time = std::chrono::high_resolution_clock;
     int64_t max_time = 0;
     double avg_time = 0.0;
@@ -58,7 +58,7 @@ static void run_test(std::function<void()> preprocessing,
 
 static void validate_result(float* res_ptr, size_t size) {
     for (size_t i = 0; i < size; i++) {
-      ASSERT_EQ(res_ptr[i], static_cast<float>(i % 255) * 0.33f) << "i=" << i;
+        ASSERT_EQ(res_ptr[i], static_cast<float>(i % 255) * 0.33f) << "i=" << i;
     }
 
     std::cout << "accuracy: OK\n";
@@ -71,9 +71,10 @@ TEST(mem_perf_test_to_device, DISABLED_fill_input) {
 
     std::cout << "Time of host buffer filling" << std::endl;
 
-    run_test([](){}, [&]() {
-        fill_input(static_cast<uint8_t*>(input_buffer.get()), img_size * img_size);
-    });
+    run_test([]() {},
+             [&]() {
+                 fill_input(static_cast<uint8_t*>(input_buffer.get()), img_size * img_size);
+             });
 }
 
 TEST(mem_perf_test_to_device, DISABLED_buffer_no_lock) {
@@ -91,13 +92,19 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_no_lock) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([](){}, [&]() {
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), nullptr, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test([]() {},
+             [&]() {
+                 kernel.setArg(0, input_buffer);
+                 kernel.setArg(1, output_buffer);
+                 cl::Event ev;
+                 queue.enqueueNDRangeKernel(kernel,
+                                            cl::NDRange(),
+                                            cl::NDRange(img_size * img_size),
+                                            cl::NDRange(16),
+                                            nullptr,
+                                            &ev);
+                 cl::WaitForEvents({ev});
+             });
 }
 
 TEST(mem_perf_test_to_device, DISABLED_buffer_lock_rw) {
@@ -105,7 +112,8 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_rw) {
     auto& ctx = ocl_instance->_context;
     auto& device = ocl_instance->_device;
 
-    std::cout << "Time of copying data from mapped to host cl::Buffer (ReadWrite access modifier) to device memory" << std::endl;
+    std::cout << "Time of copying data from mapped to host cl::Buffer (ReadWrite access modifier) to device memory"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -116,19 +124,38 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_rw) {
     cl::CommandQueue queue(ctx, device);
 
     void* _mapped_ptr = nullptr;
-    run_test([&](){
-        _mapped_ptr = queue.enqueueMapBuffer(input_buffer, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, sizeof(uint8_t) * img_size * img_size, nullptr, nullptr);
-        fill_input(static_cast<uint8_t*>(_mapped_ptr), img_size * img_size);
-    }, [&]() {
-        queue.enqueueUnmapMemObject(input_buffer, _mapped_ptr);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), nullptr, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            _mapped_ptr = queue.enqueueMapBuffer(input_buffer,
+                                                 CL_TRUE,
+                                                 CL_MAP_READ | CL_MAP_WRITE,
+                                                 0,
+                                                 sizeof(uint8_t) * img_size * img_size,
+                                                 nullptr,
+                                                 nullptr);
+            fill_input(static_cast<uint8_t*>(_mapped_ptr), img_size * img_size);
+        },
+        [&]() {
+            queue.enqueueUnmapMemObject(input_buffer, _mapped_ptr);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       nullptr,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
-    _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                         CL_TRUE,
+                                         CL_MAP_READ,
+                                         0,
+                                         sizeof(float) * img_size * img_size,
+                                         nullptr,
+                                         nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -138,7 +165,8 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_w) {
     auto& ctx = ocl_instance->_context;
     auto& device = ocl_instance->_device;
 
-    std::cout << "Time of copying data from mapped to host cl::Buffer (Write access modifier) to device memory" << std::endl;
+    std::cout << "Time of copying data from mapped to host cl::Buffer (Write access modifier) to device memory"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -149,19 +177,38 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_lock_w) {
     cl::CommandQueue queue(ctx, device);
 
     void* _mapped_ptr = nullptr;
-    run_test([&](){
-        _mapped_ptr = queue.enqueueMapBuffer(input_buffer, CL_TRUE, CL_MAP_WRITE, 0, sizeof(uint8_t) * img_size * img_size, nullptr, nullptr);
-        fill_input(static_cast<uint8_t*>(_mapped_ptr), img_size * img_size);
-    }, [&]() {
-        queue.enqueueUnmapMemObject(input_buffer, _mapped_ptr);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), nullptr, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            _mapped_ptr = queue.enqueueMapBuffer(input_buffer,
+                                                 CL_TRUE,
+                                                 CL_MAP_WRITE,
+                                                 0,
+                                                 sizeof(uint8_t) * img_size * img_size,
+                                                 nullptr,
+                                                 nullptr);
+            fill_input(static_cast<uint8_t*>(_mapped_ptr), img_size * img_size);
+        },
+        [&]() {
+            queue.enqueueUnmapMemObject(input_buffer, _mapped_ptr);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       nullptr,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
-    _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                         CL_TRUE,
+                                         CL_MAP_READ,
+                                         0,
+                                         sizeof(float) * img_size * img_size,
+                                         nullptr,
+                                         nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -171,7 +218,8 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy) {
     auto& ctx = ocl_instance->_context;
     auto& device = ocl_instance->_device;
 
-    std::cout << "Time of copying data from host buffer (std::vector) to cl::Buffer located in device memory" << std::endl;
+    std::cout << "Time of copying data from host buffer (std::vector) to cl::Buffer located in device memory"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -180,22 +228,35 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy) {
     cl::Kernel kernel(program, "simple_reorder");
 
     cl::CommandQueue queue(ctx, device);
-    std::vector<uint8_t> input(img_size*img_size);
+    std::vector<uint8_t> input(img_size * img_size);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input.data()), img_size * img_size);
-    }, [&]() {
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, false, 0, img_size*img_size, input.data(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input.data()), img_size * img_size);
+        },
+        [&]() {
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer, false, 0, img_size * img_size, input.data(), nullptr, &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
-    auto _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    auto _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                              CL_TRUE,
+                                              CL_MAP_READ,
+                                              0,
+                                              sizeof(float) * img_size * img_size,
+                                              nullptr,
+                                              nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -208,7 +269,9 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy_usm_host) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::Buffer located in device memory" << std::endl;
+    std::cout
+        << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::Buffer located in device memory"
+        << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -221,20 +284,39 @@ TEST(mem_perf_test_to_device, DISABLED_buffer_copy_usm_host) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-    }, [&]() {
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, false, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+        },
+        [&]() {
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     false,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
-    auto _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    auto _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                              CL_TRUE,
+                                              CL_MAP_READ,
+                                              0,
+                                              sizeof(float) * img_size * img_size,
+                                              nullptr,
+                                              nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -263,15 +345,22 @@ TEST(mem_perf_test_to_device, DISABLED_usm_host) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer.get()), img_size * img_size);
-    }, [&]() {
-        kernel.setArgUsm(0, input_buffer);
-        kernel.setArgUsm(1, output_buffer);
-        cl::Event ev;
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), nullptr, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer.get()), img_size * img_size);
+        },
+        [&]() {
+            kernel.setArgUsm(0, input_buffer);
+            kernel.setArgUsm(1, output_buffer);
+            cl::Event ev;
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       nullptr,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
     usm_helper.enqueue_memcpy(queue,
                               output_buffer_host.get(),
@@ -292,7 +381,9 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer cl::UsmMemory (UsmDevice type) to cl::UsmMemory (UsmDevice type)" << std::endl;
+    std::cout
+        << "Time of copying data from device buffer cl::UsmMemory (UsmDevice type) to cl::UsmMemory (UsmDevice type)"
+        << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -311,32 +402,39 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        usm_helper.enqueue_memcpy(queue,
-                                  input_buffer_device.get(),
-                                  input_buffer_host.get(),
-                                  img_size * img_size,
-                                  true,
-                                  nullptr,
-                                  nullptr);
-    }, [&]() {
-        cl::Event copy_ev;
-        usm_helper.enqueue_memcpy(queue,
-                                  input_buffer_device_second.get(),
-                                  input_buffer_device.get(),
-                                  img_size * img_size,
-                                  false,
-                                  nullptr,
-                                  &copy_ev);
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            usm_helper.enqueue_memcpy(queue,
+                                      input_buffer_device.get(),
+                                      input_buffer_host.get(),
+                                      img_size * img_size,
+                                      true,
+                                      nullptr,
+                                      nullptr);
+        },
+        [&]() {
+            cl::Event copy_ev;
+            usm_helper.enqueue_memcpy(queue,
+                                      input_buffer_device_second.get(),
+                                      input_buffer_device.get(),
+                                      img_size * img_size,
+                                      false,
+                                      nullptr,
+                                      &copy_ev);
 
-        kernel.setArgUsm(0, input_buffer_device_second);
-        kernel.setArgUsm(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    });
+            kernel.setArgUsm(0, input_buffer_device_second);
+            kernel.setArgUsm(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
     usm_helper.enqueue_memcpy(queue,
                               output_buffer_host.get(),
@@ -357,7 +455,8 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device_copy) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::UsmMemory (UsmDevice type)" << std::endl;
+    std::cout << "Time of copying data from host buffer cl::UsmMemory (UsmHost type) to cl::UsmMemory (UsmDevice type)"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -374,24 +473,31 @@ TEST(mem_perf_test_to_device, DISABLED_usm_device_copy) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-    }, [&]() {
-        cl::Event copy_ev;
-        usm_helper.enqueue_memcpy(queue,
-                                  input_buffer_device.get(),
-                                  input_buffer_host.get(),
-                                  sizeof(uint8_t) * img_size * img_size,
-                                  false,
-                                  nullptr,
-                                  &copy_ev);
-        kernel.setArgUsm(0, input_buffer_device);
-        kernel.setArgUsm(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+        },
+        [&]() {
+            cl::Event copy_ev;
+            usm_helper.enqueue_memcpy(queue,
+                                      input_buffer_device.get(),
+                                      input_buffer_host.get(),
+                                      sizeof(uint8_t) * img_size * img_size,
+                                      false,
+                                      nullptr,
+                                      &copy_ev);
+            kernel.setArgUsm(0, input_buffer_device);
+            kernel.setArgUsm(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
     usm_helper.enqueue_memcpy(queue,
                               output_buffer_host.get(),
@@ -412,7 +518,8 @@ TEST(mem_perf_test_to_device, DISABLED_cl_buffer_to_usm_device) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of kernel execution w/o copying the data (input buffer is cl::Buffer located in device memory)" << std::endl;
+    std::cout << "Time of kernel execution w/o copying the data (input buffer is cl::Buffer located in device memory)"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -429,16 +536,29 @@ TEST(mem_perf_test_to_device, DISABLED_cl_buffer_to_usm_device) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        queue.enqueueWriteBuffer(input_buffer, CL_TRUE, 0, img_size*img_size, input_buffer_host.get(), nullptr, nullptr);
-    }, [&]() {
-        kernel.setArg(0, input_buffer);
-        kernel.setArgUsm(1, output_buffer_device);
-        cl::Event ev;
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), nullptr, &ev);
-        cl::WaitForEvents({ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_TRUE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     nullptr);
+        },
+        [&]() {
+            kernel.setArg(0, input_buffer);
+            kernel.setArgUsm(1, output_buffer_device);
+            cl::Event ev;
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       nullptr,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        });
 
     usm_helper.enqueue_memcpy(queue,
                               output_buffer_host.get(),
@@ -458,7 +578,9 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_rw) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (ReadWrite access modifier)" << std::endl;
+    std::cout
+        << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (ReadWrite access modifier)"
+        << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -473,23 +595,49 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_rw) {
 
     void* _mapped_ptr = nullptr;
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
-    }, [&]() {
-        queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                                 CL_TRUE,
+                                                 CL_MAP_WRITE | CL_MAP_READ,
+                                                 0,
+                                                 sizeof(float) * img_size * img_size,
+                                                 nullptr,
+                                                 nullptr);
+        },
+        [&]() {
+            queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
+        });
 
-    _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_WRITE | CL_MAP_WRITE, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                         CL_TRUE,
+                                         CL_MAP_WRITE | CL_MAP_WRITE,
+                                         0,
+                                         sizeof(float) * img_size * img_size,
+                                         nullptr,
+                                         nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -502,7 +650,9 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_r) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (Read access modifier)" << std::endl;
+    std::cout
+        << "Time of copying data from device buffer (cl::Buffer) to host via buffer mapping (Read access modifier)"
+        << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -517,33 +667,60 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_lock_r) {
 
     fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
     cl::Event copy_ev;
-    queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
+    queue
+        .enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size * img_size, input_buffer_host.get(), nullptr, &copy_ev);
     kernel.setArg(0, input_buffer);
     kernel.setArg(1, output_buffer);
     cl::Event ev;
     std::vector<cl::Event> dep_ev = {copy_ev};
-    queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
+    queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size * img_size), cl::NDRange(16), &dep_ev, &ev);
     cl::WaitForEvents({ev});
 
     void* _mapped_ptr = nullptr;
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
-    }, [&](){
-        queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                                 CL_TRUE,
+                                                 CL_MAP_READ,
+                                                 0,
+                                                 sizeof(float) * img_size * img_size,
+                                                 nullptr,
+                                                 nullptr);
+        },
+        [&]() {
+            queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
+        });
 
-    _mapped_ptr = queue.enqueueMapBuffer(output_buffer, CL_TRUE, CL_MAP_READ, 0, sizeof(float) * img_size * img_size, nullptr, nullptr);
+    _mapped_ptr = queue.enqueueMapBuffer(output_buffer,
+                                         CL_TRUE,
+                                         CL_MAP_READ,
+                                         0,
+                                         sizeof(float) * img_size * img_size,
+                                         nullptr,
+                                         nullptr);
     validate_result(static_cast<float*>(_mapped_ptr), img_size * img_size);
     queue.enqueueUnmapMemObject(output_buffer, _mapped_ptr);
 }
@@ -556,7 +733,9 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_blocking_r) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - Bloking call" << std::endl;
+    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - "
+                 "Bloking call"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -572,19 +751,36 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_blocking_r) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0, sizeof(float)*img_size*img_size, output_buffer_host.get());
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            queue.enqueueReadBuffer(output_buffer,
+                                    CL_TRUE,
+                                    0,
+                                    sizeof(float) * img_size * img_size,
+                                    output_buffer_host.get());
+        });
 
     validate_result(static_cast<float*>(output_buffer_host.get()), img_size * img_size);
 }
@@ -597,7 +793,9 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_events_r) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - Non-blocling call (events)" << std::endl;
+    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer cl::UsmMemory (UsmHost type) - "
+                 "Non-blocling call (events)"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -613,21 +811,40 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_usm_host_ptr_events_r) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        cl::Event copy_ev;
-        queue.enqueueReadBuffer(output_buffer, CL_FALSE, 0, sizeof(float)*img_size*img_size, output_buffer_host.get(), nullptr, &copy_ev);
-        cl::WaitForEvents({copy_ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            cl::Event copy_ev;
+            queue.enqueueReadBuffer(output_buffer,
+                                    CL_FALSE,
+                                    0,
+                                    sizeof(float) * img_size * img_size,
+                                    output_buffer_host.get(),
+                                    nullptr,
+                                    &copy_ev);
+            cl::WaitForEvents({copy_ev});
+        });
 
     validate_result(static_cast<float*>(output_buffer_host.get()), img_size * img_size);
 }
@@ -640,7 +857,9 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_host_ptr_events_r) {
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) - Non-blocling call (events)" << std::endl;
+    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) - Non-blocling "
+                 "call (events)"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -655,21 +874,40 @@ TEST(mem_perf_test_to_host, DISABLED_buffer_copy_host_ptr_events_r) {
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        cl::Event copy_ev;
-        queue.enqueueReadBuffer(output_buffer, CL_FALSE, 0, sizeof(float)*img_size*img_size, output_buffer_host.data(), nullptr, &copy_ev);
-        cl::WaitForEvents({copy_ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            cl::Event copy_ev;
+            queue.enqueueReadBuffer(output_buffer,
+                                    CL_FALSE,
+                                    0,
+                                    sizeof(float) * img_size * img_size,
+                                    output_buffer_host.data(),
+                                    nullptr,
+                                    &copy_ev);
+            cl::WaitForEvents({copy_ev});
+        });
 
     validate_result(static_cast<float*>(output_buffer_host.data()), img_size * img_size);
 }
@@ -699,23 +937,48 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_usm_host_ptr
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        cl::Event to_host_ev, to_device_ev;
-        queue.enqueueReadBuffer(output_buffer, CL_FALSE, 0, sizeof(float)*img_size*img_size, output_buffer_host.get(), nullptr, &to_host_ev);
-        std::vector<cl::Event> copy_ev {to_host_ev};
-        queue.enqueueWriteBuffer(output_buffer, CL_FALSE, 0, img_size*img_size, output_buffer_host.get(), &copy_ev, &to_device_ev);
-        cl::WaitForEvents({to_device_ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            cl::Event to_host_ev, to_device_ev;
+            queue.enqueueReadBuffer(output_buffer,
+                                    CL_FALSE,
+                                    0,
+                                    sizeof(float) * img_size * img_size,
+                                    output_buffer_host.get(),
+                                    nullptr,
+                                    &to_host_ev);
+            std::vector<cl::Event> copy_ev{to_host_ev};
+            queue.enqueueWriteBuffer(output_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     output_buffer_host.get(),
+                                     &copy_ev,
+                                     &to_device_ev);
+            cl::WaitForEvents({to_device_ev});
+        });
 
     validate_result(static_cast<float*>(output_buffer_host.get()), img_size * img_size);
 }
@@ -728,7 +991,9 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_host_ptr_eve
     if (!ocl_instance->_supports_usm)
         GTEST_SKIP();
 
-    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) and back to device (cl::Buffer) - Non-blocling calls (events)" << std::endl;
+    std::cout << "Time of copying data from device buffer (cl::Buffer) to host buffer (std::vector) and back to device "
+                 "(cl::Buffer) - Non-blocling calls (events)"
+              << std::endl;
 
     cl::Program program(ctx, kernel_code);
     checkStatus(program.build({device}, ""), "build");
@@ -743,23 +1008,48 @@ TEST(mem_perf_test_to_host_and_back_to_device, DISABLED_buffer_copy_host_ptr_eve
 
     cl::CommandQueue queue(ctx, device);
 
-    run_test([&](){
-        fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
-        cl::Event copy_ev;
-        queue.enqueueWriteBuffer(input_buffer, CL_FALSE, 0, img_size*img_size, input_buffer_host.get(), nullptr, &copy_ev);
-        kernel.setArg(0, input_buffer);
-        kernel.setArg(1, output_buffer);
-        cl::Event ev;
-        std::vector<cl::Event> dep_ev = {copy_ev};
-        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(img_size*img_size), cl::NDRange(16), &dep_ev, &ev);
-        cl::WaitForEvents({ev});
-    }, [&]() {
-        cl::Event read_ev, write_ev;
-        queue.enqueueReadBuffer(output_buffer, CL_FALSE, 0, sizeof(float)*img_size*img_size, output_buffer_host.data(), nullptr, &read_ev);
-        std::vector<cl::Event> ev_list{read_ev};
-        queue.enqueueWriteBuffer(output_buffer, CL_FALSE, 0, sizeof(float)*img_size*img_size, output_buffer_host.data(), &ev_list, &write_ev);
-        cl::WaitForEvents({write_ev});
-    });
+    run_test(
+        [&]() {
+            fill_input(static_cast<uint8_t*>(input_buffer_host.get()), img_size * img_size);
+            cl::Event copy_ev;
+            queue.enqueueWriteBuffer(input_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     img_size * img_size,
+                                     input_buffer_host.get(),
+                                     nullptr,
+                                     &copy_ev);
+            kernel.setArg(0, input_buffer);
+            kernel.setArg(1, output_buffer);
+            cl::Event ev;
+            std::vector<cl::Event> dep_ev = {copy_ev};
+            queue.enqueueNDRangeKernel(kernel,
+                                       cl::NDRange(),
+                                       cl::NDRange(img_size * img_size),
+                                       cl::NDRange(16),
+                                       &dep_ev,
+                                       &ev);
+            cl::WaitForEvents({ev});
+        },
+        [&]() {
+            cl::Event read_ev, write_ev;
+            queue.enqueueReadBuffer(output_buffer,
+                                    CL_FALSE,
+                                    0,
+                                    sizeof(float) * img_size * img_size,
+                                    output_buffer_host.data(),
+                                    nullptr,
+                                    &read_ev);
+            std::vector<cl::Event> ev_list{read_ev};
+            queue.enqueueWriteBuffer(output_buffer,
+                                     CL_FALSE,
+                                     0,
+                                     sizeof(float) * img_size * img_size,
+                                     output_buffer_host.data(),
+                                     &ev_list,
+                                     &write_ev);
+            cl::WaitForEvents({write_ev});
+        });
 
     validate_result(static_cast<float*>(output_buffer_host.data()), img_size * img_size);
 }

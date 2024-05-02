@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -15,18 +15,15 @@ struct convert_color : public primitive_base<convert_color> {
     convert_color() : primitive_base("", {}) {}
 
     enum color_format : uint32_t {
-        RGB,       ///< RGB color format
-        BGR,       ///< BGR color format, default in OpenVINO
-        RGBX,      ///< RGBX color format with X ignored during inference
-        BGRX,      ///< BGRX color format with X ignored during inference
-        NV12,      ///< NV12 color format represented as compound Y+UV blob
-        I420,      ///< I420 color format represented as compound Y+U+V blob
+        RGB,   ///< RGB color format
+        BGR,   ///< BGR color format, default in OpenVINO
+        RGBX,  ///< RGBX color format with X ignored during inference
+        BGRX,  ///< BGRX color format with X ignored during inference
+        NV12,  ///< NV12 color format represented as compound Y+UV blob
+        I420,  ///< I420 color format represented as compound Y+U+V blob
     };
 
-    enum memory_type : uint32_t {
-        buffer,
-        image
-    };
+    enum memory_type : uint32_t { buffer, image };
 
     /// @brief Constructs convert_color primitive.
     /// @param id This primitive id.
@@ -64,8 +61,7 @@ struct convert_color : public primitive_base<convert_color> {
         auto rhs_casted = downcast<const convert_color>(rhs);
 
         return input_color_format == rhs_casted.input_color_format &&
-               output_color_format == rhs_casted.output_color_format &&
-               mem_type == rhs_casted.mem_type;
+               output_color_format == rhs_casted.output_color_format && mem_type == rhs_casted.mem_type;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.roipooling import ROIPooling
 
 
 class ROIPoolingFrontExtractor(FrontExtractorOp):
-    op = 'ROIPooling'
+    op = "ROIPooling"
     enabled = True
 
     @classmethod
@@ -18,10 +18,10 @@ class ROIPoolingFrontExtractor(FrontExtractorOp):
         spatial_scale = attrs.float("spatial_scale", None)
         pooled_size = attrs.tuple("pooled_size", int, (0, 0))
         data = {
-            'type': 'ROIPooling',
-            'spatial_scale': spatial_scale,
-            'pooled_w': pooled_size[1],
-            'pooled_h': pooled_size[0]
+            "type": "ROIPooling",
+            "spatial_scale": spatial_scale,
+            "pooled_w": pooled_size[1],
+            "pooled_h": pooled_size[0],
         }
 
         data.update(layout_attrs())

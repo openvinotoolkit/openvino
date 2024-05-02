@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "convert_color_inst.h"
-#include "convert_color/convert_color_kernel_selector.h"
 #include "convert_color/convert_color_kernel_base.h"
+#include "convert_color/convert_color_kernel_selector.h"
+#include "convert_color_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -49,14 +48,16 @@ public:
 namespace detail {
 
 attach_convert_color_impl::attach_convert_color_impl() {
-    implementation_map<convert_color>::add(impl_types::ocl, typed_primitive_impl_ocl<convert_color>::create<convert_color_impl>, {
-        std::make_tuple(data_types::f32, format::nv12),
-        std::make_tuple(data_types::f16, format::nv12),
-        std::make_tuple(data_types::u8,  format::nv12),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8,  format::bfyx),
-    });
+    implementation_map<convert_color>::add(impl_types::ocl,
+                                           typed_primitive_impl_ocl<convert_color>::create<convert_color_impl>,
+                                           {
+                                               std::make_tuple(data_types::f32, format::nv12),
+                                               std::make_tuple(data_types::f16, format::nv12),
+                                               std::make_tuple(data_types::u8, format::nv12),
+                                               std::make_tuple(data_types::f32, format::bfyx),
+                                               std::make_tuple(data_types::f16, format::bfyx),
+                                               std::make_tuple(data_types::u8, format::bfyx),
+                                           });
 }
 
 }  // namespace detail

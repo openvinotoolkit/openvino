@@ -22,7 +22,7 @@ static inline std::string SpaceToDepthModeToString(const SpaceToDepth::SpaceToDe
         throw std::runtime_error("Unsupported SpaceToDepthMode");
 }
 
-std::string SpaceToDepthLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple> &obj) {
+std::string SpaceToDepthLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple>& obj) {
     std::vector<InputShape> input_shapes;
     SpaceToDepth::SpaceToDepthMode mode;
     std::size_t block_size;

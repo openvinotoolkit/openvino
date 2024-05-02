@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <string>
 #include <set>
+#include <string>
 
 #include "ov_lpt_models/common/add.hpp"
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,9 +36,8 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<
-    std::string,
-    EliminateFakeQuantizeTransformationTestValues> EliminateFakeQuantizeTransformationParams;
+typedef std::tuple<std::string, EliminateFakeQuantizeTransformationTestValues>
+    EliminateFakeQuantizeTransformationParams;
 
 class EliminateFakeQuantizeTransformation
     : public testing::WithParamInterface<EliminateFakeQuantizeTransformationParams>,

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
 #include "intel_gpu/runtime/device.hpp"
-#include "runtime/ocl/ocl_device_detector.hpp"
+
 #include <memory>
+
+#include "runtime/ocl/ocl_device_detector.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -21,8 +23,12 @@ public:
         _info.device_id = static_cast<uint32_t>(device_id);
     }
 
-    device_info get_info() const override { return _info; }
-    memory_capabilities get_mem_caps() const override { return _mem_caps; }
+    device_info get_info() const override {
+        return _info;
+    }
+    memory_capabilities get_mem_caps() const override {
+        return _mem_caps;
+    }
     bool is_same(const device::ptr other) override {
         return this == other.get();
     }
@@ -50,9 +56,12 @@ TEST(devices_test, sort_order_single_vendor) {
     std::vector<size_t> expected_devices_order = {2, 0, 1, 3, 4};
 
     std::vector<size_t> actual_devices_order;
-    std::transform(sorted_list.begin(), sorted_list.end(), std::back_inserter(actual_devices_order), [](const device::ptr& d) -> size_t {
-        return d->get_info().device_id;
-    });
+    std::transform(sorted_list.begin(),
+                   sorted_list.end(),
+                   std::back_inserter(actual_devices_order),
+                   [](const device::ptr& d) -> size_t {
+                       return d->get_info().device_id;
+                   });
 
     ASSERT_EQ(expected_devices_order, actual_devices_order);
 }
@@ -71,9 +80,12 @@ TEST(devices_test, sort_order_two_vendors) {
     std::vector<size_t> expected_devices_order = {3, 2, 0, 1};
 
     std::vector<size_t> actual_devices_order;
-    std::transform(sorted_list.begin(), sorted_list.end(), std::back_inserter(actual_devices_order), [](const device::ptr& d) -> size_t {
-        return d->get_info().device_id;
-    });
+    std::transform(sorted_list.begin(),
+                   sorted_list.end(),
+                   std::back_inserter(actual_devices_order),
+                   [](const device::ptr& d) -> size_t {
+                       return d->get_info().device_id;
+                   });
 
     ASSERT_EQ(expected_devices_order, actual_devices_order);
 }
@@ -95,9 +107,12 @@ TEST(devices_test, sort_order_three_vendors) {
     std::vector<size_t> expected_devices_order = {2, 3, 0, 1, 4, 5};
 
     std::vector<size_t> actual_devices_order;
-    std::transform(sorted_list.begin(), sorted_list.end(), std::back_inserter(actual_devices_order), [](const device::ptr& d) -> size_t {
-        return d->get_info().device_id;
-    });
+    std::transform(sorted_list.begin(),
+                   sorted_list.end(),
+                   std::back_inserter(actual_devices_order),
+                   [](const device::ptr& d) -> size_t {
+                       return d->get_info().device_id;
+                   });
 
     ASSERT_EQ(expected_devices_order, actual_devices_order);
 }

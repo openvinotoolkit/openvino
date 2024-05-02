@@ -16,13 +16,28 @@ class ConstantOfShapeToBroadcast(FrontReplacementPattern):
     the first input of a newly created 'Broadcast' node which defines value to broadcast. Then the input of the
     'ConstantOfShape' is connected to the second input of the 'Broadcast'.
     """
+
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for const_of_shape_node in graph.get_op_nodes(op='ConstantOfShape'):
-            broadcast_node = Broadcast(graph, {'name': const_of_shape_node.name + '/Broadcast'}).create_node()
-            const_of_shape_node.in_port(0).get_connection().set_destination(broadcast_node.in_port(1))
-            broadcast_node.in_port(0).connect(Const(graph, {'name': broadcast_node.name + '/FillValue',
-                                                            'value': const_of_shape_node.fill_value}
-                                                    ).create_node().out_port(0))
-            const_of_shape_node.out_port(0).get_connection().set_source(broadcast_node.out_port(0))
+        for const_of_shape_node in graph.get_op_nodes(op="ConstantOfShape"):
+            broadcast_node = Broadcast(
+                graph, {"name": const_of_shape_node.name + "/Broadcast"}
+            ).create_node()
+            const_of_shape_node.in_port(0).get_connection().set_destination(
+                broadcast_node.in_port(1)
+            )
+            broadcast_node.in_port(0).connect(
+                Const(
+                    graph,
+                    {
+                        "name": broadcast_node.name + "/FillValue",
+                        "value": const_of_shape_node.fill_value,
+                    },
+                )
+                .create_node()
+                .out_port(0)
+            )
+            const_of_shape_node.out_port(0).get_connection().set_source(
+                broadcast_node.out_port(0)
+            )

@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mvn.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
-
 #include <iostream>
 
 #include "mvn_inst.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -123,7 +121,8 @@ void test_mvn_test_across_channels_outside_sqrt_bfyx(bool is_caching_test) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(mvn("mvn", input_info("input"), false, 1e-10f, false, {1, 2, 3}));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -157,7 +156,8 @@ void test_mvn_test_across_channels_inside_sqrt_bfyx(bool is_caching_test) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(mvn("mvn", input_info("input"), false, 1e-10f, true, {1, 2, 3}));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -614,14 +614,8 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_random_data(memory::ptr mem, int min, int max, int k = 8) {
         auto l = mem->get_layout();
-        auto input_data = rg.generate_random_5d<T>(l.batch(),
-                                                   l.feature(),
-                                                   l.spatial(0),
-                                                   l.spatial(1),
-                                                   l.spatial(2),
-                                                   min,
-                                                   max,
-                                                   k);
+        auto input_data =
+            rg.generate_random_5d<T>(l.batch(), l.feature(), l.spatial(0), l.spatial(1), l.spatial(2), min, max, k);
         fill_data(mem, input_data);
     }
 
@@ -648,20 +642,20 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
         auto input = eng.allocate_memory({params.input_type, params.input_format, size});
 
         switch (params.input_type) {
-            case data_types::f32:
-                fill_random_data<float>(input, -127, 127);
-                break;
-            case data_types::f16:
-                fill_random_data<ov::float16>(input, -127, 127);
-                break;
-            case data_types::i8:
-                fill_random_data<int8_t>(input, -127, 127);
-                break;
-            case data_types::u8:
-                fill_random_data<uint8_t>(input, -127, 127);
-                break;
-            default:
-                break;
+        case data_types::f32:
+            fill_random_data<float>(input, -127, 127);
+            break;
+        case data_types::f16:
+            fill_random_data<ov::float16>(input, -127, 127);
+            break;
+        case data_types::i8:
+            fill_random_data<int8_t>(input, -127, 127);
+            break;
+        case data_types::u8:
+            fill_random_data<uint8_t>(input, -127, 127);
+            break;
+        default:
+            break;
         }
         auto axes = params.across_channels ? std::vector<int64_t>{1, 2, 3} : std::vector<int64_t>{2, 3};
         topology topo;
@@ -670,7 +664,8 @@ struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
         prim.output_paddings = {output_pad};
         topo.add(prim);
 
-        cldnn::network::ptr net = get_network(eng, topo, get_test_default_config(eng), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net =
+            get_network(eng, topo, get_test_default_config(eng), get_test_stream_ptr(), is_caching_test);
 
         net->set_input_data("input", input);
 
@@ -742,22 +737,22 @@ struct mvn_test_case_generator : std::vector<mvn_basic_test_params> {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke,
-                        mvn_random_test,
-                        testing::ValuesIn(mvn_test_case_generator()
-                                              .smoke_tests(format::b_fs_yx_fsv16, data_types::i8)
-                                              .smoke_tests(format::b_fs_yx_fsv16, data_types::u8)));
+                         mvn_random_test,
+                         testing::ValuesIn(mvn_test_case_generator()
+                                               .smoke_tests(format::b_fs_yx_fsv16, data_types::i8)
+                                               .smoke_tests(format::b_fs_yx_fsv16, data_types::u8)));
 
 INSTANTIATE_TEST_SUITE_P(zyx,
-                        mvn_random_test,
-                        testing::ValuesIn(mvn_test_case_generator()
-                                              .zyx_tests(format::b_fs_zyx_fsv16, data_types::i8)
-                                              .zyx_tests(format::b_fs_zyx_fsv16, data_types::u8)));
+                         mvn_random_test,
+                         testing::ValuesIn(mvn_test_case_generator()
+                                               .zyx_tests(format::b_fs_zyx_fsv16, data_types::i8)
+                                               .zyx_tests(format::b_fs_zyx_fsv16, data_types::u8)));
 
 INSTANTIATE_TEST_SUITE_P(extended,
-                        mvn_random_test,
-                        testing::ValuesIn(mvn_test_case_generator()
-                                              .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
-                                              .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));
+                         mvn_random_test,
+                         testing::ValuesIn(mvn_test_case_generator()
+                                               .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
+                                               .extended_tests(format::b_fs_yx_fsv16, data_types::u8)));
 
 struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     tests::random_generator rg;
@@ -788,14 +783,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
     template <typename T>
     void fill_random_data(cldnn::memory::ptr mem, int min, int max, int k = 8) {
         auto l = mem->get_layout();
-        auto input_data = rg.generate_random_5d<T>(l.batch(),
-                                                   l.feature(),
-                                                   l.spatial(0),
-                                                   l.spatial(1),
-                                                   l.spatial(2),
-                                                   min,
-                                                   max,
-                                                   k);
+        auto input_data =
+            rg.generate_random_5d<T>(l.batch(), l.feature(), l.spatial(0), l.spatial(1), l.spatial(2), min, max, k);
         fill_data(mem, input_data);
     }
 
@@ -844,20 +833,20 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto& engine = get_test_engine();
         auto input = engine.allocate_memory({params.input_type, format::bfyx, params.input_size});
         switch (params.input_type) {
-            case data_types::f32:
-                fill_random_data<float>(input, -127, 127);
-                break;
-            case data_types::f16:
-                fill_random_data<ov::float16>(input, -127, 127, 1);
-                break;
-            case data_types::i8:
-                fill_random_data<int8_t>(input, -127, 127, 1);
-                break;
-            case data_types::u8:
-                fill_random_data<uint8_t>(input, 0, 255, 1);
-                break;
-            default:
-                break;
+        case data_types::f32:
+            fill_random_data<float>(input, -127, 127);
+            break;
+        case data_types::f16:
+            fill_random_data<ov::float16>(input, -127, 127, 1);
+            break;
+        case data_types::i8:
+            fill_random_data<int8_t>(input, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_data<uint8_t>(input, 0, 255, 1);
+            break;
+        default:
+            break;
         }
 
         auto axes = params.across_channels ? std::vector<int64_t>{1, 2, 3} : std::vector<int64_t>{2, 3};
@@ -868,7 +857,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         topo.add(prim);
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn"}));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}}}));
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
@@ -879,13 +869,17 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
 
         topology topo_opt;
         topo_opt.add(input_layout("input", input->get_layout()));
-        topo_opt.add(reorder("input_to_target_layout", input_info("input"), {params.input_type, params.input_format, size}));
-        auto prim_opt = mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, axes);
+        topo_opt.add(
+            reorder("input_to_target_layout", input_info("input"), {params.input_type, params.input_format, size}));
+        auto prim_opt =
+            mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, axes);
         prim_opt.output_paddings = {output_pad};
         topo_opt.add(prim_opt);
         ExecutionConfig config_opt = get_test_default_config(engine);
-        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn_opt", "input_to_target_layout"}));
-        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
+        config_opt.set_property(
+            ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn_opt", "input_to_target_layout"}));
+        config_opt.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}}}));
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
@@ -897,7 +891,7 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto output_dtype = output->get_layout().data_type;
         auto output_opt_dtype = output_opt->get_layout().data_type;
         if (output_dtype == output_opt_dtype) {
-            if(output_dtype == data_types::f32) {
+            if (output_dtype == data_types::f32) {
                 compare_outputs<float>(output, output_opt);
             } else if (output_dtype == data_types::f16) {
                 compare_outputs<ov::float16>(output, output_opt);
@@ -909,9 +903,8 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
                 FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
             }
         } else {
-            FAIL() << "Outputs have diffent data types: "
-                << static_cast<size_t>(output_dtype) << ", "
-                << static_cast<size_t>(output_opt_dtype);
+            FAIL() << "Outputs have diffent data types: " << static_cast<size_t>(output_dtype) << ", "
+                   << static_cast<size_t>(output_opt_dtype);
         }
     }
 };
@@ -934,20 +927,19 @@ struct mvn_test_case_generator_bsv32 : std::vector<mvn_basic_test_params> {
 };
 
 INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv32,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv32, data_types::i8)));
-
+                         mvn_random_test_bsv32,
+                         testing::ValuesIn(mvn_test_case_generator_bsv32().bsv32_tests(format::bs_fs_yx_bsv32_fsv32,
+                                                                                       data_types::i8)));
 
 INSTANTIATE_TEST_SUITE_P(mvn_bsv32_fsv16,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::bs_fs_yx_bsv32_fsv16, data_types::f16)));
+                         mvn_random_test_bsv32,
+                         testing::ValuesIn(mvn_test_case_generator_bsv32().bsv32_tests(format::bs_fs_yx_bsv32_fsv16,
+                                                                                       data_types::f16)));
 
 INSTANTIATE_TEST_SUITE_P(mvn_fsv16,
-                        mvn_random_test_bsv32,
-                        testing::ValuesIn(mvn_test_case_generator_bsv32()
-                                              .bsv32_tests(format::b_fs_yx_fsv16, data_types::i8)));
+                         mvn_random_test_bsv32,
+                         testing::ValuesIn(mvn_test_case_generator_bsv32().bsv32_tests(format::b_fs_yx_fsv16,
+                                                                                       data_types::i8)));
 
 TEST(mvn_gpu_test, mvn_test_across_channels_outside_sqrt_bfyx_cached) {
     test_mvn_test_across_channels_outside_sqrt_bfyx<float>(true);

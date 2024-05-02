@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<selectTestParams> &obj) {
+std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<selectTestParams>& obj) {
     auto shapes_ss = [](const InputShape& shape) {
         std::stringstream ss;
         ss << "_IS=(" << ov::test::utils::partialShape2str({shape.first}) << ")_TS=";
@@ -21,9 +21,9 @@ std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<select
     std::string target_device;
     std::tie(input_shapes, model_type, broadcast, target_device) = obj.param;
     std::ostringstream result;
-    result << "COND=BOOL" << shapes_ss(input_shapes[0]).str() <<
-        "_THEN=" << model_type.to_string() << shapes_ss(input_shapes[1]).str() <<
-        "_ELSE=" << model_type.to_string() << shapes_ss(input_shapes[2]).str();
+    result << "COND=BOOL" << shapes_ss(input_shapes[0]).str() << "_THEN=" << model_type.to_string()
+           << shapes_ss(input_shapes[1]).str() << "_ELSE=" << model_type.to_string()
+           << shapes_ss(input_shapes[2]).str();
     result << "_broadcastSpec=" << broadcast.m_type;
     result << "_trgDev=" << target_device;
     return result.str();

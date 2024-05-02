@@ -7,12 +7,11 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/node.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "low_precision/lpt_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "network_helper.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -37,7 +36,7 @@ class PropagateToInput;
 template <typename AttributeType>
 class ov::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
-    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 }) {
+    PropagateToInput(const std::vector<ov::element::Type>& defaultPrecisions = {ov::element::u8, ov::element::i8}) {
         ov::graph_rewrite_callback callback = [&](pattern::Matcher& m) {
             auto node = m.get_match_root();
             if (transformation_callback(node)) {
@@ -117,17 +116,20 @@ public:
             return true;
         };
 
-        auto matcher = std::make_shared<ov::pass::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
+        auto matcher =
+            std::make_shared<ov::pass::pattern::Matcher>(pattern::any_input(), "PropagateThroughPrecisionPreserved");
         this->register_matcher(matcher, callback);
     }
 
 private:
     // TODO: possible duplicate: PropagateThroughPrecisionPreserved::getParentInputRestrictions
-    ov::Any getSourceOutputAttribute(const Input<Node>& input, const std::vector<ov::element::Type>& defaultPrecisions) {
+    ov::Any getSourceOutputAttribute(const Input<Node>& input,
+                                     const std::vector<ov::element::Type>& defaultPrecisions) {
         auto getInput = [&defaultPrecisions](const Input<Node>& input) {
-            const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(), defaultPrecisions, input.get_index());
-            if (!dequantization.empty() &&
-                ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
+            const auto dequantization = NetworkHelper::getDequantization(input.get_node()->shared_from_this(),
+                                                                         defaultPrecisions,
+                                                                         input.get_index());
+            if (!dequantization.empty() && ov::is_type<opset1::Convert>(dequantization.data.get_node()) &&
                 (dequantization.data.get_node()->get_input_size() == 1ul) &&
                 ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
                 return dequantization.data.get_node()->input(0);
@@ -145,8 +147,7 @@ private:
         return attribute;
     }
 
-    std::vector<ov::Any> getParentInputRestrictions(
-        const std::shared_ptr<ov::Node> node) {
+    std::vector<ov::Any> getParentInputRestrictions(const std::shared_ptr<ov::Node> node) {
         std::vector<ov::Any> parentAttributes;
         for (size_t index = 0ul; index < node->get_input_size(); index++) {
             const Input<Node>& input = node->input(index);

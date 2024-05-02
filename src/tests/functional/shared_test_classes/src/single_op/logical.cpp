@@ -4,8 +4,8 @@
 
 #include "shared_test_classes/single_op/logical.hpp"
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/logical.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -45,12 +45,13 @@ void LogicalLayerTest::SetUp() {
     ov::element::Type model_type;
     std::map<std::string, std::string> additional_config;
 
-    std::tie(shapes, logical_op_type, second_input_type, model_type, targetDevice, additional_config) = this->GetParam();
+    std::tie(shapes, logical_op_type, second_input_type, model_type, targetDevice, additional_config) =
+        this->GetParam();
     init_input_shapes(shapes);
 
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
 
     std::shared_ptr<ov::Node> logical_node;
     if (ov::test::utils::LogicalTypes::LOGICAL_NOT != logical_op_type) {
@@ -70,5 +71,5 @@ void LogicalLayerTest::SetUp() {
 
     function = std::make_shared<ov::Model>(logical_node, params, "Logical");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

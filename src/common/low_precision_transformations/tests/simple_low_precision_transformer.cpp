@@ -13,6 +13,8 @@
 #include "low_precision/transformation_context.hpp"
 
 // cleanup transformations
+#include <string>
+
 #include "low_precision/convert.hpp"
 #include "low_precision/eliminate_fake_quantize.hpp"
 #include "low_precision/fold_convert.hpp"
@@ -21,8 +23,6 @@
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-
-#include <string>
 
 using namespace testing;
 using namespace ov::pass;
@@ -38,8 +38,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     // TODO: use one pass manager
     markup = std::make_shared<ov::pass::Manager>(passConfig);
     markup->register_pass<ov::pass::low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
-    markup->register_pass<ov::pass::low_precision::MarkupPrecisions>(precisionRestrictions,
-                                                                         params.defaultPrecisions);
+    markup->register_pass<ov::pass::low_precision::MarkupPrecisions>(precisionRestrictions, params.defaultPrecisions);
     markup->register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
     markup->register_pass<ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
     markup->register_pass<ov::pass::low_precision::PropagatePrecisions>(params);

@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset14 as ov
 import pytest
 
-import openvino.runtime.opset14 as ov
 from openvino import Type
-
 
 avg_pooling_test_params = [
     (

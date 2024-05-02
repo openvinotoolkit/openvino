@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "gather_inst.h"
-#include "permute_inst.h"
-#include "strided_slice_inst.h"
-#include "kv_cache_inst.h"
-#include "gemm_inst.h"
 #include "broadcast_inst.h"
+#include "gather_inst.h"
+#include "gemm_inst.h"
+#include "kv_cache_inst.h"
+#include "pass_manager.h"
+#include "permute_inst.h"
 #include "program_helpers.h"
+#include "strided_slice_inst.h"
 
 using namespace cldnn;
 
@@ -19,7 +19,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
         auto& node = *itr++;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
-        program_helpers::do_for_types<gather>(*node, [](gather_node& node){
+        program_helpers::do_for_types<gather>(*node, [](gather_node& node) {
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
             if (node.has_fused_primitives() ||
@@ -32,20 +32,21 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 return;
             }
             auto axis = impl_params->typed_desc<gather>()->axis;
-            if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1
-                || impl_params->get_input_layout(1).get_partial_shape()[0] == -1
-                || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
+            if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1 ||
+                impl_params->get_input_layout(1).get_partial_shape()[0] == -1 ||
+                impl_params->get_input_layout(0).get_partial_shape()[axis] ==
+                    impl_params->get_input_layout(1).get_partial_shape()[0]) {
                 // May be skipepd
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized"
+                                       << std::endl;
             }
         });
-        program_helpers::do_for_types<permute>(*node, [](permute_node& node){
+        program_helpers::do_for_types<permute>(*node, [](permute_node& node) {
             auto impl_params = node.get_kernel_impl_params();
-            if (node.is_output() ||
-                node.has_fused_primitives() ||
+            if (node.is_output() || node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
@@ -60,27 +61,23 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized"
+                                       << std::endl;
             }
         });
-        program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node){
+        program_helpers::do_for_types<strided_slice>(*node, [](strided_slice_node& node) {
             auto impl_params = node.get_kernel_impl_params();
-            if (node.is_output()
-                || node.has_fused_primitives()
-                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+            if (node.is_output() || node.has_fused_primitives() ||
+                (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format) ||
+                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
             auto prim = impl_params->typed_desc<strided_slice>();
             auto begin = prim->begin;
             auto strides = prim->strides;
             auto begin_mask = prim->begin_mask;
-            if (prim->end_mask.empty()
-                || !prim->new_axis_mask.empty()
-                || !prim->shrink_axis_mask.empty()
-                || !prim->ellipsis_mask.empty()
-                || !(all_zeroes(begin) || all_ones(begin_mask))
-                || !all_ones(strides))
+            if (prim->end_mask.empty() || !prim->new_axis_mask.empty() || !prim->shrink_axis_mask.empty() ||
+                !prim->ellipsis_mask.empty() || !(all_zeroes(begin) || all_ones(begin_mask)) || !all_ones(strides))
                 return;
 
             auto end = prim->end;
@@ -100,14 +97,14 @@ void mark_runtime_skippable_nodes::run(program& p) {
             node.can_be_optimized(true);
             // Set runtime skippable only when the node is set as can_be_optimized finally.
             node.set_runtime_skippable(true);
-            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized"
+                                   << std::endl;
         });
-        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
+        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node) {
             auto impl_params = node.get_kernel_impl_params();
-            if (node.is_output()
-                || node.has_fused_primitives()
-                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+            if (node.is_output() || node.has_fused_primitives() ||
+                (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format) ||
+                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
             if (node.is_dynamic()) {
@@ -140,7 +137,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized"
+                                       << std::endl;
             }
         });
     }

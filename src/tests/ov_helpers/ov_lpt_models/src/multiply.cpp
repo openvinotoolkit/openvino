@@ -5,11 +5,10 @@
 #include "ov_lpt_models/multiply.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "low_precision/network_helper.hpp"
 
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -26,12 +25,12 @@ struct BranchNodes {
 };
 
 BranchNodes makeBranch(const MultiplyBranch& branch) {
-    std::shared_ptr<Node> parent = branch.constant.empty() ?
-        std::make_shared<ov::opset1::Parameter>(branch.input_precision, branch.inputShape) :
-        std::dynamic_pointer_cast<Node>(std::make_shared<ov::opset1::Constant>(
-            branch.constant.outPrecision,
-            branch.constant.shape,
-            branch.constant.values));
+    std::shared_ptr<Node> parent =
+        branch.constant.empty()
+            ? std::make_shared<ov::opset1::Parameter>(branch.input_precision, branch.inputShape)
+            : std::dynamic_pointer_cast<Node>(std::make_shared<ov::opset1::Constant>(branch.constant.outPrecision,
+                                                                                     branch.constant.shape,
+                                                                                     branch.constant.values));
 
     if (!branch.fake_quantize.empty()) {
         if ((parent->get_output_element_type(0) != ov::element::f32) &&
@@ -45,7 +44,7 @@ BranchNodes makeBranch(const MultiplyBranch& branch) {
 
     return {parent, dequantization};
 }
-} // namespace multiply_function
+}  // namespace multiply_function
 
 std::shared_ptr<ov::Model> MultiplyFunction::get(const ov::element::Type model_precision,
                                                  const MultiplyValues& actualValues) {
@@ -65,7 +64,7 @@ std::shared_ptr<ov::Model> MultiplyFunction::get(const ov::element::Type model_p
     parent = makeDequantization(parent, actualValues.after_dequantization);
     parent->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(parent) };
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(parent)};
 
     ov::ParameterVector inputs;
     if (ov::is_type<ov::opset1::Parameter>(branchNodes1.input)) {

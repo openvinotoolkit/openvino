@@ -22,8 +22,8 @@ namespace intel_cpu {
  * number of elements in buffers to be converted
  * @return none.
  */
-void cpu_convert(const void *srcPtr,
-                 void *dstPtr,
+void cpu_convert(const void* srcPtr,
+                 void* dstPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type dstPrc,
                  const size_t size);
@@ -45,12 +45,12 @@ void cpu_convert(const void *srcPtr,
  * number of elements in buffers to be converted
  * @return none.
  */
-void cpu_convert(const void *srcPtr,
-                 void *dstPtr,
+void cpu_convert(const void* srcPtr,
+                 void* dstPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

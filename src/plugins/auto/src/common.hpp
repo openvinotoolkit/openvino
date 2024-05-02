@@ -19,11 +19,11 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/log_util.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
+#ifdef MULTIUNITTEST
+#    define MOCKTESTMACRO virtual
+#    define auto_plugin   mock_auto_plugin
 #else
-#define MOCKTESTMACRO
+#    define MOCKTESTMACRO
 #endif
 
 namespace ov {
@@ -37,7 +37,7 @@ using Time = std::chrono::time_point<std::chrono::steady_clock>;
 using Stage = std::pair<std::shared_ptr<ov::threading::ITaskExecutor>, ov::threading::Task>;
 using Pipeline = std::vector<Stage>;
 
-template<typename T>
+template <typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 // Bell to do, check if needed, or just use immediate exectutor is enough
 struct AutoImmediateExecutor : public ov::threading::ITaskExecutor {
@@ -60,19 +60,19 @@ public:
 };
 
 struct WorkerInferRequest {
-    SoAsyncInferRequest           m_inferrequest;
-    ov::threading::Task           m_task;
-    std::exception_ptr            m_exception_ptr = nullptr;
-    std::list<Time>               m_start_times;
-    std::list<Time>               m_end_times;
-    int                           m_index = 0;
-    AutoImmediateExecutor::Ptr    m_fallback_exec;
+    SoAsyncInferRequest m_inferrequest;
+    ov::threading::Task m_task;
+    std::exception_ptr m_exception_ptr = nullptr;
+    std::list<Time> m_start_times;
+    std::list<Time> m_end_times;
+    int m_index = 0;
+    AutoImmediateExecutor::Ptr m_fallback_exec;
 };
 
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
-    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr):
-        m_workptrptr{ptr},
-        m_fallback_exec(std::move(executor)) {}
+    explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr)
+        : m_workptrptr{ptr},
+          m_fallback_exec(std::move(executor)) {}
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
@@ -89,78 +89,97 @@ struct DeviceInformation {
     std::string default_device_id;
     DeviceName unique_name;
     unsigned int device_priority;
-    DeviceInformation(DeviceName dn = {}, ov::AnyMap conf = {},
-        int n_req = -1, std::string default_id = {}, DeviceName name = {}, unsigned int priority = 0)
-        : device_name(std::move(dn)), config(std::move(conf)),
-        num_requests_per_devices(n_req), default_device_id(std::move(default_id)), unique_name(std::move(name)), device_priority(priority)
-        {}
+    DeviceInformation(DeviceName dn = {},
+                      ov::AnyMap conf = {},
+                      int n_req = -1,
+                      std::string default_id = {},
+                      DeviceName name = {},
+                      unsigned int priority = 0)
+        : device_name(std::move(dn)),
+          config(std::move(conf)),
+          num_requests_per_devices(n_req),
+          default_device_id(std::move(default_id)),
+          unique_name(std::move(name)),
+          device_priority(priority) {}
 };
 
 struct deviceChecker {
-        template <typename T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true,
-          typename U = typename std::vector<T>::const_iterator>
-        U check_and_return_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
-            if (exact_match) {
-                return std::find_if(device_list.begin(), device_list.end(),
-                        [&target](const T& d) { return d == target; });
-            }
-            return std::find_if(device_list.begin(), device_list.end(),
-                            [&target](const T & d) {
-                                return d.find(target) != std::string::npos;
-                            });
+    template <
+        typename T,
+        typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true,
+        typename U = typename std::vector<T>::const_iterator>
+    U check_and_return_if_device_in_list(const std::string& target,
+                                         const std::vector<T>& device_list,
+                                         bool exact_match = false) {
+        if (exact_match) {
+            return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                return d == target;
+            });
         }
-        template <typename T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true>
-        bool check_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
-            if (exact_match) {
-                return std::find_if(device_list.begin(), device_list.end(),
-                                    [&target](const T& d) { return d == target; }) != device_list.cend();
-            }
-            return std::find_if(device_list.begin(), device_list.end(),
-                            [&target](const T& d) {
-                                return d.find(target) != std::string::npos;
-                            }) != device_list.end();
+        return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+            return d.find(target) != std::string::npos;
+        });
+    }
+    template <
+        typename T,
+        typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, bool>::type = true>
+    bool check_if_device_in_list(const std::string& target,
+                                 const std::vector<T>& device_list,
+                                 bool exact_match = false) {
+        if (exact_match) {
+            return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                       return d == target;
+                   }) != device_list.cend();
         }
-        template <typename T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value, bool>::type = true,
-          typename U = typename std::vector<T>::const_iterator>
-        U check_and_return_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
-            if (exact_match) {
-                return std::find_if(device_list.begin(), device_list.end(),
-                        [&target](const T& d) { return d.device_name == target; });
-            }
-            return std::find_if(device_list.begin(), device_list.end(),
-                            [&target](const T& d) {
-                                return d.device_name.find(target) != std::string::npos;
-                            });
+        return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                   return d.find(target) != std::string::npos;
+               }) != device_list.end();
+    }
+    template <typename T,
+              typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value,
+                                      bool>::type = true,
+              typename U = typename std::vector<T>::const_iterator>
+    U check_and_return_if_device_in_list(const std::string& target,
+                                         const std::vector<T>& device_list,
+                                         bool exact_match = false) {
+        if (exact_match) {
+            return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                return d.device_name == target;
+            });
         }
-        template <typename T,
-          typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value, bool>::type = true>
-        bool check_if_device_in_list(const std::string& target, const std::vector<T>& device_list, bool exact_match = false) {
-            if (exact_match) {
-                return std::find_if(device_list.begin(), device_list.end(),
-                                    [&target](const T& d) { return d.device_name == target; }) != device_list.end();
-            }
-            return std::find_if(device_list.begin(), device_list.end(),
-                            [&target](const T& d) {
-                                return d.device_name.find(target) != std::string::npos;
-                            }) != device_list.end();
+        return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+            return d.device_name.find(target) != std::string::npos;
+        });
+    }
+    template <typename T,
+              typename std::enable_if<std::is_same<typename std::decay<T>::type, DeviceInformation>::value,
+                                      bool>::type = true>
+    bool check_if_device_in_list(const std::string& target,
+                                 const std::vector<T>& device_list,
+                                 bool exact_match = false) {
+        if (exact_match) {
+            return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                       return d.device_name == target;
+                   }) != device_list.end();
         }
+        return std::find_if(device_list.begin(), device_list.end(), [&target](const T& d) {
+                   return d.device_name.find(target) != std::string::npos;
+               }) != device_list.end();
+    }
 };
 
-using NotBusyPriorityWorkerRequests = ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
+using NotBusyPriorityWorkerRequests =
+    ov::threading::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;
 using NotBusyWorkerRequests = ov::threading::ThreadSafeBoundedQueue<WorkerInferRequest*>;
 using TaskQueue = ov::threading::ThreadSafeQueue<ov::threading::Task>;
 
 template <typename T>
 struct IdleGuard {};
-template<>
+template <>
 struct IdleGuard<NotBusyWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
+    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyWorkerRequests& not_busy_worker_requests)
+        : m_worker_inferrequest_ptr{worker_inferrequest_ptr},
+          m_not_busy_worker_requests{&not_busy_worker_requests} {}
     ~IdleGuard() {
         if (nullptr != m_not_busy_worker_requests) {
             m_not_busy_worker_requests->try_push(m_worker_inferrequest_ptr);
@@ -172,18 +191,19 @@ struct IdleGuard<NotBusyWorkerRequests> {
         return not_busy_worker_requests;
     }
     WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyWorkerRequests*  m_not_busy_worker_requests = nullptr;
+    NotBusyWorkerRequests* m_not_busy_worker_requests = nullptr;
 };
 
-template<>
+template <>
 struct IdleGuard<NotBusyPriorityWorkerRequests> {
-    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr, NotBusyPriorityWorkerRequests& not_busy_worker_requests) :
-        m_worker_inferrequest_ptr{worker_inferrequest_ptr},
-        m_not_busy_worker_requests{&not_busy_worker_requests} {
-    }
+    explicit IdleGuard(WorkerInferRequest* worker_inferrequest_ptr,
+                       NotBusyPriorityWorkerRequests& not_busy_worker_requests)
+        : m_worker_inferrequest_ptr{worker_inferrequest_ptr},
+          m_not_busy_worker_requests{&not_busy_worker_requests} {}
     ~IdleGuard() {
         if (nullptr != m_not_busy_worker_requests) {
-            m_not_busy_worker_requests->try_push(std::make_pair(m_worker_inferrequest_ptr->m_index, m_worker_inferrequest_ptr));
+            m_not_busy_worker_requests->try_push(
+                std::make_pair(m_worker_inferrequest_ptr->m_index, m_worker_inferrequest_ptr));
         }
     }
     NotBusyPriorityWorkerRequests* release() {
@@ -192,34 +212,34 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
         return not_busy_worker_requests_queue;
     }
     WorkerInferRequest* m_worker_inferrequest_ptr = nullptr;
-    NotBusyPriorityWorkerRequests*  m_not_busy_worker_requests = nullptr;
+    NotBusyPriorityWorkerRequests* m_not_busy_worker_requests = nullptr;
 };
 
 class Plugin;
-class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
+class ScheduleContext : public std::enable_shared_from_this<ScheduleContext> {
 public:
     using Ptr = std::shared_ptr<ScheduleContext>;
-    std::shared_ptr<ov::ICore>                     m_ov_core;
-    std::weak_ptr<ov::ICompiledModel>              m_compiled_model;
-    std::string                                    m_log_tag;
-    std::vector<DeviceInformation>                 m_device_priorities;
-    std::vector<DeviceInformation>                 m_device_priorities_initial;
-    bool                                           m_need_perf_counters;
-    bool                                           m_batching_disabled = false;
-    bool                                           m_startup_fallback = true;
-    bool                                           m_runtime_fallback = true;
-    bool                                           m_bind_buffer = false;
-    std::shared_ptr<ov::Model>                     m_model;
-    std::string                                    m_model_path;
-    std::shared_ptr<const ov::IPlugin>             m_plugin;
-    std::string                                    m_str_devices;
-    unsigned int                                   m_model_priority = 0;
-    ov::Any                                        m_performance_hint;
-    ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
-    std::mutex                                     m_mutex;
-    std::mutex                                     m_fallback_mutex;
-    SoCompiledModel                                m_hw_compiled_model;
-    std::string                                    m_model_precision;
+    std::shared_ptr<ov::ICore> m_ov_core;
+    std::weak_ptr<ov::ICompiledModel> m_compiled_model;
+    std::string m_log_tag;
+    std::vector<DeviceInformation> m_device_priorities;
+    std::vector<DeviceInformation> m_device_priorities_initial;
+    bool m_need_perf_counters;
+    bool m_batching_disabled = false;
+    bool m_startup_fallback = true;
+    bool m_runtime_fallback = true;
+    bool m_bind_buffer = false;
+    std::shared_ptr<ov::Model> m_model;
+    std::string m_model_path;
+    std::shared_ptr<const ov::IPlugin> m_plugin;
+    std::string m_str_devices;
+    unsigned int m_model_priority = 0;
+    ov::Any m_performance_hint;
+    ov::Any m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;
+    std::mutex m_mutex;
+    std::mutex m_fallback_mutex;
+    SoCompiledModel m_hw_compiled_model;
+    std::string m_model_precision;
     virtual ~ScheduleContext() = default;
 };
 
@@ -231,7 +251,7 @@ struct AutoCompileContext {
     std::future<void> m_future;
     std::promise<void> m_promise;
     SoCompiledModel m_compiled_model;
-    DeviceInformation  m_device_info;
+    DeviceInformation m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
     std::string m_model_precision;
     std::string m_err_message;
@@ -239,11 +259,6 @@ struct AutoCompileContext {
     std::string m_worker_name = "";
 };
 
-enum AutoCompileContextIndex {
-    CPU = 0,
-    ACTUALDEVICE = 1,
-    FALLBACKDEVICE = 2,
-    CONTEXTNUM = 3
-};
+enum AutoCompileContextIndex { CPU = 0, ACTUALDEVICE = 1, FALLBACKDEVICE = 2, CONTEXTNUM = 3 };
 }  // namespace auto_plugin
-} // namespace ov
+}  // namespace ov

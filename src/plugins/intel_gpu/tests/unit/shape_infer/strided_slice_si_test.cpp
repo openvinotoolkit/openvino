@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "strided_slice_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "strided_slice_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -36,7 +33,7 @@ struct strided_slice_test_params {
     layout expected_layout;
 };
 
-class strided_slice_test : public testing::TestWithParam<strided_slice_test_params> { };
+class strided_slice_test : public testing::TestWithParam<strided_slice_test_params> {};
 
 TEST_P(strided_slice_test, shape_infer) {
     auto p = GetParam();
@@ -75,19 +72,25 @@ TEST_P(strided_slice_test, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test,
-    testing::ValuesIn(std::vector<strided_slice_test_params>{
-        {
-            layout{ov::PartialShape{1, 128, 1024}, data_types::i64, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 0, 0},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 1, 0},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 1, 1},
-            {1, 0, 1}, {1, 0, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
-            layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}
-        },
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         strided_slice_test,
+                         testing::ValuesIn(std::vector<strided_slice_test_params>{
+                             {layout{ov::PartialShape{1, 128, 1024}, data_types::i64, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {0, 0, 0},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {0, 1, 0},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 1, 1},
+                              {1, 0, 1},
+                              {1, 0, 1},
+                              {0, 0, 0},
+                              {0, 0, 0},
+                              {0, 0, 0},
+                              layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}},
+                         }));
 
-class strided_slice_test_four_inputs : public testing::TestWithParam<strided_slice_test_params> { };
+class strided_slice_test_four_inputs : public testing::TestWithParam<strided_slice_test_params> {};
 
 TEST_P(strided_slice_test_four_inputs, shape_infer) {
     auto p = GetParam();
@@ -136,24 +139,35 @@ TEST_P(strided_slice_test_four_inputs, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, strided_slice_test_four_inputs,
-    testing::ValuesIn(std::vector<strided_slice_test_params>{
-        {
-            layout{ov::PartialShape{1, 128, 1024}, data_types::i64, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 0, 0},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {0, 1, 0},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 1, 1},
-            {1, 0, 1}, {1, 0, 1}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
-            layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape{200, 128}, data_types::i64, format::bfyx},
-            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {0},
-            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {15},
-            layout{ov::PartialShape{1}, data_types::i64, format::bfyx}, {1},
-            {0}, {0}, {}, {}, {},
-            layout{ov::PartialShape{15, 128}, data_types::i64, format::bfyx}
-        },
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         strided_slice_test_four_inputs,
+                         testing::ValuesIn(std::vector<strided_slice_test_params>{
+                             {layout{ov::PartialShape{1, 128, 1024}, data_types::i64, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {0, 0, 0},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {0, 1, 0},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 1, 1},
+                              {1, 0, 1},
+                              {1, 0, 1},
+                              {0, 0, 0},
+                              {0, 0, 0},
+                              {0, 0, 0},
+                              layout{ov::PartialShape{1, 1, 1024}, data_types::i64, format::bfyx}},
+                             {layout{ov::PartialShape{200, 128}, data_types::i64, format::bfyx},
+                              layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+                              {0},
+                              layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+                              {15},
+                              layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+                              {1},
+                              {0},
+                              {0},
+                              {},
+                              {},
+                              {},
+                              layout{ov::PartialShape{15, 128}, data_types::i64, format::bfyx}},
+                         }));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

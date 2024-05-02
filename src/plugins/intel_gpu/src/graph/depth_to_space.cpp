@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "depth_to_space_inst.h"
 #include "depth_to_space_shape_inference.hpp"
-
-#include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(depth_to_space)
@@ -33,7 +33,11 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
         const size_t z = input_layout.spatial(2) * block_size;
         const size_t y = input_layout.spatial(1) * block_size;
         const size_t x = input_layout.spatial(0) * block_size;
-        out_size = tensor(TensorValue(input_layout.batch()), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z));
+        out_size = tensor(TensorValue(input_layout.batch()),
+                          TensorValue(feature),
+                          TensorValue(x),
+                          TensorValue(y),
+                          TensorValue(z));
     } else {
         const size_t feature = input_layout.feature() / block_size / block_size;
         const size_t y = input_layout.spatial(1) * block_size;
@@ -48,8 +52,9 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
     return layout{input_layout.data_type, input_format, out_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node const& node,
+                                                             kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<depth_to_space>();
     auto input_layout = impl_param.get_input_layout(0);
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
@@ -58,15 +63,15 @@ std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node
     ov::op::v0::DepthToSpace op;
     op.set_block_size(desc->block_size);
 
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>()};
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> depth_to_space_inst::calc_output_layouts<ov::PartialShape>(depth_to_space_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> depth_to_space_inst::calc_output_layouts<ov::PartialShape>(
+    depth_to_space_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     auto desc = node.get_primitive();
@@ -86,7 +91,6 @@ std::string depth_to_space_inst::to_string(depth_to_space_node const& node) {
     return primitive_description.str();
 }
 
-depth_to_space_inst::typed_primitive_inst(network& network, depth_to_space_node const& node)
-    : parent(network, node) {}
+depth_to_space_inst::typed_primitive_inst(network& network, depth_to_space_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

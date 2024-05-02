@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino as ov
 import openvino.properties as props
-import openvino.properties.hint as hints
 import openvino.properties.device as device
-
+import openvino.properties.hint as hints
 from utils import get_model
+
+import openvino as ov
 
 
 def main():
@@ -26,8 +26,10 @@ def main():
 
     model = get_model()
     # [compile_model_with_property]
-    config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
-            hints.inference_precision: ov.Type.f32}
+    config = {
+        hints.performance_mode: hints.PerformanceMode.THROUGHPUT,
+        hints.inference_precision: ov.Type.f32,
+    }
     compiled_model = core.compile_model(model, "CPU", config)
     # [compile_model_with_property]
 
@@ -35,7 +37,6 @@ def main():
     compiled_model = core.compile_model(model, "CPU")
     nireq = compiled_model.get_property(props.optimal_number_of_infer_requests)
     # [optimal_number_of_infer_requests]
-
 
     # [core_set_property_then_compile]
     # latency hint is a default for CPU
@@ -46,7 +47,6 @@ def main():
     config = {hints.performance_mode: hints.PerformanceMode.THROUGHPUT}
     compiled_model_thrp = core.compile_model(model, "CPU", config)
     # [core_set_property_then_compile]
-
 
     # [inference_num_threads]
     compiled_model = core.compile_model(model, "CPU")

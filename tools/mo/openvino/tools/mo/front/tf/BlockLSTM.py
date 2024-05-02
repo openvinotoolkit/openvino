@@ -43,25 +43,39 @@ class BlockLSTM(FrontReplacementPattern):
     - peephole connection, so we check `use_peephole`!=True and cut `wci`, `wco`, `wcf` off
     - cell_clip parameter, so we check `cell_clip==-1`, which means we do not clip
     """
+
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='BlockLSTM'):
+        for node in graph.get_op_nodes(op="BlockLSTM"):
             if node.use_peephole:
-                raise Error("BlockLSTM operation is not supported with `use_peephole`==True. Node: {}"
-                            "".format(node.soft_get('name')))
+                raise Error(
+                    "BlockLSTM operation is not supported with `use_peephole`==True. Node: {}"
+                    "".format(node.soft_get("name"))
+                )
 
             if node.cell_clip != -1:
-                raise Error("Clipping is not supported for BlockLSTM operation. `cell_clip`={!s} for node: {}"
-                            "".format(node.cell_clip, node.soft_get('name')))
+                raise Error(
+                    "Clipping is not supported for BlockLSTM operation. `cell_clip`={!s} for node: {}"
+                    "".format(node.cell_clip, node.soft_get("name"))
+                )
 
-            log.debug("Start BlockLSTM->LSTMSequence translation for node: {} with parameters:\n"
-                      "`cell_clip`={!s}, `use_peephole`=={!s}, `forget_bias`={!s}\n"
-                      "inputs: {},\noutputs:{}".format(node.soft_get('name'), node.cell_clip, node.use_peephole,
-                                                       node.forget_bias, {p: i.id for p, i in node.in_nodes().items()},
-                                                       {p: o.id for p, o in node.out_nodes().items()}))
+            log.debug(
+                "Start BlockLSTM->LSTMSequence translation for node: {} with parameters:\n"
+                "`cell_clip`={!s}, `use_peephole`=={!s}, `forget_bias`={!s}\n"
+                "inputs: {},\noutputs:{}".format(
+                    node.soft_get("name"),
+                    node.cell_clip,
+                    node.use_peephole,
+                    node.forget_bias,
+                    {p: i.id for p, i in node.in_nodes().items()},
+                    {p: o.id for p, o in node.out_nodes().items()},
+                )
+            )
 
-            log.debug("Cutting all inputs for peephole connection (5, 6, 7 input ports) off, as `use_peephole`=False")
+            log.debug(
+                "Cutting all inputs for peephole connection (5, 6, 7 input ports) off, as `use_peephole`=False"
+            )
             log.debug("Cutting seq_len_max input off")
 
             # disconnect all peephole releated inputs and seq_len_max
@@ -69,16 +83,31 @@ class BlockLSTM(FrontReplacementPattern):
                 if node.is_in_port_connected(port_idx):
                     node.in_port(port_idx).disconnect()
 
-            assert node.is_in_port_connected(1), "Sequence input to the BlockLSTM is required (1 port). Node {}".format(
-                node.id)
-            assert node.is_in_port_connected(2), "Value of the initial cell state is required (2 port). Node {}".format(
-                node.id)
             assert node.is_in_port_connected(
-                3), "Initial output of cell is required input to BlockLSTM (3 port). Node {}".format(node.id)
+                1
+            ), "Sequence input to the BlockLSTM is required (1 port). Node {}".format(
+                node.id
+            )
             assert node.is_in_port_connected(
-                4), "The weight matrix is required input to BlockLSTM (4 port) . Node {}".format(node.id)
+                2
+            ), "Value of the initial cell state is required (2 port). Node {}".format(
+                node.id
+            )
             assert node.is_in_port_connected(
-                8), "The bias vector is required input to BlockLSTM (8 port). Node {}".format(node.id)
+                3
+            ), "Initial output of cell is required input to BlockLSTM (3 port). Node {}".format(
+                node.id
+            )
+            assert node.is_in_port_connected(
+                4
+            ), "The weight matrix is required input to BlockLSTM (4 port) . Node {}".format(
+                node.id
+            )
+            assert node.is_in_port_connected(
+                8
+            ), "The bias vector is required input to BlockLSTM (8 port). Node {}".format(
+                node.id
+            )
 
             # reconnect inputs since OpenVINO LSTMSequence requires different order
             # Reconnecting input edges of LSTMSequence:
@@ -107,7 +136,11 @@ class BlockLSTM(FrontReplacementPattern):
             # check that all outputs unsupported by OpenVINO LSTMSequence are absent
             for output_port_idx in [0, 2, 3, 4, 5]:
                 if node.is_out_port_connected(output_port_idx):
-                    raise Error("Output port {} of BlockLSTM node {} is not supported".format(node.id, output_port_idx))
+                    raise Error(
+                        "Output port {} of BlockLSTM node {} is not supported".format(
+                            node.id, output_port_idx
+                        )
+                    )
 
             # Reconnecting output edges of LSTMSequence:
             # TF output edges:             Description:                 MO output edges:

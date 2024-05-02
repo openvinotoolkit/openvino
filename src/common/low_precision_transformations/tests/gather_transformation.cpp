@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/gather.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/gather.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/gather.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -59,13 +59,13 @@ public:
 
         actualFunction =
             ov::builder::subgraph::GatherFunction::getOriginal(inputShape,
-                                                                   testValues.gatherIndicesShape,
-                                                                   testValues.gatherIndicesValues,
-                                                                   testValues.axis,
-                                                                   testValues.batch_dims,
-                                                                   testValues.actual.precisionBeforeDequantization,
-                                                                   testValues.actual.dequantization,
-                                                                   opset_version);
+                                                               testValues.gatherIndicesShape,
+                                                               testValues.gatherIndicesValues,
+                                                               testValues.axis,
+                                                               testValues.batch_dims,
+                                                               testValues.actual.precisionBeforeDequantization,
+                                                               testValues.actual.dequantization,
+                                                               opset_version);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::GatherTransformation, ov::op::v1::Gather>(testValues.params);
@@ -73,15 +73,15 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::GatherFunction::getReference(inputShape,
-                                                                    testValues.gatherIndicesShape,
-                                                                    testValues.gatherIndicesValues,
-                                                                    testValues.axis,
-                                                                    testValues.batch_dims,
-                                                                    testValues.expected.precisionBeforeDequantization,
-                                                                    testValues.expected.dequantizationBefore,
-                                                                    testValues.expected.precisionAfterOperation,
-                                                                    testValues.expected.dequantizationAfter,
-                                                                    opset_version);
+                                                                testValues.gatherIndicesShape,
+                                                                testValues.gatherIndicesValues,
+                                                                testValues.axis,
+                                                                testValues.batch_dims,
+                                                                testValues.expected.precisionBeforeDequantization,
+                                                                testValues.expected.dequantizationBefore,
+                                                                testValues.expected.precisionAfterOperation,
+                                                                testValues.expected.dequantizationAfter,
+                                                                opset_version);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GatherTransformationParams> obj) {
@@ -119,8 +119,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
      {0},
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
@@ -179,9 +178,7 @@ const std::vector<GatherTransformationTestValues> testValues = {
      std::int64_t{0},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8,
-      {{ov::element::f32},
-       {{128, 64, 32}, ov::element::f32, {3, 1}},
-       {{0.3f, 0.2f, 0.1f}, ov::element::f32, {3, 1}}}},
+      {{ov::element::f32}, {{128, 64, 32}, ov::element::f32, {3, 1}}, {{0.3f, 0.2f, 0.1f}, ov::element::f32, {3, 1}}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,

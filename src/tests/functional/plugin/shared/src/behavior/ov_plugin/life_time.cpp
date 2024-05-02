@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/life_time.hpp"
+
 #include <fstream>
 
-#include "behavior/ov_plugin/life_time.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
@@ -32,10 +33,10 @@ void OVHoldersTest::TearDown() {
     APIBaseTest::TearDown();
 }
 
-#define EXPECT_NO_CRASH(_statement) \
-EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
+#define EXPECT_NO_CRASH(_statement) EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
-static void release_order_test(std::vector<std::size_t> order, const std::string &deviceName,
+static void release_order_test(std::vector<std::size_t> order,
+                               const std::string& deviceName,
                                std::shared_ptr<ov::Model> function) {
     ov::AnyVector objects;
     {
@@ -53,7 +54,7 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
 #ifndef __EMSCRIPTEN__
 
 TEST_P(OVHoldersTest, Orders) {
-    std::vector<std::string> objects{ "core", "compiled_model", "request"};
+    std::vector<std::string> objects{"core", "compiled_model", "request"};
     std::vector<std::size_t> order(objects.size());
     std::iota(order.begin(), order.end(), 0);
     do {
@@ -65,7 +66,7 @@ TEST_P(OVHoldersTest, Orders) {
     } while (std::next_permutation(order.begin(), order.end()));
 }
 
-#endif // __EMSCRIPTEN__
+#endif  // __EMSCRIPTEN__
 
 TEST_P(OVHoldersTest, LoadedState) {
     std::vector<ov::VariableState> states;
@@ -75,7 +76,8 @@ TEST_P(OVHoldersTest, LoadedState) {
         auto request = compiled_model.create_infer_request();
         try {
             states = request.query_state();
-        } catch(...) {}
+        } catch (...) {
+        }
     }
 }
 
@@ -107,7 +109,8 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
         auto compiled_model = core.compile_model(function, target_device);
         try {
             ctx = compiled_model.get_context();
-        } catch(...) {}
+        } catch (...) {
+        }
     }
 }
 

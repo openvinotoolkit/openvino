@@ -37,8 +37,10 @@ void ROIPoolingLayerTestGPU::SetUp() {
     } else {
         FAIL() << "Incorrect type of ROIPooling operation";
     }
-    auto roi_pooling = std::make_shared<ov::op::v0::ROIPooling>(param, coord_param, pool_shape, spatial_scale, pool_method_str);
-    function = std::make_shared<ov::Model>(roi_pooling->outputs(), ov::ParameterVector{param, coord_param}, "roi_pooling");
+    auto roi_pooling =
+        std::make_shared<ov::op::v0::ROIPooling>(param, coord_param, pool_shape, spatial_scale, pool_method_str);
+    function =
+        std::make_shared<ov::Model>(roi_pooling->outputs(), ov::ParameterVector{param, coord_param}, "roi_pooling");
 }
 
 TEST_P(ROIPoolingLayerTestGPU, Inference) {

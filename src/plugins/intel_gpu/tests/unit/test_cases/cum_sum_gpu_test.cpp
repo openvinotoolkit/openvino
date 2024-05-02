@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/cum_sum.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "cum_sum_inst.h"
-
 #include <algorithm>
 #include <fstream>
+#include <intel_gpu/primitives/cum_sum.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+
+#include "cum_sum_inst.h"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
-template<typename T = float>
+template <typename T = float>
 static std::vector<T> cumsum(const std::vector<T>& input,
                              const cldnn::format& format,
                              const std::vector<int>& shape,
@@ -54,7 +52,7 @@ static std::vector<T> cumsum(const std::vector<T>& input,
         fullInd[0] = ind / sizeDim[0];
         for (int i = 1, numItems = 0; i < static_cast<int>(fullInd.size()); ++i) {
             numItems += fullInd[i - 1] * sizeDim[i - 1];
-            fullInd[i] = (ind - numItems)/sizeDim[i];
+            fullInd[i] = (ind - numItems) / sizeDim[i];
         }
         return fullInd;
     };
@@ -94,7 +92,7 @@ static std::vector<T> cumsum(const std::vector<T>& input,
     return output;
 }
 
-template<typename T1, typename T2>
+template <typename T1, typename T2>
 static std::vector<T1> vectorCast(const std::vector<T2>& vec) {
     std::vector<T1> ret(vec.size());
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -103,30 +101,30 @@ static std::vector<T1> vectorCast(const std::vector<T2>& vec) {
     return ret;
 }
 
-#define CASE_CUM_SUM_AXIS_0 ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), \
-                            ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
-                            ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[0]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
-#define CASE_CUM_SUM_AXIS_1 ::testing::Values(2), ::testing::Values(5), ::testing::Values(1), \
-                            ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
-                            ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[1]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
-#define CASE_CUM_SUM_AXIS_2 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
-                            ::testing::Values(1), ::testing::Values(5), ::testing::Values(1), \
-                            ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[2]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
-#define CASE_CUM_SUM_AXIS_3 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
-                            ::testing::Values(1), ::testing::Values(5), ::testing::Values(5), \
-                            ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[3]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
-#define CASE_CUM_SUM_AXIS_4 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
-                            ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
-                            ::testing::Values(format::bfzyx), ::testing::ValuesIn(axes[4]),   \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
-#define CASE_CUM_SUM_AXIS_5 ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
-                            ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
-                            ::testing::Values(format::bfwzyx), ::testing::ValuesIn(axes[5]),  \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_0                                                                                       \
+    ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
+        ::testing::Values(1), ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[0]),                      \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_1                                                                                       \
+    ::testing::Values(2), ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
+        ::testing::Values(1), ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[1]),                      \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_2                                                                                       \
+    ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), ::testing::Values(5), \
+        ::testing::Values(1), ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[2]),                      \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_3                                                                                       \
+    ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), ::testing::Values(5), \
+        ::testing::Values(5), ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[3]),                      \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_4                                                                                       \
+    ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), ::testing::Values(5), ::testing::Values(5), \
+        ::testing::Values(5), ::testing::Values(format::bfzyx), ::testing::ValuesIn(axes[4]),                     \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
+#define CASE_CUM_SUM_AXIS_5                                                                                       \
+    ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
+        ::testing::Values(5), ::testing::Values(format::bfwzyx), ::testing::ValuesIn(axes[5]),                    \
+        ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 
 using cum_sum_test_params = std::tuple<int,            // batch
                                        int,            // feature
@@ -171,7 +169,7 @@ public:
         auto z = std::get<3>(p);
         auto y = std::get<4>(p);
         auto x = std::get<5>(p);
-        tensor shape = tensor{ batch(b), feature(f), spatial(x, y, z, w) };
+        tensor shape = tensor{batch(b), feature(f), spatial(x, y, z, w)};
 
         auto in_out_format = std::get<6>(p);
         auto axis = std::get<7>(p);
@@ -179,11 +177,11 @@ public:
         auto reverse = std::get<9>(p);
         bool is_caching_test = std::get<10>(p);
 
-        auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
+        auto input = engine.allocate_memory({get_alloc_data_type(), in_out_format, shape});
         const int inputSize = b * f * w * z * y * x;
-        VF<input_type> inputVals = std::is_same<input_type, ov::float16>::value ?
-                                   rg.generate_random_1d<input_type>(inputSize, -1, 1, 1) :
-                                   rg.generate_random_1d<input_type>(inputSize, -100, 100, 8);
+        VF<input_type> inputVals = std::is_same<input_type, ov::float16>::value
+                                       ? rg.generate_random_1d<input_type>(inputSize, -1, 1, 1)
+                                       : rg.generate_random_1d<input_type>(inputSize, -100, 100, 8);
 
         set_values(input, inputVals);
 
@@ -191,7 +189,8 @@ public:
         topology.add(input_layout("Input0", input->get_layout()));
         topology.add(cum_sum("cum_sum", input_info("Input0"), axis, exclusive, reverse));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input);
 
@@ -203,7 +202,7 @@ public:
         auto output = outputs.at("cum_sum").get_memory();
         cldnn::mem_lock<output_type> output_ptr(output, get_test_stream());
 
-        auto answers = cumsum<output_type>(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
+        auto answers = cumsum<output_type>(inputVals, in_out_format, {b, f, w, z, y, x}, axis, exclusive, reverse);
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i) {
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
@@ -216,22 +215,34 @@ class cum_sum_gpu_fp32 : public ::cum_sum_gpu<cum_sum_test_params, float, float>
 class cum_sum_gpu_int32 : public ::cum_sum_gpu<cum_sum_test_params, int32_t, int32_t> {};
 class cum_sum_gpu_int64 : public ::cum_sum_gpu<cum_sum_test_params, int64_t, int64_t> {};
 
-TEST_P(cum_sum_gpu_fp16, basic) { auto p = GetParam(); execute(p); }
-TEST_P(cum_sum_gpu_fp32, basic) { auto p = GetParam(); execute(p); }
-TEST_P(cum_sum_gpu_int32, basic) { auto p = GetParam(); execute(p); }
-TEST_P(cum_sum_gpu_int64, basic) { auto p = GetParam(); execute(p); }
+TEST_P(cum_sum_gpu_fp16, basic) {
+    auto p = GetParam();
+    execute(p);
+}
+TEST_P(cum_sum_gpu_fp32, basic) {
+    auto p = GetParam();
+    execute(p);
+}
+TEST_P(cum_sum_gpu_int32, basic) {
+    auto p = GetParam();
+    execute(p);
+}
+TEST_P(cum_sum_gpu_int64, basic) {
+    auto p = GetParam();
+    execute(p);
+}
 
 namespace {
-    std::vector<std::vector<int>> axes = {
-        { 0 },
-        { 0, 1 },
-        { 0, 1, 2 },
-        { 0, 1, 2, 3 },
-        { 0, 1, 2, 3, 4 },
-        { 0, 1, 2, 3, 4, 5 },
-    };
-    std::vector<bool> variants = { false, true };
-}
+std::vector<std::vector<int>> axes = {
+    {0},
+    {0, 1},
+    {0, 1, 2},
+    {0, 1, 2, 3},
+    {0, 1, 2, 3, 4},
+    {0, 1, 2, 3, 4, 5},
+};
+std::vector<bool> variants = {false, true};
+}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
 INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
@@ -263,12 +274,19 @@ INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_S
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 
-INSTANTIATE_TEST_SUITE_P(export_import, cum_sum_gpu_int64,
-    ::testing::Combine(::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
-                       ::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
-                       ::testing::Values(format::bfwzyx), ::testing::Values(axes[5][0]),
-                       ::testing::Values(variants[0]), ::testing::Values(variants[0]),
-                       ::testing::Values(true)));
+INSTANTIATE_TEST_SUITE_P(export_import,
+                         cum_sum_gpu_int64,
+                         ::testing::Combine(::testing::Values(5),
+                                            ::testing::Values(5),
+                                            ::testing::Values(5),
+                                            ::testing::Values(5),
+                                            ::testing::Values(5),
+                                            ::testing::Values(5),
+                                            ::testing::Values(format::bfwzyx),
+                                            ::testing::Values(axes[5][0]),
+                                            ::testing::Values(variants[0]),
+                                            ::testing::Values(variants[0]),
+                                            ::testing::Values(true)));
 
 // FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
 TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
@@ -276,11 +294,9 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     // Output : 5x1x1x1
 
     auto& engine = get_test_engine();
-    tensor shape = { 5, 1, 1, 1 };
-    std::vector<float> inputVals = {
-        1.0f, 2.0f, 3.0f, 4.0f, 5.0f
-    };
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, shape });
+    tensor shape = {5, 1, 1, 1};
+    std::vector<float> inputVals = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, shape});
 
     set_values(input, vectorCast<ov::float16>(inputVals));
 
@@ -300,7 +316,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    auto answers = cumsum(inputVals, format::bfyx, { 5, 1, 1, 1, 1, 1 });
+    auto answers = cumsum(inputVals, format::bfyx, {5, 1, 1, 1, 1, 1});
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
@@ -310,11 +326,9 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
 TEST(cum_sum_gpu_fp32, dynamic) {
     auto& engine = get_test_engine();
-    ov::Shape shape = { 5, 1, 1, 1 };
+    ov::Shape shape = {5, 1, 1, 1};
     auto in_layout = layout{ov::PartialShape::dynamic(shape.size()), data_types::f32, format::bfyx};
-    std::vector<float> input_data = {
-        1.0f, 2.0f, 3.0f, 4.0f, 5.0f
-    };
+    std::vector<float> input_data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
     auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f32, format::bfyx});
 
     set_values(input, input_data);
@@ -341,7 +355,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    auto answers = cumsum(input_data, format::bfyx, { 5, 1, 1, 1, 1, 1 });
+    auto answers = cumsum(input_data, format::bfyx, {5, 1, 1, 1, 1, 1});
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
@@ -372,7 +386,7 @@ TEST(cum_sum_partial, big_shapes) {
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{ {"cum_sum", {format::bfyx, "cum_sum_partial_sum"}} }));
+            ov::intel_gpu::ImplForcingMap{{"cum_sum", {format::bfyx, "cum_sum_partial_sum"}}}));
         network network(engine, topology, config);
         network.set_input_data("input", input);
 
@@ -383,7 +397,7 @@ TEST(cum_sum_partial, big_shapes) {
         const auto output = outputs.at("cum_sum").get_memory();
         const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-        const auto expected = cumsum(input_data, format::bfyx, {shape_num_items, 1, 1, 1, 1, 1 });
+        const auto expected = cumsum(input_data, format::bfyx, {shape_num_items, 1, 1, 1, 1, 1});
 
         ASSERT_EQ(expected.size(), num_items);
         ASSERT_EQ(output->count(), num_items);
@@ -407,7 +421,6 @@ TEST(cum_sum_partial, DISABLED_perf_test) {
         const tensor shape{shape_num_items, 1, 1, 1};
         const layout in_layout{data_types::f32, format::bfyx, shape};
 
-
         const auto input_ref = engine.allocate_memory(in_layout);
         set_values(input_ref, input_data);
         topology topology_ref;
@@ -415,10 +428,9 @@ TEST(cum_sum_partial, DISABLED_perf_test) {
         topology_ref.add(cum_sum("cum_sum", input_info("input")));
         ExecutionConfig config_ref(ov::enable_profiling(true));
         config_ref.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{ {"cum_sum", {format::bfyx, "cum_sum_ref"}} }));
+            ov::intel_gpu::ImplForcingMap{{"cum_sum", {format::bfyx, "cum_sum_ref"}}}));
         network network_ref(engine, topology_ref, config_ref);
         network_ref.set_input_data("input", input_ref);
-
 
         const auto input_partial = engine.allocate_memory(in_layout);
         set_values(input_partial, input_data);
@@ -427,10 +439,9 @@ TEST(cum_sum_partial, DISABLED_perf_test) {
         topology_partial.add(cum_sum("cum_sum", input_info("input")));
         ExecutionConfig config_partial(ov::enable_profiling(true));
         config_partial.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{ {"cum_sum", {format::bfyx, "cum_sum_partial_sum"}} }));
+            ov::intel_gpu::ImplForcingMap{{"cum_sum", {format::bfyx, "cum_sum_partial_sum"}}}));
         network network_partial(engine, topology_partial, config_partial);
         network_partial.set_input_data("input", input_partial);
-
 
         std::map<primitive_id, network_output> output_ref;
         std::map<primitive_id, network_output> output_partial;
@@ -457,9 +468,9 @@ TEST(cum_sum_partial, DISABLED_perf_test) {
         exectime_partial /= PERFTEST_ROUNDS;
 
         std::cout << std::endl;
-        std::cout << "Execution time for num_items=" << num_items << " "
-                  << "cum_sum_ref" << " " << exectime_ref << std::endl;
-        std::cout << "Execution time for num_items=" << num_items << " "
-                  << "cum_sum_partial_sum" << " " << exectime_partial << std::endl;
+        std::cout << "Execution time for num_items=" << num_items << " " << "cum_sum_ref" << " " << exectime_ref
+                  << std::endl;
+        std::cout << "Execution time for num_items=" << num_items << " " << "cum_sum_partial_sum" << " "
+                  << exectime_partial << std::endl;
     }
 }

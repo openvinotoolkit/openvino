@@ -3,13 +3,12 @@
 
 import numpy as np
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestOneHot(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randint(0, 100, (1,1000)).astype(np.int32),)
+        return (np.random.randint(0, 100, (1, 1000)).astype(np.int32),)
 
     def create_model(self, num_classes):
         import torch
@@ -25,9 +24,15 @@ class TestOneHot(PytorchLayerTest):
 
         return aten_one_hot(num_classes), None, "aten::one_hot"
 
-    @pytest.mark.parametrize(("num_classes"), [-1, 3, 1000,])
+    @pytest.mark.parametrize(
+        ("num_classes"),
+        [
+            -1,
+            3,
+            1000,
+        ],
+    )
     @pytest.mark.nightly
-    #@pytest.mark.precommit
+    # @pytest.mark.precommit
     def test_one_hot(self, num_classes, ie_device, precision, ir_version):
-        self._test(*self.create_model(num_classes),
-                   ie_device, precision, ir_version)
+        self._test(*self.create_model(num_classes), ie_device, precision, ir_version)

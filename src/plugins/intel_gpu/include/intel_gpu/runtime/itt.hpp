@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_gpu {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(intel_gpu_plugin);
+OV_ITT_DOMAIN(intel_gpu_plugin);
 }  // namespace domains
 }  // namespace itt
 }  // namespace intel_gpu

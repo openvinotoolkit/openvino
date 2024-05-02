@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -23,9 +23,11 @@ protected:
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
         }
-        auto splitAxisOp = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+        auto splitAxisOp =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
         std::vector<int> splitLenght = {1, 0, 6};
-        auto splitLengthsOp = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{splitLenght.size()}, splitLenght);
+        auto splitLengthsOp =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{splitLenght.size()}, splitLenght);
         auto varSplit = std::make_shared<ov::op::v1::VariadicSplit>(inputParams[0], splitAxisOp, splitLengthsOp);
 
         auto relu1 = std::make_shared<ov::op::v0::Relu>(varSplit->output(0));
@@ -40,7 +42,7 @@ protected:
         function = std::make_shared<ov::Model>(results, inputParams, "StaticZeroDims");
     }
 
-    void compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) override {
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override {
         ASSERT_EQ(expected.size(), actual.size());
         for (size_t i = 0; i < expected.size(); i++) {
             // skip second output tensor because it's output ExperimentalDetectronTopKROIs: input dims [0, 4]

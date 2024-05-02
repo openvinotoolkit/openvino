@@ -1,6 +1,8 @@
+from utils import get_model
+
 import openvino as ov
 import openvino as properties
-from utils import get_model
+
 
 def main():
     model = get_model()

@@ -56,7 +56,7 @@ void IsInfLayerTest::SetUp() {
     }
     parameters[0]->set_friendly_name("Data");
 
-    ov::op::v10::IsInf::Attributes attributes {detect_negative, detect_positive};
+    ov::op::v10::IsInf::Attributes attributes{detect_negative, detect_positive};
     auto is_inf = std::make_shared<ov::op::v10::IsInf>(parameters[0], attributes);
 
     ov::ResultVector results;
@@ -66,5 +66,5 @@ void IsInfLayerTest::SetUp() {
 
     function = std::make_shared<ov::Model>(results, parameters, "IsInf");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

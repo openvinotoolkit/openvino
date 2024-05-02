@@ -5,8 +5,8 @@
 
 #include "convolution_inst.h"
 #include "convolution_shape_inference.hpp"
-#include "group_convolution_shape_inference.hpp"
 #include "deformable_convolution_shape_inference.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "pass_manager.h"
@@ -16,7 +16,7 @@ using namespace ov::intel_gpu;
 using namespace cldnn;
 
 namespace {
-template<typename T, typename V>
+template <typename T, typename V>
 T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
     OPENVINO_ASSERT(param.size() <= rank, "[GPU] Can't align convolution parameters to smaller rank");
     std::vector<V> res(rank, fill_value);
@@ -24,7 +24,9 @@ T align_to_spatial_rank(const T param, size_t rank, V fill_value) {
     return T(res);
 }
 
-std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel_impl_params const& impl_param, bool legacy_flow) {
+std::vector<layout> calc_output_layout_impl(convolution_node const& node,
+                                            kernel_impl_params const& impl_param,
+                                            bool legacy_flow) {
     auto desc = impl_param.typed_desc<convolution>();
 
     auto input_layout = impl_param.get_input_layout(0);
@@ -74,12 +76,12 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
                             // should remain the same as original filter's
 
         return {cldnn::layout{output_type,
-                      input_layout.format,
-                      tensor{input_layout.batch(),
-                             weights_layout.ofm() * weights_layout.group(),
-                             input_layout.spatial(0),
-                             input_layout.spatial(1) - winograd_filter_height + 1},
-                      input_layout.data_padding}};
+                              input_layout.format,
+                              tensor{input_layout.batch(),
+                                     weights_layout.ofm() * weights_layout.group(),
+                                     input_layout.spatial(0),
+                                     input_layout.spatial(1) - winograd_filter_height + 1},
+                              input_layout.data_padding}};
     }
 
     // Adjust output format for shallow conv and mixed precision cases in onednn
@@ -89,10 +91,7 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
     }
 
     // dynamic case
-    std::vector<ov::PartialShape> input_shapes = {
-        input_layout.get_partial_shape(),
-        weights_layout.get_partial_shape()
-    };
+    std::vector<ov::PartialShape> input_shapes = {input_layout.get_partial_shape(), weights_layout.get_partial_shape()};
 
     std::vector<ov::PartialShape> output_shapes;
 
@@ -150,12 +149,15 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
     return calc_output_layout_impl(node, impl_param, true)[0];
 }
 
-template<typename ShapeType>
-std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const& node,
+                                                          kernel_impl_params const& impl_param) {
     return calc_output_layout_impl(node, impl_param, false);
 }
 
-template std::vector<layout> convolution_inst::calc_output_layouts<ov::PartialShape>(convolution_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> convolution_inst::calc_output_layouts<ov::PartialShape>(
+    convolution_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string convolution_inst::to_string(convolution_node const& node) {
     auto desc = node.get_primitive();
@@ -186,9 +188,9 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     return primitive_description.str();
 }
 
-convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) :
-    parent(network, node),
-    _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
+convolution_inst::typed_primitive_inst(network& network, convolution_node const& node)
+    : parent(network, node),
+      _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
     if (node.is_dynamic())
         return;
     OPENVINO_ASSERT(all_not_zeroes(argument->stride), "[GPU] Convolution strides must be positive numbers");
@@ -210,60 +212,60 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     if (bias_term()) {
         auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias batch[0]",
-                                bias_inst.batch(),
-                                "expected size of batch",
-                                1,
-                                "Biases isn't 1D vector.");
+                              "Bias batch[0]",
+                              bias_inst.batch(),
+                              "expected size of batch",
+                              1,
+                              "Biases isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias feature[0]",
-                                bias_inst.feature(),
-                                "expected feature map number",
-                                output_size.feature[0],
-                                "Bias/fm mismatch");
+                              "Bias feature[0]",
+                              bias_inst.feature(),
+                              "expected feature map number",
+                              output_size.feature[0],
+                              "Bias/fm mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[2]",
-                                bias_inst.spatial(2),
-                                "expected size of spatial[2]",
-                                1,
-                                "Biases isn't 1D vector.");
+                              "Bias spatial[2]",
+                              bias_inst.spatial(2),
+                              "expected size of spatial[2]",
+                              1,
+                              "Biases isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[1]",
-                                bias_inst.spatial(1),
-                                "expected size of spatial[1]",
-                                1,
-                                "Biases isn't 1D vector.");
+                              "Bias spatial[1]",
+                              bias_inst.spatial(1),
+                              "expected size of spatial[1]",
+                              1,
+                              "Biases isn't 1D vector.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Bias spatial[0]",
-                                bias_inst.spatial(0),
-                                "expected size of spatial[0]",
-                                1,
-                                "Biases isn't 1D vector.");
+                              "Bias spatial[0]",
+                              bias_inst.spatial(0),
+                              "expected size of spatial[0]",
+                              1,
+                              "Biases isn't 1D vector.");
     }
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Convolution padding mode",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding value",
-                            0.0f,
-                            "Unknown padding mode.");
+                          "Convolution padding mode",
+                          node.get_output_layout().data_padding.filling_value(),
+                          "padding value",
+                          0.0f,
+                          "Unknown padding mode.");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Output feature size",
-                            output_size.feature.size(),
-                            "expected feature size",
-                            1,
-                            "Only one-dimensional features are supported");
+                          "Output feature size",
+                          output_size.feature.size(),
+                          "expected feature size",
+                          1,
+                          "Only one-dimensional features are supported");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Output batch size",
-                            output_size.batch.size(),
-                            "expected output size",
-                            1,
-                            "Only one-dimensional batch size are supported");
+                          "Output batch size",
+                          output_size.batch.size(),
+                          "expected output size",
+                          1,
+                          "Only one-dimensional batch size are supported");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Weights feature maps number",
-                            filter_inst.ifm() * filter_inst.group(),
-                            "input feature maps number",
-                            input_layout.feature(),
-                            "Weights/ifm mismatch");
+                          "Weights feature maps number",
+                          filter_inst.ifm() * filter_inst.group(),
+                          "input feature maps number",
+                          input_layout.feature(),
+                          "Weights/ifm mismatch");
 }
 }  // namespace cldnn

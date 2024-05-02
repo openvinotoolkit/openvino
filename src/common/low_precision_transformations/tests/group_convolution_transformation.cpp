@@ -4,19 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/group_convolution.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/group_convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/group_convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -67,18 +67,18 @@ public:
 
         actualFunction =
             ov::builder::subgraph::GroupConvolutionFunction::get(testValues.actual.precisionBeforeDequantization,
-                                                                     inputShape,
-                                                                     outputShape,
-                                                                     testValues.group,
-                                                                     testValues.groupCalculationDimention,
-                                                                     testValues.actual.dequantization,
-                                                                     testValues.actual.weights,
-                                                                     testValues.actual.fakeQuantizeOnWeights,
-                                                                     testValues.actual.dequantizationOnWeights,
-                                                                     ov::element::f32,
-                                                                     {},
-                                                                     ov::element::f32,
-                                                                     testValues.addReshape);
+                                                                 inputShape,
+                                                                 outputShape,
+                                                                 testValues.group,
+                                                                 testValues.groupCalculationDimention,
+                                                                 testValues.actual.dequantization,
+                                                                 testValues.actual.weights,
+                                                                 testValues.actual.fakeQuantizeOnWeights,
+                                                                 testValues.actual.dequantizationOnWeights,
+                                                                 ov::element::f32,
+                                                                 {},
+                                                                 ov::element::f32,
+                                                                 testValues.addReshape);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::GroupConvolutionTransformation, ov::opset1::GroupConvolution>(
@@ -93,18 +93,18 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::GroupConvolutionFunction::get(testValues.expected.precisionBeforeDequantization,
-                                                                     inputShape,
-                                                                     outputShape,
-                                                                     testValues.group,
-                                                                     testValues.groupCalculationDimention,
-                                                                     testValues.expected.dequantizationBefore,
-                                                                     testValues.expected.weights,
-                                                                     testValues.expected.fakeQuantizeOnWeights,
-                                                                     testValues.expected.dequantizationOnWeights,
-                                                                     testValues.expected.precisionAfterOperation,
-                                                                     testValues.expected.dequantizationAfter,
-                                                                     testValues.expected.precisionAfterDequantization,
-                                                                     testValues.addReshape);
+                                                                 inputShape,
+                                                                 outputShape,
+                                                                 testValues.group,
+                                                                 testValues.groupCalculationDimention,
+                                                                 testValues.expected.dequantizationBefore,
+                                                                 testValues.expected.weights,
+                                                                 testValues.expected.fakeQuantizeOnWeights,
+                                                                 testValues.expected.dequantizationOnWeights,
+                                                                 testValues.expected.precisionAfterOperation,
+                                                                 testValues.expected.dequantizationAfter,
+                                                                 testValues.expected.precisionAfterDequantization,
+                                                                 testValues.addReshape);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -115,12 +115,11 @@ public:
         std::ostringstream result;
         result << toString(testValues.params) << "_" << inputShape << "_" << outputShape << "_" << testValues.group
                << "_" << testValues.groupCalculationDimention << "_" << testValues.actual.precisionBeforeDequantization
-               << "_" << testValues.actual.dequantization << "_"
-               << "_add_reshape:" << testValues.addReshape << "_"
+               << "_" << testValues.actual.dequantization << "_" << "_add_reshape:" << testValues.addReshape << "_"
                << "_weights_type:" << testValues.actual.weights->get_element_type() << "_"
-               << "_weights_shape:" << testValues.actual.weights->get_shape() << "_"
-               << "{ " << testValues.actual.weights->cast_vector<float>()[0] << " }_"
-               << testValues.actual.fakeQuantizeOnWeights << "_";
+               << "_weights_shape:" << testValues.actual.weights->get_shape() << "_" << "{ "
+               << testValues.actual.weights->cast_vector<float>()[0] << " }_" << testValues.actual.fakeQuantizeOnWeights
+               << "_";
         return result.str();
     }
 };

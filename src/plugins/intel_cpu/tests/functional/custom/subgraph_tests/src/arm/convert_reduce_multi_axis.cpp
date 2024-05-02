@@ -19,8 +19,9 @@ typedef std::tuple<std::vector<int>,                // Axis to reduce order
                    >
     reduceConvertCPUTestParamsSet;
 
-class reduceTransformationCPUTest: public testing::WithParamInterface<reduceConvertCPUTestParamsSet>,
-                                            virtual public SubgraphBaseTest, public CPUTestsBase {
+class reduceTransformationCPUTest : public testing::WithParamInterface<reduceConvertCPUTestParamsSet>,
+                                    virtual public SubgraphBaseTest,
+                                    public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<reduceConvertCPUTestParamsSet> obj) {
         std::vector<InputShape> inputShapes;
@@ -62,6 +63,7 @@ protected:
         const auto reduce = utils::make_reduce(params[0], reductionAxesNode, keepDims, reductionType);
         function = makeNgraphFunction(ElementType::f32, params, reduce, "Reduce");
     }
+
 private:
     utils::ReductionType reductionType;
 };
@@ -72,34 +74,22 @@ TEST_P(reduceTransformationCPUTest, CompareWithRefs) {
 }
 
 namespace {
-std::vector<std::vector<ov::test::InputShape>> inputShapes = {
-    {{{}, {{2, 19, 2, 9}}}}
-};
-const std::vector<utils::ReductionType> reductionTypes = {
-        utils::ReductionType::Min,
-        utils::ReductionType::Max,
-        utils::ReductionType::Sum,
-        utils::ReductionType::Prod
-};
-const std::vector<std::vector<int>> axes = {
-        {0, 1},
-        {0, 2},
-        {0, 3},
-        {1, 2},
-        {1, 3},
-        {2, 3},
-        {0, 1, 3},
-        {0, 2, 3},
-        {1, 2, 3},
-        {0, 1, 2, 3}
-};
+std::vector<std::vector<ov::test::InputShape>> inputShapes = {{{{}, {{2, 19, 2, 9}}}}};
+const std::vector<utils::ReductionType> reductionTypes = {utils::ReductionType::Min,
+                                                          utils::ReductionType::Max,
+                                                          utils::ReductionType::Sum,
+                                                          utils::ReductionType::Prod};
+const std::vector<std::vector<int>> axes =
+    {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3}, {0, 1, 2, 3}};
 
 const auto reduceTransformationParams = ::testing::Combine(::testing::ValuesIn(axes),
                                                            ::testing::ValuesIn(reductionTypes),
                                                            ::testing::ValuesIn(inputShapes));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest, reduceTransformationCPUTest,
-                         reduceTransformationParams, reduceTransformationCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest,
+                         reduceTransformationCPUTest,
+                         reduceTransformationParams,
+                         reduceTransformationCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

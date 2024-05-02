@@ -6,12 +6,15 @@
 
 #include <map>
 #include <type_traits>
+
 #include "buffer.hpp"
 
 namespace cldnn {
 
 template <typename BufferType, typename Key, typename Value>
-class Serializer<BufferType, std::map<Key, Value>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::map<Key, Value>,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const std::map<Key, Value>& map) {
         buffer << map.size();
@@ -22,7 +25,9 @@ public:
 };
 
 template <typename BufferType, typename Key, typename Value>
-class Serializer<BufferType, std::map<Key, Value>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 std::map<Key, Value>,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, std::map<Key, Value>& map) {
         typename std::map<Key, Value>::size_type map_size = 0UL;

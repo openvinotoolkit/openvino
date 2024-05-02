@@ -5,10 +5,10 @@
 #include "shared_test_classes/single_op/gru_cell.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_cell.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 
@@ -16,7 +16,7 @@ namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 
-std::string GRUCellTest::getTestCaseName(const testing::TestParamInfo<GRUCellParams> &obj) {
+std::string GRUCellTest::getTestCaseName(const testing::TestParamInfo<GRUCellParams>& obj) {
     bool should_decompose;
     size_t batch;
     size_t hidden_size;
@@ -32,14 +32,24 @@ std::string GRUCellTest::getTestCaseName(const testing::TestParamInfo<GRUCellPar
     InputLayerType BType;
     ov::element::Type model_type;
     std::string targetDevice;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip,
-            linear_before_reset, WType, RType, BType, model_type, targetDevice) = obj.param;
+    std::tie(should_decompose,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             linear_before_reset,
+             WType,
+             RType,
+             BType,
+             model_type,
+             targetDevice) = obj.param;
     input_shapes = {
-            {{batch, input_size},
-            {batch, hidden_size},
-            {3 * hidden_size, input_size},
-            {3 * hidden_size, hidden_size},
-            {(linear_before_reset? 4 : 3) * hidden_size}},
+        {{batch, input_size},
+         {batch, hidden_size},
+         {3 * hidden_size, input_size},
+         {3 * hidden_size, hidden_size},
+         {(linear_before_reset ? 4 : 3) * hidden_size}},
     };
     std::ostringstream result;
     result << "decomposition" << should_decompose << "_";
@@ -72,15 +82,25 @@ void GRUCellTest::SetUp() {
     InputLayerType RType;
     InputLayerType BType;
     ov::element::Type model_type;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, linear_before_reset,
-            WType, RType, BType, model_type, targetDevice) = this->GetParam();
+    std::tie(should_decompose,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             linear_before_reset,
+             WType,
+             RType,
+             BType,
+             model_type,
+             targetDevice) = this->GetParam();
 
     std::vector<std::vector<size_t>> input_shapes = {
-            {{batch, input_size},
-             {batch, hidden_size},
-             {3 * hidden_size, input_size},
-             {3 * hidden_size, hidden_size},
-             {(linear_before_reset? 4 : 3) * hidden_size}},
+        {{batch, input_size},
+         {batch, hidden_size},
+         {3 * hidden_size, input_size},
+         {3 * hidden_size, hidden_size},
+         {(linear_before_reset ? 4 : 3) * hidden_size}},
     };
 
     std::vector<ov::Shape> param_shapes{input_shapes[0], input_shapes[1]};
@@ -129,9 +149,17 @@ void GRUCellTest::SetUp() {
         inputs.push_back(constant);
     }
 
-    auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4],
-                                                          hidden_size, activations, activations_alpha, activations_beta,
-                                                          clip, linear_before_reset);
+    auto gru_cell = std::make_shared<ov::op::v3::GRUCell>(inputs[0],
+                                                          inputs[1],
+                                                          inputs[2],
+                                                          inputs[3],
+                                                          inputs[4],
+                                                          hidden_size,
+                                                          activations,
+                                                          activations_alpha,
+                                                          activations_beta,
+                                                          clip,
+                                                          linear_before_reset);
 
     auto result = std::make_shared<ov::op::v0::Result>(gru_cell);
 

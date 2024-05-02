@@ -1,19 +1,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # ceil paddle model generator
 #
 import numpy as np
 from save_model import saveModel
-import sys
+
 
 def ceil(name: str, x, dtype="float32"):
     import paddle
+
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='x', shape=x.shape, dtype=dtype)
+        node_x = paddle.static.data(name="x", shape=x.shape, dtype=dtype)
         out = paddle.ceil(node_x)
 
         cpu = paddle.static.cpu_places(1)
@@ -21,11 +24,17 @@ def ceil(name: str, x, dtype="float32"):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'x': x},
-            fetch_list=[out])
+        outs = exe.run(feed={"x": x}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x"],
+            fetchlist=[out],
+            inputs=[x],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 

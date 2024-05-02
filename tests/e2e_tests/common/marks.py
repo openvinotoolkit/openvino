@@ -48,8 +48,10 @@ class MarkMeta(str, Enum):
 
     @property
     def marker_with_description(self):
-        return "{}{}".format(self.mark,
-                             ": {}".format(self.description) if self.description is not None else "")
+        return "{}{}".format(
+            self.mark,
+            ": {}".format(self.description) if self.description is not None else "",
+        )
 
     def __eq__(self, o: object) -> bool:
         if isinstance(o, str):
@@ -60,13 +62,18 @@ class MarkMeta(str, Enum):
 class ConditionalMark(MarkMeta):
     @classmethod
     def get_conditional_marks_from_item(cls, name, item):
-        marks = list(filter(lambda x: x.name == name and x.args is not None, item.keywords.node.own_markers))
+        marks = list(
+            filter(
+                lambda x: x.name == name and x.args is not None,
+                item.keywords.node.own_markers,
+            )
+        )
         return marks
 
     @classmethod
     def _test_name_phrase_match_test_item(cls, test_name, item):
         """
-            Verify if current 'item' test_name match pytest Mark from test case
+        Verify if current 'item' test_name match pytest Mark from test case
         """
         if test_name is None:  # no filtering -> any test_name will match
             return True
@@ -76,12 +83,14 @@ class ConditionalMark(MarkMeta):
         elif isinstance(test_name, str):
             return test_name == _name
         else:
-            raise AttributeError(f"Unexpected conditional marker params {test_name} for {item}")
+            raise AttributeError(
+                f"Unexpected conditional marker params {test_name} for {item}"
+            )
 
     @classmethod
     def _params_phrase_match_item(cls, params, item):
         """
-            Verify if current 'item' parameter match pytest Mark from test case
+        Verify if current 'item' parameter match pytest Mark from test case
         """
         if params is None:  # no filtering -> any param will match
             return True
@@ -91,23 +100,25 @@ class ConditionalMark(MarkMeta):
         elif isinstance(params, str):
             return params == test_params
         else:
-            raise AttributeError(f"Unexpected conditional marker params {params} for {item}")
+            raise AttributeError(
+                f"Unexpected conditional marker params {params} for {item}"
+            )
 
     @classmethod
     def _process_single_entry(cls, entry, item):
         """
-            Check if mark 'condition' is meet and item parameters match re/str phrase.
-            Then return mark value
+        Check if mark 'condition' is meet and item parameters match re/str phrase.
+        Then return mark value
         """
         value, condition, params, test_name = None, True, None, None
         if isinstance(entry, str):
             # Simple string do not have condition nor parameters.
             value = entry
         elif isinstance(entry, dict):
-            value = entry.get('value')  # required
-            condition = entry.get('condition', True)
-            params = entry.get('params', None)
-            test_name = entry.get('test_name', None)
+            value = entry.get("value")  # required
+            condition = entry.get("condition", True)
+            params = entry.get("params", None)
+            test_name = entry.get("test_name", None)
         elif isinstance(entry, tuple):
             value, *_optional = entry
             if isinstance(value, list):
@@ -148,8 +159,8 @@ class ConditionalMark(MarkMeta):
     @classmethod
     def get_all_marker_values_from_item(cls, item, mark, _args=None):
         """
-            Marker can be set as 'str', 'list', 'tuple', 'dict'.
-            Process it accordingly and list of values.
+        Marker can be set as 'str', 'list', 'tuple', 'dict'.
+        Process it accordingly and list of values.
         """
         marker_values = []
         args = _args if _args else mark.args
@@ -192,7 +203,9 @@ class ConditionalMark(MarkMeta):
 
     @classmethod
     def get_mark_from_item(cls, item: Item, conditional_marker_name=None):
-        marks = cls.get_markers_values_via_conditional_marker(item, conditional_marker_name)
+        marks = cls.get_markers_values_via_conditional_marker(
+            item, conditional_marker_name
+        )
         if not marks:
             return cls.get_closest_mark(item)
 
@@ -228,20 +241,36 @@ class MarkGeneral(MarkMeta):
 class MarkRunType(ConditionalMark):
     TEST_MARK_COMPONENT = "component", "run component tests", "component"
     TEST_MARK_ON_COMMIT = "api_on_commit", "run api-on-commit tests", "api_on-commit"
-    TEST_MARK_REGRESSION = "api_regression", "run api-regression tests", "api_regression"
+    TEST_MARK_REGRESSION = (
+        "api_regression",
+        "run api-regression tests",
+        "api_regression",
+    )
     TEST_MARK_ENABLING = "api_enabling", "run api-enabling tests", "api_enabling"
     TEST_MARK_MANUAL = "manual", "run api-manual tests", "api_manual"
     TEST_MARK_OTHER = "api_other", "run api-other tests", "api_other"
-    TEST_MARK_STRESS_AND_LOAD = "api_stress_and_load", "run api-stress-and-load tests", "api_stress-and-load"
+    TEST_MARK_STRESS_AND_LOAD = (
+        "api_stress_and_load",
+        "run api-stress-and-load tests",
+        "api_stress-and-load",
+    )
     TEST_MARK_LONG = "api_long", "run api-long tests", "api_long"
-    TEST_MARK_PERFORMANCE = "api_performance", "run api-performance tests", "api_performance"
+    TEST_MARK_PERFORMANCE = (
+        "api_performance",
+        "run api-performance tests",
+        "api_performance",
+    )
 
-    def __init__(self, mark: str, description: str = None, run_type: str = None) -> None:
+    def __init__(
+        self, mark: str, description: str = None, run_type: str = None
+    ) -> None:
         super().__init__(self, mark, description)
-        self.run_type = f"{repository_name}_{run_type}" if repository_name is not None else run_type
+        self.run_type = (
+            f"{repository_name}_{run_type}" if repository_name is not None else run_type
+        )
 
     @classmethod
-    def test_mark_to_test_run_type(cls, test_type_mark: Union['MarkRunType', str]):
+    def test_mark_to_test_run_type(cls, test_type_mark: Union["MarkRunType", str]):
         if isinstance(test_type_mark, str):
             return MarkRunType(test_type_mark).run_type
         return test_type_mark.run_type
@@ -250,7 +279,9 @@ class MarkRunType(ConditionalMark):
     def get_test_type_mark(cls, item: Item):
         mark = cls.get_mark_from_item(item, "test_group")
         if not mark and getattr(item, "parent", None):
-            mark = cls.get_mark_from_item(item.parent, "test_group")  # try to deduce test type from parent
+            mark = cls.get_mark_from_item(
+                item.parent, "test_group"
+            )  # try to deduce test type from parent
         return mark
 
     @classmethod
@@ -265,11 +296,13 @@ class MarksRegistry(tuple):
     MARKERS = "markers"
     MARK_ENUMS = [MarkGeneral, MarkRunType, MarkBugs]
 
-    def __new__(cls) -> 'MarksRegistry':
+    def __new__(cls) -> "MarksRegistry":
         # noinspection PyTypeChecker
         return tuple.__new__(cls, [mark for mark in chain(*cls.MARK_ENUMS)])
 
     @staticmethod
     def register(pytest_config):
         for mark in MarksRegistry():
-            pytest_config.addinivalue_line(MarksRegistry.MARKERS, mark.marker_with_description)
+            pytest_config.addinivalue_line(
+                MarksRegistry.MARKERS, mark.marker_with_description
+            )

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/matmul.hpp"
-#include "subgraph_matmul.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_matmul.hpp"
 
 namespace ov {
 namespace test {
@@ -19,9 +20,9 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     std::tie(input_shapes, elem_types, num_nodes, num_subgraphs, targetDevice) = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
-        result << "IS[" << i <<"]=" << ov::test::utils::partialShape2str({input_shapes[i]}) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({input_shapes[i]}) << "_";
     for (size_t i = 0; i < elem_types.size(); i++)
-        result << "T[" << i <<"]=" << elem_types[i] << "_";
+        result << "T[" << i << "]=" << elem_types[i] << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -45,27 +46,32 @@ void MatMul::init_subgraph(const std::vector<PartialShape>& inputShapes, const s
     function = f.getOriginal();
 }
 
-void MatMulFQ::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulFQ::init_subgraph(const std::vector<PartialShape>& inputShapes,
+                             const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::FQMatMulFunction(inputShapes);
     function = f.getOriginal();
 }
 
-void MatMulBias::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulBias::init_subgraph(const std::vector<PartialShape>& inputShapes,
+                               const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulBiasFunction(inputShapes, types);
     function = f.getOriginal();
 }
 
-void MatMulBiasQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulBiasQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes,
+                                        const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulBiasQuantizedFunction(inputShapes, types);
     function = f.getOriginal();
 }
 
-void MatMulQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulQuantized::init_subgraph(const std::vector<PartialShape>& inputShapes,
+                                    const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulsQuantizedFunction(inputShapes, types);
     function = f.getOriginal();
 }
 
-void MatMulQuantizedSoftmax::init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) {
+void MatMulQuantizedSoftmax::init_subgraph(const std::vector<PartialShape>& inputShapes,
+                                           const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::MatMulsQuantizedSoftmaxFunction(inputShapes, types);
     function = f.getOriginal();
 }
@@ -108,6 +114,6 @@ TEST_P(MatMulQuantizedSoftmax, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

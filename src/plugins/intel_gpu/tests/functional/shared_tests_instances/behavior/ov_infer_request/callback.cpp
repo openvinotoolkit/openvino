@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_infer_request/callback.hpp"
+
 #include <vector>
 
-#include "behavior/ov_infer_request/callback.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -24,16 +25,16 @@ auto autoBatchConfigs = []() {
                                     ov::auto_batch_timeout(0)}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,
-        ::testing::Combine(
-            ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(configs())),
-        OVInferRequestCallbackTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVInferRequestCallbackTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::ValuesIn(configs())),
+                         OVInferRequestCallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestCallbackTests,
-         ::testing::Combine(
-                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                 ::testing::ValuesIn(autoBatchConfigs())),
-         OVInferRequestCallbackTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
+                         OVInferRequestCallbackTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(autoBatchConfigs())),
+                         OVInferRequestCallbackTests::getTestCaseName);
 
 }  // namespace

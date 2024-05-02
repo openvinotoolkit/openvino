@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.sparse_segment_mean import SparseSegmentMean
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.sparse_segment_mean import SparseSegmentMean
 
 
 class SparseSegmentMeanFrontExtractor(FrontExtractorOp):
-    op = 'SparseSegmentMean'
+    op = "SparseSegmentMean"
     enabled = True
 
     @classmethod

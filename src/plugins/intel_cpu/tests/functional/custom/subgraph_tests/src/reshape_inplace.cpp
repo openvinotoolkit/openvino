@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -24,7 +24,7 @@ namespace test {
  *                |
  *              result
  *
- 
+
  *
  *  Due to non-const target shape parameter (params[1]), reshape node
  *  is non-constant node even though the input tensor is constant node.
@@ -70,7 +70,9 @@ protected:
                     in_data.start_from = 0;
                     in_data.range = 10;
                     in_data.resolution = 1000;
-                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                    tensor = utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                           targetInputStaticShapes[i],
+                                                           in_data);
                 } else {
                     tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 }
@@ -116,11 +118,12 @@ protected:
         std::vector<int> newShape1 = {1, 1, 16, 16};
         auto targetShape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{4}, newShape1);
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(add, targetShape1, false);
-        auto mvn = std::make_shared<ov::op::v6::MVN>(reshape1,
-                                                     ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {2, 3}),
-                                                     true,
-                                                     0.1,
-                                                     ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ov::op::v6::MVN>(reshape1,
+                                              ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {2, 3}),
+                                              true,
+                                              0.1,
+                                              ov::op::MVNEpsMode::INSIDE_SQRT);
         auto res1 = std::make_shared<ov::op::v0::Result>(mvn);
 
         std::vector<int> newShape2 = {1, 4, 8, 8};

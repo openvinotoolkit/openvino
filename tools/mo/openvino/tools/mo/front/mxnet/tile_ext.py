@@ -8,13 +8,16 @@ from openvino.tools.mo.ops.tile import Tile
 
 
 class TileExt(FrontExtractorOp):
-    op = 'tile'
+    op = "tile"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        Tile.update_node_stat(node, {
-            'reps': attrs.tuple('reps', int, None),
-        })
+        Tile.update_node_stat(
+            node,
+            {
+                "reps": attrs.tuple("reps", int, None),
+            },
+        )
         return cls.enabled

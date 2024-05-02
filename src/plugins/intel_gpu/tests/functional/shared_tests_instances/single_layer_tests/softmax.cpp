@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "single_op_tests/softmax.hpp"
+
 #include <vector>
 
-#include "single_op_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::subgraph;
@@ -16,19 +17,10 @@ const std::vector<ov::test::ElementType> netPrecisions = {
     ov::element::f32,
 };
 
-const std::vector<ov::Shape> inputShapes2D = {
-    {1, 100},
-    {100, 1},
-    {10, 10},
-    {100, 10},
-    {1024, 300},
-    {1024, 304},
-    {1024, 306}
-};
+const std::vector<ov::Shape> inputShapes2D =
+    {{1, 100}, {100, 1}, {10, 10}, {100, 10}, {1024, 300}, {1024, 304}, {1024, 306}};
 
-const std::vector<int64_t> axis2D = {
-    -2, -1, 0, 1
-};
+const std::vector<int64_t> axis2D = {-2, -1, 0, 1};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMax2D,
@@ -47,26 +39,17 @@ const std::vector<ov::Shape> inputShapes3D = {
     {1, 256, 256},
 };
 
-const std::vector<int64_t> axis3D = {
-    -1, 1
-};
+const std::vector<int64_t> axis3D = {-1, 1};
 
-const auto params3D = testing::Combine(
-    testing::ValuesIn(netPrecisions),
-    ::testing::Values(ov::element::undefined),
-    ::testing::Values(ov::element::undefined),
-    testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
-    testing::ValuesIn(axis3D),
-    testing::Values(ov::test::utils::DEVICE_GPU),
-    testing::Values(ov::AnyMap())
-);
+const auto params3D = testing::Combine(testing::ValuesIn(netPrecisions),
+                                       ::testing::Values(ov::element::undefined),
+                                       ::testing::Values(ov::element::undefined),
+                                       testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes3D)),
+                                       testing::ValuesIn(axis3D),
+                                       testing::Values(ov::test::utils::DEVICE_GPU),
+                                       testing::Values(ov::AnyMap()));
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_SoftMax3D,
-        SoftMax8LayerTest,
-        params3D,
-        SoftMax8LayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax3D, SoftMax8LayerTest, params3D, SoftMax8LayerTest::getTestCaseName);
 
 const std::vector<ov::Shape> inputShapes4D = {
     {1, 100, 1, 1},
@@ -89,10 +72,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(ov::AnyMap())),
     SoftMax8LayerTest::getTestCaseName);
 
-const std::vector<ov::Shape> stableDiffusionShapes = {
-    {16, 4096, 4096},
-    {2, 8, 4096, 4096}
-};
+const std::vector<ov::Shape> stableDiffusionShapes = {{16, 4096, 4096}, {2, 8, 4096, 4096}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_SoftMaxStableDiffusion,

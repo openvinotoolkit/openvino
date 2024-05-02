@@ -2,22 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "data_inst.h"
-#include "mutable_data_inst.h"
-#include "fully_connected_inst.h"
-#include "gemm_inst.h"
-#include "program_node.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/itt.hpp"
 #include <iostream>
 
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "gemm_inst.h"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "mutable_data_inst.h"
+#include "pass_manager.h"
+#include "program_node.h"
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl.hpp>
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "impls/onednn/utils.hpp"
-#include "impls/onednn/convolution_onednn.hpp"
-#include "impls/onednn/deconvolution_onednn.hpp"
+#    include <oneapi/dnnl/dnnl.hpp>
+
+#    include "impls/onednn/convolution_onednn.hpp"
+#    include "impls/onednn/deconvolution_onednn.hpp"
+#    include "impls/onednn/utils.hpp"
+#    include "intel_gpu/runtime/debug_configuration.hpp"
 #endif
 
 using namespace cldnn;
@@ -41,10 +43,11 @@ void select_preferred_formats::run(program& p) {
         }
 
         // skip to set preferred_formats if forcing_impl is not onednn.
-        if (std::find_if(forcing_map.begin(), forcing_map.end(),
-                [&n](std::map<primitive_id, std::pair<format::type, impl_types>>::value_type const& it) {
-                    return (it.first == n->id() && it.second.second != impl_types::onednn);
-                }) != forcing_map.end())
+        if (std::find_if(forcing_map.begin(),
+                         forcing_map.end(),
+                         [&n](std::map<primitive_id, std::pair<format::type, impl_types>>::value_type const& it) {
+                             return (it.first == n->id() && it.second.second != impl_types::onednn);
+                         }) != forcing_map.end())
             continue;
 
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
@@ -64,7 +67,7 @@ void select_preferred_formats::run(program& p) {
             } else if (n->is_type<fully_connected>() || n->is_type<gemm>()) {
                 _lo.select_preferred_formats_for_onednn(*n);
             }
-        } catch(std::exception &exception) {
+        } catch (std::exception& exception) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }

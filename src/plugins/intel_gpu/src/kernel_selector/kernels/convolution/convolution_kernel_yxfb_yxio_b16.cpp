@@ -3,8 +3,9 @@
 //
 
 #include "convolution_kernel_yxfb_yxio_b16.h"
-#include <string>
+
 #include <algorithm>
+#include <string>
 
 namespace kernel_selector {
 
@@ -108,8 +109,8 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
     const auto batch_size = params.outputs[0].Batch().v;
     const uint32_t min_lws = 16;
 
-    const bool bInputValidated =
-        (filter_ofm_num > 0) && (batch_size > 0) && (params.outputs[0].Feature().v == filter_ofm_num * filter_groups_num);
+    const bool bInputValidated = (filter_ofm_num > 0) && (batch_size > 0) &&
+                                 (params.outputs[0].Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
         return false;

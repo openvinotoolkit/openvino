@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "weights_cache.hpp"
 
 namespace ov {
@@ -49,7 +49,6 @@ public:
         return weightsCache;
     }
 
-
     MultiCachePtr getParamsCache() const {
         return rtParamsCache;
     }
@@ -83,7 +82,7 @@ public:
 private:
     Config config;  // network-level config
 
-    WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
+    WeightsSharing::Ptr weightsCache;  // per NUMA node caches for sharing weights data
 
     MultiCachePtr rtParamsCache;     // primitive cache
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
@@ -92,9 +91,9 @@ private:
 
     std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
 
-    ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
+    ov::threading::IStreamsExecutor::Ptr streamExecutor;  // stream executor for current graph
 
-    ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
+    ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;  // cpu stream executor for current graph
 
     int numNumaNodes = 1;
 };

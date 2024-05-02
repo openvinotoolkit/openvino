@@ -3,8 +3,10 @@
 //
 
 #include "pooling_kernel_gpu_bsv16_fsv16.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -116,14 +118,14 @@ JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& pa
         }
 
         FusedOpsConfiguration conf = {"",
-                                     idx_order,
-                                     "pool_result",
-                                     input_dt,
-                                     8,
-                                     LoadType::LT_ALIGNED_READ,
-                                     BoundaryCheck::ENABLED,
-                                     IndexType::TENSOR_COORD,
-                                     Tensor::DataChannelName::BATCH};
+                                      idx_order,
+                                      "pool_result",
+                                      input_dt,
+                                      8,
+                                      LoadType::LT_ALIGNED_READ,
+                                      BoundaryCheck::ENABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::BATCH};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

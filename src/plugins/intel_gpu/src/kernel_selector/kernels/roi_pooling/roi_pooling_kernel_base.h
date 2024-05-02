@@ -5,6 +5,7 @@
 #pragma once
 
 #include <iostream>
+
 #include "kernel_base_opencl.h"
 
 namespace kernel_selector {

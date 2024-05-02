@@ -3,17 +3,18 @@
 //
 
 #include <gtest/gtest.h>
+
 #include <iostream>
 #include <thread>
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
-#include "openvino/op/batch_norm.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/avg_pool.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace ov {
 namespace test {
@@ -23,31 +24,21 @@ std::shared_ptr<ov::Model> GetDefaultGraph() {
     size_t spatialDims = 2;
     std::vector<ptrdiff_t> padBegin(spatialDims, 0), padEnd(spatialDims, 0);
     ov::Shape strides(spatialDims, 1);
-    auto weights = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64, 3, 7, 7}, {},
-            true);
-    auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides,
-            padBegin, padEnd, strides);
-    auto gamma = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto beta = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto mean = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto variance = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {},
-            true);
-    auto batchNorm1 = std::make_shared<ov::op::v0::BatchNormInference>(conv1, gamma,
-            beta, mean, variance, 1e-5);
+    auto weights = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64, 3, 7, 7}, {}, true);
+    auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides, padBegin, padEnd, strides);
+    auto gamma = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {}, true);
+    auto beta = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {}, true);
+    auto mean = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {}, true);
+    auto variance = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64}, {}, true);
+    auto batchNorm1 = std::make_shared<ov::op::v0::BatchNormInference>(conv1, gamma, beta, mean, variance, 1e-5);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(batchNorm1);
-    auto pool = std::make_shared<ov::op::v1::AvgPool>(relu1, strides, ov::Shape{1, 1},
-            ov::Shape{1, 1}, ov::Shape{4, 4}, true);
-    return std::make_shared<ov::Model>(ov::OutputVector{pool},
-            ov::ParameterVector{input},
-            "autoSampleGraph");
+    auto pool =
+        std::make_shared<ov::op::v1::AvgPool>(relu1, strides, ov::Shape{1, 1}, ov::Shape{1, 1}, ov::Shape{4, 4}, true);
+    return std::make_shared<ov::Model>(ov::OutputVector{pool}, ov::ParameterVector{input}, "autoSampleGraph");
 }
 
 void OVInferConsistencyTest::SetUp() {
-    std::tie(_inferReqNumPerModel, _inferNumPerInfer,
-        _deviceConfigs) = WithParamInterface::GetParam();
+    std::tie(_inferReqNumPerModel, _inferNumPerInfer, _deviceConfigs) = WithParamInterface::GetParam();
     auto function = GetDefaultGraph();
     // prepare model and inferRequests
     for (auto&& item : _deviceConfigs) {
@@ -55,7 +46,7 @@ void OVInferConsistencyTest::SetUp() {
         modelContext._model = core->compile_model(function, item.first, item.second);
         if (_inferReqNumPerModel == 0) {
             try {
-                _inferReqNumPerModel =  modelContext._model.get_property(ov::optimal_number_of_infer_requests);
+                _inferReqNumPerModel = modelContext._model.get_property(ov::optimal_number_of_infer_requests);
             } catch (...) {
                 throw("cannot deduce infer request number");
             }
@@ -76,8 +67,7 @@ void OVInferConsistencyTest::SetUp() {
             for (auto& inferContext : _modelContexts[i]._inferContexts) {
                 inferContext._inferRequest.start_async();
                 inferContext._inferRequest.wait();
-                inferContext._outputs = GetAllOutputs(_modelContexts[i]._model,
-                        inferContext._inferRequest);
+                inferContext._outputs = GetAllOutputs(_modelContexts[i]._model, inferContext._inferRequest);
             }
         }});
     }
@@ -92,11 +82,10 @@ void OVInferConsistencyTest::TearDown() {
     _modelContexts.clear();
     _deviceConfigs.clear();
 }
-std::string OVInferConsistencyTest::getTestCaseName(const
-    testing::TestParamInfo<ParamType>& obj) {
-    unsigned int inferReqNumPerModel; //inferRequst nums per model
-    unsigned int inferNumPerInfer; //infer nums wil do per  inferRequest
-    std::vector<std::pair<std::string, ov::AnyMap>> deviceConfigs; // devicesConfigs
+std::string OVInferConsistencyTest::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
+    unsigned int inferReqNumPerModel;                               // inferRequst nums per model
+    unsigned int inferNumPerInfer;                                  // infer nums wil do per  inferRequest
+    std::vector<std::pair<std::string, ov::AnyMap>> deviceConfigs;  // devicesConfigs
     std::tie(inferReqNumPerModel, inferNumPerInfer, deviceConfigs) = obj.param;
     std::ostringstream result;
     for (auto&& item : deviceConfigs) {
@@ -111,8 +100,7 @@ std::string OVInferConsistencyTest::getTestCaseName(const
     return result.str();
 }
 
-bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
-    std::vector<ov::Tensor>& b) {
+bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a, std::vector<ov::Tensor>& b) {
     if (a.size() == 0 || a.size() != b.size()) {
         return false;
     }
@@ -123,8 +111,7 @@ bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
         }
         try {
             // if not equal will throw exception
-            ov::test::utils::compare_raw_data(
-                a[j].data<float>(), b[j].data<float>(), a[j].get_size(), 1e-2f);
+            ov::test::utils::compare_raw_data(a[j].data<float>(), b[j].data<float>(), a[j].get_size(), 1e-2f);
         } catch (...) {
             isEqual = false;
             break;
@@ -133,10 +120,8 @@ bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
     return isEqual;
 }
 
-
-std::vector<ov::Tensor>
-OVInferConsistencyTest::GetAllOutputs(ov::CompiledModel& model,
-    ov::InferRequest& inferRequest) {
+std::vector<ov::Tensor> OVInferConsistencyTest::GetAllOutputs(ov::CompiledModel& model,
+                                                              ov::InferRequest& inferRequest) {
     std::vector<ov::Tensor> outputs;
     for (auto i = 0; i < model.outputs().size(); i++) {
         outputs.push_back(inferRequest.get_output_tensor(i));
@@ -157,8 +142,7 @@ void OVInferConsistencyTest::InferCheck(bool isSync) {
                     inferContext._inferRequest.start_async();
                     inferContext._inferRequest.wait();
                 }
-                auto actualoutputs = GetAllOutputs(_modelContexts[0]._model,
-                        inferContext._inferRequest);
+                auto actualoutputs = GetAllOutputs(_modelContexts[0]._model, inferContext._inferRequest);
                 bool isSame = false;
                 // compare with devices, the result is same with one of them, break loop
                 for (auto y = 1; y < _modelContexts.size(); y++) {
@@ -183,8 +167,7 @@ void OVInferConsistencyTest::InferCheck(bool isSync) {
 void OVInferConsistencyTest::FillInput(InferContext& inferContext, int index) {
     ASSERT_GT(index, 0);
     inferContext._inputs.clear();
-    auto input_tensor =
-        inferContext._inferRequest.get_input_tensor(0);
+    auto input_tensor = inferContext._inferRequest.get_input_tensor(0);
     auto data = input_tensor.data<float>();
     ov::test::utils::fill_data(data, 1 * 3 * 224 * 224, index);
     inferContext._inputs.push_back(input_tensor);

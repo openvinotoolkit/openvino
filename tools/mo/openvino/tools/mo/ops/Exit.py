@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
@@ -10,10 +10,10 @@ class Exit(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'op': __class__.op,
-            'infer': Exit.exit_infer,
-            'in_ports_count': 1,
+            "type": None,
+            "op": __class__.op,
+            "infer": Exit.exit_infer,
+            "in_ports_count": 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 

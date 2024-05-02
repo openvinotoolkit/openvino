@@ -16,14 +16,15 @@ class ArangeLikeOp(Op):
         axis - Arange elements according to the size of a certain axis of input array. Defualt value is None
 
     """
-    op = 'arange_like'
+
+    op = "arange_like"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': None,
-            'op': self.op,
-            'infer': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
+            "type": None,
+            "op": self.op,
+            "infer": None,
+            "in_ports_count": 1,
+            "out_ports_count": 1,
         }
         super().__init__(graph, mandatory_props, attrs)

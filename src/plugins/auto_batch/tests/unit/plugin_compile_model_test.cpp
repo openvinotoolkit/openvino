@@ -131,20 +131,22 @@ TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelWithRemoteContextTe
 
 const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = {
     // Case 1: explict apply batch size by config of AUTO_BATCH_DEVICE_CONFIG
-    plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
-                                {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
-                                {ov::hint::num_requests(12)},
-                                {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
-                                {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
-                               {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(32)")}},
-                               32},
-    plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
-                                {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
-                                {ov::hint::num_requests(12)},
-                                {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
-                                {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
-                               {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("GPU(32)")}},
-                               32},
+    plugin_compile_model_param{
+        {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
+         {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
+         {ov::hint::num_requests(12)},
+         {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
+         {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
+        {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(32)")}},
+        32},
+    plugin_compile_model_param{
+        {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
+         {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
+         {ov::hint::num_requests(12)},
+         {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
+         {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
+        {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("GPU(32)")}},
+        32},
     // Case 2: CPU batch size is figured out by min of opt_batch_size and infReq_num
     //         If config contains "PERFORMANCE_HINT_NUM_REQUESTS"
     plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
@@ -201,13 +203,14 @@ const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = 
                                {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("GPU")}},
                                32},
     // Case 4:
-    plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY},
-                                {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
-                                {ov::hint::num_requests(12)},
-                                {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
-                                {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
-                               {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(32)")}},
-                               32},
+    plugin_compile_model_param{
+        {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY},
+         {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
+         {ov::hint::num_requests(12)},
+         {ov::intel_gpu::memory_statistics.name(), static_cast<uint64_t>(1024000)},
+         {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
+        {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(32)")}},
+        32},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

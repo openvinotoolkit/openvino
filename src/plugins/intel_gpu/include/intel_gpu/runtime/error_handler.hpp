@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "layout.hpp"
-
-#include <sstream>
-#include <vector>
-#include <array>
 #include <algorithm>
-#include <type_traits>
+#include <array>
+#include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
+
+#include "layout.hpp"
 
 namespace cldnn {
 
@@ -195,7 +195,9 @@ inline void error_on_not_proper_enum_values(const std::string& file,
         return "error during error parsing";
     };
     const std::array<const M, sizeof...(Ms)> modes{std::forward<Ms>(modes_to_compare_to)...};
-    if (std::all_of(modes.begin(), modes.end(), [&](const M& m) -> int { return mode != m; })) {
+    if (std::all_of(modes.begin(), modes.end(), [&](const M& m) -> int {
+            return mode != m;
+        })) {
         std::stringstream error_msg;
         error_msg << mode_id << "( " << enum_value_string(mode) << " ) is incompatible with " << modes_id
                   << ". Should be one of: ";

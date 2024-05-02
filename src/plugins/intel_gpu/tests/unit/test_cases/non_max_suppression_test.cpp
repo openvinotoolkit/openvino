@@ -81,12 +81,8 @@ struct non_max_suppression_basic : public testing::Test {
         DataType(0.3f),
     };
 
-    const layout boxes_layout = layout(ov::PartialShape{batch_size, boxes_num, 4},
-                                       data_type,
-                                       format::bfyx);
-    const layout scores_layout = layout(ov::PartialShape{batch_size, classes_num, boxes_num},
-                                        data_type,
-                                        format::bfyx);
+    const layout boxes_layout = layout(ov::PartialShape{batch_size, boxes_num, 4}, data_type, format::bfyx);
+    const layout scores_layout = layout(ov::PartialShape{batch_size, classes_num, boxes_num}, data_type, format::bfyx);
 
     const layout selected_scores_layout = layout(ov::PartialShape{selected_indices_num, 3}, data_type, layout_format);
     const layout valid_outputs_layout = layout(ov::PartialShape{1}, cldnn::data_types::i32, layout_format);
@@ -113,7 +109,6 @@ struct non_max_suppression_basic : public testing::Test {
         return mem;
     }
 
-
     const int pad = -1;
 
     void test_basic(bool is_caching_test) {
@@ -124,7 +119,8 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(input_layout("scores", this->scores_layout));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type));
         topo.add(reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
-        topo.add(non_max_suppression("nms", input_info("reformat_boxes"), input_info("reformat_scores"), 6, false, true));
+        topo.add(
+            non_max_suppression("nms", input_info("reformat_boxes"), input_info("reformat_scores"), 6, false, true));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -141,23 +137,23 @@ struct non_max_suppression_basic : public testing::Test {
         auto result = net->execute();
 
         std::vector<int> expected_out = {this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad,
-                                        this->pad};
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad,
+                                         this->pad};
 
         auto out_mem = result.at("plane_nms").get_memory();
         cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
@@ -178,14 +174,14 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(input_layout("scores", this->scores_layout));
         topo.add(data("num_per_class", num_per_class_mem));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-                non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * 1,
-                                    false,
-                                    true,
-                                    "num_per_class"));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
+                 non_max_suppression("nms",
+                                     input_info("reformat_boxes"),
+                                     input_info("reformat_scores"),
+                                     this->batch_size * this->classes_num * 1,
+                                     false,
+                                     true,
+                                     "num_per_class"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -243,19 +239,19 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(mutable_data("valid_outputs", valid_outputs_mem));
 
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-                non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * 1,
-                                    false,
-                                    true,
-                                    "num_per_class",
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    "selected_scores",
-                                    "valid_outputs"));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
+                 non_max_suppression("nms",
+                                     input_info("reformat_boxes"),
+                                     input_info("reformat_scores"),
+                                     this->batch_size * this->classes_num * 1,
+                                     false,
+                                     true,
+                                     "num_per_class",
+                                     cldnn::primitive_id(),
+                                     cldnn::primitive_id(),
+                                     cldnn::primitive_id(),
+                                     "selected_scores",
+                                     "valid_outputs"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
         topo.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
 
@@ -317,8 +313,10 @@ struct non_max_suppression_basic : public testing::Test {
         topology second_output_topology;
         second_output_topology.add(input_layout("selected_scores", this->selected_scores_layout));
         second_output_topology.add(input_layout("num_outputs", this->valid_outputs_layout));
-        second_output_topology.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
-        second_output_topology.add(reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
+        second_output_topology.add(
+            reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
+        second_output_topology.add(
+            reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
         network second_output_net{engine, second_output_topology, get_test_default_config(engine)};
         second_output_net.set_input_data("selected_scores", selected_scores_mem);
         second_output_net.set_input_data("num_outputs", valid_outputs_mem);
@@ -350,25 +348,31 @@ struct non_max_suppression_basic : public testing::Test {
 
         topology topo;
         const auto l_boxes = this->boxes_layout;
-        topo.add(input_layout("boxes", layout{ov::PartialShape{l_boxes.batch(), l_boxes.feature(), l_boxes.spatial(1)}, l_boxes.data_type, l_boxes.format}));
+        topo.add(input_layout("boxes",
+                              layout{ov::PartialShape{l_boxes.batch(), l_boxes.feature(), l_boxes.spatial(1)},
+                                     l_boxes.data_type,
+                                     l_boxes.format}));
         const auto l_scores = this->scores_layout;
-        topo.add(input_layout("scores", layout{ov::PartialShape{l_scores.batch(), l_scores.feature(), l_scores.spatial(1)}, l_scores.data_type, l_scores.format}));
+        topo.add(input_layout("scores",
+                              layout{ov::PartialShape{l_scores.batch(), l_scores.feature(), l_scores.spatial(1)},
+                                     l_scores.data_type,
+                                     l_scores.format}));
         topo.add(data("num_per_class", num_per_class_mem));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
         auto nms = non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * 1,
-                                    false,
-                                    true,
-                                    "num_per_class",
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    cldnn::primitive_id(),
-                                    3);
+                                       input_info("reformat_boxes"),
+                                       input_info("reformat_scores"),
+                                       this->batch_size * this->classes_num * 1,
+                                       false,
+                                       true,
+                                       "num_per_class",
+                                       cldnn::primitive_id(),
+                                       cldnn::primitive_id(),
+                                       cldnn::primitive_id(),
+                                       cldnn::primitive_id(),
+                                       cldnn::primitive_id(),
+                                       3);
         auto output_data_type = this->data_type;
         nms.output_data_types = {optional_data_type{}, optional_data_type{output_data_type}, optional_data_type{}};
         nms.output_paddings = {padding(), padding(), padding()};
@@ -433,12 +437,13 @@ struct non_max_suppression_basic : public testing::Test {
             ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
         }
 
-
         topology second_output_topology;
         second_output_topology.add(input_layout("selected_scores", selected_scores_mem->get_layout()));
         second_output_topology.add(input_layout("num_outputs", valid_outputs_mem->get_layout()));
-        second_output_topology.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
-        second_output_topology.add(reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
+        second_output_topology.add(
+            reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
+        second_output_topology.add(
+            reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
         network second_output_net{engine, second_output_topology, get_test_default_config(engine)};
         second_output_net.set_input_data("selected_scores", selected_scores_mem);
         second_output_net.set_input_data("num_outputs", valid_outputs_mem);
@@ -476,15 +481,15 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(data("num_per_class", num_per_class_mem));
         topo.add(data("iou_threshold", iou_threshold_mem));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-                non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * this->boxes_num,
-                                    false,
-                                    true,
-                                    "num_per_class",
-                                    "iou_threshold"));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
+                 non_max_suppression("nms",
+                                     input_info("reformat_boxes"),
+                                     input_info("reformat_scores"),
+                                     this->batch_size * this->classes_num * this->boxes_num,
+                                     false,
+                                     true,
+                                     "num_per_class",
+                                     "iou_threshold"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -532,16 +537,16 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(data("iou_threshold", iou_threshold_mem));
         topo.add(data("score_threshold", score_threshold_mem));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-                non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * this->boxes_num,
-                                    false,
-                                    true,
-                                    "num_per_class",
-                                    "iou_threshold",
-                                    "score_threshold"));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
+                 non_max_suppression("nms",
+                                     input_info("reformat_boxes"),
+                                     input_info("reformat_scores"),
+                                     this->batch_size * this->classes_num * this->boxes_num,
+                                     false,
+                                     true,
+                                     "num_per_class",
+                                     "iou_threshold",
+                                     "score_threshold"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -592,17 +597,17 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(data("score_threshold", score_threshold_mem));
         topo.add(data("soft_nms_sigma", soft_nms_sigma_mem));
         topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
-                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
-                non_max_suppression("nms",
-                                    input_info("reformat_boxes"),
-                                    input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * this->boxes_num,
-                                    false,
-                                    true,
-                                    "num_per_class",
-                                    "iou_threshold",
-                                    "score_threshold",
-                                    "soft_nms_sigma"));
+                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type),
+                 non_max_suppression("nms",
+                                     input_info("reformat_boxes"),
+                                     input_info("reformat_scores"),
+                                     this->batch_size * this->classes_num * this->boxes_num,
+                                     false,
+                                     true,
+                                     "num_per_class",
+                                     "iou_threshold",
+                                     "score_threshold",
+                                     "soft_nms_sigma"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -705,13 +710,13 @@ TYPED_TEST(non_max_suppression_basic, score_threshold_cached) {
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma_cached) {
     this->test_soft_nms_sigma(true);
 }
-#endif // RUN_ALL_MODEL_CACHING_TESTS
+#endif  // RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(non_max_suppression_basic, multiple_outputs_cached) {
     this->test_multiple_outputs(true);
 }
 
 namespace {
-template<typename T, typename T_IND>
+template <typename T, typename T_IND>
 struct NmsRotatedParams {
     std::string test_name;
     int num_batches;
@@ -728,36 +733,36 @@ struct NmsRotatedParams {
     std::vector<T> expected_scores;
 };
 
-template <typename T> float getError();
+template <typename T>
+float getError();
 
-template<>
+template <>
 float getError<float>() {
     return 0.001;
 }
 
-template<>
+template <>
 float getError<ov::float16>() {
     return 0.1;
 }
 
-template<typename T, typename T_IND>
+template <typename T, typename T_IND>
 struct nms_rotated_test : public ::testing::TestWithParam<NmsRotatedParams<T, T_IND>> {
 public:
-    void test(bool is_caching_test = false
-    ) {
+    void test(bool is_caching_test = false) {
         const NmsRotatedParams<T, T_IND> param = testing::TestWithParam<NmsRotatedParams<T, T_IND>>::GetParam();
         const auto data_type = ov::element::from<T>();
 
         auto& engine = tests::get_test_engine();
 
-        const auto boxes_layout = layout(ov::PartialShape{param.num_batches, param.num_boxes, 5}, data_type,
-                                         format::bfyx);
-        const auto scores_layout = layout(ov::PartialShape{param.num_batches, param.num_classes, param.num_boxes},
-                                          data_type, format::bfyx);
+        const auto boxes_layout =
+            layout(ov::PartialShape{param.num_batches, param.num_boxes, 5}, data_type, format::bfyx);
+        const auto scores_layout =
+            layout(ov::PartialShape{param.num_batches, param.num_classes, param.num_boxes}, data_type, format::bfyx);
 
         const int selected_indices_num = param.num_batches * param.num_classes * param.num_boxes;
-        const auto selected_scores_layout = layout(ov::PartialShape{selected_indices_num/*expected_indices_count*/, 3},
-                                                   data_type, format::bfyx);
+        const auto selected_scores_layout =
+            layout(ov::PartialShape{selected_indices_num /*expected_indices_count*/, 3}, data_type, format::bfyx);
         const auto valid_outputs_layout = layout(ov::PartialShape{1}, cldnn::data_types::i32, format::bfyx);
 
         const auto boxes_mem = engine.allocate_memory(boxes_layout);
@@ -772,7 +777,8 @@ public:
         const auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
         tests::set_values(iou_threshold_mem, {param.iou_threshold});
 
-        const auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        const auto score_threshold_mem =
+            engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
         tests::set_values(score_threshold_mem, {param.score_threshold});
 
         const auto selected_scores_mem = engine.allocate_memory(selected_scores_layout);
@@ -798,8 +804,8 @@ public:
                                        "",
                                        "selected_scores",
                                        "valid_outputs");
-        nms.rotation = param.clockwise ? non_max_suppression::Rotation::CLOCKWISE :
-                       non_max_suppression::Rotation::COUNTERCLOCKWISE;
+        nms.rotation = param.clockwise ? non_max_suppression::Rotation::CLOCKWISE
+                                       : non_max_suppression::Rotation::COUNTERCLOCKWISE;
 
         topo.add(nms);
 
@@ -834,9 +840,8 @@ public:
     }
 };
 
-
 struct PrintToStringParamName {
-    template<class T, class T_IND>
+    template <class T, class T_IND>
     std::string operator()(const testing::TestParamInfo<NmsRotatedParams<T, T_IND>>& info) {
         const auto& p = info.param;
         std::ostringstream result;
@@ -846,7 +851,6 @@ struct PrintToStringParamName {
         return result.str();
     }
 };
-
 
 using nms_rotated_test_f32_i32 = nms_rotated_test<float, int32_t>;
 using nms_rotated_test_f16_i32 = nms_rotated_test<ov::float16, int32_t>;
@@ -859,100 +863,135 @@ TEST_P(nms_rotated_test_f16_i32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-template<typename T, typename T_IND>
+template <typename T, typename T_IND>
 std::vector<NmsRotatedParams<T, T_IND>> getNmsRotatedParams() {
     const std::vector<NmsRotatedParams<T, T_IND>> params = {
-            {"basic",
-             1, 4, 1,
-             std::vector<T>{
-                7.0, 4.0, 8.0,  7.0,  0.5,
-                4.0, 7.0, 9.0,  11.0, 0.6,
-                4.0, 8.0, 10.0, 12.0, 0.3,
-                2.0, 5.0, 13.0, 7.0,  0.6},
-             std::vector<T>{0.65, 0.7, 0.55, 0.96},
-             5000, 0.5f, 0.0f, false, true,
-             std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0},
-             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65},
-            },
-            {"max_out_2",
-             1, 4, 1,
-             std::vector<T>{
-                7.0, 4.0, 8.0,  7.0,  0.5,
-                4.0, 7.0, 9.0,  11.0, 0.6,
-                4.0, 8.0, 10.0, 12.0, 0.3,
-                2.0, 5.0, 13.0, 7.0,  0.6},
-             std::vector<T>{0.65, 0.7, 0.55, 0.96},
-             2, 0.5f, 0.0f, false, true,
-             std::vector<T_IND>{0, 0, 3, 0, 0, 1},
-             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
-            },
-            {"score_thresold",
-             1, 4, 1,
-             std::vector<T>{
-                7.0, 4.0, 8.0,  7.0,  0.5,
-                4.0, 7.0, 9.0,  11.0, 0.6,
-                4.0, 8.0, 10.0, 12.0, 0.3,
-                2.0, 5.0, 13.0, 7.0,  0.6},
-             std::vector<T>{0.65, 0.7, 0.55, 0.96},
-             5000, 0.5f, 0.67f, false, true,
-             std::vector<T_IND>{0, 0, 3, 0, 0, 1},
-             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
-            },
-            {"iou_thresold_2",
-             1, 4, 1,
-             std::vector<T>{
-                7.0, 4.0, 8.0,  7.0,  0.5,
-                4.0, 7.0, 9.0,  11.0, 0.6,
-                4.0, 8.0, 10.0, 12.0, 0.3,
-                2.0, 5.0, 13.0, 7.0,  0.6},
-             std::vector<T>{0.65, 0.7, 0.55, 0.96},
-             5000, 0.3f, 0.0f, false, true,
-             std::vector<T_IND>{0, 0, 3, 0, 0, 0},
-             std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65},
-            },
-            {"negative_cw",
-             1, 2, 1,
-             std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
-             std::vector<T>{0.8, 0.7},
-             5000, 0.1f, 0.0f, false, true,
-             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
-             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
-            },
-            {"negative_ccw",
-             1, 2, 1,
-             std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
-             std::vector<T>{0.8, 0.7},
-             5000, 0.1f, 0.0f, false, false,
-             std::vector<T_IND>{0, 0, 0},
-             std::vector<T>{0.0, 0.0, 0.8}
-            },
-            {"positive_ccw",
-             1, 2, 1,
-             std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
-             std::vector<T>{0.8, 0.7},
-             5000, 0.1f, 0.0f, false, false,
-             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
-             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
-            },
-            {"positive_cw",
-             1, 2, 1,
-             std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
-             std::vector<T>{0.8, 0.7},
-             5000, 0.1f, 0.0f, false, true,
-             std::vector<T_IND>{0, 0, 0},
-             std::vector<T>{0.0, 0.0, 0.8}
-            }
-    };
+        {
+            "basic",
+            1,
+            4,
+            1,
+            std::vector<T>{7.0, 4.0, 8.0,  7.0,  0.5, 4.0, 7.0, 9.0,  11.0, 0.6,
+                           4.0, 8.0, 10.0, 12.0, 0.3, 2.0, 5.0, 13.0, 7.0,  0.6},
+            std::vector<T>{0.65, 0.7, 0.55, 0.96},
+            5000,
+            0.5f,
+            0.0f,
+            false,
+            true,
+            std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0},
+            std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65},
+        },
+        {
+            "max_out_2",
+            1,
+            4,
+            1,
+            std::vector<T>{7.0, 4.0, 8.0,  7.0,  0.5, 4.0, 7.0, 9.0,  11.0, 0.6,
+                           4.0, 8.0, 10.0, 12.0, 0.3, 2.0, 5.0, 13.0, 7.0,  0.6},
+            std::vector<T>{0.65, 0.7, 0.55, 0.96},
+            2,
+            0.5f,
+            0.0f,
+            false,
+            true,
+            std::vector<T_IND>{0, 0, 3, 0, 0, 1},
+            std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
+        },
+        {
+            "score_thresold",
+            1,
+            4,
+            1,
+            std::vector<T>{7.0, 4.0, 8.0,  7.0,  0.5, 4.0, 7.0, 9.0,  11.0, 0.6,
+                           4.0, 8.0, 10.0, 12.0, 0.3, 2.0, 5.0, 13.0, 7.0,  0.6},
+            std::vector<T>{0.65, 0.7, 0.55, 0.96},
+            5000,
+            0.5f,
+            0.67f,
+            false,
+            true,
+            std::vector<T_IND>{0, 0, 3, 0, 0, 1},
+            std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7},
+        },
+        {
+            "iou_thresold_2",
+            1,
+            4,
+            1,
+            std::vector<T>{7.0, 4.0, 8.0,  7.0,  0.5, 4.0, 7.0, 9.0,  11.0, 0.6,
+                           4.0, 8.0, 10.0, 12.0, 0.3, 2.0, 5.0, 13.0, 7.0,  0.6},
+            std::vector<T>{0.65, 0.7, 0.55, 0.96},
+            5000,
+            0.3f,
+            0.0f,
+            false,
+            true,
+            std::vector<T_IND>{0, 0, 3, 0, 0, 0},
+            std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65},
+        },
+        {"negative_cw",
+         1,
+         2,
+         1,
+         std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+         std::vector<T>{0.8, 0.7},
+         5000,
+         0.1f,
+         0.0f,
+         false,
+         true,
+         std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+         std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}},
+        {"negative_ccw",
+         1,
+         2,
+         1,
+         std::vector<T>{6.0, 34.0, 4.0, 8.0, -0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+         std::vector<T>{0.8, 0.7},
+         5000,
+         0.1f,
+         0.0f,
+         false,
+         false,
+         std::vector<T_IND>{0, 0, 0},
+         std::vector<T>{0.0, 0.0, 0.8}},
+        {"positive_ccw",
+         1,
+         2,
+         1,
+         std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+         std::vector<T>{0.8, 0.7},
+         5000,
+         0.1f,
+         0.0f,
+         false,
+         false,
+         std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+         std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}},
+        {"positive_cw",
+         1,
+         2,
+         1,
+         std::vector<T>{6.0, 34.0, 4.0, 8.0, 0.7854, 9.0, 32, 2.0, 4.0, 0.0},
+         std::vector<T>{0.8, 0.7},
+         5000,
+         0.1f,
+         0.0f,
+         false,
+         true,
+         std::vector<T_IND>{0, 0, 0},
+         std::vector<T>{0.0, 0.0, 0.8}}};
 
     return params;
 }
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                     nms_rotated_test_f32_i32,
-                     ::testing::ValuesIn(getNmsRotatedParams<float, int32_t>()),
-                     PrintToStringParamName());
+                         nms_rotated_test_f32_i32,
+                         ::testing::ValuesIn(getNmsRotatedParams<float, int32_t>()),
+                         PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                     nms_rotated_test_f16_i32,
-                     ::testing::ValuesIn(getNmsRotatedParams<ov::float16, int32_t>()),
-                     PrintToStringParamName());
-} // namespace
+                         nms_rotated_test_f16_i32,
+                         ::testing::ValuesIn(getNmsRotatedParams<ov::float16, int32_t>()),
+                         PrintToStringParamName());
+}  // namespace

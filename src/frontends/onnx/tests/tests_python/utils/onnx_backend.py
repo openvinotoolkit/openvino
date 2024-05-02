@@ -13,8 +13,12 @@ from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
 import numpy
 import onnx
 from onnx.backend.base import Backend, BackendRep
-from onnx.helper import make_graph, make_model, make_tensor_value_info, np_dtype_to_tensor_dtype
-
+from onnx.helper import (
+    make_graph,
+    make_model,
+    make_tensor_value_info,
+    np_dtype_to_tensor_dtype,
+)
 from openvino.runtime import Model
 from tests.runtime import get_runtime
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
@@ -80,7 +84,9 @@ class OpenVinoOnnxBackend(Backend):
     ):  # type: (...) -> Optional[Tuple[Any, ...]]
         """Prepare and run a computation on an ONNX node."""
         # default values for input/output tensors
-        input_tensor_types = [np_dtype_to_tensor_dtype(node_input.dtype) for node_input in inputs]
+        input_tensor_types = [
+            np_dtype_to_tensor_dtype(node_input.dtype) for node_input in inputs
+        ]
         output_tensor_types = [onnx.TensorProto.FLOAT for _ in range(len(node.output))]
         output_tensor_shapes = [()]  # type: List[Tuple[int, ...]]
 
@@ -97,7 +103,9 @@ class OpenVinoOnnxBackend(Backend):
         output_tensors = [
             make_tensor_value_info(name, tensor_type, shape)
             for name, shape, tensor_type in zip(
-                node.output, output_tensor_shapes, output_tensor_types,
+                node.output,
+                output_tensor_shapes,
+                output_tensor_types,
             )
         ]
 

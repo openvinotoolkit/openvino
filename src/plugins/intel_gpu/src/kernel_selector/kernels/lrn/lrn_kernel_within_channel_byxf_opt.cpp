@@ -3,8 +3,10 @@
 //
 
 #include "lrn_kernel_within_channel_byxf_opt.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey LRNKernelWithinChannelByxfOpt::GetSupportedKey() const {
@@ -60,14 +62,16 @@ LRNKernelWithinChannelByxfOpt::Parent::DispatchData LRNKernelWithinChannelByxfOp
     DispatchData dispatchData = Parent::SetDefault(params);
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::BATCH }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+        {Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::BATCH}};
 
     const auto& out = params.outputs[0];
 
-    dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, 8), out.Batch().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, 8), out.Batch().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

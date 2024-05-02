@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "cpu_types.h"
-#include "nodes/executors/executor.hpp"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,8 +60,7 @@ struct ActivationPostOp : PostOp {
         : m_type(type),
           m_alpha(alpha),
           m_beta(beta),
-          m_gamma(gamma)
-    {}
+          m_gamma(gamma) {}
 
     float alpha() const {
         return m_alpha;
@@ -97,9 +96,7 @@ struct ScaleShiftPostOp : PostOp {
         prelu,
     };
 
-    ScaleShiftPostOp(const Type m_type,
-                     std::vector<float> _scales,
-                     std::vector<float> _shifts)
+    ScaleShiftPostOp(const Type m_type, std::vector<float> _scales, std::vector<float> _shifts)
         : m_type(m_type),
           m_scales(std::move(_scales)),
           m_shifts(std::move(_shifts)) {}
@@ -129,14 +126,14 @@ struct FakeQuantizePostOp : PostOp {
                        std::vector<float> inputShift,
                        std::vector<float> outputScale,
                        std::vector<float> outputShift,
-                       const size_t levels) :
-        m_cropLow(std::move(cropLow)),
-        m_cropHigh(std::move(cropHigh)),
-        m_inputScale(std::move(inputScale)),
-        m_inputShift(std::move(inputShift)),
-        m_outputScale(std::move(outputScale)),
-        m_outputShift(std::move(outputShift)),
-        m_levels(levels) {}
+                       const size_t levels)
+        : m_cropLow(std::move(cropLow)),
+          m_cropHigh(std::move(cropHigh)),
+          m_inputScale(std::move(inputScale)),
+          m_inputShift(std::move(inputShift)),
+          m_outputScale(std::move(outputScale)),
+          m_outputShift(std::move(outputShift)),
+          m_levels(levels) {}
 
     const std::vector<float>& cropLow() const {
         return m_cropLow;
@@ -193,5 +190,5 @@ ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
 
 PostOps getPostOps(std::vector<NodePtr> fused);
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

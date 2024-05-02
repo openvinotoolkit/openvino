@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset8 as ov
 import pytest
 
-import openvino.runtime.opset8 as ov
-from openvino import Type, Shape
+from openvino import Shape, Type
 
 
 def test_reverse_sequence():
@@ -16,8 +16,12 @@ def test_reverse_sequence():
     sequence_axis = 1
 
     input_param = ov.parameter(input_data.shape, name="input", dtype=np.int32)
-    seq_lengths_param = ov.parameter(seq_lengths.shape, name="sequence lengths", dtype=np.int32)
-    model = ov.reverse_sequence(input_param, seq_lengths_param, batch_axis, sequence_axis)
+    seq_lengths_param = ov.parameter(
+        seq_lengths.shape, name="sequence lengths", dtype=np.int32
+    )
+    model = ov.reverse_sequence(
+        input_param, seq_lengths_param, batch_axis, sequence_axis
+    )
 
     assert model.get_type_name() == "ReverseSequence"
     assert model.get_output_size() == 1

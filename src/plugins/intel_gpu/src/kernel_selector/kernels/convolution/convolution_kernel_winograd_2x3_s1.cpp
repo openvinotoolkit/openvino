@@ -49,8 +49,8 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
                               // should remain the same as original filter's
 
     const size_t nr_tiles_x =
-        Align(params.outputs[0].X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
-                                                           // width by tile's width to get tiles count
+        Align(params.outputs[0].X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide
+                                                               // its width by tile's width to get tiles count
     const size_t nr_tiles_y = Align(params.outputs[0].Y().v, 8) / input_tile_height;
     const size_t total_tiles_count = nr_tiles_x * nr_tiles_y;
 
@@ -65,8 +65,9 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1::GetJitConstants(const convolutio
     return jit;
 }
 
-ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(const convolution_params& arg,
-                                                                                                      int) const {
+ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winograd_2x3_s1::SetDefault(
+    const convolution_params& arg,
+    int) const {
     Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const size_t tile_n = winograd_tile_n;  // goes in-depth
@@ -77,7 +78,7 @@ ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winogr
 
     const size_t nr_tiles_x =
         Align(arg.outputs[0].X().v, 4) / input_tile_width;  // input is already in winograd domain, so simply divide its
-                                                        // width by tile's width to get tiles count
+                                                            // width by tile's width to get tiles count
     const size_t nr_tiles_y = Align(arg.outputs[0].Y().v, 8) / input_tile_height;
 
     dispatchData.gws[0] = arg.outputs[0].Feature().v / tile_n;

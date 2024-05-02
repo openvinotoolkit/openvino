@@ -65,14 +65,17 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                        { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
+                           {ov::device::uuid.name(),
+                            ov::device::luid.name(),
+                            ov::device::gops.name(),
+                            ov::device::type.name(),
+                            ov::device::full_name.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         ::testing::Combine(::testing::Values("GPU"),
-                                            ::testing::Values(ov::AnyMap({}))),
-                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+                         ::testing::Combine(::testing::Values("GPU"), ::testing::Values(ov::AnyMap({}))),
+                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckSetSupportedRWMetricsPropsTests,
@@ -91,8 +94,7 @@ auto multiConfigs = []() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
-                                            ::testing::ValuesIn(multiConfigs())));
+                         ::testing::Combine(::testing::Values("HETERO"), ::testing::ValuesIn(multiConfigs())));
 //
 // GPU specific metrics
 //

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino as ov
 from snippets import get_model
+
+import openvino as ov
 
 model = get_model()
 

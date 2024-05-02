@@ -15,7 +15,8 @@ using namespace ov::intel_cpu;
 using namespace ov::opset10;
 using namespace testing;
 
-class EmbeddingBagOffsetsSumV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::EmbeddingBagOffsetsSum> {
+class EmbeddingBagOffsetsSumV3StaticShapeInferenceTest
+    : public OpStaticShapeInferenceTest<op::v3::EmbeddingBagOffsetsSum> {
 protected:
     void SetUp() override {
         output_shapes.resize(1);

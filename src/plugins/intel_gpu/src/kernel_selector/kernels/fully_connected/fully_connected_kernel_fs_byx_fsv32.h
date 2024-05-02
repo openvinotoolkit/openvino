@@ -19,7 +19,9 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
+    DispatchData SetDefault(const fully_connected_params& params,
+                            int autoTuneIndex = -1,
+                            int kernel_number = 0) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
 };

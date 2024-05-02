@@ -7,10 +7,12 @@ import torch
 
 calibration_loader = torch.utils.data.DataLoader(...)
 
+
 def transform_fn(data_item):
     images, _ = data_item
-    return {input_name: images.numpy()} # input_name should be taken from the model, 
-                                        # e.g. model.graph.input[0].name
+    return {input_name: images.numpy()}  # input_name should be taken from the model,
+    # e.g. model.graph.input[0].name
+
 
 calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 validation_dataset = nncf.Dataset(calibration_loader, transform_fn)
@@ -18,21 +20,23 @@ validation_dataset = nncf.Dataset(calibration_loader, transform_fn)
 
 #! [validation]
 import numpy as np
+import onnx
+import onnxruntime
 import torch
 from sklearn.metrics import accuracy_score
 
-import onnx
-import onnxruntime
 
-
-def validate(model: onnx.ModelProto,
-             validation_loader: torch.utils.data.DataLoader) -> float:
+def validate(
+    model: onnx.ModelProto, validation_loader: torch.utils.data.DataLoader
+) -> float:
     predictions = []
     references = []
 
     input_name = model.graph.input[0].name
     serialized_model = model.SerializeToString()
-    session = onnxruntime.InferenceSession(serialized_model, providers=["CPUExecutionProvider"])
+    session = onnxruntime.InferenceSession(
+        serialized_model, providers=["CPUExecutionProvider"]
+    )
     output_names = [output.name for output in session.get_outputs()]
 
     for images, target in validation_loader:
@@ -43,6 +47,8 @@ def validate(model: onnx.ModelProto,
     predictions = np.concatenate(predictions, axis=0)
     references = np.concatenate(references, axis=0)
     return accuracy_score(predictions, references)
+
+
 #! [validation]
 
 #! [quantization]
@@ -69,7 +75,7 @@ ov_quantized_model = ov.convert_model(quantized_model)
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(ov_quantized_model)
 
-input_fp32 = ... # FP32 model input
+input_fp32 = ...  # FP32 model input
 res = model_int8(input_fp32)
 
 #! [inference]

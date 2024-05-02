@@ -11,5 +11,5 @@ namespace test {
 
 void core_configuration(ov::test::SubgraphBaseTest* test) {}
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

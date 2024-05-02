@@ -17,21 +17,21 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
     auto input_layout = impl_param.get_input_layout();
 
     auto output_type = input_layout.data_type;
-    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
+    if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+        desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST &&
+        desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
     }
 
-    return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
-                                 layout({desc->sizes, output_type, input_layout.format});
+    return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size})
+                               : layout({desc->sizes, output_type, input_layout.format});
 }
 
 namespace v4 {
-template<typename ShapeType>
+template <typename ShapeType>
 static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
     auto input_layout = impl_param.get_input_layout(0);
@@ -41,8 +41,7 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     ov::op::v4::Interpolate op;
     op.set_attrs(desc->get_attrs());
 
-    ShapeType sizes_shape = desc->sizes.empty() ? ov::Shape{ input_rank }
-                                                : ov::Shape{ desc->sizes.size() };
+    ShapeType sizes_shape = desc->sizes.empty() ? ov::Shape{input_rank} : ov::Shape{desc->sizes.size()};
     ShapeType scales_shape = desc->scales.empty() ? ov::Shape{input_rank} : ov::Shape{desc->scales.size()};
     std::vector<ShapeType> input_shapes = {input_shape, sizes_shape, scales_shape};
 
@@ -72,12 +71,14 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
 
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    return {layout{output_shapes[0],
+                   input_layout.data_type,
+                   format::adjust_to_rank(input_layout.format, output_shapes[0].size())}};
 }
-} // namespace v4
+}  // namespace v4
 
 namespace v11 {
-template<typename ShapeType>
+template <typename ShapeType>
 static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
     auto input_layout = impl_param.get_input_layout(0);
@@ -89,11 +90,11 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
 
     ShapeType sizes_or_scales_shape;
     if (!desc->sizes.empty()) {
-        sizes_or_scales_shape = ov::Shape{ desc->sizes.size() };
+        sizes_or_scales_shape = ov::Shape{desc->sizes.size()};
     } else if (!desc->scales.empty()) {
-        sizes_or_scales_shape = ov::Shape{ desc->scales.size() };
+        sizes_or_scales_shape = ov::Shape{desc->scales.size()};
     } else {
-        sizes_or_scales_shape = ov::Shape{ input_rank };
+        sizes_or_scales_shape = ov::Shape{input_rank};
     }
     std::vector<ShapeType> input_shapes = {input_shape, sizes_or_scales_shape};
 
@@ -120,12 +121,15 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v11::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
 
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    return {layout{output_shapes[0],
+                   input_layout.data_type,
+                   format::adjust_to_rank(input_layout.format, output_shapes[0].size())}};
 }
-} // namespace v11
+}  // namespace v11
 
-template<typename ShapeType>
-std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node,
+                                                       const kernel_impl_params& impl_param) {
     using Mode = ov::op::util::InterpolateBase::InterpolateMode;
     auto desc = impl_param.typed_desc<resample>();
     if (desc->operation_type == Mode::BILINEAR_PILLOW || desc->operation_type == Mode::BICUBIC_PILLOW)
@@ -134,7 +138,8 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& node
         return v4::calc_output_layouts<ShapeType>(node, impl_param);
 }
 
-template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> resample_inst::calc_output_layouts<ov::PartialShape>(resample_node const& node,
+                                                                                  const kernel_impl_params& impl_param);
 
 std::string resample_inst::to_string(resample_node const& node) {
     auto desc = node.get_primitive();
@@ -204,6 +209,5 @@ std::string resample_inst::to_string(resample_node const& node) {
     return primitive_description.str();
 }
 
-resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
-}
+resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {}
 }  // namespace cldnn

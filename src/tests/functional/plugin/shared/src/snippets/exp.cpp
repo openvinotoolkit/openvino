@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/exp.hpp"
-#include "subgraph_simple.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/subtract.hpp"
+#include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
@@ -59,7 +59,6 @@ void ExpReciprocal::SetUp() {
     }
 }
 
-
 TEST_P(Exp, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
@@ -70,6 +69,6 @@ TEST_P(ExpReciprocal, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

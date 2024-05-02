@@ -17,11 +17,8 @@ struct slice : public primitive_base<slice> {
     /// @brief Constructs slice primitive.
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.
-    slice(const primitive_id& id,
-          const std::vector<input_info>& inputs,
-          const padding& output_padding = padding())
-        : primitive_base{id, inputs, {output_padding}}
-    {}
+    slice(const primitive_id& id, const std::vector<input_info>& inputs, const padding& output_padding = padding())
+        : primitive_base{id, inputs, {output_padding}} {}
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);

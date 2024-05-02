@@ -5,8 +5,8 @@
 #pragma once
 
 #include "cpu_memory.h"
-#include "onednn/iml_type_mapper.h"
 #include "executor.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -44,9 +44,11 @@ public:
     virtual bool init(const PoolingAttrs& poolingAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
-                      const dnnl::primitive_attr &attr) = 0;
+                      const dnnl::primitive_attr& attr) = 0;
 
-    virtual void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, std::unordered_map<int, MemoryPtr> postOpsArgs) = 0;
+    virtual void exec(const std::vector<MemoryCPtr>& src,
+                      const std::vector<MemoryPtr>& dst,
+                      std::unordered_map<int, MemoryPtr> postOpsArgs) = 0;
     virtual ~PoolingExecutor() = default;
 
     virtual impl_desc_type getImplType() const = 0;
@@ -71,5 +73,5 @@ public:
 using PoolingExecutorBuilderPtr = std::shared_ptr<PoolingExecutorBuilder>;
 using PoolingExecutorBuilderCPtr = std::shared_ptr<const PoolingExecutorBuilder>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

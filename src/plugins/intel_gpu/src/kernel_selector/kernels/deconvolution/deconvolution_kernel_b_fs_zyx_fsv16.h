@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "deconvolution_kernel_base.h"
 #include <vector>
+
+#include "deconvolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -32,11 +33,7 @@ protected:
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

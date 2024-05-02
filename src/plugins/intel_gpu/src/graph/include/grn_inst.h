@@ -3,10 +3,10 @@
 //
 
 #pragma once
+#include <string>
+
 #include "intel_gpu/primitives/grn.hpp"
 #include "primitive_inst.h"
-
-#include <string>
 
 namespace cldnn {
 
@@ -18,7 +18,7 @@ class typed_primitive_inst<grn> : public typed_primitive_inst_base<grn> {
     using parent::parent;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(grn_node const& /*node*/, const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }

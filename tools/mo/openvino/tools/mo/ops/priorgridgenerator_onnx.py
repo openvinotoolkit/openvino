@@ -1,18 +1,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, set_input_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension_value,
+    set_input_shapes,
+    shape_array,
+)
 from openvino.tools.mo.ops.op import Op
 
 
 class ExperimentalDetectronPriorGridGenerator(Op):
-    op = 'ExperimentalDetectronPriorGridGenerator'
+    op = "ExperimentalDetectronPriorGridGenerator"
 
     def __init__(self, graph, attrs):
         mandatory_props = dict(
             type=self.op,
             op=self.op,
-            version='opset6',
+            version="opset6",
             infer=self.infer,
             reverse_infer=self.reverse_infer,
         )
@@ -20,11 +24,11 @@ class ExperimentalDetectronPriorGridGenerator(Op):
 
     def backend_attrs(self):
         return [
-            'flatten',
-            'h',
-            'w',
-            'stride_x',
-            'stride_y',
+            "flatten",
+            "h",
+            "w",
+            "stride_x",
+            "stride_y",
         ]
 
     @staticmethod
@@ -42,7 +46,21 @@ class ExperimentalDetectronPriorGridGenerator(Op):
     @staticmethod
     def reverse_infer(node):
         priors_shape = shape_array([dynamic_dimension_value, 4])
-        feature_map_shape = shape_array([1, dynamic_dimension_value, dynamic_dimension_value, dynamic_dimension_value])
-        image_shape = shape_array([1, dynamic_dimension_value, dynamic_dimension_value, dynamic_dimension_value])
+        feature_map_shape = shape_array(
+            [
+                1,
+                dynamic_dimension_value,
+                dynamic_dimension_value,
+                dynamic_dimension_value,
+            ]
+        )
+        image_shape = shape_array(
+            [
+                1,
+                dynamic_dimension_value,
+                dynamic_dimension_value,
+                dynamic_dimension_value,
+            ]
+        )
 
         set_input_shapes(node, priors_shape, feature_map_shape, image_shape)

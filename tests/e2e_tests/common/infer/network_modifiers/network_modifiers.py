@@ -6,11 +6,17 @@
 import logging as log
 import sys
 
+from e2e_tests.common.test_utils import (
+    convert_shapes_to_partial_shape,
+    get_shapes_from_data,
+)
 from e2e_tests.utils.test_utils import align_input_names
-from e2e_tests.common.test_utils import get_shapes_from_data, convert_shapes_to_partial_shape
+
 from .container import ClassProvider
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
 
 
 class ReshapeInputShape(ClassProvider):
@@ -26,7 +32,7 @@ class ReshapeInputShape(ClassProvider):
         self.path = config["input_path"]
 
     def apply(self, network, input_data):
-        shapes = get_shapes_from_data(input_data, api_version='2')
+        shapes = get_shapes_from_data(input_data, api_version="2")
         log.info("OV Model will be reshaped on {}".format(shapes))
         network.reshape(shapes)
         return network
@@ -90,8 +96,8 @@ class SetBatchReshape(ClassProvider):
 
     def __init__(self, config):
         self.batch = config["batch"]
-        self.target_layers = config.get('target_layers', None)
-        self.batch_dim = config.get('batch_dim', 0)
+        self.target_layers = config.get("target_layers", None)
+        self.batch_dim = config.get("batch_dim", 0)
 
     def apply(self, network, **kwargs):
         log.info("OV Model's batch will be set to {}".format(self.batch))
@@ -104,13 +110,21 @@ class SetBatchReshape(ClassProvider):
                     input_name = common_names.pop()
             input_shapes[input_name] = network_input.get_partial_shape()
 
-        apply_to = self.target_layers if self.target_layers is not None else input_shapes.keys()
+        apply_to = (
+            self.target_layers
+            if self.target_layers is not None
+            else input_shapes.keys()
+        )
 
         reshaped = False
         for layer in apply_to:
             if input_shapes[layer][self.batch_dim] == self.batch:
-                log.info("For layer '{}' target shape {} "
-                         "equals to initial shape, no reshape done".format(layer, input_shapes[layer]))
+                log.info(
+                    "For layer '{}' target shape {} "
+                    "equals to initial shape, no reshape done".format(
+                        layer, input_shapes[layer]
+                    )
+                )
                 continue
             input_shapes[layer][self.batch_dim] = self.batch
             reshaped = True
@@ -132,9 +146,15 @@ class AddOutputs(ClassProvider):
 
     def __init__(self, config):
         self.outputs = config["outputs"]
-        assert self.outputs is not None, 'The "outputs" must be specified for the Network output modifier'
+        assert (
+            self.outputs is not None
+        ), 'The "outputs" must be specified for the Network output modifier'
 
     def apply(self, network, **kwargs):
-        log.info("IE Network outputs will be expanded with the following ones: {}".format(self.outputs))
+        log.info(
+            "IE Network outputs will be expanded with the following ones: {}".format(
+                self.outputs
+            )
+        )
         network.add_outputs(self.outputs)
         return network

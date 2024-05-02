@@ -3,9 +3,10 @@
 //
 
 #pragma once
+#include <string>
+
 #include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "primitive_inst.h"
-#include <string>
 
 namespace cldnn {
 

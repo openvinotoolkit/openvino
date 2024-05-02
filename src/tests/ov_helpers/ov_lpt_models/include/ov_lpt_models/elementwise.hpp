@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <memory>
 #include <low_precision/layer_transformation.hpp>
+#include <memory>
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/convolution.hpp"

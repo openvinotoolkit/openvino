@@ -3,8 +3,10 @@
 //
 
 #include "single_op_tests/nonzero.hpp"
-#include "common_test_utils/test_constants.hpp"
+
 #include <vector>
+
+#include "common_test_utils/test_constants.hpp"
 
 namespace {
 using ov::test::NonZeroLayerTest;
@@ -25,11 +27,12 @@ const std::vector<ov::element::Type> model_types = {
 
 std::map<std::string, std::string> config = {};
 
-INSTANTIATE_TEST_SUITE_P(smoke_nonzero, NonZeroLayerTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
-                            ::testing::ValuesIn(model_types),
-                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                            ::testing::Values(config)),
-                        NonZeroLayerTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(
+    smoke_nonzero,
+    NonZeroLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(config)),
+    NonZeroLayerTest::getTestCaseName);
+}  // namespace

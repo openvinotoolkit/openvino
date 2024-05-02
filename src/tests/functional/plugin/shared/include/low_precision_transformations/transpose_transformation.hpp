@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -21,14 +21,10 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    std::string,
-    TransposeTransformationTestValues> TransposeTransformationParams;
+typedef std::tuple<ov::element::Type, std::string, TransposeTransformationTestValues> TransposeTransformationParams;
 
-class TransposeTransformation :
-    public testing::WithParamInterface<TransposeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class TransposeTransformation : public testing::WithParamInterface<TransposeTransformationParams>,
+                                public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj);
 

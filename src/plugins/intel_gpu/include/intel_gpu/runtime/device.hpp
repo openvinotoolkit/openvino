@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "device_info.hpp"
-#include "memory_caps.hpp"
-#include "layout.hpp"
-
 #include <memory>
+
+#include "device_info.hpp"
+#include "layout.hpp"
+#include "memory_caps.hpp"
 
 namespace cldnn {
 

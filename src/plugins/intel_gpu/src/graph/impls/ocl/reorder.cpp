@@ -3,11 +3,10 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "reorder_inst.h"
-#include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_weights_kernel_selector.h"
+#include "reorder_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -86,19 +85,20 @@ public:
 
         if (params.mode != kernel_selector::mean_subtruct_mode::NONE) {
             switch (primitive->mean_mode) {
-                case reorder_mean_mode::none:
-                    params.mean_op = kernel_selector::mean_op::NONE;
-                    break;
-                case reorder_mean_mode::mul:
-                    params.mean_op = kernel_selector::mean_op::MUL;
-                    break;
-                case reorder_mean_mode::subtract:
-                    params.mean_op = kernel_selector::mean_op::SUB;
-                    break;
-                case reorder_mean_mode::div:
-                    params.mean_op = kernel_selector::mean_op::DIV;
-                    break;
-                default: OPENVINO_ASSERT(false, "[GPU] Unsupported mean_mode value in primitive ", primitive->id);
+            case reorder_mean_mode::none:
+                params.mean_op = kernel_selector::mean_op::NONE;
+                break;
+            case reorder_mean_mode::mul:
+                params.mean_op = kernel_selector::mean_op::MUL;
+                break;
+            case reorder_mean_mode::subtract:
+                params.mean_op = kernel_selector::mean_op::SUB;
+                break;
+            case reorder_mean_mode::div:
+                params.mean_op = kernel_selector::mean_op::DIV;
+                break;
+            default:
+                OPENVINO_ASSERT(false, "[GPU] Unsupported mean_mode value in primitive ", primitive->id);
             }
         }
 
@@ -175,7 +175,9 @@ attach_reorder_impl::attach_reorder_impl() {
     };
     implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
 
-    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
+    WeightsReordersFactory::add(cldnn::impl_types::ocl,
+                                shape_types::static_shape,
+                                reorder_impl::create_reorder_weights);
 }
 
 }  // namespace detail

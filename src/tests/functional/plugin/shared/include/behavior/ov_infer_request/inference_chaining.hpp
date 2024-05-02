@@ -30,14 +30,14 @@ namespace behavior {
 
 class OVInferenceChaining : public OVInferRequestTests {
 protected:
-    static std::shared_ptr<ov::Model> getFirstStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getFirstStaticFunction(const ov::PartialShape& shape = {3});
 
-    static std::shared_ptr<ov::Model> getSecondStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getSecondStaticFunction(const ov::PartialShape& shape = {3});
 
-    static std::shared_ptr<ov::Model> getThirdStaticFunction(const ov::PartialShape &shape = {3});
+    static std::shared_ptr<ov::Model> getThirdStaticFunction(const ov::PartialShape& shape = {3});
 
-    template<typename T>
-    ov::Tensor tensor(const std::vector<T> &v) {
+    template <typename T>
+    ov::Tensor tensor(const std::vector<T>& v) {
         auto type = ov::element::from<T>();
         ov::Tensor tensor(type, {v.size()});
         std::memcpy(tensor.data(), v.data(), v.size() * type.size());

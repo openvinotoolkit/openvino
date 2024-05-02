@@ -1,10 +1,11 @@
 #
 # gather_nd paddle model generator
 #
-import numpy as np
-from save_model import saveModel
-import paddle
 import sys
+
+import numpy as np
+import paddle
+from save_model import saveModel
 
 
 def gather_nd(name: str, x, y):

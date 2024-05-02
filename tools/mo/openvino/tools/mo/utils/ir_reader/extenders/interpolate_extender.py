@@ -6,8 +6,8 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class Interpolate_extender(Extender):
-    op = 'Interpolate'
+    op = "Interpolate"
 
     @staticmethod
     def extend(op: Node):
-        Extender.attr_to_list(op, 'axes')
+        Extender.attr_to_list(op, "axes")

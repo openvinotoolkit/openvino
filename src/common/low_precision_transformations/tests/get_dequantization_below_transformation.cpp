@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include <gtest/gtest.h>
 
 #include <map>
 #include <memory>
@@ -10,13 +10,12 @@
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
-#include "low_precision/fake_quantize_decomposition.hpp"
-
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ov_lpt_models/get_dequantization.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/common/fake_quantize_dequantization.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/network_helper.hpp"
+#include "ov_lpt_models/get_dequantization.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -44,38 +43,34 @@ inline std::ostream& operator<<(std::ostream& out, const GetDequantizationBelowT
     return out << "_" << testValue.fakeQuantize << "_" << testValue.dequantization;
 }
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::Shape,
-    GetDequantizationBelowTestValues> GetDequantizationBelowParams;
+typedef std::tuple<ov::element::Type, ov::Shape, GetDequantizationBelowTestValues> GetDequantizationBelowParams;
 
-class GetDequantizationBelowTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationBelowParams> {
+class GetDequantizationBelowTransformation : public LayerTransformation,
+                                             public testing::WithParamInterface<GetDequantizationBelowParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
         const ov::Shape shape = std::get<1>(GetParam());
         const GetDequantizationBelowTestValues testValues = std::get<2>(GetParam());
 
-        auto const model = ov::builder::subgraph::GetDequantizationFunction::get(
-            precision,
-            shape,
-            testValues.fakeQuantize,
-            testValues.dequantization);
+        auto const model = ov::builder::subgraph::GetDequantizationFunction::get(precision,
+                                                                                 shape,
+                                                                                 testValues.fakeQuantize,
+                                                                                 testValues.dequantization);
 
-        auto const fakeQuantize = model->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+        auto const fakeQuantize =
+            model->get_parameters()[0]->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
         auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantizationBelow(fakeQuantize);
 
-        actualFunction = ov::builder::subgraph::GetDequantizationFunction::get(
-            precision,
-            shape,
-            testValues.fakeQuantize,
-            dequantization);
+        actualFunction = ov::builder::subgraph::GetDequantizationFunction::get(precision,
+                                                                               shape,
+                                                                               testValues.fakeQuantize,
+                                                                               dequantization);
 
-        referenceFunction = ov::builder::subgraph::GetDequantizationFunction::get(
-            precision,
-            shape,
-            testValues.fakeQuantize,
-            testValues.dequantization);
+        referenceFunction = ov::builder::subgraph::GetDequantizationFunction::get(precision,
+                                                                                  shape,
+                                                                                  testValues.fakeQuantize,
+                                                                                  testValues.dequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<GetDequantizationBelowParams> obj) {
@@ -101,34 +96,19 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 const std::vector<GetDequantizationBelowTestValues> testValues = {
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
-        { ov::element::f32, {}, { 0.01f } }
-    },
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
-        { ov::element::f32, { 127.f }, { 0.01f } }
-    },
-    {
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f }, ov::element::u8 },
-        {
-            ov::element::f32,
-            {{ 127.f }, ov::element::f32, {}, false, 1, ov::element::u8, true},
-            { 0.01f }
-        }
-    }
-};
+    {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}, ov::element::u8}, {ov::element::f32, {}, {0.01f}}},
+    {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}, ov::element::u8}, {ov::element::f32, {127.f}, {0.01f}}},
+    {{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}, ov::element::u8},
+     {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {0.01f}}}};
 
 const std::vector<ov::Shape> shapes = {
-    { 1, 32, 72, 48 },
+    {1, 32, 72, 48},
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    GetDequantizationBelowTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    GetDequantizationBelowTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         GetDequantizationBelowTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(testValues)),
+                         GetDequantizationBelowTransformation::getTestCaseName);

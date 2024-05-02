@@ -5,17 +5,17 @@
 #include "low_precision_transformations/pull_reshape_through_dequantization_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
+std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(
+    const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -25,14 +25,10 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
-           inputShape << "_" <<
-        elementwiseConstantShapes << "_" <<
-        testValues.precisionBeforeDequantization << "_" <<
-        testValues.dequantizationOnActivations << "_" <<
-        testValues.weights.outPrecision << "_" <<
-        testValues.weights.values[0] << " _" <<
-        testValues.dequantizationOnWeights;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << inputShape << "_"
+           << elementwiseConstantShapes << "_" << testValues.precisionBeforeDequantization << "_"
+           << testValues.dequantizationOnActivations << "_" << testValues.weights.outPrecision << "_"
+           << testValues.weights.values[0] << " _" << testValues.dequantizationOnWeights;
     return result.str();
 }
 
@@ -56,22 +52,21 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         testValues.dequantizationOnWeights.multiply.constantShape = elementwiseConstantShapes;
     }
 
-    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        testValues.precisionBeforeDequantization,
-        inputShape,
-        testValues.fakeQuantizeOnData,
-        {},
-        testValues.dequantizationOnActivations,
-        testValues.weights,
-        {},
-        {},
-        testValues.dequantizationOnWeights,
-        testValues.reshape1,
-        testValues.multiply,
-        testValues.transpose,
-        testValues.reshape2,
-        testValues.dequantizationAfter,
-        "GroupConvolution");
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(testValues.precisionBeforeDequantization,
+                                                                              inputShape,
+                                                                              testValues.fakeQuantizeOnData,
+                                                                              {},
+                                                                              testValues.dequantizationOnActivations,
+                                                                              testValues.weights,
+                                                                              {},
+                                                                              {},
+                                                                              testValues.dequantizationOnWeights,
+                                                                              testValues.reshape1,
+                                                                              testValues.multiply,
+                                                                              testValues.transpose,
+                                                                              testValues.reshape2,
+                                                                              testValues.dequantizationAfter,
+                                                                              "GroupConvolution");
 }
 
 void PullReshapeThroughDequantizationTransformation::run() {

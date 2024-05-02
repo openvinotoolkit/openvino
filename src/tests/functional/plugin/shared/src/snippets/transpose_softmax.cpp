@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/transpose_softmax.hpp"
-#include "subgraph_softmax.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_softmax.hpp"
 
 namespace ov {
 namespace test {
@@ -74,7 +75,6 @@ TEST_P(TransposeSoftmaxEltwise, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

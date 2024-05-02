@@ -12,12 +12,11 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -27,11 +26,12 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     MATCHER_SCOPE(ReshapeTransformation);
     auto input = ov::pass::pattern::any_input();
     auto mul_const_m = pattern::wrap_type<ov::opset1::Constant>();
-    auto mul_m = pattern::wrap_type<ov::opset1::Multiply>({ input, mul_const_m });
+    auto mul_m = pattern::wrap_type<ov::opset1::Multiply>({input, mul_const_m});
     auto reshape_pattern_const = pattern::wrap_type<ov::opset1::Constant>();
     auto reshape_pattern_nonconst = ov::pass::pattern::any_input();
-    auto reshape_pattern = std::make_shared<pass::pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
-    auto matcher = pattern::wrap_type<ov::opset1::Reshape>({ mul_m, reshape_pattern });
+    auto reshape_pattern =
+        std::make_shared<pass::pattern::op::Or>(OutputVector{reshape_pattern_const, reshape_pattern_nonconst});
+    auto matcher = pattern::wrap_type<ov::opset1::Reshape>({mul_m, reshape_pattern});
 
     ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -57,14 +57,16 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
 
 namespace {
 
-void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::vector<ov::element::Type>& defaultPrecisions) {
+void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& reshape,
+                                   const std::vector<ov::element::Type>& defaultPrecisions) {
     // Reshape dequantization operation Constant.
-    //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
-    //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
-    //    where '4' calculated for temporary broadcast before reshape.
+    //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant
+    //    shape and Reshape output. For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3},
+    //    result for broadcast: {1, 3, 4, 1}, where '4' calculated for temporary broadcast before reshape.
     //    2. Broadcast dequantization Constant, if channels are changed
     //    3. Reshape and replace
-    auto replaceConstant = [](const std::shared_ptr<ov::opset1::Reshape>& reshape, const std::shared_ptr<ov::opset1::Constant>& originalConstant) {
+    auto replaceConstant = [](const std::shared_ptr<ov::opset1::Reshape>& reshape,
+                              const std::shared_ptr<ov::opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
         if (NetworkHelper::isScalarLike(originalConstant)) {
@@ -95,7 +97,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
             return;
         }
 
-        auto getBCastedConst = [](const std::shared_ptr<ov::opset1::Constant>& constant, size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
+        auto getBCastedConst = [](const std::shared_ptr<ov::opset1::Constant>& constant,
+                                  size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
             if (dimensionsToBroadcast == 1ul) {
                 return constant;
             }
@@ -108,10 +111,10 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
                 newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
             }
 
-            const auto targetShapeConstant = ov::opset1::Constant::create(
-                element::i32,
-                Shape{ newOperationConstantBroadcastedShape.size() },
-                newOperationConstantBroadcastedShape);
+            const auto targetShapeConstant =
+                ov::opset1::Constant::create(element::i32,
+                                             Shape{newOperationConstantBroadcastedShape.size()},
+                                             newOperationConstantBroadcastedShape);
 
             return fold<ov::opset1::Broadcast>(constant, targetShapeConstant);
         };
@@ -120,15 +123,13 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = static_cast<int>(reshapeOutputPShape[1].get_length());
-        const std::shared_ptr<ov::opset1::Constant> newReshapeConstant = std::make_shared<ov::opset1::Constant>(
-            element::i32,
-            Shape({ newReshapeConstValues.size() }),
-            newReshapeConstValues);
+        const std::shared_ptr<ov::opset1::Constant> newReshapeConstant =
+            std::make_shared<ov::opset1::Constant>(element::i32,
+                                                   Shape({newReshapeConstValues.size()}),
+                                                   newReshapeConstValues);
 
-        const std::shared_ptr<Node> resultConstant = fold<ov::opset1::Reshape>(
-            broadcastedConstant,
-            newReshapeConstant,
-            reshape->get_special_zero());
+        const std::shared_ptr<Node> resultConstant =
+            fold<ov::opset1::Reshape>(broadcastedConstant, newReshapeConstant, reshape->get_special_zero());
 
         replace_node(originalConstant, resultConstant);
     };
@@ -144,9 +145,9 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
     }
 }
 
-} // namespace
+}  // namespace
 
-bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<ov::opset1::Reshape> reshape = ov::as_type_ptr<ov::opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
@@ -156,9 +157,11 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
         return false;
     }
 
-    reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
+    reshape =
+        ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
+    const auto newOperation =
+        moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
@@ -209,7 +212,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
 
     if (!ignorePerTensorQuantizationCheck &&
         (((dequantization.subtract == nullptr) || NetworkHelper::isScalarLike(dequantization.subtractConstant)) &&
-        ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
+         ((dequantization.multiply == nullptr) || NetworkHelper::isScalarLike(dequantization.multiplyConstant)))) {
         return true;
     }
 
@@ -218,7 +221,8 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         return false;
     }
 
-    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
+    const Shape subtractShape =
+        dequantization.subtract == nullptr ? Shape{} : dequantization.subtractConstant->get_shape();
     Shape subtractShapeWithBatch = subtractShape;
     const PartialShape inputPShape = op->get_input_partial_shape(0);
     if (inputPShape.rank().is_dynamic()) {
@@ -227,16 +231,15 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
 
     const size_t inputRank = inputPShape.rank().get_length();
 
-    if ((dequantization.subtract != nullptr) &&
-        (subtractShapeWithBatch.size() > 1ul) &&
+    if ((dequantization.subtract != nullptr) && (subtractShapeWithBatch.size() > 1ul) &&
         (subtractShapeWithBatch.size() < inputRank)) {
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), 1ul);
     }
 
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
+    const Shape multiplyShape =
+        dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
     Shape multiplyShapeWithBatch = multiplyShape;
-    if ((dequantization.multiply != nullptr) &&
-        (multiplyShapeWithBatch.size() > 1ul) &&
+    if ((dequantization.multiply != nullptr) && (multiplyShapeWithBatch.size() > 1ul) &&
         (multiplyShapeWithBatch.size() < inputRank)) {
         multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), 1ul);
     }
@@ -258,11 +261,10 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputPShape, outputPShape);
 }
 
-bool ReshapeTransformation::canBeTransformed(
-    const ov::Shape& subtractShape,
-    const ov::Shape& multiplyShape,
-    const ov::PartialShape& inputShape,
-    const ov::PartialShape& outputShape) {
+bool ReshapeTransformation::canBeTransformed(const ov::Shape& subtractShape,
+                                             const ov::Shape& multiplyShape,
+                                             const ov::PartialShape& inputShape,
+                                             const ov::PartialShape& outputShape) {
     const size_t inputRank = inputShape.rank().get_length();
     const size_t outputRank = outputShape.rank().get_length();
 
@@ -270,9 +272,11 @@ bool ReshapeTransformation::canBeTransformed(
         return false;
     }
 
-    const size_t lastNotBroadcastedDimension = std::max(getLastNotBroadcastedDimension(subtractShape), getLastNotBroadcastedDimension(multiplyShape));
+    const size_t lastNotBroadcastedDimension =
+        std::max(getLastNotBroadcastedDimension(subtractShape), getLastNotBroadcastedDimension(multiplyShape));
     const size_t firstChangedDimension = getFirstChangedDimension(inputShape, outputShape);
-    // LPT supports channel on the second dimension natively <= reshape transformation supports more shapes for this case
+    // LPT supports channel on the second dimension natively <= reshape transformation supports more shapes for this
+    // case
     if ((lastNotBroadcastedDimension == 1ul) && (firstChangedDimension == 1ul)) {
         return true;
     }
@@ -284,6 +288,6 @@ bool ReshapeTransformation::canBeTransformed(
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

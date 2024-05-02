@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "schedule.hpp"
 #include "async_infer_request.hpp"
+#include "schedule.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -15,7 +15,7 @@ class AutoSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
     virtual ~AutoSchedule();
-    AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
+    AutoCompileContext m_compile_context[CONTEXTNUM];
 
 private:
     void init() override;
@@ -31,13 +31,13 @@ private:
     SoCompiledModel wait_first_compiled_model_ready() override;
     void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) override;
     bool select_other_device(const std::string& cur_dev_name) override;
-    size_t                                                               m_cpuhelp_infer_count = 0;
-    double                                                               m_cpuhelp_fps = 0.0;
-    mutable std::once_flag                                               m_oc;
-    std::once_flag                                                       m_firstload_oc;
-    std::future<void>                                                    m_firstload_future;
-    std::promise<void>                                                   m_firstload_promise;
-    bool                                                                 m_exitflag = {false};
+    size_t m_cpuhelp_infer_count = 0;
+    double m_cpuhelp_fps = 0.0;
+    mutable std::once_flag m_oc;
+    std::once_flag m_firstload_oc;
+    std::future<void> m_firstload_future;
+    std::promise<void> m_firstload_promise;
+    bool m_exitflag = {false};
 };
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "reduce_kernel_base.h"
 #include <vector>
+
+#include "reduce_kernel_base.h"
 
 namespace kernel_selector {
 class ReduceKernel_b_fs_yx_fsv16 : public ReduceKernelBase {
@@ -19,9 +20,7 @@ public:
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

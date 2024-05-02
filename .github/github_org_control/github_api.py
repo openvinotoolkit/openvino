@@ -13,7 +13,12 @@ import time
 import typing
 from pathlib import Path
 
-from github import Github, GithubException, RateLimitExceededException, IncompletableObject
+from github import (
+    Github,
+    GithubException,
+    IncompletableObject,
+    RateLimitExceededException,
+)
 from github.PaginatedList import PaginatedList
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -46,7 +51,12 @@ def is_valid_name(name):
 
 def is_intel_email(email):
     """Checks that email is valid Intel email"""
-    return email and len(email) > 10 and " " not in email and email.lower().endswith("@intel.com")
+    return (
+        email
+        and len(email) > 10
+        and " " not in email
+        and email.lower().endswith("@intel.com")
+    )
 
 
 def is_intel_company(company):
@@ -57,7 +67,11 @@ def is_intel_company(company):
 def is_valid_intel_user(user):
     """Checks that user is valid GitHub and Intel user"""
     try:
-        return is_valid_user(user) and is_valid_name(user.name) and is_intel_email(user.email)
+        return (
+            is_valid_user(user)
+            and is_valid_name(user.name)
+            and is_intel_email(user.email)
+        )
     except IncompletableObject:
         return False
 
@@ -65,7 +79,9 @@ def is_valid_intel_user(user):
 def print_users(users):
     """Print list of users in different formats: list, set, PaginatedList"""
     if isinstance(users, (list, set, PaginatedList)):
-        users_count = users.totalCount if isinstance(users, PaginatedList) else len(users)
+        users_count = (
+            users.totalCount if isinstance(users, PaginatedList) else len(users)
+        )
         print(f"GitHub users {users_count} (login - name - company - email - valid):")
     else:
         users = [users]
@@ -128,7 +144,9 @@ class GithubOrgApi:
         self._cfg = Config()
         self.github = Github(self._cfg.GITHUB_TOKEN)
         self.github_org = self.github.get_organization(self._cfg.GITHUB_ORGANIZATION)
-        self.repo = self.github.get_repo(f"{self._cfg.GITHUB_ORGANIZATION}/{self._cfg.GITHUB_REPO}")
+        self.repo = self.github.get_repo(
+            f"{self._cfg.GITHUB_ORGANIZATION}/{self._cfg.GITHUB_REPO}"
+        )
         self.github_users_by_email = {}
         self.org_members_by_login = {}
         self.members_to_remove = set()
@@ -147,7 +165,9 @@ class GithubOrgApi:
         org_members = self.github_org.get_members()
         org_emails = set()
 
-        print(f"\nOrg members {org_members.totalCount} (login - name - company - email - valid):")
+        print(
+            f"\nOrg members {org_members.totalCount} (login - name - company - email - valid):"
+        )
         for org_member in org_members:
             self.org_members_by_login[org_member.login.lower()] = org_member
             print_users(org_member)
@@ -295,7 +315,9 @@ class GithubOrgApi:
                     print_users(user)
                     no_account_names.add(email)
             else:
-                print(f"{email} - Non public or wrong email in GitHub account: ", end="")
+                print(
+                    f"{email} - Non public or wrong email in GitHub account: ", end=""
+                )
                 print_users(user)
                 no_account_emails.add(email)
 
@@ -355,7 +377,9 @@ class GithubOrgApi:
             dry_run = True
 
         for user in users:
-            member = self.get_github_user_by_email(user) if isinstance(user, str) else user
+            member = (
+                self.get_github_user_by_email(user) if isinstance(user, str) else user
+            )
             print(f'{member.login} - "{member.name}" - {member.email} - ', end="")
             try:
                 if is_user_ignored(member):

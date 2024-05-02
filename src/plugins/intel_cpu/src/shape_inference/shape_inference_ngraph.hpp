@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "shape_inference_cpu.hpp"
 #include "shape_inference.hpp"
+#include "shape_inference_cpu.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -20,9 +20,8 @@ public:
         : m_shape_infer(shape_infer),
           m_port_mask(port_mask) {}
 
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     const ov::CoordinateDiff& get_pads_begin() override {
@@ -34,10 +33,11 @@ public:
     port_mask_t get_port_mask() const override {
         return m_port_mask;
     }
+
 private:
     std::shared_ptr<IStaticShapeInfer> m_shape_infer;
     IShapeInfer::port_mask_t m_port_mask;
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

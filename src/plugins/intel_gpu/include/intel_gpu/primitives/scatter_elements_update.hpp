@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -32,7 +32,10 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
                             const ScatterElementsUpdateOp::Reduction mode = ScatterElementsUpdateOp::Reduction::NONE,
                             const bool use_init_val = true,
                             const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, {output_padding}), axis(axis), mode(mode), use_init_val(use_init_val) {}
+        : primitive_base(id, {data, idx, idupd}, {output_padding}),
+          axis(axis),
+          mode(mode),
+          use_init_val(use_init_val) {}
 
     /// @brief ScatterElementsUpdate axis
     int64_t axis{0};
@@ -55,8 +58,7 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
 
         auto rhs_casted = downcast<const scatter_elements_update>(rhs);
 
-        return axis == rhs_casted.axis && mode == rhs_casted.mode
-                    && use_init_val == rhs_casted.use_init_val;
+        return axis == rhs_casted.axis && mode == rhs_casted.mode && use_init_val == rhs_casted.use_init_val;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

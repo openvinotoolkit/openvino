@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <transformations/cpu_opset/common/pass/move_fc_reshape_to_weights.hpp>
-
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <string>
 #include <transformations/cpu_opset/common/op/fully_connected.hpp>
+#include <transformations/cpu_opset/common/pass/move_fc_reshape_to_weights.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -23,17 +21,17 @@ using namespace ov::intel_cpu;
 enum class ZeroPointType { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     switch (type) {
-        case ZeroPointType::NO_ZP:
-            os << "NO_ZP";
-            break;
-        case ZeroPointType::ZP_WEIGHTS_PRC:
-            os << "ZP_WEIGHTS_PRC";
-            break;
-        case ZeroPointType::ZP_DECOMPRESSION_PRC:
-            os << "ZP_DECOMPRESSION_PRC";
-            break;
-        default:
-            OPENVINO_THROW("Unknown ZeroPointType");
+    case ZeroPointType::NO_ZP:
+        os << "NO_ZP";
+        break;
+    case ZeroPointType::ZP_WEIGHTS_PRC:
+        os << "ZP_WEIGHTS_PRC";
+        break;
+    case ZeroPointType::ZP_DECOMPRESSION_PRC:
+        os << "ZP_DECOMPRESSION_PRC";
+        break;
+    default:
+        OPENVINO_THROW("Unknown ZeroPointType");
     }
     return os;
 }
@@ -41,14 +39,14 @@ inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
 enum class ZeroPointShape { SCALAR, PER_CHANNEL };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointShape type) {
     switch (type) {
-        case ZeroPointShape::SCALAR:
-            os << "SCALAR";
-            break;
-        case ZeroPointShape::PER_CHANNEL:
-            os << "PER_CHANNEL";
-            break;
-        default:
-            OPENVINO_THROW("Unknown ZeroPointShape");
+    case ZeroPointShape::SCALAR:
+        os << "SCALAR";
+        break;
+    case ZeroPointShape::PER_CHANNEL:
+        os << "PER_CHANNEL";
+        break;
+    default:
+        OPENVINO_THROW("Unknown ZeroPointShape");
     }
     return os;
 }
@@ -58,7 +56,8 @@ using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::
                                                 ZeroPointType,
                                                 ZeroPointShape>;
 
-class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
+class MoveFCReshapeToWeightsTests : public TransformationTestsF,
+                                    public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
         std::pair<ov::PartialShape, ov::Shape> input_shapes;
@@ -91,7 +90,8 @@ public:
         ov::Shape decompression_shape(weights_shape.size(), 1);
         const size_t n_idx = add_transpose ? transposed_shape.size() - 1 : transposed_shape.size() - 2;
         decompression_shape[n_idx] = transposed_shape[n_idx];
-        ov::Shape subtract_shape = zp_shape != ZeroPointShape::SCALAR ? decompression_shape : ov::Shape(weights_shape.size(), 1);
+        ov::Shape subtract_shape =
+            zp_shape != ZeroPointShape::SCALAR ? decompression_shape : ov::Shape(weights_shape.size(), 1);
 
         if (zp_type == ZeroPointType::ZP_DECOMPRESSION_PRC) {
             auto sub_const = ov::opset1::Constant::create(weights_prc, subtract_shape, {1});
@@ -138,24 +138,17 @@ protected:
 
 TEST_P(MoveFCReshapeToWeightsTests, CompareFunctions) {}
 
-const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {
-    {{-1, -1, -1}, {1, 4, 3}}
-};
+const std::vector<std::pair<ov::PartialShape, ov::Shape>> input_shapes_wo_transpose = {{{-1, -1, -1}, {1, 4, 3}}};
 const std::vector<bool> add_transpose = {false, true};
-const std::vector<ZeroPointType> zp_types = {
-    ZeroPointType::NO_ZP,
-    ZeroPointType::ZP_DECOMPRESSION_PRC,
-    ZeroPointType::ZP_WEIGHTS_PRC
-};
-const std::vector<ZeroPointShape> zp_shapes = {
-    ZeroPointShape::SCALAR,
-    ZeroPointShape::PER_CHANNEL
-};
+const std::vector<ZeroPointType> zp_types = {ZeroPointType::NO_ZP,
+                                             ZeroPointType::ZP_DECOMPRESSION_PRC,
+                                             ZeroPointType::ZP_WEIGHTS_PRC};
+const std::vector<ZeroPointShape> zp_shapes = {ZeroPointShape::SCALAR, ZeroPointShape::PER_CHANNEL};
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose, MoveFCReshapeToWeightsTests,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(input_shapes_wo_transpose),
-                                ::testing::ValuesIn(add_transpose),
-                                ::testing::ValuesIn(zp_types),
-                                ::testing::ValuesIn(zp_shapes)),
-                            MoveFCReshapeToWeightsTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(TransformationTests_wo_transpose,
+                         MoveFCReshapeToWeightsTests,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_wo_transpose),
+                                            ::testing::ValuesIn(add_transpose),
+                                            ::testing::ValuesIn(zp_types),
+                                            ::testing::ValuesIn(zp_shapes)),
+                         MoveFCReshapeToWeightsTests::getTestCaseName);

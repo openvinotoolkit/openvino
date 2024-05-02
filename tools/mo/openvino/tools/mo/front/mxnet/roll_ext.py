@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.roll import AttributedRoll
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.roll import AttributedRoll
 
 
 class RollExtractor(FrontExtractorOp):
-    op = '_np_roll'
+    op = "_np_roll"
     enabled = True
 
     @classmethod
@@ -17,5 +17,5 @@ class RollExtractor(FrontExtractorOp):
         axis = None
         if attrs.has("axis"):
             axis = list(attrs.tuple("axis", int, None))
-        AttributedRoll.update_node_stat(node, {'axes': axis, 'shift': shift})
+        AttributedRoll.update_node_stat(node, {"axes": axis, "shift": shift})
         return cls.enabled

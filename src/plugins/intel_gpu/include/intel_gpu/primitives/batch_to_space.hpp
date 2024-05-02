@@ -7,27 +7,28 @@
 
 namespace cldnn {
 
-/// @brief The BatchToSpace operation reshapes the "batch" dimension 0 into N - 1, N ∈ {4,5,6} dimensions of shape block_shape + [batch]
-/// and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N - 1], N ∈ {4,5,6}
-/// to obtain a result with the same rank as data input.
-/// The spatial dimensions of this intermediate result are then optionally cropped according to crops_begin and crops_end to produce the output.
+/// @brief The BatchToSpace operation reshapes the "batch" dimension 0 into N - 1, N ∈ {4,5,6} dimensions of shape
+/// block_shape + [batch] and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N -
+/// 1], N ∈ {4,5,6} to obtain a result with the same rank as data input. The spatial dimensions of this intermediate
+/// result are then optionally cropped according to crops_begin and crops_end to produce the output.
 /// @details The BatchToSpace operation is similar to the TensorFlow* operation
 /// BatchToSpaceND (https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/batch-to-space-n-d)
 /// There are 4 inputs of this operation:
 /// 1) data - input N-D tensor [batch, D_1, D_2 ... D_{N-1}], N ∈ {4,5,6}. Required.
-/// 2) block_shape - input 1-D tensor with shape [N], N ∈ {4,5,6}. Consists of block_sizes each of which specifies the size of the value block to be moved.
-/// The batch dimension size must be evenly divided by (block_shape[1] * ... * block_shape[N - 1], N ∈ {4,5,6}).
-/// All values must be >= 1 and required. block_shape[0] is expected to be 1.
-/// 3) crops_begin - input 1-D tensor with shape [N], N ∈ {4,5,6}. Specifies amount to crop from the beginning along each axis of data input.
-/// All values must be non-negative and required. crops_begin[0] is expected to be 0.
-/// 4) crops_end - input 1-D tensor with shape [N], N ∈ {4,5,6}. Specifies the amount to crop from the ending along each axis of data input.
-/// All values must be non-negative and required. crops_end[0] is expected to be 0.
-/// 3-4 inputs required that crops_begin[i] + crops_end[i] < block_shape[i] * input_shape[i].
+/// 2) block_shape - input 1-D tensor with shape [N], N ∈ {4,5,6}. Consists of block_sizes each of which specifies the
+/// size of the value block to be moved. The batch dimension size must be evenly divided by (block_shape[1] * ... *
+/// block_shape[N - 1], N ∈ {4,5,6}). All values must be >= 1 and required. block_shape[0] is expected to be 1. 3)
+/// crops_begin - input 1-D tensor with shape [N], N ∈ {4,5,6}. Specifies amount to crop from the beginning along each
+/// axis of data input. All values must be non-negative and required. crops_begin[0] is expected to be 0. 4) crops_end -
+/// input 1-D tensor with shape [N], N ∈ {4,5,6}. Specifies the amount to crop from the ending along each axis of data
+/// input. All values must be non-negative and required. crops_end[0] is expected to be 0. 3-4 inputs required that
+/// crops_begin[i] + crops_end[i] < block_shape[i] * input_shape[i].
 ///
-/// The operation is equivalent to the following transformation of the input tensors data with shape [batch, D_1, D_2 ... D_{N-1}], N ∈ {4,5,6}
-/// and block_shape, crops_begin, crops_end of shape [N] to Y output tensor.
+/// The operation is equivalent to the following transformation of the input tensors data with shape [batch, D_1, D_2
+/// ... D_{N-1}], N ∈ {4,5,6} and block_shape, crops_begin, crops_end of shape [N] to Y output tensor.
 ///
-/// x' = reshape(`data`, [B_1, ..., B_{N - 1}, batch / (B_1 * ... B_{N - 1}), D_1, D_2, ..., D_{N - 1}]), where B_i = block_shape[i]
+/// x' = reshape(`data`, [B_1, ..., B_{N - 1}, batch / (B_1 * ... B_{N - 1}), D_1, D_2, ..., D_{N - 1}]), where B_i =
+/// block_shape[i]
 ///
 /// x'' = transpose(x', [N - 1, N, 0, N + 1, 1, ..., N + N - 2, N - 2])
 ///
@@ -94,8 +95,7 @@ struct batch_to_space : public primitive_base<batch_to_space> {
 
         auto rhs_casted = downcast<const batch_to_space>(rhs);
 
-        return block_shape == rhs_casted.block_shape &&
-               crops_begin == rhs_casted.crops_begin &&
+        return block_shape == rhs_casted.block_shape && crops_begin == rhs_casted.crops_begin &&
                crops_end == rhs_casted.crops_end;
     }
 

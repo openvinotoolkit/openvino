@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(BroadcastEltwiseEliminated, CompareWithRefs){
+TEST_P(BroadcastEltwiseEliminated, CompareWithRefs) {
     run();
 };
 

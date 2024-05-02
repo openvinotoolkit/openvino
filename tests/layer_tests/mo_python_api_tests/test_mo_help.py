@@ -5,11 +5,12 @@
 import os
 import sys
 import unittest
-from openvino.tools.mo import mo
-from openvino.tools.mo.utils.cli_parser import get_mo_convert_params
 from pathlib import Path
 
 from common.utils.common_utils import shell
+
+from openvino.tools.mo import mo
+from openvino.tools.mo.utils.cli_parser import get_mo_convert_params
 
 
 class TestSubprocessMoConvert(unittest.TestCase):
@@ -18,13 +19,16 @@ class TestSubprocessMoConvert(unittest.TestCase):
 
         # Test mo tool help
         mo_path = Path(mo.__file__).parent
-        mo_runner = mo_path.joinpath('main.py').as_posix()
+        mo_runner = mo_path.joinpath("main.py").as_posix()
         params = [sys.executable, mo_runner, "--help"]
         _, mo_output, _ = shell(params)
 
         # We don't expect PyTorch specific parameters to be in help message of the MO tool.
         for group in mo_convert_params:
-            if group == 'Pytorch-specific parameters:' or group == 'PaddlePaddle-specific parameters:':
+            if (
+                group == "Pytorch-specific parameters:"
+                or group == "PaddlePaddle-specific parameters:"
+            ):
                 continue
             for param_name in group:
                 assert param_name in mo_output

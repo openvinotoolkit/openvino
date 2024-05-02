@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -19,10 +19,12 @@ using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
                                              CPUSpecificParams>;
 
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CPUTestsBase {
+                            virtual public SubgraphBaseTest,
+                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj);
     static bool isInOutPrecisionSupported(ov::element::Type inPrc, ov::element::Type outPrc);
+
 protected:
     void SetUp() override;
     virtual void validate_out_prc() const;

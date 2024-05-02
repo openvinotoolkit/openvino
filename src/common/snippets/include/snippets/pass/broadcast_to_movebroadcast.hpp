@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov {
 namespace snippets {
@@ -13,16 +13,15 @@ namespace pass {
 
 /**
  * @interface BroadcastToMoveBroadcast
- * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed instead of Broadcast.
- *        Otherwise the pass removes Broadcast operation.
+ * @brief Inserts explicit MoveBroadcast instruction if broadcasting by most varying dimension is needed instead of
+ * Broadcast. Otherwise the pass removes Broadcast operation.
  * @ingroup snippets
  */
-class BroadcastToMoveBroadcast: public ov::pass::MatcherPass {
+class BroadcastToMoveBroadcast : public ov::pass::MatcherPass {
 public:
     BroadcastToMoveBroadcast();
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

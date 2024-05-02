@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
-#include "ov_lpt_models/fake_quantize.hpp"
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include <string>
 
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -20,7 +20,8 @@ public:
     ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationActualValues& values) {
+inline std::ostream& operator<<(std::ostream& out,
+                                const FakeQuantizePrecisionSelectionTransformationActualValues& values) {
     return out << values.fakeQuantizeOnData << "_" << values.fakeQuantizeOnWeights;
 }
 
@@ -31,8 +32,10 @@ public:
     ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationExpectedValues& values) {
-    return out << values.fakeQuantizeOnDataOutPrecision << "_" << values.fakeQuantizeOnData << "_" << values.fakeQuantizeOnWeights;
+inline std::ostream& operator<<(std::ostream& out,
+                                const FakeQuantizePrecisionSelectionTransformationExpectedValues& values) {
+    return out << values.fakeQuantizeOnDataOutPrecision << "_" << values.fakeQuantizeOnData << "_"
+               << values.fakeQuantizeOnWeights;
 }
 
 class FakeQuantizePrecisionSelectionTransformationTestValues {
@@ -44,20 +47,22 @@ public:
     FakeQuantizePrecisionSelectionTransformationExpectedValues expected;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSelectionTransformationTestValues& values) {
-    return out << values.operationBeforeLimitedOperationIsPrecisionTransparent << "_" << values.actual << "_" << values.expected;
+inline std::ostream& operator<<(std::ostream& out,
+                                const FakeQuantizePrecisionSelectionTransformationTestValues& values) {
+    return out << values.operationBeforeLimitedOperationIsPrecisionTransparent << "_" << values.actual << "_"
+               << values.expected;
 }
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   FakeQuantizePrecisionSelectionTransformationTestValues>
+    FakeQuantizeTransformationParams;
 
-class FakeQuantizePrecisionSelectionTransformation :
-    public testing::WithParamInterface<FakeQuantizeTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FakeQuantizePrecisionSelectionTransformation
+    : public testing::WithParamInterface<FakeQuantizeTransformationParams>,
+      public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj);
 

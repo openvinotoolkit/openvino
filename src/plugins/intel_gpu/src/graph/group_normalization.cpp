@@ -3,15 +3,16 @@
 //
 
 #include "group_normalization_inst.h"
-#include "primitive_type_base.h"
 #include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(group_normalization)
 
-layout group_normalization_inst::calc_output_layout(group_normalization_node const& node, kernel_impl_params const& impl_param) {
+layout group_normalization_inst::calc_output_layout(group_normalization_node const& node,
+                                                    kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-        "Output data type forcing is not supported for group_normalization_node!");
+           "Output data type forcing is not supported for group_normalization_node!");
     auto output_layout = impl_param.get_input_layout();
 
     if (impl_param.has_fused_primitives())
@@ -36,7 +37,7 @@ std::string group_normalization_inst::to_string(group_normalization_node const& 
     return primitive_description.str();
 }
 
-group_normalization_inst::typed_primitive_inst(network& network, group_normalization_node const& node) : parent(network, node) {
-}
+group_normalization_inst::typed_primitive_inst(network& network, group_normalization_node const& node)
+    : parent(network, node) {}
 
-} // namespace cldnn
+}  // namespace cldnn

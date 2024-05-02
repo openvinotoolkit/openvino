@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
 
@@ -50,8 +50,7 @@ public:
             }
             result << ")_";
         }
-        result << "DATA="
-               << "[" << ov::test::utils::vec2str(data) << "]_";
+        result << "DATA=" << "[" << ov::test::utils::vec2str(data) << "]_";
         result << "PRC=" << prc << "_";
 
         result << CpuTestWithFusing::getTestCaseName(fusingParams);

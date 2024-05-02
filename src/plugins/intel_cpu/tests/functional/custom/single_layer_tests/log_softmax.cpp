@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -14,10 +14,9 @@ using logSoftmaxLayerTestParams = std::tuple<std::vector<InputShape>,  // inputS
                                              ov::element::Type,        // netPrecision
                                              int64_t>;                 // axis
 
-class LogSoftmaxLayerCPUTest
-        : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
-          public SubgraphBaseTest,
-          public CPUTestsBase {
+class LogSoftmaxLayerCPUTest : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
+                               public SubgraphBaseTest,
+                               public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
         std::vector<InputShape> inputShapes;
@@ -28,15 +27,15 @@ public:
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
-            for (const auto &shape : inputShapes) {
+            for (const auto& shape : inputShapes) {
                 result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
         }
         result << "TS=";
-        for (const auto &shape : inputShapes) {
-            for (const auto &item : shape.second) {
+        for (const auto& shape : inputShapes) {
+            for (const auto& item : shape.second) {
                 result << ov::test::utils::vec2str(item) << "_";
             }
         }
@@ -73,48 +72,35 @@ TEST_P(LogSoftmaxLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32
-};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32};
 
 const std::vector<std::vector<InputShape>> inputShapes2D = {
-        {
-                {{{-1, -1}, {{1, 100}, {100, 1}, {10, 10}}}},
-                {{{-1, {1}}, {{1, 1}, {100, 1}, {10, 1}}}}
-        }
-};
+    {{{{-1, -1}, {{1, 100}, {100, 1}, {10, 10}}}}, {{{-1, {1}}, {{1, 1}, {100, 1}, {10, 1}}}}}};
 
-const std::vector<int64_t> axis2D = {
-        -2, -1, 0, 1
-};
+const std::vector<int64_t> axis2D = {-2, -1, 0, 1};
 
-const auto params2D = testing::Combine(
-        testing::ValuesIn(inputShapes2D),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(axis2D));
+const auto params2D =
+    testing::Combine(testing::ValuesIn(inputShapes2D), testing::ValuesIn(netPrecisions), testing::ValuesIn(axis2D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D_dynamic, LogSoftmaxLayerCPUTest, params2D,
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D_dynamic,
+                         LogSoftmaxLayerCPUTest,
+                         params2D,
                          LogSoftmaxLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes4D = {
-        {
-                {{{-1, -1, -1, -1}, {{1, 100, 1, 1}, {1, 3, 4, 3}, {2, 3, 4, 5}}}},
-                {{{{1, 2}, -1, {1, 5}, -1}, {{1, 100, 1, 1}, {1, 3, 5, 3}, {2, 3, 4, 5}}}}
-        }
-};
+    {{{{-1, -1, -1, -1}, {{1, 100, 1, 1}, {1, 3, 4, 3}, {2, 3, 4, 5}}}},
+     {{{{1, 2}, -1, {1, 5}, -1}, {{1, 100, 1, 1}, {1, 3, 5, 3}, {2, 3, 4, 5}}}}}};
 
-const std::vector<int64_t> axis4D = {
-        -4, -3, -2, -1, 0, 1, 2, 3
-};
+const std::vector<int64_t> axis4D = {-4, -3, -2, -1, 0, 1, 2, 3};
 
-const auto params4D = testing::Combine(
-        testing::ValuesIn(inputShapes4D),
-        testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(axis4D));
+const auto params4D =
+    testing::Combine(testing::ValuesIn(inputShapes4D), testing::ValuesIn(netPrecisions), testing::ValuesIn(axis4D));
 
-INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D_dynamic, LogSoftmaxLayerCPUTest, params4D,
+INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D_dynamic,
+                         LogSoftmaxLayerCPUTest,
+                         params4D,
                          LogSoftmaxLayerCPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

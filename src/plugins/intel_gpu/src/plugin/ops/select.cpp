@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/select.hpp"
 
-#include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/select.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -26,7 +25,9 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
 
     if (broadcast_type.m_type != ov::op::AutoBroadcastType::NONE &&
         broadcast_type.m_type != ov::op::AutoBroadcastType::NUMPY) {
-        OPENVINO_THROW("[GPU] Unsupported broadcast type (", broadcast_type.m_type, ") in layer " + op->get_friendly_name());
+        OPENVINO_THROW("[GPU] Unsupported broadcast type (",
+                       broadcast_type.m_type,
+                       ") in layer " + op->get_friendly_name());
     }
 
     if (broadcast_type.m_type == ov::op::AutoBroadcastType::NUMPY) {
@@ -44,10 +45,7 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
                 if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
                     auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                     auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                    auto reorderPrim = cldnn::reorder(reorderName,
-                                                      inputs[i],
-                                                      targetFormat,
-                                                      targetDatatype);
+                    auto reorderPrim = cldnn::reorder(reorderName, inputs[i], targetFormat, targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
 
@@ -73,12 +71,7 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
         }
     }
 
-    auto selectPrim = cldnn::select(layerName,
-                                    inputs[0],
-                                    inputs[1],
-                                    inputs[2],
-                                    broadcast_type,
-                                    cldnn::padding());
+    auto selectPrim = cldnn::select(layerName, inputs[0], inputs[1], inputs[2], broadcast_type, cldnn::padding());
 
     p.add_primitive(*op, selectPrim);
 }

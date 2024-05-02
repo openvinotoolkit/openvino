@@ -22,9 +22,8 @@ struct grn : public primitive_base<grn> {
         const float bias,
         const data_types data_type,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}, {optional_data_type{ data_type }}),
-        bias(bias)
-    {}
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{data_type}}),
+          bias(bias) {}
 
     /// @brief Bias value for whole output tensor.
     float bias = 0.0f;

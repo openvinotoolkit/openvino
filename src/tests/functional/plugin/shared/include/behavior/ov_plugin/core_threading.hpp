@@ -12,8 +12,8 @@
 #include "common_test_utils/subgraph_builders/single_conv.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Device = std::string;
@@ -283,7 +283,7 @@ protected:
         ov::Tensor weights = {};
         auto model = core.read_model(ir_with_meta, weights);
         OPENVINO_ASSERT(model);
-        models.emplace_back(model); // model with cli_parameter
+        models.emplace_back(model);  // model with cli_parameter
         // test model with runtime attributes -- layout
         model = ov::test::utils::make_split_multi_conv_concat();
         for (auto& iter : model->get_parameters())
@@ -312,8 +312,8 @@ TEST_P(CoreThreadingTestsWithCacheEnabled, smoke_compiled_model_cache_enabled) {
 }
 
 class CoreThreadingTest : public testing::WithParamInterface<Params>,
-                            public ov::test::behavior::OVPluginTestBase,
-                            public CoreThreadingTestsBase {
+                          public ov::test::behavior::OVPluginTestBase,
+                          public CoreThreadingTestsBase {
 public:
     void SetUp() override {
         std::tie(target_device, config) = GetParam();
@@ -351,7 +351,7 @@ TEST_P(CoreThreadingTest, smoke_GetVersions) {
 TEST_P(CoreThreadingTest, smoke_GetMetric) {
     auto core = ov::test::utils::create_core();
 
-    runParallel([&] () {
+    runParallel([&]() {
         core.get_property(target_device, ov::internal::supported_properties);
         safePluginUnload(core, target_device);
     });
@@ -404,8 +404,8 @@ TEST_P(CoreThreadingTest, smoke_QueryModel) {
 }
 
 class CoreThreadingTestsWithIter : public testing::WithParamInterface<CoreThreadingParams>,
-                                          public ov::test::behavior::OVPluginTestBase,
-                                          public CoreThreadingTestsBase {
+                                   public ov::test::behavior::OVPluginTestBase,
+                                   public CoreThreadingTestsBase {
 public:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -487,7 +487,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                ov::AnyMap f32_precision_property = {
+                    {ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
                 auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
@@ -531,7 +532,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
             }
 
             auto getOutputBlob = [&](ov::Core& core) {
-                ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+                ov::AnyMap f32_precision_property = {
+                    {ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
                 auto compiled_model = core.compile_model(model, target_device, f32_precision_property);
                 auto req = compiled_model.create_infer_request();
                 for (const auto& input : inputs) {
@@ -566,7 +568,8 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MultipleCores) {
     runParallel(
         [&]() {
             auto value = counter++;
-            auto core = ov::test::utils::create_core();;
+            auto core = ov::test::utils::create_core();
+            ;
             core.set_property(target_device, config);
             (void)core.compile_model(models[value % models.size()], target_device);
         },

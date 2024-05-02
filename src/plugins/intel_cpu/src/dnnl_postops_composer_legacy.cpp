@@ -3,9 +3,11 @@
 //
 
 #include "dnnl_postops_composer_legacy.h"
+
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <common/primitive_attr.hpp>
+
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -39,10 +41,10 @@ DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
         wei_scale_mask = wei_scale_values.size() > 1 ? weiScaleMaskPerChannel : 0;
         dst_scale_val = 1.0;
 
-        //set the DQscale into attr weight scale before appending any post-ops.
+        // set the DQscale into attr weight scale before appending any post-ops.
         updateWeiScales();
-        //If having the bias, attr weight scale can't be updated for further ops-ops optimization.
-        //ONEDNN 3.x quantization for scheme: QuantizedInput * QuantizedWeight * DQScale + Bias.
+        // If having the bias, attr weight scale can't be updated for further ops-ops optimization.
+        // ONEDNN 3.x quantization for scheme: QuantizedInput * QuantizedWeight * DQScale + Bias.
         weightScaleAvailable = !hasBias;
     } else if (!DQScales.empty()) {
         // DQ scale is fused but swiching back to non-INT8 for execution in some cases.
@@ -115,22 +117,22 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
         return true;
     }
     if (weightScaleAvailable) {
-        //oneDNN v3.* weight scale can also be used in the further optimization patterns.
-        // there are so many possible optimizations can be done, for example:
+        // oneDNN v3.* weight scale can also be used in the further optimization patterns.
+        //  there are so many possible optimizations can be done, for example:
         //
-        // we can switch the existing postOps's order to take
-        // advantage of output scale if it's available:
-        //    relu(x)*scale = relu(x*scale)
-        // or we can fuse it into previous one as long as they are
-        // compatible in shape
-        //    x*A*s = x*(A*s)
-        // or even with add:
-        //    (x*A + B)*s = x*(A*s) + (B*s)
-        // or we can combine these two tricks:
-        //    relu(x*A)*s = relu(x*(A*s))
+        //  we can switch the existing postOps's order to take
+        //  advantage of output scale if it's available:
+        //     relu(x)*scale = relu(x*scale)
+        //  or we can fuse it into previous one as long as they are
+        //  compatible in shape
+        //     x*A*s = x*(A*s)
+        //  or even with add:
+        //     (x*A + B)*s = x*(A*s) + (B*s)
+        //  or we can combine these two tricks:
+        //     relu(x*A)*s = relu(x*(A*s))
         //
-        // we cannot implement all of them, so we just add the one
-        // that we observed in real models.
+        //  we cannot implement all of them, so we just add the one
+        //  that we observed in real models.
         if ((ops.len() == 0))
             fuseIntoWeiScale = true;
 
@@ -201,9 +203,9 @@ bool DnnlPostOpsComposerLegacy::appendShift(const std::vector<float>& shift, boo
 }
 
 bool DnnlPostOpsComposerLegacy::appendLinear(const std::vector<float>& scale,
-                                       const std::vector<float>& shift,
-                                       bool isLastPostOp,
-                                       bool allowBinary) {
+                                             const std::vector<float>& shift,
+                                             bool isLastPostOp,
+                                             bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
             return appendScale(scale, isLastPostOp, allowBinary);

@@ -3,9 +3,10 @@
 //
 
 #include "behavior/ov_plugin/remote.hpp"
-#include "transformations/utils/utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
+
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace test {
@@ -57,9 +58,8 @@ void OVRemoteTest::TearDown() {
 }
 
 TEST_P(OVRemoteTest, canCreateRemote) {
-    auto context = context_parameters.empty()
-        ? core.get_default_context(target_device)
-        : core.create_context(target_device, context_parameters);
+    auto context = context_parameters.empty() ? core.get_default_context(target_device)
+                                              : core.create_context(target_device, context_parameters);
 
     ov::AnyMap params;
     std::string device;
@@ -71,7 +71,8 @@ TEST_P(OVRemoteTest, canCreateRemote) {
     }
     ASSERT_EQ(target_device, device);
     ov::RemoteTensor remote_tensor;
-    ASSERT_NO_THROW(remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters));
+    ASSERT_NO_THROW(remote_tensor =
+                        context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters));
 
     ASSERT_NO_THROW(params = remote_tensor.get_params());
     ASSERT_NO_THROW(device = remote_tensor.get_device_name());
@@ -82,9 +83,8 @@ TEST_P(OVRemoteTest, canCreateRemote) {
 }
 
 TEST_P(OVRemoteTest, remoteTensorAsTensor) {
-    auto context = context_parameters.empty()
-        ? core.get_default_context(target_device)
-        : core.create_context(target_device, context_parameters);
+    auto context = context_parameters.empty() ? core.get_default_context(target_device)
+                                              : core.create_context(target_device, context_parameters);
 
     auto remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
 
@@ -98,23 +98,24 @@ TEST_P(OVRemoteTest, remoteTensorAsTensor) {
 }
 
 TEST_P(OVRemoteTest, inferWithRemoteNoThrow) {
-    auto context = context_parameters.empty()
-        ? core.get_default_context(target_device)
-        : core.create_context(target_device, context_parameters);
+    auto context = context_parameters.empty() ? core.get_default_context(target_device)
+                                              : core.create_context(target_device, context_parameters);
 
     {
-        auto input_remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
+        auto input_remote_tensor =
+            context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
         ASSERT_NO_THROW(infer_request.set_input_tensor(0, input_remote_tensor));
         ASSERT_NO_THROW(infer_request.infer());
     }
     auto output = function->get_results().front();
-    {// Host accessable output if input is remote by default
+    {  // Host accessable output if input is remote by default
         ov::Tensor tensor;
         ASSERT_NO_THROW(tensor = infer_request.get_output_tensor(0));
         ASSERT_NO_THROW(tensor.data());
     }
-    {// Infer with remote on input and outputs
-        auto output_remote_tensor = context.create_tensor(output->get_element_type(), output->get_shape(), tensor_parameters);
+    {  // Infer with remote on input and outputs
+        auto output_remote_tensor =
+            context.create_tensor(output->get_element_type(), output->get_shape(), tensor_parameters);
         ASSERT_NO_THROW(infer_request.set_output_tensor(0, output_remote_tensor));
         ASSERT_NO_THROW(infer_request.infer());
     }

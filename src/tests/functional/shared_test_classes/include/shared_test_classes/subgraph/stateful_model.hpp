@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/properties.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "shared_test_classes/base/ov_subgraph.hpp"
+
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ov::test;
 
@@ -80,8 +81,8 @@ public:
         // The ReadValue/Assign operations must be used in pairs in the model.
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{inpShape, netPrc, variable_name});
+        auto variable =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{inpShape, netPrc, variable_name});
 
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_const, variable);
@@ -90,7 +91,8 @@ public:
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
         auto add2 = std::make_shared<ov::op::v1::Add>(add, read);
         auto res = std::make_shared<ov::op::v0::Result>(add2);
-        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
+        function =
+            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
     }
 
     const std::vector<float>& get_inputs() const {
@@ -101,8 +103,8 @@ public:
 
     const std::pair<std::vector<float>, std::vector<float>>& calc_refs() const {
         static const std::pair<std::vector<float>, std::vector<float>> result = {
-            {6.06f, 17.87f, 25.54f, 29.07f, 38.46f, 53.71f, 64.82f, 71.79f, 84.62f, 103.31f}, // expected_res
-            {6.06f, 11.81f, 13.73f, 15.34f, 23.12f, 30.59f, 34.23f, 37.56f, 47.06f, 56.25f} // expected_states
+            {6.06f, 17.87f, 25.54f, 29.07f, 38.46f, 53.71f, 64.82f, 71.79f, 84.62f, 103.31f},  // expected_res
+            {6.06f, 11.81f, 13.73f, 15.34f, 23.12f, 30.59f, 34.23f, 37.56f, 47.06f, 56.25f}    // expected_states
         };
         return result;
     }
@@ -182,11 +184,11 @@ public:
 
         // The ReadValue/Assign operations must be used in pairs in the model.
         // For each such a pair, its own variable object must be created.
-        auto variable0 = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{inpShape, netPrc, "variable0"});
+        auto variable0 =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{inpShape, netPrc, "variable0"});
 
-        auto variable1 = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{inpShape, netPrc, "variable1"});
+        auto variable1 =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{inpShape, netPrc, "variable1"});
 
         // Creating ov::Model
         auto read0 = std::make_shared<ov::op::v6::ReadValue>(init_const, variable0);
@@ -196,10 +198,9 @@ public:
         auto add2 = std::make_shared<ov::op::v1::Add>(add, read1);
         auto assign1 = std::make_shared<ov::op::v6::Assign>(add2, variable1);
         auto res = std::make_shared<ov::op::v0::Result>(add2);
-        function = std::make_shared<ov::Model>(
-            ov::ResultVector({res}),
-            ov::SinkVector({assign0, assign1}),
-            ov::ParameterVector({arg}));
+        function = std::make_shared<ov::Model>(ov::ResultVector({res}),
+                                               ov::SinkVector({assign0, assign1}),
+                                               ov::ParameterVector({arg}));
     }
 
     const std::vector<float>& get_inputs() const {
@@ -210,8 +211,8 @@ public:
 
     const std::pair<std::vector<float>, std::vector<float>>& calc_refs() const {
         static const std::pair<std::vector<float>, std::vector<float>> result = {
-            {11.06f, 16.81f, 18.73f, 20.34f, 28.12f, 35.59f, 39.23f, 42.56f, 52.06f, 61.25f}, // state0
-            {16.06f, 32.87f, 51.60f, 71.94f, 100.06f, 135.65f, 174.88f, 217.44f, 269.50f, 330.75f} // state1 and result
+            {11.06f, 16.81f, 18.73f, 20.34f, 28.12f, 35.59f, 39.23f, 42.56f, 52.06f, 61.25f},       // state0
+            {16.06f, 32.87f, 51.60f, 71.94f, 100.06f, 135.65f, 174.88f, 217.44f, 269.50f, 330.75f}  // state1 and result
         };
         return result;
     }
@@ -299,21 +300,35 @@ public:
             ov::op::util::VariableInfo{inputDynamicShapes.front(), netPrc, variable_name});
 
         // Creating ov::Model
-        auto read = use_param ?
-            std::make_shared<ov::op::v6::ReadValue>(arg, variable) :
-            std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto read = use_param ? std::make_shared<ov::op::v6::ReadValue>(arg, variable)
+                              : std::make_shared<ov::op::v6::ReadValue>(variable);
         std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
         auto add = std::make_shared<ov::op::v1::Add>(arg, read);
         constexpr int concat_axis = 0;
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg, add}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
         auto res = std::make_shared<ov::op::v0::Result>(concat);
-        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
+        function =
+            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
     }
 
     const std::vector<float>& get_inputs() const {
-        static const std::vector<float> input_vals =
-            {2.44f, 8.06f, 0.59f, 5.21f, 0.29f, 3.33f, 0.36f, 1.75f, 3.52f, 5.46f, 4.55f, 7.13f, 7.35f, 4.81f, 4.24f, 3.60f};
+        static const std::vector<float> input_vals = {2.44f,
+                                                      8.06f,
+                                                      0.59f,
+                                                      5.21f,
+                                                      0.29f,
+                                                      3.33f,
+                                                      0.36f,
+                                                      1.75f,
+                                                      3.52f,
+                                                      5.46f,
+                                                      4.55f,
+                                                      7.13f,
+                                                      7.35f,
+                                                      4.81f,
+                                                      4.24f,
+                                                      3.60f};
         return input_vals;
     }
 
@@ -344,7 +359,7 @@ public:
 
         for (auto&& shapes : targetStaticShapes) {
             inputs.clear();
-            auto &input_shape = shapes.front();
+            auto& input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             const auto& funcInput = funcInputs.front();
             auto tensor = ov::Tensor{testPrc, input_shape};
@@ -454,8 +469,8 @@ public:
         // The ReadValue/Assign operations must be used in pairs in the model.
         // For each such a pair, its own variable object must be created.
         const std::string variable_name("variable0");
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{{-1, -1}, netPrc, variable_name});
+        auto variable =
+            std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{-1, -1}, netPrc, variable_name});
 
         // Creating ov::Model
         auto read = std::make_shared<ov::op::v6::ReadValue>(init_param, variable);
@@ -468,20 +483,33 @@ public:
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
         auto res1 = std::make_shared<ov::op::v0::Result>(add1);
         auto res2 = std::make_shared<ov::op::v0::Result>(concat);
-        function = std::make_shared<ov::Model>(
-            ov::ResultVector({res1, res2}),
-            ov::SinkVector({assign}),
-            ov::ParameterVector({param1, param2, init_param}));
+        function = std::make_shared<ov::Model>(ov::ResultVector({res1, res2}),
+                                               ov::SinkVector({assign}),
+                                               ov::ParameterVector({param1, param2, init_param}));
     }
 
     const std::vector<float>& get_inputs() const {
-        static const std::vector<float> input_vals =
-            {2.44f, 8.06f, 0.59f, 5.21f, 0.29f, 3.33f, 0.36f, 1.75f, 3.52f, 5.46f, 4.55f, 7.13f, 7.35f, 4.81f, 4.24f, 3.60f};
+        static const std::vector<float> input_vals = {2.44f,
+                                                      8.06f,
+                                                      0.59f,
+                                                      5.21f,
+                                                      0.29f,
+                                                      3.33f,
+                                                      0.36f,
+                                                      1.75f,
+                                                      3.52f,
+                                                      5.46f,
+                                                      4.55f,
+                                                      7.13f,
+                                                      7.35f,
+                                                      4.81f,
+                                                      4.24f,
+                                                      3.60f};
         return input_vals;
     }
 
-    std::tuple<std::vector<float>, std::vector<float>>
-    calc_refs(const ov::Shape& inp_shape, std::vector<float>& vec_state) {
+    std::tuple<std::vector<float>, std::vector<float>> calc_refs(const ov::Shape& inp_shape,
+                                                                 std::vector<float>& vec_state) {
         auto size = inp_shape[1];
         auto& input_vals = get_inputs();
         std::vector<float> input1(input_vals.begin(), input_vals.begin() + size);
@@ -514,7 +542,7 @@ public:
 
         for (auto&& shapes : targetStaticShapes) {
             inputs.clear();
-            auto &input_shape = shapes.front();
+            auto& input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             for (auto&& funcInput : funcInputs) {
                 auto tensor = ov::Tensor{testPrc, input_shape};
@@ -587,37 +615,37 @@ protected:
     //             ┌─────────────┐
     //             │  Constant   │
     //             └─────┬───────┘
-    //┌──────────┐ ┌───────────────┐
-    //│  Param1  │ │OuterReadValue │
-    //└────┬─────┘ └─────┬─────────┘
+    // ┌──────────┐ ┌───────────────┐
+    // │  Param1  │ │OuterReadValue │
+    // └────┬─────┘ └─────┬─────────┘
     //     │             │
     //     │             │
     //     ▼             ▼
-    //┌─────────────────────────────────────────┐
-    //│      Loop operation(num_iterations)     │
-    //│                                         │
-    //│  ┌──────────┐  ┌──────────┐             │
-    //│  │BodyParam1│  │BodyParam2│             │
-    //│  └───┬──────┘  └────┬─────┘             │
-    //│      │              │                   │
-    //│      └─► ┌─────┐◄───┘                   │
-    //│          │ Add │     ┌─────────────────┐│
-    //│          └──┬──┘     │ InnerReadValue  ││
-    //│             │        └─────┬───────────┘│
-    //│             │              │            │
-    //│             ▼              │            │
-    //│          ┌─────┐           │            │
-    //│          │ Add │ ◄─────────┘            │
-    //│          └──┬──┘                        │
-    //│             │                           │
-    //│       ┌─────┴─────────┐                 │
-    //│       │               │                 │
-    //│       ▼               ▼                 │
-    //│ ┌────────────┐   ┌──────────────┐       │
-    //│ │ BobyResult1│   │ InnerAssign  │       │
-    //│ └────────────┘   └──────────────┘       │
-    //│                                         │
-    //└────────────┬────────────────────────────┘
+    // ┌─────────────────────────────────────────┐
+    // │      Loop operation(num_iterations)     │
+    // │                                         │
+    // │  ┌──────────┐  ┌──────────┐             │
+    // │  │BodyParam1│  │BodyParam2│             │
+    // │  └───┬──────┘  └────┬─────┘             │
+    // │      │              │                   │
+    // │      └─► ┌─────┐◄───┘                   │
+    // │          │ Add │     ┌─────────────────┐│
+    // │          └──┬──┘     │ InnerReadValue  ││
+    // │             │        └─────┬───────────┘│
+    // │             │              │            │
+    // │             ▼              │            │
+    // │          ┌─────┐           │            │
+    // │          │ Add │ ◄─────────┘            │
+    // │          └──┬──┘                        │
+    // │             │                           │
+    // │       ┌─────┴─────────┐                 │
+    // │       │               │                 │
+    // │       ▼               ▼                 │
+    // │ ┌────────────┐   ┌──────────────┐       │
+    // │ │ BobyResult1│   │ InnerAssign  │       │
+    // │ └────────────┘   └──────────────┘       │
+    // │                                         │
+    // └────────────┬────────────────────────────┘
     //             │
     //      ┌──────┴───┐   ┌────────────────┐
     //      │          │   │    Constant    │
@@ -632,15 +660,15 @@ protected:
     //              └──────────────┘
 
     using read_value_creator = std::function<std::shared_ptr<ov::op::v6::ReadValue>()>;
-    using assign_creator = std::function<std::shared_ptr<ov::op::v6::Assign>(const Output<Node> &)>;
+    using assign_creator = std::function<std::shared_ptr<ov::op::v6::Assign>(const Output<Node>&)>;
 
     static std::shared_ptr<ov::Model> create_loop_model(ov::element::Type netPrc,
-                                                 const ov::Shape &inpShape,
-                                                 int number_of_loop_iterations,
-                                                 const read_value_creator &fn_outer_read_value,
-                                                 const assign_creator &fn_outer_assign,
-                                                 const read_value_creator &fn_inner_read_value,
-                                                 const assign_creator &fn_inner_assign) {
+                                                        const ov::Shape& inpShape,
+                                                        int number_of_loop_iterations,
+                                                        const read_value_creator& fn_outer_read_value,
+                                                        const assign_creator& fn_outer_assign,
+                                                        const read_value_creator& fn_inner_read_value,
+                                                        const assign_creator& fn_inner_assign) {
         // Loop Body:
         auto body_param_1 = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
         auto body_param_2 = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
@@ -662,8 +690,7 @@ protected:
         // Outer Model:
         auto outer_param = std::make_shared<ov::op::v0::Parameter>(netPrc, inpShape);
 
-        auto trip_count = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1},
-                                                                 number_of_loop_iterations);
+        auto trip_count = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, number_of_loop_iterations);
         auto exec_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
 
         auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
@@ -707,9 +734,9 @@ protected:
     void run_test() {
         bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
-        ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
-                                                     ov::test::utils::PassRate::Statuses::SKIPPED :
-                                                     ov::test::utils::PassRate::Statuses::CRASHED;
+        ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled
+                                                         ? ov::test::utils::PassRate::Statuses::SKIPPED
+                                                         : ov::test::utils::PassRate::Statuses::CRASHED;
         summary.setDeviceName(targetDevice);
         summary.updateOPsStats(function, status, rel_influence_coef);
 
@@ -728,7 +755,7 @@ protected:
         const auto& input_vals = get_inputs();
         for (auto&& shapes : targetStaticShapes) {
             inputs.clear();
-            const auto &input_shape = shapes.front();
+            const auto& input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             for (auto&& funcInput : funcInputs) {
                 auto tensor = ov::Tensor{testPrc, input_shape};
@@ -795,37 +822,37 @@ protected:
 //             ┌─────────────┐
 //             │ Const(val=2)│
 //             └─────┬───────┘
-//┌──────────┐ ┌───────────┐
-//│  Param1  │ │ReadValue1 │
-//└────┬─────┘ └─────┬─────┘
+// ┌──────────┐ ┌───────────┐
+// │  Param1  │ │ReadValue1 │
+// └────┬─────┘ └─────┬─────┘
 //     │ val = 1     │   val = 2
 //     │             │
 //     ▼             ▼
-//┌─────────────────────────────────────────┐
-//│      Loop operation(num_iterations = 3) │
-//│                                         │
-//│  ┌──────────┐  ┌──────────┐             │
-//│  │BodyParam1│  │BodyParam2│             │
-//│  └───┬──────┘  └────┬─────┘             │
-//│      │ val = 1      │    val = 2        │
-//│      └─► ┌─────┐◄───┘                   │
-//│          │ Add │     ┌───────────┐      │
-//│          └──┬──┘     │ ReadValue2│      │
-//│             │        └─────┬─────┘      │
-//│             │val = 3       │            │
-//│             ▼              │  val =     │
-//│          ┌─────┐           │  {0;3;6}   │
-//│          │ Add │ ◄─────────┘            │
-//│          └──┬──┘                        │
-//│             │val = {3;6;9}              │
-//│       ┌─────┴─────────┐                 │
-//│       │               │                 │
-//│       ▼               ▼                 │
-//│ ┌────────────┐   ┌─────────┐            │
-//│ │ BobyResult1│   │ Assign2 │            │
-//│ └────────────┘   └─────────┘            │
-//│                                         │
-//└────────────┬────────────────────────────┘
+// ┌─────────────────────────────────────────┐
+// │      Loop operation(num_iterations = 3) │
+// │                                         │
+// │  ┌──────────┐  ┌──────────┐             │
+// │  │BodyParam1│  │BodyParam2│             │
+// │  └───┬──────┘  └────┬─────┘             │
+// │      │ val = 1      │    val = 2        │
+// │      └─► ┌─────┐◄───┘                   │
+// │          │ Add │     ┌───────────┐      │
+// │          └──┬──┘     │ ReadValue2│      │
+// │             │        └─────┬─────┘      │
+// │             │val = 3       │            │
+// │             ▼              │  val =     │
+// │          ┌─────┐           │  {0;3;6}   │
+// │          │ Add │ ◄─────────┘            │
+// │          └──┬──┘                        │
+// │             │val = {3;6;9}              │
+// │       ┌─────┴─────────┐                 │
+// │       │               │                 │
+// │       ▼               ▼                 │
+// │ ┌────────────┐   ┌─────────┐            │
+// │ │ BobyResult1│   │ Assign2 │            │
+// │ └────────────┘   └─────────┘            │
+// │                                         │
+// └────────────┬────────────────────────────┘
 //             │
 //      ┌──────┴───┐   ┌────────────────┐
 //      │ val=9    │   │  Const(val = 1)│
@@ -849,11 +876,11 @@ public:
 
         const std::string inner_variable_name("variable");
         auto inner_variable = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{inpShape, testPrc, inner_variable_name});
+            ov::op::util::VariableInfo{inpShape, testPrc, inner_variable_name});
 
         const std::string outer_variable_name("variable_2");
         auto outer_variable = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{inpShape, testPrc, outer_variable_name});
+            ov::op::util::VariableInfo{inpShape, testPrc, outer_variable_name});
 
         auto create_outer_readvalue = [outer_variable, netPrc, &inpShape]() {
             auto const_to_read = std::make_shared<ov::op::v0::Constant>(netPrc, inpShape, 2);
@@ -871,8 +898,13 @@ public:
         auto create_inner_assign = [inner_variable](const Output<Node>& input) {
             return std::make_shared<ov::op::v6::Assign>(input, inner_variable);
         };
-        function = create_loop_model(testPrc, inpShape, m_loop_iter, create_outer_readvalue,
-                                     create_outer_assign, create_inner_readvalue, create_inner_assign);
+        function = create_loop_model(testPrc,
+                                     inpShape,
+                                     m_loop_iter,
+                                     create_outer_readvalue,
+                                     create_outer_assign,
+                                     create_inner_readvalue,
+                                     create_inner_assign);
     }
 
     std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) const override {
@@ -912,5 +944,5 @@ TEST_P(StatefulModelStateInLoopBody, smoke_Run_StatefulModelStateInLoopBody) {
     }
 }
 
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

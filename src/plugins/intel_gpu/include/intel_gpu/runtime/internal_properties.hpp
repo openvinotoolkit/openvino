@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 namespace ov {
 namespace intel_gpu {
 
@@ -21,16 +20,18 @@ static constexpr Property<std::string, PropertyMutability::RO> driver_version{"G
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
-enum class QueueTypes : int16_t {
-    in_order,
-    out_of_order
-};
+enum class QueueTypes : int16_t { in_order, out_of_order };
 
 inline std::ostream& operator<<(std::ostream& os, const QueueTypes& val) {
     switch (val) {
-        case QueueTypes::in_order: os << "in-order"; break;
-        case QueueTypes::out_of_order: os << "out-of-order"; break;
-        default: os << "unknown";
+    case QueueTypes::in_order:
+        os << "in-order";
+        break;
+    case QueueTypes::out_of_order:
+        os << "out-of-order";
+        break;
+    default:
+        os << "unknown";
     }
 
     return os;
@@ -46,7 +47,8 @@ static constexpr Property<bool, PropertyMutability::RW> optimize_data{"GPU_OPTIM
 static constexpr Property<bool, PropertyMutability::RW> allow_static_input_reorder{"GPU_ALLOW_STATIC_INPUT_REORDER"};
 static constexpr Property<bool, PropertyMutability::RW> partial_build_program{"GPU_PARTIAL_BUILD"};
 static constexpr Property<bool, PropertyMutability::RW> allow_new_shape_infer{"GPU_ALLOW_NEW_SHAPE_INFER"};
-static constexpr Property<bool, PropertyMutability::RW> use_only_static_kernels_for_dynamic_shape{"GPU_USE_ONLY_STATIC_KERNELS_FOR_DYNAMIC_SHAPE"};
+static constexpr Property<bool, PropertyMutability::RW> use_only_static_kernels_for_dynamic_shape{
+    "GPU_USE_ONLY_STATIC_KERNELS_FOR_DYNAMIC_SHAPE"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
 static constexpr Property<std::vector<std::string>, PropertyMutability::RW> custom_outputs{"GPU_CUSTOM_OUTPUTS"};
 static constexpr Property<ImplForcingMap, PropertyMutability::RW> force_implementations{"GPU_FORCE_IMPLEMENTATIONS"};

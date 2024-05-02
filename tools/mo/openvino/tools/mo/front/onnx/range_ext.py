@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.range import Range
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.range import Range
 
 
 class RangeFrontExtractor(FrontExtractorOp):
-    op = 'Range'
+    op = "Range"
     enabled = True
 
     @classmethod
@@ -15,4 +15,3 @@ class RangeFrontExtractor(FrontExtractorOp):
         # output_type attribute will be deduced during shape infer
         Range.update_node_stat(node, {})
         return cls.enabled
-

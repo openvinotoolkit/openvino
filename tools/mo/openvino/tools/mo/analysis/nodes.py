@@ -9,12 +9,14 @@ class IntermediatesNodesAnalysis(AnalyzeAction):
     """
     The analyser gets node names, their shapes and values (if possible) of all nodes in the model.
     """
+
     def analyze(self, graph: Graph):
         outputs_desc = dict()
 
         for node in graph.get_op_nodes():
-            outputs_desc[node.name] = {'shape': node.soft_get('shape', None),
-                                     'data_type': None,
-                                     'value': None,
-                                     }
-        return {'intermediate': outputs_desc}, None
+            outputs_desc[node.name] = {
+                "shape": node.soft_get("shape", None),
+                "data_type": None,
+                "value": None,
+            }
+        return {"intermediate": outputs_desc}, None

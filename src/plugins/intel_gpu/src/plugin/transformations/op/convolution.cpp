@@ -3,10 +3,12 @@
 //
 
 #include "intel_gpu/op/convolution.hpp"
+
 #include <memory>
-#include "openvino/core/type/element_type.hpp"
+
 #include "convolution_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/group_conv.hpp"
 
 namespace ov {
@@ -23,10 +25,15 @@ Convolution::Convolution(const ov::Output<Node>& data_batch,
                          const int64_t& groups,
                          const ov::op::PadType& auto_pad,
                          const ov::element::Type& output_type)
-    : ov::op::util::ConvolutionFwdPropBase({data_batch, filters, bias}, strides, pads_begin, pads_end, dilations, auto_pad)
-    , m_groups(groups)
-    , m_asymmetric(false)
-    , m_output_type(output_type) {
+    : ov::op::util::ConvolutionFwdPropBase({data_batch, filters, bias},
+                                           strides,
+                                           pads_begin,
+                                           pads_end,
+                                           dilations,
+                                           auto_pad),
+      m_groups(groups),
+      m_asymmetric(false),
+      m_output_type(output_type) {
     validate_and_infer_types();
 }
 
@@ -43,10 +50,15 @@ Convolution::Convolution(const ov::Output<Node>& data_batch,
                          const int64_t& groups,
                          const ov::op::PadType& auto_pad,
                          const ov::element::Type& output_type)
-    : ov::op::util::ConvolutionFwdPropBase({data_batch, filters, bias}, strides, pads_begin, pads_end, dilations, auto_pad)
-    , m_groups(groups)
-    , m_asymmetric(true)
-    , m_output_type(output_type) {
+    : ov::op::util::ConvolutionFwdPropBase({data_batch, filters, bias},
+                                           strides,
+                                           pads_begin,
+                                           pads_end,
+                                           dilations,
+                                           auto_pad),
+      m_groups(groups),
+      m_asymmetric(true),
+      m_output_type(output_type) {
     set_argument(Args::AZP, activations_zero_point);
     set_argument(Args::WZP, weights_zero_point);
     set_argument(Args::COMPENSATION, compensations);
@@ -139,21 +151,21 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
                                           const std::vector<ov::PartialShape>& input_shapes,
                                           CoordinateDiff& pads_begin,
                                           CoordinateDiff& pads_end) {
-   if (op->get_groups() > 0) {
+    if (op->get_groups() > 0) {
         ov::op::v1::GroupConvolution tmp_op;
         tmp_op.set_strides(op->get_strides());
         tmp_op.set_dilations(op->get_dilations());
         tmp_op.set_auto_pad(op->get_auto_pad());
 
         return shape_infer(&tmp_op, input_shapes, pads_begin, pads_end);
-   } else {
+    } else {
         ov::op::v1::Convolution tmp_op;
         tmp_op.set_strides(op->get_strides());
         tmp_op.set_dilations(op->get_dilations());
         tmp_op.set_auto_pad(op->get_auto_pad());
 
         return shape_infer(&tmp_op, input_shapes, pads_begin, pads_end);
-   }
+    }
 }
 
 }  // namespace op

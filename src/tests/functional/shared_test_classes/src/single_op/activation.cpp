@@ -4,11 +4,12 @@
 
 #include "shared_test_classes/single_op/activation.hpp"
 
-#include "common_test_utils/node_builders/activation.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+
+#include "common_test_utils/node_builders/activation.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -25,84 +26,84 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     int32_t resolution;
 
     switch (activationDecl.first) {
-        case ActivationTypes::Log: {
-            data_start_from = 1;
-            data_range = 20;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Sqrt: {
-            data_start_from = 0;
-            data_range = 20;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Asin: {
-            data_start_from = -1;
-            data_range = 2;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Acos: {
-            data_start_from = -1;
-            data_range = 2;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Acosh: {
-            data_start_from = 1;
-            data_range = 200;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Atanh: {
-            data_start_from = -1;
-            data_range = 2;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::Ceiling: {
-            data_start_from = -1000;
-            data_range = 2000;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::RoundHalfToEven: {
-            data_start_from = -10;
-            data_range = 20;
-            resolution = 4;
-            break;
-        }
-        case ActivationTypes::RoundHalfAwayFromZero: {
-            data_start_from = -10;
-            data_range = 20;
-            resolution = 4;
-            break;
-        }
-        case ActivationTypes::Mish: {
-            data_start_from = -20;
-            data_range = 60;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::SoftPlus: {
-            data_start_from = -100;
-            data_range = 200;
-            resolution = 32768;
-            break;
-        }
-        case ActivationTypes::SoftSign: {
-            data_start_from = -100;
-            data_range = 200;
-            resolution = 32768;
-            break;
-        }
-        default: {
-            data_start_from = -10;
-            data_range = 20;
-            resolution = 32768;
-            break;
-        }
+    case ActivationTypes::Log: {
+        data_start_from = 1;
+        data_range = 20;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Sqrt: {
+        data_start_from = 0;
+        data_range = 20;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Asin: {
+        data_start_from = -1;
+        data_range = 2;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Acos: {
+        data_start_from = -1;
+        data_range = 2;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Acosh: {
+        data_start_from = 1;
+        data_range = 200;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Atanh: {
+        data_start_from = -1;
+        data_range = 2;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::Ceiling: {
+        data_start_from = -1000;
+        data_range = 2000;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::RoundHalfToEven: {
+        data_start_from = -10;
+        data_range = 20;
+        resolution = 4;
+        break;
+    }
+    case ActivationTypes::RoundHalfAwayFromZero: {
+        data_start_from = -10;
+        data_range = 20;
+        resolution = 4;
+        break;
+    }
+    case ActivationTypes::Mish: {
+        data_start_from = -20;
+        data_range = 60;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::SoftPlus: {
+        data_start_from = -100;
+        data_range = 200;
+        resolution = 32768;
+        break;
+    }
+    case ActivationTypes::SoftSign: {
+        data_start_from = -100;
+        data_range = 200;
+        resolution = 32768;
+        break;
+    }
+    default: {
+        data_start_from = -10;
+        data_range = 20;
+        resolution = 32768;
+        break;
+    }
     }
     if (!inPrcSigned) {
         data_range = 15;
@@ -112,10 +113,11 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     auto funcInput = funcInputs.begin();
     inputs.clear();
     Tensor data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput->get_element_type(),
-                                            targetInputStaticShapes[0],
-                                            data_range,
-                                            data_start_from,
-                                            resolution, 1);
+                                                                         targetInputStaticShapes[0],
+                                                                         data_range,
+                                                                         data_start_from,
+                                                                         resolution,
+                                                                         1);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
 
@@ -139,31 +141,37 @@ void ActivationParamLayerTest::generate_inputs(const std::vector<ov::Shape>& tar
             in_data.start_from = -0.01;
             in_data.range = 0;
             data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(),
-                                            targetInputStaticShapes[i],
-                                            in_data.range,
-                                            in_data.start_from,
-                                            in_data.resolution, 1);
+                                                                          targetInputStaticShapes[i],
+                                                                          in_data.range,
+                                                                          in_data.start_from,
+                                                                          in_data.resolution,
+                                                                          1);
         } else if (0 == name.compare("leakySlope")) {
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 0.01;
             in_data.range = 0;
             data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(),
-                                            targetInputStaticShapes[i],
-                                            in_data.range,
-                                            in_data.start_from,
-                                            in_data.resolution, 1);
+                                                                          targetInputStaticShapes[i],
+                                                                          in_data.range,
+                                                                          in_data.start_from,
+                                                                          in_data.resolution,
+                                                                          1);
         } else if (0 == name.compare("alpha")) {
             data_tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &constants_value[0]);
         } else if (0 == name.compare("beta") || 0 == name.compare("lambda")) {
             data_tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i], &constants_value[1]);
         } else {
-            data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(), targetInputStaticShapes[i], 20, -10, 1);
+            data_tensor = ov::test::utils::create_and_fill_tensor_act_dft(funcInput.get_element_type(),
+                                                                          targetInputStaticShapes[i],
+                                                                          20,
+                                                                          -10,
+                                                                          1);
         }
         inputs.insert({funcInput.get_node_shared_ptr(), data_tensor});
     }
 }
 
-std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams> &obj) {
+std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams>& obj) {
     ov::element::Type model_type;
     std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
     std::string target_device;
@@ -244,19 +252,19 @@ void ActivationParamLayerTest::SetUp() {
     auto constants_value = activationDecl.second;
 
     switch (activationType) {
-        case ActivationTypes::PReLu:
-        case ActivationTypes::LeakyRelu: {
-            shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
-            break;
-        }
-        case ActivationTypes::HardSigmoid:
-        case ActivationTypes::Selu: {
-            shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
-            shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
-            break;
-        }
-        default:
-            OPENVINO_THROW("Unsupported activation type for Params test type");
+    case ActivationTypes::PReLu:
+    case ActivationTypes::LeakyRelu: {
+        shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
+        break;
+    }
+    case ActivationTypes::HardSigmoid:
+    case ActivationTypes::Selu: {
+        shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
+        shapes.push_back(ov::test::static_shapes_to_test_representation({const_shape}).front());
+        break;
+    }
+    default:
+        OPENVINO_THROW("Unsupported activation type for Params test type");
     }
 
     init_input_shapes(shapes);
@@ -267,26 +275,26 @@ void ActivationParamLayerTest::SetUp() {
     }
 
     switch (activationType) {
-        case ActivationTypes::PReLu: {
-            params[1]->set_friendly_name("negativeSlope");
-            break;
-        }
-        case ActivationTypes::LeakyRelu: {
-            params[1]->set_friendly_name("leakySlope");
-            break;
-        }
-        case ActivationTypes::HardSigmoid: {
-            params[1]->set_friendly_name("alpha");
-            params[2]->set_friendly_name("beta");
-            break;
-        }
-        case ActivationTypes::Selu: {
-            params[1]->set_friendly_name("alpha");
-            params[2]->set_friendly_name("lambda");
-            break;
-        }
-        default:
-            OPENVINO_THROW("Unsupported activation type for Params test type");
+    case ActivationTypes::PReLu: {
+        params[1]->set_friendly_name("negativeSlope");
+        break;
+    }
+    case ActivationTypes::LeakyRelu: {
+        params[1]->set_friendly_name("leakySlope");
+        break;
+    }
+    case ActivationTypes::HardSigmoid: {
+        params[1]->set_friendly_name("alpha");
+        params[2]->set_friendly_name("beta");
+        break;
+    }
+    case ActivationTypes::Selu: {
+        params[1]->set_friendly_name("alpha");
+        params[2]->set_friendly_name("lambda");
+        break;
+    }
+    default:
+        OPENVINO_THROW("Unsupported activation type for Params test type");
     }
 
     params[0]->set_friendly_name("Input");

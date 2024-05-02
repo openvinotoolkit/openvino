@@ -4,19 +4,18 @@
 
 #include "convert_to_swish_cpu.hpp"
 
-#include "openvino/opsets/opset4.hpp"
+#include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-
-#include "itt.hpp"
 
 ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     MATCHER_SCOPE(ConvertToSwishCPU);
     auto swish = ov::pass::pattern::wrap_type<ov::opset4::Swish>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto swish = std::dynamic_pointer_cast<ov::opset4::Swish> (m.get_match_root());
+        auto swish = std::dynamic_pointer_cast<ov::opset4::Swish>(m.get_match_root());
         if (!swish) {
             return false;
         }

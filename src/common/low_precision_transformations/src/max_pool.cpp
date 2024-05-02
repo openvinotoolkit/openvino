@@ -7,11 +7,10 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -19,7 +18,7 @@ namespace low_precision {
 
 MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(MaxPoolTransformation);
-    auto matcher = pattern::wrap_type<opset1::MaxPool>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<opset1::MaxPool>({pattern::wrap_type<opset1::Multiply>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -44,20 +43,24 @@ bool MaxPoolTransformation::canBeTransformed(const TransformationContext& contex
     }
 
     const std::vector<float> scales = dequantization.multiplyConstant->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
+    if (std::any_of(scales.begin(), scales.end(), [](const float value) {
+            return value < 0.0;
+        })) {
         return false;
     }
 
     return true;
 }
 
-bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool MaxPoolTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
+    const std::shared_ptr<Node> pooling =
+        NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto newOperation =
+        moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
@@ -67,6 +70,6 @@ bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) co
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

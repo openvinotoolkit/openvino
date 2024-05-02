@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "gather_nd_inst.h"
-#include "gather/gather_nd_kernel_selector.h"
 #include "gather/gather_nd_kernel_ref.h"
+#include "gather/gather_nd_kernel_selector.h"
+#include "gather_nd_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -53,17 +52,9 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
 namespace detail {
 
 attach_gather_nd_impl::attach_gather_nd_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i32
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i32};
 
-    auto static_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto static_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<gather_nd>::add(impl_types::ocl,
                                        shape_types::static_shape,
@@ -71,11 +62,7 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
                                        types,
                                        static_formats);
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<gather_nd>::add(impl_types::ocl,
                                        shape_types::dynamic_shape,

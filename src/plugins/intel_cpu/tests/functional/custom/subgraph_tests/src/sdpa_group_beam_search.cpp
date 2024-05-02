@@ -1,22 +1,19 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-using SDPAGroupBeamSearchTestParams = std::tuple<ElementType,
-                                       std::vector<InputShape>
-                                       >;
+using SDPAGroupBeamSearchTestParams = std::tuple<ElementType, std::vector<InputShape>>;
 // Subgraph:
 /*                            Parameter
  *                                |
@@ -95,8 +92,10 @@ public:
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherK =
+            std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherV =
+            std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, 2);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
@@ -127,7 +126,7 @@ public:
         shapes[3] = targetInputStaticShapes[1];
         SubgraphBaseTest::generate_inputs(shapes);
     }
-    template<typename IT, typename T>
+    template <typename IT, typename T>
     void strided_iota(IT first, size_t n, T value, T stride) {
         for (size_t i = 0; i < n; i++) {
             *first++ = value;
@@ -136,7 +135,7 @@ public:
     }
     void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes, size_t beam_num) {
         inputs.clear();
-        auto create_input = [this, beam_num] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+        auto create_input = [this, beam_num](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == element::i32) {
                 ov::Tensor t{ov::element::i32, shape};
                 auto size = shape[0];
@@ -221,8 +220,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_SDPAGroupBeamSearchTest,
                          SDPAGroupBeamSearchTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(inputShapes)),
+                         ::testing::Combine(::testing::Values(ElementType::f32), ::testing::ValuesIn(inputShapes)),
                          SDPAGroupBeamSearchTest::getTestCaseName);
 
 }  // namespace

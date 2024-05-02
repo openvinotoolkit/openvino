@@ -4,20 +4,18 @@
 
 #pragma once
 
-#include "gtest/gtest.h"
-
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
+#include "gtest/gtest.h"
 
 namespace ov {
 namespace test {
 namespace op_conformance {
 
-using OpImplParams = std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>;      // Function to check
+using OpImplParams = std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>;  // Function to check
 
-class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
-                        public ov::test::TestsCommon {
+class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>, public ov::test::TestsCommon {
 protected:
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
@@ -27,9 +25,9 @@ protected:
 
 public:
     void SetUp() override;
-    static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<OpImplParams>& obj);
 };
 
-}   // namespace op_conformance
-}   // namespace test
-}   // namespace ov
+}  // namespace op_conformance
+}  // namespace test
+}  // namespace ov

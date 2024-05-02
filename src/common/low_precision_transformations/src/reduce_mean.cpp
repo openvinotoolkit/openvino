@@ -3,12 +3,12 @@
 //
 
 #include "low_precision/reduce_mean.hpp"
+
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +16,8 @@ namespace low_precision {
 
 ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceMeanTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::ReduceMean>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::ReduceMean>(
+        {pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -30,8 +31,10 @@ ReduceMeanTransformation::ReduceMeanTransformation(const Params& params) : Reduc
     this->register_matcher(m, callback);
 }
 
-bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
-    return ov::is_type<ov::opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce) : false;
+bool ReduceMeanTransformation::canBeTransformed(const TransformationContext& context,
+                                                std::shared_ptr<Node> reduce) const {
+    return ov::is_type<ov::opset1::ReduceMean>(reduce) ? ReduceBaseTransformation::canBeTransformed(context, reduce)
+                                                       : false;
 }
 
 bool ReduceMeanTransformation::isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept {
@@ -42,6 +45,6 @@ bool ReduceMeanTransformation::getUpdatePrecision(const std::shared_ptr<Node>& r
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

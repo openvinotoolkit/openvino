@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "fully_connected_kernel_fb_io_ref.h"
+
+#include <vector>
 
 namespace kernel_selector {
 ParamsKey FullyConnected_fb_io_ref::GetSupportedKey() const {
@@ -23,13 +23,14 @@ ParamsKey FullyConnected_fb_io_ref::GetSupportedKey() const {
     return k;
 }
 
-JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_params& params,
+                                                       const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", { "batch_id", "outXIdx", "0", "0" }, "result", input_dt, 1 };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"", {"batch_id", "outXIdx", "0", "0"}, "result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;
 }
@@ -58,10 +59,7 @@ KernelsData FullyConnected_fb_io_ref::GetKernelsData(const Params& params) const
     // return GetCommonKernelsData(params,  DataLayout::fb, WeightsLayout::io, FORCE_PRIORITY_6);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    DataLayout::yxfb,
-                                                    WeightsLayout::yxio,
-                                                    static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, DataLayout::yxfb, WeightsLayout::yxio, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

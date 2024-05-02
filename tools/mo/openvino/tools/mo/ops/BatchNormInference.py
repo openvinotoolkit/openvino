@@ -8,21 +8,26 @@ from openvino.tools.mo.ops.op import Op
 
 class BatchNormInference(Op):
     """
-    BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm 
+    BatchNormInference will be replaced by BNToScaleShift FrontReplacer for Caffe or convert_batch_norm
     function for other frameworks
     """
-    op = 'batchNormInference'
+
+    op = "batchNormInference"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 5,
-            'out_ports_count': 1,
-            'infer': self.infer,
-            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "in_ports_count": 5,
+                "out_ports_count": 1,
+                "infer": self.infer,
+                "reverse_infer": lambda node: reverse_bypass_infer(node, in_ports=[0]),
+            },
+            attrs,
+        )
 
     @staticmethod
     def infer(node):

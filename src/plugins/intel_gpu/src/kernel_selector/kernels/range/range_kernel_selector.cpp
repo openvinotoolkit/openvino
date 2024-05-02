@@ -3,6 +3,7 @@
 //
 
 #include "range_kernel_selector.h"
+
 #include "range_kernel_ref.h"
 
 namespace kernel_selector {

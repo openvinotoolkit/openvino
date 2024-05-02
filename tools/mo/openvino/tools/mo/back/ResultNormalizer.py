@@ -11,12 +11,12 @@ class ResultNormalizer(BackReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('result', {'type': 'Result'})],
+            nodes=[("result", {"type": "Result"})],
             edges=[],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        node = match['result']
+        node = match["result"]
         if len(node.in_nodes()) == 0:
             graph.erase_node(node)

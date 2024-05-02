@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
+
 #include <gtest/gtest.h>
 
-#include "utils/properties_test.hpp"
-#include "openvino/runtime/system_conf.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "utils/properties_test.hpp"
 
 namespace {
 
@@ -84,7 +85,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSetROPropertiesThrow) {
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanThroughputHint) {
     ov::Core ie;
-    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t streams = 1;  // throughput hint should apply higher number of streams
     int32_t value = 0;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
@@ -97,7 +98,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores();  // latency hint should apply lower number of streams
     int32_t value = 0;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::num_streams(streams)));
@@ -110,7 +111,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreStreamsHasHigherPriori
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanLatencyHint) {
     ov::Core ie;
-    int32_t streams = ov::get_number_of_cpu_cores(); // latency hint should apply lower number of streams
+    int32_t streams = ov::get_number_of_cpu_cores();  // latency hint should apply lower number of streams
     int32_t value = 0;
 
     ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
@@ -125,7 +126,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPrior
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelStreamsHasHigherPriorityThanThroughputHint) {
     ov::Core ie;
-    int32_t streams = 1; // throughput hint should apply higher number of streams
+    int32_t streams = 1;  // throughput hint should apply higher number of streams
     int32_t value = 0;
 
     ov::AnyMap config;
@@ -204,7 +205,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableIn
     ASSERT_FALSE(model_exec_mode_it->is_mutable());
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
     ov::Core ie;
     auto inference_precision_value = ov::element::undefined;
 
@@ -218,7 +220,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHas
     ASSERT_EQ(inference_precision_value, bf16_if_can_be_emulated);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
     auto inference_precision_value = ov::element::undefined;
@@ -236,7 +239,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCoreInferencePrecisionHasH
     ASSERT_EQ(inference_precision_value, ov::element::f32);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
+TEST_F(OVClassConfigTestCPU,
+       smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
     auto inference_precision_value = ov::element::undefined;
@@ -267,14 +271,13 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckLogLevel) {
         ASSERT_NO_THROW(value = compiledModel.get_property(ov::log::level));
         ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
     }
-    //check set and get
-    const std::vector<ov::log::Level> logLevels = {
-        ov::log::Level::ERR,
-        ov::log::Level::NO,
-        ov::log::Level::WARNING,
-        ov::log::Level::INFO,
-        ov::log::Level::DEBUG,
-        ov::log::Level::TRACE};
+    // check set and get
+    const std::vector<ov::log::Level> logLevels = {ov::log::Level::ERR,
+                                                   ov::log::Level::NO,
+                                                   ov::log::Level::WARNING,
+                                                   ov::log::Level::INFO,
+                                                   ov::log::Level::DEBUG,
+                                                   ov::log::Level::TRACE};
 
     for (unsigned int i = 0; i < logLevels.size(); i++) {
         ov::Any value;
@@ -305,4 +308,4 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPUExecutionDevice) {
     ASSERT_EQ(value.as<std::string>(), "CPU");
 }
 
-} // namespace
+}  // namespace

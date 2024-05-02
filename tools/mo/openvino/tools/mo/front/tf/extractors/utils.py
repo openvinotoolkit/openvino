@@ -5,15 +5,21 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array, int64_array
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    dynamic_dimension_value,
+    int64_array,
+    mo_array,
+    shape_array,
+)
 from openvino.tools.mo.front.tf.common import tf_data_type_decode
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def tf_tensor_shape(pb):
-    return shape_array([dim.size if dim.size >= 0 else dynamic_dimension_value for dim in pb.dim])
+    return shape_array(
+        [dim.size if dim.size >= 0 else dynamic_dimension_value for dim in pb.dim]
+    )
 
 
 def tf_int_list(pb):
@@ -21,7 +27,9 @@ def tf_int_list(pb):
 
 
 def tf_dtype_extractor(pb_dtype, default=None):
-    return tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
+    return (
+        tf_data_type_decode[pb_dtype][0] if pb_dtype in tf_data_type_decode else default
+    )
 
 
 def tf_data_format_spatial(pb):
@@ -31,15 +39,15 @@ def tf_data_format_spatial(pb):
 
 
 def tf_data_format_channel(pb):
-    return [pb.s.index(b'C')]
+    return [pb.s.index(b"C")]
 
 
 def tf_data_format_batch(pb):
-    return [pb.s.index(b'N')]
+    return [pb.s.index(b"N")]
 
 
 def get_tf_node_port(tensor):
-    delim = ':'
+    delim = ":"
     # tensor should have form 'name:port' or just 'name'
     name_parts = tensor.split(delim)
     if len(name_parts) == 1:
@@ -52,13 +60,16 @@ def get_tf_node_port(tensor):
 
 
 def tf_tensor_content(tf_dtype, shape, pb_tensor):
-    type_helper = tf_data_type_decode[tf_dtype] if tf_dtype in tf_data_type_decode else None
+    type_helper = (
+        tf_data_type_decode[tf_dtype] if tf_dtype in tf_data_type_decode else None
+    )
     if type_helper is None:
-        raise Error("Data type is unsupported: {}. " +
-                    refer_to_faq_msg(50), tf_dtype)
+        raise Error("Data type is unsupported: {}. " + refer_to_faq_msg(50), tf_dtype)
 
-    decode_err_msg = 'Failed to parse a tensor with Unicode characters. Note that OpenVINO does not support ' \
-                     'string literals, so the string constant should be eliminated from the graph.'
+    decode_err_msg = (
+        "Failed to parse a tensor with Unicode characters. Note that OpenVINO does not support "
+        "string literals, so the string constant should be eliminated from the graph."
+    )
     if pb_tensor.tensor_content:
         value = mo_array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
@@ -69,7 +80,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             try:
                 value = mo_array(type_helper[1](pb_tensor), dtype=type_helper[0])
             except UnicodeDecodeError:
-                log.error(decode_err_msg, extra={'is_warning': True})
+                log.error(decode_err_msg, extra={"is_warning": True})
                 value = mo_array(type_helper[1](pb_tensor))
 
     # Ignore an empty value, if len(shape) > 1
@@ -88,7 +99,7 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             try:
                 return mo_array(value[0], dtype=type_helper[0])
             except UnicodeDecodeError:
-                log.error(decode_err_msg, extra={'is_warning': True})
+                log.error(decode_err_msg, extra={"is_warning": True})
                 return mo_array(value[0])
         else:
             if len(shape) == 0 and value_length == 0:
@@ -102,8 +113,11 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
             return value
 
     if len(value) != shape.prod():
-        log.warning("Shape and content size of tensor don't match, shape: {} content size: {}".
-                    format(shape, len(value)))
+        log.warning(
+            "Shape and content size of tensor don't match, shape: {} content size: {}".format(
+                shape, len(value)
+            )
+        )
 
         if len(value) == 0:
             # Since TF 2.10 the model freezing can produce constants with non-empty tensor but with undefined value []
@@ -127,47 +141,47 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
 
 def check_attr_type(a):
     """
-      Check type of attribute from TF prototxt message
-      param: a - attribute from TF prototxt message
-      return: type of attribute
+    Check type of attribute from TF prototxt message
+    param: a - attribute from TF prototxt message
+    return: type of attribute
     """
     if a.s:
-        return 's'
+        return "s"
     if a.i:
-        return 'i'
+        return "i"
     if a.f:
-        return 'f'
+        return "f"
     if a.b:
-        return 'b'
+        return "b"
     if a.type:
-        return 'type'
+        return "type"
     if a.shape and a.shape.dim:
-        return 'shape'
+        return "shape"
     if a.list:
-        return 'list'
+        return "list"
 
 
 def collect_tf_attrs(attrs):
     """
-     Function generates map for attributes and parsing functions
-     param: attrs  - TF proto message with attributes
-     return: mapping attributes and parsing functions ready for use in update_node_stat function
+    Function generates map for attributes and parsing functions
+    param: attrs  - TF proto message with attributes
+    return: mapping attributes and parsing functions ready for use in update_node_stat function
     """
     ret_attrs = {}
     type_parsers = {
-        's': lambda x: x.s,
-        'i': lambda x: x.i,
-        'f': lambda x: x.f,
-        'b': lambda x: x.b,
-        'type': lambda x: tf_dtype_extractor(x.type),
-        'shape': lambda x: tf_tensor_shape(x.shape),
-        'list': lambda x: x.list
+        "s": lambda x: x.s,
+        "i": lambda x: x.i,
+        "f": lambda x: x.f,
+        "b": lambda x: x.b,
+        "type": lambda x: tf_dtype_extractor(x.type),
+        "shape": lambda x: tf_tensor_shape(x.shape),
+        "list": lambda x: x.list,
     }
 
     for a in attrs:
         t = check_attr_type(attrs[a])
         a_l = attrs[a]
-        while t == 'list':
+        while t == "list":
             a_l = type_parsers[t](attrs[a])
             t = check_attr_type(a_l)
 

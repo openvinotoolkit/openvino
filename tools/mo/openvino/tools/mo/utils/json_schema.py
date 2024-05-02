@@ -11,24 +11,20 @@ schema_dict = {
         "$id": "#root/items",
         "title": "Items",
         "type": "object",
-        "required": [
-            "id",
-            "match_kind"
-        ],
+        "required": ["id", "match_kind"],
         "properties": {
             "custom_attributes": {
                 "$id": "#root/items/custom_attributes",
                 "title": "Custom_attributes",
                 "type": "object",
-                "properties": {
-                }
+                "properties": {},
             },
             "id": {
                 "$id": "#root/items/id",
                 "title": "Id",
                 "type": "string",
                 "pattern": "^.*$",
-                "minLength": 1
+                "minLength": 1,
             },
             "inputs": {
                 "$id": "#root/items/inputs",
@@ -50,19 +46,18 @@ schema_dict = {
                                 "title": "Node",
                                 "type": "string",
                                 "default": "",
-                                "pattern": "^.*$"
+                                "pattern": "^.*$",
                             },
                             "port": {
                                 "$id": "#root/items/inputs/items/items/port",
                                 "title": "Port",
                                 "type": "integer",
-                                "default": 0
-                            }
+                                "default": 0,
+                            },
                         },
-                        "required": ["node", "port"]
-                    }
-
-                }
+                        "required": ["node", "port"],
+                    },
+                },
             },
             "instances": {
                 "$id": "#root/items/instances",
@@ -73,8 +68,8 @@ schema_dict = {
                     "title": "Items",
                     "type": "string",
                     "default": "",
-                    "pattern": "^.*$"
-                }
+                    "pattern": "^.*$",
+                },
             },
             "match_kind": {
                 "$id": "#root/items/match_kind",
@@ -82,7 +77,7 @@ schema_dict = {
                 "type": "string",
                 "enum": ["points", "scope", "general"],
                 "default": "points",
-                "pattern": "^.*$"
+                "pattern": "^.*$",
             },
             "outputs": {
                 "$id": "#root/items/outputs",
@@ -99,31 +94,30 @@ schema_dict = {
                             "title": "Node",
                             "type": "string",
                             "default": "",
-                            "pattern": "^.*$"
+                            "pattern": "^.*$",
                         },
                         "port": {
                             "$id": "#root/items/outputs/items/port",
                             "title": "Port",
                             "type": "integer",
-                            "default": 0
-                        }
+                            "default": 0,
+                        },
                     },
-                    "required": ["node", "port"]
-                }
-
+                    "required": ["node", "port"],
+                },
             },
             "include_inputs_to_sub_graph": {
                 "$id": "#root/items/include_inputs_to_sub_graph",
                 "title": "Include_inputs_to_sub_graph",
                 "type": "boolean",
-                "default": False
+                "default": False,
             },
             "include_outputs_to_sub_graph": {
                 "$id": "#root/items/include_outputs_to_sub_graph",
                 "title": "Include_outputs_to_sub_graph",
                 "type": "boolean",
-                "default": False
-            }
-        }
-    }
+                "default": False,
+            },
+        },
+    },
 }

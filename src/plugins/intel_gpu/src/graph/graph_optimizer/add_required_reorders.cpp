@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include "pass_manager.h"
-#include "program_node.h"
-#include "mutable_data_inst.h"
-#include "convert_color_inst.h"
-#include "fully_connected_inst.h"
-#include "assign_inst.h"
-#include "mvn_inst.h"
-#include "tensor_type.h"
-
 #include <algorithm>
 #include <memory>
-#include <vector>
 #include <stdexcept>
+#include <vector>
+
+#include "assign_inst.h"
+#include "convert_color_inst.h"
+#include "fully_connected_inst.h"
+#include "mutable_data_inst.h"
+#include "mvn_inst.h"
+#include "pass_manager.h"
+#include "program_node.h"
+#include "tensor_type.h"
 
 using namespace cldnn;
 
@@ -40,12 +39,14 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     new_reorder_node.set_output_layout(reorder_layout, false);
 
     // ToDo: add a method to program class which adds an intermediate node given a node and its user
-    auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
-    [&](const std::pair<program_node*, int32_t>& dep) {
-        return node == dep.first;
-    });
+    auto it = std::find_if(usr->get_dependencies().begin(),
+                           usr->get_dependencies().end(),
+                           [&](const std::pair<program_node*, int32_t>& dep) {
+                               return node == dep.first;
+                           });
     if (it == usr->get_dependencies().end()) {
-        throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
+        throw std::runtime_error(
+            "Inconcistency in topology description: user of a node is not present among its dependecies.");
     }
     auto idx = it - usr->get_dependencies().begin();
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
@@ -72,7 +73,10 @@ void add_required_reorders::run(program& p) {
             auto out_layout = usr->get_output_layout();
             bool required_reorder = out_layout.data_type != dep_layout.data_type;
             if (required_reorder) {
-                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(),
+                                                             dep.id(),
+                                                             out_layout.format,
+                                                             out_layout.data_type);
                 auto& new_reorder_node = p.get_or_create(new_reorder);
                 p.add_intermediate(new_reorder_node, *usr, dep);
                 new_reorder_node.recalc_output_layout(false);
@@ -86,10 +90,14 @@ void add_required_reorders::run(program& p) {
                     continue;
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
-                bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
-                                        (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
+                bool required_reorder =
+                    (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
+                    (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
                 if (required_reorder) {
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
+                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(),
+                                                                 dep.id(),
+                                                                 out_layout.format,
+                                                                 out_layout.data_type);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     new_reorder_node.recalc_output_layout(false);
@@ -102,14 +110,16 @@ void add_required_reorders::run(program& p) {
             auto out_layout = usr->get_output_layout();
             // If there is a fused reorder at the end, then we use input layout of reorder
             // as target one for fused ops, as code generator in many kernels is expecting that, not final output layout
-            // However, the condition below may need some adjustment in the future, if codegen of some primitives behave differently
+            // However, the condition below may need some adjustment in the future, if codegen of some primitives behave
+            // differently
             if (!fused_ops.empty() && fused_ops.back().is_type<reorder>()) {
                 out_layout = fused_ops.back().input_layout;
             }
             for (auto& fused_op : fused_ops) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
-                // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
-                // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
+                // In that case jitter checks that layout of input tensor from fused op is same as output layout or
+                // broadcast is possible The code below is intended to insert additional reorder node for const eltwise
+                // dependency to ensure jitter can process such fusion
                 if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
                     continue;
 
@@ -122,12 +132,16 @@ void add_required_reorders::run(program& p) {
 
                 auto dep_layout = dep.get_output_layout();
 
-                bool valid_broadcast_case = out_layout.is_static() && dep_layout.is_static() &&
-                                            (static_cast<size_t>(out_layout.feature()) == dep_layout.count() || dep_layout.count() == 1);
+                bool valid_broadcast_case =
+                    out_layout.is_static() && dep_layout.is_static() &&
+                    (static_cast<size_t>(out_layout.feature()) == dep_layout.count() || dep_layout.count() == 1);
 
                 bool requires_reorder = out_layout.format != dep_layout.format && !valid_broadcast_case;
                 if (requires_reorder) {
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, dep_layout.data_type);
+                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(),
+                                                                 dep.id(),
+                                                                 out_layout.format,
+                                                                 dep_layout.data_type);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     new_reorder_node.recalc_output_layout(false);
@@ -140,7 +154,8 @@ void add_required_reorders::run(program& p) {
             auto out_layout = usr->get_output_layout();
             // Check formats of implemented opt kernels without a spatial padding support
             if (out_layout.format == format::b_fs_yx_fsv16 || out_layout.format == format::b_fs_zyx_fsv16 ||
-                out_layout.format == format::bs_fs_yx_bsv32_fsv16 || out_layout.format == format::bs_fs_yx_bsv32_fsv32) {
+                out_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
+                out_layout.format == format::bs_fs_yx_bsv32_fsv32) {
                 auto& dep = usr->as<mvn>().input();
                 cldnn::layout layout_wo_padding = dep.get_output_layout();
                 layout_wo_padding.data_padding = cldnn::padding{};
@@ -195,9 +210,13 @@ void add_required_reorders::run(program& p) {
                             cldnn::layout layout_padding = input.get_output_layout();
                             cldnn::layout layout_wo_padding = input.get_output_layout();
                             layout_wo_padding.data_padding = cldnn::padding{};
-                            layout_wo_padding.data_padding.lower_size().feature = layout_padding.data_padding.lower_size().feature;
-                            layout_wo_padding.data_padding.upper_size().feature = layout_padding.data_padding.upper_size().feature;
-                            auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
+                            layout_wo_padding.data_padding.lower_size().feature =
+                                layout_padding.data_padding.lower_size().feature;
+                            layout_wo_padding.data_padding.upper_size().feature =
+                                layout_padding.data_padding.upper_size().feature;
+                            auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(),
+                                                                         input.id(),
+                                                                         layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
                             p.add_intermediate(new_reorder_node, *usr, idx);
                             new_reorder_node.recalc_output_layout(false);
@@ -218,7 +237,8 @@ void add_required_reorders::run(program& p) {
 
         for (auto& node : usr->get_dependencies()) {
             if (!node.first->is_in_data_flow() && !weights_data) {
-                if (cldnn::format::dimension(original_layout.format) == cldnn::format::dimension(node.first->get_output_layout().format)) {
+                if (cldnn::format::dimension(original_layout.format) ==
+                    cldnn::format::dimension(node.first->get_output_layout().format)) {
                     /*
                         ToDo: Here we should handle also the situation where primitive usr has data inputs in different
                        formats
@@ -252,7 +272,8 @@ void add_required_reorders::run(program& p) {
                             // change output_data_type field in usr to i32
                             if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
                                 (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
+                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] =
+                                    data_types::i32;
                             }
                             // add reorders between usr int32 output and inputs of its users
                             auto next_usr_itr = usr->get_users().begin();
@@ -270,12 +291,22 @@ void add_required_reorders::run(program& p) {
                 }
 
                 OPENVINO_ASSERT(correct_layout_selected,
-                                "[GPU] No layout format available for ", usr->id(),  ", impl_type: ", usr->get_preferred_impl_type(),
-                                " (format: ", original_layout.format.to_string(),
-                                ", data_type: ", ov::element::Type(original_layout.data_type), ") ",
-                                "compatible with ", node.first->id(),
-                                " (format: ", node.first->get_output_layout().format.to_string(),
-                                ", data_type: ", ov::element::Type(node.first->get_output_layout().data_type), ")");
+                                "[GPU] No layout format available for ",
+                                usr->id(),
+                                ", impl_type: ",
+                                usr->get_preferred_impl_type(),
+                                " (format: ",
+                                original_layout.format.to_string(),
+                                ", data_type: ",
+                                ov::element::Type(original_layout.data_type),
+                                ") ",
+                                "compatible with ",
+                                node.first->id(),
+                                " (format: ",
+                                node.first->get_output_layout().format.to_string(),
+                                ", data_type: ",
+                                ov::element::Type(node.first->get_output_layout().data_type),
+                                ")");
             }
         }
 
@@ -288,7 +319,7 @@ void add_required_reorders::run(program& p) {
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
             // This list of preferred layouts has been selected arbitrary due to developers' experience
-            preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
+            preferred_layout_formats = {cldnn::format::get_default_format(max_in_dims)};
             if (max_in_dims == 5) {
                 preferred_layout_formats.push_back(cldnn::format::bzyxf);
             } else if (max_in_dims == 4) {
@@ -310,7 +341,9 @@ void add_required_reorders::run(program& p) {
 
             if (!correct_layout_selected) {
                 for (auto new_layout_format : preferred_layout_formats) {
-                    layout current_layout(original_layout.get_partial_shape(), original_layout.data_type, new_layout_format);
+                    layout current_layout(original_layout.get_partial_shape(),
+                                          original_layout.data_type,
+                                          new_layout_format);
                     usr->set_output_layout(current_layout, false);
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
@@ -345,13 +378,14 @@ void add_required_reorders::run(program& p) {
                     }
                     if (!correct_layout_selected) {
                         throw std::runtime_error("Internal Error: no implementation for " + usr->id() +
-                            " kernel which satisfies output format dependecies.");
+                                                 " kernel which satisfies output format dependecies.");
                     }
 
                     // change output_data_type field in usr to i32
                     if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
                         (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
+                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] =
+                            data_types::i32;
                     }
 
                     // add reorders between usr int32 output and inputs of its users

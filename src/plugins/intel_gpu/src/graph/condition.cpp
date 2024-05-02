@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "condition_inst.h"
-#include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
-#include <string>
+#include "program_node.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
 
-const size_t idx_branch_true    = 0;
-const size_t idx_branch_false   = 1;
+const size_t idx_branch_true = 0;
+const size_t idx_branch_false = 1;
 
 static std::map<primitive_id, layout> get_out_layout_map(cldnn::program::ptr prog) {
     std::map<primitive_id, layout> out_layout_map;
@@ -31,7 +32,8 @@ static std::map<primitive_id, layout> get_out_layout_map(cldnn::network::ptr net
     return out_layout_map;
 }
 
-static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs, const std::map<size_t, cldnn::primitive_id> &io_output_map) {
+static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& outputs,
+                                              const std::map<size_t, cldnn::primitive_id>& io_output_map) {
     std::vector<layout> out_layouts;
     for (auto out : outputs) {
         for (auto& io_output : io_output_map) {
@@ -54,14 +56,22 @@ static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& o
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
 layout condition_inst::calc_output_layout(condition_node const& /* node */, kernel_impl_params const& impl_param) {
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for condition_node!");
-    OPENVINO_ASSERT(impl_param.get_input_layout(0).count() == 1, "layout of compare_data of condition should be {1,1,1,1}");
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false,
+                    "Output data type forcing is not supported for condition_node!");
+    OPENVINO_ASSERT(impl_param.get_input_layout(0).count() == 1,
+                    "layout of compare_data of condition should be {1,1,1,1}");
 
-    OPENVINO_ASSERT(impl_param.inner_progs.size() == 2, "If(Condition) contains incorrect number of inner programs ", impl_param.inner_progs.size());
-    OPENVINO_ASSERT(impl_param.io_output_maps.size() == 2, "If(Condition) contains incorrect number of io output maps ", impl_param.io_output_maps.size());
+    OPENVINO_ASSERT(impl_param.inner_progs.size() == 2,
+                    "If(Condition) contains incorrect number of inner programs ",
+                    impl_param.inner_progs.size());
+    OPENVINO_ASSERT(impl_param.io_output_maps.size() == 2,
+                    "If(Condition) contains incorrect number of io output maps ",
+                    impl_param.io_output_maps.size());
 
-    auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-    auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+    auto layouts_true = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),
+                                           impl_param.io_output_maps[idx_branch_true]);
+    auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]),
+                                            impl_param.io_output_maps[idx_branch_false]);
 
     CLDNN_ERROR_LAYOUT_MISMATCH(impl_param.desc->id,
                                 "Branch true output layout",
@@ -82,21 +92,21 @@ static bool convert_data(memory::ptr mem, stream& stream) {
 bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {
     auto mem_dt = mem->get_layout().data_type;
     switch (mem_dt) {
-        case cldnn::data_types::f32:
-            return convert_data<float>(mem, stream);
-        case cldnn::data_types::f16:
-            return convert_data<ov::float16>(mem, stream);
-        case cldnn::data_types::i64:
-            return convert_data<int64_t>(mem, stream);
-        case cldnn::data_types::i32:
-            return convert_data<int32_t>(mem, stream);
-        case cldnn::data_types::i8:
-            return convert_data<int8_t>(mem, stream);
-        case cldnn::data_types::u8:
-            return convert_data<uint8_t>(mem, stream);
-        case cldnn::data_types::u1:
-        default:
-            return convert_data<uint32_t>(mem, stream);
+    case cldnn::data_types::f32:
+        return convert_data<float>(mem, stream);
+    case cldnn::data_types::f16:
+        return convert_data<ov::float16>(mem, stream);
+    case cldnn::data_types::i64:
+        return convert_data<int64_t>(mem, stream);
+    case cldnn::data_types::i32:
+        return convert_data<int32_t>(mem, stream);
+    case cldnn::data_types::i8:
+        return convert_data<int8_t>(mem, stream);
+    case cldnn::data_types::u8:
+        return convert_data<uint8_t>(mem, stream);
+    case cldnn::data_types::u1:
+    default:
+        return convert_data<uint32_t>(mem, stream);
     }
 }
 
@@ -138,45 +148,53 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& true_pshape, const
 }
 
 layout condition_inst::adjust_scalar_to_1d_layout(layout& target, layout& other) {
-    auto target_pshape  = target.get_partial_shape();
-    auto other_pshape   = other.get_partial_shape();
-    auto target_rank    = target_pshape.rank();
-    auto other_rank     = other_pshape.rank();
+    auto target_pshape = target.get_partial_shape();
+    auto other_pshape = other.get_partial_shape();
+    auto target_rank = target_pshape.rank();
+    auto other_rank = other_pshape.rank();
     if (target_rank.get_length() == 0 && other_rank.get_length() == 1) {
         return {ov::PartialShape{1}, target.data_type, target.format};
     }
     return target;
 }
 
-template<typename ShapeType>
-std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /* node */, kernel_impl_params const& impl_param) {
+template <typename ShapeType>
+std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /* node */,
+                                                        kernel_impl_params const& impl_param) {
     if (impl_param.inner_nets.empty()) {
         OPENVINO_ASSERT(impl_param.inner_progs.empty() == false, "The count of inner programs should not be zero");
-        auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+        auto layouts_true = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),
+                                               impl_param.io_output_maps[idx_branch_true]);
+        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]),
+                                                impl_param.io_output_maps[idx_branch_false]);
 
         const size_t num_outputs = impl_param.output_layouts.size();
         OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()),
-                            "The number of outputs for each branch should be same!");
+                        "The number of outputs for each branch should be same!");
         std::vector<layout> output_layouts;
 
         for (size_t i = 0; i < num_outputs; i++) {
             if (layouts_true[i] == layouts_false[i]) {
                 output_layouts.push_back(layouts_true[i]);
             } else {
-                OPENVINO_ASSERT(layouts_true[i].data_type == layouts_false[i].data_type, "data type of each branches should be same");
-                OPENVINO_ASSERT(layouts_true[i].format == layouts_false[i].format, "output format of each branches should be same");
-                auto out_layout = resolve_shape(layouts_true[i].get_partial_shape(), layouts_false[i].get_partial_shape());
-                output_layouts.push_back(layout{out_layout, layouts_true[i].data_type, layouts_true[i].format });
+                OPENVINO_ASSERT(layouts_true[i].data_type == layouts_false[i].data_type,
+                                "data type of each branches should be same");
+                OPENVINO_ASSERT(layouts_true[i].format == layouts_false[i].format,
+                                "output format of each branches should be same");
+                auto out_layout =
+                    resolve_shape(layouts_true[i].get_partial_shape(), layouts_false[i].get_partial_shape());
+                output_layouts.push_back(layout{out_layout, layouts_true[i].data_type, layouts_true[i].format});
             }
         }
         return output_layouts;
     } else {
-        auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
+        auto layouts_true = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_true]),
+                                               impl_param.io_output_maps[idx_branch_true]);
+        auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_nets[idx_branch_false]),
+                                                impl_param.io_output_maps[idx_branch_false]);
         const size_t num_outputs = impl_param.output_layouts.size();
         OPENVINO_ASSERT((num_outputs == layouts_true.size() && num_outputs == layouts_false.size()),
-                            "The number of outputs for each branch should be same!");
+                        "The number of outputs for each branch should be same!");
 
         auto& memory_deps = impl_param.memory_deps;
         OPENVINO_ASSERT(memory_deps.count(0) > 0, "The count of memory deps should not be zero");
@@ -196,7 +214,9 @@ std::vector<layout> condition_inst::calc_output_layouts(condition_node const& /*
     }
 }
 
-template std::vector<layout> condition_inst::calc_output_layouts<ov::PartialShape>(condition_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> condition_inst::calc_output_layouts<ov::PartialShape>(
+    condition_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string condition_inst::to_string(condition_node const& node) {
     auto desc = node.get_primitive();
@@ -241,7 +261,8 @@ void condition_inst::update_output_layout() {
     } else {
         for (size_t i = 0; i != new_layouts.size(); ++i) {
             auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
+            new_layout.data_padding =
+                padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
             _impl_params->output_layouts[i] = new_layout;
         }
     }
@@ -256,15 +277,17 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
         auto mem_ptr = executed_net->get_output_memory(inner_out_id);
         if (mem_ptr) {
             auto layout = _impl_params->get_output_layout(out_mem_idx);
-            GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
-                        << " to " << layout.to_short_string() << std::endl;
-            // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust output buffers layout
+            GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string() << " to "
+                          << layout.to_short_string() << std::endl;
+            // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to
+            // adjust output buffers layout
             mem_ptr = get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
         }
 
         _outputs[out_mem_idx] = mem_ptr;
         if (mem_ptr)
-            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string()
+                          << std::endl;
     }
 }
 }  // namespace cldnn

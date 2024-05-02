@@ -3,17 +3,30 @@
 # type: ignore
 # flake8: noqa
 
-from openvino._pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput, Optional
 from openvino._pyopenvino.passes import (
+    AnyInput,
+    ConstantFolding,
+    ConvertFP32ToFP16,
+    LowLatency2,
+    MakeStateful,
+    Matcher,
+    MatcherPass,
+    ModelPass,
+    Optional,
+    Or,
+    PassBase,
+    Serialize,
+    Version,
+    VisualizeTree,
+    WrapType,
     consumers_count,
     has_static_dim,
     has_static_dims,
-    has_static_shape,
     has_static_rank,
+    has_static_shape,
     rank_equals,
     type_matches,
     type_matches_any,
 )
-from openvino._pyopenvino.passes import Serialize, ConstantFolding, VisualizeTree, MakeStateful, LowLatency2, ConvertFP32ToFP16, Version
+from openvino.runtime.passes.graph_rewrite import BackwardGraphRewrite, GraphRewrite
 from openvino.runtime.passes.manager import Manager
-from openvino.runtime.passes.graph_rewrite import GraphRewrite, BackwardGraphRewrite

@@ -41,7 +41,8 @@ void TileLayerTest::SetUp() {
     init_input_shapes({input_shapes});
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
-    auto repeats = std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tile_params.size()}, tile_params);
+    auto repeats =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, std::vector<size_t>{tile_params.size()}, tile_params);
     auto tile = std::make_shared<ov::op::v0::Tile>(param, repeats);
     function = std::make_shared<ov::Model>(tile->outputs(), ov::ParameterVector{param}, "tile");
 }

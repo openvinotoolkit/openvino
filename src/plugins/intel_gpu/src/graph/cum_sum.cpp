@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cum_sum_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "cum_sum_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(cum_sum)
@@ -33,7 +33,6 @@ std::string cum_sum_inst::to_string(cum_sum_node const& node) {
     return primitive_description.str();
 }
 
-cum_sum_inst::typed_primitive_inst(network& network, cum_sum_node const& node)
-    : parent(network, node) {}
+cum_sum_inst::typed_primitive_inst(network& network, cum_sum_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

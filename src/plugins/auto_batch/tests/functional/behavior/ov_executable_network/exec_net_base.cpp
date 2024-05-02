@@ -14,10 +14,10 @@ auto autoBatchConfigs = []() {
          {ov::auto_batch_timeout.name(), "0"}}};
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelBaseTest,
-                         ::testing::Combine(
-                                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(autoBatchConfigs())),
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
+                         OVCompiledModelBaseTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
+                                            ::testing::ValuesIn(autoBatchConfigs())),
                          OVCompiledModelBaseTest::getTestCaseName);
 
 }  // namespace

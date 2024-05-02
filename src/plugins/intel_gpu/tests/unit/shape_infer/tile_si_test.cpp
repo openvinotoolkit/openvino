@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/tile.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "tile_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
+#include "tile_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -27,7 +24,7 @@ struct tile_test_params {
     layout expected_layout;
 };
 
-class tile_test_two_inputs : public testing::TestWithParam<tile_test_params> { };
+class tile_test_two_inputs : public testing::TestWithParam<tile_test_params> {};
 
 TEST_P(tile_test_two_inputs, shape_infer) {
     auto p = GetParam();
@@ -64,21 +61,19 @@ TEST_P(tile_test_two_inputs, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, tile_test_two_inputs,
-    testing::ValuesIn(std::vector<tile_test_params>{
-        {
-            layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
-            layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}
-        }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         tile_test_two_inputs,
+                         testing::ValuesIn(std::vector<tile_test_params>{
+                             {layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 2, 3},
+                              layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 2, 3},
+                              layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}}}));
 
-class tile_test_single_input : public testing::TestWithParam<tile_test_params> { };
+class tile_test_single_input : public testing::TestWithParam<tile_test_params> {};
 
 TEST_P(tile_test_single_input, shape_infer) {
     auto p = GetParam();
@@ -100,18 +95,16 @@ TEST_P(tile_test_single_input, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, tile_test_single_input,
-    testing::ValuesIn(std::vector<tile_test_params>{
-        {
-            layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
-            layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
-            layout{ov::PartialShape{3}, data_types::i64, format::bfyx}, {1, 2, 3},
-            layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}
-        }
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         tile_test_single_input,
+                         testing::ValuesIn(std::vector<tile_test_params>{
+                             {layout{ov::PartialShape{2, 3, 4}, data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 2, 3},
+                              layout{ov::PartialShape{2, 6, 12}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx},
+                              layout{ov::PartialShape{3}, data_types::i64, format::bfyx},
+                              {1, 2, 3},
+                              layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx}}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

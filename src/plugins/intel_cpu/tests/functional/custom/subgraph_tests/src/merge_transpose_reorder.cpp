@@ -56,9 +56,11 @@ struct ExpectedResult {
 };
 
 using MergeTransposeReorderTestParams = std::tuple<InputShape, ExpectedResult>;
-class MergeTransposeReorderCPUTest : public testing::WithParamInterface<MergeTransposeReorderTestParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
+class MergeTransposeReorderCPUTest : public testing::WithParamInterface<MergeTransposeReorderTestParams>,
+                                     virtual public SubgraphBaseTest,
+                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MergeTransposeReorderTestParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MergeTransposeReorderTestParams>& obj) {
         InputShape input_shape;
         ExpectedResult expected_result;
         std::tie(input_shape, expected_result) = obj.param;
@@ -84,7 +86,8 @@ protected:
 
         const auto precision = ov::element::f32;
         const auto shapeof_subgraph_prc = ov::element::i32;
-        OPENVINO_ASSERT(inputDynamicShapes[0].rank().is_static() && inputDynamicShapes[0].size() == 4, "initSubgraph: only 4D shapes are supported");
+        OPENVINO_ASSERT(inputDynamicShapes[0].rank().is_static() && inputDynamicShapes[0].size() == 4,
+                        "initSubgraph: only 4D shapes are supported");
         OPENVINO_ASSERT(inputDynamicShapes[0][1].is_static(), "initSubgraph: only static channels dim is supported");
 
         const auto param = std::make_shared<ov::opset10::Parameter>(precision, inputDynamicShapes[0]);
@@ -96,38 +99,55 @@ protected:
 
         const size_t channels = inputDynamicShapes[0][1].get_length();
         const size_t fc_out_channels = 512;
-        const auto fc_weights_1 = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{fc_out_channels, channels}, {}, true);
+        const auto fc_weights_1 =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              ov::Shape{fc_out_channels, channels},
+                                                              {},
+                                                              true);
         const auto fc_1 = make_layer_with_bias<ov::opset10::MatMul>(transpose_1, fc_weights_1, false, true);
 
         const auto transpose_const_2 = ov::opset10::Constant::create(shapeof_subgraph_prc, {3}, {0, 2, 1});
         const auto transpose_2 = std::make_shared<ov::opset10::Transpose>(fc_1, transpose_const_2);
-        const auto spatial_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {2, 3}, {}, shapeof_subgraph_prc);
+        const auto spatial_dims =
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {2, 3}, {}, shapeof_subgraph_prc);
         const auto unchangable_dims = ov::opset10::Constant::create(shapeof_subgraph_prc, {2}, {0, 0});
-        const auto reshape_const_2 = ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{unchangable_dims, spatial_dims}, 0);
+        const auto reshape_const_2 =
+            ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{unchangable_dims, spatial_dims}, 0);
         const auto reshape_2 = std::make_shared<ov::opset10::Reshape>(transpose_2, reshape_const_2, true);
 
-        const auto conv_weights = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{fc_out_channels, 1, 1, 3, 3}, {}, true);
+        const auto conv_weights =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              ov::Shape{fc_out_channels, 1, 1, 3, 3},
+                                                              {},
+                                                              true);
         const auto conv_with_bias = make_layer_with_bias<ov::opset10::GroupConvolution>(reshape_2,
-                                                                              conv_weights,
-                                                                              ov::Strides{1, 1},
-                                                                              ov::CoordinateDiff{1, 1},
-                                                                              ov::CoordinateDiff{1, 1},
-                                                                              ov::Strides{1, 1});
+                                                                                        conv_weights,
+                                                                                        ov::Strides{1, 1},
+                                                                                        ov::CoordinateDiff{1, 1},
+                                                                                        ov::CoordinateDiff{1, 1},
+                                                                                        ov::Strides{1, 1});
         // It's necessary to force acdb layout to be sure that the reorder, which changes dims order, will be inserted
         // (by default acdb layout is chosen only on >= AVX512 platforms)
         const auto conv = conv_with_bias->get_input_node_shared_ptr(0);
         const auto acdb_format = CPUTestUtils::cpu_memory_format_t::acdb;
         conv->get_rt_info() = makeCPUInfo({acdb_format}, {acdb_format}, {});
 
-        const auto dim_h = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {2}, {}, shapeof_subgraph_prc);
-        const auto dim_w = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {3}, {}, shapeof_subgraph_prc);
+        const auto dim_h =
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {2}, {}, shapeof_subgraph_prc);
+        const auto dim_w =
+            ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(param, {3}, {}, shapeof_subgraph_prc);
         const auto fused_spatial_dims = ov::op::util::make_try_fold<ov::opset10::Multiply>(dim_h, dim_w);
-        const auto reshape_const_3 = ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{unchangable_dims, fused_spatial_dims}, 0);
+        const auto reshape_const_3 =
+            ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{unchangable_dims, fused_spatial_dims}, 0);
         const auto reshape_3 = std::make_shared<ov::opset10::Reshape>(conv_with_bias, reshape_const_3, true);
         const auto transpose_const_3 = ov::opset10::Constant::create(shapeof_subgraph_prc, {3}, {0, 2, 1});
         const auto transpose_3 = std::make_shared<ov::opset10::Transpose>(reshape_3, transpose_const_3);
 
-        const auto fc_weights_2 = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{channels, fc_out_channels}, {}, true);
+        const auto fc_weights_2 =
+            ov::test::utils::deprecated::make_constant<float>(precision,
+                                                              ov::Shape{channels, fc_out_channels},
+                                                              {},
+                                                              true);
         const auto fc_2 = make_layer_with_bias<ov::opset10::MatMul>(transpose_3, fc_weights_2, false, true);
         function = std::make_shared<ov::Model>(fc_2, ov::ParameterVector{param}, "MergeTransposeReorderModel");
     }
@@ -155,19 +175,21 @@ std::vector<InputShape> static_shapes = {
 const ExpectedResult successfull_fuse_result{1, 1, 2};
 const ExpectedResult unsuccessfull_fuse_result{3, 3, 2};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MergeTransposeReorder_static, MergeTransposeReorderCPUTest,
-                        ::testing::Combine(::testing::ValuesIn(static_shapes),
-                                           ::testing::Values(successfull_fuse_result)),
-                        MergeTransposeReorderCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MergeTransposeReorder_static,
+                         MergeTransposeReorderCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(static_shapes),
+                                            ::testing::Values(successfull_fuse_result)),
+                         MergeTransposeReorderCPUTest::getTestCaseName);
 
 std::vector<InputShape> dynamic_shapes = {
     InputShape{{-1, 32, -1, -1}, {{1, 32, 16, 16}}},
     InputShape{{-1, 32, 16, 16}, {{1, 32, 16, 16}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MergeTransposeReorder_dynamic, MergeTransposeReorderCPUTest,
-                        ::testing::Combine(::testing::ValuesIn(dynamic_shapes),
-                                           ::testing::Values(unsuccessfull_fuse_result)),
-                        MergeTransposeReorderCPUTest::getTestCaseName);
-} // namespace
-} // namespace CPUSubgraphTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_MergeTransposeReorder_dynamic,
+                         MergeTransposeReorderCPUTest,
+                         ::testing::Combine(::testing::ValuesIn(dynamic_shapes),
+                                            ::testing::Values(unsuccessfull_fuse_result)),
+                         MergeTransposeReorderCPUTest::getTestCaseName);
+}  // namespace
+}  // namespace CPUSubgraphTestsDefinitions

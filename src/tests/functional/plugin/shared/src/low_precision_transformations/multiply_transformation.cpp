@@ -5,13 +5,12 @@
 #include "low_precision_transformations/multiply_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-#include "transformations/init_node_info.hpp"
 
 #include "ov_lpt_models/multiply_partial_function.hpp"
-
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -24,25 +23,20 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
     std::tie(precision, inputShapes, targetDevice, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
-           (param.broadcast1 ? "_broadcast1" : "") <<
-        (param.broadcast2 ? "_broadcast2" : "");
+    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params)
+           << (param.broadcast1 ? "_broadcast1" : "") << (param.broadcast2 ? "_broadcast2" : "");
 
     result << "_" << param.expectedPrecisions << "_";
 
     if (!param.fakeQuantize1.empty()) {
-        result << "_on_branch1_" <<
-            param.fakeQuantize1.inputLowValues[0] << "_" <<
-            param.fakeQuantize1.inputHighValues[0] << "_" <<
-            param.fakeQuantize1.outputLowValues[0] << "_" <<
-            param.fakeQuantize1.outputHighValues[0];
+        result << "_on_branch1_" << param.fakeQuantize1.inputLowValues[0] << "_"
+               << param.fakeQuantize1.inputHighValues[0] << "_" << param.fakeQuantize1.outputLowValues[0] << "_"
+               << param.fakeQuantize1.outputHighValues[0];
     }
     if (!param.fakeQuantize2.empty()) {
-        result << "_on_branch2_" <<
-            param.fakeQuantize2.inputLowValues[0] << "_" <<
-            param.fakeQuantize2.inputHighValues[0] << "_" <<
-            param.fakeQuantize2.outputLowValues[0] << "_" <<
-            param.fakeQuantize2.outputHighValues[0];
+        result << "_on_branch2_" << param.fakeQuantize2.inputLowValues[0] << "_"
+               << param.fakeQuantize2.inputHighValues[0] << "_" << param.fakeQuantize2.outputLowValues[0] << "_"
+               << param.fakeQuantize2.outputHighValues[0];
     }
     result << "_" << param.secondInputIsConstant;
     return result.str();
@@ -70,20 +64,17 @@ void MultiplyTransformation::SetUp() {
             inputShape2[3] = 1;
         }
     }
-    init_input_shapes(
-            param.secondInputIsConstant ?
-            std::vector<ov::PartialShape>{ inputShape1 } :
-            std::vector<ov::PartialShape>{ inputShape1, inputShape2 });
+    init_input_shapes(param.secondInputIsConstant ? std::vector<ov::PartialShape>{inputShape1}
+                                                  : std::vector<ov::PartialShape>{inputShape1, inputShape2});
 
-    function = ov::builder::subgraph::MultiplyPartialFunction::get(
-        precision,
-        inputShape,
-        param.broadcast1,
-        param.fakeQuantize1,
-        param.broadcast2,
-        param.fakeQuantize2,
-        param.fakeQuantizeAfter,
-        param.secondInputIsConstant);
+    function = ov::builder::subgraph::MultiplyPartialFunction::get(precision,
+                                                                   inputShape,
+                                                                   param.broadcast1,
+                                                                   param.fakeQuantize1,
+                                                                   param.broadcast2,
+                                                                   param.fakeQuantize2,
+                                                                   param.fakeQuantizeAfter,
+                                                                   param.secondInputIsConstant);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
@@ -95,18 +86,18 @@ void MultiplyTransformation::run() {
 
     auto to_string = [](const ov::element::Type& precision) -> std::string {
         switch (precision) {
-            case ov::element::f32: {
-                return "f32";
-            }
-            case ov::element::i8: {
-                return "i8";
-            }
-            case ov::element::u8: {
-                return "u8";
-            }
-            default: {
-                return "";
-            }
+        case ov::element::f32: {
+            return "f32";
+        }
+        case ov::element::i8: {
+            return "i8";
+        }
+        case ov::element::u8: {
+            return "u8";
+        }
+        default: {
+            return "";
+        }
         }
     };
 

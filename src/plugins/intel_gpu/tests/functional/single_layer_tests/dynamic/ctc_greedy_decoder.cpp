@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <random>
 #include <string>
 #include <tuple>
-#include <random>
 
 #include "common_test_utils/test_constants.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -12,16 +12,15 @@
 namespace {
 using ov::test::InputShape;
 
-typedef std::tuple<
-    ov::element::Type,          // Model type
-    InputShape,                 // Input shape
-    bool,                       // Merge repeated
-    std::string                 // Device name
-> ctcGreedyDecoderParams;
+typedef std::tuple<ov::element::Type,  // Model type
+                   InputShape,         // Input shape
+                   bool,               // Merge repeated
+                   std::string         // Device name
+                   >
+    ctcGreedyDecoderParams;
 
-class CTCGreedyDecoderLayerGPUTest
-    :  public testing::WithParamInterface<ctcGreedyDecoderParams>,
-       virtual public ov::test::SubgraphBaseTest {
+class CTCGreedyDecoderLayerGPUTest : public testing::WithParamInterface<ctcGreedyDecoderParams>,
+                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj) {
         ov::element::Type model_type;
@@ -45,6 +44,7 @@ public:
 
         return result.str();
     }
+
 protected:
     void SetUp() override {
         ov::element::Type model_type;
@@ -71,39 +71,33 @@ protected:
                 sequence_mask_data[t * B + b] = 1;
             }
         }
-        auto sequence_mask_node = std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{T, B}, sequence_mask_data);
+        auto sequence_mask_node =
+            std::make_shared<ov::op::v0::Constant>(model_type, ov::Shape{T, B}, sequence_mask_data);
 
-        auto ctc_greedy_decoder = std::make_shared<ov::op::v0::CTCGreedyDecoder>(param, sequence_mask_node, merge_repeated);
+        auto ctc_greedy_decoder =
+            std::make_shared<ov::op::v0::CTCGreedyDecoder>(param, sequence_mask_node, merge_repeated);
 
         auto result = std::make_shared<ov::op::v0::Result>(ctc_greedy_decoder);
         function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "CTCGreedyDecoder");
     }
 };
 
-
 TEST_P(CTCGreedyDecoderLayerGPUTest, Inference) {
     run();
 };
 
 // Common params
-const std::vector<ov::element::Type> netPrecisions = {
-    ov::element::f32,
-    ov::element::f16
-};
+const std::vector<ov::element::Type> netPrecisions = {ov::element::f32, ov::element::f16};
 std::vector<bool> mergeRepeated{true, false};
 
-std::vector<ov::test::InputShape> input_shapes_dynamic = {
-    {
-        {{-1, -1, -1}, {{ 50, 3, 3 }}},
-        {{-1, -1, -1}, {{ 50, 3, 7 }}},
-        {{-1, -1, -1}, {{ 50, 3, 8 }}},
-        {{-1, -1, -1}, {{ 50, 3, 16 }}},
-        {{-1, -1, -1}, {{ 50, 3, 128 }}},
-        {{-1, -1, -1}, {{ 50, 3, 49 }}},
-        {{-1, -1, -1}, {{ 50, 3, 55 }}},
-        {{-1, -1, -1}, {{ 1, 1, 16 }}}
-    }
-};
+std::vector<ov::test::InputShape> input_shapes_dynamic = {{{{-1, -1, -1}, {{50, 3, 3}}},
+                                                           {{-1, -1, -1}, {{50, 3, 7}}},
+                                                           {{-1, -1, -1}, {{50, 3, 8}}},
+                                                           {{-1, -1, -1}, {{50, 3, 16}}},
+                                                           {{-1, -1, -1}, {{50, 3, 128}}},
+                                                           {{-1, -1, -1}, {{50, 3, 49}}},
+                                                           {{-1, -1, -1}, {{50, 3, 55}}},
+                                                           {{-1, -1, -1}, {{1, 1, 16}}}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_CtcGreedyDecoderBasicDynamic,
                          CTCGreedyDecoderLayerGPUTest,

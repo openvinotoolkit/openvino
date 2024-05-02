@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/scaleshift.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/subgraph/scaleshift.hpp"
 
 namespace ov {
 namespace test {
-std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple> &obj) {
+std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple>& obj) {
     std::vector<ov::Shape> inputShapes;
     ov::element::Type type;
     std::string targetName;
@@ -44,5 +43,5 @@ void ScaleShiftLayerTest::SetUp() {
     auto add = std::make_shared<ov::op::v1::Add>(mul, add_const);
     function = std::make_shared<ov::Model>(add, paramsIn, "scale_shift");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

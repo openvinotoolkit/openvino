@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "border_inst.h"
-#include "intel_gpu/runtime/tensor_accessor.hpp"
-#include "pad_shape_inference.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
-#include "primitive_type_base.h"
-#include <string>
 #include <algorithm>
+#include <string>
+
+#include "border_inst.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "json_object.h"
+#include "pad_shape_inference.hpp"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(border)
@@ -29,11 +29,12 @@ layout border_inst::calc_output_layout(border_node const& node, kernel_impl_para
         new_dims[i] += (i < desc->pads_begin.size()) ? desc->pads_begin[i] : 0;
         new_dims[i] += (i < desc->pads_end.size()) ? desc->pads_end[i] : 0;
     }
-    return layout{ input_layout.data_type, input_format, tensor(dims_format, new_dims) };
+    return layout{input_layout.data_type, input_format, tensor(dims_format, new_dims)};
 }
 
-template<typename ShapeType>
-std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/,
+                                                     const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<border>();
     auto input0_layout = impl_param.get_input_layout(0);
 
@@ -56,14 +57,17 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
     auto& memory_deps = impl_param.memory_deps;
     if ((is_begin_mem && memory_deps.count(begin_mem_idx) == 0) ||
         (is_end_mem && memory_deps.count(end_mem_idx) == 0)) {
-        return {layout{ShapeType::dynamic(static_cast<int64_t>(in_rank)), input0_layout.data_type, input0_layout.format}};
+        return {
+            layout{ShapeType::dynamic(static_cast<int64_t>(in_rank)), input0_layout.data_type, input0_layout.format}};
     }
 
     int64_t begin_size = desc->pads_begin.size();
     int64_t end_size = desc->pads_end.size();
 
-    layout pads_begin_layout = is_begin_mem ? impl_param.get_input_layout(begin_mem_idx) : layout({ begin_size }, data_types::i64, format::bfyx);
-    layout pads_end_layout = is_end_mem ? impl_param.get_input_layout(end_mem_idx) : layout({ end_size }, data_types::i64, format::bfyx);
+    layout pads_begin_layout =
+        is_begin_mem ? impl_param.get_input_layout(begin_mem_idx) : layout({begin_size}, data_types::i64, format::bfyx);
+    layout pads_end_layout =
+        is_end_mem ? impl_param.get_input_layout(end_mem_idx) : layout({end_size}, data_types::i64, format::bfyx);
 
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
@@ -93,10 +97,11 @@ std::vector<layout> border_inst::calc_output_layouts(border_node const& /*node*/
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> border_inst::calc_output_layouts<ov::PartialShape>(border_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> border_inst::calc_output_layouts<ov::PartialShape>(border_node const& node,
+                                                                                const kernel_impl_params& impl_param);
 
 std::string border_inst::to_string(border_node const& node) {
     auto desc = node.get_primitive();
@@ -127,8 +132,8 @@ border_inst::typed_primitive_inst(network& network, border_node const& node) : p
     const bool allow_negative_pad = argument->allow_negative_pad;
 
     const auto check_negative_pad = [](std::ptrdiff_t pad) {
-                                        return pad < 0;
-                                    };
+        return pad < 0;
+    };
 
     if (!allow_negative_pad) {
         // Check if sizes of border are in proper range.

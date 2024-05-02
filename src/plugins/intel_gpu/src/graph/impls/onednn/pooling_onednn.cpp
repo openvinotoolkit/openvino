@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
-#include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
-
-#include <oneapi/dnnl/dnnl.hpp>
-
 #include <algorithm>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+
+#include "implementation_map.hpp"
+#include "kernel_selector_common.h"
+#include "pooling_inst.h"
+#include "primitive_onednn_base.h"
 namespace cldnn {
 namespace onednn {
 
@@ -26,8 +24,9 @@ protected:
         return make_unique<pooling_onednn>(*this);
     }
 
-    static std::shared_ptr<dnnl::pooling_forward::primitive_desc> get_pooling_primitive_descriptor(const kernel_impl_params& impl_params,
-                                                                                                   const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+    static std::shared_ptr<dnnl::pooling_forward::primitive_desc> get_pooling_primitive_descriptor(
+        const kernel_impl_params& impl_params,
+        const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<pooling>();
 
@@ -39,7 +38,8 @@ protected:
         auto pads_begin_shape = prim->pads_begin;
         auto pads_end_shape = prim->pads_end;
         auto dilation_shape = prim->dilation;
-        if (dilation_shape.empty()) dilation_shape.resize(stride_shape.size(), 0);
+        if (dilation_shape.empty())
+            dilation_shape.resize(stride_shape.size(), 0);
 
         kernel_shape.resize(std::max<size_t>(2, prim->size.size()), 1);
         stride_shape.resize(std::max<size_t>(2, prim->stride.size()), 1);
@@ -57,29 +57,36 @@ protected:
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            pad_r[i] = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + kernel[i] - pad_l[i];
+            pad_r[i] =
+                (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + kernel[i] - pad_l[i];
         }
 
         dnnl::algorithm alg;
         switch (prim->mode) {
-            case pooling_mode::average: alg = dnnl::algorithm::pooling_avg_include_padding; break;
-            case pooling_mode::max: alg = dnnl::algorithm::pooling_max; break;
-            case pooling_mode::average_no_padding: alg = dnnl::algorithm::pooling_avg_exclude_padding; break;
-            default: throw std::runtime_error("unsupported pool mode");
+        case pooling_mode::average:
+            alg = dnnl::algorithm::pooling_avg_include_padding;
+            break;
+        case pooling_mode::max:
+            alg = dnnl::algorithm::pooling_max;
+            break;
+        case pooling_mode::average_no_padding:
+            alg = dnnl::algorithm::pooling_avg_exclude_padding;
+            break;
+        default:
+            throw std::runtime_error("unsupported pool mode");
         }
 
-        return std::make_shared<dnnl::pooling_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            alg,
-            input_md,
-            output_md,
-            stride,
-            kernel,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
+        return std::make_shared<dnnl::pooling_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                       dnnl::prop_kind::forward_inference,
+                                                                       alg,
+                                                                       input_md,
+                                                                       output_md,
+                                                                       stride,
+                                                                       kernel,
+                                                                       dilation,
+                                                                       pad_l,
+                                                                       pad_r,
+                                                                       attr);
     }
 
 public:
@@ -87,8 +94,8 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const dnnl::pooling_forward::primitive_desc *typed_pd
-            = reinterpret_cast<const dnnl::pooling_forward::primitive_desc *>(&_pd);
+        const dnnl::pooling_forward::primitive_desc* typed_pd =
+            reinterpret_cast<const dnnl::pooling_forward::primitive_desc*>(&_pd);
 
         dnnl::algorithm alg = typed_pd->get_algorithm();
         ob << make_data(&alg, sizeof(dnnl::algorithm));
@@ -127,18 +134,17 @@ public:
         ib >> pad_l;
         ib >> pad_r;
 
-        auto prim_desc = std::make_shared<dnnl::pooling_forward::primitive_desc>(
-            ib.get_engine().get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            alg,
-            input_md,
-            output_md,
-            stride,
-            kernel,
-            dilation,
-            pad_l,
-            pad_r,
-            *_attrs.get());
+        auto prim_desc = std::make_shared<dnnl::pooling_forward::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                                 dnnl::prop_kind::forward_inference,
+                                                                                 alg,
+                                                                                 input_md,
+                                                                                 output_md,
+                                                                                 stride,
+                                                                                 kernel,
+                                                                                 dilation,
+                                                                                 pad_l,
+                                                                                 pad_r,
+                                                                                 *_attrs.get());
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;

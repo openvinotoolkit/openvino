@@ -13,10 +13,12 @@
 #   IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 #   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-import os
 import csv
+import os
 import shutil
+
 from sea_runtool import GraphCombiner
+
 
 class Stat(GraphCombiner):
     def __init__(self, args, tree):
@@ -27,17 +29,24 @@ class Stat(GraphCombiner):
 
     def finish(self):
         GraphCombiner.finish(self)
-        delim = ','
-        with open(self.get_targets()[-1], 'w') as f:
+        delim = ","
+        with open(self.get_targets()[-1], "w") as f:
             writer = csv.writer(f, delimiter=delim)
             writer.writerow(["domain", "name", "min", "max", "avg", "total", "count"])
             for domain, data in self.per_domain.items():
-                for task_name, task_data in data['tasks'].items():
-                    time = task_data['time']
-                    writer.writerow([domain, task_name, min(time), max(time), sum(time) / len(time), sum(time), len(time)])
+                for task_name, task_data in data["tasks"].items():
+                    time = task_data["time"]
+                    writer.writerow(
+                        [
+                            domain,
+                            task_name,
+                            min(time),
+                            max(time),
+                            sum(time) / len(time),
+                            sum(time),
+                            len(time),
+                        ]
+                    )
 
-EXPORTER_DESCRIPTORS = [{
-    'format': 'stat',
-    'available': True,
-    'exporter': Stat
-}]
+
+EXPORTER_DESCRIPTORS = [{"format": "stat", "available": True, "exporter": Stat}]

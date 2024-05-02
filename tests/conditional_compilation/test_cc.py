@@ -15,15 +15,27 @@ from pathlib import Path
 import numpy as np
 import pytest
 from proc_utils import cmd_exec  # pylint: disable=import-error
-
-from test_utils import get_lib_sizes, infer_tool, make_build, run_infer  # pylint: disable=import-error
+from test_utils import (  # pylint: disable=import-error
+    get_lib_sizes,
+    infer_tool,
+    make_build,
+    run_infer,
+)
 
 log = logging.getLogger()
 
 
 @pytest.mark.dependency(name="cc_collect")
-def test_cc_collect(test_id, prepared_models, openvino_ref, test_info,
-                    save_session_info, sea_runtool, collector_dir, artifacts):  # pylint: disable=unused-argument
+def test_cc_collect(
+    test_id,
+    prepared_models,
+    openvino_ref,
+    test_info,
+    save_session_info,
+    sea_runtool,
+    collector_dir,
+    artifacts,
+):  # pylint: disable=unused-argument
     """Test conditional compilation statistics collection
     :param test_info: custom `test_info` field of built-in `request` pytest fixture.
                       contain a dictionary to store test metadata.
@@ -50,18 +62,22 @@ def test_cc_collect(test_id, prepared_models, openvino_ref, test_info,
             infer_tool,
             *[f"-m={model}" for model in prepared_models],
             "-d=CPU",
-            f"-r={infer_out_dir}"
+            f"-r={infer_out_dir}",
         ]
     )
     out_csv = glob.glob(f"{out / test_id}.pid*.csv")
     test_info["out_csv"] = out_csv
 
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
     assert len(out_csv) == 1, f'Multiple or none "{out / test_id}.pid*.csv" files'
 
 
 @pytest.mark.dependency(depends=["cc_collect"])
-def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint: disable=unused-argument
+def test_minimized_pkg(
+    test_id, models, openvino_root_dir, artifacts
+):  # pylint: disable=unused-argument
     """Build and install OpenVINO package with collected conditional compilation statistics."""
     out = artifacts / test_id
     install_prefix = out / "install_pkg"
@@ -79,7 +95,9 @@ def test_minimized_pkg(test_id, models, openvino_root_dir, artifacts):  # pylint
         cmake_additional_args=[f"-DSELECTIVE_BUILD_STAT={out_csv[0]}"],
         log=log,
     )
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
@@ -90,11 +108,15 @@ def test_infer(test_id, prepared_models, artifacts):
     infer_out_dir_cc = out / "inference_result_cc/"
 
     return_code, output = run_infer(prepared_models, infer_out_dir_cc, minimized_pkg)
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_verify(test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-6):  # pylint: disable=too-many-arguments
+def test_verify(
+    test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-6
+):  # pylint: disable=too-many-arguments
     """Test verifying that inference results are equal."""
     out = artifacts / test_id
     minimized_pkg = out / "install_pkg"
@@ -103,9 +125,13 @@ def test_verify(test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-
     infer_out_dir = out / "inference_result/"
 
     return_code, output = run_infer(prepared_models, infer_out_dir, openvino_ref)
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
     return_code, output = run_infer(prepared_models, infer_out_dir_cc, minimized_pkg)
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
 
     for model in prepared_models:
         out_file = f"{infer_out_dir / Path(model).name}.npz"
@@ -123,7 +149,9 @@ def test_verify(test_id, prepared_models, openvino_ref, artifacts, tolerance=1e-
 
 
 @pytest.mark.dependency(depends=["cc_collect", "minimized_pkg"])
-def test_libs_size(test_id, models, openvino_ref, artifacts):  # pylint: disable=unused-argument
+def test_libs_size(
+    test_id, models, openvino_ref, artifacts
+):  # pylint: disable=unused-argument
     """Test if libraries haven't increased in size after conditional compilation."""
     libraries = ["openvino", "openvino_intel_cpu_plugin"]
     minimized_pkg = artifacts / test_id / "install_pkg"

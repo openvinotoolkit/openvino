@@ -6,28 +6,25 @@
 
 #define ONEDNN_PRIMITIVE_SERIALIZATION
 
-#include "primitive_inst.h"
+#include <list>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
-#include "to_string_utils.h"
-#include "register.hpp"
-#include "utils.hpp"
-#include "runtime/ocl/ocl_event.hpp"
-
+#include "intel_gpu/runtime/memory.hpp"
+#include "primitive_inst.h"
 #include "quantize_inst.h"
-#include "reorder_inst.h"
-
-#include "reorder/reorder_weights_kernel_selector.h"
+#include "register.hpp"
 #include "reorder/reorder_kernel_base.h"
-#include "impls/ocl/kernel_selector_helper.h"
-
-#include <vector>
-#include <list>
-#include <utility>
-
-#include <oneapi/dnnl/dnnl.hpp>
+#include "reorder/reorder_weights_kernel_selector.h"
+#include "reorder_inst.h"
+#include "runtime/ocl/ocl_event.hpp"
+#include "to_string_utils.h"
+#include "utils.hpp"
 
 namespace cldnn {
 namespace onednn {
@@ -45,57 +42,58 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
-            const ExecutionConfig& config,
-            std::shared_ptr<dnnl::primitive_attr> attrs,
-            const PrimDescType& pd,
-            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
+                                const ExecutionConfig& config,
+                                std::shared_ptr<dnnl::primitive_attr> attrs,
+                                const PrimDescType& pd,
+                                std::shared_ptr<WeightsReorderParams> weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-        _engine(&engine),
-        _attrs(attrs),
-        _pd(pd) {
-            _enable_profiling = config.get_property(ov::enable_profiling);
+          _engine(&engine),
+          _attrs(attrs),
+          _pd(pd) {
+        _enable_profiling = config.get_property(ov::enable_profiling);
 
-            _scratchpad_md = _pd.scratchpad_desc();
+        _scratchpad_md = _pd.scratchpad_desc();
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-                _enable_profiling = true;
-            }
-
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                if (_scratchpad_md.get_size() > 0) {
-                    static std::atomic_llong total{0};
-                    int64_t size = _scratchpad_md.get_size() / 1048576;
-                    total += size;
-                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
-                        << ", " << size << "MB, total " << total << "MB" << std::endl;
-                }
-            }
-
-            build_primitive(config);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            _enable_profiling = true;
         }
+
+        GPU_DEBUG_IF(debug_config->verbose >= 4) {
+            if (_scratchpad_md.get_size() > 0) {
+                static std::atomic_llong total{0};
+                int64_t size = _scratchpad_md.get_size() / 1048576;
+                total += size;
+                GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind()) << ", " << size
+                                       << "MB, total " << total << "MB" << std::endl;
+            }
+        }
+
+        build_primitive(config);
+    }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
         : typed_primitive_impl<PType>({}, "undef"),
-        _engine(&engine),
-        _pd(),
-        _prim() {
-            _enable_profiling = config.get_property(ov::enable_profiling);
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-                _enable_profiling = true;
-            }
+          _engine(&engine),
+          _pd(),
+          _prim() {
+        _enable_profiling = config.get_property(ov::enable_profiling);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            _enable_profiling = true;
         }
+    }
 
-    typed_primitive_onednn_impl()
-        : typed_primitive_impl<PType>({}, "undef"),
-          _engine(nullptr),
-          _pd(), _prim() {
+    typed_primitive_onednn_impl() : typed_primitive_impl<PType>({}, "undef"), _engine(nullptr), _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
 
-    bool is_cpu() const override { return false; }
-    bool is_onednn() const override { return true; }
+    bool is_cpu() const override {
+        return false;
+    }
+    bool is_onednn() const override {
+        return true;
+    }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
@@ -158,7 +156,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::memory::dim stride_size;
                         dnnl::memory::dim padding_l_size;
 
-                        _post_ops.get_params_dw(idx, weights_data_type, bias_data_type, dst_data_type, kernel_size, stride_size, padding_l_size);
+                        _post_ops.get_params_dw(idx,
+                                                weights_data_type,
+                                                bias_data_type,
+                                                dst_data_type,
+                                                kernel_size,
+                                                stride_size,
+                                                padding_l_size);
 
                         ob << make_data(&weights_data_type, sizeof(dnnl::memory::data_type));
                         ob << make_data(&bias_data_type, sizeof(dnnl::memory::data_type));
@@ -270,19 +274,26 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         ib >> make_data(&dst_data_type, sizeof(dnnl::memory::data_type));
                         ib >> kernel_size >> stride_size >> padding_l_size;
 
-                        _post_ops.append_dw(weights_data_type, bias_data_type, dst_data_type,
-                                            kernel_size, stride_size, padding_l_size);
+                        _post_ops.append_dw(weights_data_type,
+                                            bias_data_type,
+                                            dst_data_type,
+                                            kernel_size,
+                                            stride_size,
+                                            padding_l_size);
                     } else if (_kind == dnnl::primitive::kind::binary) {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
                         if (fused_desc.at(idx).dims.size() > 0) {
                             _post_ops.append_binary(aalgorithm,
-                                dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
+                                                    dnnl::memory::desc(fused_desc.at(idx).dims,
+                                                                       fused_desc.at(idx).dt,
+                                                                       fused_desc.at(idx).tag));
                         } else {
-                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                            fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+                            dnnl::memory::desc md =
+                                onednn::layout_to_memory_desc(impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
+                                                              fused_desc.at(idx).tag,
+                                                              fused_desc.at(idx).flatten);
 
                             _post_ops.append_binary(aalgorithm, md);
                         }
@@ -384,9 +395,12 @@ private:
     }
 
 protected:
-    virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
+    virtual bool optimized_out(typed_primitive_inst<PType>&) const {
+        return false;
+    }
 
-    void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
+    void configure_post_ops_arguments(typed_primitive_inst<PType>& instance,
+                                      std::unordered_map<int, dnnl::memory>& args) const {
         auto& engine = instance.get_network().get_engine();
         auto dnnl_engine = engine.get_onednn_engine();
 
@@ -403,58 +417,53 @@ protected:
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
             switch (post_op_type) {
-                case onednn_post_op_type::eltwise_act:
-                case onednn_post_op_type::eltwise_clip:
-                case onednn_post_op_type::eltwise_linear:
-                case onednn_post_op_type::eltwise_round:
-                case onednn_post_op_type::eltwise_hardsigmoid:
-                {
-                    // onednn elwise doesn't need any data from memory buffers
-                    break;
-                }
+            case onednn_post_op_type::eltwise_act:
+            case onednn_post_op_type::eltwise_clip:
+            case onednn_post_op_type::eltwise_linear:
+            case onednn_post_op_type::eltwise_round:
+            case onednn_post_op_type::eltwise_hardsigmoid: {
+                // onednn elwise doesn't need any data from memory buffers
+                break;
+            }
 
-                case onednn_post_op_type::binary_add:
-                case onednn_post_op_type::binary_sub:
-                case onednn_post_op_type::binary_mul:
-                case onednn_post_op_type::binary_max:
-                case onednn_post_op_type::binary_min:
-                {
-                    auto binary_op_mem = instance.fused_memory(memory_offset);
-                    dnnl::algorithm alg;
-                    dnnl::memory::desc desc;
-                    post_ops.get_params_binary(static_cast<int>(onednn_post_op_idx), alg, desc);
-                    args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_SRC_1,
-                                 binary_op_mem->get_onednn_memory(desc)});
-                    break;
-                }
+            case onednn_post_op_type::binary_add:
+            case onednn_post_op_type::binary_sub:
+            case onednn_post_op_type::binary_mul:
+            case onednn_post_op_type::binary_max:
+            case onednn_post_op_type::binary_min: {
+                auto binary_op_mem = instance.fused_memory(memory_offset);
+                dnnl::algorithm alg;
+                dnnl::memory::desc desc;
+                post_ops.get_params_binary(static_cast<int>(onednn_post_op_idx), alg, desc);
+                args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_SRC_1,
+                             binary_op_mem->get_onednn_memory(desc)});
+                break;
+            }
 
-                case onednn_post_op_type::binary_relu:
-                {
-                    auto binary_op_mem = instance.fused_memory(memory_offset);
-                    args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
-                                 binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
-                    break;
-                }
+            case onednn_post_op_type::binary_relu: {
+                auto binary_op_mem = instance.fused_memory(memory_offset);
+                args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
+                             binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
+                break;
+            }
 
-                case onednn_post_op_type::sum:
-                case onednn_post_op_type::optimized_sum:
-                case onednn_post_op_type::optimized_eltwise_linear:
-                case onednn_post_op_type::optimized_eltwise_act:
-                case onednn_post_op_type::optimized_eltwise_round:
-                case onednn_post_op_type::optimized_eltwise_clip:
-                {
-                    break;
-                }
+            case onednn_post_op_type::sum:
+            case onednn_post_op_type::optimized_sum:
+            case onednn_post_op_type::optimized_eltwise_linear:
+            case onednn_post_op_type::optimized_eltwise_act:
+            case onednn_post_op_type::optimized_eltwise_round:
+            case onednn_post_op_type::optimized_eltwise_clip: {
+                break;
+            }
 
-                case onednn_post_op_type::optimized:
-                {
-                    // Optimized post-op, count it to respect onednn_post_op_idx in the next operations
-                    num_of_optimized_post_ops++;
-                    break;
-                }
+            case onednn_post_op_type::optimized: {
+                // Optimized post-op, count it to respect onednn_post_op_idx in the next operations
+                num_of_optimized_post_ops++;
+                break;
+            }
 
-                default:
-                    throw std::runtime_error("Unsupported onednn post-operation type");
+            default:
+                throw std::runtime_error("Unsupported onednn post-operation type");
             }
         }
     }
@@ -487,7 +496,8 @@ protected:
         return args;
     }
 
-    virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance, kernel_arguments_data& mem_args) const {
+    virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance,
+                                                                kernel_arguments_data& mem_args) const {
         std::unordered_map<int, dnnl::memory> args;
         auto& engine = instance.get_network().get_engine();
         auto dnnl_engine = engine.get_onednn_engine();
@@ -514,7 +524,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized())
@@ -554,7 +564,7 @@ protected:
                 if (err.status == dnnl_status_t::dnnl_out_of_memory) {
                     ov::intel_gpu::ForceExit();
                 }
-                throw;    // rethrowing dnnl::error if not out_of_memory
+                throw;  // rethrowing dnnl::error if not out_of_memory
             }
 
             if (_enable_profiling) {
@@ -562,9 +572,12 @@ protected:
                 // this synchronization point is needed for correct OneDNN's profiling process
                 stream.wait();
 
-                std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
-                OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
-                                                      "actual number is ", duration.size());
+                std::vector<uint64_t> duration =
+                    dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
+                OPENVINO_ASSERT(duration.size() == 1,
+                                "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
+                                "actual number is ",
+                                duration.size());
 
                 event = std::make_shared<ocl::ocl_event>(duration[0]);
             } else {

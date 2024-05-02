@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset15."""
 from functools import partial
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 from openvino.runtime import Node, Type
 from openvino.runtime.opset_utils import _get_node_factory

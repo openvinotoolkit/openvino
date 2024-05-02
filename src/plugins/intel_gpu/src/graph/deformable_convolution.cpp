@@ -1,15 +1,17 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "deformable_convolution_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "deformable_convolution_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_conv)
 
-layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param) {
+layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node,
+                                                kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<deformable_conv>();
 
     auto input_layout = impl_param.get_input_layout();
@@ -45,12 +47,13 @@ std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
     return primitive_description.str();
 }
 
-deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node) : parent(network, node) {
-}
+deformable_conv_inst::typed_primitive_inst(network& network, deformable_conv_node const& node)
+    : parent(network, node) {}
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(deformable_interp)
 
-layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param) {
+layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& node,
+                                                  kernel_impl_params const& impl_param) {
     auto desc = node.get_primitive();
 
     auto input_layout = node.get_input_layout();
@@ -60,7 +63,7 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
     auto output_type = node.get_primitive()->output_data_types[0].value_or(input_type);
 
     tensor output_size(input_layout.batch(),
-                       input_layout.feature()*kernel_size.spatial[0]*kernel_size.spatial[1],
+                       input_layout.feature() * kernel_size.spatial[0] * kernel_size.spatial[1],
                        desc->output_size.spatial[0],
                        desc->output_size.spatial[1],
                        desc->output_size.spatial[2]);
@@ -94,7 +97,7 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     return primitive_description.str();
 }
 
-deformable_interp_inst::typed_primitive_inst(network& network, deformable_interp_node const& node) : parent(network, node) {
-}
+deformable_interp_inst::typed_primitive_inst(network& network, deformable_interp_node const& node)
+    : parent(network, node) {}
 
 }  // namespace cldnn

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "cum_sum_inst.h"
-#include "cum_sum/cum_sum_kernel_selector.h"
 #include "cum_sum/cum_sum_kernel_ref.h"
+#include "cum_sum/cum_sum_kernel_selector.h"
+#include "cum_sum_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,29 +16,33 @@ kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
         axis += rank;
     }
     switch (axis) {
-        case 0: return kernel_selector::cum_sum_axis::BATCH;
-        case 1: return kernel_selector::cum_sum_axis::FEATURE;
-        case 2:
-            if (rank == 6)
-                return kernel_selector::cum_sum_axis::W;
-            else if (rank == 5)
-                return kernel_selector::cum_sum_axis::Z;
-            else
-                return kernel_selector::cum_sum_axis::Y;
-        case 3:
-            if (rank == 6)
-                return kernel_selector::cum_sum_axis::Z;
-            else if (rank == 5)
-                return kernel_selector::cum_sum_axis::Y;
-            else
-                return kernel_selector::cum_sum_axis::X;
-        case 4:
-            if (rank == 6)
-                return kernel_selector::cum_sum_axis::Y;
-            else
-                return kernel_selector::cum_sum_axis::X;
-        case 5: return kernel_selector::cum_sum_axis::X;
-        default: return kernel_selector::cum_sum_axis::BATCH;
+    case 0:
+        return kernel_selector::cum_sum_axis::BATCH;
+    case 1:
+        return kernel_selector::cum_sum_axis::FEATURE;
+    case 2:
+        if (rank == 6)
+            return kernel_selector::cum_sum_axis::W;
+        else if (rank == 5)
+            return kernel_selector::cum_sum_axis::Z;
+        else
+            return kernel_selector::cum_sum_axis::Y;
+    case 3:
+        if (rank == 6)
+            return kernel_selector::cum_sum_axis::Z;
+        else if (rank == 5)
+            return kernel_selector::cum_sum_axis::Y;
+        else
+            return kernel_selector::cum_sum_axis::X;
+    case 4:
+        if (rank == 6)
+            return kernel_selector::cum_sum_axis::Y;
+        else
+            return kernel_selector::cum_sum_axis::X;
+    case 5:
+        return kernel_selector::cum_sum_axis::X;
+    default:
+        return kernel_selector::cum_sum_axis::BATCH;
     }
 }
 }  // namespace
@@ -86,20 +89,23 @@ public:
 namespace detail {
 
 attach_cum_sum_impl::attach_cum_sum_impl() {
-    implementation_map<cum_sum>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>, {
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-    });
+    implementation_map<cum_sum>::add(impl_types::ocl,
+                                     shape_types::any,
+                                     typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>,
+                                     {
+                                         std::make_tuple(data_types::i32, format::bfyx),
+                                         std::make_tuple(data_types::i32, format::bfzyx),
+                                         std::make_tuple(data_types::i32, format::bfwzyx),
+                                         std::make_tuple(data_types::i64, format::bfyx),
+                                         std::make_tuple(data_types::i64, format::bfzyx),
+                                         std::make_tuple(data_types::i64, format::bfwzyx),
+                                         std::make_tuple(data_types::f16, format::bfyx),
+                                         std::make_tuple(data_types::f16, format::bfzyx),
+                                         std::make_tuple(data_types::f16, format::bfwzyx),
+                                         std::make_tuple(data_types::f32, format::bfyx),
+                                         std::make_tuple(data_types::f32, format::bfzyx),
+                                         std::make_tuple(data_types::f32, format::bfwzyx),
+                                     });
 }
 
 }  // namespace detail

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/topk.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -30,17 +29,17 @@ static void TopKImpl(ProgramBuilder& p,
 
         auto topk_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
-                                            inputs[0],
-                                            inputs[1],
-                                            mode,
-                                            (topk_constant ? top_k : 0),
-                                            chosen_axis,
-                                            stype,
-                                            true,
-                                            stable,
-                                            cldnn::padding({0, 0, 0, 0}, 0),
-                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                            num_outputs);
+                                             inputs[0],
+                                             inputs[1],
+                                             mode,
+                                             (topk_constant ? top_k : 0),
+                                             chosen_axis,
+                                             stype,
+                                             true,
+                                             stable,
+                                             cldnn::padding({0, 0, 0, 0}, 0),
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                             num_outputs);
         argmaxPrim.output_paddings = get_output_paddings(op);
         argmaxPrim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, argmaxPrim);
@@ -51,16 +50,16 @@ static void TopKImpl(ProgramBuilder& p,
                 mutable_precision = ov::element::i32;
             }
 
-            cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
-                                                        cldnn::format::get_default_format(op->get_output_shape(1).size()),
-                                                        tensor_from_dims(op->get_output_shape(1)));
+            cldnn::layout mutableLayout =
+                cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
+                              cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                              tensor_from_dims(op->get_output_shape(1)));
 
             GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
             auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
             cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-            auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
-                                                           shared_memory);
+            auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w, shared_memory);
             p.add_primitive(*op, argmax_mutable_prim);
             inputs.push_back(cldnn::input_info(argmax_mutable_id_w));
 
@@ -79,9 +78,8 @@ static void TopKImpl(ProgramBuilder& p,
             p.add_primitive(*op, argmaxPrim);
 
             cldnn::primitive_id argmax_mutable_id_r = layerName + ".out1";
-            auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
-                                                             { cldnn::input_info(ArgMaxLayerName) },
-                                                             shared_memory);
+            auto argmax_mutable_prim_r =
+                cldnn::mutable_data(argmax_mutable_id_r, {cldnn::input_info(ArgMaxLayerName)}, shared_memory);
             p.add_primitive(*op, argmax_mutable_prim_r);
         } else if (op->get_output_size() == 1) {
             auto argmaxPrim = cldnn::arg_max_min(layerName,
@@ -107,7 +105,13 @@ static void CreateTopKOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::To
 }
 
 static void CreateTopKOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v11::TopK>& op) {
-    TopKImpl(p, op, op->get_mode(), op->get_sort_type(), static_cast<uint32_t>(op->get_k()), op->get_axis(), op->get_stable());
+    TopKImpl(p,
+             op,
+             op->get_mode(),
+             op->get_sort_type(),
+             static_cast<uint32_t>(op->get_k()),
+             op->get_axis(),
+             op->get_stable());
 }
 
 REGISTER_FACTORY_IMPL(v1, TopK);

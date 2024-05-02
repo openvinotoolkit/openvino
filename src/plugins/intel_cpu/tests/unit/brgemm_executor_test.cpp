@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <utility>
 #include <gtest/gtest.h>
+
+#include <utility>
+
 #include "common_test_utils/test_common.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
@@ -29,7 +31,7 @@ void run_test(ov::element::Type rtPrec) {
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
     bool is_bf16 = (rtPrec == ov::element::bf16);
-    std::vector<T> a_data(M * K, (1.0f/33));
+    std::vector<T> a_data(M * K, (1.0f / 33));
     std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
     std::vector<size_t> wsp(nthr * 4 * 1024, 0.0f);
@@ -51,7 +53,7 @@ void run_test(ov::element::Type rtPrec) {
                          wsp.data() + i * 4 * 1024,
                          a_scracth.data());
     });
-    ov::parallel_for(nthr, [&](size_t i){
+    ov::parallel_for(nthr, [&](size_t i) {
         for (size_t m = 0; m < M; m++) {
             for (size_t n = 0; n < N; n++) {
                 float expected_value = 4.0f;
@@ -85,4 +87,4 @@ INSTANTIATE_TEST_SUITE_P(BrgemmKernelUnitTest,
                          BrgemmKernelTest,
                          ::testing::Values(ov::element::f32, ov::element::bf16),
                          BrgemmKernelTest::getTestCaseName);
-} // namespace brgemmUnitTest
+}  // namespace brgemmUnitTest

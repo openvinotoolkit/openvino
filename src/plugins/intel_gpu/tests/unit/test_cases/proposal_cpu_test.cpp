@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <fstream>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/proposal.hpp>
 
-#include <fstream>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,11 +22,8 @@ extern size_t proposal_ref_size;
 const float epsilon_fp16 = 0.125f;
 
 // !!!!!!!!
-// The data for this test (input and ref) was generated in clCaffe using the zf truncated prototxt with the following modifications:
-// input height: 420 -> 210
-// input width: 700 -> 350
-// max proposals: 300 -> 50
-// post nms topn: 150 -> 25
+// The data for this test (input and ref) was generated in clCaffe using the zf truncated prototxt with the following
+// modifications: input height: 420 -> 210 input width: 700 -> 350 max proposals: 300 -> 50 post nms topn: 150 -> 25
 // !!!!!!!!
 
 const primitive_id cls_scores_name = "cls_scores";
@@ -44,46 +40,43 @@ const int post_nms_topn = 25;
 const int image_w = 350;
 const int image_h = 210;
 const int image_z = 1;
-const std::vector<float> ratios = { 0.5f, 1.0f, 2.0f };
-const std::vector<float> scales = { 8.0f, 16.0f, 32.0f };
+const std::vector<float> ratios = {0.5f, 1.0f, 2.0f};
+const std::vector<float> scales = {8.0f, 16.0f, 32.0f};
 
 template <typename Dtype, typename ImInfoType = Dtype>
-class TestRunnerProposal
-{
-    public:
-        explicit TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test = false);
+class TestRunnerProposal {
+public:
+    explicit TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test = false);
 
-        memory::ptr Run(std::vector<Dtype>& data,
-                        std::vector<Dtype>& rois);
+    memory::ptr Run(std::vector<Dtype>& data, std::vector<Dtype>& rois);
 
-    private:
-        layout _cls_scores_layout;
-        layout _bbox_pred_layout;
-        layout _image_info_layout;
-        topology _topology;
-        proposal _test_layer;
-        std::unique_ptr<network> _network;
+private:
+    layout _cls_scores_layout;
+    layout _bbox_pred_layout;
+    layout _image_info_layout;
+    topology _topology;
+    proposal _test_layer;
+    std::unique_ptr<network> _network;
 };
 
 template <typename Dtype, typename ImInfoType>
-TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test) :
-                            _cls_scores_layout(ov::element::from<Dtype>(), format::bfyx, { 1, 18, 23, 14 } ),
-                            _bbox_pred_layout(ov::element::from<Dtype>(), format::bfyx, { 1, 36, 23, 14 } ),
-                            _image_info_layout(ov::element::from<ImInfoType>(), format::bfyx, image_info_size),
-                            _test_layer(layer_name,
-                                        cls_scores_name,
-                                        bbox_pred_name,
-                                        image_info_name,
-                                        max_proposals,
-                                        iou_threshold,
-                                        min_bbox_size,
-                                        feature_stride,
-                                        pre_nms_topn,
-                                        post_nms_topn,
-                                        ratios,
-                                        scales,
-                                        padding())
-{
+TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_info_size, bool is_caching_test)
+    : _cls_scores_layout(ov::element::from<Dtype>(), format::bfyx, {1, 18, 23, 14}),
+      _bbox_pred_layout(ov::element::from<Dtype>(), format::bfyx, {1, 36, 23, 14}),
+      _image_info_layout(ov::element::from<ImInfoType>(), format::bfyx, image_info_size),
+      _test_layer(layer_name,
+                  cls_scores_name,
+                  bbox_pred_name,
+                  image_info_name,
+                  max_proposals,
+                  iou_threshold,
+                  min_bbox_size,
+                  feature_stride,
+                  pre_nms_topn,
+                  post_nms_topn,
+                  ratios,
+                  scales,
+                  padding()) {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));
     _topology.add(input_layout(bbox_pred_name, _bbox_pred_layout));
     _topology.add(input_layout(image_info_name, _image_info_layout));
@@ -112,15 +105,15 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
 
 template <typename Dtype, typename ImInfoType>
 memory::ptr TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_scores_vals,
-                                                       std::vector<Dtype>& bbox_pred_vals)
-{
+                                                       std::vector<Dtype>& bbox_pred_vals) {
     auto& engine = get_test_engine();
     memory::ptr cls_scores = engine.attach_memory(_cls_scores_layout, cls_scores_vals.data());
-    memory::ptr bbox_pred  = engine.attach_memory(_bbox_pred_layout, bbox_pred_vals.data());
+    memory::ptr bbox_pred = engine.attach_memory(_bbox_pred_layout, bbox_pred_vals.data());
 
-    std::vector<ImInfoType> image_info_vals = { (ImInfoType)((float)image_h - 0.0000001f), // check fp robustness of the layer
-                                                (ImInfoType)((float)image_w + 0.0000001f), // check fp robustness of the layer
-                                                (ImInfoType)((float)image_z) };
+    std::vector<ImInfoType> image_info_vals = {
+        (ImInfoType)((float)image_h - 0.0000001f),  // check fp robustness of the layer
+        (ImInfoType)((float)image_w + 0.0000001f),  // check fp robustness of the layer
+        (ImInfoType)((float)image_z)};
     memory::ptr image_info = engine.allocate_memory(_image_info_layout);
     tests::set_values(image_info, image_info_vals);
 
@@ -154,19 +147,19 @@ void test_proposal_basic(cldnn::tensor image_info_size, bool is_caching_test) {
 }
 
 TEST(proposal, basic) {
-    test_proposal_basic<float>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic<float>({1, 3, 1, 1}, false);
 }
 
 TEST(proposal, fp16) {
-    test_proposal_basic<ov::float16>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic<ov::float16>({1, 3, 1, 1}, false);
 }
 
 TEST(proposal, img_info_batched) {
-    test_proposal_basic<float>({ 2, 3, 1, 1 }, false);
+    test_proposal_basic<float>({2, 3, 1, 1}, false);
 }
 
 TEST(proposal, img_info_batch_only) {
-    test_proposal_basic<float>({ 3, 1, 1, 1 }, false);
+    test_proposal_basic<float>({3, 1, 1, 1}, false);
 }
 
 template <typename Dtype, typename ImInfoType>
@@ -188,33 +181,33 @@ void test_proposal_basic_two_types(cldnn::tensor image_info_size, bool is_cachin
 }
 
 TEST(proposal, scores_fp16_im_info_fp32) {
-    test_proposal_basic_two_types<ov::float16, float>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic_two_types<ov::float16, float>({1, 3, 1, 1}, false);
 }
 
 TEST(proposal, scores_fp32_im_info_fp16) {
-    test_proposal_basic_two_types<float, ov::float16>({ 1, 3, 1, 1 }, false);
+    test_proposal_basic_two_types<float, ov::float16>({1, 3, 1, 1}, false);
 }
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, basic_cached) {
-    test_proposal_basic<float>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic<float>({1, 3, 1, 1}, true);
 }
 
 TEST(proposal, fp16_cached) {
-    test_proposal_basic<ov::float16>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic<ov::float16>({1, 3, 1, 1}, true);
 }
 
 TEST(proposal, img_info_batched_cached) {
-    test_proposal_basic<float>({ 2, 3, 1, 1 }, true);
+    test_proposal_basic<float>({2, 3, 1, 1}, true);
 }
 
 TEST(proposal, img_info_batch_only_cached) {
-    test_proposal_basic<float>({ 3, 1, 1, 1 }, true);
+    test_proposal_basic<float>({3, 1, 1, 1}, true);
 }
 
 TEST(proposal, scores_fp16_im_info_fp32_cached) {
-    test_proposal_basic_two_types<ov::float16, float>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic_two_types<ov::float16, float>({1, 3, 1, 1}, true);
 }
-#endif // RUN_ALL_MODEL_CACHING_TESTS
+#endif  // RUN_ALL_MODEL_CACHING_TESTS
 TEST(proposal, scores_fp32_im_info_fp16_cached) {
-    test_proposal_basic_two_types<float, ov::float16>({ 1, 3, 1, 1 }, true);
+    test_proposal_basic_two_types<float, ov::float16>({1, 3, 1, 1}, true);
 }

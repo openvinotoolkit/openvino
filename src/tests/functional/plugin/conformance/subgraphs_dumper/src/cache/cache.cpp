@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/file_util.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "cache/cache.hpp"
 
 #include "op_conformance_utils/utils/file.hpp"
-#include "cache/cache.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/memory.hpp"
 
 namespace ov {
@@ -21,10 +21,10 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, ov::con
     ov::conformance::MetaInfo meta = graph_info.second;
 
     std::string model_name = model->get_friendly_name();
-    std::string abs_searilization_dir = ov::util::path_join({ m_serialization_dir, rel_serialization_dir });
-    std::string xml_path =  ov::util::path_join({ abs_searilization_dir, model_name + ".xml" });
-    std::string bin_path = ov::util::path_join({ abs_searilization_dir, model_name + ".bin" });
-    std::string meta_path = ov::util::path_join({ abs_searilization_dir, model_name + ".meta" });
+    std::string abs_searilization_dir = ov::util::path_join({m_serialization_dir, rel_serialization_dir});
+    std::string xml_path = ov::util::path_join({abs_searilization_dir, model_name + ".xml"});
+    std::string bin_path = ov::util::path_join({abs_searilization_dir, model_name + ".bin"});
+    std::string meta_path = ov::util::path_join({abs_searilization_dir, model_name + ".meta"});
 
     if (!ov::util::directory_exists(abs_searilization_dir)) {
         ov::util::create_directory_recursive(abs_searilization_dir);
@@ -38,9 +38,9 @@ bool ICache::serialize_model(const std::pair<std::shared_ptr<ov::Model>, ov::con
             model->validate_nodes_and_infer_types();
             meta.serialize(meta_path);
             return true;
-        } catch (std::exception &e) {
-            std::cout << "[ ERROR ] Failed to serialize model: " << model_name
-                        << ". Exception: " << e.what() << std::endl;
+        } catch (std::exception& e) {
+            std::cout << "[ ERROR ] Failed to serialize model: " << model_name << ". Exception: " << e.what()
+                      << std::endl;
             ov::util::remove_path(xml_path);
             ov::util::remove_path(bin_path);
             ov::util::remove_path(meta_path);

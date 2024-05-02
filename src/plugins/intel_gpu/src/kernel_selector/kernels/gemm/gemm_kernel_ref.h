@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "gemm_kernel_base.h"
 #include <vector>
+
+#include "gemm_kernel_base.h"
 
 namespace kernel_selector {
 class GemmKernelRef : public GemmKernelBase {
@@ -19,9 +20,7 @@ public:
 
 protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
     bool Validate(const Params& params) const override;
     DispatchData SetDefault(const gemm_params& params) const override;

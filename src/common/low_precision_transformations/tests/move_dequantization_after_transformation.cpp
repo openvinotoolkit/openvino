@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-#include "low_precision/network_helper.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ov_lpt_models/move_dequantization_after.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/move_dequantization_after.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -60,30 +58,28 @@ public:
     bool typeRelaxed;
 };
 
-typedef std::tuple<
-    ov::Shape,
-    MoveDequantizationAfterTransformationParams> MoveDequantizationAfterTransformationTestValues;
+typedef std::tuple<ov::Shape, MoveDequantizationAfterTransformationParams>
+    MoveDequantizationAfterTransformationTestValues;
 
-class MoveDequantizationAfterTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<MoveDequantizationAfterTransformationTestValues> {
+class MoveDequantizationAfterTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<MoveDequantizationAfterTransformationTestValues> {
 public:
     void SetUp() override {
         const auto inputShape = std::get<0>(GetParam());
         const auto testValues = std::get<1>(GetParam());
-        actualFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(
-            testValues.originalPrecision,
-            inputShape,
-            testValues.actual.dequantization,
-            testValues.typeRelaxed);
+        actualFunction =
+            ov::builder::subgraph::MoveDequantizationAfterFunction::getOriginal(testValues.originalPrecision,
+                                                                                inputShape,
+                                                                                testValues.actual.dequantization,
+                                                                                testValues.typeRelaxed);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
-        ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(
-            targetNode,
-            dequantization,
-            testValues.updateOutputPrecision,
-            testValues.moveSubtract);
+        ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(targetNode,
+                                                                        dequantization,
+                                                                        testValues.updateOutputPrecision,
+                                                                        testValues.moveSubtract);
 
         referenceFunction = ov::builder::subgraph::MoveDequantizationAfterFunction::getReference(
             testValues.originalPrecision,
@@ -99,13 +95,10 @@ public:
         const auto testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            testValues.originalPrecision << "_" <<
-            inputShape << "_" <<
-            testValues.actual.dequantization << "_" <<
-            (testValues.moveSubtract ? "move_subtract_" : "don't_move_subtract_") <<
-            (testValues.updateOutputPrecision ? "updateOutputPrecision_" : "don't_update_precision_") <<
-            (testValues.typeRelaxed ? "typeRelaxed" : "not_typeRelaxed");
+        result << testValues.originalPrecision << "_" << inputShape << "_" << testValues.actual.dequantization << "_"
+               << (testValues.moveSubtract ? "move_subtract_" : "don't_move_subtract_")
+               << (testValues.updateOutputPrecision ? "updateOutputPrecision_" : "don't_update_precision_")
+               << (testValues.typeRelaxed ? "typeRelaxed" : "not_typeRelaxed");
         return result.str();
     }
 };
@@ -119,10 +112,7 @@ TEST_P(MoveDequantizationAfterTransformation, CompareFunctions) {
 }
 
 namespace {
-const std::vector<ov::Shape> inputShapes = {
-    { 1, 3, 16, 16 },
-    { 4, 3, 16, 16 }
-};
+const std::vector<ov::Shape> inputShapes = {{1, 3, 16, 16}, {4, 3, 16, 16}};
 
 const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
     // U8
@@ -132,12 +122,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         true,
         true,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {},  {}, {} },
+            {{}, {}, {}},
             ov::element::u8,
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
     },
     // moveSubtract = false
@@ -147,12 +137,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         true,
         false,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false}, {}},
             ov::element::f32,
-            { {},  {}, { 10.f } },
+            {{}, {}, {10.f}},
         },
     },
     // updateOutputPrecision = false
@@ -162,12 +152,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         true,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {},  {}, {} },
+            {{}, {}, {}},
             ov::element::f32,
-            { {},  { 7.f }, { 10.f } },
+            {{}, {7.f}, {10.f}},
         },
     },
     // moveSubtract = false & updateOutputPrecision = false
@@ -177,12 +167,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         false,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false}, {}},
             ov::element::f32,
-            { {},  {}, { 10.f } },
+            {{}, {}, {10.f}},
         },
     },
     // I8
@@ -192,12 +182,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         true,
         true,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {},  {}, {} },
+            {{}, {}, {}},
             ov::element::i8,
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
     },
     // moveSubtract = false
@@ -207,12 +197,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         true,
         false,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false}, {}},
             ov::element::f32,
-            { {},  {}, { 10.f } },
+            {{}, {}, {10.f}},
         },
     },
     // updateOutputPrecision = false
@@ -222,12 +212,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         true,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {},  {}, {} },
+            {{}, {}, {}},
             ov::element::f32,
-            { {},  { 7.f }, { 10.f } },
+            {{}, {7.f}, {10.f}},
         },
     },
     // moveSubtract = false & updateOutputPrecision = false
@@ -237,12 +227,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         false,
         {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
+            {{ov::element::f32}, {7.f}, {10.f}},
         },
         {
-            { {ov::element::f32},  { { 7.f }, ov::element::f32, {}, false }, {} },
+            {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false}, {}},
             ov::element::f32,
-            { {},  {}, { 10.f } },
+            {{}, {}, {10.f}},
         },
     },
     // per-channel quantizations with the same values
@@ -252,12 +242,12 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         false,
         {
-            { {ov::element::f32},  { { 7.f, 7.f, 7.f } }, { { 10.f, 10.f, 10.f } } },
+            {{ov::element::f32}, {{7.f, 7.f, 7.f}}, {{10.f, 10.f, 10.f}}},
         },
         {
-            { {ov::element::f32},  { { 7.f, 7.f, 7.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            {{ov::element::f32}, {{7.f, 7.f, 7.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
             ov::element::f32,
-            { {},  {}, { { 10.f, 10.f, 10.f } } },
+            {{}, {}, {{10.f, 10.f, 10.f}}},
         },
     },
     // per-channel quantizations with different values
@@ -267,39 +257,34 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
         false,
         false,
         {
-            { {ov::element::f32},  { { 7.f, 8.f, 9.f } }, { { 10.f, 12.f, 16.f } } },
+            {{ov::element::f32}, {{7.f, 8.f, 9.f}}, {{10.f, 12.f, 16.f}}},
         },
         {
-            { {ov::element::f32},  { { 7.f, 8.f, 9.f }, ov::element::f32, { 1, 3, 1, 1 }, false }, {} },
+            {{ov::element::f32}, {{7.f, 8.f, 9.f}, ov::element::f32, {1, 3, 1, 1}, false}, {}},
             ov::element::f32,
-            { {},  {}, { { 10.f, 12.f, 16.f } } },
+            {{}, {}, {{10.f, 12.f, 16.f}}},
         },
     },
     // updateOutputPrecision = true & typeRelaxed = false
-    {
-        ov::element::u8,
-        LayerTransformation::createParamsU8I8(),
-        true,
-        true,
-        {
-            { {ov::element::f32},  { 7.f }, { 10.f } },
-        },
-        {
-            { {}, {}, {} },
-            ov::element::u8,
-            { {ov::element::f32}, { 7.f }, { 10.f } },
-        },
-        false
-    },
+    {ov::element::u8,
+     LayerTransformation::createParamsU8I8(),
+     true,
+     true,
+     {
+         {{ov::element::f32}, {7.f}, {10.f}},
+     },
+     {
+         {{}, {}, {}},
+         ov::element::u8,
+         {{ov::element::f32}, {7.f}, {10.f}},
+     },
+     false},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MoveDequantizationAfterTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
-    MoveDequantizationAfterTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MoveDequantizationAfterTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes), ::testing::ValuesIn(testValues)),
+                         MoveDequantizationAfterTransformation::getTestCaseName);
 }  // namespace
 
 TEST(LPT, MoveDequantizationAfterTransformationNegative) {

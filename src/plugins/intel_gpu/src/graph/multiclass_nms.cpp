@@ -39,7 +39,7 @@ layout multiclass_nms_inst::calc_output_layout(const multiclass_nms_node& node, 
     }
 
     const auto dim = max_output_boxes_per_batch * num_batches;
-    constexpr auto output_size = 6; // 4 coordinates + 1 class + 1 score
+    constexpr auto output_size = 6;  // 4 coordinates + 1 class + 1 score
     return layout{input_layout.data_type, input_layout.format, {dim, output_size, 1, 1}};
 }
 

@@ -16,15 +16,15 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-using OneHotTestParams = std::tuple<unit_test::ShapeVector, // Input shapes
-                                    int64_t,                // depth
-                                    int32_t,                // on_value
-                                    int32_t,                // off_value
-                                    StaticShape             // Expected shape
+using OneHotTestParams = std::tuple<unit_test::ShapeVector,  // Input shapes
+                                    int64_t,                 // depth
+                                    int32_t,                 // on_value
+                                    int32_t,                 // off_value
+                                    StaticShape              // Expected shape
                                     >;
 
-class OneHotCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<op::v1::OneHot>,
-                                      public WithParamInterface<OneHotTestParams> {
+class OneHotCpuShapeInferenceTest : public unit_test::OpCpuShapeInferenceTest<op::v1::OneHot>,
+                                    public WithParamInterface<OneHotTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OneHotTestParams>& obj) {
         unit_test::ShapeVector tmp_input_shapes;
@@ -56,7 +56,7 @@ protected:
     std::shared_ptr<op::v0::Parameter> arg;
 };
 
-TEST_P(OneHotCpuShapeInferenceTest , shape_inference_empty_const_map) {
+TEST_P(OneHotCpuShapeInferenceTest, shape_inference_empty_const_map) {
     const auto depth = op::v0::Constant::create(element::i64, ov::Shape{}, {m_depth});
     const auto on_value = op::v0::Constant::create(element::i32, ov::Shape{}, {m_on});
     const auto off_value = op::v0::Constant::create(element::i32, ov::Shape{}, {m_off});
@@ -65,7 +65,7 @@ TEST_P(OneHotCpuShapeInferenceTest , shape_inference_empty_const_map) {
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes);
 }
 
-TEST_P(OneHotCpuShapeInferenceTest , shape_inference_with_const_map) {
+TEST_P(OneHotCpuShapeInferenceTest, shape_inference_with_const_map) {
     const auto depth = std::make_shared<op::v0::Parameter>(element::i64, ov::Shape{});
     const auto on = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
     const auto off = std::make_shared<op::v0::Parameter>(element::i32, ov::Shape{});
@@ -80,12 +80,11 @@ TEST_P(OneHotCpuShapeInferenceTest , shape_inference_with_const_map) {
     unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes, constant_data);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    CpuShapeInfer,
-    OneHotCpuShapeInferenceTest ,
-    Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 5, 10, StaticShape({3, 2})),
-           make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 1, 0, StaticShape({3, 2}))),
-    OneHotCpuShapeInferenceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         OneHotCpuShapeInferenceTest,
+                         Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 5, 10, StaticShape({3, 2})),
+                                make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, 2, 1, 0, StaticShape({3, 2}))),
+                         OneHotCpuShapeInferenceTest::getTestCaseName);
 
 using OneHotCpuShapeInferenceThrowExceptionTest = OneHotCpuShapeInferenceTest;
 TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
@@ -105,13 +104,12 @@ TEST_P(OneHotCpuShapeInferenceThrowExceptionTest, wrong_pattern) {
                     testing::HasSubstr("OneHot depth value can't be negative"));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    CpuShapeInfer,
-    OneHotCpuShapeInferenceThrowExceptionTest,
-    Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, -2, 1, 0, StaticShape({}))),
-    OneHotCpuShapeInferenceThrowExceptionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         OneHotCpuShapeInferenceThrowExceptionTest,
+                         Values(make_tuple(unit_test::ShapeVector{{3}, {}, {}, {}}, -2, 1, 0, StaticShape({}))),
+                         OneHotCpuShapeInferenceThrowExceptionTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

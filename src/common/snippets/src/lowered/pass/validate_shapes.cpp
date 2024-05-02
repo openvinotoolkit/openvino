@@ -4,17 +4,19 @@
 
 #include "snippets/lowered/pass/validate_shapes.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool ValidateShapes::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool ValidateShapes::run(lowered::LinearIR& linear_ir,
+                         lowered::LinearIR::constExprIt begin,
+                         lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateShapes")
 
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
@@ -31,18 +33,22 @@ bool ValidateShapes::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constE
             const auto& layout = descr->get_layout();
             const auto& shape = descr->get_shape();
             const auto& n = expr->get_node();
-            OPENVINO_ASSERT(layout.size() == shape.size(), "Layout and shape sizes must match. ",
-                            "Check the expr for node ", n->get_friendly_name());
+            OPENVINO_ASSERT(layout.size() == shape.size(),
+                            "Layout and shape sizes must match. ",
+                            "Check the expr for node ",
+                            n->get_friendly_name());
             const auto& parent_desc = port_connectors[i]->get_source().get_descriptor_ptr();
             const auto& parent_shape = parent_desc->get_shape();
-            OPENVINO_ASSERT(parent_shape == shape, "Parent shape must be equal to the expression shape. ",
-                           "Check the expr for node ", n->get_friendly_name());
+            OPENVINO_ASSERT(parent_shape == shape,
+                            "Parent shape must be equal to the expression shape. ",
+                            "Check the expr for node ",
+                            n->get_friendly_name());
         }
     }
     return false;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -6,9 +6,10 @@
 
 #include <algorithm>
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
-#include "common/fake_quantize_on_data.hpp"
+
 #include "common/dequantization_operations.hpp"
+#include "common/fake_quantize_on_data.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ov {
 namespace builder {
@@ -16,18 +17,17 @@ namespace subgraph {
 
 class PrecisionPropagationFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginalWithNeighbors(
-        const ov::element::Type precision,
-        const ov::Shape& inputShape,
-        const FakeQuantizeOnData& fqOnData1,
-        const DequantizationOperations::Convert& convert1,
-        const DequantizationOperations& dequantization1,
-        const FakeQuantizeOnData& fqOnData2,
-        const DequantizationOperations::Convert& convert2,
-        const DequantizationOperations& dequantization2,
-        const FakeQuantizeOnData& fqOnData3,
-        const DequantizationOperations::Convert& convert3,
-        const DequantizationOperations& dequantization3);
+    static std::shared_ptr<ov::Model> getOriginalWithNeighbors(const ov::element::Type precision,
+                                                               const ov::Shape& inputShape,
+                                                               const FakeQuantizeOnData& fqOnData1,
+                                                               const DequantizationOperations::Convert& convert1,
+                                                               const DequantizationOperations& dequantization1,
+                                                               const FakeQuantizeOnData& fqOnData2,
+                                                               const DequantizationOperations::Convert& convert2,
+                                                               const DequantizationOperations& dequantization2,
+                                                               const FakeQuantizeOnData& fqOnData3,
+                                                               const DequantizationOperations::Convert& convert3,
+                                                               const DequantizationOperations& dequantization3);
 
     static std::shared_ptr<ov::Model> getReferenceWithNeighbors(
         const ov::element::Type precision,

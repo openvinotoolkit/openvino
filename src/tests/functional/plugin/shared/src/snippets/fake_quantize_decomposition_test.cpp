@@ -6,13 +6,13 @@
 #include "snippets/fake_quantize_decomposition_test.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
-#include "ov_ops/type_relaxed.hpp"
 #include "fake_quantize_helper.hpp"
 #include "function_helper.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace test {
@@ -25,9 +25,9 @@ std::string FakeQuantizeDecompositionTest::getTestCaseName(testing::TestParamInf
     const auto targetDevice = std::get<3>(obj.param);
 
     const auto type_info = operation.first->get_type_info();
-    const auto operationString = ov::is_type<ov::op::v0::Parameter>(operation.first) ?
-        "nullptr" :
-        (std::string(type_info.name) + "_" + std::string(type_info.version_id));
+    const auto operationString = ov::is_type<ov::op::v0::Parameter>(operation.first)
+                                     ? "nullptr"
+                                     : (std::string(type_info.name) + "_" + std::string(type_info.version_id));
 
     result << "IS=" << ov::test::utils::vec2str(values.inputShape) << "_";
     result << "netPRC=" << values.modelType << "_";

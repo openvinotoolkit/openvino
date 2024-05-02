@@ -41,9 +41,12 @@ public:
         init_input_shapes({inputShape});
         auto input_params = std::make_shared<ov::op::v0::Parameter>(inType, inputShape.first);
         auto convert = std::make_shared<ov::op::v0::Convert>(input_params, element::f32);
-        auto begin = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-        auto end = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
-        auto stride = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
+        auto begin =
+            ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto end =
+            ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, 16, 0});
+        auto stride =
+            ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{4}, std::vector<int64_t>{1, 1, 1, 1});
         auto slice = std::make_shared<ov::op::v1::StridedSlice>(convert,
                                                                 begin,
                                                                 end,
@@ -83,7 +86,8 @@ public:
 
         // Such complicated graph is necessary to cover the case when Convert has several children and connected to non
         // zero output
-        const auto split_axis = ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
+        const auto split_axis =
+            ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{}, std::vector<int64_t>{1});
         const auto split_lengths =
             ov::test::utils::deprecated::make_constant(element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1});
         const auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_params, split_axis, split_lengths);

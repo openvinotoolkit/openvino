@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/op/kv_cache.hpp"
+
 #include "concat_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -19,11 +20,11 @@ KVCache::KVCache(const Output<Node>& past,
                  int64_t concat_axis,
                  int64_t gather_axis,
                  const ov::element::Type output_type)
-    : Op({past, new_token_data, beam_idx})
-    , m_concat_axis(concat_axis)
-    , m_gather_axis(gather_axis)
-    , m_indirect(true)
-    , m_output_type(output_type) {
+    : Op({past, new_token_data, beam_idx}),
+      m_concat_axis(concat_axis),
+      m_gather_axis(gather_axis),
+      m_indirect(true),
+      m_output_type(output_type) {
     m_variable = past_variable;
     if (m_indirect)
         set_output_size(2);
@@ -35,11 +36,11 @@ KVCache::KVCache(const Output<Node>& past,
                  const std::shared_ptr<ov::op::util::Variable>& past_variable,
                  int64_t concat_axis,
                  const ov::element::Type output_type)
-    : Op({past, new_token_data})
-    , m_concat_axis(concat_axis)
-    , m_gather_axis(0)
-    , m_indirect(false)
-    , m_output_type(output_type) {
+    : Op({past, new_token_data}),
+      m_concat_axis(concat_axis),
+      m_gather_axis(0),
+      m_indirect(false),
+      m_output_type(output_type) {
     m_variable = past_variable;
     validate_and_infer_types();
 }
@@ -65,11 +66,7 @@ void KVCache::validate_and_infer_types() {
 std::shared_ptr<Node> KVCache::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     if (new_args.size() == 2) {
-        return std::make_shared<KVCache>(new_args.at(0),
-                                         new_args.at(1),
-                                         m_variable,
-                                         m_concat_axis,
-                                         m_output_type);
+        return std::make_shared<KVCache>(new_args.at(0), new_args.at(1), m_variable, m_concat_axis, m_output_type);
 
     } else {
         return std::make_shared<KVCache>(new_args.at(0),

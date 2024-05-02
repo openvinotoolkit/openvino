@@ -2,37 +2,38 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import onnx
-import onnx.backend.test
-import unittest
 import dataclasses
-
+import unittest
 from collections import defaultdict, namedtuple
-from onnx import numpy_helper, NodeProto, ModelProto
-from onnx.backend.base import Backend, BackendRep
-from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
-from onnx.backend.test.runner import TestItem
 from pathlib import Path
-from tests.tests_python.utils.onnx_helpers import import_onnx_model
 from typing import (
     Any,
+    Callable,
     Dict,
     List,
     Optional,
     Pattern,
+    Sequence,
     Set,
     Text,
     Type,
     Union,
-    Callable,
-    Sequence,
 )
+
+import numpy as np
+import onnx
+import onnx.backend.test
+from onnx import ModelProto, NodeProto, numpy_helper
+from onnx.backend.base import Backend, BackendRep
+from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
+from onnx.backend.test.runner import TestItem
+from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 # add post-processing function as part of test data
 OnnxTestCase_fields = [field.name for field in dataclasses.fields(OnnxTestCase)]
-ExtOnnxTestCase = dataclasses.make_dataclass(cls_name="TestCaseExt",
-                                             fields=[*OnnxTestCase_fields, "post_processing"])
+ExtOnnxTestCase = dataclasses.make_dataclass(
+    cls_name="TestCaseExt", fields=[*OnnxTestCase_fields, "post_processing"]
+)
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
@@ -141,14 +142,15 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             executed_tests = executed_tests + 1
         return executed_tests
 
-
     def _add_model_import_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
         model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_import(test_self: Any, device: Text) -> None:
-            model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
+            model = ModelImportRunner._load_onnx_model(
+                model_test.model_dir, model_test.model
+            )
             model_marker[0] = model_test.model_dir / model_test.model
             assert import_onnx_model(model)
 
@@ -160,7 +162,9 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
         model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
         def run_execution(test_self: Any, device: Text) -> None:
-            model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
+            model = ModelImportRunner._load_onnx_model(
+                model_test.model_dir, model_test.model
+            )
             model_marker[0] = model_test.model_dir / model_test.model
             prepared_model = self.backend.prepare(model, device)
             assert prepared_model is not None

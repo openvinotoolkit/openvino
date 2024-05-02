@@ -4,8 +4,8 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -47,7 +47,8 @@ namespace test {
               |Output|
               --------
 
- * 2. Graph with Transpose. In case of (transpose_b == false), ConvertMatMulToFC() transformation should insert Transpose on weights.
+ * 2. Graph with Transpose. In case of (transpose_b == false), ConvertMatMulToFC() transformation should insert
+ Transpose on weights.
  * It must not fold and must remain in the execution graph.
  * Graph before:
    ------------             ------------

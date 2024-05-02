@@ -4,17 +4,33 @@
 import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, \
-    LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr, Round
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.elementwise import (
+    Add,
+    Div,
+    Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    LogicalAnd,
+    LogicalOr,
+    Maximum,
+    Minimum,
+    Mul,
+    NotEqual,
+    Pow,
+    Round,
+    Sub,
+)
 from openvino.tools.mo.ops.eltwise_n import EltwiseNAdd
 from openvino.tools.mo.ops.power import AttributedPower
 
 
 class PlusExtractor(FrontExtractorOp):
-    op = '_Plus'
+    op = "_Plus"
     enabled = True
 
     @classmethod
@@ -24,7 +40,7 @@ class PlusExtractor(FrontExtractorOp):
 
 
 class BroadcastAddFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_add'
+    op = "broadcast_add"
     enabled = True
 
     @classmethod
@@ -34,7 +50,7 @@ class BroadcastAddFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastDivFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_div'
+    op = "broadcast_div"
     enabled = True
 
     @classmethod
@@ -44,7 +60,7 @@ class BroadcastDivFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastSubFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_sub'
+    op = "broadcast_sub"
     enabled = True
 
     @classmethod
@@ -54,7 +70,7 @@ class BroadcastSubFrontExtractor(FrontExtractorOp):
 
 
 class ElementwiseAddExtractor(FrontExtractorOp):
-    op = 'elemwise_add'
+    op = "elemwise_add"
     enabled = True
 
     @classmethod
@@ -64,7 +80,7 @@ class ElementwiseAddExtractor(FrontExtractorOp):
 
 
 class ElementWiseSum(FrontExtractorOp):
-    op = 'ElementWiseSum'
+    op = "ElementWiseSum"
     enabled = True
 
     @classmethod
@@ -74,7 +90,7 @@ class ElementWiseSum(FrontExtractorOp):
 
 
 class AddNExtractor(FrontExtractorOp):
-    op = 'add_n'
+    op = "add_n"
     enabled = True
 
     @classmethod
@@ -84,7 +100,7 @@ class AddNExtractor(FrontExtractorOp):
 
 
 class ElementwiseMulExtractor(FrontExtractorOp):
-    op = 'elemwise_mul'
+    op = "elemwise_mul"
     enabled = True
 
     @classmethod
@@ -94,7 +110,7 @@ class ElementwiseMulExtractor(FrontExtractorOp):
 
 
 class BroadcastMulFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_mul'
+    op = "broadcast_mul"
     enabled = True
 
     @classmethod
@@ -104,7 +120,7 @@ class BroadcastMulFrontExtractor(FrontExtractorOp):
 
 
 class ElemwiseSubFrontExtractor(FrontExtractorOp):
-    op = 'elemwise_sub'
+    op = "elemwise_sub"
     enabled = True
 
     @classmethod
@@ -114,7 +130,7 @@ class ElemwiseSubFrontExtractor(FrontExtractorOp):
 
 
 class ElemwiseDivFrontExtractor(FrontExtractorOp):
-    op = 'elemwise_div'
+    op = "elemwise_div"
     enabled = True
 
     @classmethod
@@ -124,7 +140,7 @@ class ElemwiseDivFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastMaximumFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_maximum'
+    op = "broadcast_maximum"
     enabled = True
 
     @classmethod
@@ -134,7 +150,7 @@ class BroadcastMaximumFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastMinimumFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_minimum'
+    op = "broadcast_minimum"
     enabled = True
 
     @classmethod
@@ -144,7 +160,7 @@ class BroadcastMinimumFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastGreaterFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_greater'
+    op = "broadcast_greater"
     enabled = True
 
     @classmethod
@@ -154,7 +170,7 @@ class BroadcastGreaterFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastGreaterEqualFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_greater_equal'
+    op = "broadcast_greater_equal"
     enabled = True
 
     @classmethod
@@ -164,7 +180,7 @@ class BroadcastGreaterEqualFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastEqualFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_equal'
+    op = "broadcast_equal"
     enabled = True
 
     @classmethod
@@ -174,7 +190,7 @@ class BroadcastEqualFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastNotEqualFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_not_equal'
+    op = "broadcast_not_equal"
     enabled = True
 
     @classmethod
@@ -184,7 +200,7 @@ class BroadcastNotEqualFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastLesserFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_lesser'
+    op = "broadcast_lesser"
     enabled = True
 
     @classmethod
@@ -194,7 +210,7 @@ class BroadcastLesserFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastLesserEqualFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_lesser_equal'
+    op = "broadcast_lesser_equal"
     enabled = True
 
     @classmethod
@@ -204,7 +220,7 @@ class BroadcastLesserEqualFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastPowerFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_power'
+    op = "broadcast_power"
     enabled = True
 
     @classmethod
@@ -214,7 +230,7 @@ class BroadcastPowerFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastLogicalAndFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_logical_and'
+    op = "broadcast_logical_and"
     enabled = True
 
     @classmethod
@@ -224,7 +240,7 @@ class BroadcastLogicalAndFrontExtractor(FrontExtractorOp):
 
 
 class BroadcastLogicalOrFrontExtractor(FrontExtractorOp):
-    op = 'broadcast_logical_or'
+    op = "broadcast_logical_or"
     enabled = True
 
     @classmethod
@@ -234,7 +250,7 @@ class BroadcastLogicalOrFrontExtractor(FrontExtractorOp):
 
 
 class MaximumFrontExtractor(FrontExtractorOp):
-    op = '_maximum'
+    op = "_maximum"
     enabled = True
 
     @classmethod
@@ -244,7 +260,7 @@ class MaximumFrontExtractor(FrontExtractorOp):
 
 
 class MinimumFrontExtractor(FrontExtractorOp):
-    op = '_minimum'
+    op = "_minimum"
     enabled = True
 
     @classmethod
@@ -254,162 +270,162 @@ class MinimumFrontExtractor(FrontExtractorOp):
 
 
 class PlusScalarFrontExtractor(FrontExtractorOp):
-    op = '_plus_scalar'
+    op = "_plus_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 0.0)], dtype=np.float32)
+        node["scalar"] = mo_array([attrs.float("scalar", 0.0)], dtype=np.float32)
         return cls.enabled
 
 
 class MinusScalarFrontExtractor(FrontExtractorOp):
-    op = '_minus_scalar'
+    op = "_minus_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 0.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 0.0)])
         return cls.enabled
 
 
 class MulScalarFrontExtractor(FrontExtractorOp):
-    op = '_mul_scalar'
+    op = "_mul_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)], dtype=np.float32)
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)], dtype=np.float32)
         return cls.enabled
 
 
 class DivScalarFrontExtractor(FrontExtractorOp):
-    op = '_div_scalar'
+    op = "_div_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = attrs.float('scalar', 1.0)
+        node["scalar"] = attrs.float("scalar", 1.0)
         return cls.enabled
 
 
 class GreaterScalarFrontExtractor(FrontExtractorOp):
-    op = '_greater_scalar'
+    op = "_greater_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class GreaterEqualScalarFrontExtractor(FrontExtractorOp):
-    op = '_greater_equal_scalar'
+    op = "_greater_equal_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class EqualScalarFrontExtractor(FrontExtractorOp):
-    op = '_equal_scalar'
+    op = "_equal_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class NotEqualScalarFrontExtractor(FrontExtractorOp):
-    op = '_not_equal_scalar'
+    op = "_not_equal_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class LesserScalarFrontExtractor(FrontExtractorOp):
-    op = '_lesser_scalar'
+    op = "_lesser_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class LesserEqualScalarFrontExtractor(FrontExtractorOp):
-    op = '_lesser_equal_scalar'
+    op = "_lesser_equal_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = mo_array([attrs.float('scalar', 1.0)])
+        node["scalar"] = mo_array([attrs.float("scalar", 1.0)])
         return cls.enabled
 
 
 class MinimumScalarFrontExtractor(FrontExtractorOp):
-    op = '_minimum_scalar'
+    op = "_minimum_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = attrs.float('scalar', 1.0)
+        node["scalar"] = attrs.float("scalar", 1.0)
         return cls.enabled
 
 
 class MaximumScalarFrontExtractor(FrontExtractorOp):
-    op = '_maximum_scalar'
+    op = "_maximum_scalar"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        node['scalar'] = attrs.float('scalar', 1.0)
+        node["scalar"] = attrs.float("scalar", 1.0)
         return cls.enabled
 
 
 class ZerosFrontExtractor(FrontExtractorOp):
-    op = 'zeros_like'
+    op = "zeros_like"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        AttributedPower.update_node_stat(node, {'scale': 0})
+        AttributedPower.update_node_stat(node, {"scale": 0})
         return cls.enabled
 
 
 class OnesFrontExtractor(FrontExtractorOp):
-    op = 'ones_like'
+    op = "ones_like"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        AttributedPower.update_node_stat(node, {'scale': 0, 'shift': 1})
+        AttributedPower.update_node_stat(node, {"scale": 0, "shift": 1})
         return cls.enabled
 
 
 class RoundExtractor(FrontExtractorOp):
-    op = 'round'
+    op = "round"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        Round.update_node_stat(node, {'mode': 'half_away_from_zero'})
+        Round.update_node_stat(node, {"mode": "half_away_from_zero"})
         return cls.enabled

@@ -5,7 +5,9 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import set_reshape_new_output_shape
+from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import (
+    set_reshape_new_output_shape,
+)
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
@@ -60,19 +62,21 @@ def merge_dims(dims_to_merge: np.array, shape: np.array):
     :return: new shape with merged specified dims
     """
     for ind in range(len(dims_to_merge) - 1):
-        assert dims_to_merge[ind] + 1 == dims_to_merge[ind + 1], 'The dims to merge must be sequential'
-    assert 0 not in shape, 'The value 0 is not supported during merging of the shape'
+        assert (
+            dims_to_merge[ind] + 1 == dims_to_merge[ind + 1]
+        ), "The dims to merge must be sequential"
+    assert 0 not in shape, "The value 0 is not supported during merging of the shape"
 
     result = list()
     if dims_to_merge[0] != 0:
-        result.extend(shape[:dims_to_merge[0]])
+        result.extend(shape[: dims_to_merge[0]])
     # handle magic number "-1"
     if -1 in shape[dims_to_merge]:
         result.append(-1)
     else:
         result.append(np.prod(shape[dims_to_merge]))
     if dims_to_merge[-1] + 1 != len(shape):
-        result.extend(shape[dims_to_merge[-1] + 1:])
+        result.extend(shape[dims_to_merge[-1] + 1 :])
     return int64_array(result)
 
 
@@ -81,41 +85,53 @@ class ReduceTransposeDimensions(BackReplacementPattern):
     Transformation looks for the Transpose layers with sequential dimensions in the permutation order and merges them into
     one thus reducing the number of dimensions. The transformation is applied to 5D+ permutations only.
     """
+
     enabled = False
 
     def run_after(self):
-        from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import OptimizeTransposeReshapeSequence
+        from openvino.tools.mo.back.OptimizeTransposeReshapeSequence import (
+            OptimizeTransposeReshapeSequence,
+        )
+
         return [OptimizeTransposeReshapeSequence]
 
     def run_before(self):
         from openvino.tools.mo.back.ReshapeMutation import ReshapeMutation
+
         return [ReshapeMutation]
 
     @staticmethod
     def pattern():
         return dict(
             nodes=[
-                ('reshape_1', dict(kind='op', type='Reshape')),  # TODO change to reshape-like
-                ('reshape_1_data', dict(kind='data')),
-                ('permute', dict(kind='op', type='Transpose')),
-                ('permute_data', dict(kind='data')),
-                ('reshape_2', dict(kind='op', type='Reshape')),
+                (
+                    "reshape_1",
+                    dict(kind="op", type="Reshape"),
+                ),  # TODO change to reshape-like
+                ("reshape_1_data", dict(kind="data")),
+                ("permute", dict(kind="op", type="Transpose")),
+                ("permute_data", dict(kind="data")),
+                ("reshape_2", dict(kind="op", type="Reshape")),
             ],
             edges=[
-                ('reshape_1', 'reshape_1_data'),
-                ('reshape_1_data', 'permute'),
-                ('permute', 'permute_data'),
-                ('permute_data', 'reshape_2'),
-            ]
+                ("reshape_1", "reshape_1_data"),
+                ("reshape_1_data", "permute"),
+                ("permute", "permute_data"),
+                ("permute_data", "reshape_2"),
+            ],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        permute_node = match['permute']
-        reshape_1_node = match['reshape_1']
+        permute_node = match["permute"]
+        reshape_1_node = match["reshape_1"]
         order = permute_node.in_port(1).data.get_value().copy()
         if len(order) >= 5:
-            log.debug('Trying to merge dimensions of the Transpose layer "{}"'.format(permute_node.soft_get('name')))
+            log.debug(
+                'Trying to merge dimensions of the Transpose layer "{}"'.format(
+                    permute_node.soft_get("name")
+                )
+            )
             seq_dims = sequential_dims(order)
             while seq_dims is not None:
                 permute_input_shape = permute_node.in_port(0).data.get_shape().copy()
@@ -123,7 +139,7 @@ class ReduceTransposeDimensions(BackReplacementPattern):
                 new_reshape_dims = merge_dims(order[seq_dims], permute_input_shape)
                 new_permute_order = merge_permute_order_dimensions(seq_dims, order)
 
-                assert reshape_1_node.has('dim')
+                assert reshape_1_node.has("dim")
                 # update data Transpose and Reshape attributes and data nodes shapes
                 set_reshape_new_output_shape(reshape_1_node, new_reshape_dims)
 

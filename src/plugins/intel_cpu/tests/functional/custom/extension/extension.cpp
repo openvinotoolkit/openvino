@@ -121,7 +121,6 @@ TEST(Extension, XmlModelWithCustomAbs) {
     infer_model(core, compiled_model, input_values, expected);
 }
 
-
 static std::string get_extension_path() {
     return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
                                                     std::string("openvino_template_extension") + OV_BUILD_POSTFIX);

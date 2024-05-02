@@ -1,7 +1,7 @@
 #include <iostream>
 
-int main () {
-    const char *patchGenerator = R"V0G0N(
+int main() {
+    const char* patchGenerator = R"V0G0N(
 [
     {
         "str": "std::cout << \"prefix\\nThroughput: 1000.0 FPS\\n\";",

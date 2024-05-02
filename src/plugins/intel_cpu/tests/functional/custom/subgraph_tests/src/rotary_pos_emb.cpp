@@ -64,11 +64,11 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
     auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
     auto ScatterUpdate_152236 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
     auto slice_Slice = makeOP<ov::op::v1::StridedSlice>({Constant582, {0, 0, 0}, ScatterUpdate_152236, {1, 1, 1}},
-                                                    {{"begin_mask", {1, 1, 0}},
-                                                     {"end_mask", {1, 1, 0}},
-                                                     {"new_axis_mask", {}},
-                                                     {"shrink_axis_mask", {}},
-                                                     {"ellipsis_mask", {}}});
+                                                        {{"begin_mask", {1, 1, 0}},
+                                                         {"end_mask", {1, 1, 0}},
+                                                         {"new_axis_mask", {}},
+                                                         {"shrink_axis_mask", {}},
+                                                         {"ellipsis_mask", {}}});
     auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1});
     auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
@@ -101,19 +101,19 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
     auto ScatterUpdate_152368 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
     auto slice_Slice2 =
         makeOP<ov::op::v1::StridedSlice>({transpose_Transpose, {0, 0, 0, 0}, ScatterUpdate_152368, {1, 1, 1, 1}},
-                                     {{"begin_mask", {1, 1, 1, 0}},
-                                      {"end_mask", {1, 1, 1, 0}},
-                                      {"new_axis_mask", {}},
-                                      {"shrink_axis_mask", {}},
-                                      {"ellipsis_mask", {}}});
+                                         {{"begin_mask", {1, 1, 1, 0}},
+                                          {"end_mask", {1, 1, 1, 0}},
+                                          {"new_axis_mask", {}},
+                                          {"shrink_axis_mask", {}},
+                                          {"ellipsis_mask", {}}});
     auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
     auto ScatterUpdate_152421 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
     auto slice_Slice_433 = makeOP<ov::op::v1::StridedSlice>({Constant585, {0, 0, 0}, ScatterUpdate_152421, {1, 1, 1}},
-                                                        {{"begin_mask", {1, 1, 0}},
-                                                         {"end_mask", {1, 1, 0}},
-                                                         {"new_axis_mask", {}},
-                                                         {"shrink_axis_mask", {}},
-                                                         {"ellipsis_mask", {}}});
+                                                            {{"begin_mask", {1, 1, 0}},
+                                                             {"end_mask", {1, 1, 0}},
+                                                             {"new_axis_mask", {}},
+                                                             {"shrink_axis_mask", {}},
+                                                             {"ellipsis_mask", {}}});
     auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1});
     auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});

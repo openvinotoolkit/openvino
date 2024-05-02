@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "low_precision/weightable_layer_transformation.hpp"
 
 namespace ov {
@@ -23,12 +22,12 @@ class LP_TRANSFORMATIONS_API MultiplyTransformation : public WeightableLayerTran
 public:
     OPENVINO_RTTI("MultiplyTransformation", "0");
     MultiplyTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
 
 protected:
     size_t getInputChannels(const std::shared_ptr<ov::Node> op) const override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

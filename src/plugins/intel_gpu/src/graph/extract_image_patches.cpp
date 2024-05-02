@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extract_image_patches_inst.h"
-
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
+
+#include "extract_image_patches_inst.h"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(extract_image_patches)
 
-layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param) {
+layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node,
+                                                      kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<extract_image_patches>();
 
     auto input_layout = impl_param.get_input_layout();
@@ -46,6 +47,7 @@ std::string extract_image_patches_inst::to_string(extract_image_patches_node con
     return primitive_description.str();
 }
 
-extract_image_patches_inst::typed_primitive_inst(network& network, extract_image_patches_node const& node) : parent(network, node) {}
+extract_image_patches_inst::typed_primitive_inst(network& network, extract_image_patches_node const& node)
+    : parent(network, node) {}
 
 }  // namespace cldnn

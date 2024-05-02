@@ -2,9 +2,9 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('..');
+const {addon : ov} = require('..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
+const {describe, it} = require('node:test');
 
 const staticShape = '1, 3, 224, 224';
 const dynamicShape = '?, -1, 1..3, 224';
@@ -15,7 +15,7 @@ describe('PartialShape', () => {
 
     assert.ok(partialShape.isStatic());
   });
-  
+
   it('Should detect dynamic shape', () => {
     const partialShape = new ov.PartialShape(dynamicShape);
 
@@ -37,12 +37,13 @@ describe('PartialShape', () => {
   it('Should return array with dimensions for dynamic shape', () => {
     const partialShape = new ov.PartialShape(staticShape);
 
-    assert.deepStrictEqual(partialShape.getDimensions(), [1,3,224,224]);
+    assert.deepStrictEqual(partialShape.getDimensions(), [ 1, 3, 224, 224 ]);
   });
 
   it('Should return array with dimensions for dynamic shape', () => {
     const partialShape = new ov.PartialShape(dynamicShape);
 
-    assert.deepStrictEqual(partialShape.getDimensions(), [-1,-1,[1,3],224]);
+    assert.deepStrictEqual(
+        partialShape.getDimensions(), [ -1, -1, [ 1, 3 ], 224 ]);
   });
 });

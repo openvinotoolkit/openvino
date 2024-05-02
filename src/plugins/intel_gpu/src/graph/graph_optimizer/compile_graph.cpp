@@ -2,26 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-
-#include "pass_manager.h"
-#include "data_inst.h"
-#include "mutable_data_inst.h"
-#include "reshape_inst.h"
-#include "proposal_inst.h"
-#include "quantize_inst.h"
-#include "arg_max_min_inst.h"
-#include "fully_connected_inst.h"
-#include "condition_inst.h"
-#include "loop_inst.h"
-#include "program_node.h"
-
-#include <iostream>
 #include <cmath>
 #include <iomanip>
+#include <iostream>
 
+#include "arg_max_min_inst.h"
+#include "condition_inst.h"
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "loop_inst.h"
+#include "mutable_data_inst.h"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "pass_manager.h"
+#include "program_node.h"
+#include "proposal_inst.h"
+#include "quantize_inst.h"
+#include "reshape_inst.h"
 
 using namespace cldnn;
 
@@ -40,7 +38,8 @@ void compile_graph::run(program& p) {
     std::exception_ptr exception;
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
-        const bool use_shape_agnostic_impl = !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
+        const bool use_shape_agnostic_impl =
+            !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
         const impl_types original_impl_type = node->get_preferred_impl_type();
         bool change_initial_impl = node->is_dynamic() && original_impl_type == impl_types::onednn;
 
@@ -58,7 +57,8 @@ void compile_graph::run(program& p) {
 
         bool can_select_impl = !node->is_type<data>() &&
                                !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
-                               (!node->is_dynamic() || (use_shape_agnostic_impl && node->type()->does_dynamic_implementation_exist(*node)));
+                               (!node->is_dynamic() ||
+                                (use_shape_agnostic_impl && node->type()->does_dynamic_implementation_exist(*node)));
 
         // TODO: Remove this WA once we have shape agnostic reshape kernel
         if (node->is_type<reshape>() && node->is_dynamic() && !node->can_be_optimized())
@@ -96,7 +96,7 @@ void compile_graph::run(program& p) {
                                                << " as initial impl instead of " << original_impl_type << std::endl;
                         node->set_preferred_impl_type(original_impl_type);
                     }
-                } catch(...) {
+                } catch (...) {
                     exception = std::current_exception();
                 }
             });

@@ -15,27 +15,27 @@ using namespace ::tests;
 
 namespace {
 struct prior_box_attributes {
-    std::vector<float> min_sizes;            // Desired min_size of prior boxes
-    std::vector<float> max_sizes;            // Desired max_size of prior boxes
-    std::vector<float> aspect_ratios;        // Aspect ratios of prior boxes
-    std::vector<float> densities;            // This is the square root of the number of boxes of each type
-    std::vector<float> fixed_ratios;         // This is an aspect ratio of a box
-    std::vector<float> fixed_sizes;          // This is an initial box size (in pixels)
-    bool clip;                               // Clip output to [0,1]
-    bool flip;                               // Flip aspect ratios
-    float step;                              // Distance between prior box centers
-    float offset;                            // Box offset relative to top center of image
-    std::vector<float> variances;            // Values to adjust prior boxes with
-    bool scale_all_sizes;                    // Scale all sizes
-    bool min_max_aspect_ratios_order;        // Order of output prior box
+    std::vector<float> min_sizes;      // Desired min_size of prior boxes
+    std::vector<float> max_sizes;      // Desired max_size of prior boxes
+    std::vector<float> aspect_ratios;  // Aspect ratios of prior boxes
+    std::vector<float> densities;      // This is the square root of the number of boxes of each type
+    std::vector<float> fixed_ratios;   // This is an aspect ratio of a box
+    std::vector<float> fixed_sizes;    // This is an initial box size (in pixels)
+    bool clip;                         // Clip output to [0,1]
+    bool flip;                         // Flip aspect ratios
+    float step;                        // Distance between prior box centers
+    float offset;                      // Box offset relative to top center of image
+    std::vector<float> variances;      // Values to adjust prior boxes with
+    bool scale_all_sizes;              // Scale all sizes
+    bool min_max_aspect_ratios_order;  // Order of output prior box
 };
 
 template <class InputType, class OutputType>
-using prior_box_param = std::tuple<format,                       // Input and output format
-                                   std::vector<InputType>,       // output_size
-                                   std::vector<InputType>,       // image_size
-                                   prior_box_attributes,         // attributes
-                                   std::vector<OutputType>>;     // expected values
+using prior_box_param = std::tuple<format,                    // Input and output format
+                                   std::vector<InputType>,    // output_size
+                                   std::vector<InputType>,    // image_size
+                                   prior_box_attributes,      // attributes
+                                   std::vector<OutputType>>;  // expected values
 
 template <class InputType, class OutputType>
 class PriorBoxGPUTest : public ::testing::TestWithParam<prior_box_param<InputType, OutputType>> {
@@ -51,7 +51,7 @@ public:
         prior_box_attributes attrs;
         std::vector<OutputType> expected_values;
 
-        auto &engine = get_test_engine();
+        auto& engine = get_test_engine();
         std::tie(target_format, output_size, image_size, attrs, expected_values) = this->GetParam();
 
         auto layout_output_size_input = layout{input_data_type, plain_format, tensor{2}};
@@ -71,7 +71,7 @@ public:
         set_values<InputType>(output_size_input, output_size);
         set_values<InputType>(image_size_input, image_size);
 
-        std::vector<input_info> inputs{ input_info("reordered_output_size"), input_info("reordered_image_size")};
+        std::vector<input_info> inputs{input_info("reordered_output_size"), input_info("reordered_image_size")};
         const auto prior_box = cldnn::prior_box("blocked_prior_box",
                                                 inputs,
                                                 output_size_tensor,
@@ -120,16 +120,15 @@ TEST_P(prior_box_test_i32_f32, prior_box_test_i32_f32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        prior_box_test_all_formats,
-        prior_box_test_i32_f32,
-        testing::Combine(
-        testing::ValuesIn(
-        std::vector<format>{format::bfyx,
-                            format::b_fs_yx_fsv16,
-                            format::b_fs_yx_fsv32,
-                            format::bs_fs_yx_bsv16_fsv16,
-                            format::bs_fs_yx_bsv32_fsv16,
-                            format::bs_fs_yx_bsv32_fsv32}),
+    prior_box_test_all_formats,
+    prior_box_test_i32_f32,
+    testing::Combine(
+        testing::ValuesIn(std::vector<format>{format::bfyx,
+                                              format::b_fs_yx_fsv16,
+                                              format::b_fs_yx_fsv32,
+                                              format::bs_fs_yx_bsv16_fsv16,
+                                              format::bs_fs_yx_bsv32_fsv16,
+                                              format::bs_fs_yx_bsv32_fsv32}),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
         testing::Values(
@@ -142,83 +141,90 @@ INSTANTIATE_TEST_SUITE_P(
             0.1,  0.1,  0.1,  0.1,  0.1,      0.1,     0.1,      0.1,     0.1,       0.1,       0.1,      0.1,
             0.1,  0.1,  0.1,  0.1,  0.1,      0.1,     0.1,      0.1,     0.1,       0.1,       0.1,      0.1,
             0.1,  0.1,  0.1,  0.1,  0.1,      0.1,     0.1,      0.1,     0.1,       0.1,       0.1,      0.1,
-            0.1,  0.1,  0.1,  0.1,  0.1,      0.1,     0.1,      0.1,     0.1,       0.1,       0.1,      0.1
-        })));
+            0.1,  0.1,  0.1,  0.1,  0.1,      0.1,     0.1,      0.1,     0.1,       0.1,       0.1,      0.1})));
 
 INSTANTIATE_TEST_SUITE_P(
-        prior_box_test_clip_flip,
-        prior_box_test_i32_f32,
-        testing::Combine(
+    prior_box_test_clip_flip,
+    prior_box_test_i32_f32,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
         testing::Values(
             prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, true, true, 0.0f, 0.0f, {}, true, false}),
         testing::Values(std::vector<float>{
-            0.15, 0.15, 0.35, 0.35, 0.127526, 0.16835, 0.372474, 0.33165, 0.16835, 0.127526, 0.33165, 0.372474,
-            0.0918861, 0.0918861, 0.408114, 0.408114,
-            0.65, 0.15, 0.85, 0.35, 0.627526, 0.16835, 0.872474, 0.33165, 0.66835, 0.127526, 0.83165, 0.372474,
-            0.591886, 0.0918861, 0.908114, 0.408114,
-            0.15, 0.65, 0.35, 0.85, 0.127526, 0.66835, 0.372474, 0.83165, 0.16835, 0.627526, 0.33165, 0.872474,
-            0.0918861, 0.591886, 0.408114, 0.908114,
-            0.65, 0.65, 0.85, 0.85, 0.627526, 0.66835, 0.872474, 0.83165, 0.66835, 0.627526, 0.83165, 0.872474,
-            0.591886, 0.591886, 0.908114, 0.908114,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
-        })));
+            0.15,     0.15,     0.35,      0.35,      0.127526,  0.16835,  0.372474, 0.33165,  0.16835,  0.127526,
+            0.33165,  0.372474, 0.0918861, 0.0918861, 0.408114,  0.408114, 0.65,     0.15,     0.85,     0.35,
+            0.627526, 0.16835,  0.872474,  0.33165,   0.66835,   0.127526, 0.83165,  0.372474, 0.591886, 0.0918861,
+            0.908114, 0.408114, 0.15,      0.65,      0.35,      0.85,     0.127526, 0.66835,  0.372474, 0.83165,
+            0.16835,  0.627526, 0.33165,   0.872474,  0.0918861, 0.591886, 0.408114, 0.908114, 0.65,     0.65,
+            0.85,     0.85,     0.627526,  0.66835,   0.872474,  0.83165,  0.66835,  0.627526, 0.83165,  0.872474,
+            0.591886, 0.591886, 0.908114,  0.908114,  0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,      0.1,      0.1,
+            0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1})));
 
 INSTANTIATE_TEST_SUITE_P(
-        prior_box_test_minmax_aspect_ratio,
-        prior_box_test_i32_f32,
-        testing::Combine(
+    prior_box_test_minmax_aspect_ratio,
+    prior_box_test_i32_f32,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
         testing::Values(
             prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, true, true, 0.0f, 0.0f, {}, true, true}),
         testing::Values(std::vector<float>{
-            0.15, 0.15, 0.35, 0.35, 0.0918861, 0.0918861, 0.408114, 0.408114, 0.127526, 0.16835, 0.372474, 0.33165,
-            0.16835, 0.127526, 0.33165, 0.372474,
-            0.65, 0.15, 0.85, 0.35, 0.591886, 0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165,
-            0.66835, 0.127526, 0.83165, 0.372474,
-            0.15, 0.65, 0.35, 0.85, 0.0918861, 0.591886, 0.408114, 0.908114, 0.127526, 0.66835, 0.372474, 0.83165,
-            0.16835, 0.627526, 0.33165, 0.872474,
-            0.65, 0.65, 0.85, 0.85, 0.591886, 0.591886, 0.908114, 0.908114, 0.627526, 0.66835, 0.872474, 0.83165,
-            0.66835, 0.627526, 0.83165, 0.872474,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
-        })));
+            0.15,     0.15,      0.35,     0.35,     0.0918861, 0.0918861, 0.408114,  0.408114, 0.127526, 0.16835,
+            0.372474, 0.33165,   0.16835,  0.127526, 0.33165,   0.372474,  0.65,      0.15,     0.85,     0.35,
+            0.591886, 0.0918861, 0.908114, 0.408114, 0.627526,  0.16835,   0.872474,  0.33165,  0.66835,  0.127526,
+            0.83165,  0.372474,  0.15,     0.65,     0.35,      0.85,      0.0918861, 0.591886, 0.408114, 0.908114,
+            0.127526, 0.66835,   0.372474, 0.83165,  0.16835,   0.627526,  0.33165,   0.872474, 0.65,     0.65,
+            0.85,     0.85,      0.591886, 0.591886, 0.908114,  0.908114,  0.627526,  0.66835,  0.872474, 0.83165,
+            0.66835,  0.627526,  0.83165,  0.872474, 0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1,      0.1,      0.1,
+            0.1,      0.1,       0.1,      0.1,      0.1,       0.1,       0.1,       0.1})));
 
 INSTANTIATE_TEST_SUITE_P(
-        prior_box_test_four_variances,
-        prior_box_test_i32_f32,
-        testing::Combine(
+    prior_box_test_four_variances,
+    prior_box_test_i32_f32,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
-        testing::Values(
-            prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, false, false, 0.0f, 0.0f, {0.1, 0.2, 0.3, 0.4}, true, true}),
+        testing::Values(prior_box_attributes{{2.0f},
+                                             {5.0f},
+                                             {1.5f},
+                                             {},
+                                             {},
+                                             {},
+                                             false,
+                                             false,
+                                             0.0f,
+                                             0.0f,
+                                             {0.1, 0.2, 0.3, 0.4},
+                                             true,
+                                             true}),
         testing::Values(std::vector<float>{
             0.15, 0.15, 0.35, 0.35, 0.0918861, 0.0918861, 0.408114, 0.408114, 0.127526, 0.16835, 0.372474, 0.33165,
-            0.65, 0.15, 0.85, 0.35,
-            0.591886, 0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165, 0.15, 0.65, 0.35, 0.85,
-            0.0918861, 0.591886, 0.408114, 0.908114,
-            0.127526, 0.66835, 0.372474, 0.83165, 0.65, 0.65, 0.85, 0.85, 0.591886, 0.591886, 0.908114, 0.908114,
-            0.627526, 0.66835, 0.872474, 0.83165,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4
-        })));
+            0.65, 0.15, 0.85, 0.35, 0.591886,  0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165,
+            0.15, 0.65, 0.35, 0.85, 0.0918861, 0.591886,  0.408114, 0.908114, 0.127526, 0.66835, 0.372474, 0.83165,
+            0.65, 0.65, 0.85, 0.85, 0.591886,  0.591886,  0.908114, 0.908114, 0.627526, 0.66835, 0.872474, 0.83165,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4})));
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_prior_box_test_dont_scale,
-        prior_box_test_i32_f32,
-        testing::Combine(
+    DISABLED_prior_box_test_dont_scale,
+    prior_box_test_i32_f32,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
@@ -226,36 +232,48 @@ INSTANTIATE_TEST_SUITE_P(
             prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, false, false, 0.0f, 0.0f, {}, false, true}),
         testing::Values(std::vector<float>{
             0.15, 0.15, 0.35, 0.35, 0.0918861, 0.0918861, 0.408114, 0.408114, 0.127526, 0.16835, 0.372474, 0.33165,
-            0.65, 0.15, 0.85, 0.35, 0.591886, 0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165,
-            0.15, 0.65, 0.35, 0.85, 0.0918861, 0.591886, 0.408114, 0.908114, 0.127526, 0.66835, 0.372474, 0.83165,
-            0.65, 0.65, 0.85, 0.85, 0.591886, 0.591886, 0.908114, 0.908114, 0.627526, 0.66835, 0.872474, 0.83165,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
-        })));
+            0.65, 0.15, 0.85, 0.35, 0.591886,  0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165,
+            0.15, 0.65, 0.35, 0.85, 0.0918861, 0.591886,  0.408114, 0.908114, 0.127526, 0.66835, 0.372474, 0.83165,
+            0.65, 0.65, 0.85, 0.85, 0.591886,  0.591886,  0.908114, 0.908114, 0.627526, 0.66835, 0.872474, 0.83165,
+            0.1,  0.1,  0.1,  0.1,  0.1,       0.1,       0.1,      0.1,      0.1,      0.1,     0.1,      0.1,
+            0.1,  0.1,  0.1,  0.1,  0.1,       0.1,       0.1,      0.1,      0.1,      0.1,     0.1,      0.1,
+            0.1,  0.1,  0.1,  0.1,  0.1,       0.1,       0.1,      0.1,      0.1,      0.1,     0.1,      0.1,
+            0.1,  0.1,  0.1,  0.1,  0.1,       0.1,       0.1,      0.1,      0.1,      0.1,     0.1,      0.1})));
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_prior_box_test_fixed_density,
-        prior_box_test_i32_f32,
-        testing::Combine(
-        testing::Values(format::bfyx),
-        testing::Values(std::vector<int32_t>{2, 2}),
-        testing::Values(std::vector<int32_t>{10, 10}),
-        testing::Values(
-            prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {0.2, 0.5}, {2.0, 3.0}, {0.1, 0.5}, true, true, 0.0f, 0.0f, {}, true, false}),
-        testing::Values(std::vector<float>{
-            0.15, 0.15, 0.35, 0.35, 0.127526, 0.16835, 0.372474, 0.33165, 0.16835, 0.127526, 0.33165, 0.372474, 0.0918861,
-            0.0918861, 0.408114, 0.408114, 0.65, 0.15, 0.85, 0.35, 0.627526, 0.16835, 0.872474, 0.33165, 0.66835, 0.127526,
-            0.83165, 0.372474, 0.591886, 0.0918861, 0.908114, 0.408114,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-        })));
+    DISABLED_prior_box_test_fixed_density,
+    prior_box_test_i32_f32,
+    testing::Combine(testing::Values(format::bfyx),
+                     testing::Values(std::vector<int32_t>{2, 2}),
+                     testing::Values(std::vector<int32_t>{10, 10}),
+                     testing::Values(prior_box_attributes{{2.0f},
+                                                          {5.0f},
+                                                          {1.5f},
+                                                          {0.2, 0.5},
+                                                          {2.0, 3.0},
+                                                          {0.1, 0.5},
+                                                          true,
+                                                          true,
+                                                          0.0f,
+                                                          0.0f,
+                                                          {},
+                                                          true,
+                                                          false}),
+                     testing::Values(std::vector<float>{
+                         0.15,    0.15,     0.35,    0.35,     0.127526,  0.16835,   0.372474, 0.33165,
+                         0.16835, 0.127526, 0.33165, 0.372474, 0.0918861, 0.0918861, 0.408114, 0.408114,
+                         0.65,    0.15,     0.85,    0.35,     0.627526,  0.16835,   0.872474, 0.33165,
+                         0.66835, 0.127526, 0.83165, 0.372474, 0.591886,  0.0918861, 0.908114, 0.408114,
+                         0.1,     0.1,      0.1,     0.1,      0.1,       0.1,       0.1,      0.1,
+                         0.1,     0.1,      0.1,     0.1,      0.1,       0.1,       0.1,      0.1,
+                         0.1,     0.1,      0.1,     0.1,      0.1,       0.1,       0.1,      0.1,
+                         0.1,     0.1,      0.1,     0.1,      0.1,       0.1,       0.1,      0.1,
+                     })));
 
 INSTANTIATE_TEST_SUITE_P(
-        DISABLED_prior_box_test_step_offset,
-        prior_box_test_i32_f32,
-        testing::Combine(
+    DISABLED_prior_box_test_step_offset,
+    prior_box_test_i32_f32,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
@@ -266,11 +284,10 @@ INSTANTIATE_TEST_SUITE_P(
             0.7, 0.3, 0.9, 0.5, 0.677526, 0.31835, 0.922475, 0.48165, 0.641886, 0.241886, 0.958114, 0.558114,
             0.3, 0.7, 0.5, 0.9, 0.277526, 0.71835, 0.522474, 0.88165, 0.241886, 0.641886, 0.558114, 0.958114,
             0.7, 0.7, 0.9, 0.9, 0.677526, 0.71835, 0.922475, 0.88165, 0.641886, 0.641886, 0.958114, 0.958114,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
-            0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1
-        })));
+            0.1, 0.1, 0.1, 0.1, 0.1,      0.1,     0.1,      0.1,     0.1,      0.1,      0.1,      0.1,
+            0.1, 0.1, 0.1, 0.1, 0.1,      0.1,     0.1,      0.1,     0.1,      0.1,      0.1,      0.1,
+            0.1, 0.1, 0.1, 0.1, 0.1,      0.1,     0.1,      0.1,     0.1,      0.1,      0.1,      0.1,
+            0.1, 0.1, 0.1, 0.1, 0.1,      0.1,     0.1,      0.1,     0.1,      0.1,      0.1,      0.1})));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(prior_box_test_i32_f32, prior_box_test_i32_f32_cached) {
@@ -283,25 +300,33 @@ TEST_P(prior_box_test_i32_f32_cached, prior_box_test_i32_f32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        prior_box_test_four_variances,
-        prior_box_test_i32_f32_cached,
-        testing::Combine(
+    prior_box_test_four_variances,
+    prior_box_test_i32_f32_cached,
+    testing::Combine(
         testing::Values(format::bfyx),
         testing::Values(std::vector<int32_t>{2, 2}),
         testing::Values(std::vector<int32_t>{10, 10}),
-        testing::Values(
-            prior_box_attributes{{2.0f}, {5.0f}, {1.5f}, {}, {}, {}, false, false, 0.0f, 0.0f, {0.1, 0.2, 0.3, 0.4}, true, true}),
+        testing::Values(prior_box_attributes{{2.0f},
+                                             {5.0f},
+                                             {1.5f},
+                                             {},
+                                             {},
+                                             {},
+                                             false,
+                                             false,
+                                             0.0f,
+                                             0.0f,
+                                             {0.1, 0.2, 0.3, 0.4},
+                                             true,
+                                             true}),
         testing::Values(std::vector<float>{
             0.15, 0.15, 0.35, 0.35, 0.0918861, 0.0918861, 0.408114, 0.408114, 0.127526, 0.16835, 0.372474, 0.33165,
-            0.65, 0.15, 0.85, 0.35,
-            0.591886, 0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165, 0.15, 0.65, 0.35, 0.85,
-            0.0918861, 0.591886, 0.408114, 0.908114,
-            0.127526, 0.66835, 0.372474, 0.83165, 0.65, 0.65, 0.85, 0.85, 0.591886, 0.591886, 0.908114, 0.908114,
-            0.627526, 0.66835, 0.872474, 0.83165,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4,
-            0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3, 0.4
-        })));
+            0.65, 0.15, 0.85, 0.35, 0.591886,  0.0918861, 0.908114, 0.408114, 0.627526, 0.16835, 0.872474, 0.33165,
+            0.15, 0.65, 0.35, 0.85, 0.0918861, 0.591886,  0.408114, 0.908114, 0.127526, 0.66835, 0.372474, 0.83165,
+            0.65, 0.65, 0.85, 0.85, 0.591886,  0.591886,  0.908114, 0.908114, 0.627526, 0.66835, 0.872474, 0.83165,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4,
+            0.1,  0.2,  0.3,  0.4,  0.1,       0.2,       0.3,      0.4,      0.1,      0.2,     0.3,      0.4})));
 #endif
 }  // namespace

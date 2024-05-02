@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-#include "low_precision/squeeze.hpp"
+#include <memory>
+#include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/squeeze.hpp"
 #include "ov_lpt_models/squeeze.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -47,41 +45,39 @@ public:
     Expected expected;
 };
 
-class SqueezeTransformation : public LayerTransformation, public testing::WithParamInterface<SqueezeTransformationTestValues> {
+class SqueezeTransformation : public LayerTransformation,
+                              public testing::WithParamInterface<SqueezeTransformationTestValues> {
 public:
     void SetUp() override {
         const SqueezeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ov::builder::subgraph::SqueezeFunction::getOriginal(
-            testValues.inputShape,
-            testValues.axes,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
+        actualFunction =
+            ov::builder::subgraph::SqueezeFunction::getOriginal(testValues.inputShape,
+                                                                testValues.axes,
+                                                                testValues.actual.precisionBeforeDequantization,
+                                                                testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::SqueezeTransformation, ov::op::v0::Squeeze>(testValues.params);
 
         transform.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::SqueezeFunction::getReference(
-            testValues.inputShape,
-            testValues.axes,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+        referenceFunction =
+            ov::builder::subgraph::SqueezeFunction::getReference(testValues.inputShape,
+                                                                 testValues.axes,
+                                                                 testValues.expected.precisionBeforeDequantization,
+                                                                 testValues.expected.dequantizationBefore,
+                                                                 testValues.expected.precisionAfterOperation,
+                                                                 testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SqueezeTransformationTestValues> obj) {
         const SqueezeTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result <<
-            testValues.inputShape << "_" <<
-            testValues.axes << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+        result << testValues.inputShape << "_" << testValues.axes << "_"
+               << testValues.actual.precisionBeforeDequantization << "_" << testValues.actual.dequantization << "_"
+               << testValues.expected.dequantizationBefore;
 
         return result.str();
     }
@@ -96,272 +92,217 @@ TEST_P(SqueezeTransformation, CompareFunctions) {
 }
 
 const std::vector<SqueezeTransformationTestValues> testValues = {
-    {
-        { 1, 1, 16, 16 }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
+    {{1, 1, 16, 16},                                                                   // Input shape
+     {1.0f},                                                                           // Squeeze axes
+     LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::u8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ov::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
-            }
-        }
-    },
-    {
-        { 1, 3, 1, 16 }, // Input shape
-        { 2.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8(), // Layer params
+     /* Actual */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},  // Convert
+          {-0.32f},            // Subtract
+          {0.45f}              // Multiply
+      }},
+     /* Expected */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::u8,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {ov::element::f32},  // Convert
+          {-0.32f},            // Subtract
+          {0.45f}              // Multiply
+      }}},
+    {{1, 3, 1, 16},                            // Input shape
+     {2.0f},                                   // Squeeze axes
+     LayerTransformation::createParamsU8I8(),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1, 1}}, // Subtract
-                {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1, 1}} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::u8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ov::element::f32}, // Convert
-                {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1}}, // Subtract
-                {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1}} // Multiply
-            }
-        }
-    },
-    {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }, // Input shape
-        { 2.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8(), // Layer params
+     /* Actual */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},                                     // Convert
+          {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},  // Subtract
+          {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1, 1}}    // Multiply
+      }},
+     /* Expected */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::u8,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {ov::element::f32},                                  // Convert
+          {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1}},  // Subtract
+          {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1}}    // Multiply
+      }}},
+    {{Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic()},  // Input shape
+     {2.0f},                                                                 // Squeeze axes
+     LayerTransformation::createParamsU8I8(),                                // Layer params
 
-        /* Actual */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1, 1}}, // Subtract
-                {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1, 1}} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::u8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ov::element::f32}, // Convert
-                {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1}}, // Subtract
-                {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1}} // Multiply
-            }
-        }
-    },
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8(), // Layer params
+     /* Actual */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},                                     // Convert
+          {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1, 1}},  // Subtract
+          {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1, 1}}    // Multiply
+      }},
+     /* Expected */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::u8,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {ov::element::f32},                                  // Convert
+          {{128.f, 64.f, 32.f}, ov::element::f32, {1, 3, 1}},  // Subtract
+          {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1}}    // Multiply
+      }}},
+    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},  // Input shape
+     {1.0f},                                                                                    // Squeeze axes
+     LayerTransformation::createParamsU8I8(),                                                   // Layer params
 
-        /* Actual */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::u8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ov::element::f32}, // Convert
-                {-0.32f}, // Subtract
-                {0.45f} // Multiply
-            }
-        }
-    },
-    {
-        { 1, 1, 1, 1000 }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+     /* Actual */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},  // Convert
+          {-0.32f},            // Subtract
+          {0.45f}              // Multiply
+      }},
+     /* Expected */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::u8,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {ov::element::f32},  // Convert
+          {-0.32f},            // Subtract
+          {0.45f}              // Multiply
+      }}},
+    {{1, 1, 1, 1000},                                                                 // Input shape
+     {1.0f},                                                                          // Squeeze axes
+     LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::i8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::i8, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::i8, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {ov::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        { 1, 1, 1000 }, // Input shape
-        { 1.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false), // Layer params
+     /* Actual */
+     {ov::element::i8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},  // Convert
+          {0.5f},              // Subtract
+          {2.0f}               // Multiply
+      }},
+     /* Expected */
+     {ov::element::i8,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::i8,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {ov::element::f32},  // Convert
+          {0.5f},              // Subtract
+          {2.0f}               // Multiply
+      }}},
+    {{1, 1, 1000},                                                                     // Input shape
+     {1.0f},                                                                           // Squeeze axes
+     LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(false),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::f32, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        { 1, 1, 1000, 1000 }, // Input shape
-        { 0.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true), // Layer params
+     /* Actual */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }},
+     /* Expected */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::f32,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }}},
+    {{1, 1, 1000, 1000},                                                              // Input shape
+     {0.0f},                                                                          // Squeeze axes
+     LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::f32, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }, // Input shape
-        { 0.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8(), // Layer params
+     /* Actual */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }},
+     /* Expected */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::f32,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }}},
+    {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},  // Input shape
+     {0.0f},                                                                                    // Squeeze axes
+     LayerTransformation::createParamsU8I8(),                                                   // Layer params
 
-        /* Actual */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::f32, // Precision before dequantization
-            /* Dequantization before */
-            {},
-            ov::element::f32, // Precision after dequantization
-            /* Dequantization after */
-            {
-                {}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        }
-    },
-    {
-        PartialShape::dynamic(), // Input shape
-        { 0.0f }, // Squeeze axes
-        LayerTransformation::createParamsU8I8(), // Layer params
+     /* Actual */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }},
+     /* Expected */
+     {ov::element::f32,  // Precision before dequantization
+      /* Dequantization before */
+      {},
+      ov::element::f32,  // Precision after dequantization
+      /* Dequantization after */
+      {
+          {},      // Convert
+          {0.5f},  // Subtract
+          {2.0f}   // Multiply
+      }}},
+    {PartialShape::dynamic(),                  // Input shape
+     {0.0f},                                   // Squeeze axes
+     LayerTransformation::createParamsU8I8(),  // Layer params
 
-        /* Actual */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization */
-            {
-                {ov::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            }
-        },
-        /* Expected */
-        {
-            ov::element::u8, // Precision before dequantization
-            /* Dequantization before */
-            {
-                {ov::element::f32}, // Convert
-                {0.5f}, // Subtract
-                {2.0f} // Multiply
-            },
-            ov::element::f32, // Precision after dequantization
-            /* Dequantization after */
-            {}
-        }
-    },
+     /* Actual */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization */
+      {
+          {ov::element::f32},  // Convert
+          {0.5f},              // Subtract
+          {2.0f}               // Multiply
+      }},
+     /* Expected */
+     {ov::element::u8,  // Precision before dequantization
+      /* Dequantization before */
+      {
+          {ov::element::f32},  // Convert
+          {0.5f},              // Subtract
+          {2.0f}               // Multiply
+      },
+      ov::element::f32,  // Precision after dequantization
+      /* Dequantization after */
+      {}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    SqueezeTransformation,
-    ::testing::ValuesIn(testValues),
-    SqueezeTransformation::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         SqueezeTransformation,
+                         ::testing::ValuesIn(testValues),
+                         SqueezeTransformation::getTestCaseName);
+}  // namespace

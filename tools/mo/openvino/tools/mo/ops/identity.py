@@ -7,21 +7,23 @@ from openvino.tools.mo.ops.op import Op
 
 
 class Identity(Op):
-    op = 'Identity'
+    op = "Identity"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-
-            'identity': True,
-            'infer': self.infer,
-            'reverse_infer': lambda node: reverse_bypass_infer(node, in_ports=[0]),
-
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": self.op,
+                "type": None,
+                "identity": True,
+                "infer": self.infer,
+                "reverse_infer": lambda node: reverse_bypass_infer(node, in_ports=[0]),
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )
 
     @staticmethod
     def infer(node):
@@ -31,11 +33,15 @@ class Identity(Op):
 
 
 class IdentityN(Op):
-    op = 'IdentityN'
+    op = "IdentityN"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": self.op,
+                "type": None,
+            },
+            attrs,
+        )

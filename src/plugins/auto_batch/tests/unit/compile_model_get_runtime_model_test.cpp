@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
-#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 
 class CompileModelGetRuntimeModelTest : public ::testing::Test {
 public:
@@ -69,7 +69,8 @@ public:
 
         ON_CALL(*m_mock_i_compile_model.get(), get_runtime_model()).WillByDefault(Return(m_model));
 
-        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
+        const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
+                                    {ov::device::priorities("CPU(16)")}};
 
         ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
     }

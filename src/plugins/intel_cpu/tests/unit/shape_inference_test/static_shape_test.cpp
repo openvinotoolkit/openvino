@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shape_inference/static_shape.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "shape_inference/static_shape.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

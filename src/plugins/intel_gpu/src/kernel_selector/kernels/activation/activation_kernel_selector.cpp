@@ -3,6 +3,7 @@
 //
 
 #include "activation_kernel_selector.h"
+
 #include "activation_kernel_opt.h"
 #include "activation_kernel_ref.h"
 

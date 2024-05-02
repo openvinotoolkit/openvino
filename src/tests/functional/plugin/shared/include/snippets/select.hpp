@@ -10,26 +10,26 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        InputShape,                  // Input 0 Shape
-        InputShape,                  // Input 1 Shape
-        InputShape,                  // Input 2 Shape
-        ov::element::Type,           // Element type
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> SelectParams;
+typedef std::tuple<InputShape,         // Input 0 Shape
+                   InputShape,         // Input 1 Shape
+                   InputShape,         // Input 2 Shape
+                   ov::element::Type,  // Element type
+                   size_t,             // Expected num nodes
+                   size_t,             // Expected num subgraphs
+                   std::string         // Target Device
+                   >
+    SelectParams;
 
-typedef std::tuple<
-        InputShape,                  // Input 0 Shape
-        InputShape,                  // Input 1 Shape
-        InputShape,                  // Input 2 Shape
-        ov::PartialShape,            // Input 3 Shape
-        ov::element::Type,           // Element type
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
-> BroadcastSelectParams;
+typedef std::tuple<InputShape,         // Input 0 Shape
+                   InputShape,         // Input 1 Shape
+                   InputShape,         // Input 2 Shape
+                   ov::PartialShape,   // Input 3 Shape
+                   ov::element::Type,  // Element type
+                   size_t,             // Expected num nodes
+                   size_t,             // Expected num subgraphs
+                   std::string         // Target Device
+                   >
+    BroadcastSelectParams;
 
 class Select : public testing::WithParamInterface<ov::test::snippets::SelectParams>,
                virtual public ov::test::SnippetsTestsCommon {
@@ -53,6 +53,6 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

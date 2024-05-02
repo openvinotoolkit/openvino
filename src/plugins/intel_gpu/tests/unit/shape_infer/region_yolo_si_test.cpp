@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/region_yolo.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "region_yolo_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "region_yolo_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -32,7 +29,7 @@ struct region_yolo_test_params {
     layout expected_layout;
 };
 
-class region_yolo_test : public testing::TestWithParam<region_yolo_test_params> { };
+class region_yolo_test : public testing::TestWithParam<region_yolo_test_params> {};
 
 TEST_P(region_yolo_test, shape_infer) {
     auto p = GetParam();
@@ -56,29 +53,43 @@ TEST_P(region_yolo_test, shape_infer) {
     auto& input_layout_node = prog.get_or_create(input_layout_prim);
     auto& region_yolo_node = prog.get_or_create(region_yolo_prim);
     program_wrapper::add_connection(prog, input_layout_node, region_yolo_node);
-    auto res = region_yolo_inst::calc_output_layouts<ov::PartialShape>(region_yolo_node, *region_yolo_node.get_kernel_impl_params());
+    auto res = region_yolo_inst::calc_output_layouts<ov::PartialShape>(region_yolo_node,
+                                                                       *region_yolo_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, region_yolo_test,
-    testing::ValuesIn(std::vector<region_yolo_test_params>{
-        {
-            layout{ov::PartialShape{1, 255, 26, 26}, data_types::f32, format::bfyx},
-            4, 80, 6, { 0, 1, 2 }, 1, 3, false,
-            layout{ov::PartialShape{1, 255, 26, 26}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            4, 80, 6, { 0, 1, 2 }, 1, 3, false,
-            layout{ov::PartialShape{-1, 255, -1, -1}, data_types::f32, format::bfyx}
-        },
-        {
-            layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-            4, 80, 6, { 0, 1, 2 }, 1, 3, true,
-            layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}
-        },
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         region_yolo_test,
+                         testing::ValuesIn(std::vector<region_yolo_test_params>{
+                             {layout{ov::PartialShape{1, 255, 26, 26}, data_types::f32, format::bfyx},
+                              4,
+                              80,
+                              6,
+                              {0, 1, 2},
+                              1,
+                              3,
+                              false,
+                              layout{ov::PartialShape{1, 255, 26, 26}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+                              4,
+                              80,
+                              6,
+                              {0, 1, 2},
+                              1,
+                              3,
+                              false,
+                              layout{ov::PartialShape{-1, 255, -1, -1}, data_types::f32, format::bfyx}},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+                              4,
+                              80,
+                              6,
+                              {0, 1, 2},
+                              1,
+                              3,
+                              true,
+                              layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}},
+                         }));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

@@ -7,8 +7,8 @@
 #include <cctype>
 #include <iostream>
 
-#include "pugixml.hpp"
 #include "ov_subgraph.hpp"
+#include "pugixml.hpp"
 
 namespace ov {
 namespace test {
@@ -67,7 +67,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
     static_assert(std::is_base_of<SubgraphBaseTest, BaseLayerTest>::value,
                   "BaseLayerTest should inherit from ov::test::SubgraphBaseTest");
 
- public:
+public:
     static constexpr int kDefaultNumberOfAttempts = 100;
     static constexpr double kMaxAllowedBenchmarkDifference = 0.05;
 
@@ -99,17 +99,17 @@ class BenchmarkLayerTest : public BaseLayerTest {
             if (prev_bench_results_.count(node_type_name) > 0) {
                 const auto prev_time = static_cast<int64_t>(prev_bench_results_[node_type_name]);
                 const auto delta_time = static_cast<double>(curr_time - prev_time);
-                if (delta_time/prev_time > kMaxAllowedBenchmarkDifference) {
-                    std::cerr << "node_type_name: " << node_type_name <<
-                              ", for test case: " << BaseLayerTest::GetTestName() <<
-                              ", has exceeded the benchmark threshold: " << kMaxAllowedBenchmarkDifference <<
-                              ". Current: " << curr_time << " us, previous: " << prev_time << " us" << std::endl;
+                if (delta_time / prev_time > kMaxAllowedBenchmarkDifference) {
+                    std::cerr << "node_type_name: " << node_type_name
+                              << ", for test case: " << BaseLayerTest::GetTestName()
+                              << ", has exceeded the benchmark threshold: " << kMaxAllowedBenchmarkDifference
+                              << ". Current: " << curr_time << " us, previous: " << prev_time << " us" << std::endl;
                 }
             }
         }
     }
 
- protected:
+protected:
     void infer() override {
         this->inferRequest = this->compiledModel.create_infer_request();
         for (const auto& input : this->inputs) {
@@ -117,11 +117,11 @@ class BenchmarkLayerTest : public BaseLayerTest {
         }
 
 #ifdef ENABLE_BENCHMARK_FILE_REPORT
-        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
-                new ::ov::test::BenchmarkLayerTestReporter{false});
+        reporter_ =
+            std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(new ::ov::test::BenchmarkLayerTestReporter{false});
 #else
-        reporter_ = std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(
-                new ::ov::test::BenchmarkLayerTestReporter{true});
+        reporter_ =
+            std::unique_ptr<ov::test::BenchmarkLayerTestReporter>(new ::ov::test::BenchmarkLayerTestReporter{true});
 #endif
         for (const auto& node_type_name : bench_node_type_names_) {
             try {
@@ -151,10 +151,11 @@ class BenchmarkLayerTest : public BaseLayerTest {
             for (auto& res : results_us) {
                 const std::string node_type_name = res.first;
                 uint64_t& time = res.second;
-                auto found_profile = std::find_if(profiling_info.begin(), profiling_info.end(),
-                    [&node_type_name](const ProfilingInfo& profile) {
-                        return profile.node_type == node_type_name;
-                    });
+                auto found_profile = std::find_if(profiling_info.begin(),
+                                                  profiling_info.end(),
+                                                  [&node_type_name](const ProfilingInfo& profile) {
+                                                      return profile.node_type == node_type_name;
+                                                  });
                 if (found_profile == profiling_info.end()) {
                     OPENVINO_THROW("Cannot find operator by node type: ", node_type_name);
                 }
@@ -179,7 +180,7 @@ class BenchmarkLayerTest : public BaseLayerTest {
         std::cout << report.str();
     }
 
- private:
+private:
     std::unique_ptr<ov::test::BenchmarkLayerTestReporter> reporter_;
     std::unordered_map<std::string, uint64_t> prev_bench_results_;
     std::unordered_map<std::string, uint64_t> curr_bench_results_;

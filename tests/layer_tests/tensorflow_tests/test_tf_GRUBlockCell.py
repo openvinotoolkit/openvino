@@ -14,6 +14,7 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
 
     def create_tf_gru_block_cell(self, batch_size, input_size, hidden_size):
         import tensorflow as tf
+
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
@@ -36,10 +37,20 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
             b_ru = random_generator.uniform(0, 1, tf_b_ru_shape).astype(np.float32)
             b_c = random_generator.uniform(0, 1, tf_b_c_shape).astype(np.float32)
 
-            r, u, c, h = tf.raw_ops.GRUBlockCell(x=x, h_prev=h_prev, w_ru=w_ru, w_c=w_c, b_ru=b_ru, b_c=b_c, name="TFGRUBlockCell")
+            r, u, c, h = tf.raw_ops.GRUBlockCell(
+                x=x,
+                h_prev=h_prev,
+                w_ru=w_ru,
+                w_c=w_c,
+                b_ru=b_ru,
+                b_c=b_c,
+                name="TFGRUBlockCell",
+            )
 
             # Dummy Add layer to prevent from Const network, and compare only "h" output
-            input_zero = tf.compat.v1.placeholder(tf.as_dtype(np.float32), tf_h_prev_shape, 'Input')
+            input_zero = tf.compat.v1.placeholder(
+                tf.as_dtype(np.float32), tf_h_prev_shape, "Input"
+            )
             add = tf.add(h, input_zero)
 
             tf.compat.v1.global_variables_initializer()
@@ -54,16 +65,27 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         dict(batch_size=1, input_size=15, hidden_size=10),
         dict(batch_size=2, input_size=6, hidden_size=6),
         dict(batch_size=2, input_size=12, hidden_size=6),
-        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit),
+        pytest.param(
+            dict(batch_size=2, input_size=6, hidden_size=12),
+            marks=pytest.mark.precommit,
+        ),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_tf_gru_block_cell(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
-        if ie_device == 'GPU':
+    def test_tf_gru_block_cell(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU":
             pytest.skip("Skip TF GRUBlockCell test on GPU")
-        self._test(*self.create_tf_gru_block_cell(**params),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3, **params)
+        self._test(
+            *self.create_tf_gru_block_cell(**params),
+            ie_device,
+            precision,
+            temp_dir=temp_dir,
+            ir_version=ir_version,
+            use_legacy_frontend=use_legacy_frontend,
+            custom_eps=1e-3,
+            **params
+        )

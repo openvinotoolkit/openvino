@@ -4,11 +4,11 @@
 
 #include "ov_lpt_models/fake_quantize.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "low_precision/network_helper.hpp"
-#include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -18,10 +18,9 @@ namespace subgraph {
 
 using namespace ov::pass;
 
-std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginalWithMaxPool(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const FakeQuantizeOnData& fakeQuantizeOnData) {
+std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginalWithMaxPool(const ov::element::Type precision,
+                                                                        const ov::PartialShape& inputShape,
+                                                                        const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input");
 
@@ -33,19 +32,15 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginalWithMaxPool(
                                                                   fakeQuantizeOnData.inputHighValues,
                                                                   fakeQuantizeOnData.outputLowValues,
                                                                   fakeQuantizeOnData.outputHighValues);
-    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        fakeQuantize,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 });
+    const auto maxPool =
+        std::make_shared<ov::opset1::MaxPool>(fakeQuantize, Strides{1, 1}, Shape{1, 1}, Shape{0, 0}, Shape{2, 2});
 
     fakeQuantize->set_friendly_name("fakeQuantize");
     auto& rtInfo = fakeQuantize->get_rt_info();
     rtInfo["Variant::std::string"] = "fakeQuantize";
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(maxPool) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FakeQuantizeFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(maxPool)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "FakeQuantizeFunction");
 }
 
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginal(
@@ -74,8 +69,8 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginal(
     }
     lastOperation->set_friendly_name("lastOperation");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastOperation) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FakeQuantizeFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(lastOperation)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "FakeQuantizeFunction");
 }
 
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
@@ -121,7 +116,8 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
     std::shared_ptr<Node> deq;
     if (updatePrecisions) {
         deq = makeDequantization(lastOperation, updateDequantization);
-        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize, fakeQuantizeOutputPrecision);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize,
+                                                                                  fakeQuantizeOutputPrecision);
     } else {
         if (precision == ov::element::f32) {
             updateDequantization.convert = {};
@@ -132,8 +128,8 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
 
     deq->set_friendly_name("lastOperation");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(deq) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FakeQuantizeFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(deq)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "FakeQuantizeFunction");
 }
 
 }  // namespace subgraph

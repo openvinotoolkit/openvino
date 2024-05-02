@@ -5,8 +5,8 @@
 #include "snippets/generator.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
@@ -31,7 +31,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
     //    1. InsertTailLoop must be called after AssignRegisters since tail loop expressions must have the same
     //       assigned registers as the corresponding ops in the main body.
-    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the pointer increments
+    //    2. CleanupLoopOffsets must be called after InsertTailLoop to avoid violating the proportionality of the
+    //    pointer increments
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
@@ -77,37 +78,25 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
     if (reg_type != RegType::undefined)
         return reg_type;
     const auto op = out.get_node_shared_ptr();
-    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
-        std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
-        std::dynamic_pointer_cast<op::LoopBegin>(op) ||
-        std::dynamic_pointer_cast<op::LoopEnd>(op) ||
-        std::dynamic_pointer_cast<op::Brgemm>(op) ||
-        std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
-        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op) ||
-        std::dynamic_pointer_cast<op::Reshape>(op) ||
-        std::dynamic_pointer_cast<snippets::op::Store>(op)
+    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) || std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+        std::dynamic_pointer_cast<op::LoopBegin>(op) || std::dynamic_pointer_cast<op::LoopEnd>(op) ||
+        std::dynamic_pointer_cast<op::Brgemm>(op) || std::dynamic_pointer_cast<op::IntermediateMemoryBuffer>(op) ||
+        std::dynamic_pointer_cast<op::NewMemoryBuffer>(op) || std::dynamic_pointer_cast<op::RankNormalization>(op) ||
+        std::dynamic_pointer_cast<op::Reshape>(op) || std::dynamic_pointer_cast<snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
-        || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op)
-        || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
+        || std::dynamic_pointer_cast<op::PerfCountBeginBase>(op) || std::dynamic_pointer_cast<op::PerfCountEndBase>(op)
 #endif
-        )
+    )
         return RegType::gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op) ||
-             ov::op::util::is_unary_elementwise_arithmetic(op) ||
-             ov::op::util::is_binary_elementwise_arithmetic(op) ||
-             ov::op::util::is_binary_elementwise_comparison(op) ||
-             ov::op::util::is_binary_elementwise_logical(op) ||
+             ov::op::util::is_unary_elementwise_arithmetic(op) || ov::op::util::is_binary_elementwise_arithmetic(op) ||
+             ov::op::util::is_binary_elementwise_comparison(op) || ov::op::util::is_binary_elementwise_logical(op) ||
              std::dynamic_pointer_cast<ov::op::v1::LogicalNot>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) ||
-             std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
-             std::dynamic_pointer_cast<ov::op::v1::Select>(op) ||
-             std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
-             std::dynamic_pointer_cast<op::BroadcastMove>(op) ||
-             std::dynamic_pointer_cast<op::Scalar>(op) ||
-             std::dynamic_pointer_cast<op::HorizonMax>(op) ||
-             std::dynamic_pointer_cast<op::HorizonSum>(op) ||
+             std::dynamic_pointer_cast<ov::op::v0::PRelu>(op) || std::dynamic_pointer_cast<ov::op::v0::Convert>(op) ||
+             std::dynamic_pointer_cast<ov::op::v1::Select>(op) || std::dynamic_pointer_cast<op::VectorBuffer>(op) ||
+             std::dynamic_pointer_cast<op::BroadcastMove>(op) || std::dynamic_pointer_cast<op::Scalar>(op) ||
+             std::dynamic_pointer_cast<op::HorizonMax>(op) || std::dynamic_pointer_cast<op::HorizonSum>(op) ||
              std::dynamic_pointer_cast<op::Fill>(op))
         return RegType::vec;
     else
@@ -116,8 +105,9 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
 }
 
 RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) const {
-    OPENVINO_THROW("Register type of the operation " + std::string(out.get_node()->get_type_name()) + " isn't determined!");
+    OPENVINO_THROW("Register type of the operation " + std::string(out.get_node()->get_type_name()) +
+                   " isn't determined!");
 }
 
-}// namespace snippets
-}// namespace ov
+}  // namespace snippets
+}  // namespace ov

@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -46,7 +46,9 @@ protected:
     void match_parameters();
     void init_thresholds();
     void init_input_shapes(const std::vector<InputShape>& shapes);
-    void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
+    void set_callback_exception(std::function<void(const std::exception& exp)> callback) {
+        callback_exception = callback;
+    }
 
     void TearDown() override {
         if (this->HasFailure() && !is_reported) {
@@ -63,8 +65,7 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined,
-                outType = ov::element::undefined,
+    ElementType inType = ov::element::undefined, outType = ov::element::undefined,
                 inference_precision = ov::element::undefined;
 
     ov::CompiledModel compiledModel;
@@ -78,10 +79,8 @@ protected:
 
     constexpr static const double disable_threshold = -1;
     constexpr static const double disable_tensor_metrics = 1.f;
-    double abs_threshold = disable_threshold,
-           rel_threshold = disable_threshold,
-           topk_threshold = disable_tensor_metrics,
-           mvn_threshold = disable_tensor_metrics;
+    double abs_threshold = disable_threshold, rel_threshold = disable_threshold,
+           topk_threshold = disable_tensor_metrics, mvn_threshold = disable_tensor_metrics;
 
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;

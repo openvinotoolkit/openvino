@@ -3,10 +3,10 @@
 //
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/fusing_test_utils.hpp"
-#include "transformations/rt_info/decompression.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -40,24 +40,24 @@ namespace test {
  */
 
 enum class DecompressionSubtractType {
-    empty,  // no decompression subtract
-    scalar, // decompression subtract with scalar shape
-    full    // decompression subtract with per-channel or grouped shape
+    empty,   // no decompression subtract
+    scalar,  // decompression subtract with scalar shape
+    full     // decompression subtract with per-channel or grouped shape
 };
 
-inline std::ostream& operator<<(std::ostream & os, DecompressionSubtractType type) {
+inline std::ostream& operator<<(std::ostream& os, DecompressionSubtractType type) {
     switch (type) {
-        case DecompressionSubtractType::empty:
-            os << "empty";
-            break;
-        case DecompressionSubtractType::scalar:
-            os << "scalar";
-            break;
-        case DecompressionSubtractType::full:
-            os << "full";
-            break;
-        default:
-            OPENVINO_THROW("Not supported type for DecompressionSubtractType");
+    case DecompressionSubtractType::empty:
+        os << "empty";
+        break;
+    case DecompressionSubtractType::scalar:
+        os << "scalar";
+        break;
+    case DecompressionSubtractType::full:
+        os << "full";
+        break;
+    default:
+        OPENVINO_THROW("Not supported type for DecompressionSubtractType");
     }
     return os;
 }
@@ -75,18 +75,18 @@ struct ShapeParams {
     int weights_group_size;
 };
 using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,
-                                                    ov::test::ElementType,     // weights precision
-                                                    ov::test::ElementType,     // decompression precision
-                                                    bool,                      // transpose on weights
-                                                    DecompressionSubtractType, // decompression subtract type
-                                                    bool,                      // reshape on decompression constants
-                                                    ov::AnyMap,                // additional config
+                                                    ov::test::ElementType,      // weights precision
+                                                    ov::test::ElementType,      // decompression precision
+                                                    bool,                       // transpose on weights
+                                                    DecompressionSubtractType,  // decompression subtract type
+                                                    bool,                       // reshape on decompression constants
+                                                    ov::AnyMap,                 // additional config
                                                     fusingSpecificParams,
                                                     bool>;  // should use decompression implementation
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
-                                  virtual public SubgraphBaseTest,
-                                  public CpuTestWithFusing {
+                                   virtual public SubgraphBaseTest,
+                                   public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
         ShapeParams shape_params;
@@ -160,13 +160,18 @@ protected:
                             ") must be divisible by decompression group size (",
                             group_size,
                             ").");
-            auto in_channel_idx = transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
+            auto in_channel_idx =
+                transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
             transformed_weights_shape[in_channel_idx] = weights_shape[0] / group_size;
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
 
         auto up_to = weights_precision == ov::element::i4 ? 7 : 15;
-        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(weights_precision, transformed_weights_shape, {}, true, up_to);
+        auto weights = ov::test::utils::deprecated::make_constant<int8_t>(weights_precision,
+                                                                          transformed_weights_shape,
+                                                                          {},
+                                                                          true,
+                                                                          up_to);
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, decompression_precision);
 
@@ -177,25 +182,33 @@ protected:
         // Ordinary decompression: [O, 1]
         // Group decompression: [O, N, 1]
         ov::Shape scaleshift_target_shape{output_channels};
-        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), group_decompression ? weights_shape[0] / group_size : 1);
+        scaleshift_target_shape.insert(scaleshift_target_shape.begin(),
+                                       group_decompression ? weights_shape[0] / group_size : 1);
         scaleshift_target_shape = transpose_if_necessary(scaleshift_target_shape);
         if (group_decompression) {
-            auto in_channel_idx = transpose_weights ? scaleshift_target_shape.size() - 1 : scaleshift_target_shape.size() - 2;
+            auto in_channel_idx =
+                transpose_weights ? scaleshift_target_shape.size() - 1 : scaleshift_target_shape.size() - 2;
             scaleshift_target_shape.insert(scaleshift_target_shape.begin() + in_channel_idx + 1, 1);
         }
 
         auto scaleshift_const_shape = scaleshift_target_shape;
         if (reshape_on_decompression_constant)
-            scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
+            scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1),
+                                         scaleshift_const_shape.end());
         if (decompression_subtract_type != DecompressionSubtractType::empty) {
-            auto subtract_shape = decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
-            auto shift_const = ov::test::utils::deprecated::make_constant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
+            auto subtract_shape =
+                decompression_subtract_type == DecompressionSubtractType::full ? scaleshift_const_shape : Shape({});
+            auto shift_const =
+                ov::test::utils::deprecated::make_constant<uint8_t>(weights_precision, subtract_shape, {}, true, up_to);
             std::shared_ptr<ov::Node> shift_convert =
                 std::make_shared<ov::op::v0::Convert>(shift_const, decompression_precision);
             if (reshape_on_decompression_constant) {
                 auto subtract_target_shape = decompression_subtract_type == DecompressionSubtractType::full
-                    ? scaleshift_target_shape : ov::Shape(scaleshift_const_shape.size(), 1);
-                auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32, {subtract_target_shape.size()}, subtract_target_shape);
+                                                 ? scaleshift_target_shape
+                                                 : ov::Shape(scaleshift_const_shape.size(), 1);
+                auto shift_reshape_const = ov::opset10::Constant::create(ov::element::i32,
+                                                                         {subtract_target_shape.size()},
+                                                                         subtract_target_shape);
                 auto shift_reshape = std::make_shared<ov::opset10::Reshape>(shift_convert, shift_reshape_const, false);
                 shift_convert = shift_reshape;
             }
@@ -203,9 +216,16 @@ protected:
         }
 
         std::shared_ptr<ov::Node> scale_const =
-            ov::test::utils::deprecated::make_constant<float>(decompression_precision, scaleshift_const_shape, {}, true, 0.01f, 0.001f);
+            ov::test::utils::deprecated::make_constant<float>(decompression_precision,
+                                                              scaleshift_const_shape,
+                                                              {},
+                                                              true,
+                                                              0.01f,
+                                                              0.001f);
         if (reshape_on_decompression_constant) {
-            auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32, {scaleshift_target_shape.size()}, scaleshift_target_shape);
+            auto scale_reshape_const = ov::opset10::Constant::create(ov::element::i32,
+                                                                     {scaleshift_target_shape.size()},
+                                                                     scaleshift_target_shape);
             auto scale_reshape = std::make_shared<ov::opset10::Reshape>(scale_const, scale_reshape_const, false);
             scale_const = scale_reshape;
         }
@@ -214,7 +234,8 @@ protected:
         if (group_decompression) {
             auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[0])}
                                                           : std::vector<int>{static_cast<int>(weights_shape[0]), -1};
-            auto target_shape_node = ov::opset10::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
+            auto target_shape_node =
+                ov::opset10::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
             last_node = std::make_shared<ov::opset10::Reshape>(last_node, target_shape_node, false);
         }
         if (decompression_precision != data_precision) {
@@ -406,8 +427,9 @@ const std::vector<ShapeParams> input_shapes_corner_cases_amx = {
 };
 
 const std::vector<bool> transpose_weights = {true, false};
-const std::vector<DecompressionSubtractType> decompression_subtract_type = {
-    DecompressionSubtractType::full, DecompressionSubtractType::scalar, DecompressionSubtractType::empty};
+const std::vector<DecompressionSubtractType> decompression_subtract_type = {DecompressionSubtractType::full,
+                                                                            DecompressionSubtractType::scalar,
+                                                                            DecompressionSubtractType::empty};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<ov::test::ElementType> decompression_precisions_corner_cases = {ov::element::f16, ov::element::f32};
 
@@ -444,12 +466,11 @@ const std::vector<ShapeParams> input_shapes_basic_dyn_quant = {
     {{{}, {{1, 1, 1728}}}, {1728, 128}, 64lu},
 };
 
-const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8,
-                                                                         ov::element::u4};
+const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8, ov::element::u4};
 
 std::vector<ov::AnyMap> filter_additional_config_dyn_quant() {
     std::vector<ov::AnyMap> additional_config = {
-        {{ov::hint::dynamic_quantization_group_size(0)}}, // dynamic quantization is disabled
+        {{ov::hint::dynamic_quantization_group_size(0)}},  // dynamic quantization is disabled
         {{ov::hint::dynamic_quantization_group_size(16)}},
         {{ov::hint::dynamic_quantization_group_size(128)}},
     };

@@ -8,15 +8,13 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets_isa.hpp"
 #include "target_machine.hpp"
 
 namespace ov {
 namespace snippets {
-
 
 class Generator;
 /**
@@ -29,7 +27,8 @@ class Generator;
 class LoweringResult {
     friend class Generator;
     // Some emitters rely on other precompiled kernels.
-    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at runtime.
+    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at
+    // runtime.
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
 
 public:
@@ -51,16 +50,19 @@ public:
      * @param lr lowering result produced during code generation
      */
     Schedule(std::vector<size_t>&& domain, LoweringResult&& lr) : parallel_exec_domain(domain), lowering_result(lr) {}
-    Schedule(std::vector<size_t> domain, LoweringResult&& lr) : parallel_exec_domain(std::move(domain)), lowering_result(lr) {}
+    Schedule(std::vector<size_t> domain, LoweringResult&& lr)
+        : parallel_exec_domain(std::move(domain)),
+          lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
-    template<typename K> K get_callable() const {
+    template <typename K>
+    K get_callable() const {
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    VectorDims parallel_exec_domain {};
-    LoweringResult lowering_result {};
+    VectorDims parallel_exec_domain{};
+    LoweringResult lowering_result{};
 };
 
 /**
@@ -79,9 +81,9 @@ public:
      */
     virtual ~Generator() = default;
     /**
-    * @interface GeneratorConfig
-    * @brief Allows to tweak the lowering process.
-    */
+     * @interface GeneratorConfig
+     * @brief Allows to tweak the lowering process.
+     */
     /**
      * @brief generates executable code
      * @param linear_ir lowered IR for code generation
@@ -108,18 +110,20 @@ public:
 
 protected:
     /**
-    * @brief gets register type by specific plugin op type
-    * @return register type
-    */
+     * @brief gets register type by specific plugin op type
+     * @return register type
+     */
     virtual RegType get_specific_op_out_reg_type(const ov::Output<Node>& out) const;
     /**
-    * @brief returns true if an emitter can use precompiled kernel.
-    * @return bool
-    */
-    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const { return false; }
+     * @brief returns true if an emitter can use precompiled kernel.
+     * @return bool
+     */
+    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const {
+        return false;
+    }
 
     std::shared_ptr<TargetMachine> target;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

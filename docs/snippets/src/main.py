@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+
 #! [import]
 import openvino as ov
+
 #! [import]
 
 #! [part1]
@@ -24,16 +26,19 @@ compiled_model = core.compile_model("model.pb", "AUTO")
 #! [part2_4]
 #! [part2_5]
 compiled_model = core.compile_model("model.tflite", "AUTO")
+
+
 #! [part2_5]
 #! [part2_6]
 def create_model():
     # This example shows how to create ov::Function
     #
-    # To construct a model, please follow 
+    # To construct a model, please follow
     # https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html
     data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
     res = ov.opset8.result(data)
     return ov.Model([res], [data], "model")
+
 
 model = create_model()
 compiled_model = core.compile_model(model, "AUTO")

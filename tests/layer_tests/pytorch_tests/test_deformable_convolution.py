@@ -9,7 +9,6 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 from torchvision.ops import deform_conv2d
 
-
 params = [
     {
         "weights_shape": [64, 64, 3, 3],
@@ -171,8 +170,14 @@ class TestDeformableConvolution(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_deformable_convolution2d(self, params, bias, mask, ie_device, precision, ir_version):
-        self._test(*self.create_model(**params, bias=bias, mask=mask),
-                   ie_device, precision, ir_version, trace_model=True,
-                   dynamic_shapes=ie_device != "GPU"
-                   )
+    def test_deformable_convolution2d(
+        self, params, bias, mask, ie_device, precision, ir_version
+    ):
+        self._test(
+            *self.create_model(**params, bias=bias, mask=mask),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True,
+            dynamic_shapes=ie_device != "GPU"
+        )

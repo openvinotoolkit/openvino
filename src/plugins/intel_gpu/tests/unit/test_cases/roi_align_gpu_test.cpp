@@ -83,7 +83,7 @@ struct roi_align_test : public testing::Test {
         topology.add(reorder("reorder_coords", input_info("coords"), blocked_format, device_data_type));
         topology.add(reorder("reorder_ind", input_info("roi_ind"), blocked_format, device_ind_type));
         topology.add(roi_align("roi_align",
-                               { input_info("reorder_input"), input_info("reorder_coords"), input_info("reorder_ind") },
+                               {input_info("reorder_input"), input_info("reorder_coords"), input_info("reorder_ind")},
                                pooled_h,
                                pooled_w,
                                sampling_ratio,
@@ -92,7 +92,8 @@ struct roi_align_test : public testing::Test {
                                aligned_mode));
         topology.add(reorder("out", input_info("roi_align"), plain_format, device_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), stream, is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), stream, is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("coords", coords);
@@ -209,19 +210,13 @@ TEST(roi_align_gpu_fp32, bfyx_inpad_1x1) {
     const float spatial_scale{1};
 
     const std::vector<float> input_data = {
-        0.f,  1.f,  8.f,  5.f,  5.f, 2.f,  0.f, 7.f,  7.f,  10.f, 4.f,
-        5.f,  9.f,  0.f,  0.f,  5.f, 7.f,  0.f, 4.f,  0.f,  4.f,  7.f,
-        6.f,  10.f, 9.f,  5.f,  1.f, 7.f,  4.f, 7.f,  10.f, 8.f,  2.f,
-        0.f,  8.f,  3.f,  6.f,  8.f, 10.f, 4.f, 2.f,  10.f, 7.f,  8.f,
-        7.f,  0.f,  6.f,  9.f,  2.f, 4.f,  8.f, 5.f,  2.f,  3.f,  3.f,
-        1.f,  5.f,  9.f,  10.f, 0.f, 9.f,  5.f, 5.f,  3.f,  10.f, 5.f,
-        2.f,  0.f,  10.f, 0.f,  5.f, 4.f,  3.f, 10.f, 5.f,  5.f,  10.f,
-        0.f,  8.f,  8.f,  9.f,  1.f, 0.f,  7.f, 9.f,  6.f,  8.f,  7.f,
-        10.f, 9.f,  2.f,  3.f,  3.f, 5.f,  6.f, 9.f,  4.f,  9.f,  2.f,
-        4.f,  5.f,  5.f,  3.f,  1.f, 1.f,  6.f, 8.f,  0.f,  5.f,  5.f,
-        10.f, 8.f,  6.f,  9.f,  6.f, 9.f,  1.f, 2.f,  7.f,  1.f,  1.f,
-        3.f,  0.f,  4.f,  0.f,  7.f, 10.f, 2.f
-    };
+        0.f,  1.f,  8.f, 5.f,  5.f,  2.f, 0.f, 7.f,  7.f, 10.f, 4.f, 5.f,  9.f,  0.f, 0.f, 5.f,  7.f,  0.f, 4.f,
+        0.f,  4.f,  7.f, 6.f,  10.f, 9.f, 5.f, 1.f,  7.f, 4.f,  7.f, 10.f, 8.f,  2.f, 0.f, 8.f,  3.f,  6.f, 8.f,
+        10.f, 4.f,  2.f, 10.f, 7.f,  8.f, 7.f, 0.f,  6.f, 9.f,  2.f, 4.f,  8.f,  5.f, 2.f, 3.f,  3.f,  1.f, 5.f,
+        9.f,  10.f, 0.f, 9.f,  5.f,  5.f, 3.f, 10.f, 5.f, 2.f,  0.f, 10.f, 0.f,  5.f, 4.f, 3.f,  10.f, 5.f, 5.f,
+        10.f, 0.f,  8.f, 8.f,  9.f,  1.f, 0.f, 7.f,  9.f, 6.f,  8.f, 7.f,  10.f, 9.f, 2.f, 3.f,  3.f,  5.f, 6.f,
+        9.f,  4.f,  9.f, 2.f,  4.f,  5.f, 5.f, 3.f,  1.f, 1.f,  6.f, 8.f,  0.f,  5.f, 5.f, 10.f, 8.f,  6.f, 9.f,
+        6.f,  9.f,  1.f, 2.f,  7.f,  1.f, 1.f, 3.f,  0.f, 4.f,  0.f, 7.f,  10.f, 2.f};
     const std::vector<float> coords_data = {2.f, 2.f, 4.f, 4.f, 2.f, 2.f, 4.f, 4.f};
     const std::vector<int32_t> roi_data = {0, 1};
 
@@ -236,9 +231,10 @@ TEST(roi_align_gpu_fp32, bfyx_inpad_1x1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("coords", coords->get_layout()));
     topology.add(input_layout("roi_ind", roi_ind->get_layout()));
-    topology.add(reorder("reorder_input", input_info("input"), input->get_layout().with_padding(padding{ {0,0,1,1},0 })));
+    topology.add(
+        reorder("reorder_input", input_info("input"), input->get_layout().with_padding(padding{{0, 0, 1, 1}, 0})));
     topology.add(roi_align("roi_align",
-                           { input_info("reorder_input"), input_info("coords"), input_info("roi_ind") },
+                           {input_info("reorder_input"), input_info("coords"), input_info("roi_ind")},
                            pooled_h,
                            pooled_w,
                            sampling_ratio,
@@ -256,9 +252,7 @@ TEST(roi_align_gpu_fp32, bfyx_inpad_1x1) {
 
     auto output = outputs.at("out").get_memory();
 
-    std::vector<float> expected_output = {
-        3.f, 3.75f, 4.75f, 5.f, 3.f, 5.5f, 2.75f, 3.75f
-    };
+    std::vector<float> expected_output = {3.f, 3.75f, 4.75f, 5.f, 3.f, 5.5f, 2.75f, 3.75f};
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 

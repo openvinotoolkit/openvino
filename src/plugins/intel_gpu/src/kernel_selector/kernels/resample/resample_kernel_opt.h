@@ -24,10 +24,9 @@ protected:
     DispatchData SetDefault(const resample_params& arg) const override;
     Datatype GetUnitType(const base_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ELTWISE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::ACTIVATION};
     }
+
 private:
     size_t GetOptimalBlockSize(const resample_params& params) const;
 };

@@ -3,25 +3,26 @@
 //
 
 #include "cum_sum_kernel_base.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 Tensor::DataChannelName CumSumKernelBase::GetCumSumAxis(const cum_sum_params& params) const {
     switch (params.axis) {
-        case CumSumAxis::X:
-            return Tensor::DataChannelName::X;
-        case CumSumAxis::Y:
-            return Tensor::DataChannelName::Y;
-        case CumSumAxis::Z:
-            return Tensor::DataChannelName::Z;
-        case CumSumAxis::W:
-            return Tensor::DataChannelName::W;
-        case CumSumAxis::FEATURE:
-            return Tensor::DataChannelName::FEATURE;
-        case CumSumAxis::BATCH:
-            return Tensor::DataChannelName::BATCH;
-        default:
-            return Tensor::DataChannelName::BATCH;
+    case CumSumAxis::X:
+        return Tensor::DataChannelName::X;
+    case CumSumAxis::Y:
+        return Tensor::DataChannelName::Y;
+    case CumSumAxis::Z:
+        return Tensor::DataChannelName::Z;
+    case CumSumAxis::W:
+        return Tensor::DataChannelName::W;
+    case CumSumAxis::FEATURE:
+        return Tensor::DataChannelName::FEATURE;
+    case CumSumAxis::BATCH:
+        return Tensor::DataChannelName::BATCH;
+    default:
+        return Tensor::DataChannelName::BATCH;
     }
 }
 
@@ -54,14 +55,16 @@ CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params
     DispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::W, Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+        {Tensor::DataChannelName::BATCH},
+        {Tensor::DataChannelName::W, Tensor::DataChannelName::FEATURE},
+        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z}};
 
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v * params.outputs[0].W().v,
-                         params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v * params.outputs[0].W().v,
+                        params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v};
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -94,8 +97,16 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 1,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      newParams.is_shape_agnostic);

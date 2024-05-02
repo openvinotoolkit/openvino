@@ -11,12 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-
+#include "itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,8 +25,8 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
     MATCHER_SCOPE(SubtractTransformation);
     auto convert = pattern::wrap_type<ov::opset1::Convert>();
     auto multiply = pattern::wrap_type<ov::opset1::Multiply>();
-    auto subParent = std::make_shared<pass::pattern::op::Or>(OutputVector{ convert, multiply });
-    auto subtract = pattern::wrap_type<ov::opset1::Subtract>({ subParent, pattern::wrap_type<ov::opset1::Constant>() });
+    auto subParent = std::make_shared<pass::pattern::op::Or>(OutputVector{convert, multiply});
+    auto subtract = pattern::wrap_type<ov::opset1::Subtract>({subParent, pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -41,7 +40,7 @@ SubtractTransformation::SubtractTransformation(const Params& params) : LayerTran
     this->register_matcher(m, callback);
 }
 
-bool SubtractTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool SubtractTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<ov::opset1::Subtract> subtract = ov::as_type_ptr<ov::opset1::Subtract>(m.get_match_root());
     if (!canBeTransformed(context, subtract)) {
         return false;
@@ -54,27 +53,24 @@ bool SubtractTransformation::transform(TransformationContext& context, ov::pass:
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
         //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
-        std::shared_ptr<ov::opset1::Subtract> newSubtract = ov::as_type_ptr<ov::opset1::Subtract>(subtract->clone_with_new_inputs({
-            dequantization.multiply->input_value(0),
-            ov::pass::low_precision::fold<ov::opset1::Divide>(
-                subtract->input_value(1),
-                dequantization.multiply->input_value(1))
-        }));
+        std::shared_ptr<ov::opset1::Subtract> newSubtract =
+            ov::as_type_ptr<ov::opset1::Subtract>(subtract->clone_with_new_inputs(
+                {dequantization.multiply->input_value(0),
+                 ov::pass::low_precision::fold<ov::opset1::Divide>(subtract->input_value(1),
+                                                                   dequantization.multiply->input_value(1))}));
 
-        std::shared_ptr<Node> newMultiply = dequantization.multiply->clone_with_new_inputs({
-            newSubtract,
-            dequantization.multiplyConstant
-        });
+        std::shared_ptr<Node> newMultiply =
+            dequantization.multiply->clone_with_new_inputs({newSubtract, dequantization.multiplyConstant});
 
         replace_node(subtract, newMultiply);
         subtract = newSubtract;
     }
 
     if (dequantization.subtract != nullptr) {
-        std::shared_ptr<ov::opset1::Subtract> newSubtract = ov::as_type_ptr<ov::opset1::Subtract>(subtract->clone_with_new_inputs({
-            dequantization.subtract->input_value(0),
-            fold<ov::opset1::Add>(subtract->input_value(1), dequantization.subtractConstant)
-        }));
+        std::shared_ptr<ov::opset1::Subtract> newSubtract =
+            ov::as_type_ptr<ov::opset1::Subtract>(subtract->clone_with_new_inputs(
+                {dequantization.subtract->input_value(0),
+                 fold<ov::opset1::Add>(subtract->input_value(1), dequantization.subtractConstant)}));
 
         replace_node(subtract, newSubtract);
         subtract = newSubtract;
@@ -85,13 +81,13 @@ bool SubtractTransformation::transform(TransformationContext& context, ov::pass:
         // std::shared_ptr<Node> newSubtract = NetworkHelper::optimizeElementwise(subtract);
         subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
 
-        replace_node(subtract, std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
-            subtract->input_value(0),
-            subtract->input_value(1)));
+        replace_node(subtract,
+                     std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(subtract->input_value(0),
+                                                                                 subtract->input_value(1)));
     }
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

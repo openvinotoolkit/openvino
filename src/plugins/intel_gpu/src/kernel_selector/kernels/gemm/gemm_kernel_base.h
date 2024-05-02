@@ -13,7 +13,11 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gemm_params : public base_params {
     gemm_params()
-        : base_params(KernelType::GEMM), alpha(1.0f), beta(0.0f), transpose_input0(false), transpose_input1(false) {}
+        : base_params(KernelType::GEMM),
+          alpha(1.0f),
+          beta(0.0f),
+          transpose_input0(false),
+          transpose_input1(false) {}
 
     float alpha;
     float beta;
@@ -57,12 +61,15 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params) const;
 
     std::string GetDimsOrder(const std::vector<int64_t>& order_idx) const;
-    size_t GetOuputSize(const std::vector<int64_t>& output_order, const kernel_selector::DataTensor &output, char target_dim) const;
+    size_t GetOuputSize(const std::vector<int64_t>& output_order,
+                        const kernel_selector::DataTensor& output,
+                        char target_dim) const;
     std::vector<int64_t> ConvTo8dims(const std::vector<int64_t>& order_idx) const;
     std::vector<std::string> GetTransposedDims(const std::vector<int64_t>& order_idx, bool is_tiled_opt = false) const;
 
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params,
+                                                        const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
     bool Validate(const Params& p) const override;

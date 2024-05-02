@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
 import sys
 
-import openvino  as ov
+import numpy as np
 from openvino.runtime import opset12 as ops
+
+import openvino as ov
 
 
 def main():
@@ -24,7 +25,7 @@ def main():
     add2 = ops.add(add, read)
     result = ops.result(add2)
     model = ov.Model(results=[result], sinks=[assign], parameters=[input], name="model")
-     #! [ov:model_create]
+    #! [ov:model_create]
 
     log.info("Loading network files")
 
@@ -50,8 +51,10 @@ def main():
     # input data
     input_data = np.arange(start=1, stop=7, dtype=np.float32)
     log.info("Infer the first utterance")
-    for next_input in range(int(len(input_data)/2)):
-        infer_request.infer({"data" : np.asarray([input_data[next_input]]).reshape([1,1])})
+    for next_input in range(int(len(input_data) / 2)):
+        infer_request.infer(
+            {"data": np.asarray([input_data[next_input]]).reshape([1, 1])}
+        )
         # check states
         states = infer_request.query_state()
         if len(states) == 0:
@@ -66,10 +69,10 @@ def main():
 
     log.info("\nReset state between utterances...\n")
     infer_request.reset_state()
-        
+
     log.info("Infer the second utterance")
-    for next_input in range(int(len(input_data)/2), len(input_data)):
-        infer_request.infer({0 : np.asarray([input_data[next_input]]).reshape([1,1])})
+    for next_input in range(int(len(input_data) / 2), len(input_data)):
+        infer_request.infer({0: np.asarray([input_data[next_input]]).reshape([1, 1])})
         # check states
         states = infer_request.query_state()
         mstate = states[0].state

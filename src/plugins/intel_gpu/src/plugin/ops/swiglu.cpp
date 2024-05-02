@@ -3,8 +3,9 @@
 //
 
 #include "intel_gpu/op/swiglu.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 
 namespace ov {
@@ -24,11 +25,7 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>&
     std::string primitive_name = layer_type_name_ID(op);
 
     if (p.use_new_shape_infer()) {
-        auto prim = cldnn::swiglu(primitive_name,
-                                  inputs[0],
-                                  op->get_axis(),
-                                  op->get_split_lengths(),
-                                  cldnn::tensor());
+        auto prim = cldnn::swiglu(primitive_name, inputs[0], op->get_axis(), op->get_split_lengths(), cldnn::tensor());
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
     } else {

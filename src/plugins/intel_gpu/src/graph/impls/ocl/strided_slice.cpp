@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "strided_slice_inst.h"
 #include "data_inst.h"
+#include "primitive_base.hpp"
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
-
+#include "strided_slice_inst.h"
 
 namespace {
 template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
@@ -25,7 +23,8 @@ void pad_vector_to_size(std::vector<T>& data, size_t size, DT value, const std::
         }
 
         size_t dims_after = data.size() - ellipsis_pos1 - 1;
-        size_t ellipsis_pos2 = size - dims_after - 1;;
+        size_t ellipsis_pos2 = size - dims_after - 1;
+        ;
 
         for (size_t i = 0; i < ellipsis_pos1; i++)
             temp.push_back(data[i]);
@@ -111,7 +110,8 @@ public:
 
         auto get_index_end = [&]() {
             size_t offset = 1;
-            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input)
+            if ((begin.empty() || params.has_dynamic_tensors()) &&
+                params.begin_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
@@ -128,7 +128,8 @@ public:
 
         auto get_index_stride = [&]() {
             size_t offset = get_index_end();
-            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input)
+            if ((end.empty() || params.has_dynamic_tensors()) &&
+                params.end_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
@@ -171,10 +172,11 @@ public:
             out_shape.push_back(static_cast<int32_t>(dim));
 
         if (params.striding_params.size() == 3) {
-            // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension starts from 0.
+            // If the ith bit of begin_mask is not set, begin[i] is ignored and the range of the appropriate dimension
+            // starts from 0.
             vector_assign_if_not_mask(params.striding_params[0], 0, params.begin_mask);
-            // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
-            // instead.
+            // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension
+            // is used instead.
             vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
             for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
                 auto begin = params.striding_params[0][dim];
@@ -204,13 +206,11 @@ public:
                 end = std::min(std::max(end, (int32_t)0), out_shape[dim]);
 
                 if (is_stride_reverse) {
-                    // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
-                    // However, in case of out-of-bounds begin/end values, it will be clamped, so we subtract 1 from each of them manually
-                    // E.g. out_shape[dim] = 100; begin=10000; end=-10000; stride=-1
-                    // clamp: begin=100; end=0;
-                    // sub: begin=99; end=-1;
-                    // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
-                    // E.g. out_shape[dim] = 100; begin=-100; end=100; stride=-1
+                    // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will
+                    // process it correctly However, in case of out-of-bounds begin/end values, it will be clamped, so
+                    // we subtract 1 from each of them manually E.g. out_shape[dim] = 100; begin=10000; end=-10000;
+                    // stride=-1 clamp: begin=100; end=0; sub: begin=99; end=-1; If begin <= end, then we swap begin/end
+                    // values and subtruct 1 from each of them E.g. out_shape[dim] = 100; begin=-100; end=100; stride=-1
                     // sub: begin=-1; end=100;
                     // swap: begin=100; end=-1;
                     // So the kernel will put the slices [99, 0] in reversed order as expected.
@@ -238,14 +238,7 @@ public:
 namespace detail {
 
 attach_strided_slice_impl::attach_strided_slice_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32,
-        data_types::i64
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
 
     auto formats = {
         format::bfyx,

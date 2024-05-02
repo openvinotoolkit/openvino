@@ -5,6 +5,7 @@
 #pragma once
 
 #include <gflags/gflags.h>
+
 #include <iostream>
 
 static const char help_message[] = "Print a usage message.";
@@ -15,9 +16,11 @@ static const char path_regex_message[] = "Optional. regular expression to be app
                                          "folders recursive discovery";
 static const char extract_body_message[] = "Optional. Allow to extract operation bodies to operation cache.";
 static const char cache_type_message[] = "Optional. Specify caching type: OP, GRAPH. The default value is both";
-static const char device_message[] = "Optional. Specify device to compile model for `fused_names` extractor. Default is `CPU` ";
+static const char device_message[] =
+    "Optional. Specify device to compile model for `fused_names` extractor. Default is `CPU` ";
 static const char target_plugin_message[] =
-    "Optional. Name of plugin library. The example is `/path/to/libopenvino_template_plugin.so`. Use only with unregistered in OV Core devices";
+    "Optional. Name of plugin library. The example is `/path/to/libopenvino_template_plugin.so`. Use only with "
+    "unregistered in OV Core devices";
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(input_folders, "", local_cache_message);
@@ -30,8 +33,8 @@ DEFINE_string(cache_type, "", cache_type_message);
 DEFINE_string(plugin_lib_name, "", target_plugin_message);
 
 /**
-* @brief This function shows a help message
-*/
+ * @brief This function shows a help message
+ */
 static void showUsage() {
     std::cout << "\n";
     std::cout << "Subgraph Dumper [OPTION]\n";

@@ -4,13 +4,11 @@
 
 #pragma once
 
-
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -28,7 +26,7 @@ class ActivationLayerCPUTest : public testing::WithParamInterface<ActivationLaye
                                virtual public ov::test::SubgraphBaseTest,
                                public CPUTestUtils::CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet>& obj);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 protected:

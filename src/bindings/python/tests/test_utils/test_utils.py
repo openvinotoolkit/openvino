@@ -10,6 +10,7 @@ from tests.utils.helpers import compare_models, get_relu_model
 def test_compare_functions():
     try:
         from openvino.test_utils import compare_functions
+
         model = get_relu_model()
         status, _ = compare_functions(model, model)
         assert status
@@ -52,9 +53,18 @@ def test_deprecation_decorator():
 
     with pytest.warns(DeprecationWarning, match="deprecated_function1 is deprecated"):
         deprecated_function1("param1")
-    with pytest.warns(DeprecationWarning, match="deprecated_function2 is deprecated and will be removed in version 2025.4"):
+    with pytest.warns(
+        DeprecationWarning,
+        match="deprecated_function2 is deprecated and will be removed in version 2025.4",
+    ):
         deprecated_function2(param1=1)
-    with pytest.warns(DeprecationWarning, match="deprecated_function3 is deprecated. Use another function instead"):
+    with pytest.warns(
+        DeprecationWarning,
+        match="deprecated_function3 is deprecated. Use another function instead",
+    ):
         deprecated_function3()
-    with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
+    with pytest.warns(
+        DeprecationWarning,
+        match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead",
+    ):
         deprecated_function4()

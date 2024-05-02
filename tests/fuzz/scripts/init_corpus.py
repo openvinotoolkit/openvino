@@ -9,9 +9,9 @@
 import argparse
 import glob
 import os
-from pathlib import Path
 import shutil
 import sys
+from pathlib import Path
 
 
 def globber(paths):
@@ -27,7 +27,7 @@ def globber(paths):
 
 
 def main():
-    """ Main entrypoint """
+    """Main entrypoint"""
     parser = argparse.ArgumentParser(
         description="Join multiple files of the same name to a single *.fuzz file"
     )

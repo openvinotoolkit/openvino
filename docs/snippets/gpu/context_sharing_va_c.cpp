@@ -3,9 +3,10 @@
 //
 
 #ifdef ENABLE_LIBVA
-#include <openvino/c/openvino.h>
-#include <openvino/c/gpu/gpu_plugin_properties.h>
-#include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#    include <openvino/c/gpu/gpu_plugin_properties.h>
+#    include <openvino/c/openvino.h>
+
+#    include <openvino/runtime/intel_gpu/ocl/va.hpp>
 
 VADisplay get_va_display();
 VASurfaceID decode_va_surface();
@@ -95,8 +96,8 @@ int main() {
     // execute decoding and obtain decoded surface handle
     VASurfaceID va_surface = decode_va_surface();
     //     ...
-    //wrap decoder output into RemoteBlobs and set it as inference input
-    
+    // wrap decoder output into RemoteBlobs and set it as inference input
+
     ov_tensor_t* remote_tensor_y = NULL;
     ov_tensor_t* remote_tensor_uv = NULL;
     ov_remote_context_create_tensor(shared_va_context,

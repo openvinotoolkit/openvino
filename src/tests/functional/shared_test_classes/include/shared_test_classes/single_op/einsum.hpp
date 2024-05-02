@@ -12,21 +12,22 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::string,              // Equation
-        std::vector<InputShape>   // Input shapes
-> EinsumEquationWithInput;
+typedef std::tuple<std::string,             // Equation
+                   std::vector<InputShape>  // Input shapes
+                   >
+    EinsumEquationWithInput;
 
-typedef std::tuple<
-        ov::element::Type,         // Model type
-        EinsumEquationWithInput,   // Equation with corresponding input shapes
-        std::string                // Device name
-> EinsumLayerTestParamsSet;
+typedef std::tuple<ov::element::Type,        // Model type
+                   EinsumEquationWithInput,  // Equation with corresponding input shapes
+                   std::string               // Device name
+                   >
+    EinsumLayerTestParamsSet;
 
 class EinsumLayerTest : public testing::WithParamInterface<EinsumLayerTestParamsSet>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<EinsumLayerTestParamsSet>& obj);
+
 protected:
     void SetUp() override;
 };

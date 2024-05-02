@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/op/read_value.hpp"
+
 #include "openvino/core/partial_shape.hpp"
 
 namespace ov {
@@ -13,7 +14,9 @@ ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values)
     m_variable = past_values;
     validate_and_infer_types();
 }
-ReadValue::ReadValue(const Output<Node>& variable_initializer, const std::shared_ptr<ov::op::util::Variable>& past_values) : Op({variable_initializer}) {
+ReadValue::ReadValue(const Output<Node>& variable_initializer,
+                     const std::shared_ptr<ov::op::util::Variable>& past_values)
+    : Op({variable_initializer}) {
     m_variable = past_values;
     validate_and_infer_types();
 }
@@ -76,7 +79,7 @@ void ReadValue::validate_and_infer_types() {
 
 std::shared_ptr<Node> ReadValue::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-        switch (new_args.size()) {
+    switch (new_args.size()) {
     case 0:
         return std::make_shared<ReadValue>(m_variable);
     case 1:

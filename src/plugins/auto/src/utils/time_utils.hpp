@@ -9,11 +9,11 @@
 #include <ctime>
 #include <string>
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
+#ifdef MULTIUNITTEST
+#    define MOCKTESTMACRO virtual
+#    define auto_plugin   mock_auto_plugin
 #else
-#define MOCKTESTMACRO
+#    define MOCKTESTMACRO
 #endif
 
 namespace ov {
@@ -51,6 +51,6 @@ bool local_time_safe(const time_t* time, struct tm* result);
 
 std::string get_current_time();
 std::string put_time(std::chrono::system_clock::time_point tp, const char* format);
-} // namespace time_utils
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace time_utils
+}  // namespace auto_plugin
+}  // namespace ov

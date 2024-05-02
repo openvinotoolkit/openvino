@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <vector>
+
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/broadcast.hpp"
-
 #include "primitive.hpp"
-#include <vector>
 
 namespace cldnn {
 
@@ -108,17 +108,17 @@ struct broadcast : public primitive_base<broadcast> {
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
     broadcast(const primitive_id& id,
-          const input_info& input,
-          const input_info& target_shape_id,
-          const ov::AxisSet& axes_mapping,
-          const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
-          const padding& output_padding = padding())
-    : primitive_base(id, {input, target_shape_id}, {output_padding}),
-      target_shape({}),
-      axes_mapping(axes_mapping),
-      broadcast_mode(broadcast_spec),
-      broadcast_sizes({}),
-      broadcast_axes({}) {}
+              const input_info& input,
+              const input_info& target_shape_id,
+              const ov::AxisSet& axes_mapping,
+              const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
+              const padding& output_padding = padding())
+        : primitive_base(id, {input, target_shape_id}, {output_padding}),
+          target_shape({}),
+          axes_mapping(axes_mapping),
+          broadcast_mode(broadcast_spec),
+          broadcast_sizes({}),
+          broadcast_axes({}) {}
 
     /// @brief The shape of the output tensor.
     ov::Shape target_shape;
@@ -147,10 +147,8 @@ struct broadcast : public primitive_base<broadcast> {
 
         auto rhs_casted = downcast<const broadcast>(rhs);
 
-        return axes_mapping == rhs_casted.axes_mapping &&
-               broadcast_mode == rhs_casted.broadcast_mode &&
-               broadcast_sizes == rhs_casted.broadcast_sizes &&
-               output_pshape == rhs_casted.output_pshape;
+        return axes_mapping == rhs_casted.axes_mapping && broadcast_mode == rhs_casted.broadcast_mode &&
+               broadcast_sizes == rhs_casted.broadcast_sizes && output_pshape == rhs_casted.output_pshape;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

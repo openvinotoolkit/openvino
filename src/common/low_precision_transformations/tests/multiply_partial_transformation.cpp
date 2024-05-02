@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <utility>
-#include <transformations/utils/utils.hpp>
+#include <memory>
+#include <sstream>
+#include <string>
 #include <transformations/init_node_info.hpp>
-#include "low_precision/multiply_partial.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
+#include <transformations/utils/utils.hpp>
+#include <utility>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
+#include "low_precision/multiply_partial.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/multiply_partial_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace testing;
@@ -34,20 +32,18 @@ public:
 
     MultiplyPartialTransformationTestValues() = default;
 
-    MultiplyPartialTransformationTestValues(
-        TestTransformationParams transformationParams,
-        MultiplyPartialValues actual,
-        MultiplyPartialValues expected):
-        transformationParams(std::move(transformationParams)),
-        actual(std::move(actual)),
-        expected(std::move(expected)) {}
+    MultiplyPartialTransformationTestValues(TestTransformationParams transformationParams,
+                                            MultiplyPartialValues actual,
+                                            MultiplyPartialValues expected)
+        : transformationParams(std::move(transformationParams)),
+          actual(std::move(actual)),
+          expected(std::move(expected)) {}
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    MultiplyPartialTransformationTestValues> MultiplyPartialTransformationParams;
+typedef std::tuple<ov::element::Type, MultiplyPartialTransformationTestValues> MultiplyPartialTransformationParams;
 
-class MultiplyPartialTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyPartialTransformationParams> {
+class MultiplyPartialTransformation : public LayerTransformation,
+                                      public testing::WithParamInterface<MultiplyPartialTransformationParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
@@ -56,7 +52,8 @@ public:
         actualFunction = MultiplyPartialFunction::get(precision, testParams.actual);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::MultiplyPartialTransformation, ov::op::v1::Multiply>(testParams.transformationParams);
+        transform.add<ov::pass::low_precision::MultiplyPartialTransformation, ov::op::v1::Multiply>(
+            testParams.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyPartialFunction::get(precision, testParams.expected);
@@ -67,10 +64,10 @@ public:
         const MultiplyPartialTransformationTestValues testParams = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            LayerTransformation::getTestCaseNameByParams(precision, testParams.expected.branch1.inputShape, testParams.transformationParams) <<
-            testParams.actual <<
-            testParams.expected;
+        result << LayerTransformation::getTestCaseNameByParams(precision,
+                                                               testParams.expected.branch1.inputShape,
+                                                               testParams.transformationParams)
+               << testParams.actual << testParams.expected;
         return result.str();
     }
 };
@@ -83,317 +80,116 @@ TEST_P(MultiplyPartialTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ov::element::Type> precisions = {
-    ov::element::f32,
-    ov::element::f16
-};
+const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<MultiplyPartialTransformationTestValues> multiplyTransformationTestValues = {
     // U8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {3.f}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {3.f}, {7.f}}},
+      false}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {10.f}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {3.f}, {7.f}}},
+      false},
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {10.f}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {3.f}, {7.f}}},
+      false}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 70.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {70.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {}},
+      false}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 70.f }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {10.f}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {70.f}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {}},
+      false}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                { ov::element::f32, {  }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                { ov::element::f32, { }, { 7.f } }
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, {  }, { 70.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {}, {70.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {}},
+      false}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, {  }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f } }
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 7.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::u8,
-                {}
-            },
-            false
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, {  }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f } }
-            },
-            false
-        },
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, { 7.f }}
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::u8,
-                {}
-            },
-            false
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                PartialShape::dynamic(),
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, {  }}
-            },
-            {
-                PartialShape::dynamic(),
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f } }
-            },
-            false
-        },
-        {
-            {
-                PartialShape::dynamic(),
-                {},
-                ov::element::u8,
-                {ov::element::f32, { 2.f }, {  }}
-            },
-            {
-                PartialShape::dynamic(),
-                {},
-                ov::element::u8,
-                {ov::element::f32, { }, { 7.f } }
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::u8, {ov::element::f32, {2.f}, {7.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::u8, {}},
+      false}},
+    {LayerTransformation::createParamsU8I8(),
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {ov::element::f32, {2.f}, {7.f}}},
+      {{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+       {},
+       ov::element::u8,
+       {}},
+      false}},
+    {LayerTransformation::createParamsU8I8(),
+     {{PartialShape::dynamic(), {}, ov::element::u8, {ov::element::f32, {2.f}, {}}},
+      {PartialShape::dynamic(), {}, ov::element::u8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{PartialShape::dynamic(), {}, ov::element::u8, {ov::element::f32, {2.f}, {}}},
+      {PartialShape::dynamic(), {}, ov::element::u8, {ov::element::f32, {}, {7.f}}},
+      false}},
 
     // I8
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 3.f }, { 7.f } }
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {3.f}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {3.f}, {7.f}}},
+      false}},
 
     // Actual:
     //
@@ -425,39 +221,18 @@ const std::vector<MultiplyPartialTransformationTestValues> multiplyTransformatio
     //          \FP32  /I8
     //           \    /
     //          Multiply
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 70.f }},
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {2.f}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {2.f}, {70.f}},
+      },
+      {{1, 3, 8, 16}, {}, ov::element::i8, {}},
+      false}},
 
     // Actual:
     //
@@ -489,319 +264,195 @@ const std::vector<MultiplyPartialTransformationTestValues> multiplyTransformatio
     //          \FP32  /I8
     //           \    /
     //          Multiply
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {2.f}, ov::element::f32, {}, true, 1ul, ov::element::i8, true },
-                    { 10.f }
-                }
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 70.f }},
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {{{1, 3, 8, 16},
+       {},
+       ov::element::i8,
+       {ov::element::f32, {{2.f}, ov::element::f32, {}, true, 1ul, ov::element::i8, true}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {2.f}, {70.f}},
+      },
+      {{1, 3, 8, 16}, {}, ov::element::i8, {}},
+      false}},
 
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 7.f } }
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                { ov::element::f32, {  }, { 70.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                { }
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {{{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {}, {10.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {}, {7.f}}},
+      false},
+     {{{1, 3, 8, 16}, {}, ov::element::i8, {ov::element::f32, {}, {70.f}}},
+      {{1, 3, 8, 16}, {}, ov::element::i8, {}},
+      false}},
 
-    {
-        LayerTransformation::createParamsI8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, {  }},
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 7.f } },
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 2.f }, { 7.f }},
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {}
-            },
-            false
-        }
-    },
+    {LayerTransformation::createParamsI8I8(),
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {2.f}, {}},
+      },
+      {
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {7.f}},
+      },
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {2.f}, {7.f}},
+      },
+      {{1, 3, 8, 16}, {}, ov::element::i8, {}},
+      false}},
 
     // Constant as input
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 10.f }},
-            },
-            {
-                {},
-                {{ 7.f }, ov::element::f32}, // Constant as input
-                ov::element::f32,
-                {}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, {}, {}},
-            },
-            {
-                {},
-                {{ 70.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {10.f}},
+      },
+      {{},
+       {{7.f}, ov::element::f32},  // Constant as input
+       ov::element::f32,
+       {}},
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {}},
+      },
+      {{}, {{70.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 10.f }},
-            },
-            {
-                {},
-                {{ 7.f }, ov::element::f32}, // Constant as input
-                ov::element::f32,
-                {}
-            },
-            false
-        },
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::i8,
-                {ov::element::f32, {}, {}},
-            },
-            {
-                {},
-                {{ 70.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {10.f}},
+      },
+      {{},
+       {{7.f}, ov::element::f32},  // Constant as input
+       ov::element::f32,
+       {}},
+      false},
+     {{
+          {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {}},
+      },
+      {{}, {{70.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 18.f }, { 10.f }},
-            },
-            {
-                {},
-                {{ 7.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { 18.f }, { }},
-            },
-            {
-                {},
-                {{ 70.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {18.f}, {10.f}},
+      },
+      {{}, {{7.f}, ov::element::f32}, ov::element::f32, {}},
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {18.f}, {}},
+      },
+      {{}, {{70.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 
     // Constant as input with empty shape
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, { }, { 0.2f }},
-            },
-            {
-                {},
-                {{ 7.f }, ov::element::i8}, // Constant as input
-                ov::element::i8,
-                {ov::element::f32, { }, { 0.5f }},
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {ov::element::f32, {}, {}},
-            },
-            {
-                {},
-                {{ 0.7f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {0.2f}},
+      },
+      {
+          {},
+          {{7.f}, ov::element::i8},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {}, {0.5f}},
+      },
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {}, {}},
+      },
+      {{}, {{0.7f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 
     // Constant as input with 1 dimension shape
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                {{ 7.f, 8.f, 9.f }, ov::element::i8, ov::Shape{3}}, // Constant as input
-                ov::element::i8,
-                {ov::element::f32, { }, { {0.1f, 0.2f, 0.3f}, element::f32, ov::Shape{3} }},
-            },
-            {
-                { 1, 2, 3 },
-                {},
-                ov::element::f32,
-                {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ov::Shape{3}}},
-            },
-            false
-        },
-        {
-            {
-                { 1, 2, 3 },
-                {},
-                ov::element::f32,
-                {},
-            },
-            {
-                {},
-                { {0.14f, 0.48f, 1.08f}, ov::element::f32, ov::Shape{3}}, // Constant as input
-                {},
-                {},
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {},
+          {{7.f, 8.f, 9.f}, ov::element::i8, ov::Shape{3}},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {}, {{0.1f, 0.2f, 0.3f}, element::f32, ov::Shape{3}}},
+      },
+      {
+          {1, 2, 3},
+          {},
+          ov::element::f32,
+          {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ov::Shape{3}}},
+      },
+      false},
+     {{
+          {1, 2, 3},
+          {},
+          ov::element::f32,
+          {},
+      },
+      {
+          {},
+          {{0.14f, 0.48f, 1.08f}, ov::element::f32, ov::Shape{3}},  // Constant as input
+          {},
+          {},
+      },
+      true}},
 
     // Parameter as input with, Constant with 1 dimension shape
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 2, 3 },
-                {},
-                ov::element::f32,
-                {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ov::Shape{3}}},
-            },
-            {
-                {},
-                {{ 7.f, 8.f, 9.f }, ov::element::i8, ov::Shape{3}}, // Constant as input
-                ov::element::i8,
-                {ov::element::f32, { }, { {0.1f, 0.2f, 0.3f}, element::f32, ov::Shape{3} }},
-            },
-            false
-        },
-        {
-            {
-                { 1, 2, 3 },
-                {},
-                ov::element::f32,
-                {},
-            },
-            {
-                {},
-                { {0.14f, 0.48f, 1.08f}, ov::element::f32, ov::Shape{3}}, // Constant as input
-                {},
-                {},
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {1, 2, 3},
+          {},
+          ov::element::f32,
+          {{}, {}, {{0.2f, 0.3f, 0.4f}, element::f32, ov::Shape{3}}},
+      },
+      {
+          {},
+          {{7.f, 8.f, 9.f}, ov::element::i8, ov::Shape{3}},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {}, {{0.1f, 0.2f, 0.3f}, element::f32, ov::Shape{3}}},
+      },
+      false},
+     {{
+          {1, 2, 3},
+          {},
+          ov::element::f32,
+          {},
+      },
+      {
+          {},
+          {{0.14f, 0.48f, 1.08f}, ov::element::f32, ov::Shape{3}},  // Constant as input
+          {},
+          {},
+      },
+      true}},
 
     // Actual:
     //
@@ -831,51 +482,28 @@ const std::vector<MultiplyPartialTransformationTestValues> multiplyTransformatio
     //       \      /
     //      Multiply
     //
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.2f }
-                },
-            },
-            {
-                {},
-                {{ 7.f }, ov::element::i8}, // Constant as input
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.5f }
-                },
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    {}
-                },
-            },
-            {
-                {},
-                {{ -12.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.2f}},
+      },
+      {
+          {},
+          {{7.f}, ov::element::i8},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.5f}},
+      },
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {}},
+      },
+      {{}, {{-12.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 
     // Actual:
     //
@@ -905,103 +533,55 @@ const std::vector<MultiplyPartialTransformationTestValues> multiplyTransformatio
     //       \      /
     //      Multiply
     //
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                {{ 7.f }, ov::element::i8}, // Constant as input
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.5f }
-                },
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.2f }
-                },
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    {}
-                },
-            },
-            {
-                {},
-                {{ -12.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                {},
-                {{ 7.f }, ov::element::i8}, // Constant as input
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.5f }
-                },
-            },
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    { 0.2f }
-                },
-            },
-            false
-        },
-        {
-            {
-                { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-                {},
-                ov::element::i8,
-                {
-                    ov::element::f32,
-                    { {127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true },
-                    {}
-                },
-            },
-            {
-                {},
-                {{ -12.f }, ov::element::f32},
-                ov::element::f32,
-                {}
-            },
-            true
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {},
+          {{7.f}, ov::element::i8},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.5f}},
+      },
+      {
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.2f}},
+      },
+      false},
+     {{
+          {1, 3, 8, 16},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {}},
+      },
+      {{}, {{-12.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
+    {LayerTransformation::createParamsU8I8(),
+     {{
+          {},
+          {{7.f}, ov::element::i8},  // Constant as input
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.5f}},
+      },
+      {
+          {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {0.2f}},
+      },
+      false},
+     {{
+          {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
+          {},
+          ov::element::i8,
+          {ov::element::f32, {{127.f}, ov::element::f32, {}, false, 1, ov::element::i8, true}, {}},
+      },
+      {{}, {{-12.f}, ov::element::f32}, ov::element::f32, {}},
+      true}},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MultiplyPartialTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(multiplyTransformationTestValues)),
-    MultiplyPartialTransformation::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         MultiplyPartialTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(multiplyTransformationTestValues)),
+                         MultiplyPartialTransformation::getTestCaseName);
+}  // namespace

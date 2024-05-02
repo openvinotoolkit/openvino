@@ -12,8 +12,7 @@ struct typed_program_node<multiclass_nms> : public typed_program_node_base<multi
     using parent = typed_program_node_base<multiclass_nms>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog) {}
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
 
     const program_node& input() const {
         return boxes();

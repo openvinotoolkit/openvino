@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "one_hot_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "one_hot_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

@@ -2,12 +2,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import openvino as ov
+from enum import Enum
 
+import numpy as np
 import pytest
 
-from enum import Enum
+import openvino as ov
 
 
 class DataGetter(Enum):
@@ -24,23 +24,36 @@ def _check_tensor_string(tensor_data, test_data):
 
 def check_bytes_based(tensor, string_data, to_flat=False):
     tensor_data = tensor.bytes_data
-    encoded_data = string_data if string_data.dtype.kind == "S" else np.char.encode(string_data)
+    encoded_data = (
+        string_data if string_data.dtype.kind == "S" else np.char.encode(string_data)
+    )
     assert tensor_data.dtype.kind == "S"
-    _check_tensor_string(tensor_data.flatten() if to_flat else tensor_data, encoded_data.flatten() if to_flat else encoded_data)
+    _check_tensor_string(
+        tensor_data.flatten() if to_flat else tensor_data,
+        encoded_data.flatten() if to_flat else encoded_data,
+    )
 
 
 def check_string_based(tensor, string_data, to_flat=False):
     tensor_data = tensor.str_data
-    decoded_data = string_data if string_data.dtype.kind == "U" else np.char.decode(string_data)
+    decoded_data = (
+        string_data if string_data.dtype.kind == "U" else np.char.decode(string_data)
+    )
     assert tensor_data.dtype.kind == "U"
-    _check_tensor_string(tensor_data.flatten() if to_flat else tensor_data, decoded_data.flatten() if to_flat else decoded_data)
+    _check_tensor_string(
+        tensor_data.flatten() if to_flat else tensor_data,
+        decoded_data.flatten() if to_flat else decoded_data,
+    )
 
 
 def test_string_tensor_shared_memory_fails():
     data = np.array(["You", "shall", "not", "pass!"])
     with pytest.raises(RuntimeError) as e:
         _ = ov.Tensor(data, shared_memory=True)
-    assert "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied." in str(e.value)
+    assert (
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied."
+        in str(e.value)
+    )
 
 
 def test_string_tensor_data_warning():
@@ -48,7 +61,9 @@ def test_string_tensor_data_warning():
     tensor = ov.Tensor(data, shared_memory=False)
     with pytest.warns(RuntimeWarning) as w:
         _ = tensor.data
-    assert "Data of string type will be copied! Please use dedicated properties" in str(w[0].message)
+    assert "Data of string type will be copied! Please use dedicated properties" in str(
+        w[0].message
+    )
 
 
 @pytest.mark.parametrize(
@@ -95,7 +110,9 @@ def test_init_with_list(string_data):
         (np.array(["text", "abc", "openvino"]).astype("S")),  # "|S"
         (np.array([["xyz"], ["abc"]]).astype(np.bytes_)),  # "|S"
         (np.array(["text", "abc", "openvino"])),  # "<U"
-        (np.array(["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"])),  # "<U"
+        (
+            np.array(["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"])
+        ),  # "<U"
         (np.array([["text"], ["abc"], ["openvino"]])),  # "<U"
         (np.array([["jeszcze więcej słów", "효과가 있었어"]])),  # "<U"
     ],
@@ -136,7 +153,11 @@ def test_init_with_numpy(string_data):
         (np.array([["text!"], ["abc?"]]).astype("S")),  # "|S8"
         (np.array(["text", "abc", "openvino"])),  # "<U", depending on platform
         (np.array([["text"], ["abc"], ["openvino"]])),  # "<U", depending on platform
-        (np.array([["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]])),  # "<U"
+        (
+            np.array(
+                [["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]]
+            )
+        ),  # "<U"
         (np.array([["#text@", "больше текста"]])),  # "<U"
     ],
 )
@@ -167,7 +188,11 @@ def test_empty_tensor_copy_from(init_type, init_shape, string_data):
         (np.array([["text!"], ["abc?"]]).astype("S")),  # "|S"
         (np.array(["text", "abc", "openvino"])),  # "<U"
         (np.array([["text"], ["abc"], ["openvino"]])),  # "<U"
-        (np.array([["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]])),  # "<U"
+        (
+            np.array(
+                [["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]]
+            )
+        ),  # "<U"
         (np.array([["#text@", "больше текста"]])),  # "<U"
         ([bytes("text", encoding="utf-8"), bytes("openvino", encoding="utf-8")]),
         ([[b"xyz"], [b"abc"], [b"this is my last"]]),
@@ -182,10 +207,16 @@ def test_populate_fails_size_check(init_shape, string_data):
     assert tensor.element_type == ov.Type.string
     with pytest.raises(RuntimeError) as e:
         tensor.bytes_data = string_data
-    assert "Passed array must have the same size (number of elements) as the Tensor!" in str(e.value)
+    assert (
+        "Passed array must have the same size (number of elements) as the Tensor!"
+        in str(e.value)
+    )
     with pytest.raises(RuntimeError) as e:
         tensor.str_data = string_data
-    assert "Passed array must have the same size (number of elements) as the Tensor!" in str(e.value)
+    assert (
+        "Passed array must have the same size (number of elements) as the Tensor!"
+        in str(e.value)
+    )
 
 
 @pytest.mark.parametrize(
@@ -224,8 +255,14 @@ def test_populate_fails_type_check(string_data):
         (ov.Shape([3]), [b"xyz", b"abc", b"this is my last"]),
         (ov.Shape([3]), ["text", "abc", "openvino"]),
         (ov.Shape([3]), ["text", "больше текста", "jeszcze więcej słów"]),
-        (ov.Shape([2, 2]), np.array(["text", "abc", "openvino", "different"]).astype(np.bytes_)),
-        (ov.Shape([2, 2]), np.array(["text", "больше текста", "jeszcze więcej słów", "abcdefg"])),
+        (
+            ov.Shape([2, 2]),
+            np.array(["text", "abc", "openvino", "different"]).astype(np.bytes_),
+        ),
+        (
+            ov.Shape([2, 2]),
+            np.array(["text", "больше текста", "jeszcze więcej słów", "abcdefg"]),
+        ),
         (ov.Shape([2, 2]), [b"xyz", b"abc", b"this is my last", b"this is my final"]),
         (ov.Shape([2, 2]), [["text", "abc"], ["openvino", "abcdefg"]]),
         (ov.Shape([2, 2]), ["text", "больше текста", "jeszcze więcej słów", "śćżó"]),
@@ -247,7 +284,9 @@ def test_empty_tensor_populate(init_type, init_shape, string_data, data_getter):
         tensor.str_data = string_data
     else:
         raise AttributeError("Unknown DataGetter passed!")
-    _string_data = np.array(string_data) if isinstance(string_data, list) else string_data
+    _string_data = (
+        np.array(string_data) if isinstance(string_data, list) else string_data
+    )
     # Need to flatten the numpy array as Tensor can have different shape.
     # It only checks if strings are filling the data correctly.
     # Encoded:
@@ -263,4 +302,8 @@ def test_invalid_bytes_replaced():
     # Encoded:
     check_bytes_based(tensor, string_data, to_flat=True)
     # Decoded:
-    check_string_based(tensor, np.char.decode(string_data, encoding="utf=8", errors="replace"), to_flat=True)
+    check_string_based(
+        tensor,
+        np.char.decode(string_data, encoding="utf=8", errors="replace"),
+        to_flat=True,
+    )

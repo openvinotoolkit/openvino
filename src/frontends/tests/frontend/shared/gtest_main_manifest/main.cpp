@@ -4,11 +4,10 @@
 
 #include <string>
 
-#include "gtest/gtest.h"
-#include "utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-
+#include "gtest/gtest.h"
 #include "openvino/util/file_util.hpp"
+#include "utils.hpp"
 
 static const std::string s_manifest{
 #ifdef MANIFEST

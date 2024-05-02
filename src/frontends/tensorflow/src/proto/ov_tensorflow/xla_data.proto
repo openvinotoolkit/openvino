@@ -58,8 +58,8 @@ enum PrimitiveType {
   F64 = 12;
 
   // Complex values of fixed width.
-  C64 = 15;   // Paired F32 (real, imag), as in std::complex<float>.
-  C128 = 18;  // Paired F64 (real, imag), as in std::complex<double>.
+  C64 = 15; // Paired F32 (real, imag), as in std::complex<float>.
+  C128 = 18; // Paired F64 (real, imag), as in std::complex<double>.
 
   // A tuple is a polymorphic sequence; e.g. a shape that holds different
   // sub-shapes. They are used for things like returning multiple values from a
@@ -409,8 +409,8 @@ message LiteralProto {
   repeated uint64 u64s = 7;
   repeated float f32s = 8;
   repeated double f64s = 9;
-  repeated float c64s = 12;    // Stored as interleaved real, imag floats.
-  repeated double c128s = 18;  // Stored as interleaved real, imag doubles.
+  repeated float c64s = 12; // Stored as interleaved real, imag floats.
+  repeated double c128s = 18; // Stored as interleaved real, imag doubles.
   repeated LiteralProto tuple_literals = 10;
   // The F16s, BF16s, U16s and S16s are encoded in little endian byte order
   bytes f16s = 11;
@@ -556,16 +556,16 @@ message ConvolutionDimensionNumbers {
 
 enum PaddingType {
   PADDING_INVALID = 0;
-  PADDING_VALID = 1;  // Only valid portion of the base are covered.
-  PADDING_SAME = 2;  // Extra is added to produce same output size as the input.
+  PADDING_VALID = 1; // Only valid portion of the base are covered.
+  PADDING_SAME = 2; // Extra is added to produce same output size as the input.
 }
 
 enum FftType {
-  FFT = 0;    // Forward FFT; complex in, complex out.
-  IFFT = 1;   // Inverse FFT; complex in, complex out.
-  RFFT = 2;   // Forward real FFT; real in, fft_length / 2 + 1 complex out
-  IRFFT = 3;  // Inverse real FFT; fft_length / 2 + 1 complex in,
-              //                   fft_length real out
+  FFT = 0; // Forward FFT; complex in, complex out.
+  IFFT = 1; // Inverse FFT; complex in, complex out.
+  RFFT = 2; // Forward real FFT; real in, fft_length / 2 + 1 complex out
+  IRFFT = 3; // Inverse real FFT; fft_length / 2 + 1 complex in,
+             //                   fft_length real out
 }
 
 message DotDimensionNumbers {
@@ -594,7 +594,7 @@ enum RandomDistribution {
 }
 
 enum RandomAlgorithm {
-  RNG_DEFAULT = 0;  // Backend dependent default algorithm.
+  RNG_DEFAULT = 0; // Backend dependent default algorithm.
   RNG_THREE_FRY = 1;
   RNG_PHILOX = 2;
   // Next: 2
@@ -613,9 +613,9 @@ message TriangularSolveOptions {
   // Should we transpose or use the adjoint of 'a'?
   enum Transpose {
     TRANSPOSE_INVALID = 0;
-    NO_TRANSPOSE = 1;  // Don't transpose 'a'.
-    TRANSPOSE = 2;     // Transpose 'a'.
-    ADJOINT = 3;       // Complex conjugate and transpose 'a'.
+    NO_TRANSPOSE = 1; // Don't transpose 'a'.
+    TRANSPOSE = 2; // Transpose 'a'.
+    ADJOINT = 3; // Complex conjugate and transpose 'a'.
   }
   Transpose transpose_a = 4;
 }

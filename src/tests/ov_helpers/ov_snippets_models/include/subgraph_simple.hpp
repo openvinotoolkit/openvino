@@ -24,6 +24,7 @@ public:
     explicit AddFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -39,6 +40,7 @@ public:
     explicit ExpFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -54,6 +56,7 @@ public:
     explicit ExpReciprocalFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -65,15 +68,17 @@ protected:
 // todo: remove Sinh once "no subgraph after input" limitation is relaxed
 class AddConstFunction : public SnippetsFunctionBase {
 public:
-    explicit AddConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape) :
-        SnippetsFunctionBase(inputShapes), m_const_shape(constShape) {
+    explicit AddConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape)
+        : SnippetsFunctionBase(inputShapes),
+          m_const_shape(constShape) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
         OPENVINO_ASSERT(m_const_shape.is_static(), "Const shape must be static shape");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     PartialShape m_const_shape;
-//    std::shared_ptr<ov::Model> initReference() const override;
+    //    std::shared_ptr<ov::Model> initReference() const override;
 };
 // Function is to check for different model precision
 /// Like AddSinhConst but with a Roll instead of Sinh because Roll is movement operation which
@@ -85,14 +90,15 @@ protected:
 // The function is needed to check different input element types (model precision change)
 class AddRollConstFunction : public AddConstFunction {
 public:
-    explicit AddRollConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape) :
-        AddConstFunction(inputShapes, constShape) {
+    explicit AddRollConstFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& constShape)
+        : AddConstFunction(inputShapes, constShape) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
         OPENVINO_ASSERT(m_const_shape[0].is_static(), "Const shape must be static shape");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-//    std::shared_ptr<ov::Model> initReference() const override;
+    //    std::shared_ptr<ov::Model> initReference() const override;
 };
 /// Simple Eltwise graph fully convertible to Subgraph.
 /// Tokenized simply by attaching eltwises.
@@ -106,6 +112,7 @@ public:
     explicit EltwiseFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -118,9 +125,11 @@ protected:
 //       Result
 class EltwiseThreeInputsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseThreeInputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseThreeInputsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -133,10 +142,11 @@ protected:
 //          Result
 class EltwiseMaxNumParamsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseMaxNumParamsFunction(const std::vector<PartialShape>& inputShapes) :
-            SnippetsFunctionBase(inputShapes) {
+    explicit EltwiseMaxNumParamsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 9, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -149,15 +159,17 @@ protected:
 //                     Result
 class MatMulEltwiseBranchesFunction : public SnippetsFunctionBase {
 public:
-    explicit MatMulEltwiseBranchesFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-            OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
-            OPENVINO_ASSERT(input_shapes[0].size() == 4 && input_shapes[1].size() == 4,
-                         "Only 4D input shapes are currently supported by this test");
-            // todo:
-            //  Note that single-element constant are not supported by the test, since they'll be converted
-            //  to snippets::op::Scalar. So a more comlex logics is required to produce reference function.
-            OPENVINO_ASSERT(input_shapes[0][1] == input_shapes[1][1], "Channel dimensions must be equal and != 1");
-            OPENVINO_ASSERT(input_shapes[0].is_static() && input_shapes[1].is_static(), "This test supports only static shapes");
+    explicit MatMulEltwiseBranchesFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes[0].size() == 4 && input_shapes[1].size() == 4,
+                        "Only 4D input shapes are currently supported by this test");
+        // todo:
+        //  Note that single-element constant are not supported by the test, since they'll be converted
+        //  to snippets::op::Scalar. So a more comlex logics is required to produce reference function.
+        OPENVINO_ASSERT(input_shapes[0][1] == input_shapes[1][1], "Channel dimensions must be equal and != 1");
+        OPENVINO_ASSERT(input_shapes[0].is_static() && input_shapes[1].is_static(),
+                        "This test supports only static shapes");
     }
 
 protected:
@@ -174,8 +186,9 @@ protected:
 class EltwiseLogLoopFunction : public SnippetsFunctionBase {
 public:
     explicit EltwiseLogLoopFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-            OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -190,9 +203,11 @@ protected:
 //  Result
 class EltwiseTwoResultsFunction : public SnippetsFunctionBase {
 public:
-    explicit EltwiseTwoResultsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
-            OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+    explicit EltwiseTwoResultsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -207,9 +222,11 @@ protected:
 //             Result
 class TwoInputsAndOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit TwoInputsAndOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit TwoInputsAndOutputsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -223,9 +240,11 @@ protected:
 //             Result
 class TwoInputsAndOutputsWithReversedOutputsFunction : public SnippetsFunctionBase {
 public:
-    explicit TwoInputsAndOutputsWithReversedOutputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit TwoInputsAndOutputsWithReversedOutputsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -239,6 +258,7 @@ public:
     explicit SelectFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -251,9 +271,11 @@ protected:
 class BroadcastAddFunction : public SnippetsFunctionBase {
 public:
     explicit BroadcastAddFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape)
-        : SnippetsFunctionBase(inputShapes), m_target_shape(targetShape) {
+        : SnippetsFunctionBase(inputShapes),
+          m_target_shape(targetShape) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
@@ -269,7 +291,9 @@ protected:
 class BroadcastSelectFunction : public SelectFunction {
 public:
     explicit BroadcastSelectFunction(const std::vector<PartialShape>& inputShapes, const PartialShape& targetShape)
-            : SelectFunction(inputShapes), m_target_shape(targetShape) {}
+        : SelectFunction(inputShapes),
+          m_target_shape(targetShape) {}
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
@@ -287,6 +311,7 @@ public:
     explicit EdgeReplaceFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };

@@ -3,7 +3,6 @@
 
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -15,10 +14,12 @@ class aten_softplus(torch.nn.Module):
 class TestSoftplus(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
+
         return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_softplus(self, ie_device, precision, ir_version):
-        self._test(aten_softplus(), None, "aten::softplus",
-                   ie_device, precision, ir_version)
+        self._test(
+            aten_softplus(), None, "aten::softplus", ie_device, precision, ir_version
+        )

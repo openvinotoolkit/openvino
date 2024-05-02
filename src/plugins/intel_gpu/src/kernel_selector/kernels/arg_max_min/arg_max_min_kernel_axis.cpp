@@ -2,21 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <kernel_selector_utils.h>
 #include "arg_max_min_kernel_axis.h"
+
+#include <kernel_selector_utils.h>
 
 namespace kernel_selector {
 
 namespace {
 size_t getOperationNumber(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
-        case ArgMaxMinAxis::FEATURE: return params.outputs[0].Batch().v * params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v;
-        case ArgMaxMinAxis::Z: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Y().v * params.outputs[0].X().v;
-        case ArgMaxMinAxis::Y: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].X().v;
-        case ArgMaxMinAxis::X: return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v;
-        default:
-            throw std::invalid_argument("Unsupported axis");
+    case ArgMaxMinAxis::BATCH:
+        return params.outputs[0].Feature().v * params.outputs[0].Z().v * params.outputs[0].Y().v *
+               params.outputs[0].X().v;
+    case ArgMaxMinAxis::FEATURE:
+        return params.outputs[0].Batch().v * params.outputs[0].Z().v * params.outputs[0].Y().v *
+               params.outputs[0].X().v;
+    case ArgMaxMinAxis::Z:
+        return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Y().v *
+               params.outputs[0].X().v;
+    case ArgMaxMinAxis::Y:
+        return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v *
+               params.outputs[0].X().v;
+    case ArgMaxMinAxis::X:
+        return params.outputs[0].Batch().v * params.outputs[0].Feature().v * params.outputs[0].Z().v *
+               params.outputs[0].Y().v;
+    default:
+        throw std::invalid_argument("Unsupported axis");
     }
 }
 
@@ -24,25 +35,35 @@ std::string getOperationNumberString(const arg_max_min_params& params) {
     const auto& output = params.outputs[0];
     DimensionAccessHelper dims(output);
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
-        case ArgMaxMinAxis::FEATURE: return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
-        case ArgMaxMinAxis::Z: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
-        case ArgMaxMinAxis::Y: return toVectorMulString({dims.x(), dims.z(), dims.f(), dims.b()});
-        case ArgMaxMinAxis::X: return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
-        default:
-            throw std::invalid_argument("Unsupported axis");
+    case ArgMaxMinAxis::BATCH:
+        return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
+    case ArgMaxMinAxis::FEATURE:
+        return toVectorMulString({dims.x(), dims.y(), dims.z(), dims.b()});
+    case ArgMaxMinAxis::Z:
+        return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
+    case ArgMaxMinAxis::Y:
+        return toVectorMulString({dims.x(), dims.z(), dims.f(), dims.b()});
+    case ArgMaxMinAxis::X:
+        return toVectorMulString({dims.y(), dims.z(), dims.f(), dims.b()});
+    default:
+        throw std::invalid_argument("Unsupported axis");
     }
 }
 
 size_t getSortSize(const arg_max_min_params& params) {
     switch (params.argMaxMinAxis) {
-        case ArgMaxMinAxis::BATCH: return params.inputs[0].Batch().v;
-        case ArgMaxMinAxis::FEATURE: return params.inputs[0].Feature().v;
-        case ArgMaxMinAxis::Z: return params.inputs[0].Z().v;
-        case ArgMaxMinAxis::Y: return params.inputs[0].Y().v;
-        case ArgMaxMinAxis::X: return params.inputs[0].X().v;
-        default:
-            throw std::invalid_argument("Unsupported axis");
+    case ArgMaxMinAxis::BATCH:
+        return params.inputs[0].Batch().v;
+    case ArgMaxMinAxis::FEATURE:
+        return params.inputs[0].Feature().v;
+    case ArgMaxMinAxis::Z:
+        return params.inputs[0].Z().v;
+    case ArgMaxMinAxis::Y:
+        return params.inputs[0].Y().v;
+    case ArgMaxMinAxis::X:
+        return params.inputs[0].X().v;
+    default:
+        throw std::invalid_argument("Unsupported axis");
     }
 }
 }  // namespace
@@ -106,7 +127,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
         ops_size = ops_size > 1 ? Align(ops_size, 32) : 1;
         size_t sort_size = params.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(params) : 1;
 
-        dispatchData.gws = { ops_size, sort_size, 1 };
+        dispatchData.gws = {ops_size, sort_size, 1};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 

@@ -3,11 +3,12 @@
 //
 
 #include "mvn_kernel_bfyx_opt.h"
-#include "kernel_selector_utils.h"
 
 #include <algorithm>
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
@@ -64,7 +65,8 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
         // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
         // reads.
         // WA: itemsNum value has been adjusted less than or equal to 8 to increase the number of work items.
-        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) &&
+               (2 * dispatchData.lws[0] <= max_lws)) {
             dispatchData.lws[0] *= 2;
             dispatchData.itemsNum /= 2;
         }
@@ -75,7 +77,8 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
     return dispatchData;
 }
 
-JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const {
+JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params,
+                                               MVNKernelBase::DispatchData dispatchData) const {
     auto jit = MVNKernelBase::GetJitConstants(params, dispatchData);
 
     if (params.has_dynamic_tensors()) {
@@ -114,33 +117,41 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
             if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-                idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                              "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+                idx_order = {"(data_set_idx / OUTPUT_FEATURE_NUM)",
+                             "(data_set_idx % OUTPUT_FEATURE_NUM)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)"};
             } else if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
-                idx_order = { "data_set_idx",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+                idx_order = {"data_set_idx",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)"};
             }
         } else if (params.inputs[0].GetDims().size() == 5) {
             if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-                idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                              "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+                idx_order = {"(data_set_idx / OUTPUT_FEATURE_NUM)",
+                             "(data_set_idx % OUTPUT_FEATURE_NUM)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)"};
             } else if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
-                idx_order = { "data_set_idx",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z))",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
-                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+                idx_order = {"data_set_idx",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * "
+                             "OUTPUT_SIZE_Z))",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % "
+                             "OUTPUT_SIZE_Z)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                             "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)"};
             }
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        auto conf = FusedOpsConfiguration("",
+                                          idx_order,
+                                          "result",
+                                          activation_dt,
+                                          1,
+                                          LoadType::LT_UNALIGNED,
+                                          BoundaryCheck::DISABLED);
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;

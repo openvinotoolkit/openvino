@@ -6,7 +6,7 @@ import numpy as np
 from openvino.tools.mo.front.caffe.extractors.utils import input_as_const
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 from openvino.tools.mo.utils.error import Error
 
@@ -15,14 +15,15 @@ class BNToScaleShift(FrontReplacementOp):
     """
     Replaces BN layer with ScaleShift.
     """
+
     op = "BN"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        attrs = {'name': node.id + "/ScaleShift_"}
+        attrs = {"name": node.id + "/ScaleShift_"}
 
-        param = graph.node[node.id]['pb'].bn_param
-        pb_model = graph.node[node.id]['model_pb']
+        param = graph.node[node.id]["pb"].bn_param
+        pb_model = graph.node[node.id]["model_pb"]
 
         blobs = pb_model.blobs
 
@@ -41,7 +42,7 @@ class BNToScaleShift(FrontReplacementOp):
 
         ss = ScaleShiftOp(graph, attrs)
         scale_shift = ss.create_node([node.in_node(0)])
-        input_as_const(scale_shift, attrs, 1, 'weights', scale)
-        input_as_const(scale_shift, attrs, 2, 'biases', shift)
+        input_as_const(scale_shift, attrs, 1, "weights", scale)
+        input_as_const(scale_shift, attrs, 2, "biases", shift)
 
         return [scale_shift.id]

@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-
-from openvino import PartialShape, Model, Type
 import openvino.runtime.opset13 as ops
 from openvino.runtime.op import Result
+
+from openvino import Model, PartialShape, Type
 
 
 def test_result():

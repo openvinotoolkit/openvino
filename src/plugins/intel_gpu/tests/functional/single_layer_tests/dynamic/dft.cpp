@@ -2,34 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/dft.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
-#include "openvino/op/rdft.hpp"
 #include "openvino/op/irdft.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/rdft.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
 using DFTLayerGPUTestParams = std::tuple<std::vector<InputShape>,
-                                    std::vector<std::vector<int64_t>>,  // axes
-                                    std::vector<std::vector<int64_t>>,  // signal sizes
-                                    bool,                               // inverse
-                                    bool,                               // real
-                                    bool,                               // const axes if true
-                                    bool,                               // const signal sizes if true
-                                    std::string>;                       // device name
+                                         std::vector<std::vector<int64_t>>,  // axes
+                                         std::vector<std::vector<int64_t>>,  // signal sizes
+                                         bool,                               // inverse
+                                         bool,                               // real
+                                         bool,                               // const axes if true
+                                         bool,                               // const signal sizes if true
+                                         std::string>;                       // device name
 
 class DFTLayerGPUTest : public testing::WithParamInterface<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>,
-                           virtual public ov::test::SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>> obj) {
+    static std::string getTestCaseName(
+        testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>> obj) {
         ov::element::Type precision;
         DFTLayerGPUTestParams params;
         std::vector<InputShape> shapes;
@@ -68,7 +69,7 @@ public:
                 result << ov::test::utils::vec2str(signalSizes[i]);
                 if (i < signalSizes.size() - 1)
                     result << "_";
-                }
+            }
         }
         result << ")_isInverse=" << inverse;
         result << "_isReal=" << real;
@@ -128,7 +129,8 @@ protected:
         if (signalSizes.size() > 0) {
             std::shared_ptr<ov::Node> signalSizesNode;
             if (constSignalSizes) {
-                signalSizesNode = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{signalSizes[0].size()}, signalSizes[0]);
+                signalSizesNode =
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{signalSizes[0].size()}, signalSizes[0]);
             } else {
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
                 auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, *inputShapeIt);
@@ -171,8 +173,12 @@ protected:
         const auto& funcInputs = function->inputs();
         auto funcInput = funcInputs.begin();
         inputs.clear();
-        ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
-                                                                                              targetInputStaticShapes[0], 0, 1, 0);
+        ov::Tensor data_tensor =
+            ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput->get_element_type(),
+                                                                        targetInputStaticShapes[0],
+                                                                        0,
+                                                                        1,
+                                                                        0);
 
         inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
         funcInput++;
@@ -186,7 +192,9 @@ protected:
         if (!constSignalSizes && funcInput != funcInputs.end()) {
             ASSERT_TRUE(inputIdx < signalSizes.size());
             auto tensor = ov::Tensor{funcInput->get_element_type(), ov::Shape{signalSizes[inputIdx].size()}};
-            std::memcpy(tensor.data(), signalSizes[inputIdx].data(), signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
+            std::memcpy(tensor.data(),
+                        signalSizes[inputIdx].data(),
+                        signalSizes[inputIdx].size() * sizeof(signalSizes[0][0]));
             inputs.insert({funcInput->get_node_shared_ptr(), tensor});
         }
         inputIdx++;
@@ -208,28 +216,64 @@ std::vector<ov::element::Type> precisions{ov::element::f32, ov::element::f16};
 std::vector<DFTLayerGPUTestParams> getParams4D_DFT() {
     std::vector<DFTLayerGPUTestParams> params;
 
-    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
-            false, false, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
-            false, false, false, false, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
-            false, false, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}},
+                      {{0}},
+                      {},
+                      false,
+                      false,
+                      true,
+                      true,
+                      ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{2}},
+         {{40}},
+         false,
+         false,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{-2}},
+         {{40}},
+         false,
+         false,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
     return params;
 }
 
 std::vector<DFTLayerGPUTestParams> getParams4D_IDFT() {
     std::vector<DFTLayerGPUTestParams> params;
 
-    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
-            true, false, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
-            true, false, false, false, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
-            true, false, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}},
+                      {{0}},
+                      {},
+                      true,
+                      false,
+                      true,
+                      true,
+                      ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{2}},
+         {{40}},
+         true,
+         false,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{-2}},
+         {{40}},
+         true,
+         false,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
     return params;
 }
 
@@ -237,14 +281,32 @@ std::vector<DFTLayerGPUTestParams> getParams4D_RDFT() {
     std::vector<DFTLayerGPUTestParams> params;
 
     // RDFT test cases
-    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}}, {{0}}, {},
-            false, true, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
-            false, true, false, false, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
-            false, true, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, 192, 36, 64}, {{1, 192, 36, 64}}}},
+                      {{0}},
+                      {},
+                      false,
+                      true,
+                      true,
+                      true,
+                      ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{2}},
+         {{40}},
+         false,
+         true,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1}, {{1, 192, 36, 64}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{-2}},
+         {{40}},
+         false,
+         true,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
     return params;
 }
 
@@ -252,14 +314,32 @@ std::vector<DFTLayerGPUTestParams> getParams4D_IRDFT() {
     std::vector<DFTLayerGPUTestParams> params;
 
     // IRDFT
-    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}}, {{0}}, {},
-            true, true, true, true, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{2}}, {{40}},
-            true, true, false, false, ov::test::utils::DEVICE_GPU});
-    params.push_back({{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}},
-            InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}}, {{-2}}, {{40}},
-            true, true, false, false, ov::test::utils::DEVICE_GPU});
+    params.push_back({{InputShape{{-1, 192, 36, 64, 2}, {{2, 192, 36, 64, 2}}}},
+                      {{0}},
+                      {},
+                      true,
+                      true,
+                      true,
+                      true,
+                      ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{2}},
+         {{40}},
+         true,
+         true,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
+    params.push_back(
+        {{InputShape{{-1, -1, -1, -1, 2}, {{1, 192, 36, 33, 2}}}, InputShape{{-1}, {{1}}}, InputShape{{-1}, {{1}}}},
+         {{-2}},
+         {{40}},
+         true,
+         true,
+         false,
+         false,
+         ov::test::utils::DEVICE_GPU});
     return params;
 }
 

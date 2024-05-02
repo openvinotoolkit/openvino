@@ -58,10 +58,8 @@ struct mvn : public primitive_base<mvn> {
 
         auto rhs_casted = downcast<const mvn>(rhs);
 
-        return normalize_variance == rhs_casted.normalize_variance &&
-               epsilon == rhs_casted.epsilon &&
-               eps_inside_sqrt == rhs_casted.eps_inside_sqrt &&
-               reduction_axes == rhs_casted.reduction_axes;
+        return normalize_variance == rhs_casted.normalize_variance && epsilon == rhs_casted.epsilon &&
+               eps_inside_sqrt == rhs_casted.eps_inside_sqrt && reduction_axes == rhs_casted.reduction_axes;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -92,12 +90,16 @@ struct mvn : public primitive_base<mvn> {
     bool requires_alignment(const ov::PartialShape& shape) const {
         auto rank = static_cast<int64_t>(shape.size());
         auto axes = reduction_axes;
-        std::for_each(axes.begin(), axes.end(), [rank](int64_t& v) { v = (v < 0) ? v + rank : v; });
+        std::for_each(axes.begin(), axes.end(), [rank](int64_t& v) {
+            v = (v < 0) ? v + rank : v;
+        });
 
         // If all axes from 2 to rank-1 is a part of reduction scope,
         // then it's mapped to the old MVN case and don't require alignment
         for (int64_t i = 2; i < rank; i++) {
-            if (std::find_if(axes.begin(), axes.end(), [i, &shape](const int64_t& v){ return v == i || shape[i].get_max_length() == 1; }) == axes.end())
+            if (std::find_if(axes.begin(), axes.end(), [i, &shape](const int64_t& v) {
+                    return v == i || shape[i].get_max_length() == 1;
+                }) == axes.end())
                 return true;
         }
 

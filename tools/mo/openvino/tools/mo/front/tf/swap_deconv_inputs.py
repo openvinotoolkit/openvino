@@ -15,4 +15,4 @@ class SwapDeconvInputs(FrontReplacementSubgraph):
 
             node.in_port(2).get_connection().set_destination(node.in_port(0))
             shape_src.connect(node.in_port(2))
-            node['swap_0_and_2_inputs'] = False
+            node["swap_0_and_2_inputs"] = False

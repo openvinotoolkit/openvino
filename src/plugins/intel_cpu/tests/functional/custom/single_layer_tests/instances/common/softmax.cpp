@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/softmax.hpp"
+
 #include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -113,7 +114,6 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
                            ov::Shape{7, 5, 5, 5, 5, 5}}},
      4},
 };
-
 
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -10,7 +9,10 @@ class TestEinsumBatchMatMul(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
 
-        return (np.random.randn(5, 2, 3).astype(np.float32), np.random.randn(5, 3, 4).astype(np.float32),)
+        return (
+            np.random.randn(5, 2, 3).astype(np.float32),
+            np.random.randn(5, 3, 4).astype(np.float32),
+        )
 
     def create_model(self):
         import torch
@@ -50,16 +52,21 @@ class TestEinsumBatchDiagonal(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(reason='OpenVINO CPU plugin does not support einsum diagonal')
+    @pytest.mark.xfail(reason="OpenVINO CPU plugin does not support einsum diagonal")
     def test_einsum_batch_diagonal(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(
+            *self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False
+        )
 
 
 class TestEinsumInnerProd(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
 
-        return (np.random.randn(5).astype(np.float32), np.random.randn(5).astype(np.float32))
+        return (
+            np.random.randn(5).astype(np.float32),
+            np.random.randn(5).astype(np.float32),
+        )
 
     def create_model(self):
         import torch

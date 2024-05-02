@@ -40,8 +40,6 @@ SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-
-SortIncludes: false
 ReflowComments: true
 
 IncludeCategories:

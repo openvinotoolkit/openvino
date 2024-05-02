@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "dft_inst.h"
 #include "dft/dft_kernel_ref.h"
 #include "dft/dft_kernel_selector.h"
+#include "dft_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -27,7 +26,8 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
         auto params = get_default_params<kernel_selector::dft_params>(impl_param);
         auto& memory_deps = impl_param.memory_deps;
 
-        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool allow_new_shape_infer =
+            impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         if (allow_new_shape_infer && primitive->axes.empty() && primitive->signal_size.empty()) {
             if (memory_deps.count(1)) {
                 auto axes_mem = memory_deps.at(1);
@@ -46,14 +46,16 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
 
             if (memory_deps.count(2)) {
                 auto signal_size_mem = memory_deps.at(2);
-                cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem, impl_param.get_stream());
+                cldnn::mem_lock<uint8_t, mem_lock_type::read> signal_size_lock(signal_size_mem,
+                                                                               impl_param.get_stream());
 
                 std::vector<int64_t> signal_size;
                 for (size_t i = 0; i < impl_param.get_input_layout(2).count(); i++) {
                     if (signal_size_mem->get_layout().data_type == cldnn::data_types::i64) {
                         signal_size.push_back(reinterpret_cast<int64_t*>(signal_size_lock.data())[i]);
                     } else {
-                        signal_size.push_back(static_cast<int64_t>(reinterpret_cast<int32_t*>(signal_size_lock.data())[i]));
+                        signal_size.push_back(
+                            static_cast<int64_t>(reinterpret_cast<int32_t*>(signal_size_lock.data())[i]));
                     }
                 }
                 params.signal_size = signal_size;

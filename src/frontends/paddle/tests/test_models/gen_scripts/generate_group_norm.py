@@ -1,15 +1,17 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
+
 #
 # group norm paddle model generator
 #
 import numpy as np
-from save_model import saveModel
 import paddle
-import sys
+from save_model import saveModel
 
 data_type = "float32"
+
 
 def group_norm(name: str, x, groups, epsilon, scale, bias, data_layout):
     paddle.enable_static()
@@ -19,17 +21,24 @@ def group_norm(name: str, x, groups, epsilon, scale, bias, data_layout):
         if scale is False:
             scale_attr = scale
         else:
-            scale_attr = paddle.ParamAttr(name="scale1", initializer=paddle.nn.initializer.Assign(scale))
+            scale_attr = paddle.ParamAttr(
+                name="scale1", initializer=paddle.nn.initializer.Assign(scale)
+            )
         if bias is False:
             bias_attr = bias
         else:
-            bias_attr = paddle.ParamAttr(name="bias1", initializer=paddle.nn.initializer.Assign(bias))
+            bias_attr = paddle.ParamAttr(
+                name="bias1", initializer=paddle.nn.initializer.Assign(bias)
+            )
 
-        out = paddle.static.nn.group_norm(node_x, groups=groups,
-                                          epsilon=epsilon,
-                                          param_attr=scale_attr,
-                                          bias_attr=bias_attr,
-                                          data_layout=data_layout)
+        out = paddle.static.nn.group_norm(
+            node_x,
+            groups=groups,
+            epsilon=epsilon,
+            param_attr=scale_attr,
+            bias_attr=bias_attr,
+            data_layout=data_layout,
+        )
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -38,7 +47,15 @@ def group_norm(name: str, x, groups, epsilon, scale, bias, data_layout):
 
         outs = exe.run(feed={"x": x}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x"],
+            fetchlist=[out],
+            inputs=[x],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 

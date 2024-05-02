@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/single_op/range.hpp"
 
-
 namespace ov {
 namespace test {
 std::string RangeLayerTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {

@@ -4,6 +4,8 @@
 
 #include "bcast_and_pad_zp_buffers.hpp"
 
+#include <memory>
+
 #include "intel_gpu/op/convolution.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -13,8 +15,6 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <memory>
 
 using namespace ov::pass::pattern;
 
@@ -34,7 +34,10 @@ void bcast_and_pad(const T* qp_ptr, T* new_qp_ptr, size_t prev_size, size_t new_
     }
 }
 
-std::shared_ptr<ov::Node> pad_quantization_parameter(std::shared_ptr<ov::op::v0::Constant> qp, size_t channels_count, size_t channel_idx, size_t alignment) {
+std::shared_ptr<ov::Node> pad_quantization_parameter(std::shared_ptr<ov::op::v0::Constant> qp,
+                                                     size_t channels_count,
+                                                     size_t channel_idx,
+                                                     size_t alignment) {
     auto type = qp->get_element_type();
     auto bcasted_shape = qp->get_shape();
     bcasted_shape[channel_idx] = channels_count;
@@ -50,19 +53,36 @@ std::shared_ptr<ov::Node> pad_quantization_parameter(std::shared_ptr<ov::op::v0:
     OPENVINO_ASSERT(prev_size <= new_size && new_size <= aligned_size);
 
     switch (type) {
-        case ov::element::u8:
-            bcast_and_pad(static_cast<const uint8_t*>(qp->get_data_ptr()), static_cast<uint8_t*>(new_qp.data()), prev_size, new_size, aligned_size);
-            break;
-        case ov::element::i8:
-            bcast_and_pad(static_cast<const int8_t*>(qp->get_data_ptr()), static_cast<int8_t*>(new_qp.data()), prev_size, new_size, aligned_size);
-            break;
-        case ov::element::f16:
-            bcast_and_pad(static_cast<const ov::float16*>(qp->get_data_ptr()), static_cast<ov::float16*>(new_qp.data()), prev_size, new_size, aligned_size);
-            break;
-        case ov::element::f32:
-            bcast_and_pad(static_cast<const float*>(qp->get_data_ptr()), static_cast<float*>(new_qp.data()), prev_size, new_size, aligned_size);
-            break;
-        default: OPENVINO_THROW("[GPU] Can't pad quantization parameter for ", type, " element type");
+    case ov::element::u8:
+        bcast_and_pad(static_cast<const uint8_t*>(qp->get_data_ptr()),
+                      static_cast<uint8_t*>(new_qp.data()),
+                      prev_size,
+                      new_size,
+                      aligned_size);
+        break;
+    case ov::element::i8:
+        bcast_and_pad(static_cast<const int8_t*>(qp->get_data_ptr()),
+                      static_cast<int8_t*>(new_qp.data()),
+                      prev_size,
+                      new_size,
+                      aligned_size);
+        break;
+    case ov::element::f16:
+        bcast_and_pad(static_cast<const ov::float16*>(qp->get_data_ptr()),
+                      static_cast<ov::float16*>(new_qp.data()),
+                      prev_size,
+                      new_size,
+                      aligned_size);
+        break;
+    case ov::element::f32:
+        bcast_and_pad(static_cast<const float*>(qp->get_data_ptr()),
+                      static_cast<float*>(new_qp.data()),
+                      prev_size,
+                      new_size,
+                      aligned_size);
+        break;
+    default:
+        OPENVINO_THROW("[GPU] Can't pad quantization parameter for ", type, " element type");
     }
 
     return std::make_shared<ov::op::v0::Constant>(new_qp);
@@ -78,7 +98,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
     auto wzp_m = wrap_type<ov::op::v0::Constant, op::Placeholder>();
     auto cmp_m = wrap_type<ov::op::v0::Constant, op::Placeholder>();
 
-    auto convolution_m = wrap_type<op::Convolution>({ input_m, weights_m, bias_m, azp_m, wzp_m, cmp_m });
+    auto convolution_m = wrap_type<op::Convolution>({input_m, weights_m, bias_m, azp_m, wzp_m, cmp_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -107,7 +127,8 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
         if (auto wzp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(wzp_m).get_node_shared_ptr())) {
             auto target_shape = wzp->get_shape();
             const size_t wzp_c_idx = 0;
-            auto aligned_wzp = pad_quantization_parameter(wzp, out_shape[channel_idx].get_length(), wzp_c_idx, pad_size);
+            auto aligned_wzp =
+                pad_quantization_parameter(wzp, out_shape[channel_idx].get_length(), wzp_c_idx, pad_size);
             aligned_wzp->set_friendly_name(conv->get_friendly_name() + "_wzp");
             ov::copy_runtime_info(wzp, aligned_wzp);
             conv->input(op::Convolution::Args::WZP).replace_source_output(aligned_wzp);
@@ -116,7 +137,8 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
         if (auto cmp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(cmp_m).get_node_shared_ptr())) {
             auto target_shape = cmp->get_shape();
             const size_t cmp_c_idx = target_shape.size() == out_shape.size() ? 1 : 0;
-            auto aligned_cmp = pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, pad_size);
+            auto aligned_cmp =
+                pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, pad_size);
             aligned_cmp->set_friendly_name(conv->get_friendly_name() + "_compensation");
             ov::copy_runtime_info(cmp, aligned_cmp);
             conv->input(op::Convolution::Args::COMPENSATION).replace_source_output(aligned_cmp);

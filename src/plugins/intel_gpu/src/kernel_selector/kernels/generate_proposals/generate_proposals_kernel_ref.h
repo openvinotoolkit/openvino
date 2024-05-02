@@ -8,8 +8,7 @@
 
 namespace kernel_selector {
 struct generate_proposals_params : public base_params {
-    generate_proposals_params()
-            : base_params(KernelType::GENERATE_PROPOSALS) {}
+    generate_proposals_params() : base_params(KernelType::GENERATE_PROPOSALS) {}
 
     float min_size{0.0f};
     float nms_threshold{0.0f};
@@ -22,8 +21,7 @@ struct generate_proposals_params : public base_params {
 
 class GenerateProposalsRef : public KernelBaseOpenCL {
 public:
-    GenerateProposalsRef()
-            : KernelBaseOpenCL("generate_proposals_ref") {}
+    GenerateProposalsRef() : KernelBaseOpenCL("generate_proposals_ref") {}
 
     ~GenerateProposalsRef() = default;
 
@@ -32,9 +30,9 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 protected:
     bool Validate(const Params& p) const override;
-    void SetKernelArguments(const generate_proposals_params& params,
-                            size_t idx, cldnn::arguments_desc& kernel) const;
+    void SetKernelArguments(const generate_proposals_params& params, size_t idx, cldnn::arguments_desc& kernel) const;
 };
 }  // namespace kernel_selector

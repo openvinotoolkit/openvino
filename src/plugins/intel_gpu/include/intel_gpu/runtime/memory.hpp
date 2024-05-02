@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "layout.hpp"
-#include "memory_caps.hpp"
-#include "event.hpp"
-#include "engine_configuration.hpp"
-
 #include <type_traits>
 
+#include "engine_configuration.hpp"
+#include "event.hpp"
+#include "layout.hpp"
+#include "memory_caps.hpp"
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl.hpp>
 #endif
 
 namespace cldnn {
@@ -20,11 +20,7 @@ namespace cldnn {
 class engine;
 class stream;
 
-enum class mem_lock_type : int32_t {
-    read,
-    write,
-    read_write
-};
+enum class mem_lock_type : int32_t { read, write, read_write };
 
 class MemoryTracker {
 public:
@@ -49,15 +45,29 @@ struct memory {
     virtual event::ptr fill(stream& stream, unsigned char pattern) = 0;
     virtual event::ptr fill(stream& stream) = 0;
     // only supports gpu_usm
-    virtual void* buffer_ptr() const { return nullptr; }
+    virtual void* buffer_ptr() const {
+        return nullptr;
+    }
 
-    size_t size() const { return _bytes_count; }
-    size_t count() const { return _layout.count(); }
+    size_t size() const {
+        return _bytes_count;
+    }
+    size_t count() const {
+        return _layout.count();
+    }
     virtual shared_mem_params get_internal_params() const = 0;
-    virtual bool is_allocated_by(const engine& engine) const { return &engine == _engine && _type != allocation_type::unknown; }
-    engine* get_engine() const { return _engine; }
-    const layout& get_layout() const { return _layout; }
-    allocation_type get_allocation_type() const { return _type; }
+    virtual bool is_allocated_by(const engine& engine) const {
+        return &engine == _engine && _type != allocation_type::unknown;
+    }
+    engine* get_engine() const {
+        return _engine;
+    }
+    const layout& get_layout() const {
+        return _layout;
+    }
+    allocation_type get_allocation_type() const {
+        return _type;
+    }
     // TODO: must be moved outside memory class
     virtual bool is_memory_reset_needed(layout l) {
         // To avoid memory reset, output memory must meet the following requirements:
@@ -65,7 +75,7 @@ struct memory {
         // - To have zero paddings
         // - To be completely filled with data
         if ((!format::is_weights_format(l.format) && !format::is_simple_data_format(l.format)) ||
-             format::is_winograd(l.format) || format::is_image_2d(l.format)) {
+            format::is_winograd(l.format) || format::is_image_2d(l.format)) {
             return true;
         }
 
@@ -80,9 +90,15 @@ struct memory {
         return true;
     }
     virtual event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool blocking = true) = 0;
-    virtual event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool blocking = true, size_t dst_offset = 0, size_t data_size = 0) = 0;
+    virtual event::ptr copy_from(stream& /* stream */,
+                                 const void* /* host_ptr */,
+                                 bool blocking = true,
+                                 size_t dst_offset = 0,
+                                 size_t data_size = 0) = 0;
 
-    virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) { return other.copy_from(stream, *this, blocking); }
+    virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) {
+        return other.copy_from(stream, *this, blocking);
+    }
     virtual event::ptr copy_to(stream& /* stream */, void* /* host_ptr */, bool blocking = true) = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -91,7 +107,9 @@ struct memory {
     }
 #endif
 
-    std::shared_ptr<MemoryTracker> get_mem_tracker() const { return m_mem_tracker; }
+    std::shared_ptr<MemoryTracker> get_mem_tracker() const {
+        return m_mem_tracker;
+    }
     GPU_DEBUG_CODE(bool from_memory_pool = false);
 
 protected:
@@ -108,24 +126,40 @@ private:
 
 struct simple_attached_memory : memory {
     simple_attached_memory(const layout& layout, void* pointer)
-        : memory(nullptr, layout, allocation_type::unknown, nullptr), _pointer(pointer) {}
+        : memory(nullptr, layout, allocation_type::unknown, nullptr),
+          _pointer(pointer) {}
 
-    void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
+    void* lock(const stream& /* stream */, mem_lock_type /* type */) override {
+        return _pointer;
+    }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char) override { return nullptr; }
-    event::ptr fill(stream& /* stream */) override { return nullptr; }
-    shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
+    event::ptr fill(stream& /* stream */, unsigned char) override {
+        return nullptr;
+    }
+    event::ptr fill(stream& /* stream */) override {
+        return nullptr;
+    }
+    shared_mem_params get_internal_params() const override {
+        return {shared_mem_type::shared_mem_empty,
+                nullptr,
+                nullptr,
+                nullptr,
 #ifdef _WIN32
-        nullptr,
+                nullptr,
 #else
-        0,
+                0,
 #endif
-        0}; };
+                0};
+    };
 
     event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override {
         OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
     }
-    event::ptr copy_from(stream& /* stream */, const void* /* host_ptr */, bool /* blocking */, size_t /* dst_offset */, size_t /* data_size */) override {
+    event::ptr copy_from(stream& /* stream */,
+                         const void* /* host_ptr */,
+                         bool /* blocking */,
+                         size_t /* dst_offset */,
+                         size_t /* data_size */) override {
         OPENVINO_THROW("[GPU] copy_from is not implemented for simple_attached_memory");
     }
     event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override {
@@ -141,25 +175,37 @@ private:
 
 template <class T, mem_lock_type lock_type = mem_lock_type::read_write>
 struct mem_lock {
-    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(std::move(mem)), _stream(stream),
-                      _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
+    explicit mem_lock(memory::ptr mem, const stream& stream)
+        : _mem(std::move(mem)),
+          _stream(stream),
+          _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
 
     ~mem_lock() {
         _ptr = nullptr;
         _mem->unlock(_stream);
     }
 
-    size_t size() const { return _mem->size() / sizeof(T); }
+    size_t size() const {
+        return _mem->size() / sizeof(T);
+    }
 
     mem_lock(const mem_lock& other) = delete;
     mem_lock& operator=(const mem_lock& other) = delete;
 
 #if defined(_SECURE_SCL) && (_SECURE_SCL > 0)
-    auto begin() & { return stdext::make_checked_array_iterator(_ptr, size()); }
-    auto end() & { return stdext::make_checked_array_iterator(_ptr, size(), size()); }
+    auto begin() & {
+        return stdext::make_checked_array_iterator(_ptr, size());
+    }
+    auto end() & {
+        return stdext::make_checked_array_iterator(_ptr, size(), size());
+    }
 #else
-    T* begin() & { return _ptr; }
-    T* end() & { return _ptr + size(); }
+    T* begin() & {
+        return _ptr;
+    }
+    T* end() & {
+        return _ptr + size();
+    }
 #endif
 
     /// @brief Provides indexed access to pointed memory.
@@ -168,7 +214,9 @@ struct mem_lock {
         return _ptr[idx];
     }
 
-    T* data() const & { return _ptr; }
+    T* data() const& {
+        return _ptr;
+    }
 
     /// Prevents to use mem_lock as temporary object
     T* data() && = delete;
@@ -192,74 +240,80 @@ struct surfaces_lock {
     surfaces_lock(const surfaces_lock& other) = delete;
     surfaces_lock& operator=(const surfaces_lock& other) = delete;
 
-    static std::unique_ptr<surfaces_lock> create(engine_types engine_type, std::vector<memory::ptr> mem, const stream& stream);
+    static std::unique_ptr<surfaces_lock> create(engine_types engine_type,
+                                                 std::vector<memory::ptr> mem,
+                                                 const stream& stream);
 };
 
-template<typename T>
+template <typename T>
 inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& stream) {
     cldnn::data_types mem_dtype = mem->get_layout().data_type;
     if (mem_dtype == data_types::f16 || mem_dtype == data_types::f32) {
         if (!std::is_floating_point<T>::value && !std::is_same<T, ov::float16>::value) {
-            OPENVINO_ASSERT(false, "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
+            OPENVINO_ASSERT(false,
+                            "[GPU] read_vector: attempt to convert floating point memory to non-floating point memory");
         }
     }
 
     std::vector<T> out_vecs;
-    if (mem->get_allocation_type() == allocation_type::usm_host || mem->get_allocation_type() == allocation_type::usm_shared) {
+    if (mem->get_allocation_type() == allocation_type::usm_host ||
+        mem->get_allocation_type() == allocation_type::usm_shared) {
         switch (mem_dtype) {
-            case data_types::i32: {
-                auto p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(p_mem[i]));
-                }
-                break;
+        case data_types::i32: {
+            auto p_mem = reinterpret_cast<int32_t*>(mem->buffer_ptr());
+            for (size_t i = 0; i < mem->count(); ++i) {
+                out_vecs.push_back(static_cast<T>(p_mem[i]));
             }
-            case data_types::i64: {
-                auto p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(p_mem[i]));
-                }
-                break;
+            break;
+        }
+        case data_types::i64: {
+            auto p_mem = reinterpret_cast<int64_t*>(mem->buffer_ptr());
+            for (size_t i = 0; i < mem->count(); ++i) {
+                out_vecs.push_back(static_cast<T>(p_mem[i]));
             }
-            case data_types::f16: {
-                auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(ov::float16::from_bits(p_mem[i])));
-                }
-                break;
+            break;
+        }
+        case data_types::f16: {
+            auto p_mem = reinterpret_cast<uint16_t*>(mem->buffer_ptr());
+            for (size_t i = 0; i < mem->count(); ++i) {
+                out_vecs.push_back(static_cast<T>(ov::float16::from_bits(p_mem[i])));
             }
-            case data_types::f32: {
-                auto p_mem = reinterpret_cast<float*>(mem->buffer_ptr());
-                for (size_t i = 0; i < mem->count(); ++i) {
-                    out_vecs.push_back(static_cast<T>(p_mem[i]));
-                }
-                break;
+            break;
+        }
+        case data_types::f32: {
+            auto p_mem = reinterpret_cast<float*>(mem->buffer_ptr());
+            for (size_t i = 0; i < mem->count(); ++i) {
+                out_vecs.push_back(static_cast<T>(p_mem[i]));
             }
-            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
+            break;
+        }
+        default:
+            OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     } else {
         switch (mem_dtype) {
-            case data_types::i32: {
-                mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
-                break;
-            }
-            case data_types::i64: {
-                mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
-                break;
-            }
-            case data_types::f16: {
-                mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
-                break;
-            }
-            case data_types::f32: {
-                mem_lock<float, mem_lock_type::read> lock{mem, stream};
-                out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
-                break;
-            }
-            default: OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
+        case data_types::i32: {
+            mem_lock<int32_t, mem_lock_type::read> lock{mem, stream};
+            out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            break;
+        }
+        case data_types::i64: {
+            mem_lock<int64_t, mem_lock_type::read> lock{mem, stream};
+            out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            break;
+        }
+        case data_types::f16: {
+            mem_lock<ov::float16, mem_lock_type::read> lock{mem, stream};
+            out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            break;
+        }
+        case data_types::f32: {
+            mem_lock<float, mem_lock_type::read> lock{mem, stream};
+            out_vecs = std::move(std::vector<T>(lock.begin(), lock.end()));
+            break;
+        }
+        default:
+            OPENVINO_ASSERT(false, "[GPU] read_vector: unsupported data type");
         }
     }
     return out_vecs;

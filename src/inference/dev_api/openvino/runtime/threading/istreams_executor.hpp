@@ -102,7 +102,7 @@ public:
          */
         void reserve_cpu_threads();
 
-         /**
+        /**
          * @brief Modify _streams_info_table and related configuration according to configuration
          */
         void update_executor_config();

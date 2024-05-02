@@ -40,7 +40,8 @@ void Reduce::SetUp() {
     ov::test::utils::ReductionType reduce_type;
     std::vector<int> axes;
     bool keep_dims;
-    std::tie(input_shape, reduce_type, axes, keep_dims, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(input_shape, reduce_type, axes, keep_dims, ref_num_nodes, ref_num_subgraphs, targetDevice) =
+        this->GetParam();
     init_input_shapes({input_shape});
 
     auto f = ov::test::snippets::ReduceFunction(inputDynamicShapes, reduce_type, axes, keep_dims);
@@ -57,6 +58,6 @@ TEST_P(Reduce, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

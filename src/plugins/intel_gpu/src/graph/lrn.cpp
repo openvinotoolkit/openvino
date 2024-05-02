@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lrn_inst.h"
-#include "primitive_type_base.h"
+#include <string>
+
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "lrn_inst.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lrn)
@@ -34,9 +35,8 @@ std::string lrn_inst::to_string(lrn_node const& node) {
     auto k = desc->k;
     auto alpha = desc->alpha;
     auto beta = desc->beta;
-    auto norm_region = desc->norm_region == lrn_norm_region::lrn_norm_region_across_channel
-                           ? "across channel"
-                           : "within channel";
+    auto norm_region =
+        desc->norm_region == lrn_norm_region::lrn_norm_region_across_channel ? "across channel" : "within channel";
     auto& input = node.input();
 
     std::stringstream primitive_description;

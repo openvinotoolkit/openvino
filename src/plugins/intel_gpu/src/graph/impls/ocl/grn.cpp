@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "grn_inst.h"
-#include "grn/grn_kernel_selector.h"
 #include "grn/grn_kernel_base.h"
+#include "grn/grn_kernel_selector.h"
+#include "grn_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -37,10 +36,12 @@ public:
 namespace detail {
 
 attach_grn_impl::attach_grn_impl() {
-    implementation_map<grn>::add(impl_types::ocl, typed_primitive_impl_ocl<grn>::create<grn_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-    });
+    implementation_map<grn>::add(impl_types::ocl,
+                                 typed_primitive_impl_ocl<grn>::create<grn_impl>,
+                                 {
+                                     std::make_tuple(data_types::f32, format::bfyx),
+                                     std::make_tuple(data_types::f16, format::bfyx),
+                                 });
 }
 
 }  // namespace detail

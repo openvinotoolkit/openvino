@@ -3,9 +3,11 @@
 //
 
 #include "depth_to_space_kernel_block2_opt.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey DepthToSpaceKernelBlock2Opt::GetSupportedKey() const {
@@ -35,9 +37,7 @@ bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p) const {
 CommonDispatchData DepthToSpaceKernelBlock2Opt::SetDefault(const depth_to_space_params& params) const {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = { Align(params.inputs[0].X().v / 2, 16),
-                         params.inputs[0].Y().v,
-                         1 };
+    dispatchData.gws = {Align(params.inputs[0].X().v / 2, 16), params.inputs[0].Y().v, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

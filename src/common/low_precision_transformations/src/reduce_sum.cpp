@@ -3,12 +3,12 @@
 //
 
 #include "low_precision/reduce_sum.hpp"
+
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +16,8 @@ namespace low_precision {
 
 ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceSumTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::ReduceSum>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::ReduceSum>(
+        {pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -30,7 +31,8 @@ ReduceSumTransformation::ReduceSumTransformation(const Params& params) : ReduceB
     this->register_matcher(m, callback);
 }
 
-bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceSumTransformation::canBeTransformed(const TransformationContext& context,
+                                               std::shared_ptr<Node> reduce) const {
     const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
     if (!reduceSum || !ReduceBaseTransformation::canBeTransformed(context, reduceSum)) {
         return false;
@@ -51,9 +53,8 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
     return true;
 }
 
-void ReduceSumTransformation::changeDequantizationValues(
-    const std::shared_ptr<Node>& reduce,
-    FakeQuantizeDequantization& dequantization) const {
+void ReduceSumTransformation::changeDequantizationValues(const std::shared_ptr<Node>& reduce,
+                                                         FakeQuantizeDequantization& dequantization) const {
     ReduceBaseTransformation::changeDequantizationValues(reduce, dequantization);
 
     if (dequantization.subtract) {
@@ -68,7 +69,8 @@ void ReduceSumTransformation::changeDequantizationValues(
         }
 
         // (a1 - s) + (a2 - s) + ... + (an - s) = (a1 + a2 + ... + an) - n * s
-        const auto reductionSizeConstant = ov::opset1::Constant::create(deqPrecision, Shape{}, { static_cast<float>(reductionSize) });
+        const auto reductionSizeConstant =
+            ov::opset1::Constant::create(deqPrecision, Shape{}, {static_cast<float>(reductionSize)});
         const auto result = fold<ov::opset1::Multiply>(dequantization.subtractConstant, reductionSizeConstant);
 
         replace_node(dequantization.subtractConstant, result);
@@ -84,6 +86,6 @@ bool ReduceSumTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

@@ -4,22 +4,20 @@
 
 #pragma once
 
+#include <cassert>
+#include <iterator>
+#include <memory>
+#include <mutex>
+
+#include "intel_gpu/runtime/memory.hpp"
 #include "ocl_common.hpp"
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-
-#include <cassert>
-#include <iterator>
-#include <mutex>
-#include <memory>
 
 namespace cldnn {
 namespace ocl {
 struct lockable_gpu_mem {
-    lockable_gpu_mem() :
-        _lock_count(0),
-        _mapped_ptr(nullptr) {}
+    lockable_gpu_mem() : _lock_count(0), _mapped_ptr(nullptr) {}
 
     std::mutex _mutex;
     unsigned _lock_count;
@@ -27,7 +25,10 @@ struct lockable_gpu_mem {
 };
 
 struct gpu_buffer : public lockable_gpu_mem, public memory {
-    gpu_buffer(ocl_engine* engine, const layout& new_layout, const cl::Buffer& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_buffer(ocl_engine* engine,
+               const layout& new_layout,
+               const cl::Buffer& buffer,
+               std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_buffer(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -41,9 +42,13 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     }
 
     event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking, size_t dst_offset, size_t data_size) override;
+    event::ptr copy_from(stream& stream,
+                         const void* host_ptr,
+                         bool blocking,
+                         size_t dst_offset,
+                         size_t data_size) override;
 
-    event::ptr copy_to(stream& stream, void* other , bool blocking) override;
+    event::ptr copy_to(stream& stream, void* other, bool blocking) override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) const override;
@@ -54,7 +59,10 @@ protected:
 };
 
 struct gpu_image2d : public lockable_gpu_mem, public memory {
-    gpu_image2d(ocl_engine* engine, const layout& new_layout, const cl::Image2D& buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_image2d(ocl_engine* engine,
+                const layout& new_layout,
+                const cl::Image2D& buffer,
+                std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ocl_engine* engine, const layout& layout);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -68,7 +76,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
     }
 
     event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* other, bool blocking, size_t dst_offset, size_t data_size) override;
+    event::ptr copy_from(stream& stream,
+                         const void* other,
+                         bool blocking,
+                         size_t dst_offset,
+                         size_t data_size) override;
 
     event::ptr copy_to(stream& stream, memory& other, bool blocking) override;
     event::ptr copy_to(stream& stream, void* other, bool blocking) override;
@@ -84,6 +96,7 @@ protected:
 struct gpu_media_buffer : public gpu_image2d {
     gpu_media_buffer(ocl_engine* engine, const layout& new_layout, shared_mem_params params);
     shared_mem_params get_internal_params() const override;
+
 private:
     void* device;
 #ifdef _WIN32
@@ -98,6 +111,7 @@ private:
 struct gpu_dx_buffer : public gpu_buffer {
     gpu_dx_buffer(ocl_engine* engine, const layout& new_layout, shared_mem_params VAEncMiscParameterTypeSubMbPartPel);
     shared_mem_params get_internal_params() const override;
+
 private:
     void* device;
     void* resource;
@@ -105,22 +119,39 @@ private:
 #endif
 
 struct gpu_usm : public lockable_gpu_mem, public memory {
-    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
-    gpu_usm(ocl_engine* engine, const layout& new_layout, const cl::UsmMemory& usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(ocl_engine* engine,
+            const layout& new_layout,
+            const cl::UsmMemory& usm_buffer,
+            allocation_type type,
+            std::shared_ptr<MemoryTracker> mem_tracker);
+    gpu_usm(ocl_engine* engine,
+            const layout& new_layout,
+            const cl::UsmMemory& usm_buffer,
+            std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    const cl::UsmMemory& get_buffer() const { return _buffer; }
-    cl::UsmMemory& get_buffer() { return _buffer; }
-    void* buffer_ptr() const override { return _buffer.get(); }
+    const cl::UsmMemory& get_buffer() const {
+        return _buffer;
+    }
+    cl::UsmMemory& get_buffer() {
+        return _buffer;
+    }
+    void* buffer_ptr() const override {
+        return _buffer.get();
+    }
 
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;
     shared_mem_params get_internal_params() const override;
 
     event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking, size_t dst_offset, size_t data_size) override;
+    event::ptr copy_from(stream& stream,
+                         const void* host_ptr,
+                         bool blocking,
+                         size_t dst_offset,
+                         size_t data_size) override;
 
     event::ptr copy_to(stream& stream, void* host_ptr, bool blocking) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -140,6 +171,7 @@ struct ocl_surfaces_lock : public surfaces_lock {
     ocl_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream);
 
     ~ocl_surfaces_lock() = default;
+
 private:
     std::vector<cl_mem> get_handles(std::vector<memory::ptr> mem) const;
     std::vector<cl_mem> _handles;

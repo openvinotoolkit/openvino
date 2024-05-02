@@ -13,22 +13,24 @@ def create_tf_model(out_dir):
     tf.compat.v1.reset_default_graph()
 
     with tf.compat.v1.Session() as sess:
-        inp1 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input')
-        inp2 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], 'Input')
-        relu = tf.nn.relu(inp1 + inp2, name='Relu')
+        inp1 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], "Input")
+        inp2 = tf.compat.v1.placeholder(tf.float32, [1, 2, 3], "Input")
+        relu = tf.nn.relu(inp1 + inp2, name="Relu")
 
-        output = tf.nn.sigmoid(relu, name='Sigmoid')
+        output = tf.nn.sigmoid(relu, name="Sigmoid")
 
         tf.compat.v1.global_variables_initializer()
         tf_net = sess.graph_def
-    tf.io.write_graph(tf_net, out_dir + os.sep, 'model_bool.pb', as_text=False)
-    return out_dir + os.sep + 'model_bool.pb'
+    tf.io.write_graph(tf_net, out_dir + os.sep, "model_bool.pb", as_text=False)
+    return out_dir + os.sep + "model_bool.pb"
 
 
 def run_main():
     from openvino.tools.mo import convert_model
 
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(
+        format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+    )
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
     with tempfile.TemporaryDirectory(dir=test_directory) as tmpdir:

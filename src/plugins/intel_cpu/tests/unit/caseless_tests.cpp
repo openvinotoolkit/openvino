@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils/caseless.hpp"
+#include <gtest/gtest.h>
 
 #include <string>
-#include <gtest/gtest.h>
+
+#include "utils/caseless.hpp"
 
 using namespace ov::intel_cpu;
 using CaselessTests = ::testing::Test;

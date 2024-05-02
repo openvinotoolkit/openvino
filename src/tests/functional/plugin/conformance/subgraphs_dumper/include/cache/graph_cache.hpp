@@ -5,10 +5,10 @@
 #pragma once
 
 #include "cache/cache.hpp"
-#include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/fused_names.hpp"
-#include "matchers/subgraph/repeat_pattern.hpp"
+#include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/read_value_assign.hpp"
+#include "matchers/subgraph/repeat_pattern.hpp"
 
 namespace ov {
 namespace tools {
@@ -50,13 +50,14 @@ protected:
 
     GraphCache(const std::string& device = "") {
         ExtractorsManager::ExtractorsMap matchers = {
-            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
-            { "read_value_assign", ReadValueAssignExtractor::Ptr(new ReadValueAssignExtractor) },
+            {"repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor)},
+            {"read_value_assign", ReadValueAssignExtractor::Ptr(new ReadValueAssignExtractor)},
         };
         try {
-            matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });
-        } catch(const std::exception& e) {
-            std::cout << "[ GRAPH CACHE ][ WARNING ] Fused names extractor is disabled according: " << e.what() << std::endl;
+            matchers.insert({"fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device))});
+        } catch (const std::exception& e) {
+            std::cout << "[ GRAPH CACHE ][ WARNING ] Fused names extractor is disabled according: " << e.what()
+                      << std::endl;
         }
         m_manager.set_extractors(matchers);
         m_cache_subdir = "subgraph";

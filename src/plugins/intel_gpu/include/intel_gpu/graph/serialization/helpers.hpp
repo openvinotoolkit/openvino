@@ -5,14 +5,16 @@
 #pragma once
 
 #include <cstdint>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 namespace cldnn {
 template <typename T>
 struct Data {
-    using DataType = typename std::conditional<std::is_const<typename std::remove_pointer<typename std::remove_reference<T>::type>::type>::value,
-                                               const void*, void*>::type;
+    using DataType = typename std::conditional<
+        std::is_const<typename std::remove_pointer<typename std::remove_reference<T>::type>::type>::value,
+        const void*,
+        void*>::type;
 
     Data(T&& data, uint64_t number_of_bytes) : data(std::forward<T>(data)), number_of_bytes(number_of_bytes) {}
 

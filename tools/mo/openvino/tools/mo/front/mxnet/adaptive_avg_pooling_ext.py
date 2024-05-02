@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.adaptive_avg_pooling import AdaptiveAvgPooling
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.adaptive_avg_pooling import AdaptiveAvgPooling
 
 
 class AdaptiveAvgPooling2DFrontExtractor(FrontExtractorOp):
-    op = '_contrib_AdaptiveAvgPooling2D'
+    op = "_contrib_AdaptiveAvgPooling2D"
     enabled = True
 
     @classmethod
@@ -17,9 +17,6 @@ class AdaptiveAvgPooling2DFrontExtractor(FrontExtractorOp):
         if len(output_size) == 1:
             output_size = (output_size[0], output_size[0])
 
-        data = {
-            'op': 'Pooling',
-            'output_size': output_size
-        }
+        data = {"op": "Pooling", "output_size": output_size}
         AdaptiveAvgPooling.update_node_stat(node, data)
         return cls.enabled

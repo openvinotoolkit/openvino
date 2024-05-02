@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require('node:fs');
-const { addon: ov } = require('..');
+const {addon : ov} = require('..');
 const assert = require('assert');
-const { describe, it } = require('node:test');
-const { getModelPath } = require('./utils.js');
+const {describe, it} = require('node:test');
+const {getModelPath} = require('./utils.js');
 
-const { xml: modelPath, bin: weightsPath } = getModelPath();
+const {xml : modelPath, bin : weightsPath} = getModelPath();
 const modelFile = fs.readFileSync(modelPath);
 const weightsFile = fs.readFileSync(weightsPath);
 
@@ -29,8 +29,8 @@ describe('Core.readModeSync', () => {
 
   it('readModeSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', () => {
     const model = core.readModelSync(
-      new Uint8Array(modelFile.buffer),
-      new Uint8Array(weightsFile.buffer),
+        new Uint8Array(modelFile.buffer),
+        new Uint8Array(weightsFile.buffer),
     );
     assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
@@ -50,8 +50,8 @@ describe('Core.readModel', () => {
 
   it('readMode(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', async () => {
     const model = await core.readModel(
-      new Uint8Array(modelFile.buffer),
-      new Uint8Array(weightsFile.buffer),
+        new Uint8Array(modelFile.buffer),
+        new Uint8Array(weightsFile.buffer),
     );
     assert.equal(model.inputs.length, 1);
   });

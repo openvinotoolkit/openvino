@@ -11,8 +11,7 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVHoldersTest : public OVPluginTestBase,
-                      public ::testing::WithParamInterface<std::string> {
+class OVHoldersTest : public OVPluginTestBase, public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;
@@ -23,8 +22,7 @@ protected:
     std::shared_ptr<ov::Model> function;
 };
 
-class OVHoldersTestOnImportedNetwork : public OVPluginTestBase,
-                                       public ::testing::WithParamInterface<std::string> {
+class OVHoldersTestOnImportedNetwork : public OVPluginTestBase, public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     void SetUp() override;

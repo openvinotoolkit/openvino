@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tflite_layer_test_class import TFLiteLayerTest
 
 
@@ -16,9 +15,11 @@ class TestTFLiteWhileLayerTest(TFLiteLayerTest):
     def make_model(self, params):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            i = tf.compat.v1.placeholder(dtype=tf.float32, shape=[1], name=self.inputs[0])
+            i = tf.compat.v1.placeholder(
+                dtype=tf.float32, shape=[1], name=self.inputs[0]
+            )
             c = lambda i: tf.less(i, [10])
-            b = lambda i: (tf.add(i, [1]), )
+            b = lambda i: (tf.add(i, [1]),)
             tf.while_loop(c, b, [i], name=self.outputs[0])
             net = sess.graph_def
         return net

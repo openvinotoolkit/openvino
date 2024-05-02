@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino.runtime.opset14 as ops
 import pytest
 
-import openvino.runtime.opset14 as ops
 from openvino import PartialShape, Type
 
 
@@ -34,7 +34,11 @@ def test_inverse_param_inputs(input_shape, adjoint, expected_output_shape, op_na
     ("input_array", "adjoint", "expected_output_shape"),
     [
         (np.array([[0.7, 0.3], [0.6, 0.5]]), True, PartialShape([2, 2])),
-        (np.array([[0.7, 0.3, 0.6], [1, 2, 3], [0.7, 0.1, 0.4]]), False, PartialShape([3, 3])),
+        (
+            np.array([[0.7, 0.3, 0.6], [1, 2, 3], [0.7, 0.1, 0.4]]),
+            False,
+            PartialShape([3, 3]),
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["inverse", "inverseOpset14"])

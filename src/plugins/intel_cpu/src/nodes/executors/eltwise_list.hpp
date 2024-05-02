@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include "executor.hpp"
-
 #include "eltwise.hpp"
+#include "executor.hpp"
 #if defined(OV_CPU_WITH_ACL)
-#include "aarch64/jit_eltwise.hpp"
-#include "acl/acl_eltwise.hpp"
+#    include "aarch64/jit_eltwise.hpp"
+#    include "acl/acl_eltwise.hpp"
 #endif
 
-#include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -28,9 +27,10 @@ const std::vector<EltwiseExecutorDesc>& getEltwiseExecutorsList();
 class EltwiseExecutorFactory : public ExecutorFactoryLegacy {
 public:
     EltwiseExecutorFactory(const EltwiseAttrs& eltwiseAttrs,
-                       const std::vector<MemoryDescPtr>& srcDescs,
-                       const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
+                           const std::vector<MemoryDescPtr>& srcDescs,
+                           const std::vector<MemoryDescPtr>& dstDescs,
+                           const ExecutorContext::CPtr context)
+        : ExecutorFactoryLegacy(context) {
         for (auto& desc : getEltwiseExecutorsList()) {
             if (desc.builder->isSupported(eltwiseAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
@@ -40,9 +40,9 @@ public:
 
     ~EltwiseExecutorFactory() = default;
     virtual EltwiseExecutorPtr makeExecutor(const EltwiseAttrs& eltwiseAttrs,
-                                        const std::vector<MemoryDescPtr>& srcDescs,
-                                        const std::vector<MemoryDescPtr>& dstDescs,
-                                        const std::vector<EltwisePostOp>& postOps) {
+                                            const std::vector<MemoryDescPtr>& srcDescs,
+                                            const std::vector<MemoryDescPtr>& dstDescs,
+                                            const std::vector<EltwisePostOp>& postOps) {
         auto build = [&](const EltwiseExecutorDesc* desc) {
             auto executor = desc->builder->makeExecutor(context);
             if (executor->init(eltwiseAttrs, srcDescs, dstDescs, postOps)) {
@@ -81,5 +81,5 @@ private:
 using EltwiseExecutorFactoryPtr = std::shared_ptr<EltwiseExecutorFactory>;
 using EltwiseExecutorFactoryCPtr = std::shared_ptr<const EltwiseExecutorFactory>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -3,8 +3,10 @@
 //
 
 #include "reorder_weights_image_fyx_b_kernel.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey ReorderWeightsImage_fyx_b_Kernel::GetSupportedKey() const {
@@ -22,12 +24,13 @@ ParamsKey ReorderWeightsImage_fyx_b_Kernel::GetSupportedKey() const {
     return k;
 }
 
-ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel::SetDefault(const reorder_weights_params& params) const {
+ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel::SetDefault(
+    const reorder_weights_params& params) const {
     const auto& out = params.output;
 
     DispatchData dispatchData;
 
-    dispatchData.gws = { out.OFM().v, Align(out.X().v * out.Y().v * out.IFM().v, 4) / 4, 1 };
+    dispatchData.gws = {out.OFM().v, Align(out.X().v * out.Y().v * out.IFM().v, 4) / 4, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

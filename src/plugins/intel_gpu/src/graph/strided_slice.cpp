@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "strided_slice_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 #include <vector>
 
+#include "json_object.h"
+#include "primitive_type_base.h"
+#include "strided_slice_inst.h"
 #include "strided_slice_shape_inference.hpp"
 
 namespace cldnn {
@@ -30,8 +30,9 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
     return layout{input_layout.data_type, output_format, out_size};
 }
 
-template<typename ShapeType>
-std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/,
+                                                            const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
     auto input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
@@ -41,13 +42,13 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     auto end_data = desc->end;
     auto strides_data = desc->strides;
 
-    if ((begin_data.empty() && !constant_mem.count(1))
-        || (end_data.empty() && !constant_mem.count(2))
-        || (strides_data.empty() && !constant_mem.count(3))) {
-        auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
+    if ((begin_data.empty() && !constant_mem.count(1)) || (end_data.empty() && !constant_mem.count(2)) ||
+        (strides_data.empty() && !constant_mem.count(3))) {
+        auto num_of_axis_mask_bit = [](std::vector<int64_t> mask) -> size_t {
             size_t count = 0;
             for (size_t i = 0; i < mask.size(); i++)
-                if (mask[i]) count++;
+                if (mask[i])
+                    count++;
             return count;
         };
 
@@ -96,21 +97,19 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
             }
         }
 
-        return { layout{output_shape, input0_layout.data_type, format::get_default_format(output_len)} };
+        return {layout{output_shape, input0_layout.data_type, format::get_default_format(output_len)}};
     }
 
     ov::op::v1::StridedSlice op;
-    ShapeType begin_shape = begin_data.empty() ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{ begin_data.size() };
-    ShapeType end_shape = end_data.empty() ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{ end_data.size() };
-    ShapeType strides_shape = strides_data.empty() ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{ strides_data.size() };
+    ShapeType begin_shape =
+        begin_data.empty() ? impl_param.get_input_layout(1).get<ShapeType>() : ov::Shape{begin_data.size()};
+    ShapeType end_shape =
+        end_data.empty() ? impl_param.get_input_layout(2).get<ShapeType>() : ov::Shape{end_data.size()};
+    ShapeType strides_shape =
+        strides_data.empty() ? impl_param.get_input_layout(3).get<ShapeType>() : ov::Shape{strides_data.size()};
 
     std::vector<ShapeType> output_shapes;
-    std::vector<ShapeType> input_shapes = {
-        std::move(input0_shape),
-        begin_shape,
-        end_shape,
-        strides_shape
-    };
+    std::vector<ShapeType> input_shapes = {std::move(input0_shape), begin_shape, end_shape, strides_shape};
 
     op.set_friendly_name(desc->id);
     op.set_begin_mask(desc->begin_mask);
@@ -122,9 +121,11 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     std::unordered_map<size_t, ov::Tensor> const_data;
     const auto ta = ov::make_tensor_accessor(const_data);
     if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
-        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
-        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
-        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
+        auto begin_tensor =
+            make_tensor({begin_shape, data_types::i64, format::bfyx}, static_cast<void*>(begin_data.data()));
+        auto end_tensor = make_tensor({end_shape, data_types::i64, format::bfyx}, static_cast<void*>(end_data.data()));
+        auto strides_tensor =
+            make_tensor({strides_shape, data_types::i64, format::bfyx}, static_cast<void*>(strides_data.data()));
 
         const_data.emplace(1, begin_tensor);
         const_data.emplace(2, end_tensor);
@@ -153,10 +154,12 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
 
     auto output_format = format::get_default_format(output_shapes[0].size());
 
-    return { layout{output_shapes[0], input0_layout.data_type, output_format} };
+    return {layout{output_shapes[0], input0_layout.data_type, output_format}};
 }
 
-template std::vector<layout> strided_slice_inst::calc_output_layouts<ov::PartialShape>(strided_slice_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> strided_slice_inst::calc_output_layouts<ov::PartialShape>(
+    strided_slice_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     auto desc = node.get_primitive();
@@ -205,7 +208,6 @@ void strided_slice_inst::update_output_memory() {
     _mem_allocated = false;
 }
 
-strided_slice_inst::typed_primitive_inst(network& network, strided_slice_node const& node)
-    : parent(network, node) {}
+strided_slice_inst::typed_primitive_inst(network& network, strided_slice_node const& node) : parent(network, node) {}
 
 }  // namespace cldnn

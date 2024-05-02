@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "matrix_nms_inst.h"
 #include "matrix_nms/matrix_nms_kernel_ref.h"
 #include "matrix_nms/matrix_nms_kernel_selector.h"
+#include "matrix_nms_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -99,7 +98,10 @@ attach_matrix_nms_impl::attach_matrix_nms_impl() {
                     format::bs_fs_yx_bsv32_fsv16,
                     format::bs_fs_yx_bsv32_fsv32};
 
-    implementation_map<matrix_nms>::add(impl_types::ocl, typed_primitive_impl_ocl<matrix_nms>::create<matrix_nms_impl>, types, formats);
+    implementation_map<matrix_nms>::add(impl_types::ocl,
+                                        typed_primitive_impl_ocl<matrix_nms>::create<matrix_nms_impl>,
+                                        types,
+                                        formats);
 }
 
 }  // namespace detail

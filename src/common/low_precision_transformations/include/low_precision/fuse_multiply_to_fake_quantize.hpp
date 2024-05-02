@@ -17,17 +17,18 @@ namespace low_precision {
  * @brief FuseMultiplyToFakeQuantizeTransformation fuses Multiply operation to FakeQuantize.
  *
  * For more details about the transformation, refer to
- * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation) page
- * in the OpenVINO Developer Guide.
+ * [FuseMultiplyToFakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation)
+ * page in the OpenVINO Developer Guide.
  */
-class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation : public FuseElementwiseToFakeQuantizeTransformation {
+class LP_TRANSFORMATIONS_API FuseMultiplyToFakeQuantizeTransformation
+    : public FuseElementwiseToFakeQuantizeTransformation {
 public:
     OPENVINO_RTTI("FuseMultiplyToFakeQuantizeTransformation", "0");
     FuseMultiplyToFakeQuantizeTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

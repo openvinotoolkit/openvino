@@ -11,20 +11,19 @@ class RemoveIdentity(MiddleReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.InputCut import MiddleInputCut
+
         return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def pattern(self):
-        return dict(
-            nodes=[('op', dict(kind='op', identity=True))],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(kind="op", identity=True))], edges=[])
 
     def replace_pattern(self, graph: Graph, match: dict):
-        remove_op_node_with_data_node(graph, match['op'])
+        remove_op_node_with_data_node(graph, match["op"])
 
 
 class RemoveDropout(MiddleReplacementPattern):
@@ -32,20 +31,19 @@ class RemoveDropout(MiddleReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.InputCut import MiddleInputCut
+
         return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def pattern(self):
-        return dict(
-            nodes=[('op', dict(op='Dropout'))],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(op="Dropout"))], edges=[])
 
     def replace_pattern(self, graph: Graph, match: dict):
-        remove_op_node_with_data_node(graph, match['op'])
+        remove_op_node_with_data_node(graph, match["op"])
 
 
 class RemoveNodesWithZeroPhase(MiddleReplacementPattern):
@@ -54,17 +52,16 @@ class RemoveNodesWithZeroPhase(MiddleReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.middle.InputCut import MiddleInputCut
+
         return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
+
         return [MiddleStart]
 
     def pattern(self):
-        return dict(
-            nodes=[('op', dict(kind='op', phase=0))],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(kind="op", phase=0))], edges=[])
 
     def replace_pattern(self, graph: Graph, match: dict):
-        remove_op_node_with_data_node(graph, match['op'])
+        remove_op_node_with_data_node(graph, match["op"])

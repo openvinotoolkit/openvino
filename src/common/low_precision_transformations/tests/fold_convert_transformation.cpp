@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
+#include "layer_transformation.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -35,28 +32,26 @@ public:
     ov::builder::subgraph::DequantizationOperations dequantizationExpected;
 };
 
-typedef std::tuple<
-    ov::PartialShape,
-    FoldConvertTransformationTestValues> FoldConvertTransformationParams;
+typedef std::tuple<ov::PartialShape, FoldConvertTransformationTestValues> FoldConvertTransformationParams;
 
-class FoldConvertTransformation : public LayerTransformation, public testing::WithParamInterface<FoldConvertTransformationParams> {
+class FoldConvertTransformation : public LayerTransformation,
+                                  public testing::WithParamInterface<FoldConvertTransformationParams> {
 public:
     void SetUp() override {
         const ov::PartialShape inputShape = std::get<0>(GetParam());
         const FoldConvertTransformationTestValues testValues = std::get<1>(GetParam());
 
-        const auto createFunction = [](
-            const ov::element::Type precision,
-            const ov::PartialShape& inputShape,
-            const ov::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
+        const auto createFunction =
+            [](const ov::element::Type precision,
+               const ov::PartialShape& inputShape,
+               const ov::builder::subgraph::DequantizationOperations& dequantization) -> std::shared_ptr<ov::Model> {
             auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             std::shared_ptr<ov::Node> output = makeDequantization(input, dequantization);
             output->set_friendly_name("output");
 
-            return std::make_shared<ov::Model>(
-                ov::ResultVector{ std::make_shared<ov::op::v0::Result>(output) },
-                ov::ParameterVector{ input },
-                "FoldConvertTransformation");
+            return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(output)},
+                                               ov::ParameterVector{input},
+                                               "FoldConvertTransformation");
         };
         actualFunction = createFunction(testValues.precision, inputShape, testValues.dequantizationActual);
 
@@ -72,11 +67,8 @@ public:
         const FoldConvertTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result <<
-            testValues.precision << "_" <<
-            inputShape << "_" <<
-            testValues.dequantizationActual << "_" <<
-            testValues.dequantizationExpected;
+        result << testValues.precision << "_" << inputShape << "_" << testValues.dequantizationActual << "_"
+               << testValues.dequantizationExpected;
         return result.str();
     }
 };
@@ -92,8 +84,7 @@ TEST_P(FoldConvertTransformation, CompareFunctions) {
 const std::vector<ov::PartialShape> inputShapes = {
     {1, 4, 16, 16},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-    PartialShape::dynamic()
-};
+    PartialShape::dynamic()};
 
 const std::vector<FoldConvertTransformationTestValues> testValues = {
     // Actual:
@@ -121,20 +112,10 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //      \FP32    /FP32
     //       \      /
     //       Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        ov::element::f32,
-        {
-            {ov::element::f32},
-            { {7.f}, ov::element::f32, {}, false, 1, ov::element::u8, true },
-            { 10.f }
-        },
-        {
-            {ov::element::f32},
-            { {7.f}, ov::element::f32, {}, false, 1 },
-            { 10.f }
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     ov::element::f32,
+     {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 1, ov::element::u8, true}, {10.f}},
+     {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 1}, {10.f}}},
 
     // Actual:
     //
@@ -161,27 +142,13 @@ const std::vector<FoldConvertTransformationTestValues> testValues = {
     //      \FP32    /FP32
     //       \      /
     //       Multiply
-    {
-        LayerTransformation::createParamsU8I8(),
-        ov::element::f32,
-        {
-            {ov::element::f32},
-            { {7.f}, ov::element::f32, {}, false, 0, ov::element::u8, true },
-            { 10.f }
-        },
-        {
-            {ov::element::f32},
-            { {7.f}, ov::element::f32, {}, false, 0 },
-            { 10.f }
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     ov::element::f32,
+     {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 0, ov::element::u8, true}, {10.f}},
+     {{ov::element::f32}, {{7.f}, ov::element::f32, {}, false, 0}, {10.f}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FoldConvertTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
-    FoldConvertTransformation::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FoldConvertTransformation,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes), ::testing::ValuesIn(testValues)),
+                         FoldConvertTransformation::getTestCaseName);
+}  // namespace

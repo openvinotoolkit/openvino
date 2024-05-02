@@ -36,7 +36,7 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS};
+    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS };
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
@@ -64,16 +64,23 @@ private:
     };
 
     struct Executor {
-        virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
-                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
-                             const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
+        virtual void execute(dnnl::stream strm,
+                             const Config& config,
+                             const std::vector<MemoryPtr>& inputs,
+                             const MemoryPtr output,
+                             const MemoryPtr presentk_input,
+                             const MemoryPtr presentv_input,
+                             const MemoryPtr beam_input,
+                             const PlainTensor& k_scale_zp,
+                             const PlainTensor& v_scale_zp) = 0;
         virtual ~Executor() = default;
     };
 
     bool m_is_pageattn;
     Config m_config;
     std::shared_ptr<Executor> m_executor;
-    template <KernelTypes KType, typename T> struct AttentionExecutor;
+    template <KernelTypes KType, typename T>
+    struct AttentionExecutor;
     friend struct ScaledDotProductAttentionKey;
 
     std::shared_ptr<VariableStateKVcache> m_k_state;

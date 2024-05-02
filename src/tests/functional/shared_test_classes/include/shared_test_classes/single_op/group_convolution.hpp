@@ -4,28 +4,25 @@
 
 #pragma once
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<size_t>,
-        std::vector<size_t>,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        std::vector<size_t>,
-        size_t,
-        size_t,
-        ov::op::PadType> groupConvSpecificParams;
-typedef std::tuple<
-        groupConvSpecificParams,
-        ov::element::Type,
-        std::vector<InputShape>,
-        std::string> groupConvLayerTestParamsSet;
+typedef std::tuple<std::vector<size_t>,
+                   std::vector<size_t>,
+                   std::vector<ptrdiff_t>,
+                   std::vector<ptrdiff_t>,
+                   std::vector<size_t>,
+                   size_t,
+                   size_t,
+                   ov::op::PadType>
+    groupConvSpecificParams;
+typedef std::tuple<groupConvSpecificParams, ov::element::Type, std::vector<InputShape>, std::string>
+    groupConvLayerTestParamsSet;
 
 class GroupConvolutionLayerTest : public testing::WithParamInterface<groupConvLayerTestParamsSet>,
                                   virtual public ov::test::SubgraphBaseTest {

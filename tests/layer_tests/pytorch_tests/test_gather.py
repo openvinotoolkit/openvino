@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestGelu(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False):
         import numpy as np
+
         index = np.random.randint(0, max_val, (m, n))
         inp = np.random.randn(m, n).astype(np.float32)
         if out:
@@ -45,6 +45,15 @@ class TestGelu(PytorchLayerTest):
     @pytest.mark.parametrize("axis", [0, 1])
     @pytest.mark.parametrize("out", [skip_if_export(True), False])
     def test_gather(self, m, n, axis, out, ie_device, precision, ir_version):
-        self._test(*self.create_model(axis, out), ie_device, precision, ir_version, kwargs_to_prepare_input={
-            "m": m, "n": n, "max_val": m if axis == 0 else n, "out": out
-        })
+        self._test(
+            *self.create_model(axis, out),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={
+                "m": m,
+                "n": n,
+                "max_val": m if axis == 0 else n,
+                "out": out,
+            }
+        )

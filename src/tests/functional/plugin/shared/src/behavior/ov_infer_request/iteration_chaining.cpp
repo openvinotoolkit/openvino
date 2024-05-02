@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
+#include "behavior/ov_infer_request/iteration_chaining.hpp"
+
 #include <gtest/gtest.h>
+
+#include <chrono>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -11,23 +14,20 @@
 #include <vector>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/core/model.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "behavior/ov_infer_request/iteration_chaining.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {
@@ -41,9 +41,11 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     auto params = std::make_shared<ov::op::v0::Parameter>(element::Type_t::f32, pshape);
     params->get_output_tensor(0).set_names({"input_tensor_0"});
     params->set_friendly_name("param_0");
-    auto concat_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
+    auto concat_const =
+        ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{params, concat_const}, 0 /*axis*/);
-    auto eltwise_const = ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
+    auto eltwise_const =
+        ov::test::utils::deprecated::make_constant(element::Type_t::f32, {1, 16}, std::vector<float>{}, true);
     auto eltwise = ov::test::utils::make_eltwise(concat, eltwise_const, ov::test::utils::EltwiseTypes::ADD);
     concat->get_output_tensor(0).set_names({"result_tensor_0"});
     concat->set_friendly_name("result_0");
@@ -68,8 +70,7 @@ void OVIterationChaining::SetUp() {
     try {
         req = execNet.create_infer_request();
     } catch (const std::exception& ex) {
-        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]"
-               << std::endl;
+        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]" << std::endl;
     }
 }
 
@@ -90,7 +91,8 @@ bool OVIterationChaining::checkOutput(const ov::Tensor& in, const ov::Tensor& ac
     }
     req.infer();
     for (int i = 0; i < actual.get_size(); i++) {
-        if (fabs(req.get_output_tensor(0).data<float>()[i] - actual.data<float>()[i]) > std::numeric_limits<float>::epsilon())
+        if (fabs(req.get_output_tensor(0).data<float>()[i] - actual.data<float>()[i]) >
+            std::numeric_limits<float>::epsilon())
             return false;
     }
     return result;

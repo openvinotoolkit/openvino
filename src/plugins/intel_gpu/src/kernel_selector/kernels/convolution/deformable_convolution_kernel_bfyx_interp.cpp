@@ -3,6 +3,7 @@
 //
 
 #include "deformable_convolution_kernel_bfyx_interp.h"
+
 #include <string>
 
 namespace kernel_selector {
@@ -30,7 +31,8 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey DeformableConvolutionKernel_bfyx_interp::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -69,8 +71,7 @@ JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const conv
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_Y", params.kernelSize.y));
     jit.AddConstants({MakeJitConstant("STRIDE", params.stride),
                       MakeJitConstant("PADDING", params.padding_begin),
-                      MakeJitConstant("DILATION", params.dilation)
-                     });
+                      MakeJitConstant("DILATION", params.dilation)});
     jit.AddConstants({MakeJitConstant("DEFORMABLE_GROUPS", params.deformable_groups)});
     jit.AddConstants({MakeJitConstant("DEFORMABLE_MODE", params.deformable_mode)});
     jit.AddConstants({MakeJitConstant("DEFORMABLE_MASK_ENABLED", params.deformable_mask_enabled)});
@@ -94,8 +95,16 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
-                     false, false, static_cast<int>(newParams.inputs.size()));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     static_cast<int>(newParams.inputs.size()));
 
     return {kd};
 }

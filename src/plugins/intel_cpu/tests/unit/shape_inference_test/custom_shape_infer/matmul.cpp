@@ -139,8 +139,7 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                 make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
                          CPUMatMulTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

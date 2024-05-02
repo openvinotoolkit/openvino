@@ -12,7 +12,7 @@ class TestSplit(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             axis = tf.constant(axis_value, dtype=tf.int32)
-            value = tf.compat.v1.placeholder(tf.float32, value_shape, 'value')
+            value = tf.compat.v1.placeholder(tf.float32, value_shape, "value")
             split = tf.raw_ops.Split(axis=axis, value=value, num_split=num_split)
             for output_ind in range(num_split):
                 tf.identity(split[output_ind], name="split_" + str(output_ind))
@@ -30,10 +30,16 @@ class TestSplit(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
-        if ie_device == 'GPU' and params['value_shape'] == [4, 3, 2, 7]:
+    def test_split_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU" and params["value_shape"] == [4, 3, 2, 7]:
             pytest.skip("accuracy issue on GPU")
-        self._test(*self.create_split_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_split_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

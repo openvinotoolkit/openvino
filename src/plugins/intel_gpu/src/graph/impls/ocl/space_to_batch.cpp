@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "space_to_batch_inst.h"
-#include "space_to_batch/space_to_batch_kernel_selector.h"
 #include "space_to_batch/space_to_batch_kernel_ref.h"
+#include "space_to_batch/space_to_batch_kernel_selector.h"
+#include "space_to_batch_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -67,24 +66,26 @@ struct space_to_batch_impl : typed_primitive_impl_ocl<space_to_batch> {
 namespace detail {
 
 attach_space_to_batch_impl::attach_space_to_batch_impl() {
-    implementation_map<space_to_batch>::add(impl_types::ocl, typed_primitive_impl_ocl<space_to_batch>::create<space_to_batch_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-    });
+    implementation_map<space_to_batch>::add(impl_types::ocl,
+                                            typed_primitive_impl_ocl<space_to_batch>::create<space_to_batch_impl>,
+                                            {
+                                                std::make_tuple(data_types::f32, format::bfyx),
+                                                std::make_tuple(data_types::f16, format::bfyx),
+                                                std::make_tuple(data_types::u8, format::bfyx),
+                                                std::make_tuple(data_types::i8, format::bfyx),
+                                                std::make_tuple(data_types::f32, format::bfzyx),
+                                                std::make_tuple(data_types::f16, format::bfzyx),
+                                                std::make_tuple(data_types::u8, format::bfzyx),
+                                                std::make_tuple(data_types::i8, format::bfzyx),
+                                                std::make_tuple(data_types::f32, format::bfwzyx),
+                                                std::make_tuple(data_types::f16, format::bfwzyx),
+                                                std::make_tuple(data_types::u8, format::bfwzyx),
+                                                std::make_tuple(data_types::i8, format::bfwzyx),
+                                                std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+                                                std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+                                                std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+                                                std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+                                            });
 }
 
 }  // namespace detail

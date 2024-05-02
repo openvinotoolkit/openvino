@@ -3,15 +3,16 @@
 
 import numpy as np
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestAddCMul(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.uniform(0, 50, 3).astype(self.input_type),
-                np.random.uniform(0, 50, 3).astype(self.input_type),
-                np.random.uniform(0, 50, 3).astype(self.input_type))
+        return (
+            np.random.uniform(0, 50, 3).astype(self.input_type),
+            np.random.uniform(0, 50, 3).astype(self.input_type),
+            np.random.uniform(0, 50, 3).astype(self.input_type),
+        )
 
     def create_model(self, value=None):
         import torch
@@ -30,20 +31,23 @@ class TestAddCMul(PytorchLayerTest):
 
         return aten_addcmul(value), ref_net, "aten::addcmul"
 
-    @pytest.mark.parametrize(("input_type", "value"), [
-        [np.int32, None],
-        [np.float32, None],
-        [np.float64, None],
-        [np.int32, 1],
-        [np.int32, 2],
-        [np.int32, 10],
-        [np.int32, 110],
-        [np.float32, 2.0],
-        [np.float32, 3.123],
-        [np.float32, 4.5],
-        [np.float64, 41.5],
-        [np.float64, 24.5],
-    ])
+    @pytest.mark.parametrize(
+        ("input_type", "value"),
+        [
+            [np.int32, None],
+            [np.float32, None],
+            [np.float64, None],
+            [np.int32, 1],
+            [np.int32, 2],
+            [np.int32, 10],
+            [np.int32, 110],
+            [np.float32, 2.0],
+            [np.float32, 3.123],
+            [np.float32, 4.5],
+            [np.float64, 41.5],
+            [np.float64, 24.5],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "squeeze_shape_inference.hpp"
+
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "squeeze_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

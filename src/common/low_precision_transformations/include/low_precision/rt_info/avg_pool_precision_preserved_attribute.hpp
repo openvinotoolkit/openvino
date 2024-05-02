@@ -7,19 +7,21 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "openvino/core/node.hpp"
+
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief AvgPoolPrecisionPreservedAttribute is utility attribute which is used only during `AvgPool` operation precision
- * preserved property definition.
+ * @brief AvgPoolPrecisionPreservedAttribute is utility attribute which is used only during `AvgPool` operation
+ * precision preserved property definition.
  *
  * For more details about the attribute, refer to
- * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved) page in the OpenVINO Developer Guide.
+ * [AvgPoolPrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved) page in the OpenVINO
+ * Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
@@ -30,4 +32,4 @@ public:
     std::string to_string() const override;
 };
 
-} // namespace ov
+}  // namespace ov

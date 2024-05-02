@@ -13,7 +13,9 @@ struct typed_program_node<group_normalization> : public typed_program_node_base<
 public:
     using parent::parent;
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 using group_normalization_node = typed_program_node<group_normalization>;
 
@@ -23,8 +25,9 @@ class typed_primitive_inst<group_normalization> : public typed_primitive_inst_ba
     using parent::parent;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(group_normalization_node const& /*node*/, const kernel_impl_params& impl_param) {
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(group_normalization_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param) {
         return forward_input0_shape<ShapeType>(impl_param);
     }
 

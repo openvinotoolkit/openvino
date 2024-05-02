@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_gpu {
 
-class FullyConnectedConvertFusion: public ov::pass::MatcherPass {
+class FullyConnectedConvertFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FullyConnectedConvertFusion", "0");
     FullyConnectedConvertFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

@@ -6,7 +6,9 @@ import sys
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+from tensorflow.python.framework.convert_to_constants import (
+    convert_variables_to_constants_v2,
+)
 
 
 # generate a model with TF1 If operation that contains unsupported operation
@@ -36,22 +38,34 @@ def main():
 
     # lower_control_flow defines representation of If operation
     # in case of lower_control_flow=True it is decomposed into Switch and Merge nodes
-    frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                    lower_control_flow=True)
+    frozen_func = convert_variables_to_constants_v2(
+        concrete_func, lower_control_flow=True
+    )
 
     graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
-    tf.io.write_graph(graph_def, os.path.join(sys.argv[1], "tf1_if_with_nonexistent_op"),
-                      "tf1_if_with_nonexistent_op.pb",
-                      False)
+    tf.io.write_graph(
+        graph_def,
+        os.path.join(sys.argv[1], "tf1_if_with_nonexistent_op"),
+        "tf1_if_with_nonexistent_op.pb",
+        False,
+    )
 
-    with open(os.path.join(sys.argv[1], "tf1_if_with_nonexistent_op", "tf1_if_with_nonexistent_op.pb"),
-              mode='rb') as file:
+    with open(
+        os.path.join(
+            sys.argv[1], "tf1_if_with_nonexistent_op", "tf1_if_with_nonexistent_op.pb"
+        ),
+        mode="rb",
+    ) as file:
         modelContent = file.read()
 
     modelContent = modelContent.replace(b"AddV2", b"Rrrrr")
 
-    with open(os.path.join(sys.argv[1], "tf1_if_with_nonexistent_op", "tf1_if_with_nonexistent_op.pb"),
-              mode='wb') as file:
+    with open(
+        os.path.join(
+            sys.argv[1], "tf1_if_with_nonexistent_op", "tf1_if_with_nonexistent_op.pb"
+        ),
+        mode="wb",
+    ) as file:
         file.write(modelContent)
 
 

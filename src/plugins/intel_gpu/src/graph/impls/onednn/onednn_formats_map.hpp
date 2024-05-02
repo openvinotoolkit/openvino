@@ -3,8 +3,8 @@
 //
 
 #include <map>
-#include <vector>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
 
 namespace cldnn {
 namespace onednn {

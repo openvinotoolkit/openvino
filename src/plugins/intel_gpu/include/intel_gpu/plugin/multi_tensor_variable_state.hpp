@@ -11,7 +11,9 @@ namespace intel_gpu {
 
 class MultiTensorState : public VariableStateBase {
 public:
-    MultiTensorState(const std::vector<VariableStateInfo>& infos, std::shared_ptr<RemoteContextImpl> context, ShapePredictor::Ptr shape_predictor);
+    MultiTensorState(const std::vector<VariableStateInfo>& infos,
+                     std::shared_ptr<RemoteContextImpl> context,
+                     ShapePredictor::Ptr shape_predictor);
 
 protected:
     std::vector<std::shared_ptr<VariableState>> m_hidden_states = {};

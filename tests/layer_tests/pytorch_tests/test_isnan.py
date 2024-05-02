@@ -4,11 +4,10 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_tensor', (torch.tensor([1, float('nan'), 2])))
+@pytest.mark.parametrize("input_tensor", (torch.tensor([1, float("nan"), 2])))
 class TestIsNan(PytorchLayerTest):
 
     def _prepare_input(self):

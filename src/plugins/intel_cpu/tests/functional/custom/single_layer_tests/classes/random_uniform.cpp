@@ -3,6 +3,7 @@
 //
 
 #include "random_uniform.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
@@ -10,23 +11,23 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj) {
+std::string RandomUniformLayerTestCPU::getTestCaseName(
+    const testing::TestParamInfo<RandomUniformLayerTestCPUParamSet>& obj) {
     const auto& out_shape = std::get<0>(obj.param);
-    const auto& min_max   = std::get<1>(obj.param);
+    const auto& min_max = std::get<1>(obj.param);
 
     std::ostringstream result;
 
-    result << "IS={"              << out_shape.size();
-    result << "}_OS="             << out_shape;
-    result << "_Min="             << std::get<0>(min_max);
-    result << "_Max="             << std::get<1>(min_max);
-    result << "_ShapePrc="        << std::get<2>(obj.param);
-    result << "_OutPrc="          << std::get<3>(obj.param);
-    result << "_GlobalSeed="      << std::get<4>(obj.param);
+    result << "IS={" << out_shape.size();
+    result << "}_OS=" << out_shape;
+    result << "_Min=" << std::get<0>(min_max);
+    result << "_Max=" << std::get<1>(min_max);
+    result << "_ShapePrc=" << std::get<2>(obj.param);
+    result << "_OutPrc=" << std::get<3>(obj.param);
+    result << "_GlobalSeed=" << std::get<4>(obj.param);
     result << "_OperationalSeed=" << std::get<5>(obj.param);
-    result << "_ConstIn={"        << utils::bool2str(std::get<6>(obj.param)) << ","
-                                  << utils::bool2str(std::get<7>(obj.param)) << ","
-                                  << utils::bool2str(std::get<8>(obj.param)) << "}";
+    result << "_ConstIn={" << utils::bool2str(std::get<6>(obj.param)) << "," << utils::bool2str(std::get<7>(obj.param))
+           << "," << utils::bool2str(std::get<8>(obj.param)) << "}";
 
     result << CPUTestsBase::getTestCaseName(std::get<9>(obj.param));
 
@@ -46,18 +47,18 @@ std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamI
 void RandomUniformLayerTestCPU::SetUp() {
     targetDevice = utils::DEVICE_CPU;
 
-    const auto& params     = this->GetParam();
-    m_output_shape         = std::get<0>(params);
-    const auto& min_max    = std::get<1>(params);
-    const auto& shape_prc  = std::get<2>(params);
+    const auto& params = this->GetParam();
+    m_output_shape = std::get<0>(params);
+    const auto& min_max = std::get<1>(params);
+    const auto& shape_prc = std::get<2>(params);
     const auto& output_prc = std::get<3>(params);
-    m_global_seed          = std::get<4>(params);
-    m_operational_seed     = std::get<5>(params);
+    m_global_seed = std::get<4>(params);
+    m_operational_seed = std::get<5>(params);
     const auto& const_in_1 = std::get<6>(params);
     const auto& const_in_2 = std::get<7>(params);
     const auto& const_in_3 = std::get<8>(params);
     const auto& cpu_params = std::get<9>(params);
-    configuration          = std::get<10>(params);
+    configuration = std::get<10>(params);
 
     m_min_val = std::get<0>(min_max);
     m_max_val = std::get<1>(min_max);
@@ -93,11 +94,14 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     if (!const_in_1) {
         in_shapes.push_back({{}, {{m_output_shape.size()}}});
-        in_params.push_back(std::make_shared<ov::op::v0::Parameter>(shape_prc, ov::PartialShape{static_cast<int64_t>(m_output_shape.size())}));
+        in_params.push_back(
+            std::make_shared<ov::op::v0::Parameter>(shape_prc,
+                                                    ov::PartialShape{static_cast<int64_t>(m_output_shape.size())}));
         in_params.back()->set_friendly_name("shape");
         inputs.push_back(in_params.back());
     } else {
-        inputs.push_back(ov::test::utils::deprecated::make_constant(shape_prc, {m_output_shape.size()}, m_output_shape));
+        inputs.push_back(
+            ov::test::utils::deprecated::make_constant(shape_prc, {m_output_shape.size()}, m_output_shape));
     }
     if (!const_in_2) {
         in_shapes.push_back({{}, {{1}}});
@@ -118,21 +122,26 @@ void RandomUniformLayerTestCPU::SetUp() {
 
     init_input_shapes(in_shapes);
 
-    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0], inputs[1], inputs[2], output_prc, m_global_seed, m_operational_seed);
+    const auto rnd_op = std::make_shared<ov::op::v8::RandomUniform>(inputs[0],
+                                                                    inputs[1],
+                                                                    inputs[2],
+                                                                    output_prc,
+                                                                    m_global_seed,
+                                                                    m_operational_seed);
     const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rnd_op)};
 
     function = std::make_shared<ov::Model>(results, in_params, "RandomUniformLayerTestCPU");
 
     // todo: issue: 123320
     if (!ov::with_cpu_x86_avx512_core()) {
-        convert_precisions.insert({ ov::element::bf16, ov::element::f32 });
+        convert_precisions.insert({ov::element::bf16, ov::element::f32});
     }
     if (!ov::with_cpu_x86_avx512_core_fp16()) {
-        convert_precisions.insert({ ov::element::f16, ov::element::f32 });
+        convert_precisions.insert({ov::element::f16, ov::element::f32});
     }
 }
 
-template<typename TD, typename TS>
+template <typename TD, typename TS>
 void fill_data(TD* dst, const TS* src, size_t len) {
     for (size_t i = 0llu; i < len; i++) {
         dst[i] = static_cast<TD>(src[i]);
@@ -149,38 +158,39 @@ void RandomUniformLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& ta
         const auto& in_prc = func_input.get_element_type();
         auto tensor = ov::Tensor(in_prc, targetInputStaticShapes[i]);
 
-#define CASE(P, S, L)                                                              \
-case P :                                                                           \
-fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
+#define CASE(P, S, L)                                                           \
+    case P:                                                                     \
+        fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); \
+        break;
 
         if (name == "shape") {
             switch (in_prc) {
                 CASE(ElementType::i32, m_output_shape.data(), m_output_shape.size())
                 CASE(ElementType::i64, m_output_shape.data(), m_output_shape.size())
-                default:
-                    OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Shape input.");
+            default:
+                OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Shape input.");
             }
         } else if (name == "minval") {
             switch (in_prc) {
-                CASE(ElementType::f32,  &m_min_val, 1)
-                CASE(ElementType::f16,  &m_min_val, 1)
+                CASE(ElementType::f32, &m_min_val, 1)
+                CASE(ElementType::f16, &m_min_val, 1)
                 CASE(ElementType::bf16, &m_min_val, 1)
-                CASE(ElementType::i32,  &m_min_val, 1)
-                CASE(ElementType::i64,  &m_min_val, 1)
-                CASE(ElementType::f64,  &m_min_val, 1)
-                default:
-                    OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Minval input.");
+                CASE(ElementType::i32, &m_min_val, 1)
+                CASE(ElementType::i64, &m_min_val, 1)
+                CASE(ElementType::f64, &m_min_val, 1)
+            default:
+                OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Minval input.");
             }
         } else if (name == "maxval") {
             switch (in_prc) {
-                CASE(ElementType::f32,  &m_max_val, 1)
-                CASE(ElementType::f16,  &m_max_val, 1)
+                CASE(ElementType::f32, &m_max_val, 1)
+                CASE(ElementType::f16, &m_max_val, 1)
                 CASE(ElementType::bf16, &m_max_val, 1)
-                CASE(ElementType::i32,  &m_max_val, 1)
-                CASE(ElementType::i64,  &m_max_val, 1)
-                CASE(ElementType::f64,  &m_max_val, 1)
-                default:
-                    OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Maxval input.");
+                CASE(ElementType::i32, &m_max_val, 1)
+                CASE(ElementType::i64, &m_max_val, 1)
+                CASE(ElementType::f64, &m_max_val, 1)
+            default:
+                OPENVINO_THROW("RandomUniform does not support precision ", in_prc, " for the Maxval input.");
             }
         }
 
@@ -190,7 +200,8 @@ fill_data(tensor.data<ov::element_type_traits<P>::value_type>(), S, L); break;
     }
 }
 
-void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
+void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected,
+                                        const std::vector<ov::Tensor>& actual) {
     if (m_global_seed != 0lu || m_operational_seed != 0lu) {
         SubgraphBaseTest::compare(expected, actual);
         return;
@@ -199,7 +210,10 @@ void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected,
     // When both seed values are equal to zero, RandomUniform should generate non-deterministic sequence.
     // In this case will use Mean and Variance metrics.
 
-#define CASE(X) case X : rndUCompare<ov::element_type_traits<X>::value_type>(expected[0], actual[0]); break;
+#define CASE(X)                                                                      \
+    case X:                                                                          \
+        rndUCompare<ov::element_type_traits<X>::value_type>(expected[0], actual[0]); \
+        break;
 
     switch (expected[0].get_element_type()) {
         CASE(ElementType::f32)
@@ -208,7 +222,8 @@ void RandomUniformLayerTestCPU::compare(const std::vector<ov::Tensor>& expected,
         CASE(ElementType::bf16)
         CASE(ElementType::i64)
         CASE(ElementType::f64)
-        default: OPENVINO_THROW("Unsupported element type: ", expected[0].get_element_type());
+    default:
+        OPENVINO_THROW("Unsupported element type: ", expected[0].get_element_type());
     }
 
 #undef CASE
@@ -218,7 +233,7 @@ inline double less_or_equal(double a, double b) {
     return (b - a) >= (std::fmax(std::fabs(a), std::fabs(b)) * std::numeric_limits<double>::epsilon());
 }
 
-template<typename T>
+template <typename T>
 void RandomUniformLayerTestCPU::rndUCompare(const ov::Tensor& expected, const ov::Tensor& actual) {
     auto actual_data = actual.data<T>();
     size_t shape_size_cnt = ov::shape_size(expected.get_shape());
@@ -245,9 +260,8 @@ void RandomUniformLayerTestCPU::rndUCompare(const ov::Tensor& expected, const ov
 
     if (!(less_or_equal(rel_mean, m_mean_threshold) && less_or_equal(rel_variance, m_variance_threshold))) {
         std::ostringstream out_stream;
-        out_stream << "rel_mean < m_mean_threshold && rel_variance < m_variance_threshold" <<
-                "\n\t rel_mean: " << rel_mean <<
-                "\n\t rel_variance: " << rel_variance;
+        out_stream << "rel_mean < m_mean_threshold && rel_variance < m_variance_threshold"
+                   << "\n\t rel_mean: " << rel_mean << "\n\t rel_variance: " << rel_variance;
         throw std::runtime_error(out_stream.str());
     }
 }

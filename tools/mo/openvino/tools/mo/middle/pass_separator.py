@@ -56,4 +56,3 @@ class PostMiddleStart(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         pass
-

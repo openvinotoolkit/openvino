@@ -7,10 +7,10 @@ from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, rename_nodes
 from openvino.tools.mo.ops.Cast import Cast
-from openvino.tools.mo.ops.ReduceOps import ReduceProd
 from openvino.tools.mo.ops.elementwise import Add, Div, Mul
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.ops.range import Range
+from openvino.tools.mo.ops.ReduceOps import ReduceProd
 from openvino.tools.mo.ops.reshape import Reshape
 from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.ops.slice import Slice

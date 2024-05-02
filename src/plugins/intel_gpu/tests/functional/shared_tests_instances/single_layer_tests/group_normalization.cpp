@@ -18,12 +18,11 @@ const std::vector<ov::Shape> inputShapes = {
 };
 
 const std::vector<int64_t> numGroups = {
-    2, 4,
+    2,
+    4,
 };
 
-const std::vector<double> epsilon = {
-    0.0025
-};
+const std::vector<double> epsilon = {0.0025};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_GroupNormalization,
@@ -36,6 +35,6 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_GPU),
                      testing::Values(ov::AnyMap())),
-                     GroupNormalizationTest::getTestCaseName);
+    GroupNormalizationTest::getTestCaseName);
 
-} // anonymous namespace
+}  // anonymous namespace

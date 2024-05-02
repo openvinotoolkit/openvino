@@ -11,30 +11,36 @@ from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.load.loader import Loader
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.op import Op
-from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, \
-    get_enabled_and_disabled_transforms, clear_registered_classes_dict
+from openvino.tools.mo.utils.class_registration import (
+    _check_unique_ids,
+    clear_registered_classes_dict,
+    get_enabled_and_disabled_transforms,
+    update_registration,
+)
 from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
 def get_internal_dirs(framework: str, get_front_classes: callable):
     front_classes = get_front_classes()
     return {
-            ('ops', ): [Op],
-            ('analysis',): [AnalyzeAction],
-            ('load', framework): [Loader],
-            ('front', ): front_classes,
-            ('front', framework): front_classes,
-            ('front', framework, 'extractors'): front_classes,
-            ('middle', ): [MiddleReplacementPattern],
-            ('back', ): [BackReplacementPattern]}
+        ("ops",): [Op],
+        ("analysis",): [AnalyzeAction],
+        ("load", framework): [Loader],
+        ("front",): front_classes,
+        ("front", framework): front_classes,
+        ("front", framework, "extractors"): front_classes,
+        ("middle",): [MiddleReplacementPattern],
+        ("back",): [BackReplacementPattern],
+    }
 
-def import_by_path(path: str, middle_names: list = (), prefix: str = ''):
+
+def import_by_path(path: str, middle_names: list = (), prefix: str = ""):
     for module_loader, name, ispkg in pkgutil.iter_modules([path]):
-        importlib.import_module('{}{}.{}'.format(prefix, '.'.join(middle_names), name))
+        importlib.import_module("{}{}.{}".format(prefix, ".".join(middle_names), name))
 
 
 def default_path():
-    EXT_DIR_NAME = '.'
+    EXT_DIR_NAME = "."
     return os.path.abspath(os.getcwd().join(EXT_DIR_NAME))
 
 
@@ -73,14 +79,16 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
 
     internal_dirs = get_internal_dirs(framework, get_front_classes)
-    prefix = 'openvino.tools.' if ext == 'mo' else ''
+    prefix = "openvino.tools." if ext == "mo" else ""
 
-    exclude_modules = {'tf', 'onnx', 'kaldi', 'mxnet', 'caffe'}
+    exclude_modules = {"tf", "onnx", "kaldi", "mxnet", "caffe"}
     exclude_modules.remove(framework)
 
     for p in internal_dirs.keys():
         import_by_path(os.path.join(path, *p), [ext, *p], prefix)
-        update_registration(internal_dirs[p], enabled_transforms, disabled_transforms, exclude_modules)
+        update_registration(
+            internal_dirs[p], enabled_transforms, disabled_transforms, exclude_modules
+        )
     sys.path.remove(root_dir)
 
 
@@ -95,7 +103,9 @@ def load_dirs(framework: str, dirs: list, get_front_classes: callable):
             d.registered_ops = {}
     clear_registered_classes_dict()
 
-    mo_inner_extensions = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'mo'))
+    mo_inner_extensions = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "mo")
+    )
     dirs.insert(0, mo_inner_extensions)
     dirs = [os.path.abspath(e) for e in dirs]
     if default_path() not in dirs:

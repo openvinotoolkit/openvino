@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "detection_output_shape_inference.hpp"
+
 #include <gtest/gtest.h>
 
-#include "detection_output_shape_inference.hpp"
 #include "utils.hpp"
 
 using namespace ov;

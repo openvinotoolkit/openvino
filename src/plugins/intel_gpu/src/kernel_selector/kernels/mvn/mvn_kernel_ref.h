@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "mvn_kernel_base.h"
 #include <string>
 #include <vector>
+
+#include "mvn_kernel_base.h"
 
 namespace kernel_selector {
 class MVNKernelRef : public MVNKernelBase {
@@ -22,12 +23,7 @@ public:
 protected:
     JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE,
-            FusedOpType::REORDER
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE, FusedOpType::REORDER};
     }
     std::string GetKernelName(const mvn_params&) const override;
 };

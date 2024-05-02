@@ -4,23 +4,22 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-using roiPoolingParamsTuple = std::tuple<
-        std::vector<InputShape>,                    // Input, coords shapes
-        ov::Shape,                                  // Pooled shape {pooled_h, pooled_w}
-        float,                                      // Spatial scale
-        ov::test::utils::ROIPoolingTypes,           // ROIPooling method
-        ov::element::Type,                          // Model type
-        ov::test::TargetDevice>;                    // Device name
+using roiPoolingParamsTuple = std::tuple<std::vector<InputShape>,           // Input, coords shapes
+                                         ov::Shape,                         // Pooled shape {pooled_h, pooled_w}
+                                         float,                             // Spatial scale
+                                         ov::test::utils::ROIPoolingTypes,  // ROIPooling method
+                                         ov::element::Type,                 // Model type
+                                         ov::test::TargetDevice>;           // Device name
 
 class ROIPoolingLayerTest : public testing::WithParamInterface<roiPoolingParamsTuple>,
                             virtual public ov::test::SubgraphBaseTest {

@@ -2,37 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
-class gpu_streams: public ::testing::Test {
+class gpu_streams : public ::testing::Test {
 public:
     void test_can_create_networks_for_stream(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
-        set_values(input,
-                { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
-                    2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
-                    3.0f, -3.0f, 3.0f, 5.0f, 1.0f,
-                    1.0f, 1.0f, 1.0f, -1.0f, 1.0f });
-        VF<float> output_vec = {
-                1.0f, -1.0f, -1.5f, 4.0f, 5.0f,
-                2.0f, 2.0f, 3.0f, 4.0f, -3.0f,
-                3.0f, -1.5f, 3.0f, 5.0f, 1.0f,
-                1.0f, 1.0f, 1.0f, -0.5f, 1.0f };
+        auto input = engine.allocate_memory({data_types::f32, format::yxfb, {1, 1, 5, 4}});
+        set_values(input, {1.0f, -2.0f, -3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f,  -6.0f,
+                           3.0f, -3.0f, 3.0f,  5.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f});
+        VF<float> output_vec = {1.0f, -1.0f, -1.5f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f,  -3.0f,
+                                3.0f, -1.5f, 3.0f,  5.0f, 1.0f, 1.0f, 1.0f, 1.0f, -0.5f, 1.0f};
 
-        topology topology(
-                input_layout("input", input->get_layout()),
-                activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        topology topology(input_layout("input", input->get_layout()),
+                          activation("relu",
+                                     input_info("input"),
+                                     activation_func::relu_negative_slope,
+                                     activation_additional_params{0.5f, 0.f},
+                                     padding{{0, 0, 0, 0}, 0}));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
         auto outputs = network->execute();
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -60,20 +58,18 @@ public:
     void test_check_networks_can_use_the_same_weights(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+        auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 3, 2}});
 
-        VVF<float> output_vec = {
-                { 20.0f, 27.0f, 38.0f },
-                { 17.0f, 19.0f, 19.0f } };
+        VVF<float> output_vec = {{20.0f, 27.0f, 38.0f}, {17.0f, 19.0f, 19.0f}};
 
-        layout input0_layout(data_types::f32, format::yxfb, { 1, 1, 5, 4 });
+        layout input0_layout(data_types::f32, format::yxfb, {1, 1, 5, 4});
 
         topology topology(
-                input_layout("input", input0_layout),
-                data("weights", weights),
-                convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+            input_layout("input", input0_layout),
+            data("weights", weights),
+            convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
-        set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+        set_values(weights, {1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f});
 
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
@@ -99,11 +95,12 @@ public:
             network1 = std::make_shared<cldnn::network>(prog, 1);
         }
 
-
         auto input0 = engine.allocate_memory(input0_layout);
         auto input1 = engine.allocate_memory(input0_layout);
-        set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-        set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+        set_values(input0, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+                            3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+        set_values(input1, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+                            3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
         network0->set_input_data("input", input0);
         network1->set_input_data("input", input1);
@@ -148,20 +145,18 @@ public:
     void test_check_networks_use_unique_mutable_data_per_stream(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+        auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 3, 2}});
 
-        VVF<float> output_vec = {
-                { 20.0f, 27.0f, 38.0f },
-                { 17.0f, 19.0f, 19.0f } };
+        VVF<float> output_vec = {{20.0f, 27.0f, 38.0f}, {17.0f, 19.0f, 19.0f}};
 
-        layout input0_layout(data_types::f32, format::bfyx, { 1, 1, 5, 4 });
+        layout input0_layout(data_types::f32, format::bfyx, {1, 1, 5, 4});
 
         topology topology(
-                input_layout("input", input0_layout),
-                mutable_data("weights", weights),
-                convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+            input_layout("input", input0_layout),
+            mutable_data("weights", weights),
+            convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
-        set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+        set_values(weights, {1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f});
 
         cldnn::network::ptr network0;
         cldnn::network::ptr network1;
@@ -187,11 +182,12 @@ public:
             network1 = std::make_shared<cldnn::network>(prog, 1);
         }
 
-
         auto input0 = engine.allocate_memory(input0_layout);
         auto input1 = engine.allocate_memory(input0_layout);
-        set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-        set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+        set_values(input0, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+                            3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+        set_values(input1, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+                            3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
         network0->set_input_data("input", input0);
         network1->set_input_data("input", input1);

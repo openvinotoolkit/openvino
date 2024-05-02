@@ -135,11 +135,15 @@ protected:
                 const auto dataTypeSize = funcInput.get_element_type().size();
                 in_data.start_from = 0;
                 in_data.range = dataTypeSize == 4 ? 0x7FFFFFFF : dataTypeSize == 2 ? 0xFFFF : 0xFF;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[0],
+                                                                 in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "indices") {
                 in_data.start_from = -axisDim;
                 in_data.range = axisDim * 2;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[1], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[1],
+                                                                 in_data);
             } else if (funcInput.get_node()->get_friendly_name() == "axis") {
                 in_data.start_from = axis;
                 in_data.range = 1;

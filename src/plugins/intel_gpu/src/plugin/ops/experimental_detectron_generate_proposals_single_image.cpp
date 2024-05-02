@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/experimental_detectron_generate_proposals.hpp"
-
-#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
-        ProgramBuilder& p,
-        const std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
+    ProgramBuilder& p,
+    const std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 2) {
         OPENVINO_THROW("ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs");
@@ -41,8 +40,15 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     inputs.push_back(cldnn::input_info(mutable_id_w));
 
     const cldnn::experimental_detectron_generate_proposals_single_image prim{layer_name,
-                             inputs[0], inputs[1], inputs[2], inputs[3], inputs.back(),
-                             attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count};
+                                                                             inputs[0],
+                                                                             inputs[1],
+                                                                             inputs[2],
+                                                                             inputs[3],
+                                                                             inputs.back(),
+                                                                             attrs.min_size,
+                                                                             attrs.nms_threshold,
+                                                                             attrs.pre_nms_count,
+                                                                             attrs.post_nms_count};
 
     p.add_primitive(*op, prim);
 

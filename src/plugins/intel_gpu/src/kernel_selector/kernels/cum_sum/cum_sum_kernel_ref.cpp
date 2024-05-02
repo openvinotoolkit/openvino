@@ -3,9 +3,11 @@
 //
 
 #include "cum_sum_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey CumSumKernelRef::GetSupportedKey() const {
@@ -56,7 +58,8 @@ JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, Disp
                 }
             }
 
-            jits.AddConstant(MakeJitConstant("STOP_IND", toShapeInfoString(0, shape_info_idx, true, num_of_dynamic_inputs)));
+            jits.AddConstant(
+                MakeJitConstant("STOP_IND", toShapeInfoString(0, shape_info_idx, true, num_of_dynamic_inputs)));
         }
     }
 

@@ -3,37 +3,41 @@
 //
 
 #include "subgraph_softmax.hpp"
+
+#include <snippets/op/subgraph.hpp>
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include <snippets/op/subgraph.hpp>
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 namespace {
-std::shared_ptr<ov::Node> buildSoftmax(const ov::Output<ov::Node>& input, int64_t axis, SoftmaxVersion softmax_version) {
+std::shared_ptr<ov::Node> buildSoftmax(const ov::Output<ov::Node>& input,
+                                       int64_t axis,
+                                       SoftmaxVersion softmax_version) {
     switch (softmax_version) {
-        case SoftmaxVersion::V1: {
-            OPENVINO_ASSERT(axis > 0, "v1::Softmax supports only positive axis.");
-            return std::make_shared<ov::op::v1::Softmax>(input, static_cast<size_t>(axis));
-        }
-        case SoftmaxVersion::V8:
-            return std::make_shared<ov::op::v8::Softmax>(input, axis);
-        default:
-            OPENVINO_THROW("Unexpected SoftmaxVersion.");
+    case SoftmaxVersion::V1: {
+        OPENVINO_ASSERT(axis > 0, "v1::Softmax supports only positive axis.");
+        return std::make_shared<ov::op::v1::Softmax>(input, static_cast<size_t>(axis));
+    }
+    case SoftmaxVersion::V8:
+        return std::make_shared<ov::op::v8::Softmax>(input, axis);
+    default:
+        OPENVINO_THROW("Unexpected SoftmaxVersion.");
     }
 }
 }  // namespace
 
-std::ostream &operator<<(std::ostream& os, const SoftmaxVersion& version) {
+std::ostream& operator<<(std::ostream& os, const SoftmaxVersion& version) {
     switch (version) {
-        case SoftmaxVersion::V1:
-            return os << "V1";
-        case SoftmaxVersion::V8:
-            return os << "V8";
-        default:
-            OPENVINO_THROW("Unexpected SoftmaxVersion.");
+    case SoftmaxVersion::V1:
+        return os << "V1";
+    case SoftmaxVersion::V8:
+        return os << "V8";
+    default:
+        OPENVINO_THROW("Unexpected SoftmaxVersion.");
     }
 }
 
@@ -68,23 +72,29 @@ std::shared_ptr<ov::Model> AddSoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> TransposeSoftmaxFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
-    const auto transpose0Const = ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()}, m_order);
+    const auto transpose0Const =
+        ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()}, m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(transpose2, m_axis);
-    return std::make_shared<ov::Model>(ov::NodeVector{softMax}, ov::ParameterVector {transpose0Param}, "softmax_transpose");
+    return std::make_shared<ov::Model>(ov::NodeVector{softMax},
+                                       ov::ParameterVector{transpose0Param},
+                                       "softmax_transpose");
 }
 
 std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
-    const auto transpose0Const = ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()},
-                                                               m_order);
+    const auto transpose0Const =
+        ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()}, m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto mulConst = ov::test::utils::deprecated::make_constant(ov::element::f32, transpose2->get_shape(),
-                                                        std::vector<float>{}, true);
+    const auto mulConst = ov::test::utils::deprecated::make_constant(ov::element::f32,
+                                                                     transpose2->get_shape(),
+                                                                     std::vector<float>{},
+                                                                     true);
     const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose2, mulConst);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(mul, m_axis);
     const auto hswish = std::make_shared<ov::op::v4::HSwish>(softMax);
-    return std::make_shared<ov::Model>(ov::NodeVector{hswish}, ov::ParameterVector{transpose0Param},
+    return std::make_shared<ov::Model>(ov::NodeVector{hswish},
+                                       ov::ParameterVector{transpose0Param},
                                        "softmax_transpose");
 }
 

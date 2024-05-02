@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "experimental_detectron_topk_rois_inst.h"
-#include "ed_topkroi/topk_rois_ref.h"
 #include "ed_topkroi/topk_rois_kernel_selector.h"
+#include "ed_topkroi/topk_rois_ref.h"
+#include "experimental_detectron_topk_rois_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -52,8 +51,8 @@ attach_experimental_detectron_topk_rois_impl::attach_experimental_detectron_topk
 
 }  // namespace detail
 
-} // namespace ocl
-} // namespace cldnn
+}  // namespace ocl
+}  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_topk_rois_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_topk_rois)

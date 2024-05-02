@@ -3,13 +3,13 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.eye import MXEye
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.eye import MXEye
 
 
 class EyeExtractor(FrontExtractorOp):
-    op = '_eye'
+    op = "_eye"
     enabled = True
 
     @classmethod
@@ -21,6 +21,11 @@ class EyeExtractor(FrontExtractorOp):
             num_columns = num_rows
         diagonal_index = attrs.int("k", 0)
         out_type = attrs.dtype("dtype", np.float32)
-        new_attrs = {'num_rows': num_rows, 'num_columns': num_columns, 'diagonal_index': diagonal_index, 'output_type': out_type}
+        new_attrs = {
+            "num_rows": num_rows,
+            "num_columns": num_columns,
+            "diagonal_index": diagonal_index,
+            "output_type": out_type,
+        }
         MXEye.update_node_stat(node, new_attrs)
         return cls.enabled

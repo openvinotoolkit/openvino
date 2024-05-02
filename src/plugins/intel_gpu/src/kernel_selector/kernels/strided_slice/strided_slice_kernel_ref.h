@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "kernel_base_opencl.h"
 #include <vector>
+
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 
@@ -30,19 +31,22 @@ struct strided_slice_params : public base_params {
 
     uint32_t GetIndexBegin() const {
         uint32_t input_idx = 0;
-        if (begin_type == base_params::ArgType::Input) input_idx++;
+        if (begin_type == base_params::ArgType::Input)
+            input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexEnd() const {
         uint32_t input_idx = GetIndexBegin();
-        if (end_type == base_params::ArgType::Input) input_idx++;
+        if (end_type == base_params::ArgType::Input)
+            input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexStride() const {
         uint32_t input_idx = GetIndexEnd();
-        if (stride_type == base_params::ArgType::Input) input_idx++;
+        if (stride_type == base_params::ArgType::Input)
+            input_idx++;
         return input_idx;
     }
 };
@@ -62,7 +66,7 @@ protected:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ACTIVATION };
+        return {FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

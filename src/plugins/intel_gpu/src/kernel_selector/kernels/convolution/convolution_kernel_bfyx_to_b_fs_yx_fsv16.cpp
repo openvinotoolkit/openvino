@@ -3,9 +3,11 @@
 //
 
 #include "convolution_kernel_bfyx_to_b_fs_yx_fsv16.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <algorithm>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -129,29 +131,30 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf_vec = { "_VEC",
-                                           {"b", "(f_block*16)", "y", "x"},
-                                           "dst",
-                                           input_dt,
-                                           blockWidth,
-                                           LoadType::LT_ALIGNED_READ,
-                                           BoundaryCheck::ENABLED,
-                                           IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::X };
-        FusedOpsConfiguration conf_scalar = { "_SCALAR",
-                                              {"b", "(f_block*16)", "y", "(x+i)"},
-                                              "dst[i]",
-                                              input_dt,
-                                              1,
-                                              LoadType::LT_ALIGNED_READ,
-                                              BoundaryCheck::ENABLED,
-                                              IndexType::TENSOR_COORD,
-                                              Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_vec = {"_VEC",
+                                          {"b", "(f_block*16)", "y", "x"},
+                                          "dst",
+                                          input_dt,
+                                          blockWidth,
+                                          LoadType::LT_ALIGNED_READ,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X};
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             {"b", "(f_block*16)", "y", "(x+i)"},
+                                             "dst[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_ALIGNED_READ,
+                                             BoundaryCheck::ENABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 
-    size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1,
-                                      input.X().v + input.X().pad.Total());
+    size_t input_line_size =
+        std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
+                 input.X().v + input.X().pad.Total());
     size_t input_block_size = CeilDiv(input_line_size * params.filterSize.y, sub_group_size);
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));

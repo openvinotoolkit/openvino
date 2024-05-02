@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/reshape.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/reshape.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/reshape.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 
@@ -54,9 +54,9 @@ public:
 
         actualFunction =
             ov::builder::subgraph::ReshapeFunction::getOriginal(testValues.inputShape,
-                                                                    testValues.reshapeConstValues,
-                                                                    testValues.actual.precisionBeforeDequantization,
-                                                                    testValues.actual.dequantization);
+                                                                testValues.reshapeConstValues,
+                                                                testValues.actual.precisionBeforeDequantization,
+                                                                testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::ReshapeTransformation, ov::op::v1::Reshape>(testValues.params);
@@ -64,11 +64,11 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::ReshapeFunction::getReference(testValues.inputShape,
-                                                                     testValues.reshapeConstValues,
-                                                                     testValues.expected.precisionBeforeDequantization,
-                                                                     testValues.expected.dequantizationBefore,
-                                                                     testValues.expected.precisionAfterOperation,
-                                                                     testValues.expected.dequantizationAfter);
+                                                                 testValues.reshapeConstValues,
+                                                                 testValues.expected.precisionBeforeDequantization,
+                                                                 testValues.expected.dequantizationBefore,
+                                                                 testValues.expected.precisionAfterOperation,
+                                                                 testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ReshapeTransformationTestValues> obj) {
@@ -221,12 +221,8 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     {{100, 4, 1, 1},
      {-1, 1, 400},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f, 0.1f, 0.1f, 0.1f}, ov::element::f32, {1, 4, 1, 1}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 0.1f, 0.1f, 0.1f}, ov::element::f32, {1, 4, 1, 1}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 6D: channels are not affected: no subtract
     {{1, 3, 4, 5},
      {1, 3, 20, 1, 1, 1},
@@ -350,8 +346,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
     {{1, 3, 4, 5},
      {0, -1},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, ov::element::f32, {}}, {{0.1f}, ov::element::f32, {}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, ov::element::f32, {}}, {{0.1f}, ov::element::f32, {}}}},
      {ov::element::u8,
       {},
       ov::element::u8,
@@ -485,61 +480,42 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
      {1, -1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 2D
     {{2, 2048, 1, 1},
      {2, -1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {1ul}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 2D
     {{1, 2048, 1, 1},
      {1, -1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {1, 1, 1, 1}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 2D: channels are not affected
     {{2, 2048, 1, 1},
      {2, -1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {1, 1, 1, 1}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 2D: channels are not affected, dynamic batch
     {{-1, 2048, 1, 1},
      {0, -1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {1, 1, 1, 1}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: no subtract 4D -> 4D: channels are affected
     {{1, 64, 320, 1},
      {0, 2, 3, 1},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}},
-     {ov::element::u8,
-      {{}, {}, {}},
-      ov::element::u8,
-      {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
+     {ov::element::u8, {{}, {}, {}}, ov::element::u8, {{ov::element::f32}, {}, {{0.1f}, ov::element::f32, {}}}}},
     // U8: with subtract 4D -> 4D: channels are affected
     {{1, 64, 320, 1},
      {0, 2, 3, 1},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f}, ov::element::f32, {}}, {{0.1f}, ov::element::f32, {}}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f}, ov::element::f32, {}}, {{0.1f}, ov::element::f32, {}}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
@@ -611,10 +587,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
      {},
      LayerTransformation::createParamsU8I8(),
      {ov::element::u8, {{ov::element::f32}, {{128.f, 124.f, 120.f}}, {{0.1f, 1.f, 10.f}}}},
-     {ov::element::u8,
-      {{ov::element::f32}, {{128.f, 124.f, 120.f}}, {{0.1f, 1.f, 10.f}}},
-      ov::element::f32,
-      {}}},
+     {ov::element::u8, {{ov::element::f32}, {{128.f, 124.f, 120.f}}, {{0.1f, 1.f, 10.f}}}, ov::element::f32, {}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

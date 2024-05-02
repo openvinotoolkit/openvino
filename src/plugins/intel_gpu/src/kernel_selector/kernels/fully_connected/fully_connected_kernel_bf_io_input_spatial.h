@@ -20,6 +20,8 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1, int kernel_number = 0) const override;
+    DispatchData SetDefault(const fully_connected_params& arg,
+                            int autoTuneIndex = -1,
+                            int kernel_number = 0) const override;
 };
 }  // namespace kernel_selector

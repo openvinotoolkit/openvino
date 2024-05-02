@@ -3,9 +3,10 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
 #include "intel_gpu/graph/serialization/activation_serializer.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -63,8 +64,12 @@ enum class activation_func {
 struct activation_additional_params {
     float a, b;
 
-    void save(BinaryOutputBuffer& ob) const { ob << a << b; }
-    void load(BinaryInputBuffer& ib) { ib >> a >> b; }
+    void save(BinaryOutputBuffer& ob) const {
+        ob << a << b;
+    }
+    void load(BinaryInputBuffer& ib) {
+        ib >> a >> b;
+    }
 };
 
 /// @brief Activation using rectified linear unit or parameterized rectified linear unit.
@@ -78,9 +83,7 @@ struct activation_additional_params {
 struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
-    activation() : primitive_base("", {}),
-                   activation_function(activation_func::none),
-                   additional_params({0.f, 0.f}) {}
+    activation() : primitive_base("", {}), activation_function(activation_func::none), additional_params({0.f, 0.f}) {}
 
     /// @brief Constructs Relu primitive.
     /// @param id This primitive id.
@@ -101,8 +104,8 @@ struct activation : public primitive_base<activation> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param additional_params_input additional params stored on a memory.
-    /// Input x dimension should be equal to input feature size (one value per channel. in case of linear is one pair per channel).
-    /// All other dimensions should be 1.
+    /// Input x dimension should be equal to input feature size (one value per channel. in case of linear is one pair
+    /// per channel). All other dimensions should be 1.
     activation(const primitive_id& id,
                const input_info& input,
                const primitive_id& additional_params_input,

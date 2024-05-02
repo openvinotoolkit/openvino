@@ -10,6 +10,7 @@ import numpy as np
 class PB(dict):
     def update_node(self):
         pass
+
     __getattr__ = dict.get
 
 
@@ -20,13 +21,13 @@ class BaseExtractorsTestingClass(unittest.TestCase):
     expected_call_args = None
 
     def setUp(self):
-        if hasattr(self, 'patcher') and self.patcher:  # pylint: disable=no-member
+        if hasattr(self, "patcher") and self.patcher:  # pylint: disable=no-member
             patcher = patch(self.patcher)  # pylint: disable=no-member
             self.addCleanup(patcher.stop)
             self.infer_mock = patcher.start()
 
     def compare(self):
-        if hasattr(self, 'infer_mock'):
+        if hasattr(self, "infer_mock"):
             self.assertTrue(self.infer_mock.called)
         for key, val in self.expected.items():
             if key == "infer":
@@ -36,9 +37,14 @@ class BaseExtractorsTestingClass(unittest.TestCase):
             elif type(val) is list:
                 self.assertTrue(np.all([val == self.res[key]]))
             else:
-                self.assertAlmostEqual(val, self.res[key], 7,
-                                       "{} attribute comparison failed! Expected {} but {} given.".format(key, val,
-                                                                                                    self.res[key]))
+                self.assertAlmostEqual(
+                    val,
+                    self.res[key],
+                    7,
+                    "{} attribute comparison failed! Expected {} but {} given.".format(
+                        key, val, self.res[key]
+                    ),
+                )
 
 
 class FakeParam:
@@ -49,7 +55,7 @@ class FakeParam:
 class FakeMultiParam:
     def __init__(self, dict_values):
         self.dict_values = dict_values
-        for (key, value) in dict_values.items():
+        for key, value in dict_values.items():
             # if type(value) != dict:
             setattr(self, key, value)
             # else:
@@ -63,7 +69,7 @@ class FakeBlob:
 
 class FakeModelLayer:
     def __init__(self, blobs_val):
-        self.blobs = [FakeBlob('data', val) for val in blobs_val]
+        self.blobs = [FakeBlob("data", val) for val in blobs_val]
 
 
 class FakeValue:

@@ -3,9 +3,11 @@
 //
 
 #include "scatter_elements_update_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update_params& params) {
@@ -13,20 +15,20 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
 
     const size_t input_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
-        case ScatterUpdateAxis::X:
-            return (size_t)(input_size - 1);
-        case ScatterUpdateAxis::Y:
-            return (size_t)(input_size - 2);
-        case ScatterUpdateAxis::Z:
-            return (size_t)(input_size - 3);
-        case ScatterUpdateAxis::W:
-            return 2;
-        case ScatterUpdateAxis::FEATURE:
-            return 1;
-        case ScatterUpdateAxis::BATCH:
-            return 0;
-        default:
-            break;
+    case ScatterUpdateAxis::X:
+        return (size_t)(input_size - 1);
+    case ScatterUpdateAxis::Y:
+        return (size_t)(input_size - 2);
+    case ScatterUpdateAxis::Z:
+        return (size_t)(input_size - 3);
+    case ScatterUpdateAxis::W:
+        return 2;
+    case ScatterUpdateAxis::FEATURE:
+        return 1;
+    case ScatterUpdateAxis::BATCH:
+        return 0;
+    default:
+        break;
     }
 
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
@@ -34,31 +36,31 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
 
 ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    const std::vector<Datatype> supportedTypes{
-        Datatype::F16, Datatype::F32, Datatype::INT32, Datatype::INT8, Datatype::UINT8
-    };
+    const std::vector<Datatype> supportedTypes{Datatype::F16,
+                                               Datatype::F32,
+                                               Datatype::INT32,
+                                               Datatype::INT8,
+                                               Datatype::UINT8};
     for (const auto t : supportedTypes) {
         k.EnableInputDataType(t);
         k.EnableOutputDataType(t);
     }
 
-    const std::vector<DataLayout> supportedLayots{
-        DataLayout::bfyx,
-        DataLayout::b_fs_yx_fsv16,
-        DataLayout::b_fs_yx_fsv32,
-        DataLayout::bs_fs_yx_bsv16_fsv16,
-        DataLayout::bs_fs_yx_bsv32_fsv16,
-        DataLayout::bs_fs_yx_bsv16_fsv32,
-        DataLayout::bs_fs_yx_bsv32_fsv32,
-        DataLayout::bfzyx,
-        DataLayout::b_fs_zyx_fsv16,
-        DataLayout::b_fs_zyx_fsv32,
-        DataLayout::bs_fs_zyx_bsv16_fsv32,
-        DataLayout::bs_fs_zyx_bsv16_fsv16,
-        DataLayout::bs_fs_zyx_bsv32_fsv32,
-        DataLayout::bs_fs_zyx_bsv32_fsv16,
-        DataLayout::bfwzyx
-    };
+    const std::vector<DataLayout> supportedLayots{DataLayout::bfyx,
+                                                  DataLayout::b_fs_yx_fsv16,
+                                                  DataLayout::b_fs_yx_fsv32,
+                                                  DataLayout::bs_fs_yx_bsv16_fsv16,
+                                                  DataLayout::bs_fs_yx_bsv32_fsv16,
+                                                  DataLayout::bs_fs_yx_bsv16_fsv32,
+                                                  DataLayout::bs_fs_yx_bsv32_fsv32,
+                                                  DataLayout::bfzyx,
+                                                  DataLayout::b_fs_zyx_fsv16,
+                                                  DataLayout::b_fs_zyx_fsv32,
+                                                  DataLayout::bs_fs_zyx_bsv16_fsv32,
+                                                  DataLayout::bs_fs_zyx_bsv16_fsv16,
+                                                  DataLayout::bs_fs_zyx_bsv32_fsv32,
+                                                  DataLayout::bs_fs_zyx_bsv32_fsv16,
+                                                  DataLayout::bfwzyx};
     for (const auto l : supportedLayots) {
         k.EnableInputLayout(l);
         k.EnableOutputLayout(l);
@@ -84,7 +86,8 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, bool is_second) const {
+CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params,
+                                                              bool is_second) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -123,7 +126,8 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
         break;
     }
 
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -139,8 +143,14 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
     }
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
-        FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.outputs[0].GetDims().size()), "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf1 = {"_FIRST_KERNEL",
+                                       GetDefaultOrder(params.outputs[0].GetDims().size()),
+                                       "val",
+                                       params.inputs[0].GetDType()};
+        FusedOpsConfiguration conf2 = {"_SECOND_KERNEL",
+                                       GetDefaultOrder(params.outputs[0].GetDims().size()),
+                                       "val",
+                                       params.inputs[0].GetDType()};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
     }
 
@@ -148,7 +158,7 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 }
 
 bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
-    if (p.GetType() != KernelType:: SCATTER_ELEMENTS_UPDATE) {
+    if (p.GetType() != KernelType::SCATTER_ELEMENTS_UPDATE) {
         return false;
     }
 
@@ -182,7 +192,17 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         clKernelData& kernel = kd.kernels[i];
 
-        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params));
+        FillCLKernelData(kernel,
+                         dispatchData,
+                         params.engineInfo,
+                         kernelName,
+                         jit,
+                         entry_point,
+                         "",
+                         false,
+                         false,
+                         3,
+                         GetFusedPrimitiveInputsCount(params));
     }
 
     return {kd};

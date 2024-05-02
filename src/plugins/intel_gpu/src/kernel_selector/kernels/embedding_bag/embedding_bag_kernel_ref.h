@@ -12,7 +12,10 @@ namespace kernel_selector {
 // embedding_bag_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct embedding_bag_params : public base_params {
-    embedding_bag_params() : base_params(KernelType::EMBEDDING_BAG), type(EmbeddingBagType::PACKED_SUM), default_index(-1) {}
+    embedding_bag_params()
+        : base_params(KernelType::EMBEDDING_BAG),
+          type(EmbeddingBagType::PACKED_SUM),
+          default_index(-1) {}
 
     EmbeddingBagType type;
     int32_t default_index;

@@ -39,8 +39,8 @@ int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {
             throw std::runtime_error(ss.str());
         }
     } else {
-        OPENVINO_DEBUG << "Environment variable (" << env_var << ") empty or undefined, "
-                       << " defaulted to " << default_value << " here.";
+        OPENVINO_DEBUG << "Environment variable (" << env_var << ") empty or undefined, " << " defaulted to "
+                       << default_value << " here.";
     }
     return env;
 }

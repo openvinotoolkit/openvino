@@ -4,17 +4,16 @@
 
 #include "op_conformance_utils/utils/file.hpp"
 
-#include <set>
 #include <cstring>
+#include <set>
 
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace util {
 
-std::vector<std::string>
-get_filelist_recursive(const std::vector<std::string>& dir_paths,
-                       const std::vector<std::regex>& patterns) {
+std::vector<std::string> get_filelist_recursive(const std::vector<std::string>& dir_paths,
+                                                const std::vector<std::regex>& patterns) {
     std::vector<std::string> result;
     for (auto&& dir_path : dir_paths) {
         if (!ov::util::directory_exists(dir_path)) {
@@ -40,9 +39,8 @@ get_filelist_recursive(const std::vector<std::string>& dir_paths,
     return result;
 }
 
-std::vector<std::string>
-read_lst_file(const std::vector<std::string>& file_paths,
-              const std::vector<std::regex>& patterns) {
+std::vector<std::string> read_lst_file(const std::vector<std::string>& file_paths,
+                                       const std::vector<std::regex>& patterns) {
     std::vector<std::string> res;
     for (const auto& file_path : file_paths) {
         if (!ov::util::file_exists(file_path)) {
@@ -83,8 +81,7 @@ std::string replace_extension(std::string file, const std::string& new_extension
     return file;
 }
 
-std::vector<std::string>
-split_str(std::string paths, const char delimiter) {
+std::vector<std::string> split_str(std::string paths, const char delimiter) {
     size_t delimiterPos;
     std::vector<std::string> splitPath;
     while ((delimiterPos = paths.find(delimiter)) != std::string::npos) {

@@ -62,9 +62,9 @@ message CostGraphDef {
     // Persistent memory used by this node.
     int64 persistent_memory_size = 12;
 
-    int64 host_temp_memory_size = 10 [deprecated = true];
-    int64 device_temp_memory_size = 11 [deprecated = true];
-    int64 device_persistent_memory_size = 16 [deprecated = true];
+    int64 host_temp_memory_size = 10 [ deprecated = true ];
+    int64 device_temp_memory_size = 11 [ deprecated = true ];
+    int64 device_persistent_memory_size = 16 [ deprecated = true ];
 
     // Estimate of the computational cost of this node, in microseconds.
     int64 compute_cost = 9;

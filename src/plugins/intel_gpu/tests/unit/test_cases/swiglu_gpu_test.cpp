@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
+
 #include "swiglu_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -43,21 +43,30 @@ void swiglu_ref(const memory::ptr input, memory::ptr output, int32_t split_lengt
                 }
             }
         }
-     }
+    }
 }
 
 TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
     auto& engine = get_test_engine();
 
-    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 6},
-                                       data_types::f32, format::bfyx};
+    auto input_layout_dynamic =
+        layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 6}, data_types::f32, format::bfyx};
     auto input_mem = engine.allocate_memory({ov::PartialShape{2, 1, 6}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 3}, data_types::f32, format::bfyx});
 
-    set_values(input_mem, {
-        0.049011f, 0.000260f, -0.176636f, 0.016098f, 0.279297f, 0.036377f,
-        -0.127686f, 0.066650f, -0.394043f, -0.135620f, 0.040985f, -0.011589f
-    });
+    set_values(input_mem,
+               {0.049011f,
+                0.000260f,
+                -0.176636f,
+                0.016098f,
+                0.279297f,
+                0.036377f,
+                -0.127686f,
+                0.066650f,
+                -0.394043f,
+                -0.135620f,
+                0.040985f,
+                -0.011589f});
 
     swiglu_ref<float>(input_mem, output_ref, 3);
 

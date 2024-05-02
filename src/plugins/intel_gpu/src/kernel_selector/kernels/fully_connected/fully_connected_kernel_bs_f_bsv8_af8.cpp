@@ -30,13 +30,14 @@ DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key
 }
 
 FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefault(const fully_connected_params& arg,
-                                                                                    int, int /*kernel_number*/) const {
+                                                                                    int,
+                                                                                    int /*kernel_number*/) const {
     auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
-    dispatchData.gws[0] =
-        Align(arg.outputs[0].LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches),
-              8);
+    dispatchData.gws[0] = Align(
+        arg.outputs[0].LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches),
+        8);
     dispatchData.gws[1] = groups_per_batches;
     dispatchData.lws[0] = 8;
     dispatchData.lws[1] = 1;

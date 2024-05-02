@@ -33,14 +33,15 @@ const auto ctcLossArgsSubset1 = testing::Combine(
     testing::ValuesIn(ctcMergeRepeated),
     testing::ValuesIn(unique));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CTCLoss_Set1,
-                         CTCLossLayerTest,
-                         testing::Combine(ctcLossArgsSubset1,
-                                        testing::Values(ov::test::static_shapes_to_test_representation({{2, 3, 3}})),  // logits shape
-                                        testing::ValuesIn(fPrecisions),
-                                        testing::ValuesIn(iPrecisions),
-                                        testing::Values(ov::test::utils::DEVICE_GPU)),
-                         CTCLossLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_CTCLoss_Set1,
+    CTCLossLayerTest,
+    testing::Combine(ctcLossArgsSubset1,
+                     testing::Values(ov::test::static_shapes_to_test_representation({{2, 3, 3}})),  // logits shape
+                     testing::ValuesIn(fPrecisions),
+                     testing::ValuesIn(iPrecisions),
+                     testing::Values(ov::test::utils::DEVICE_GPU)),
+    CTCLossLayerTest::getTestCaseName);
 
 const auto ctcLossArgsSubset2 =
     testing::Combine(testing::ValuesIn(std::vector<std::vector<int>>({{6, 5, 6}, {5, 5, 5}})),  // logits length
@@ -53,12 +54,13 @@ const auto ctcLossArgsSubset2 =
                      testing::ValuesIn(ctcMergeRepeated),
                      testing::ValuesIn(unique));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CTCLoss_Set2,
-                         CTCLossLayerTest,
-                         testing::Combine(ctcLossArgsSubset2,
-                                        testing::Values(ov::test::static_shapes_to_test_representation({{3, 6, 8}})),  // logits shape
-                                        testing::ValuesIn(fPrecisions),
-                                        testing::ValuesIn(iPrecisions),
-                                        testing::Values(ov::test::utils::DEVICE_GPU)),
-                         CTCLossLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_CTCLoss_Set2,
+    CTCLossLayerTest,
+    testing::Combine(ctcLossArgsSubset2,
+                     testing::Values(ov::test::static_shapes_to_test_representation({{3, 6, 8}})),  // logits shape
+                     testing::ValuesIn(fPrecisions),
+                     testing::ValuesIn(iPrecisions),
+                     testing::Values(ov::test::utils::DEVICE_GPU)),
+    CTCLossLayerTest::getTestCaseName);
 }  // namespace

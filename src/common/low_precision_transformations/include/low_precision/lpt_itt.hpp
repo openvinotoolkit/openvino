@@ -9,7 +9,6 @@
 
 #pragma once
 
-
 #include "openvino/itt.hpp"
 
 namespace ov {
@@ -21,8 +20,8 @@ namespace domains {
 OV_ITT_DOMAIN(LPT);
 OV_ITT_DOMAIN(LPT_LT);
 
-} // namespace domains
-} // namespace itt
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace domains
+}  // namespace itt
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

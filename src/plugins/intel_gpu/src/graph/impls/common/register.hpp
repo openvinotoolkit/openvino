@@ -5,11 +5,10 @@
 #pragma once
 
 #include "intel_gpu/primitives/condition.hpp"
-#include "intel_gpu/primitives/loop.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/loop.hpp"
 #include "intel_gpu/primitives/prior_box.hpp"
-
 
 namespace cldnn {
 namespace common {
@@ -17,9 +16,9 @@ void register_implementations();
 
 namespace detail {
 
-#define REGISTER_COMMON(prim)           \
-    struct attach_##prim##_common {     \
-        attach_##prim##_common();       \
+#define REGISTER_COMMON(prim)       \
+    struct attach_##prim##_common { \
+        attach_##prim##_common();   \
     }
 
 REGISTER_COMMON(condition);

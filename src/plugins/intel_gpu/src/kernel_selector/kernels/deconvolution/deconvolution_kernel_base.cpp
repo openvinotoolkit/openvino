@@ -3,10 +3,12 @@
 //
 
 #include "deconvolution_kernel_base.h"
-#include "kernel_selector_utils.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 std::string deconvolution_params::to_string() const {
@@ -14,8 +16,7 @@ std::string deconvolution_params::to_string() const {
 
     s << base_params::to_string() << "_";
     if (bias.empty()) {
-        s << "no_bias"
-          << "_";
+        s << "no_bias" << "_";
     } else {
         s << "bias_size:" << bias[0].PhysicalSize() << "_";
     }
@@ -61,12 +62,12 @@ JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params
                                         (dp.filterSize.y - 1 + padding.y) * input.Y().pitch;
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
-    jit.AddConstants({ MakeJitConstant("STRIDE", dp.stride),
-                       MakeJitConstant("PADDING", dp.padding),
-                       MakeJitConstant("DILATION", dp.dilation),
-                       MakeJitConstant("FILTER_ARRAY_NUM", 1),
-                       MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-                       MakeJitConstant("GROUPED", (dp.groups > 1) ? 1 : 0) });
+    jit.AddConstants({MakeJitConstant("STRIDE", dp.stride),
+                      MakeJitConstant("PADDING", dp.padding),
+                      MakeJitConstant("DILATION", dp.dilation),
+                      MakeJitConstant("FILTER_ARRAY_NUM", 1),
+                      MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
+                      MakeJitConstant("GROUPED", (dp.groups > 1) ? 1 : 0)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(dp), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(dp), "ACTIVATION"));
 
@@ -100,7 +101,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params) const 
     assert(params.GetType() == KernelType::DECONVOLUTION);
 
     if (!Validate(params)) {
-        return{};
+        return {};
     }
 
     const deconvolution_params& orgParams = static_cast<const deconvolution_params&>(params);

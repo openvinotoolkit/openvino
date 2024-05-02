@@ -4,12 +4,12 @@
 
 #include "snippets/lowered/pass/split_loops.hpp"
 
-#include "snippets/lowered/pass/fuse_loops.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -70,7 +70,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
 
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
-                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
+                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir,
+                                                                      loop_to_split_id,
                                                                       loop_to_split->get_entry_points(),
                                                                       loop_to_split->get_exit_points());
                 const auto split_loop_id = loop_manager->mark_loop(loop_bounds.first,
@@ -86,7 +87,9 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 const auto tail_size = work_amount % increment;
                 auto new_handlers = loop_to_split->get_handlers();
                 if (tail_size != 0) {
-                    new_handlers.register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                    new_handlers
+                        .register_handler<SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(
+                            tail_size);
                 }
                 new_loop_info->set_handlers(new_handlers);
                 break;
@@ -100,7 +103,7 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         FuseLoops().run(linear_ir, begin, end);
     return loop_was_split;
 }
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

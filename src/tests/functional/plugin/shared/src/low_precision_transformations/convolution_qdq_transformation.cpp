@@ -5,17 +5,17 @@
 #include "low_precision_transformations/convolution_qdq_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
+std::string ConvolutionQDqTransformation::getTestCaseName(
+    const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     std::string targetDevice;
@@ -37,17 +37,16 @@ void ConvolutionQDqTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-        netPrecision,
-        inputShape,
-        param.fakeQuantizeOnData,
-        param.convertOnData,
-        param.dequantizationOnData,
-        param.constantOnWeights,
-        param.fakeQuantizeOnWeights,
-        param.convertOnWeights,
-        param.dequantizationOnWeights,
-        {});
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(netPrecision,
+                                                                              inputShape,
+                                                                              param.fakeQuantizeOnData,
+                                                                              param.convertOnData,
+                                                                              param.dequantizationOnData,
+                                                                              param.constantOnWeights,
+                                                                              param.fakeQuantizeOnWeights,
+                                                                              param.convertOnWeights,
+                                                                              param.dequantizationOnWeights,
+                                                                              {});
 
     this->configuration[ov::hint::inference_precision.name()] = "f32";
 }

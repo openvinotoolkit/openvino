@@ -19,7 +19,7 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     for (const auto& opset_pair : opsets) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
-        const auto &type_info_set = opset.get_type_info_set();
+        const auto& type_info_set = opset.get_type_info_set();
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
 

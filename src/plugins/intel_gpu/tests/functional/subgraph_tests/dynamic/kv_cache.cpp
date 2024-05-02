@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "subgraphs_builders.hpp"
-#include "shared_test_classes/base/utils/compare_results.hpp"
-
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/convert.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
+#include "subgraphs_builders.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -19,8 +18,7 @@ using ov::test::InputShape;
 using KVCacheTestParams = std::tuple<std::vector<InputShape>,  // input shapes
                                      ov::element::Type>;       // in/out type
 
-class KVCacheTest : public testing::WithParamInterface<KVCacheTestParams>,
-                    virtual public ov::test::SubgraphBaseTest {
+class KVCacheTest : public testing::WithParamInterface<KVCacheTestParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<KVCacheTestParams> obj) {
         std::vector<InputShape> input_shapes;
@@ -60,7 +58,10 @@ protected:
 
         inType = outType = element_type;
 
-        function = tests::make_llm_kv_cache_pattern(inputDynamicShapes[0][0], inputDynamicShapes[0][1], inputDynamicShapes[0][3], element_type);
+        function = tests::make_llm_kv_cache_pattern(inputDynamicShapes[0][0],
+                                                    inputDynamicShapes[0][1],
+                                                    inputDynamicShapes[0][3],
+                                                    element_type);
     }
 };
 
@@ -70,9 +71,10 @@ TEST_P(KVCacheTest, Inference) {
 
 TEST_P(KVCacheTest, Inference_cached) {
     std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    ss << "gpu_model_cache_"
+       << std::hash<std::string>{}(
+              std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+              std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
     std::string cacheDirName = ss.str();
     {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
@@ -92,35 +94,31 @@ TEST_P(KVCacheTest, Inference_cached) {
 const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 const std::vector<std::vector<InputShape>> input_shapes_basic = {
-    {
-        {{-1, 32, -1, 80}, { {1, 32, 0, 80}, {1, 32, 20, 80} }},
-        {{-1, -1, 32, 80}, { {1, 20, 32, 80}, {1, 1, 32, 80} }},
-        {{-1, 32, -1, -1}, { {1, 32, 1, 20}, {1, 32, 1, 21} }}
-    },
+    {{{-1, 32, -1, 80}, {{1, 32, 0, 80}, {1, 32, 20, 80}}},
+     {{-1, -1, 32, 80}, {{1, 20, 32, 80}, {1, 1, 32, 80}}},
+     {{-1, 32, -1, -1}, {{1, 32, 1, 20}, {1, 32, 1, 21}}}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPU_Dynamic,
                          KVCacheTest,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
-                                            ::testing::ValuesIn(precisions)),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic), ::testing::ValuesIn(precisions)),
                          KVCacheTest::get_test_case_name);
 
-class KVCacheTests: public ::testing::Test {
-    public:
+class KVCacheTests : public ::testing::Test {
+public:
     void test_smoke_multipleIterations(bool is_caching_test) {
-    #if defined(ANDROID)
+#if defined(ANDROID)
         GTEST_SKIP();
-    #endif
+#endif
         auto core = ov::test::utils::PluginCache::get().core();
-        ov::AnyMap properties = {
-            ov::hint::inference_precision(ov::element::f16)
-        };
+        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16)};
         std::string cacheDirName;
         if (is_caching_test) {
             std::stringstream ss;
-            ss << "gpu_model_cache_" << std::hash<std::string>{}(
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+            ss << "gpu_model_cache_"
+               << std::hash<std::string>{}(
+                      std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                      std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
             cacheDirName = ss.str();
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
@@ -148,46 +146,47 @@ class KVCacheTests: public ::testing::Test {
         auto output0 = model->get_results().at(0);
         auto output1 = model->get_results().at(1);
 
-        auto get_ref_results = [&](const ov::Tensor& kv_cache, const ov::Tensor& new_token_data,
-                                                                   const ov::Tensor& matmul_data) {
-            auto ref_model = model->clone();
-            ov::Tensor kv_cache_copy(kv_cache.get_element_type(), kv_cache.get_shape());
-            kv_cache.copy_to(kv_cache_copy);
-            std::map<ov::Output<ov::Node>, ov::PartialShape> shapes = {
-                {ref_model->input(0), kv_cache_copy.get_shape()},
-                {ref_model->input(1), new_token_data.get_shape()},
-                {ref_model->input(2), matmul_data.get_shape()}
-            };
-            ref_model->reshape(shapes);
+        auto get_ref_results =
+            [&](const ov::Tensor& kv_cache, const ov::Tensor& new_token_data, const ov::Tensor& matmul_data) {
+                auto ref_model = model->clone();
+                ov::Tensor kv_cache_copy(kv_cache.get_element_type(), kv_cache.get_shape());
+                kv_cache.copy_to(kv_cache_copy);
+                std::map<ov::Output<ov::Node>, ov::PartialShape> shapes = {
+                    {ref_model->input(0), kv_cache_copy.get_shape()},
+                    {ref_model->input(1), new_token_data.get_shape()},
+                    {ref_model->input(2), matmul_data.get_shape()}};
+                ref_model->reshape(shapes);
 
-            auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
-            auto inf_req_ref = compiled_model_ref.create_infer_request();
-            inf_req_ref.set_tensor(input0, kv_cache_copy);
-            inf_req_ref.set_tensor(input1, new_token_data);
-            inf_req_ref.set_tensor(input2, matmul_data);
-            inf_req_ref.infer();
-            std::vector<ov::Tensor> results_ref;
-            for (auto&& output : ref_model->get_results()) {
-                results_ref.push_back(inf_req_ref.get_tensor(output));
-            }
-            return results_ref;
-        };
-
-        ov::element::Type inference_precision = core->get_property(ov::test::utils::DEVICE_TEMPLATE, ov::hint::inference_precision);
-        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
-                ASSERT_EQ(expected.size(), actual.size());
-                ASSERT_EQ(expected.size(), model->get_results().size());
-                auto compareMap = ov::test::utils::getCompareMap();
-                const auto& results = model->get_results();
-                for (size_t j = 0; j < results.size(); j++) {
-                    const auto result = results[j];
-                    for (size_t i = 0; i < result->get_input_size(); ++i) {
-                        std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
-                        auto it = compareMap.find(inputNode->get_type_info());
-                        ASSERT_NE(it, compareMap.end());
-                        it->second(inputNode, i, inference_precision, expected[j], actual[j], 1e-4f, 1e-4f, 1.f, 1.f);
-                    }
+                auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
+                auto inf_req_ref = compiled_model_ref.create_infer_request();
+                inf_req_ref.set_tensor(input0, kv_cache_copy);
+                inf_req_ref.set_tensor(input1, new_token_data);
+                inf_req_ref.set_tensor(input2, matmul_data);
+                inf_req_ref.infer();
+                std::vector<ov::Tensor> results_ref;
+                for (auto&& output : ref_model->get_results()) {
+                    results_ref.push_back(inf_req_ref.get_tensor(output));
                 }
+                return results_ref;
+            };
+
+        ov::element::Type inference_precision =
+            core->get_property(ov::test::utils::DEVICE_TEMPLATE, ov::hint::inference_precision);
+        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
+                                                              const std::vector<ov::Tensor>& actual) {
+            ASSERT_EQ(expected.size(), actual.size());
+            ASSERT_EQ(expected.size(), model->get_results().size());
+            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& results = model->get_results();
+            for (size_t j = 0; j < results.size(); j++) {
+                const auto result = results[j];
+                for (size_t i = 0; i < result->get_input_size(); ++i) {
+                    std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+                    auto it = compareMap.find(inputNode->get_type_info());
+                    ASSERT_NE(it, compareMap.end());
+                    it->second(inputNode, i, inference_precision, expected[j], actual[j], 1e-4f, 1e-4f, 1.f, 1.f);
+                }
+            }
         };
 
         auto infer_request = compiled_model.create_infer_request();
@@ -260,21 +259,20 @@ class KVCacheTests: public ::testing::Test {
                                                 size_t num_iter = 10,
                                                 size_t num_groups = 1,
                                                 bool set_state_on_each_iter = false) {
-    #if defined(ANDROID)
+#if defined(ANDROID)
         GTEST_SKIP();
-    #endif
+#endif
         auto core = ov::test::utils::PluginCache::get().core();
 
-        ov::AnyMap properties = {
-            ov::hint::inference_precision(ov::element::f16)
-        };
+        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16)};
 
         std::string cacheDirName;
         if (is_caching_test) {
             std::stringstream ss;
-            ss << "gpu_model_cache_" << std::hash<std::string>{}(
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+            ss << "gpu_model_cache_"
+               << std::hash<std::string>{}(
+                      std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                      std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
             std::string cacheDirName = ss.str();
             ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
             ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
@@ -339,17 +337,13 @@ class KVCacheTests: public ::testing::Test {
             auto input0 = ref_model->get_parameters().at(0);
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
-            auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3)  : nullptr;
-            std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {
-                {input0, kv_cache.get_shape()},
-                {input1, new_token_data.get_shape()},
-                {input2, matmul_data.get_shape()}
-            };
-            std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs = {
-                {input0, kv_cache},
-                {input1, new_token_data},
-                {input2, matmul_data}
-            };
+            auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3) : nullptr;
+            std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {{input0, kv_cache.get_shape()},
+                                                                             {input1, new_token_data.get_shape()},
+                                                                             {input2, matmul_data.get_shape()}};
+            std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs = {{input0, kv_cache},
+                                                                      {input1, new_token_data},
+                                                                      {input2, matmul_data}};
             if (fuse_cache_reorder) {
                 input_shapes[input3] = beam_idx_shape;
                 inputs.emplace(input3, beam_idx_data);
@@ -358,8 +352,10 @@ class KVCacheTests: public ::testing::Test {
             return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
-        ov::element::Type inference_precision = core->get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision);
-        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
+        ov::element::Type inference_precision =
+            core->get_property(ov::test::utils::DEVICE_GPU, ov::hint::inference_precision);
+        auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
+                                                              const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
             ASSERT_EQ(expected.size(), model->get_results().size());
             auto compareMap = ov::test::utils::getCompareMap();
@@ -411,7 +407,7 @@ class KVCacheTests: public ::testing::Test {
 
                 infer_request.infer();
 
-                compare_tensors({ ref_results[1] }, {matmul_out});
+                compare_tensors({ref_results[1]}, {matmul_out});
 
                 cache_size += context_size;
             }
@@ -427,7 +423,10 @@ class KVCacheTests: public ::testing::Test {
                     infer_request.set_tensor(input2, beam_idx_data_array[i % beam_idx_data_array.size()]);
                 }
 
-                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[i % beam_idx_data_array.size()]);
+                auto ref_results = get_ref_results(ref_kv_cache,
+                                                   new_token_data,
+                                                   matmul_data,
+                                                   beam_idx_data_array[i % beam_idx_data_array.size()]);
                 ref_kv_cache = ref_results[0];
 
                 new_token_input.set_shape(new_token_data.get_shape());
@@ -437,20 +436,20 @@ class KVCacheTests: public ::testing::Test {
 
                 infer_request.infer();
 
-                compare_tensors({ ref_results[1] }, {matmul_out});
+                compare_tensors({ref_results[1]}, {matmul_out});
 
                 if (set_state_on_each_iter) {
                     auto state = infer_request.query_state()[0].get_state();
-                    compare_tensors({ ref_kv_cache }, {state});
+                    compare_tensors({ref_kv_cache}, {state});
                     infer_request.query_state()[0].set_state(state);
                     auto state_1 = infer_request.query_state()[0].get_state();
-                    compare_tensors({ ref_kv_cache }, {state_1});
+                    compare_tensors({ref_kv_cache}, {state_1});
                 }
             }
 
             auto state = infer_request.query_state()[0].get_state();
             ASSERT_EQ(state.get_element_type(), element_type);
-            compare_tensors({ ref_kv_cache }, {state});
+            compare_tensors({ref_kv_cache}, {state});
 
             infer_request.reset_state();
         }
@@ -507,4 +506,4 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 5, 1, true);
 }
 
-} // namespace
+}  // namespace

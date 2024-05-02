@@ -3,11 +3,12 @@
 //
 
 #include "jit_brgemm_emitter.hpp"
-#include "jit_kernel_emitter.hpp"
 
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm.hpp>
+
+#include "jit_kernel_emitter.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -23,8 +24,9 @@ size_t jit_brgemm_emitter::get_in_leading_dim(const VectorDims& shape, const std
     //      Layout (transpose order) = [2, 0, 1, 3]
     //      Transposed shape = [2, 1, 49, 23]
     //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
-    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
+    OV_CPU_JIT_EMITTER_ASSERT(
+        layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+        "detected invalid layout values: check that this shape + layout combination is schedulable");
     const auto idx = layout[layout.size() - 2];  // `1` in example
     return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1, std::multiplies<size_t>());
 }
@@ -36,25 +38,32 @@ size_t jit_brgemm_emitter::get_out_leading_dim(const VectorDims& shape, const st
     //      Before leading dimension with index 3 there is dimension with index 2 in planar layout.
     //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
     //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
-    OV_CPU_JIT_EMITTER_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
-    const auto idx = layout.size() - 2; // 2 in the example
-    const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx)); // 0 in the example: shape[0] = 49
-    return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1, std::multiplies<size_t>()); // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
+    OV_CPU_JIT_EMITTER_ASSERT(
+        layout.back() == layout.size() - 1 && layout.size() == shape.size(),
+        "detected invalid layout values: check that this shape + layout combination is schedulable");
+    const auto idx = layout.size() - 2;  // 2 in the example
+    const auto dim = std::distance(layout.cbegin(),
+                                   std::find(layout.cbegin(), layout.cend(), idx));  // 0 in the example: shape[0] = 49
+    return std::accumulate(shape.cbegin() + dim + 1,
+                           shape.cend(),
+                           1,
+                           std::multiplies<size_t>());  // shape[1] x shape[2] x shape[3] = 2 x 7 x 39
 }
 
-jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
+jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
+                                       cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
-                                       const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache) :
-                                       jit_emitter(h, isa) {
+                                       const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
+    : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(!brgemm_node->is_dynamic(), "Snippets don't support code generation for dynamic Brgemm");
 
     std::vector<size_t> leading_dimensions;
-     auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
-        if (!layout.empty()) return layout;
+    auto get_layout = [](const std::vector<size_t>& layout, const snippets::VectorDims& io_shape) {
+        if (!layout.empty())
+            return layout;
         std::vector<size_t> default_layout(io_shape.size());
         std::iota(default_layout.begin(), default_layout.end(), 0);
         return default_layout;
@@ -99,10 +108,11 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     OV_CPU_JIT_EMITTER_ASSERT(*input_0_subtensor.rbegin() == *(input_1_subtensor.rbegin() + 1),
                               "Brgemm has different K dimension subtensors on input0 and input1");
 
-    auto kernel_config = std::make_shared<BrgemmKernelConfig>(brg0Prc, brg1Prc,
-                                                            brgemm_node->get_beta(),
-                                                            brgemm_node->is_amx(),
-                                                            brgemm_node->is_with_compensations());
+    auto kernel_config = std::make_shared<BrgemmKernelConfig>(brg0Prc,
+                                                              brg1Prc,
+                                                              brgemm_node->get_beta(),
+                                                              brgemm_node->is_amx(),
+                                                              brgemm_node->is_with_compensations());
 
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     m_kernel_executor->update(*(output_subtensor.rbegin() + 1),
@@ -119,27 +129,27 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
         m_load_offset_scratch = brgemm_node->get_offset_scratch();
 }
 
-std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     switch (brgemm->get_type()) {
-        case BrgemmCPU::Type::Floating:
-            return {{element::f32, element::f32}};
-        case BrgemmCPU::Type::WithDataRepacking:
-            return {{element::u8, element::i8},
-                    {element::bf16, element::bf16}};
-        case BrgemmCPU::Type::WithCompensations:
-            return {{element::i8, element::i8, element::f32}};
-        case BrgemmCPU::Type::AMX:
-            return {{element::i8, element::i8, element::u8},
-                    {element::u8, element::i8, element::u8},
-                    {element::bf16, element::bf16, element::u8}};
-        default:
-            OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    case BrgemmCPU::Type::Floating:
+        return {{element::f32, element::f32}};
+    case BrgemmCPU::Type::WithDataRepacking:
+        return {{element::u8, element::i8}, {element::bf16, element::bf16}};
+    case BrgemmCPU::Type::WithCompensations:
+        return {{element::i8, element::i8, element::f32}};
+    case BrgemmCPU::Type::AMX:
+        return {{element::i8, element::i8, element::u8},
+                {element::u8, element::i8, element::u8},
+                {element::bf16, element::bf16, element::u8}};
+    default:
+        OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }
 }
 
-void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT((m_with_scratch && in.size() == 3) || (!m_with_scratch && in.size() == 2),
                               "expects 3 inputs if there are compensations/wsp");
 }
@@ -149,7 +159,8 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     if (host_isa_ == cpu::x64::avx512_core) {
         Xbyak::Reg64 input_0(static_cast<int>(in[0]));
         Xbyak::Reg64 input_1(static_cast<int>(in[1]));
-        Xbyak::Reg64 input_2(static_cast<int>(m_with_scratch ? in[2] : 0));  // scratch. Default reg index is 0 if there isn't scratch
+        Xbyak::Reg64 input_2(
+            static_cast<int>(m_with_scratch ? in[2] : 0));  // scratch. Default reg index is 0 if there isn't scratch
         Xbyak::Reg64 output_0(static_cast<int>(out[0]));
         emit_brgemm_kernel_call(input_0,
                                 input_1,
@@ -164,9 +175,14 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     }
 }
 
-void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg64 scratch, Reg64 addr_C,
-                                                 const size_t in0_kernel_offset, const size_t in1_kernel_offset,
-                                                 const size_t in2_kernel_offset, const size_t out0_kernel_offset) const {
+void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A,
+                                                 Reg64 addr_B,
+                                                 Reg64 scratch,
+                                                 Reg64 addr_C,
+                                                 const size_t in0_kernel_offset,
+                                                 const size_t in1_kernel_offset,
+                                                 const size_t in2_kernel_offset,
+                                                 const size_t out0_kernel_offset) const {
     internal_call_preamble();
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
@@ -176,7 +192,8 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg
     auto write_addr_on_stack = [&](size_t arg_offset, Reg64 addr, size_t addr_offset) {
         const auto stack_frame = h->qword[h->rsp + arg_offset];
         h->mov(stack_frame, addr);
-        if (addr_offset) h->add(stack_frame, addr_offset);
+        if (addr_offset)
+            h->add(stack_frame, addr_offset);
     };
 
     write_addr_on_stack(GET_OFF_BRGEMM_ARGS(A), addr_A, in0_kernel_offset);
@@ -204,5 +221,5 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(Reg64 addr_A, Reg64 addr_B, Reg
     internal_call_postamble();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

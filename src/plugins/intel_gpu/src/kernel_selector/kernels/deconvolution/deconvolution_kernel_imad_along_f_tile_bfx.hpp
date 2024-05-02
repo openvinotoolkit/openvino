@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "deconvolution_kernel_base.h"
 #include <vector>
+
+#include "deconvolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -20,17 +21,13 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const override;
+    WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& params) const override;
     CommonDispatchData SetDefault(const deconvolution_params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 
     size_t GetTileIFM(const deconvolution_params& params) const;

@@ -9,12 +9,11 @@ class AxpyOp(Op):
     """
     Empty Op for Axpy layer. It will be replaced by AxpyToSSandAdd FrontReplacer
     """
-    op = 'Axpy'
+
+    op = "Axpy"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': __class__.op,
-            'infer': None
-        }, attrs)
+        super().__init__(
+            graph, {"type": None, "op": __class__.op, "infer": None}, attrs
+        )

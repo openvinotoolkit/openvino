@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import openvino_telemetry as tm
 import torch
+
 from openvino.tools.ovc import convert_model
 
 
@@ -24,13 +25,20 @@ def arange_pt_model():
 
 def mocked_inputs(self):
     # This line returns incorrect inputs and causes exception raise in translator
-    if hasattr(self, "graph_element") and hasattr(self.graph_element, "kind") and self.graph_element.kind() == "aten::arange":
+    if (
+        hasattr(self, "graph_element")
+        and hasattr(self.graph_element, "kind")
+        and self.graph_element.kind() == "aten::arange"
+    ):
         return [0]
 
     return [x.unique() for x in self.raw_inputs]
 
 
-@patch('openvino.frontend.pytorch.ts_decoder.TorchScriptPythonDecoder.inputs', mocked_inputs)
+@patch(
+    "openvino.frontend.pytorch.ts_decoder.TorchScriptPythonDecoder.inputs",
+    mocked_inputs,
+)
 class TestGeneralTelemetrySending(unittest.TestCase):
     def test_general_telemetry_sending(self):
         tm.Telemetry.send_event = MagicMock()
@@ -43,5 +51,10 @@ class TestGeneralTelemetrySending(unittest.TestCase):
         except:
             pass
 
-        tm.Telemetry.send_event.assert_any_call('ovc', 'error_info', '[PyTorch Frontend] Not expected number of inputs for aten::arange\n', 1)
+        tm.Telemetry.send_event.assert_any_call(
+            "ovc",
+            "error_info",
+            "[PyTorch Frontend] Not expected number of inputs for aten::arange\n",
+            1,
+        )
         tm.Telemetry.send_event.reset_mock()

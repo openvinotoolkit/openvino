@@ -3,8 +3,10 @@
 //
 
 #include "gemm_kernel_tiled_opt.h"
-#include "kernel_selector_utils.h"
+
 #include <iostream>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
@@ -48,11 +50,13 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
     if (!params.has_dynamic_tensors()) {
         GemmTuningData td = SetTuningParams(params);
 
-        auto total_batches = output.LogicalSize() /
-                            (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
-        std::vector<size_t> global = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
-                                       total_batches };
-        GPU_DEBUG_TRACE_DETAIL << "Draft for global work item size: [" << global[0] << ", " << global[1] << ", " << global[2] << "], " << std::endl;
+        auto total_batches = output.LogicalSize() / (GetOuputSize(params.output_order, output, 'X') *
+                                                     GetOuputSize(params.output_order, output, 'Y'));
+        std::vector<size_t> global = {GetOuputSize(params.output_order, output, 'X'),
+                                      GetOuputSize(params.output_order, output, 'Y'),
+                                      total_batches};
+        GPU_DEBUG_TRACE_DETAIL << "Draft for global work item size: [" << global[0] << ", " << global[1] << ", "
+                               << global[2] << "], " << std::endl;
 
         dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
         dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
@@ -87,30 +91,37 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
-        bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
+        bool leftovers =
+            m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
 
-        if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 || !IsSIMDSizeSupported(params.engineInfo, 8)) {
+        if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 ||
+            !IsSIMDSizeSupported(params.engineInfo, 8)) {
             tuning_data.simd_size = 16;
             tuning_data.tile_n_size = tuning_data.simd_size;
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
-        // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
-        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 && params.fused_ops.empty())
+        // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is
+        // aligned at 32.
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 &&
+            params.fused_ops.empty())
             tuning_data.tile_n_size = 32;
 
-        GPU_DEBUG_LOG << params.layerID << ": m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
+        GPU_DEBUG_LOG << params.layerID << ": m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size
+                      << std::endl;
     } else {
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
         tuning_data.simd_size = 16;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
-        if ((params.transpose_input0 == 0 /*X_LAST*/) && (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/)
-            && (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad())
-            && (!output_ndim_transposed || params.fused_ops.empty())
-            && !params.engineInfo.supports_immad) {
+        bool output_ndim_transposed =
+            (params.output_order.size() > 0 &&
+             (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        if ((params.transpose_input0 == 0 /*X_LAST*/) &&
+            (params.transpose_input1 == 0 /*X_LAST*/ || params.transpose_input1 == 1 /*Y_LAST*/) &&
+            (!params.indirect_input0 && !params.inputs[0].has_dynamic_pad()) &&
+            (!output_ndim_transposed || params.fused_ops.empty()) && !params.engineInfo.supports_immad) {
             // - Not supports transposed input0 / transposed input1 for OTHER mode yet
             // - If output X dim (= N) is transposed, cannot read eltwise as aligned data
             tuning_data.tile_n_size = 32;
@@ -120,9 +131,8 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
     }
 
     GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
-                    << ", tile_n_size: " << tuning_data.tile_n_size
-                    << ", tile_k_size: " << tuning_data.tile_k_size
-                    << ", simd_size: " << tuning_data.simd_size << std::endl;
+                  << ", tile_n_size: " << tuning_data.tile_n_size << ", tile_k_size: " << tuning_data.tile_k_size
+                  << ", simd_size: " << tuning_data.simd_size << std::endl;
 
     return tuning_data;
 }
@@ -181,23 +191,25 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TR_X", GetTransposedDims(params.output_order, true).at(7)),
         });
 
-        bool transpose_output = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
+        bool transpose_output = (params.output_order.size() > 0 &&
+                                 (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if (transpose_output)
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 2 /* set as TRANSPOSE_OTHER */));
         else
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 0 /* set as TRANSPOSE_X_LAST */));
 
-        bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
-                                                             : params.inputs[0].X().pad.is_dynamic;
-        bool has_dynamic_n_padding = params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic
-                                                             : params.inputs[1].X().pad.is_dynamic;
+        bool has_dynamic_k_padding =
+            params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic : params.inputs[0].X().pad.is_dynamic;
+        bool has_dynamic_n_padding =
+            params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic : params.inputs[1].X().pad.is_dynamic;
         if (has_dynamic_k_padding)
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
         if (has_dynamic_n_padding)
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
     } else {
-        auto get_transposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
-                                          const std::vector<int64_t>& dims_order, const std::string dim) {
+        auto get_transposed_dim_size = [](const kernel_selector::DataTensor& data_tensor,
+                                          const std::vector<int64_t>& dims_order,
+                                          const std::string dim) {
             int64_t target_dim_idx;
             const size_t rank = data_tensor.GetDims().size();
             if (dims_order.size() > 1 && dim.compare("Y") == 0) {
@@ -278,7 +290,9 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     if (tuning_data.tile_k_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("A_VEC_SIZE", tuning_data.tile_k_size / tuning_data.simd_size),
-            MakeJitConstant("A_FLOATN", std::string("CAT(INPUT0_TYPE, ") + toCodeString(tuning_data.tile_k_size / tuning_data.simd_size) + ")"),
+            MakeJitConstant(
+                "A_FLOATN",
+                std::string("CAT(INPUT0_TYPE, ") + toCodeString(tuning_data.tile_k_size / tuning_data.simd_size) + ")"),
         });
     } else {
         jit.AddConstants({
@@ -292,7 +306,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("B_VEC_SIZE", b_vec_size),
             MakeJitConstant("B_FLOATN", std::string("CAT(INPUT1_TYPE, ") + toCodeString(b_vec_size) + ")"),
             MakeJitConstant("OUTPUT_TYPE_VEC", std::string("CAT(OUTPUT_TYPE, ") + toCodeString(b_vec_size) + ")"),
-            MakeJitConstant("ACCUMULATOR_TYPE_VEC", std::string("CAT(ACCUMULATOR_TYPE, ") + toCodeString(b_vec_size) + ")"),
+            MakeJitConstant("ACCUMULATOR_TYPE_VEC",
+                            std::string("CAT(ACCUMULATOR_TYPE, ") + toCodeString(b_vec_size) + ")"),
         });
     } else {
         b_vec_size = 1;
@@ -311,29 +326,32 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             if (op.GetType() == FusedOpType::ELTWISE) {
                 auto vec_axis_dim = op.tensors[0].X().v;
                 // If vector axis of the eltwise input data is to be broadcasted we cannot use aligned load
-                if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) && (params.inputs[1].X().v != vec_axis_dim)) {
+                if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) &&
+                    (params.inputs[1].X().v != vec_axis_dim)) {
                     vec_load_type = LoadType::LT_UNALIGNED;
                 }
             }
         }
-        FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
-                                           "dequantized",
-                                           input_dt,
-                                           b_vec_size,
-                                           vec_load_type,
-                                           BoundaryCheck::ENABLED,
-                                           IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_vec = {"_VEC",
+                                          {"b", "f", "(y + write_id)", "x"},
+                                          "dequantized",
+                                          input_dt,
+                                          b_vec_size,
+                                          vec_load_type,
+                                          BoundaryCheck::ENABLED,
+                                          IndexType::TENSOR_COORD,
+                                          Tensor::DataChannelName::X};
 
-        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "x"},
-                                               "dequantized",
-                                               input_dt,
-                                               1,
-                                               LoadType::LT_UNALIGNED,
-                                               BoundaryCheck::ENABLED,
-                                               IndexType::TENSOR_COORD,
-                                               Tensor::DataChannelName::X };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar }));
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             {"b", "f", "(y + write_id)", "x"},
+                                             "dequantized",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_UNALIGNED,
+                                             BoundaryCheck::ENABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 
     return jit;
@@ -373,18 +391,18 @@ KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params) const {
 
         auto& kernel = k_data.kernels[i];
         FillCLKernelData(kernel,
-                        dispatchData,
-                        params.engineInfo,
-                        kernelName,
-                        jit,
-                        entry_point,
-                        EXE_MODE_DEFAULT,
-                        false,
-                        false,
-                        (uint32_t)prim_params.inputs.size(),
-                        GetFusedPrimitiveInputsCount(params),
-                        1,
-                        prim_params.is_shape_agnostic);
+                         dispatchData,
+                         params.engineInfo,
+                         kernelName,
+                         jit,
+                         entry_point,
+                         EXE_MODE_DEFAULT,
+                         false,
+                         false,
+                         (uint32_t)prim_params.inputs.size(),
+                         GetFusedPrimitiveInputsCount(params),
+                         1,
+                         prim_params.is_shape_agnostic);
     }
 
     return {k_data};
@@ -405,14 +423,15 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
     if (gmm_params.outputs[0].PitchesDifferFromLogicalDims())
         return false;
 
-    size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
+    size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1
+                                                                                   : gmm_params.inputs.size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
             return false;
         }
-        // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
-        // in case of shape agnostic kernel
+        // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for
+        // first and second inputs in case of shape agnostic kernel
         bool proper_pad_f = input.Feature().pad.is_dynamic ? false : input.Feature().pad.Total() == 0;
         bool proper_pad_x = input.X().pad.is_dynamic ? false : input.X().pad.Total() == 0;
         bool proper_pad_y = input.Y().pad.is_dynamic ? false : input.Y().pad.Total() == 0;
@@ -445,22 +464,22 @@ void GemmKernelTiledOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             auto getTensorValue = [](const DataTensor& t, const int64_t dim_idx) -> size_t {
                 switch (dim_idx) {
-                    case 1:
-                        return t.Feature().v;
-                    case 2:
-                        return t.U().v;
-                    case 3:
-                        return t.V().v;
-                    case 4:
-                        return t.W().v;
-                    case 5:
-                        return t.Z().v;
-                    case 6:
-                        return t.Y().v;
-                    case 7:
-                        return t.X().v;
-                    default:
-                        return t.Batch().v;
+                case 1:
+                    return t.Feature().v;
+                case 2:
+                    return t.U().v;
+                case 3:
+                    return t.V().v;
+                case 4:
+                    return t.W().v;
+                case 5:
+                    return t.Z().v;
+                case 6:
+                    return t.Y().v;
+                case 7:
+                    return t.X().v;
+                default:
+                    return t.Batch().v;
                 }
             };
 

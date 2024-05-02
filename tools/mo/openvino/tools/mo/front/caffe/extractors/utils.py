@@ -20,7 +20,9 @@ def dim_to_shape(dim):
     return int64_array(dim)
 
 
-def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: str = None):
+def embed_input(
+    attrs: dict, port: int, name: str, value: np.array, bin_name: str = None
+):
     """
     Appends port information to the given set of attributes of the current layer.
     Mutates passed attributes.
@@ -47,13 +49,13 @@ def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: st
         val[i] = item
     attrs[name] = val
 
-    if 'embedded_inputs' not in attrs:
-        attrs['embedded_inputs'] = []
+    if "embedded_inputs" not in attrs:
+        attrs["embedded_inputs"] = []
     if not bin_name:
         bin_name = name
-    input_val = (port, name, {'bin': bin_name})
+    input_val = (port, name, {"bin": bin_name})
     # (input index, input name, future edge attributes)
-    attrs['embedded_inputs'].append(input_val)  # pylint: disable=not-callable
+    attrs["embedded_inputs"].append(input_val)  # pylint: disable=not-callable
 
 
 def input_as_const(node: Node, attrs: dict, port: int, bin: str, value: np.ndarray):
@@ -61,11 +63,11 @@ def input_as_const(node: Node, attrs: dict, port: int, bin: str, value: np.ndarr
     Inserts constant node on input `port` of `node` with `values` and `attrs`. Marks input edge with bin `attribute`
     """
     graph = node.graph
-    const = Const(graph, {'value': value, **attrs}).create_node()
+    const = Const(graph, {"value": value, **attrs}).create_node()
     node.add_input_port(port, skip_if_exist=True)
     const.out_port(0).connect(node.in_port(port))
     node.in_port(port).bin = bin
-    node.in_port(port).in_attrs.append('bin')
+    node.in_port(port).in_attrs.append("bin")
 
 
 def weights_biases(bias_term: bool, model_layer, start_index: int = 1, proto={}):
@@ -83,22 +85,24 @@ def weights_biases(bias_term: bool, model_layer, start_index: int = 1, proto={})
         if proto != {}:
             if proto.weight_filler:
                 if proto.weight_filler.type == "diagonal":
-                    data_len = proto.kernel_size[0] * proto.kernel_size[0] * proto.num_output
+                    data_len = (
+                        proto.kernel_size[0] * proto.kernel_size[0] * proto.num_output
+                    )
                     data = np.zeros(data_len * data_len, dtype=np.float32)
                     for i in range(0, data_len):
                         data[i * (data_len + 1)] = proto.weight_filler.diag_val[i]
 
                     bias = np.zeros(proto.num_output, np.float32)
-                    embed_input(attrs, start_index, 'weights', data)
+                    embed_input(attrs, start_index, "weights", data)
                     if bias_term:
-                        embed_input(attrs, start_index + 1, 'biases', bias)
+                        embed_input(attrs, start_index + 1, "biases", bias)
 
         return attrs
 
     blobs = model_layer.blobs
-    embed_input(attrs, start_index, 'weights', blobs[0].data)
+    embed_input(attrs, start_index, "weights", blobs[0].data)
     if bias_term:
-        embed_input(attrs, start_index + 1, 'biases', blobs[1].data)
+        embed_input(attrs, start_index + 1, "biases", blobs[1].data)
     return attrs
 
 
@@ -132,12 +136,18 @@ def get_list_from_container(param, prop: str, t):
 def get_spatial_attr(default: list, single_name: str, name: str, param):
     attr_h = default[1]
     attr_w = default[0]
-    if hasattr(param, '{}_h'.format(name)):
-        if getattr(param, '{}_h'.format(name)) != default[1] and getattr(param, '{}_h'.format(name)) != 0:
-            attr_h = getattr(param, '{}_h'.format(name))
-    if hasattr(param, '{}_w'.format(name)):
-        if getattr(param, '{}_w'.format(name)) != default[0] and getattr(param, '{}_w'.format(name)) != 0:
-            attr_w = getattr(param, '{}_w'.format(name))
+    if hasattr(param, "{}_h".format(name)):
+        if (
+            getattr(param, "{}_h".format(name)) != default[1]
+            and getattr(param, "{}_h".format(name)) != 0
+        ):
+            attr_h = getattr(param, "{}_h".format(name))
+    if hasattr(param, "{}_w".format(name)):
+        if (
+            getattr(param, "{}_w".format(name)) != default[0]
+            and getattr(param, "{}_w".format(name)) != 0
+        ):
+            attr_w = getattr(param, "{}_w".format(name))
     if (not attr_h or not attr_w) or (attr_h == attr_w == default[0]):
         attrs = get_list_from_container(param, single_name, int)
         if len(attrs) > 0 and attrs != default:

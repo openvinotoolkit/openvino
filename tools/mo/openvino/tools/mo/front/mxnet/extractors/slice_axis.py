@@ -11,11 +11,11 @@ def slice_axis_ext(attrs):
     end = attrs.int("end", None)
 
     node_attrs = {
-        'op': 'Crop',
-        'axis': axis,
-        'offset': begin,
-        'dim': end,
-        'infer': mxnet_slice_axis_infer
+        "op": "Crop",
+        "axis": axis,
+        "offset": begin,
+        "dim": end,
+        "infer": mxnet_slice_axis_infer,
     }
     return node_attrs
 
@@ -38,13 +38,16 @@ def mxnet_slice_axis_infer(node):
         node.dim += axis_size
 
     input_dim = in_shape.size
-    node.dim = (node.dim - node.offset)
+    node.dim = node.dim - node.offset
     if node.dim > in_shape[slice_axis]:
         raise Error(
-            '{0} node dimension value is bigger than the corresponding value in the input shape {1}. ' +
-            '\nIn particular {2} is bigger than {3}. The Model Optimizer does not support this case. ' +
-            '\nTo overcome, try to edit the original model "end" property of the {0} layer.',
-            node.name, ','.join(str(i) for i in in_shape), str(node.dim), str(in_shape[slice_axis])
+            "{0} node dimension value is bigger than the corresponding value in the input shape {1}. "
+            + "\nIn particular {2} is bigger than {3}. The Model Optimizer does not support this case. "
+            + '\nTo overcome, try to edit the original model "end" property of the {0} layer.',
+            node.name,
+            ",".join(str(i) for i in in_shape),
+            str(node.dim),
+            str(in_shape[slice_axis]),
         )
 
     for i in range(0, input_dim):
@@ -54,4 +57,4 @@ def mxnet_slice_axis_infer(node):
             new_shape[i] = in_shape[i]
 
     for i in range(0, len(node.out_nodes())):
-        node.out_node(i)['shape'] = new_shape
+        node.out_node(i)["shape"] = new_shape

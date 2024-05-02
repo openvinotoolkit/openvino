@@ -4,9 +4,8 @@
 
 #include "snippets/lowered/pass/enumerate_expressions.hpp"
 
-#include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
-
+#include "snippets/pass/tokenization.hpp"
 
 namespace ov {
 namespace snippets {
@@ -23,7 +22,7 @@ bool EnumerateExpressions::run(LinearIR& linear_ir) {
     return order > 0;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

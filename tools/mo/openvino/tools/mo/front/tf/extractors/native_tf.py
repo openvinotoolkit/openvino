@@ -6,5 +6,5 @@ from openvino.tools.mo.front.tf.partial_infer.tf import tf_native_tf_node_infer
 
 def native_tf_node_extractor(pb):
     return {
-        'infer': tf_native_tf_node_infer,
+        "infer": tf_native_tf_node_infer,
     }

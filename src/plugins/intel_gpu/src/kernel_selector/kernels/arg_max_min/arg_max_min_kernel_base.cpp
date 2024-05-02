@@ -16,9 +16,10 @@ bool ArgMaxMinKernelBase::Validate(const Params& p) const {
 JitConstants ArgMaxMinKernelBase::GetJitConstants(const arg_max_min_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstants({MakeJitConstant("TOP_K", params.topK),
-                      MakeJitConstant(toString(params.argMaxMinAxis) + "_AXIS", 1),
-                      params.argMaxMinOut == ArgMaxMinOut::MAX ? MakeJitConstant("MAX_OUT", 1) : MakeJitConstant("MIN_OUT", 1)});
+    jit.AddConstants(
+        {MakeJitConstant("TOP_K", params.topK),
+         MakeJitConstant(toString(params.argMaxMinAxis) + "_AXIS", 1),
+         params.argMaxMinOut == ArgMaxMinOut::MAX ? MakeJitConstant("MAX_OUT", 1) : MakeJitConstant("MIN_OUT", 1)});
 
     // For now, we don't use this constant in the kernel as sorting is always stable.
     if (params.stable) {
@@ -32,8 +33,8 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_
     DispatchData dispatchData;
 
     if (!params.has_dynamic_inputs()) {
-        dispatchData.gws = { 128, params.inputs[0].Batch().v, 1 };
-        dispatchData.lws = { 128, 1, 1 };
+        dispatchData.gws = {128, params.inputs[0].Batch().v, 1};
+        dispatchData.lws = {128, 1, 1};
     }
 
     return dispatchData;

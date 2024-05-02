@@ -15,12 +15,11 @@ namespace subgraph {
 
 class MatMulWithOptimizedConstantFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape1,
-        const ov::PartialShape& inputShape2,
-        const FakeQuantizeOnData& fqOnData,
-        const FakeQuantizeOnData& fqOnWeights);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape1,
+                                                  const ov::PartialShape& inputShape2,
+                                                  const FakeQuantizeOnData& fqOnData,
+                                                  const FakeQuantizeOnData& fqOnWeights);
 };
 
 }  // namespace subgraph

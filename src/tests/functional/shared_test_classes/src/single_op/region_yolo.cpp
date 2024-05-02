@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple> &obj) {
+std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple>& obj) {
     std::vector<size_t> input_shape;
     ov::element::Type model_type;
     std::string target_device;
@@ -17,7 +17,16 @@ std::string RegionYoloLayerTest::getTestCaseName(const testing::TestParamInfo<re
     std::vector<int64_t> mask;
     int start_axis;
     int end_axis;
-    std::tie(input_shape, classes, coords, num_regions, do_softmax , mask, start_axis, end_axis, model_type, target_device) = obj.param;
+    std::tie(input_shape,
+             classes,
+             coords,
+             num_regions,
+             do_softmax,
+             mask,
+             start_axis,
+             end_axis,
+             model_type,
+             target_device) = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
     result << "classes=" << classes << "_";
@@ -41,12 +50,27 @@ void RegionYoloLayerTest::SetUp() {
     std::vector<int64_t> mask;
     int start_axis;
     int end_axis;
-    std::tie(input_shape, classes, coords, num_regions, do_softmax, mask, start_axis, end_axis, model_type, targetDevice) = this->GetParam();
+    std::tie(input_shape,
+             classes,
+             coords,
+             num_regions,
+             do_softmax,
+             mask,
+             start_axis,
+             end_axis,
+             model_type,
+             targetDevice) = this->GetParam();
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
-    auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(param, coords, classes, num_regions, do_softmax, mask, start_axis, end_axis);
+    auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(param,
+                                                                coords,
+                                                                classes,
+                                                                num_regions,
+                                                                do_softmax,
+                                                                mask,
+                                                                start_axis,
+                                                                end_axis);
     function = std::make_shared<ov::Model>(region_yolo->outputs(), ov::ParameterVector{param}, "RegionYolo");
 }
 }  // namespace test
 }  // namespace ov
-

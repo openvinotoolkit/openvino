@@ -3,12 +3,12 @@
 //
 
 #include "low_precision/reduce_max.hpp"
+
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -16,7 +16,8 @@ namespace low_precision {
 
 ReduceMaxTransformation::ReduceMaxTransformation(const Params& params) : ReduceBaseTransformation(params) {
     MATCHER_SCOPE(ReduceMaxTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::ReduceMax>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::ReduceMax>(
+        {pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -30,7 +31,8 @@ ReduceMaxTransformation::ReduceMaxTransformation(const Params& params) : ReduceB
     this->register_matcher(m, callback);
 }
 
-bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const {
+bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& context,
+                                               std::shared_ptr<Node> reduce) const {
     if (!ov::is_type<ov::opset1::ReduceMax>(reduce)) {
         return false;
     }
@@ -40,8 +42,11 @@ bool ReduceMaxTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
-    const std::vector<float> scales = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.0; })) {
+    const std::vector<float> scales =
+        ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiplyConstant)->cast_vector<float>();
+    if (std::any_of(scales.begin(), scales.end(), [](const float value) {
+            return value < 0.0;
+        })) {
         return false;
     }
 
@@ -56,6 +61,6 @@ bool ReduceMaxTransformation::getUpdatePrecision(const std::shared_ptr<Node>& re
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

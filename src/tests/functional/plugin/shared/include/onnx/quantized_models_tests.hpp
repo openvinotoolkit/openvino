@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ONNXTestsDefinitions {
@@ -20,4 +21,4 @@ protected:
     void run_model(const char* model, const LayerInputTypes& expected_layer_input_types, float thr);
 };
 
-} // namespace ONNXTestsDefinitions
+}  // namespace ONNXTestsDefinitions

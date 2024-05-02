@@ -6,15 +6,14 @@
 
 #include <map>
 
-#include "openvino/pass/manager.hpp"
-
-#include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "low_precision/layer_transformation.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "openvino/pass/manager.hpp"
 
-class SimpleLowPrecisionTransformer : public ov::pass::ModelPass{
+class SimpleLowPrecisionTransformer : public ov::pass::ModelPass {
 public:
     SimpleLowPrecisionTransformer(
         const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},

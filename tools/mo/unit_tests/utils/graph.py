@@ -6,11 +6,11 @@ from copy import deepcopy
 
 import networkx as nx
 
-from openvino.tools.mo.ops.parameter import Parameter
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, int64_array
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.pattern_match import all_edges_in_nodes
 from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.ops.parameter import Parameter
 from openvino.tools.mo.utils.error import Error
 
 
@@ -22,14 +22,14 @@ def not_all_new(old_elements: list, new_elements: list):
 
 
 def check_and_update_ports(node, edges_data: list, in_port: bool = True):
-    key = 'in' if in_port else 'out'
+    key = "in" if in_port else "out"
     key_in_edges = [key in edge_data for edge_data in edges_data]
     if all(key_in_edges):
         ports = [edge_data[key] for edge_data in edges_data]
         if len(ports) != len(set(ports)):
             raise Error("Please, provide unique {} ports for nodes".format(key))
     elif not any(key_in_edges):
-        if node.has_valid('kind') and node.kind == 'data':
+        if node.has_valid("kind") and node.kind == "data":
             return
         for i, edge_data in enumerate(edges_data):
             edge_data[key] = i
@@ -37,10 +37,16 @@ def check_and_update_ports(node, edges_data: list, in_port: bool = True):
         raise Error("Please, provide all {} ports for nodes".format(key))
 
 
-def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_nodes_with_attrs: list = [],
-                           new_edges_with_attrs: list = [], update_edge_attrs: dict = None,
-                           update_nodes_attributes: list = None, nodes_with_edges_only: bool = False,
-                           add_nodes_from_edges: bool = False):
+def build_graph_with_attrs(
+    nodes_with_attrs: list,
+    edges_with_attrs: list,
+    new_nodes_with_attrs: list = [],
+    new_edges_with_attrs: list = [],
+    update_edge_attrs: dict = None,
+    update_nodes_attributes: list = None,
+    nodes_with_edges_only: bool = False,
+    add_nodes_from_edges: bool = False,
+):
     """
     Build the Graph with specific nodes and edges. Also update of edge and node parameters is supported.
     :param nodes_with_attrs: list of tuples ('node_name', {node_attrs})
@@ -55,21 +61,34 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     :param add_nodes_from_edges: whether nodes that is not listed in all_nodes but are in all_edges is allowed.
     :return: generated graph.
     """
-    if not_all_new([node[0] for node in nodes_with_attrs], [node[0] for node in new_nodes_with_attrs]):
-        raise Error('Some nodes from new_nodes_with_attrs are already in nodes.'
-                    ' Please, add to new_nodes_with_attrs only NEW nodes.')
+    if not_all_new(
+        [node[0] for node in nodes_with_attrs],
+        [node[0] for node in new_nodes_with_attrs],
+    ):
+        raise Error(
+            "Some nodes from new_nodes_with_attrs are already in nodes."
+            " Please, add to new_nodes_with_attrs only NEW nodes."
+        )
 
-    if not_all_new([(edge[0], edge[1]) for edge in edges_with_attrs],
-                   [(edge[0], edge[1]) for edge in new_edges_with_attrs]):
-        raise Error('Some edges from new_edges_with_attrs are already in edges.'
-                    ' Please, add to new_edges_with_attrs only NEW edges.')
+    if not_all_new(
+        [(edge[0], edge[1]) for edge in edges_with_attrs],
+        [(edge[0], edge[1]) for edge in new_edges_with_attrs],
+    ):
+        raise Error(
+            "Some edges from new_edges_with_attrs are already in edges."
+            " Please, add to new_edges_with_attrs only NEW edges."
+        )
 
     # Check that all nodes from list of edges are in nodes
     all_nodes = nodes_with_attrs + new_nodes_with_attrs
     all_edges = edges_with_attrs + new_edges_with_attrs
     all_nodes_names = [node[0] for node in all_nodes]
-    if not add_nodes_from_edges and not all_edges_in_nodes(nodes=all_nodes_names, edges=all_edges):
-        raise Error("Some nodes from list of edges is not in nodes. Please, add all necessary nodes.")
+    if not add_nodes_from_edges and not all_edges_in_nodes(
+        nodes=all_nodes_names, edges=all_edges
+    ):
+        raise Error(
+            "Some nodes from list of edges is not in nodes. Please, add all necessary nodes."
+        )
 
     graph = Graph()
 
@@ -77,8 +96,8 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     nodes_attrs = {}
     for node_name, attrs in all_nodes:
         nodes_attrs[node_name] = attrs
-        if 'name' not in attrs:
-            attrs['name'] = node_name
+        if "name" not in attrs:
+            attrs["name"] = node_name
 
     if nodes_with_edges_only:
         # filter nodes to keep only ones with edges connected
@@ -109,16 +128,28 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     # Update attributes of nodes
     if update_nodes_attributes is not None:
         for node_name, new_attrs in update_nodes_attributes:
-            assert (node_name in graph.nodes())
+            assert node_name in graph.nodes()
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
 
     for node_id in graph.nodes():
         node = Node(graph, node_id)
-        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)],
-                               True)
-        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)],
-                               False)
+        check_and_update_ports(
+            node,
+            [
+                graph.get_edge_data(edge[0], node_id)[0]
+                for edge in graph.in_edges(node_id)
+            ],
+            True,
+        )
+        check_and_update_ports(
+            node,
+            [
+                graph.get_edge_data(node_id, edge[1])[0]
+                for edge in graph.out_edges(node_id)
+            ],
+            False,
+        )
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
@@ -133,8 +164,13 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     return graph
 
 
-def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False,
-                cli: Namespace = None):
+def build_graph(
+    nodes_attrs: dict,
+    edges: list,
+    update_attributes: dict = None,
+    nodes_with_edges_only: bool = False,
+    cli: Namespace = None,
+):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -146,12 +182,12 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :return: generated graph.
     """
     # no mutable values must be set as default function argument
-    cli = Namespace(static_shape=False, data_type='FP32') if cli is None else cli
+    cli = Namespace(static_shape=False, data_type="FP32") if cli is None else cli
     graph = Graph()
 
     for node_name, attrs in nodes_attrs.items():
-        if 'name' not in attrs:
-            attrs['name'] = node_name
+        if "name" not in attrs:
+            attrs["name"] = node_name
 
     if nodes_with_edges_only:
         # filter nodes to keep only ones with edges connected
@@ -173,15 +209,19 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         node_1, node_2, *edge_attrs_list = item
         edge_attrs = dict(edge_attrs_list[0]) if edge_attrs_list else {}
 
-        common_attrs = {'in': len(graph.in_edges(node_2)),
-                        'out': len(graph.out_edges(node_1)),
-                        'name': nodes_attrs[node_1]['name']}
+        common_attrs = {
+            "in": len(graph.in_edges(node_2)),
+            "out": len(graph.out_edges(node_1)),
+            "name": nodes_attrs[node_1]["name"],
+        }
         common_attrs.update(edge_attrs)
         graph.add_edge(node_1, node_2, **common_attrs)
 
     if update_attributes is not None:
         for node_name, new_attrs in update_attributes.items():
-            assert (node_name in graph.nodes()), 'Node with name "{}" is not in the graph'.format(node_name)
+            assert (
+                node_name in graph.nodes()
+            ), 'Node with name "{}" is not in the graph'.format(node_name)
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
 
@@ -189,21 +229,33 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         # Add in_ports attribute
         in_edges = node.in_edges(control_flow=True)
         for attr in in_edges.values():
-            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
-            node.add_input_port(idx=attr['in'], control_flow=control_flow)
+            control_flow = (
+                True
+                if "control_flow_edge" in attr and attr["control_flow_edge"] is True
+                else False
+            )
+            node.add_input_port(idx=attr["in"], control_flow=control_flow)
 
         # Add out_ports attribute
         out_edges = node.out_edges(control_flow=True)
         for attr in out_edges.values():
-            control_flow = True if 'control_flow_edge' in attr and attr['control_flow_edge'] is True else False
-            node.add_output_port(idx=attr['out'], control_flow=control_flow)
+            control_flow = (
+                True
+                if "control_flow_edge" in attr and attr["control_flow_edge"] is True
+                else False
+            )
+            node.add_output_port(idx=attr["out"], control_flow=control_flow)
 
-    graph.graph['cmd_params'] = cli
+    graph.graph["cmd_params"] = cli
     return graph
 
 
-def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None,
-                                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
+def build_graph_with_edge_attrs(
+    nodes_attrs: dict,
+    edges: list,
+    update_attributes: dict = None,
+    cli: Namespace = Namespace(static_shape=False, data_type="FP32"),
+):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -222,7 +274,7 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
         graph.add_edge(node_1, node_2, **attr)
     if update_attributes is not None:
         for node_name, new_attrs in update_attributes.items():
-            assert (node_name in graph.nodes())
+            assert node_name in graph.nodes()
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
 
@@ -230,14 +282,14 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
         # Add in_ports attribute
         in_edges = node.in_edges()
         for attr in in_edges.values():
-            node.add_input_port(idx=attr['in'])
+            node.add_input_port(idx=attr["in"])
 
         # Add out_ports attribute
         out_edges = node.out_edges()
         for attr in out_edges.values():
-            node.add_output_port(idx=attr['out'])
+            node.add_output_port(idx=attr["out"])
 
-    graph.graph['cmd_params'] = cli
+    graph.graph["cmd_params"] = cli
     return graph
 
 
@@ -274,9 +326,18 @@ def const(name, value, shape=None, kwargs=None):
         shape = int64_array(value.shape)
     elif value is None and shape is not None:
         shape = shape_array(shape)
-    res = {name: {'kind': 'op', 'type': 'Const', 'op': 'Const',
-                  'value': value, 'shape': shape,
-                  'infer': Const.infer, 'type_infer': Const.type_infer, **kwargs}}
+    res = {
+        name: {
+            "kind": "op",
+            "type": "Const",
+            "op": "Const",
+            "value": value,
+            "shape": shape,
+            "infer": Const.infer,
+            "type_infer": Const.type_infer,
+            **kwargs,
+        }
+    }
     return res
 
 
@@ -285,35 +346,68 @@ def valued_data(name, value, shape=None):
         shape = int64_array(value.shape)
     elif value is None and shape is not None:
         shape = shape_array(shape)
-    return {name: {'kind': 'data', 'value': value, 'shape': shape}}
+    return {name: {"kind": "data", "value": value, "shape": shape}}
 
 
-regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwargs}}
+regular_op = lambda name, kwargs: {name: {"kind": "op", "type": "NoType", **kwargs}}
 
-shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
-                                          'shape': shape_array(shape) if shape is not None else None}}
+shaped_data = lambda name, shape: {
+    name: {
+        "kind": "data",
+        "value": None,
+        "shape": shape_array(shape) if shape is not None else None,
+    }
+}
 empty_data = lambda name: valued_data(name, None)
 
-shaped_parameter = lambda name, shape, kwargs={}: {**regular_op(name, {'op': 'Parameter', 'type': 'Parameter',
-                                                                       'shape': shape, 'infer': Parameter.infer,
-                                                                       **kwargs}),
-                                                   **shaped_data(name + '_d', shape)}
+shaped_parameter = lambda name, shape, kwargs={}: {
+    **regular_op(
+        name,
+        {
+            "op": "Parameter",
+            "type": "Parameter",
+            "shape": shape,
+            "infer": Parameter.infer,
+            **kwargs,
+        },
+    ),
+    **shaped_data(name + "_d", shape),
+}
 
-result = lambda name='output': {name: {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: 0}}
+result = lambda name="output": {
+    name: {"kind": "op", "type": "Result", "op": "Result", "infer": lambda x: 0}
+}
 
-regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
-                                                           **shaped_data(name + '_d', shape)}
-regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
+regular_op_with_shaped_data = lambda name, shape, kwargs: {
+    **regular_op(name, kwargs),
+    **shaped_data(name + "_d", shape),
+}
+regular_op_with_empty_data = lambda name, kwargs: {
+    **regular_op(name, kwargs),
+    **empty_data(name + "_d"),
+}
 
-fake_const = lambda name, shape, kwargs={}: {name: {'kind': 'op', 'op': 'Const', 'type': 'Const',
-                                                    'value': None, 'infer': Const.infer, **kwargs,
-                                                    'shape': shape_array(shape) if shape is not None else None}}
+fake_const = lambda name, shape, kwargs={}: {
+    name: {
+        "kind": "op",
+        "op": "Const",
+        "type": "Const",
+        "value": None,
+        "infer": Const.infer,
+        **kwargs,
+        "shape": shape_array(shape) if shape is not None else None,
+    }
+}
 
-shaped_const_with_data = lambda name, shape, kwargs={}: {**fake_const(name, shape, kwargs),
-                                                         **shaped_data(name + '_d', shape)}
+shaped_const_with_data = lambda name, shape, kwargs={}: {
+    **fake_const(name, shape, kwargs),
+    **shaped_data(name + "_d", shape),
+}
 
-valued_const_with_data = lambda name, value, shape=None, kwargs={}: {**const(name, value, shape, kwargs),
-                                                                     **valued_data(name + '_d', value, shape)}
+valued_const_with_data = lambda name, value, shape=None, kwargs={}: {
+    **const(name, value, shape, kwargs),
+    **valued_data(name + "_d", value, shape),
+}
 
 
 def extract_port_from_string(node_name: str):
@@ -328,10 +422,12 @@ def extract_port_from_string(node_name: str):
     :param node_name: string value provided by user
     :return: node name, input port and output port
     """
-    parts = node_name.split(':')
+    parts = node_name.split(":")
     if len(parts) > 2:
-        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
-                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
+        raise Error(
+            "Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
+            "where IN_PORT and OUTPUT_PORT are integers".format(node_name)
+        )
     if len(parts) == 1:
         return node_name, None, None
     else:
@@ -342,8 +438,10 @@ def extract_port_from_string(node_name: str):
             try:
                 out_port, name = int(parts[1]), parts[0]
             except ValueError:
-                raise Error("Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
-                            "IN_PORT and OUTPUT_PORT are integers".format(node_name))
+                raise Error(
+                    "Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
+                    "IN_PORT and OUTPUT_PORT are integers".format(node_name)
+                )
         return name, in_port, out_port
 
 
@@ -371,12 +469,14 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=
     second_op_name, in_port = get_name_and_port(second_tensor_name)
 
     if skip_data:
-        return [(first_op_name + '_d', second_op_name, {'out': out_port, 'in': in_port})]
+        return [
+            (first_op_name + "_d", second_op_name, {"out": out_port, "in": in_port})
+        ]
     if front_phase:
-        return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
+        return [(first_op_name, second_op_name, {"out": out_port, "in": in_port})]
     return [
-        (first_op_name, first_op_name + '_d', {'out': out_port}),
-        (first_op_name + '_d', second_op_name, {'in': in_port}),
+        (first_op_name, first_op_name + "_d", {"out": out_port}),
+        (first_op_name + "_d", second_op_name, {"in": in_port}),
     ]
 
 
@@ -385,4 +485,6 @@ def connect_data(first_tensor_name, second_tensor_name):
 
 
 def connect_front(first_tensor_name, second_tensor_name):
-    return connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=True)
+    return connect(
+        first_tensor_name, second_tensor_name, skip_data=False, front_phase=True
+    )

@@ -3,8 +3,9 @@
 //
 
 #include "intel_gpu/op/rms.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
+
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/rms.hpp"
 
 namespace ov {
@@ -23,10 +24,7 @@ static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<op::RMS>& op) {
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
-    auto rms = cldnn::rms(primitive_name,
-                          inputs[0],
-                          inputs[1],
-                          op->get_epsilon());
+    auto rms = cldnn::rms(primitive_name, inputs[0], inputs[1], op->get_epsilon());
     rms.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, rms);
 }

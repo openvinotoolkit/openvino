@@ -6,9 +6,8 @@
 
 #include <memory>
 
-#include "low_precision/layer_transformation.hpp"
-
 #include "elementwise.hpp"
+#include "low_precision/layer_transformation.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -29,13 +28,9 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const AddActualValues& values) {
-    return out <<
-        "_" << values.precision1 <<
-        "_subtract" << values.subtractValues1.size() <<
-        "_mutliply" << values.mutliplyValues1.size() <<
-        "_" << values.precision2 <<
-        "_subtract" << values.subtractValues2.size() <<
-        "_mutliply" << values.mutliplyValues2.size();
+    return out << "_" << values.precision1 << "_subtract" << values.subtractValues1.size() << "_mutliply"
+               << values.mutliplyValues1.size() << "_" << values.precision2 << "_subtract"
+               << values.subtractValues2.size() << "_mutliply" << values.mutliplyValues2.size();
 }
 
 class AddExpectedValues {
@@ -48,12 +43,9 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const AddExpectedValues& values) {
-    return out <<
-        "_" << values.precision1 <<
-        "_subtract" << values.subtractValues1.size() <<
-        "_mutliply" << values.mutliplyValues1.size() <<
-        "_" << values.precision2 <<
-        "_mutliply" << values.mutliplyValuesAfter.size();
+    return out << "_" << values.precision1 << "_subtract" << values.subtractValues1.size() << "_mutliply"
+               << values.mutliplyValues1.size() << "_" << values.precision2 << "_mutliply"
+               << values.mutliplyValuesAfter.size();
 }
 
 class AddFunction : public ElementwiseFunction {
@@ -73,12 +65,11 @@ public:
         const std::string& additionalLayer,
         const std::string& postops_configuration = "");
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const bool broadcast,
-        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData2);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const bool broadcast,
+                                                  const ov::builder::subgraph::FakeQuantizeOnData& fqOnData1,
+                                                  const ov::builder::subgraph::FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,

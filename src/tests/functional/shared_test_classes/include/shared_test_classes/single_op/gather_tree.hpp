@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "common_test_utils/test_enums.hpp"
@@ -13,19 +13,18 @@
 
 namespace ov {
 namespace test {
-using GatherTreeParamsTuple = typename std::tuple<
-        ov::Shape,                         // Input tensors shape
-        ov::test::utils::InputLayerType,   // Secondary input type
-        ov::element::Type,                 // Model type
-        std::string>;                      // Device name
+using GatherTreeParamsTuple = typename std::tuple<ov::Shape,                        // Input tensors shape
+                                                  ov::test::utils::InputLayerType,  // Secondary input type
+                                                  ov::element::Type,                // Model type
+                                                  std::string>;                     // Device name
 
 class GatherTreeLayerTest : public testing::WithParamInterface<GatherTreeParamsTuple>,
-                        virtual public ov::test::SubgraphBaseTest {
+                            virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple>& obj);
 
 protected:
     void SetUp() override;
 };
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

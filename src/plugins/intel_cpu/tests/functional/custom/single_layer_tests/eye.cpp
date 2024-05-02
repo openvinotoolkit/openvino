@@ -124,7 +124,9 @@ protected:
                 in_data.start_from = i == 0 ? rowNum : (i == 1 ? colNum : 6);
                 in_data.range = 1;
 
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

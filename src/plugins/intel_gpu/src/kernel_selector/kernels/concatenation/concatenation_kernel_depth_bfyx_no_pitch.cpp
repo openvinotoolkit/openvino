@@ -3,8 +3,10 @@
 //
 
 #include "concatenation_kernel_depth_bfyx_no_pitch.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -25,7 +27,8 @@ ParamsKey ConcatenationKernel_depth_bfyx_no_pitch::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConcatenationKernel_depth_bfyx_no_pitch::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConcatenationKernel_depth_bfyx_no_pitch::get_required_device_features_key(
+    const Params& params) const {
     return get_common_subgroups_device_features_key(params);
 }
 
@@ -60,7 +63,8 @@ bool ConcatenationKernel_depth_bfyx_no_pitch::Validate(const Params& p) const {
     return true;
 }
 
-ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::SetDefault(const concatenation_params& params) const {
+ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::SetDefault(
+    const concatenation_params& params) const {
     DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
     const auto batch = input.Batch().v;

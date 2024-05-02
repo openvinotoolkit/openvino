@@ -5,6 +5,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
+
 #include "ov_subgraph.hpp"
 
 namespace ov {

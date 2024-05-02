@@ -1,9 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    is_fully_defined,
+    shape_array,
+)
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.squeeze import Squeeze
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 
 
 class SqueezeInternal(Squeeze):
@@ -16,10 +19,10 @@ class SqueezeInternal(Squeeze):
             node.in_port(1).data.set_value(axis_value)
         else:
             # Squeeze without axes provided
-            node_name = node.soft_get('name', node.id)
+            node_name = node.soft_get("name", node.id)
             input_shape = node.in_port(0).data.get_shape()
             assert is_fully_defined(
-                input_shape), 'Squeeze dimensions are not defined for op "{}"'.format(node_name)
+                input_shape
+            ), 'Squeeze dimensions are not defined for op "{}"'.format(node_name)
             output_shape = [s for s in shape_array(input_shape).tolist() if s != 1]
             node.out_port(0).data.set_shape(shape_array(output_shape))
-

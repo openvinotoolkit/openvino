@@ -10,16 +10,16 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestExpandDims(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input:0']
+        assert "input:0" in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info["input:0"]
         inputs_data = {}
-        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data["input:0"] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
     def create_expand_dims_net(self, input_shape, axis):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            input = tf.compat.v1.placeholder(tf.float32, input_shape, 'input')
+            input = tf.compat.v1.placeholder(tf.float32, input_shape, "input")
             axis = tf.constant(axis, dtype=tf.int32)
             tf.raw_ops.ExpandDims(input=input, axis=axis)
             tf.compat.v1.global_variables_initializer()
@@ -36,7 +36,14 @@ class TestExpandDims(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_expand_dims_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_expand_dims_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_expand_dims_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_expand_dims_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

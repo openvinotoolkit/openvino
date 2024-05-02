@@ -52,7 +52,10 @@ def parse_classification(labels_offset=0, target_layers=None):
                           "background" class (1001 -> 1000), defaults to 0
     :return: "parse_classification" action processed by testing framework.
     """
-    return "parse_classification", {"labels_offset": labels_offset, 'target_layers': target_layers}
+    return "parse_classification", {
+        "labels_offset": labels_offset,
+        "target_layers": target_layers,
+    }
 
 
 @wrap_ord_dict
@@ -68,7 +71,10 @@ def squeeze_and_parse_classification(axis=(2, 3), labels_offset=0):
     :return: "squeeze" and "parse_classification" action processed by testing
              framework
     """
-    return [squeeze.unwrap(axis=axis), parse_classification.unwrap(labels_offset=labels_offset)]
+    return [
+        squeeze.unwrap(axis=axis),
+        parse_classification.unwrap(labels_offset=labels_offset),
+    ]
 
 
 def assemble_postproc_tf(batch=None, align_with_batch_od=False, **kwargs):
@@ -91,10 +97,15 @@ def paddlepaddle_od_postproc(target_layers=None):
     """Construct PaddlePaddle object detection parsing actions."""
     if target_layers is None:
         target_layers = {}
-    return OrderedDict([
-        ("mxnet_to_common_od_format", {"target_layers": target_layers}),  # PDPD has the same OD format as MXNET
-        ("parse_object_detection", {"target_layers": target_layers})
-    ])
+    return OrderedDict(
+        [
+            (
+                "mxnet_to_common_od_format",
+                {"target_layers": target_layers},
+            ),  # PDPD has the same OD format as MXNET
+            ("parse_object_detection", {"target_layers": target_layers}),
+        ]
+    )
 
 
 @wrap_ord_dict

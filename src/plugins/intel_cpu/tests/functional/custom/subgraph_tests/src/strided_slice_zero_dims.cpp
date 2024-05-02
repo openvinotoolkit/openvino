@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -37,7 +37,7 @@ public:
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
         }
         auto end = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{2147483647});
-        auto stride  = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{1});
+        auto stride = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{1});
         auto indices = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{1});
         auto axes = ov::test::utils::deprecated::make_constant(element::i64, {1}, std::vector<int64_t>{0});
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(inputParams[1]);

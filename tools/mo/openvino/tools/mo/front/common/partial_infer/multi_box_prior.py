@@ -6,7 +6,7 @@ from openvino.tools.mo.graph.graph import Node
 
 
 def multi_box_prior_infer_mxnet(node: Node):
-    v10 = node.has_and_set('V10_infer')
+    v10 = node.has_and_set("V10_infer")
     data_H, data_W = node.in_node(0).value if v10 else node.in_node(0).shape[2:]
 
     num_ratios = len(node.aspect_ratio)

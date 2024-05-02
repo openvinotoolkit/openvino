@@ -1,19 +1,25 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
-import numpy as np
 import random
+
+import numpy as np
+import pytest
 import torch
+from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_data', ({'repeats': 1, 'dim': 0},
-                                        {'repeats': 2, 'dim': 2},
-                                        {'repeats': [2, 3], 'dim': 1},
-                                        {'repeats': [3, 2, 1], 'dim': 3},
-                                        {'repeats': 2, 'dim': None},
-                                        {'repeats': [36], 'dim': None}))
+@pytest.mark.parametrize(
+    "input_data",
+    (
+        {"repeats": 1, "dim": 0},
+        {"repeats": 2, "dim": 2},
+        {"repeats": [2, 3], "dim": 1},
+        {"repeats": [3, 2, 1], "dim": 3},
+        {"repeats": 2, "dim": None},
+        {"repeats": [36], "dim": None},
+    ),
+)
 class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -36,20 +42,32 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat_interleave_const_repeats(self, ie_device, precision, ir_version, input_data):
-        repeats = input_data['repeats']
+    def test_repeat_interleave_const_repeats(
+        self, ie_device, precision, ir_version, input_data
+    ):
+        repeats = input_data["repeats"]
         if type(repeats) is list and len(repeats) == 1:
             repeats = [random.randint(1, 5) for _ in range(repeats[0])]
 
-        dim = input_data['dim']
-        self._test(*self.create_model_const_repeat(repeats, dim),
-                   ie_device, precision, ir_version)
+        dim = input_data["dim"]
+        self._test(
+            *self.create_model_const_repeat(repeats, dim),
+            ie_device,
+            precision,
+            ir_version
+        )
 
-@pytest.mark.parametrize('input_data', ({'repeats': np.array([1]).astype(np.int32), 'dim': 0},
-                                        {'repeats': np.array(1).astype(np.int32), 'dim': 1},
-                                        {'repeats': np.array([2]).astype(np.int32), 'dim': 2},
-                                        {'repeats': np.array(2).astype(np.int32), 'dim': 1},
-                                        {'repeats': np.array([3]).astype(np.int32), 'dim': None}))
+
+@pytest.mark.parametrize(
+    "input_data",
+    (
+        {"repeats": np.array([1]).astype(np.int32), "dim": 0},
+        {"repeats": np.array(1).astype(np.int32), "dim": 1},
+        {"repeats": np.array([2]).astype(np.int32), "dim": 2},
+        {"repeats": np.array(2).astype(np.int32), "dim": 1},
+        {"repeats": np.array([3]).astype(np.int32), "dim": None},
+    ),
+)
 class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -67,12 +85,24 @@ class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_repeat_interleave_non_const_repeat(), ref_net, "aten::repeat_interleave"
+        return (
+            aten_repeat_interleave_non_const_repeat(),
+            ref_net,
+            "aten::repeat_interleave",
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_repeat_interleave_non_const_repeats(self, ie_device, precision, ir_version, input_data):
-        self.repeats = input_data['repeats']
-        dim = input_data['dim']
-        self._test(*self.create_model_non_const_repeat(dim),
-                   ie_device, precision, ir_version, dynamic_shapes=False, use_mo_convert=False)
+    def test_repeat_interleave_non_const_repeats(
+        self, ie_device, precision, ir_version, input_data
+    ):
+        self.repeats = input_data["repeats"]
+        dim = input_data["dim"]
+        self._test(
+            *self.create_model_non_const_repeat(dim),
+            ie_device,
+            precision,
+            ir_version,
+            dynamic_shapes=False,
+            use_mo_convert=False
+        )

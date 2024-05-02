@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <iostream>
 #include <type_traits>
 #include <utility>
-#include <iostream>
 
 namespace cldnn {
 
@@ -31,7 +31,8 @@ private:
 };
 
 template <typename T>
-const T& static_instance<T, typename std::enable_if<std::is_default_constructible<T>::value>::type>::instance = static_instance<T>::instantiate();
+const T& static_instance<T, typename std::enable_if<std::is_default_constructible<T>::value>::type>::instance =
+    static_instance<T>::instantiate();
 
 template <typename T>
 class static_instance<T, typename std::enable_if<!std::is_default_constructible<T>::value>::type> {
@@ -50,6 +51,7 @@ private:
 };
 
 template <typename T>
-const T& static_instance<T, typename std::enable_if<!std::is_default_constructible<T>::value>::type>::instance = static_instance<T>::instantiate();
+const T& static_instance<T, typename std::enable_if<!std::is_default_constructible<T>::value>::type>::instance =
+    static_instance<T>::instantiate();
 
 }  // namespace cldnn

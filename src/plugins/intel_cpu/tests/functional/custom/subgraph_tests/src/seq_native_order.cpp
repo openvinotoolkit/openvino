@@ -6,9 +6,9 @@
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "common_test_utils/node_builders/rnn_cell.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -16,11 +16,7 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 
-enum class SEQ_TYPE {
-    GRU,
-    LSTM,
-    RNN
-};
+enum class SEQ_TYPE { GRU, LSTM, RNN };
 
 using TargetShapeParams = std::tuple<size_t,   // batch_size
                                      size_t>;  // seq_length
@@ -39,9 +35,11 @@ using SeqParams = std::tuple<SEQ_TYPE,                            // node type
                              ElementType,                         // Network precision
                              InputLayerType>;                     // 'sequence_lengths' input type
 
-class SequenceCPUTest : public testing::WithParamInterface<SeqParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+class SequenceCPUTest : public testing::WithParamInterface<SeqParams>,
+                        virtual public ov::test::SubgraphBaseTest,
+                        public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<SeqParams> &obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SeqParams>& obj) {
         SEQ_TYPE seqType;
         size_t hidden_size, input_size;
         InputShapeParams inShapeParams;
@@ -52,7 +50,16 @@ public:
         ElementType netPrecision;
         InputLayerType seqInType;
 
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = obj.param;
+        std::tie(seqType,
+                 hidden_size,
+                 input_size,
+                 inShapeParams,
+                 activations,
+                 clip,
+                 linearBeforeReset,
+                 direction,
+                 netPrecision,
+                 seqInType) = obj.param;
 
         std::vector<ov::Dimension> bounds;
         std::vector<TargetShapeParams> targetShapes;
@@ -71,13 +78,13 @@ public:
         }
         result << "hidden_size=" << hidden_size << "_input_size=" << input_size << "_";
         result << "batch_size_dyn=" << bounds[0] << "_seq_length_dyn=" << bounds[1] << "_";
-        for (const auto &ts : targetShapes) {
+        for (const auto& ts : targetShapes) {
             size_t bs, sl;
             std::tie(bs, sl) = ts;
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
-        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations) << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";
@@ -101,7 +108,16 @@ protected:
         ov::op::RecurrentSequenceDirection direction;
         ElementType netPrecision;
 
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = this->GetParam();
+        std::tie(seqType,
+                 hidden_size,
+                 input_size,
+                 inShapeParams,
+                 activations,
+                 clip,
+                 linearBeforeReset,
+                 direction,
+                 netPrecision,
+                 seqInType) = this->GetParam();
 
         std::vector<ov::Dimension> bounds;
         std::vector<TargetShapeParams> targetShapes;
@@ -114,10 +130,12 @@ protected:
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
         // dynamic shapes
-        ov::PartialShape X_shape(std::vector<ov::Dimension>{bounds[seq_length_pos], bounds[batch_size_pos], ov::Dimension(input_size)});
+        ov::PartialShape X_shape(
+            std::vector<ov::Dimension>{bounds[seq_length_pos], bounds[batch_size_pos], ov::Dimension(input_size)});
         inputDynamicShapes.push_back(X_shape);
-        ov::PartialShape second_in_shape(std::vector<ov::Dimension>{bounds[batch_size_pos], ov::Dimension(numDirections),
-                                                                            ov::Dimension(hidden_size)});
+        ov::PartialShape second_in_shape(std::vector<ov::Dimension>{bounds[batch_size_pos],
+                                                                    ov::Dimension(numDirections),
+                                                                    ov::Dimension(hidden_size)});
         inputDynamicShapes.push_back(second_in_shape);
         if (seqType == SEQ_TYPE::LSTM) {
             inputDynamicShapes.push_back(second_in_shape);
@@ -152,7 +170,7 @@ protected:
         }
 
         // target shape
-        for (const auto &ts : targetShapes) {
+        for (const auto& ts : targetShapes) {
             std::vector<ov::Shape> currTS;
 
             size_t bs, sl;
@@ -238,8 +256,8 @@ protected:
 
         std::vector<int64_t> order_ref_after = {2, 1, 0, 3};
         const auto order_after = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                         ov::Shape({order_ref_after.size()}),
-                                                                         order_ref_after);
+                                                                        ov::Shape({order_ref_after.size()}),
+                                                                        order_ref_after);
         const auto transpose_after = std::make_shared<ov::op::v1::Transpose>(seq_node->output(0), order_after);
 
         ov::OutputVector results;
@@ -279,37 +297,28 @@ TEST_P(SequenceCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
 }
 
-const std::vector<size_t> hiddenSizes = {
-    1, 10
-};
+const std::vector<size_t> hiddenSizes = {1, 10};
 
-const std::vector<size_t> inputSizes = {
-    1, 10
-};
+const std::vector<size_t> inputSizes = {1, 10};
 
 const std::vector<InputShapeParams> inShapeParams_dynamic = {
-    InputShapeParams{std::vector<ov::Dimension>{-1, -1}, std::vector<TargetShapeParams>{TargetShapeParams{3, 8},
-                                                                                        TargetShapeParams{10, 2}}},
-    InputShapeParams{std::vector<ov::Dimension>{{1, 15}, {1, 5}}, std::vector<TargetShapeParams>{TargetShapeParams{7, 5},
-                                                                                                 TargetShapeParams{10, 2}}},
-    InputShapeParams{std::vector<ov::Dimension>{{1, 8}, 9}, std::vector<TargetShapeParams>{TargetShapeParams{7, 9},
-                                                                                           TargetShapeParams{8, 9}}},
-    InputShapeParams{std::vector<ov::Dimension>{6, {1, 5}}, std::vector<TargetShapeParams>{TargetShapeParams{6, 5},
-                                                                                           TargetShapeParams{6, 2}}},
+    InputShapeParams{std::vector<ov::Dimension>{-1, -1},
+                     std::vector<TargetShapeParams>{TargetShapeParams{3, 8}, TargetShapeParams{10, 2}}},
+    InputShapeParams{std::vector<ov::Dimension>{{1, 15}, {1, 5}},
+                     std::vector<TargetShapeParams>{TargetShapeParams{7, 5}, TargetShapeParams{10, 2}}},
+    InputShapeParams{std::vector<ov::Dimension>{{1, 8}, 9},
+                     std::vector<TargetShapeParams>{TargetShapeParams{7, 9}, TargetShapeParams{8, 9}}},
+    InputShapeParams{std::vector<ov::Dimension>{6, {1, 5}},
+                     std::vector<TargetShapeParams>{TargetShapeParams{6, 5}, TargetShapeParams{6, 2}}},
 };
 
 const std::vector<InputShapeParams> inShapeParams_static = {
-    InputShapeParams{std::vector<ov::Dimension>{10, 2}, std::vector<TargetShapeParams>{TargetShapeParams{10, 2},
-                                                                                       TargetShapeParams{10, 2}}}
-};
+    InputShapeParams{std::vector<ov::Dimension>{10, 2},
+                     std::vector<TargetShapeParams>{TargetShapeParams{10, 2}, TargetShapeParams{10, 2}}}};
 
-std::vector<std::vector<std::string>> activations_gru_support = {
-    {"sigmoid", "tanh"}
-};
+std::vector<std::vector<std::string>> activations_gru_support = {{"sigmoid", "tanh"}};
 
-std::vector<std::vector<std::string>> activations_lstm_support = {
-    {"sigmoid", "tanh", "tanh"}
-};
+std::vector<std::vector<std::string>> activations_lstm_support = {{"sigmoid", "tanh", "tanh"}};
 
 std::vector<float> clip{0.f};
 
@@ -317,59 +326,63 @@ std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSe
 
 std::vector<bool> linearBeforeReset = {true, false};
 
-std::vector<ElementType> netPrecisions = { ElementType::f32 };
+std::vector<ElementType> netPrecisions = {ElementType::f32};
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_lstm_rnn, SequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn({SEQ_TYPE::LSTM, SEQ_TYPE::RNN}),
-                               ::testing::ValuesIn(hiddenSizes),
-                               ::testing::ValuesIn(inputSizes),
-                               ::testing::ValuesIn(inShapeParams_dynamic),
-                               ::testing::ValuesIn(activations_lstm_support),
-                               ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
-                               ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(InputLayerType::PARAMETER)),
-            SequenceCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_lstm_rnn,
+                         SequenceCPUTest,
+                         ::testing::Combine(::testing::ValuesIn({SEQ_TYPE::LSTM, SEQ_TYPE::RNN}),
+                                            ::testing::ValuesIn(hiddenSizes),
+                                            ::testing::ValuesIn(inputSizes),
+                                            ::testing::ValuesIn(inShapeParams_dynamic),
+                                            ::testing::ValuesIn(activations_lstm_support),
+                                            ::testing::ValuesIn(clip),
+                                            ::testing::ValuesIn(linearBeforeReset),
+                                            ::testing::ValuesIn(direction),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InputLayerType::PARAMETER)),
+                         SequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru, SequenceCPUTest,
-            ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
-                               ::testing::ValuesIn(hiddenSizes),
-                               ::testing::ValuesIn(inputSizes),
-                               ::testing::ValuesIn(inShapeParams_dynamic),
-                               ::testing::ValuesIn(activations_gru_support),
-                               ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
-                               ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(InputLayerType::PARAMETER)),
-            SequenceCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru,
+                         SequenceCPUTest,
+                         ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
+                                            ::testing::ValuesIn(hiddenSizes),
+                                            ::testing::ValuesIn(inputSizes),
+                                            ::testing::ValuesIn(inShapeParams_dynamic),
+                                            ::testing::ValuesIn(activations_gru_support),
+                                            ::testing::ValuesIn(clip),
+                                            ::testing::ValuesIn(linearBeforeReset),
+                                            ::testing::ValuesIn(direction),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InputLayerType::PARAMETER)),
+                         SequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru, SequenceCPUTest,
-            ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
-                               ::testing::ValuesIn(hiddenSizes),
-                               ::testing::ValuesIn(inputSizes),
-                               ::testing::ValuesIn(inShapeParams_static),
-                               ::testing::ValuesIn(activations_gru_support),
-                               ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
-                               ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(InputLayerType::CONSTANT)),
-            SequenceCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_gru,
+                         SequenceCPUTest,
+                         ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
+                                            ::testing::ValuesIn(hiddenSizes),
+                                            ::testing::ValuesIn(inputSizes),
+                                            ::testing::ValuesIn(inShapeParams_static),
+                                            ::testing::ValuesIn(activations_gru_support),
+                                            ::testing::ValuesIn(clip),
+                                            ::testing::ValuesIn(linearBeforeReset),
+                                            ::testing::ValuesIn(direction),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InputLayerType::CONSTANT)),
+                         SequenceCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm, SequenceCPUTest,
-            ::testing::Combine(::testing::Values(SEQ_TYPE::LSTM, SEQ_TYPE::RNN),
-                               ::testing::ValuesIn(hiddenSizes),
-                               ::testing::ValuesIn(inputSizes),
-                               ::testing::ValuesIn(inShapeParams_static),
-                               ::testing::ValuesIn(activations_lstm_support),
-                               ::testing::ValuesIn(clip),
-                               ::testing::ValuesIn(linearBeforeReset),
-                               ::testing::ValuesIn(direction),
-                               ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(InputLayerType::CONSTANT)),
-            SequenceCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_static_rnn_lstm,
+                         SequenceCPUTest,
+                         ::testing::Combine(::testing::Values(SEQ_TYPE::LSTM, SEQ_TYPE::RNN),
+                                            ::testing::ValuesIn(hiddenSizes),
+                                            ::testing::ValuesIn(inputSizes),
+                                            ::testing::ValuesIn(inShapeParams_static),
+                                            ::testing::ValuesIn(activations_lstm_support),
+                                            ::testing::ValuesIn(clip),
+                                            ::testing::ValuesIn(linearBeforeReset),
+                                            ::testing::ValuesIn(direction),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(InputLayerType::CONSTANT)),
+                         SequenceCPUTest::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

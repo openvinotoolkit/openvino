@@ -6,15 +6,19 @@ from openvino.tools.mo.ops.op import Op
 
 
 class RestrictedAttentionComponent(Op):
-    op = 'restrictedattentioncomponent'
+    op = "restrictedattentioncomponent"
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'type': None,
-            'op': self.op,
-            'has_default': False,
-            'infer': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "type": None,
+                "op": self.op,
+                "has_default": False,
+                "infer": None,
+                "in_ports_count": 1,
+                "out_ports_count": 1,
+            },
+            attrs,
+        )

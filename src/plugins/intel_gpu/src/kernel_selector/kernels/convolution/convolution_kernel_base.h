@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "weight_bias_kernel_base.h"
-#include "convolution_params.h"
 #include <string>
 #include <vector>
+
+#include "convolution_params.h"
+#include "weight_bias_kernel_base.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,14 +47,20 @@ public:
     KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
 
 protected:
-    virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
-    virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
-    virtual bool NeedPaddedInput() const { return false; }
+    virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const = 0;
+    virtual std::string GetKernelName(const convolution_params&) const {
+        return kernelName;
+    }
+    virtual bool NeedPaddedInput() const {
+        return false;
+    }
     bool Validate(const Params& p) const override;
     using WeightBiasKernelBase::GetJitConstants;
-    JitConstants GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const;
+    JitConstants GetJitConstantsWithLoopUnroll(const convolution_params& params,
+                                               const DispatchData& dispatchData) const;
     virtual JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
-    virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params,
+                                                        const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
     KernelsData GetCommonKernelsData(const Params& params,

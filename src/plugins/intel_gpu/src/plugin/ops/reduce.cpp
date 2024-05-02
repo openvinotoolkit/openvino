@@ -2,28 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_l1.hpp"
-#include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
-
 #include "intel_gpu/primitives/reduce.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
+static void CreateReduceOp(ProgramBuilder& p,
+                           const std::shared_ptr<ov::Node>& op,
+                           cldnn::reduce_mode mode,
+                           bool keep_dims) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -31,7 +33,12 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
     int64_t rank = input_pshape.size();
 
     auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+    OPENVINO_ASSERT(axes_constant != nullptr,
+                    "[GPU] Unsupported parameter nodes type in ",
+                    op->get_friendly_name(),
+                    " (",
+                    op->get_type_name(),
+                    ")");
 
     std::vector<int64_t> axes = axes_constant->cast_vector<int64_t>();
     for (size_t i = 0; i < axes.size(); i++) {
@@ -42,11 +49,7 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
             OPENVINO_THROW("[GPU] Unsupported axis value in ", op->get_friendly_name(), " (", axes[i], ")");
     }
 
-    auto reducePrim = cldnn::reduce(layerName,
-                                    inputs[0],
-                                    mode,
-                                    axes,
-                                    keep_dims);
+    auto reducePrim = cldnn::reduce(layerName, inputs[0], mode, axes, keep_dims);
 
     p.add_primitive(*op, reducePrim);
 
@@ -61,15 +64,15 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
         auto out_shape = op->get_output_shape(0);
         cldnn::tensor outTensor;
         switch (rank) {
-            case 6:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1, 1);
-            case 5:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]), 1);
-            case 4:
-                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
-                                          1, TensorValue(out_shape[2]));
+        case 6:
+            outTensor =
+                cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]), 1, TensorValue(out_shape[2]), 1, 1);
+        case 5:
+            outTensor =
+                cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]), 1, TensorValue(out_shape[2]), 1);
+        case 4:
+            outTensor =
+                cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]), 1, TensorValue(out_shape[2]));
         }
         auto reshape_prim = cldnn::reshape(resultLayerName, cldnn::input_info(layerName), outTensor);
         p.add_primitive(*op, reshape_prim);
@@ -86,10 +89,7 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
         else if (rank - axes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName,
-                                           cldnn::input_info(resultLayerName),
-                                           out_format,
-                                           out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName, cldnn::input_info(resultLayerName), out_format, out_dt);
         p.add_primitive(*op, reorder_prim);
     }
 }

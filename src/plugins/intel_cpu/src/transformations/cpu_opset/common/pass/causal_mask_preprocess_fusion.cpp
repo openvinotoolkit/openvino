@@ -120,7 +120,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         makePattern<ov::opset1::Reshape>({SliceAssign_201_Range, {-1, 1, max_seq_len, max_seq_len}},
                                          {{"special_zero", true}});  //  tensor_array<i32[?,1,8192,8192]>
 
-    auto ShapeOf_49034 = makePattern<ov::opset1::ShapeOf>({attention_mask});                 //  tensor_array<i32[2]>
+    auto ShapeOf_49034 = makePattern<ov::opset1::ShapeOf>({attention_mask});  //  tensor_array<i32[2]>
     auto Gather_41642 =
         makePattern<ov::opset8::Gather>({ShapeOf_49034, {1}, 0}, {{"batch_dims", 0}});  //  tensor_array<i32[1]>
     auto ScatterUpdate_93502 =

@@ -43,8 +43,8 @@ message HistogramProto {
   // a bucket is:
   //   i == 0:  -DBL_MAX .. bucket_limit(0)
   //   i != 0:  bucket_limit(i-1) .. bucket_limit(i)
-  repeated double bucket_limit = 6 [packed = true];
-  repeated double bucket = 7 [packed = true];
+  repeated double bucket_limit = 6 [ packed = true ];
+  repeated double bucket = 7 [ packed = true ];
 }
 
 // A SummaryMetadata encapsulates information on which plugins are able to make

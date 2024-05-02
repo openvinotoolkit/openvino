@@ -114,8 +114,12 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
            one_of(weightsType, u8, nf4, u4, i4);
 }
 
-bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
-                                                 MemoryCPtr scalesPtr, MemoryCPtr zpPtr, bool needTranspose) {
+bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize,
+                                                 const MemoryDescPtr srcDesc,
+                                                 const MemoryDescPtr weightsDesc,
+                                                 MemoryCPtr scalesPtr,
+                                                 MemoryCPtr zpPtr,
+                                                 bool needTranspose) {
     if (dqGroupSize == 0)
         return false;
 
@@ -316,9 +320,13 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
-    const auto useDynamicQuantization = useWeightsDecompression &&
-        useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc,
-                                   attrs.decompressionMultiplyPtr, attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed);
+    const auto useDynamicQuantization =
+        useWeightsDecompression && useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize,
+                                                              srcDesc,
+                                                              weiDesc,
+                                                              attrs.decompressionMultiplyPtr,
+                                                              attrs.decompressionSubtractPtr,
+                                                              !attrs.weightsNonTransposed);
 
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 
@@ -357,10 +365,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
         originalWeightsDesc = utils::makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc);
 
     // ignore the result since we just need to put the packed weights into the cache
-    (void)utils::prepareWeightsMemory(originalWeightsDesc,
-                                      weightsDesc,
-                                      memory.at(ARG_WEI),
-                                      context);
+    (void)utils::prepareWeightsMemory(originalWeightsDesc, weightsDesc, memory.at(ARG_WEI), context);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }

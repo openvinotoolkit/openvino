@@ -5,13 +5,13 @@
 #include "precision_support.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "cpu/x64/cpu_isa_traits.hpp"
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
-#include "arm_compute/core/CPP/CPPTypes.h"
+#    include "arm_compute/core/CPP/CPPTypes.h"
 #endif
 
 namespace ov {
@@ -24,8 +24,8 @@ static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
         return true;
     return false;
 #elif defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
-    //has_fp16() works correctly on aarch64 only
-    //TODO: remove else branch as soon as ACL issue #1096 is fixed
+    // has_fp16() works correctly on aarch64 only
+    // TODO: remove else branch as soon as ACL issue #1096 is fixed
     return arm_compute::CPUInfo::get().has_fp16();
 #else
     return false;
@@ -34,12 +34,12 @@ static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
 
 static bool hasBF16HardwareSupport(const ov::element::Type& precision) {
 #if defined(OPENVINO_ARCH_X86_64)
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-            return true;
-        return false;
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+        return true;
+    return false;
 #else
-        return false;
+    return false;
 #endif
 }
 

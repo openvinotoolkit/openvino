@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
 #include "snippets/select.hpp"
+
+#include <common_test_utils/ov_tensor_utils.hpp>
+
+#include "common_test_utils/common_utils.hpp"
 #include "subgraph_simple.hpp"
 
 namespace ov {
@@ -12,29 +14,36 @@ namespace test {
 namespace snippets {
 
 namespace {
-void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs, const std::vector<ov::Output<ov::Node>>& model_inputs,
-    const std::vector<ov::Shape>& targetInputStaticShapes) {
+void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs,
+                   const std::vector<ov::Output<ov::Node>>& model_inputs,
+                   const std::vector<ov::Shape>& targetInputStaticShapes) {
     data_inputs.clear();
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = -1;
     in_data.range = 3;
     in_data.resolution = 2;
-    auto tensor_bool = ov::test::utils::create_and_fill_tensor(model_inputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    auto tensor_bool = ov::test::utils::create_and_fill_tensor(model_inputs[0].get_element_type(),
+                                                               targetInputStaticShapes[0],
+                                                               in_data);
 
     in_data.start_from = -10;
     in_data.range = 10;
     in_data.resolution = 2;
-    auto tensor0 = ov::test::utils::create_and_fill_tensor(model_inputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
+    auto tensor0 = ov::test::utils::create_and_fill_tensor(model_inputs[1].get_element_type(),
+                                                           targetInputStaticShapes[1],
+                                                           in_data);
 
     in_data.start_from = 0;
     in_data.range = 10;
     in_data.resolution = 2;
-    auto tensor1 = ov::test::utils::create_and_fill_tensor(model_inputs[2].get_element_type(), targetInputStaticShapes[2], in_data);
+    auto tensor1 = ov::test::utils::create_and_fill_tensor(model_inputs[2].get_element_type(),
+                                                           targetInputStaticShapes[2],
+                                                           in_data);
     data_inputs.insert({model_inputs[0].get_node_shared_ptr(), tensor_bool});
     data_inputs.insert({model_inputs[1].get_node_shared_ptr(), tensor0});
     data_inputs.insert({model_inputs[2].get_node_shared_ptr(), tensor1});
 }
-} // namespace
+}  // namespace
 
 std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SelectParams> obj) {
     InputShape inputShapes0, inputShapes1, inputShapes2;
@@ -69,7 +78,8 @@ std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::S
 void Select::SetUp() {
     InputShape inputShape0, inputShape1, inputShape2;
     ov::element::Type type;
-    std::tie(inputShape0, inputShape1, inputShape2, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(inputShape0, inputShape1, inputShape2, type, ref_num_nodes, ref_num_subgraphs, targetDevice) =
+        this->GetParam();
     init_input_shapes({{inputShape0}, {inputShape1}, {inputShape2}});
 
     auto f = ov::test::snippets::SelectFunction(inputDynamicShapes);
@@ -90,7 +100,8 @@ std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::sn
     ov::element::Type type;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, inputShapes2, broadcastShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(inputShapes0, inputShapes1, inputShapes2, broadcastShape, type, num_nodes, num_subgraphs, targetDevice) =
+        obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -120,10 +131,19 @@ void BroadcastSelect::SetUp() {
     InputShape inputShape0, inputShape1, inputShape2;
     ov::PartialShape broadcastShape;
     ov::element::Type type;
-    std::tie(inputShape0, inputShape1, inputShape2, broadcastShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(inputShape0,
+             inputShape1,
+             inputShape2,
+             broadcastShape,
+             type,
+             ref_num_nodes,
+             ref_num_subgraphs,
+             targetDevice) = this->GetParam();
     init_input_shapes({inputShape0, inputShape1, inputShape2});
 
-    auto f = ov::test::snippets::BroadcastSelectFunction({inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}, broadcastShape);
+    auto f = ov::test::snippets::BroadcastSelectFunction(
+        {inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]},
+        broadcastShape);
     function = f.getOriginal();
 
     if (!configuration.count("SNIPPETS_MODE")) {
@@ -145,6 +165,6 @@ TEST_P(BroadcastSelect, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

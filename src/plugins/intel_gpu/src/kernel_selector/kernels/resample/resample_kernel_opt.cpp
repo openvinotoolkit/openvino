@@ -3,15 +3,17 @@
 //
 
 #include "resample_kernel_opt.h"
-#include <vector>
+
 #include <kernel_selector_utils.h>
+
+#include <vector>
 
 namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
 size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
-    std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
+    std::vector<size_t> block_width = {16, 8, 4, 2, 1};
     for (auto& w : block_width)
         if (params.outputs[0].X().v % w == 0)
             return w;
@@ -81,7 +83,7 @@ DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Para
     return get_common_subgroups_device_features_key(params);
 }
 
-static size_t get_vec_size(const resample_params &params) {
+static size_t get_vec_size(const resample_params& params) {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 2;
     } else {
@@ -89,11 +91,11 @@ static size_t get_vec_size(const resample_params &params) {
     }
 }
 
-static int get_feature_slice_size(const resample_params &params) {
+static int get_feature_slice_size(const resample_params& params) {
     return static_cast<int>(16 * get_vec_size(params));
 }
 
-ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
+ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params& arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
     auto out_layout = arg.outputs[0].GetLayout();
@@ -110,7 +112,8 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
         dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
                        {Tensor::DataChannelName::FEATURE},
                        {Tensor::DataChannelName::BATCH}};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     } else {
         auto opt_x_block_size = GetOptimalBlockSize(arg);
         if (out.X().v > 32 && opt_x_block_size == 1) {
@@ -154,8 +157,7 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
-        params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::NEAREST_NEIGHBOR && params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
     // in the case of 5D support only NEAREST_NEIGHBOR
@@ -165,7 +167,7 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
+JitConstants ResampleKernelOpt::GetJitConstants(const resample_params& params) const {
     auto jit = Parent::GetJitConstants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
@@ -188,7 +190,8 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
                 idx_order = {"b", "feature_block", "z", "y", "(x + out_x)"};
             else
                 idx_order = {"b", "feature_block", "y", "(x + out_x)"};
-            FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
+            FusedOpsConfiguration conf =
+                {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
             conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         } else {

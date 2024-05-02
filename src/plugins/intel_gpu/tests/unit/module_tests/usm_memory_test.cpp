@@ -2,41 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
+#include <memory>
 
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
-#include "intel_gpu/graph/topology.hpp"
-#include "runtime/ocl/ocl_stream.hpp"
-#include "runtime/ocl/ocl_memory.hpp"
-#include "runtime/ocl/ocl_common.hpp"
-#include "runtime/ocl/ocl_base_event.hpp"
-
-#include "intel_gpu/graph/program.hpp"
-#include "data_inst.h"
 #include "activation_inst.h"
 #include "convolution_inst.h"
 #include "crop_inst.h"
+#include "data_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "reshape_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "pass_manager.h"
 #include "program_wrapper.h"
-
-#include <memory>
+#include "reshape_inst.h"
+#include "runtime/ocl/ocl_base_event.hpp"
+#include "runtime/ocl/ocl_common.hpp"
+#include "runtime/ocl/ocl_memory.hpp"
+#include "runtime/ocl/ocl_stream.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
 #if defined __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wmissing-braces"
 #elif defined __GNUC__ && __GNUC__ >= 6
-#pragma GCC diagnostic ignored "-Wignored-attributes"
+#    pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
 #include <ocl/ocl_wrapper.hpp>
-struct usm_test_params{
+struct usm_test_params {
     allocation_type type;
 };
 
@@ -45,6 +43,7 @@ protected:
     std::shared_ptr<ocl::ocl_device> _device = nullptr;
     std::shared_ptr<ocl::ocl_engine> _engine = nullptr;
     bool _supports_usm = false;
+
 public:
     void SetUp() override {
         // Find device, which supports USMs.
@@ -59,13 +58,15 @@ public:
         if (!_device) {
             GTEST_SUCCEED();
         }
-        _engine = std::dynamic_pointer_cast<ocl::ocl_engine>(engine::create(engine_types::ocl, runtime_types::ocl, _device));
+        _engine =
+            std::dynamic_pointer_cast<ocl::ocl_engine>(engine::create(engine_types::ocl, runtime_types::ocl, _device));
         _supports_usm = true;
     }
 
-    bool supports_usm() const { return _supports_usm; }
+    bool supports_usm() const {
+        return _supports_usm;
+    }
 };
-
 
 class ctor_test : public BaseUSMTest {};
 TEST_P(ctor_test, basic) {
@@ -92,17 +93,18 @@ TEST_P(ctor_test, basic) {
             FAIL() << "Not supported allocation type!";
         }
         ASSERT_NE(nullptr, mem.get());
-    }
-    catch (...) {
+    } catch (...) {
         FAIL() << "Test failed, ctor of usm mems failed.";
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(cldnn_usm, ctor_test, ::testing::ValuesIn(std::vector<usm_test_params>{
-    usm_test_params{ allocation_type::usm_host},
-//    usm_test_params{ allocation_type::usm_shared}, // Unsupported
-    usm_test_params{ allocation_type::usm_device},
-}));
+INSTANTIATE_TEST_SUITE_P(cldnn_usm,
+                         ctor_test,
+                         ::testing::ValuesIn(std::vector<usm_test_params>{
+                             usm_test_params{allocation_type::usm_host},
+                             //    usm_test_params{ allocation_type::usm_shared}, // Unsupported
+                             usm_test_params{allocation_type::usm_device},
+                         }));
 
 class copy_and_read_buffer : public BaseUSMTest {};
 TEST_P(copy_and_read_buffer, basic) {
@@ -117,7 +119,8 @@ TEST_P(copy_and_read_buffer, basic) {
         size_t values_bytes_count = values_count * sizeof(float);
         std::vector<float> src_buffer(values_count);
         std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
-        cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+        cldnn::layout linear_layout =
+            cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
         auto cldnn_mem_src = _engine->allocate_memory(linear_layout, p.type);
 
         // Fill src buffer
@@ -168,14 +171,15 @@ TEST_P(copy_and_read_buffer, basic) {
     } catch (const char* msg) {
         FAIL() << msg;
     }
-
 }
 
-INSTANTIATE_TEST_SUITE_P(cldnn_usm, copy_and_read_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
-        usm_test_params{ allocation_type::usm_host },
-//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
-        usm_test_params{ allocation_type::usm_device },
-}));
+INSTANTIATE_TEST_SUITE_P(cldnn_usm,
+                         copy_and_read_buffer,
+                         ::testing::ValuesIn(std::vector<usm_test_params>{
+                             usm_test_params{allocation_type::usm_host},
+                             //        usm_test_params{ allocation_type::usm_shared }, // Unsupported
+                             usm_test_params{allocation_type::usm_device},
+                         }));
 
 class fill_buffer : public BaseUSMTest {};
 TEST_P(fill_buffer, DISABLED_basic) {
@@ -207,20 +211,20 @@ TEST_P(fill_buffer, DISABLED_basic) {
         // Fill buffer !! This can fail with old driver, which does not support fill usm api.
         cl::Event ev;
         unsigned char pattern = 0;
-        usm_helper.enqueue_fill_mem(
-            queue,
-            mem.get(),
-            static_cast<const void*>(&pattern),
-            sizeof(unsigned char),
-            values_bytes_count,
-            nullptr,
-            &ev
-        );
+        usm_helper.enqueue_fill_mem(queue,
+                                    mem.get(),
+                                    static_cast<const void*>(&pattern),
+                                    sizeof(unsigned char),
+                                    values_bytes_count,
+                                    nullptr,
+                                    &ev);
         ev.wait();
 
         // Read from src buffer
         std::vector<float> dst_buffer(values_count);
-        std::iota(dst_buffer.begin(), dst_buffer.end(), 5.0f); //fill with other value, so we can easily compare with 0.0f
+        std::iota(dst_buffer.begin(),
+                  dst_buffer.end(),
+                  5.0f);  // fill with other value, so we can easily compare with 0.0f
         auto values_ptr = mem.get();
         switch (p.type) {
         case allocation_type::usm_host:
@@ -231,13 +235,7 @@ TEST_P(fill_buffer, DISABLED_basic) {
         case allocation_type::usm_device: {
             cl::UsmMemory host_mem(usm_helper);
             host_mem.allocateHost(values_bytes_count);
-            usm_helper.enqueue_memcpy(
-                queue,
-                host_mem.get(),
-                mem.get(),
-                values_bytes_count,
-                true
-            );
+            usm_helper.enqueue_memcpy(queue, host_mem.get(), mem.get(), values_bytes_count, true);
             auto host_ptr = host_mem.get();
             std::memcpy(dst_buffer.data(), host_ptr, values_bytes_count);
             break;
@@ -245,21 +243,22 @@ TEST_P(fill_buffer, DISABLED_basic) {
         default:
             FAIL() << "Not supported allocation type!";
         }
-        bool are_equal = std::all_of(dst_buffer.begin(), dst_buffer.begin() + values_count, [](float f) {return f == 0; });
+        bool are_equal = std::all_of(dst_buffer.begin(), dst_buffer.begin() + values_count, [](float f) {
+            return f == 0;
+        });
         ASSERT_EQ(true, are_equal);
-    }
-    catch (const char* msg) {
+    } catch (const char* msg) {
         FAIL() << msg;
     }
-
 }
 
-INSTANTIATE_TEST_SUITE_P(cldnn_usm, fill_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
-    usm_test_params{ allocation_type::usm_host },
-//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
-        usm_test_params{ allocation_type::usm_device },
-}));
-
+INSTANTIATE_TEST_SUITE_P(cldnn_usm,
+                         fill_buffer,
+                         ::testing::ValuesIn(std::vector<usm_test_params>{
+                             usm_test_params{allocation_type::usm_host},
+                             //        usm_test_params{ allocation_type::usm_shared }, // Unsupported
+                             usm_test_params{allocation_type::usm_device},
+                         }));
 
 class copy_between_gpu_buffer_and_gpu_usm : public BaseUSMTest {};
 TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
@@ -275,7 +274,8 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         std::vector<float> src_buffer(values_count);
         std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
 
-        cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+        cldnn::layout linear_layout =
+            cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
         auto usm_host_src = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
 
         // Fill usm_host_src memory.
@@ -288,9 +288,8 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
         // Fill dst memory
         switch (p.type) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: 
-        case allocation_type::usm_device:
-        {
+        case allocation_type::usm_shared:
+        case allocation_type::usm_device: {
             auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(mem_dst);
             auto ev = casted->copy_from(stream, *usm_host_src, true);
             ev->wait();
@@ -315,7 +314,7 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
             std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
             break;
         }
-        case allocation_type::usm_device: 
+        case allocation_type::usm_device:
         case allocation_type::cl_mem: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             host_buf->copy_from(stream, *mem_dst);
@@ -333,14 +332,15 @@ TEST_P(copy_between_gpu_buffer_and_gpu_usm, basic) {
     } catch (const char* msg) {
         FAIL() << msg;
     }
-
 }
 
-INSTANTIATE_TEST_SUITE_P(cldnn_usm, copy_between_gpu_buffer_and_gpu_usm, ::testing::ValuesIn(std::vector<usm_test_params>{
-    usm_test_params{ allocation_type::cl_mem },
-    usm_test_params{ allocation_type::usm_host },
-    usm_test_params{ allocation_type::usm_device },
-}));
+INSTANTIATE_TEST_SUITE_P(cldnn_usm,
+                         copy_between_gpu_buffer_and_gpu_usm,
+                         ::testing::ValuesIn(std::vector<usm_test_params>{
+                             usm_test_params{allocation_type::cl_mem},
+                             usm_test_params{allocation_type::usm_host},
+                             usm_test_params{allocation_type::usm_device},
+                         }));
 
 class offset_usm_copy : public BaseUSMTest {};
 TEST_P(offset_usm_copy, basic) {
@@ -356,7 +356,8 @@ TEST_P(offset_usm_copy, basic) {
         std::vector<float> src_buffer(values_count);
         std::iota(src_buffer.begin(), src_buffer.end(), 0.0f);
 
-        cldnn::layout linear_layout = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
+        cldnn::layout linear_layout =
+            cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, 1, int32_t(values_count), 1));
         auto usm_host_src = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
 
         // Fill usm_host_src memory.
@@ -369,9 +370,8 @@ TEST_P(offset_usm_copy, basic) {
         // Fill dst memory
         switch (p.type) {
         case allocation_type::usm_host:
-        case allocation_type::usm_shared: 
-        case allocation_type::usm_device:
-        {
+        case allocation_type::usm_shared:
+        case allocation_type::usm_device: {
             auto casted = std::dynamic_pointer_cast<ocl::gpu_usm>(mem_dst);
             auto ev = casted->copy_from(stream, usm_host_src->buffer_ptr(), true, 32, 32);
             ev->wait();
@@ -396,7 +396,7 @@ TEST_P(offset_usm_copy, basic) {
             std::memcpy(dst_buffer.data(), lock.data(), values_bytes_count);
             break;
         }
-        case allocation_type::usm_device: 
+        case allocation_type::usm_device:
         case allocation_type::cl_mem: {
             auto host_buf = _engine->allocate_memory(linear_layout, allocation_type::usm_host);
             host_buf->copy_from(stream, *mem_dst);
@@ -416,8 +416,10 @@ TEST_P(offset_usm_copy, basic) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(cldnn_usm, offset_usm_copy, ::testing::ValuesIn(std::vector<usm_test_params>{
-    usm_test_params{ allocation_type::cl_mem },
-    usm_test_params{ allocation_type::usm_host },
-    usm_test_params{ allocation_type::usm_device },
-}));
+INSTANTIATE_TEST_SUITE_P(cldnn_usm,
+                         offset_usm_copy,
+                         ::testing::ValuesIn(std::vector<usm_test_params>{
+                             usm_test_params{allocation_type::cl_mem},
+                             usm_test_params{allocation_type::usm_host},
+                             usm_test_params{allocation_type::usm_device},
+                         }));

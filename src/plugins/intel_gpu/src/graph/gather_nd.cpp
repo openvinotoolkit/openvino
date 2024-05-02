@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
 #include "gather_nd_inst.h"
 #include "gather_nd_shape_inference.hpp"
-
-#include "primitive_type_base.h"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
@@ -71,9 +71,9 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
     return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);
 }
 
-
-template<typename ShapeType>
-std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*node*/,
+                                                        const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<gather_nd>();
 
     auto input_layout = impl_param.get_input_layout(0);
@@ -85,10 +85,7 @@ std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*
     }
 
     std::vector<ShapeType> output_shapes;
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        indices_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>(), indices_layout.get<ShapeType>()};
 
     if (desc->batch_merged_output) {
         ov::op::v5::GatherND op;
@@ -100,14 +97,15 @@ std::vector<layout> gather_nd_inst::calc_output_layouts(gather_nd_node const& /*
         output_shapes = ov::op::v8::shape_infer(&op, input_shapes);
     }
 
-    OPENVINO_ASSERT(!output_shapes[0].rank().is_dynamic(),
-                    "[GPU] Doesn't support output dynamic rank in gather_nd");
+    OPENVINO_ASSERT(!output_shapes[0].rank().is_dynamic(), "[GPU] Doesn't support output dynamic rank in gather_nd");
     format output_format = format::adjust_to_rank(input_layout.format, output_shapes[0].size());
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
-template std::vector<layout> gather_nd_inst::calc_output_layouts<ov::PartialShape>(gather_nd_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> gather_nd_inst::calc_output_layouts<ov::PartialShape>(
+    gather_nd_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string gather_nd_inst::to_string(gather_nd_node const& node) {
     auto desc = node.get_primitive();

@@ -44,7 +44,8 @@ void CumSumLayerTest::SetUp() {
     init_input_shapes(shapes);
 
     const auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
-    const auto axis_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
+    const auto axis_node =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{axis});
     const auto cum_sum = std::make_shared<ov::op::v0::CumSum>(param, axis_node, exclusive, reverse);
 
     auto result = std::make_shared<ov::op::v0::Result>(cum_sum);

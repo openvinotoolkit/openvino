@@ -8,13 +8,12 @@
 
 namespace ov {
 namespace test {
-using reverseParams = std::tuple<
-    std::vector<size_t>,             // Input shape
-    std::vector<int>,                // Axes
-    std::string,                     // Mode
-    ov::element::Type,               // Model type
-    ov::test::TargetDevice           // Device name
->;
+using reverseParams = std::tuple<std::vector<size_t>,    // Input shape
+                                 std::vector<int>,       // Axes
+                                 std::string,            // Mode
+                                 ov::element::Type,      // Model type
+                                 ov::test::TargetDevice  // Device name
+                                 >;
 
 class ReverseLayerTest : public testing::WithParamInterface<reverseParams>,
                          virtual public ov::test::SubgraphBaseStaticTest {

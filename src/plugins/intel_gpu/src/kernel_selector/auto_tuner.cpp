@@ -4,36 +4,37 @@
 
 #include "auto_tuner.h"
 
-#include <iostream>
-#include <sstream>
 #include <fstream>
 #include <iomanip>
-#include <string>
+#include <iostream>
 #include <memory>
-#include <utility>
+#include <sstream>
+#include <string>
 #include <tuple>
+#include <utility>
 
-#include "rapidjson/istreamwrapper.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#include <setupapi.h>
-#include <devguid.h>
-#include <cstring>
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <devguid.h>
+#    include <setupapi.h>
+#    include <windows.h>
+
+#    include <cstring>
 #else
-#include <unistd.h>
-#include <limits.h>
-#include <link.h>
-#include <dlfcn.h>
+#    include <dlfcn.h>
+#    include <limits.h>
+#    include <link.h>
+#    include <unistd.h>
 #endif
 
 #if __cplusplus > 201703L
@@ -64,8 +65,7 @@ public:
     rapidjson::Document cache;
 };
 
-TuningCache::TuningCache(const std::string& cacheFilePath)
-    : impl(new Impl()) {
+TuningCache::TuningCache(const std::string& cacheFilePath) : impl(new Impl()) {
     // Read cache file
     std::ifstream tuningFile(cacheFilePath);
 
@@ -74,7 +74,8 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
         buffer << tuningFile.rdbuf();
         impl->cache.Parse(buffer.str().c_str());
     } else {
-        throw std::runtime_error("Tuning file: " + cacheFilePath + " could not be read! Must provide a valid cache file in USE_CACHE mode.");
+        throw std::runtime_error("Tuning file: " + cacheFilePath +
+                                 " could not be read! Must provide a valid cache file in USE_CACHE mode.");
     }
 
     if (impl->cache.IsNull()) {
@@ -124,8 +125,7 @@ TuningCache::TuningCache(const std::string& cacheFilePath)
     }
 }
 
-TuningCache::TuningCache()
-    : impl(new Impl()) {
+TuningCache::TuningCache() : impl(new Impl()) {
     impl->cache.SetObject();
     auto v2Name = rapidjson::Value(version2Marker, impl->cache.GetAllocator());
     auto v2Obj = rapidjson::Value(rapidjson::Type::kObjectType);
@@ -223,8 +223,8 @@ TuningCache* TuningCache::get() {
     char module_path[MAX_PATH];
     HMODULE hm = NULL;
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)&TuningCache::get,
-        &hm);
+                      (LPCSTR)&TuningCache::get,
+                      &hm);
     GetModuleFileName(hm, module_path, sizeof(module_path));
     std::string bin_path(module_path);
     path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
@@ -235,7 +235,7 @@ TuningCache* TuningCache::get() {
     std::string bin_path(dl_info.dli_fname);
     path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
 #else
-#error "Intel GPU plugin: unknown target system"
+#    error "Intel GPU plugin: unknown target system"
 #endif
 
     if (!cache_instance) {

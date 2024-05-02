@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shuffle_channels_inst.h"
+#include <string>
 
-#include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "primitive_type_base.h"
+#include "shuffle_channels_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(shuffle_channels)
 
-layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node, kernel_impl_params const& impl_param) {
+layout shuffle_channels_inst::calc_output_layout(shuffle_channels_node const& node,
+                                                 kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<shuffle_channels>();
 
     auto input_layout = impl_param.get_input_layout();

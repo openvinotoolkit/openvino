@@ -177,16 +177,14 @@ std::vector<GridSampleParams> generateNearestParamsEvenDimensions() {
 
     for (const auto& padding : padding_modes) {
         std::stringstream name1, name2;
-        name1 << "nearest_" << padding << "_noalign"
-              << "_even_dims_inner" << param_types_str(DATA_ET, GRID_ET);
+        name1 << "nearest_" << padding << "_noalign" << "_even_dims_inner" << param_types_str(DATA_ET, GRID_ET);
         params.emplace_back(data_even_dims,
                             grid_inner,
                             op::v9::GridSample::Attributes{false, GS_NEAREST, padding},
                             padding == GS_ZEROS ? output_zeros_noalign : output_noalign,
                             name1.str());
 
-        name2 << "nearest_" << padding << "_align"
-              << "_even_dims_inner" << param_types_str(DATA_ET, GRID_ET);
+        name2 << "nearest_" << padding << "_align" << "_even_dims_inner" << param_types_str(DATA_ET, GRID_ET);
         params.emplace_back(data_even_dims,
                             grid_inner,
                             op::v9::GridSample::Attributes{true, GS_NEAREST, padding},

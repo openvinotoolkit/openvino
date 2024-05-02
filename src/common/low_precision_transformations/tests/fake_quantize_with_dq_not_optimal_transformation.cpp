@@ -2,26 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
+#include <gtest/gtest.h>
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
-
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
-#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
-#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/constant.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "ov_lpt_models/fake_quantize_and_convolution.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -44,21 +41,18 @@ public:
     Values expected;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeWithNotOptimalTransformationTestValues& testValue) {
-    return out << "_" <<
-        testValue.actual.fqOnData << "_" << testValue.actual.fqOnWeights <<
-        testValue.expected.fqOnData << "_" << testValue.expected.fqOnWeights;
+inline std::ostream& operator<<(std::ostream& out,
+                                const FakeQuantizeWithNotOptimalTransformationTestValues& testValue) {
+    return out << "_" << testValue.actual.fqOnData << "_" << testValue.actual.fqOnWeights << testValue.expected.fqOnData
+               << "_" << testValue.expected.fqOnWeights;
 }
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::Shape,
-    bool,
-    FakeQuantizeWithNotOptimalTransformationTestValues> FakeQuantizeWithNotOptimalTransformationParams;
+typedef std::tuple<ov::element::Type, ov::Shape, bool, FakeQuantizeWithNotOptimalTransformationTestValues>
+    FakeQuantizeWithNotOptimalTransformationParams;
 
-class FakeQuantizeWithNotOptimalTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<FakeQuantizeWithNotOptimalTransformationParams> {
+class FakeQuantizeWithNotOptimalTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<FakeQuantizeWithNotOptimalTransformationParams> {
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
@@ -68,46 +62,43 @@ public:
 
         const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(updatePrecision);
 
-        actualFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-            precision,
-            shape,
-            testValues.actual.fqOnData,
-            testValues.actual.convertOnData,
-            testValues.actual.dequantizationOnData,
-            testValues.actual.constantOnWeights,
-            testValues.actual.fqOnWeights,
-            {},
-            testValues.actual.dequantizationOnWeights,
-            testValues.actual.dequantizationAfter);
+        actualFunction =
+            ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(precision,
+                                                                           shape,
+                                                                           testValues.actual.fqOnData,
+                                                                           testValues.actual.convertOnData,
+                                                                           testValues.actual.dequantizationOnData,
+                                                                           testValues.actual.constantOnWeights,
+                                                                           testValues.actual.fqOnWeights,
+                                                                           {},
+                                                                           testValues.actual.dequantizationOnWeights,
+                                                                           testValues.actual.dequantizationAfter);
 
-        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
-            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
-                {{0}, {ov::element::u8}},
-                {{1}, {ov::element::i8}}
-            })
-        });
+        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>(
+            {ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(
+                {{{0}, {ov::element::u8}}, {{1}, {ov::element::i8}}})});
 
-        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
-            ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
-        });
+        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>(
+            {ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()});
 
         SimpleLowPrecisionTransformer transformer(precisionsRestrictions, quantizationRestrictions);
         transformer.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
-            TestTransformationParams(params).setPrecisionsOnActivations({ element::u8 }));
-        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(params);
+            TestTransformationParams(params).setPrecisionsOnActivations({element::u8}));
+        transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
-            precision,
-            shape,
-            testValues.expected.fqOnData,
-            {},
-            testValues.expected.dequantizationOnData,
-            testValues.expected.constantOnWeights,
-            testValues.expected.fqOnWeights,
-            {},
-            testValues.expected.dequantizationOnWeights,
-            testValues.expected.dequantizationAfter);
+        referenceFunction =
+            ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(precision,
+                                                                           shape,
+                                                                           testValues.expected.fqOnData,
+                                                                           {},
+                                                                           testValues.expected.dequantizationOnData,
+                                                                           testValues.expected.constantOnWeights,
+                                                                           testValues.expected.fqOnWeights,
+                                                                           {},
+                                                                           testValues.expected.dequantizationOnWeights,
+                                                                           testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeWithNotOptimalTransformationParams> obj) {
@@ -118,9 +109,8 @@ public:
         std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
 
         std::ostringstream result;
-        result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params) <<
-            (updatePrecision ? "" : "_notUpdatePrecision_") <<
-            fakeQuantizeOnData;
+        result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params)
+               << (updatePrecision ? "" : "_notUpdatePrecision_") << fakeQuantizeOnData;
         return result.str();
     }
 };
@@ -133,11 +123,11 @@ TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareFunctions) {
 
 const std::vector<ov::element::Type> precisions = {
     ov::element::f32,
-    //ov::element::i32,
-    //ov::element::f16
+    // ov::element::i32,
+    // ov::element::f16
 };
 
-const std::vector<bool> updatePrecisions = { true/*, false*/ };
+const std::vector<bool> updatePrecisions = {true /*, false*/};
 
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeTransformationTestValues = {
     // Actual:
@@ -173,56 +163,44 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
     //           Multiply
     {
         LayerTransformation::createParamsU8I8AndI8(),
-        {
-            { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 2.55f }, { -128.f }, { 127.f }, ov::element::i8 },
-            { ov::element::i8, false },
-            {
-                { ov::element::f32, false },
-                { {-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
-                { {0.01f}, ov::element::f32, {}, false }
-            },
-            {{5.f}, ov::element::i8},
-            {},
-            {
-                { ov::element::f32, false },
-                { {127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true },
-                { {0.03f}, ov::element::f32, {}, false }
-            },
-            {}
-        },
-        {
-            { 256ul, {{ 1, 1, 1, 1 }, { 1, 1, 1, 1 }, {}, {}}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, ov::element::u8 },
-            { ov::element::u8, false },
-            {},
-            {{5.f}, ov::element::i8},
-            {},
-            {
-                {},
-                { std::vector<float>(64, 127.f), ov::element::f32,
-                 {64, 1, 1, 1}, false, 1ul, ov::element::i8, false,
-                 {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
-                {}
-            },
-            {
-                { },
-                { },
-                { {0.0003f}, ov::element::f32, {}}
-            }
-        },
-    }
-};
+        {{256ul, {{1, 1, 1, 1}}, {0.f}, {2.55f}, {-128.f}, {127.f}, ov::element::i8},
+         {ov::element::i8, false},
+         {{ov::element::f32, false},
+          {{-128.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true},
+          {{0.01f}, ov::element::f32, {}, false}},
+         {{5.f}, ov::element::i8},
+         {},
+         {{ov::element::f32, false},
+          {{127.f}, ov::element::f32, {}, false, 1ul, ov::element::i8, true},
+          {{0.03f}, ov::element::f32, {}, false}},
+         {}},
+        {{256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
+         {ov::element::u8, false},
+         {},
+         {{5.f}, ov::element::i8},
+         {},
+         {{},
+          {std::vector<float>(64, 127.f),
+           ov::element::f32,
+           {64, 1, 1, 1},
+           false,
+           1ul,
+           ov::element::i8,
+           false,
+           {{ov::pass::DisableConstantFolding::get_type_info_static(), ov::pass::DisableConstantFolding()}}},
+          {}},
+         {{}, {}, {{0.0003f}, ov::element::f32, {}}}},
+    }};
 
 const std::vector<ov::Shape> shapes = {
-    { 1, 32, 72, 48 },
+    {1, 32, 72, 48},
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FakeQuantizeWithNotOptimalTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
-    FakeQuantizeWithNotOptimalTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         FakeQuantizeWithNotOptimalTransformation,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(shapes),
+                                            ::testing::ValuesIn(updatePrecisions),
+                                            ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
+                         FakeQuantizeWithNotOptimalTransformation::getTestCaseName);

@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -22,7 +23,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
         return WeightsLayout::os_i_osv16__ai8;
     }
     bool Validate(const Params& p) const override;

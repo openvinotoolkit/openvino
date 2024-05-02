@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.sparse_segment_sum import SparseSegmentSum
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.sparse_segment_sum import SparseSegmentSum
 
 
 class SparseSegmentSumFrontExtractor(FrontExtractorOp):
-    op = 'SparseSegmentSum'
+    op = "SparseSegmentSum"
     enabled = True
 
     @classmethod

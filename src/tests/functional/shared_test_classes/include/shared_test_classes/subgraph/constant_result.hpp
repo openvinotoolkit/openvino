@@ -22,7 +22,8 @@ typedef std::tuple<ConstantSubgraphType,
                    ov::Shape,          // input shape
                    ov::element::Type,  // input element type
                    std::string         // Device name
-    > constResultParams;
+                   >
+    constResultParams;
 
 class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
                                    virtual public ov::test::SubgraphBaseTest {

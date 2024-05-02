@@ -3,15 +3,15 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.non_zero import NonZero
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.non_zero import NonZero
 
 
 class NonZeroExtractor(FrontExtractorOp):
-    op = 'NonZero'
+    op = "NonZero"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        NonZero.update_node_stat(node, {'output_type': np.int64})
+        NonZero.update_node_stat(node, {"output_type": np.int64})
         return cls.enabled

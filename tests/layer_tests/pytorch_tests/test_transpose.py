@@ -26,7 +26,10 @@ class TestTranspose(PytorchLayerTest):
                 super(aten_transpose, self).__init__()
                 self.dim0 = dim0
                 self.dim1 = dim1
-                op_types = {"transpose": self.forward_transpose, "swapaxes": self.forward_swapaxes}
+                op_types = {
+                    "transpose": self.forward_transpose,
+                    "swapaxes": self.forward_swapaxes,
+                }
                 self.swapaxes = swapaxes(dim0, dim1)
                 self.forward = op_types.get(op_type)
 
@@ -47,7 +50,13 @@ class TestTranspose(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_transpose(self, dim0, dim1, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim0, dim1, op_type), ie_device, precision, ir_version, trace_model=True)
+        self._test(
+            *self.create_model(dim0, dim1, op_type),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True,
+        )
 
 
 class TestMoveDim(PytorchLayerTest):
@@ -68,11 +77,30 @@ class TestMoveDim(PytorchLayerTest):
 
         return aten_move_dim(dim0, dim1), ref_net, f"aten::movedim"
 
-    @pytest.mark.parametrize(("dim0", "dim1"), [[0, 1], [-1, 0], [2, -2], [3, 1], [3, 3], [[1, 2], [3, 0]], [[-4, 1], [1, -1]], [[1, 3, 2], [0, 1, 2 ]]])
+    @pytest.mark.parametrize(
+        ("dim0", "dim1"),
+        [
+            [0, 1],
+            [-1, 0],
+            [2, -2],
+            [3, 1],
+            [3, 3],
+            [[1, 2], [3, 0]],
+            [[-4, 1], [1, -1]],
+            [[1, 3, 2], [0, 1, 2]],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_move_dim(self, dim0, dim1, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim0, dim1), ie_device, precision, ir_version, trace_model=True)
+        self._test(
+            *self.create_model(dim0, dim1),
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True,
+        )
+
 
 class TestTSmall(PytorchLayerTest):
     def _prepare_input(self, num_dims=2, input_dtype="float32"):
@@ -101,14 +129,24 @@ class TestTSmall(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_transpose(mode), ref_net, "aten::t_" if mode == "inplace" else ("aten::numpy_T" if mode == "numpy" else "aten::t")
+        return (
+            aten_transpose(mode),
+            ref_net,
+            (
+                "aten::t_"
+                if mode == "inplace"
+                else ("aten::numpy_T" if mode == "numpy" else "aten::t")
+            ),
+        )
 
     @pytest.mark.parametrize("num_dims", [0, 1, 2])
     @pytest.mark.parametrize("input_dtype", ["float32", "int32"])
     @pytest.mark.parametrize("mode", [None, "inplace", "numpy"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_t_small(self, num_dims, input_dtype, mode, ie_device, precision, ir_version):
+    def test_t_small(
+        self, num_dims, input_dtype, mode, ie_device, precision, ir_version
+    ):
         self._test(
             *self.create_model(mode),
             ie_device,

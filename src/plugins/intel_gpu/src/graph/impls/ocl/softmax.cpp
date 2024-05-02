@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "softmax_inst.h"
-#include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
+#include "softmax/softmax_kernel_selector.h"
+#include "softmax_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -16,20 +15,24 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
         axis += rank;
     }
     switch (axis) {
-        case 0: return kernel_selector::softmax_dim::BATCH;
-        case 1: return kernel_selector::softmax_dim::FEATURE;
-        case 2:
-            if (rank > 4)
-                return kernel_selector::softmax_dim::Z;
-            else
-                return kernel_selector::softmax_dim::Y;
-        case 3:
-            if (rank > 4)
-                return kernel_selector::softmax_dim::Y;
-            else
-                return kernel_selector::softmax_dim::X;
-        case 4: return kernel_selector::softmax_dim::X;
-        default: OPENVINO_THROW("Invalid softmax axis ", axis);
+    case 0:
+        return kernel_selector::softmax_dim::BATCH;
+    case 1:
+        return kernel_selector::softmax_dim::FEATURE;
+    case 2:
+        if (rank > 4)
+            return kernel_selector::softmax_dim::Z;
+        else
+            return kernel_selector::softmax_dim::Y;
+    case 3:
+        if (rank > 4)
+            return kernel_selector::softmax_dim::Y;
+        else
+            return kernel_selector::softmax_dim::X;
+    case 4:
+        return kernel_selector::softmax_dim::X;
+    default:
+        OPENVINO_THROW("Invalid softmax axis ", axis);
     }
 }
 
@@ -74,21 +77,24 @@ namespace detail {
 
 attach_softmax_impl::attach_softmax_impl() {
     auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-            format::bfyx,
-            format::byxf,
-            format::yxfb,
-            format::bfzyx
-    };
+    auto formats = {format::bfyx, format::byxf, format::yxfb, format::bfzyx};
 
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+    implementation_map<softmax>::add(impl_types::ocl,
+                                     shape_types::static_shape,
+                                     typed_primitive_impl_ocl<softmax>::create<softmax_impl>,
+                                     types,
+                                     formats);
 
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
     };
 
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
+    implementation_map<softmax>::add(impl_types::ocl,
+                                     shape_types::dynamic_shape,
+                                     typed_primitive_impl_ocl<softmax>::create<softmax_impl>,
+                                     types,
+                                     dyn_formats);
 }
 
 }  // namespace detail

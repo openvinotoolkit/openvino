@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -23,17 +23,15 @@ public:
     std::string expectedKernelType;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::Shape,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
-    ConvolutionTransformationParam
-> ConvolutionTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::Shape,
+                   std::string,
+                   ov::pass::low_precision::LayerTransformation::Params,
+                   ConvolutionTransformationParam>
+    ConvolutionTransformationParams;
 
-class ConvolutionTransformation :
-    public testing::WithParamInterface<ConvolutionTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class ConvolutionTransformation : public testing::WithParamInterface<ConvolutionTransformationParams>,
+                                  public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj);
 

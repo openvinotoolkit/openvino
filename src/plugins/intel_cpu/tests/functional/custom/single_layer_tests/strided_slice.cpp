@@ -6,7 +6,6 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov;
@@ -82,7 +81,9 @@ protected:
                 in_data.start_from = 1;
                 in_data.range = 10;
                 in_data.resolution = 1;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 in_data);
             } else {
                 tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i - 1]};
             }

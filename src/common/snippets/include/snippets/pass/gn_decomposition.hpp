@@ -16,7 +16,7 @@ namespace pass {
  * @brief Decomposes GroupNormalization to a range of low-level operations
  * @ingroup snippets
  */
-class GNDecomposition: public ov::pass::MatcherPass {
+class GNDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GNDecomposition", "0");
     GNDecomposition();

@@ -5,11 +5,10 @@ import os
 import tempfile
 from pathlib import Path
 
-from generator import generator, generate
+from generator import generate, generator
 from openvino.runtime import serialize
-
-from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
+from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
 @generator
@@ -23,40 +22,37 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         #
 
         import onnx
-        from onnx import helper
-        from onnx import TensorProto
+        from onnx import TensorProto, helper
 
         shape = [1, 2, 3]
 
-        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
-        output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
+        input = helper.make_tensor_value_info("input", TensorProto.FLOAT, shape)
+        output = helper.make_tensor_value_info("output", TensorProto.FLOAT, shape)
 
         node_def = onnx.helper.make_node(
-            'Relu',
-            inputs=['input'],
-            outputs=['Relu_out'],
+            "Relu",
+            inputs=["input"],
+            outputs=["Relu_out"],
         )
         node_def2 = onnx.helper.make_node(
-            'Sigmoid',
-            inputs=['Relu_out'],
-            outputs=['output'],
+            "Sigmoid",
+            inputs=["Relu_out"],
+            outputs=["output"],
         )
 
         # Create the graph (GraphProto)
         graph_def = helper.make_graph(
             [node_def, node_def2],
-            'test_model',
+            "test_model",
             [input],
             [output],
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        onnx_net = helper.make_model(graph_def, producer_name="test_model")
         return onnx_net
 
-    @generate(*[
-        ({})
-    ])
+    @generate(*[({})])
     # Checks convert import from openvino.tools.mo
     def test_import(self, params):
         from openvino.tools.ovc import convert_model
@@ -67,7 +63,11 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(input_model=model_path, **params)
-            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            serialize(
+                ov_model,
+                out_xml.encode("utf-8"),
+                out_xml.replace(".xml", ".bin").encode("utf-8"),
+            )
             assert os.path.exists(out_xml)
 
     def test_input_model_path(self):
@@ -79,20 +79,23 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(Path(model_path))
-            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            serialize(
+                ov_model,
+                out_xml.encode("utf-8"),
+                out_xml.replace(".xml", ".bin").encode("utf-8"),
+            )
 
-            #TODO: check that model is correct
-
+            # TODO: check that model is correct
 
     def test_unnamed_input_model(self):
         from openvino.tools.ovc import convert_model
+
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(model_path)
-            #serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            # serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
-            #TODO: check that model is correct
-
+            # TODO: check that model is correct

@@ -3,11 +3,13 @@
 //
 
 #include "convolution_kernel_imad_b_fs_yx_fsv4_dw.hpp"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
-#include <string>
+
 #include <algorithm>
+#include <string>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -15,27 +17,21 @@ namespace {
 constexpr size_t fsv = 4;
 constexpr size_t max_reg_usage = 64;
 
-enum mode : size_t {
-    naive = 0,
-    preload_input = 1,
-    preload_weights = 2,
-    tiled = 4
-};
+enum mode : size_t { naive = 0, preload_input = 1, preload_weights = 2, tiled = 4 };
 
 }  // namespace
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ConvolutionKernel_imad_b_fs_yx_fsv4_dw()
     : ConvolutionKernelBase("convolution_gpu_b_fs_yx_fsv4_dw") {
-
-    std::vector<size_t> simd_sizes = { 8, 16 };
-    std::vector<size_t> tile_y_sizes = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+    std::vector<size_t> simd_sizes = {8, 16};
+    std::vector<size_t> tile_y_sizes = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     std::vector<std::string> exe_modes = ConvolutionKernelBase::autoTuneOptions;
 
     for (auto& simd : simd_sizes) {
         for (auto& ty : tile_y_sizes) {
             for (size_t tx = 1; tx <= simd; ++tx) {
                 for (auto& exec : exe_modes) {
-                    all_tune_params.push_back(AutoTuneParams{ tx, ty, simd, true, true, true, exec });
+                    all_tune_params.push_back(AutoTuneParams{tx, ty, simd, true, true, true, exec});
                 }
             }
         }
@@ -43,15 +39,15 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ConvolutionKernel_imad_b_fs_yx_fsv4_dw()
 
     for (size_t ox = 1; ox < 17; ++ox) {
         for (auto& exec : exe_modes) {
-            all_tune_params.push_back(AutoTuneParams{ ox, 1, 1, false, true, true, exec });
-            all_tune_params.push_back(AutoTuneParams{ ox, 1, 1, false, true, false, exec });
+            all_tune_params.push_back(AutoTuneParams{ox, 1, 1, false, true, true, exec});
+            all_tune_params.push_back(AutoTuneParams{ox, 1, 1, false, true, false, exec});
         }
     }
 
     for (size_t ox = 1; ox < 17; ++ox) {
         for (auto& exec : exe_modes) {
-            all_tune_params.push_back(AutoTuneParams{ ox, 1, 1, false, false, false, exec });
-            all_tune_params.push_back(AutoTuneParams{ ox, 1, 1, false, false, true, exec });
+            all_tune_params.push_back(AutoTuneParams{ox, 1, 1, false, false, false, exec});
+            all_tune_params.push_back(AutoTuneParams{ox, 1, 1, false, false, true, exec});
         }
     }
 }
@@ -109,7 +105,8 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params) cons
     return true;
 }
 
-bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
+bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convolution_params& params,
+                                                                    const AutoTuneParams& tune_params) const {
     // Checks that tune_params can be used for specified convolution_params
     auto& weights = params.weights;
 
@@ -130,9 +127,8 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
     } else if (tune_params.preload_input) {
         auto line_size = (tune_params.block_x - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1;
 
-        size_t reg_usage = tune_params.block_x * 4
-                         + line_size * weights.Y().v
-                         + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
+        size_t reg_usage = tune_params.block_x * 4 + line_size * weights.Y().v +
+                           Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
         if (reg_usage > max_reg_usage)
             return false;
 
@@ -142,7 +138,8 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
         if (tune_params.block_y > params.outputs[0].Y().v)
             return false;
     } else {
-        size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
+        size_t block_size =
+            tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
         if (block_size > max_reg_usage)
             return false;
     }
@@ -150,8 +147,9 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
     return true;
 }
 
-ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetAutoTuneParams(const convolution_params& params,
-                                                                                                                 int index) const {
+ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetAutoTuneParams(
+    const convolution_params& params,
+    int index) const {
     if (index >= 0 && index < static_cast<int>(all_tune_params.size())) {
         return all_tune_params[index];
     }
@@ -165,9 +163,10 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
 
     // Check that we can preload x and calculate at least two output values
     constexpr size_t min_preload_width = 2;
-    size_t min_preload_regs = ((min_preload_width - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1) * params.weights.Y().v
-                            + min_preload_width * 4
-                            + Align(weights.X().v * weights.Y().v, 4) <= max_reg_usage;
+    size_t min_preload_regs = ((min_preload_width - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x +
+                               1) * params.weights.Y().v +
+                                  min_preload_width * 4 + Align(weights.X().v * weights.Y().v, 4) <=
+                              max_reg_usage;
     bool can_preload_input = min_preload_regs <= max_reg_usage && !is_1_by_x;
 
     if (can_preload_input) {
@@ -185,9 +184,7 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         size_t best_overhang_x_8 = 0;
         for (size_t x = 2; x < 17; ++x) {
             size_t line_size = (x - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1;
-            size_t reg_usage = x * 4
-                             + line_size * weights.Y().v
-                             + Align(weights.X().v * weights.Y().v, 4);
+            size_t reg_usage = x * 4 + line_size * weights.Y().v + Align(weights.X().v * weights.Y().v, 4);
             if (x > output.X().v)
                 break;
             if (reg_usage > max_reg_usage)
@@ -201,10 +198,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
                 best_overhang_x_1 = overhang;
             }
             if (blocks_x < best_blocks_x_8 || overhang < best_overhang_x_8) {
-                if (blocks_x % pref_spatial_multiple == 0 ||
-                    (blocks_x == 4 && output.Y().v % 2 == 0) ||
-                    (blocks_x == 2 && output.Y().v % 4 == 0) ||
-                    (blocks_x == 1 && output.Y().v % 8 == 0)) {
+                if (blocks_x % pref_spatial_multiple == 0 || (blocks_x == 4 && output.Y().v % 2 == 0) ||
+                    (blocks_x == 2 && output.Y().v % 4 == 0) || (blocks_x == 1 && output.Y().v % 8 == 0)) {
                     best_x_8 = x;
                     best_blocks_x_8 = blocks_x;
                     best_overhang_x_8 = overhang;
@@ -242,10 +237,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
                 best_overhang_x_1 = overhang;
             }
             if (blocks_x < best_blocks_x_8 || overhang < best_overhang_x_8) {
-                if (blocks_x % pref_spatial_multiple == 0 ||
-                    (blocks_x == 4 && output.Y().v % 2 == 0) ||
-                    (blocks_x == 2 && output.Y().v % 4 == 0) ||
-                    (blocks_x == 1 && output.Y().v % 8 == 0)) {
+                if (blocks_x % pref_spatial_multiple == 0 || (blocks_x == 4 && output.Y().v % 2 == 0) ||
+                    (blocks_x == 2 && output.Y().v % 4 == 0) || (blocks_x == 1 && output.Y().v % 8 == 0)) {
                     best_x_8 = x;
                     best_blocks_x_8 = blocks_x;
                     best_overhang_x_8 = overhang;
@@ -256,7 +249,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         tune_params.block_x = best_x_8 != 0 ? best_x_8 : best_x_1;
         tune_params.block_y = 1;
         tune_params.preload_input = false;
-        if (tune_params.block_x > 1 && (tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4)) <= max_reg_usage) {
+        if (tune_params.block_x > 1 &&
+            (tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4)) <= max_reg_usage) {
             tune_params.preload_weights = true;
         } else {
             tune_params.preload_weights = false;
@@ -324,7 +318,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         auto conf = FusedOpsConfiguration("",
-                                          { "b", "f", "y", "(x + oxi + tile_x)" },
+                                          {"b", "f", "y", "(x + oxi + tile_x)"},
                                           "dequantized",
                                           input_dt,
                                           4,
@@ -332,7 +326,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
                                           BoundaryCheck::ENABLED,
                                           IndexType::TENSOR_COORD,
                                           Tensor::DataChannelName::FEATURE);
-        mem_consts.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return mem_consts;
@@ -352,28 +346,30 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
         global_x = global_x * autoTuneParam.tiled_simd;
     }
 
-    dispatchData.gws = { global_x, global_y, CeilDiv(out.Feature().v, fsv) * out.Batch().v };
-    dispatchData.lws = { 1, 1, 1 };
+    dispatchData.gws = {global_x, global_y, CeilDiv(out.Feature().v, fsv) * out.Batch().v};
+    dispatchData.lws = {1, 1, 1};
 
     if (autoTuneParam.tiled) {
         dispatchData.lws[0] = autoTuneParam.tiled_simd;
     } else {
         auto in_layout = params.inputs[0].GetLayout();
         auto out_layout = params.outputs[0].GetLayout();
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-                                                                         { Tensor::DataChannelName::Y },
-                                                                         { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::X},
+            {Tensor::DataChannelName::Y},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
-    dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
+    dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
     dispatchData.cldnnStyle.blockWidth = autoTuneParam.block_x;
     dispatchData.cldnnStyle.blockHeight = autoTuneParam.block_y;
-    dispatchData.cldnnStyle.prefetch = (static_cast<size_t>(autoTuneParam.tiled) * mode::tiled)
-                                     | (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input)
-                                     | (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
+    dispatchData.cldnnStyle.prefetch = (static_cast<size_t>(autoTuneParam.tiled) * mode::tiled) |
+                                       (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input) |
+                                       (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
 
     return dispatchData;
 }  // SetDefault

@@ -1,27 +1,29 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.ctc_loss import CTCLoss
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.ctc_loss import CTCLoss
 
 
 class CTCLossFrontExtractor(FrontExtractorOp):
-    op = 'CTCLoss'
+    op = "CTCLoss"
     enabled = True
 
     @classmethod
     def extract(cls, node):
         # For CTCLoss default value is [N, T]
         logits_time_major = True
-        if 'logits_time_major' in node.pb.attr:
-            logits_time_major = node.pb.attr['logits_time_major'].b
+        if "logits_time_major" in node.pb.attr:
+            logits_time_major = node.pb.attr["logits_time_major"].b
 
         attrs = {
-            'ctc_merge_repeated': node.pb.attr['ctc_merge_repeated'].b,
-            'preprocess_collapse_repeated': node.pb.attr['preprocess_collapse_repeated'].b,
-            'logits_time_major': logits_time_major,
+            "ctc_merge_repeated": node.pb.attr["ctc_merge_repeated"].b,
+            "preprocess_collapse_repeated": node.pb.attr[
+                "preprocess_collapse_repeated"
+            ].b,
+            "logits_time_major": logits_time_major,
             # unique is always false for CTCLoss V1
-            'unique': False
+            "unique": False,
         }
 
         CTCLoss.update_node_stat(node, attrs)

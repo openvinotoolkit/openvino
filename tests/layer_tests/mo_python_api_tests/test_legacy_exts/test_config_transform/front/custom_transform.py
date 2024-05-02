@@ -7,9 +7,11 @@ from openvino.tools.mo.utils.error import Error
 
 
 class ConfigBasedTestReplacement(FrontReplacementFromConfigFileGeneral):
-    replacement_id = 'ConfigBasedTestReplacement'
+    replacement_id = "ConfigBasedTestReplacement"
     run_not_recursively = True
 
     def transform_graph(self, graph: Graph, replacement_descriptions):
-        sigmoid_nodes = graph.get_op_nodes(op='Sigmoid')
-        assert len(sigmoid_nodes) > 0, "Error while applying ConfigBasedTestReplacement."
+        sigmoid_nodes = graph.get_op_nodes(op="Sigmoid")
+        assert (
+            len(sigmoid_nodes) > 0
+        ), "Error while applying ConfigBasedTestReplacement."

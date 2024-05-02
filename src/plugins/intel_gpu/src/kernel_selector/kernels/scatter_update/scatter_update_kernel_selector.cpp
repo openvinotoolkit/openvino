@@ -3,11 +3,14 @@
 //
 
 #include "scatter_update_kernel_selector.h"
+
 #include "scatter_update_kernel_ref.h"
 
 namespace kernel_selector {
 
-scatter_update_kernel_selector::scatter_update_kernel_selector() { Attach<ScatterUpdateKernelRef>(); }
+scatter_update_kernel_selector::scatter_update_kernel_selector() {
+    Attach<ScatterUpdateKernelRef>();
+}
 
 KernelsData scatter_update_kernel_selector::GetBestKernels(const Params& params) const {
     return GetNaiveBestKernel(params, KernelType::SCATTER_UPDATE);

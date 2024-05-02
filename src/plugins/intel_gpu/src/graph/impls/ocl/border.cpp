@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "border_inst.h"
-
-#include "border/border_kernel_selector.h"
 #include "border/border_kernel_base.h"
+#include "border/border_kernel_selector.h"
+#include "border_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -83,20 +81,22 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         }
 
         switch (primitive->pad_mode) {
-            case ov::op::PadMode::CONSTANT:
-                params.b_type = kernel_selector::border_type::CONSTANT;
-                break;
-            case ov::op::PadMode::EDGE:
-                params.b_type = kernel_selector::border_type::EDGE;
-                break;
-            case ov::op::PadMode::SYMMETRIC:
-                params.b_type = kernel_selector::border_type::MIRROR;
-                break;
-            case ov::op::PadMode::REFLECT:
-                params.b_type = kernel_selector::border_type::MIRROR_101;
-                break;
-            default:
-                OPENVINO_ASSERT(false, "[GPU] Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
+        case ov::op::PadMode::CONSTANT:
+            params.b_type = kernel_selector::border_type::CONSTANT;
+            break;
+        case ov::op::PadMode::EDGE:
+            params.b_type = kernel_selector::border_type::EDGE;
+            break;
+        case ov::op::PadMode::SYMMETRIC:
+            params.b_type = kernel_selector::border_type::MIRROR;
+            break;
+        case ov::op::PadMode::REFLECT:
+            params.b_type = kernel_selector::border_type::MIRROR_101;
+            break;
+        default:
+            OPENVINO_ASSERT(
+                false,
+                "[GPU] Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
         }
 
         params.allow_negative_pad = primitive->allow_negative_pad;
@@ -136,8 +136,8 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<border>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 
-        // In case of zero input shape and non-zero output (kernel execution is not skipped), we need to add fake input buffer
-        // So as not to get an error during the argument setting stage
+        // In case of zero input shape and non-zero output (kernel execution is not skipped), we need to add fake input
+        // buffer So as not to get an error during the argument setting stage
         if (instance.get_input_layout().count() == 0) {
             args.inputs[0] = instance.get_intermediates_memories().front();
         }
@@ -164,24 +164,22 @@ namespace detail {
 attach_border_impl::attach_border_impl() {
     auto types = {data_types::f32, data_types::f16, data_types::i32, data_types::i8, data_types::u8};
 
-    auto formats = {
-        format::yxfb,
-        format::bfyx,
-        format::byxf,
-        format::bfzyx,
-        format::bfwzyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::b_fs_zyx_fsv16,
-        format::bs_fs_yx_bsv4_fsv2,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16
-    };
+    auto formats = {format::yxfb,
+                    format::bfyx,
+                    format::byxf,
+                    format::bfzyx,
+                    format::bfwzyx,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::b_fs_zyx_fsv16,
+                    format::bs_fs_yx_bsv4_fsv2,
+                    format::bs_fs_yx_bsv4_fsv4,
+                    format::bs_fs_yx_bsv8_fsv2,
+                    format::bs_fs_yx_bsv8_fsv4,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
+                    format::bs_fs_zyx_bsv16_fsv16};
 
     implementation_map<border>::add(impl_types::ocl,
                                     shape_types::static_shape,
@@ -189,11 +187,7 @@ attach_border_impl::attach_border_impl() {
                                     types,
                                     formats);
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx};
 
     implementation_map<border>::add(impl_types::ocl,
                                     shape_types::dynamic_shape,

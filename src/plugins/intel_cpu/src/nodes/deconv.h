@@ -30,20 +30,26 @@ public:
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
 
     ov::element::Type getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const NodePtr& node) const override;
 
-    const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride; }
+    const VectorDims& getWeightDims() const {
+        return getInputShapeAtPort(1).getStaticDims();
+    }
+    const std::vector<ptrdiff_t>& getStride() const {
+        return deconvAttrs.stride;
+    }
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override {
+        execute(strm);
+    }
     bool needShapeInfer() const override;
 
     bool canFuseBias() const;
@@ -60,21 +66,21 @@ private:
     executorPtr execPtr = nullptr;
 
     class DeconvExecutorDefault : public DnnlExecutor {
-        public:
-            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
-                                  const dnnl::memory::desc& inMemDesc,
-                                  const dnnl::memory::desc& weightMemDesc,
-                                  const dnnl::memory::desc& outMemDesc,
-                                  const dnnl::engine& engine);
+    public:
+        DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
+                              const dnnl::memory::desc& inMemDesc,
+                              const dnnl::memory::desc& weightMemDesc,
+                              const dnnl::memory::desc& outMemDesc,
+                              const dnnl::engine& engine);
     };
 
     class DeconvExecutorInt8 : public DnnlExecutor {
-        public:
-            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
-                               const dnnl::memory::desc& inMemDesc,
-                               const dnnl::memory::desc& weightMemDesc,
-                               const dnnl::memory::desc& outMemDesc,
-                               const dnnl::engine& engine);
+    public:
+        DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+                           const dnnl::memory::desc& inMemDesc,
+                           const dnnl::memory::desc& weightMemDesc,
+                           const dnnl::memory::desc& outMemDesc,
+                           const dnnl::engine& engine);
     };
     // have to hold reference (shared_ptr) to forward convolution primitive_desc
     // since backward one uses the reference to it as a hint
@@ -90,7 +96,7 @@ private:
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
-    VectorDims expectedBiasDims {};
+    VectorDims expectedBiasDims{};
 
     bool useACL = false;
     DeconvAttrs deconvAttrs;
@@ -102,10 +108,10 @@ private:
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
+    void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
 
-    VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
-    void initPaddingR(const Shape &inShape, const Shape &outShape);
+    VectorDims shapeInferInternal(const VectorDims& inDims, std::vector<int32_t> outSpDims) const;
+    void initPaddingR(const Shape& inShape, const Shape& outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
     std::pair<VectorDims, VectorDims> makeDummyInOutShape();
     bool withBiases = false;
@@ -116,6 +122,6 @@ private:
     MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

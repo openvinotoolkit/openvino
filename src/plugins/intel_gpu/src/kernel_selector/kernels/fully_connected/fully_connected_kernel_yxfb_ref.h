@@ -22,9 +22,7 @@ public:
 
 protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::ELTWISE };
+        return {FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::ELTWISE};
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 };

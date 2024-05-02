@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/gru_cell.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/pass/manager.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "common_test_utils/node_builders/gru_cell.hpp"
-#include "openvino/pass/manager.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -151,16 +151,16 @@ protected:
                                       {numDirections, (linearBeforeReset ? 4 : 3) * hiddenSize},
                                       {batchSize}};
         auto gruSequenceOp = ov::test::utils::make_gru(paramsOuts,
-                                                      WRB,
-                                                      hiddenSize,
-                                                      activations,
-                                                      {},
-                                                      {},
-                                                      clip,
-                                                      linearBeforeReset,
-                                                      true,
-                                                      direction,
-                                                      seqMode);
+                                                       WRB,
+                                                       hiddenSize,
+                                                       activations,
+                                                       {},
+                                                       {},
+                                                       clip,
+                                                       linearBeforeReset,
+                                                       true,
+                                                       direction,
+                                                       seqMode);
 
         function = makeNgraphFunction(netPrecision, params, gruSequenceOp, "gruSequenceOp");
 

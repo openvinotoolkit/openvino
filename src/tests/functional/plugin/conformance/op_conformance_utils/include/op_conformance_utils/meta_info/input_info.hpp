@@ -6,8 +6,8 @@
 
 #include <map>
 
-#include "openvino/core/shape.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace conformance {
@@ -46,17 +46,15 @@ struct InputInfo {
     InputInfo(const ov::PartialShape& shape = {},
               double in_min = DEFAULT_MIN_VALUE,
               double in_max = DEFAULT_MAX_VALUE,
-              bool in_is_const = false) :
-              is_const(in_is_const),
-              ranges(Range(in_min, in_max)),
-              max_shape(shape),
-              min_shape(shape) {}
+              bool in_is_const = false)
+        : is_const(in_is_const),
+          ranges(Range(in_min, in_max)),
+          max_shape(shape),
+          min_shape(shape) {}
 
     bool operator==(const InputInfo& input_info_ref) const {
-        return this->is_const == input_info_ref.is_const &&
-               this->ranges == input_info_ref.ranges &&
-               this->max_shape == input_info_ref.max_shape &&
-               this->min_shape == input_info_ref.min_shape;
+        return this->is_const == input_info_ref.is_const && this->ranges == input_info_ref.ranges &&
+               this->max_shape == input_info_ref.max_shape && this->min_shape == input_info_ref.min_shape;
     }
 
     InputInfo operator=(const InputInfo& input_info) {

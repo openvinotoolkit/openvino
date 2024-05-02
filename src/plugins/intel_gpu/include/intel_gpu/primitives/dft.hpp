@@ -116,9 +116,7 @@ struct dft : public primitive_base<dft> {
 
         auto rhs_casted = downcast<const dft>(rhs);
 
-        return axes == rhs_casted.axes &&
-               signal_size == rhs_casted.signal_size &&
-               direction == rhs_casted.direction &&
+        return axes == rhs_casted.axes && signal_size == rhs_casted.signal_size && direction == rhs_casted.direction &&
                mode == rhs_casted.mode;
     }
 

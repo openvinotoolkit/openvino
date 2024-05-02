@@ -4,21 +4,20 @@
 
 #pragma once
 
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
-
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/graph/kernel_impl_params.hpp"
-
 #include <list>
-#include <string>
-#include <vector>
-#include <memory>
 #include <map>
-#include <utility>
+#include <memory>
 #include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/stream.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 
 namespace cldnn {
 
@@ -30,7 +29,6 @@ class base_pass;
 class program_wrapper;
 class kernels_cache;
 class ICompilationContext;
-
 
 struct program {
     using ptr = std::shared_ptr<program>;
@@ -59,10 +57,18 @@ public:
         typedef list_of_nodes::const_reverse_iterator const_reverse_iterator;
         typedef list_of_nodes::iterator node_iterator;
         typedef list_of_nodes::reverse_iterator node_reverse_iterator;
-        const_iterator begin() const { return _processing_order.begin(); }
-        const_iterator end() const { return _processing_order.end(); }
-        const_reverse_iterator rbegin() const { return _processing_order.rbegin(); }
-        const_reverse_iterator rend() const { return _processing_order.rend(); }
+        const_iterator begin() const {
+            return _processing_order.begin();
+        }
+        const_iterator end() const {
+            return _processing_order.end();
+        }
+        const_reverse_iterator rbegin() const {
+            return _processing_order.rbegin();
+        }
+        const_reverse_iterator rend() const {
+            return _processing_order.rend();
+        }
 
         void calc_processing_order_visit(program_node* node);
         void calc_processing_order(program& p);
@@ -73,10 +79,14 @@ public:
             return 1 + (int32_t)std::distance(_processing_order.begin(), const_iterator(iter));
         }
         void calculate_BFS_processing_order();
-        size_t size() { return _processing_order.size(); }
+        size_t size() {
+            return _processing_order.size();
+        }
         bool is_correct(program_node* node);
 
-        node_iterator get_processing_iterator(program_node& node) const { return processing_order_iterators.at(&node); }
+        node_iterator get_processing_iterator(program_node& node) const {
+            return processing_order_iterators.at(&node);
+        }
         void clear() {
             processing_order_iterators.clear();
             _processing_order.clear();
@@ -109,16 +119,26 @@ public:
     template <class T>
     struct single_element_container {
         explicit single_element_container(T& t) : elem(&t) {}
-        constexpr size_t size() const { return 1; }
-        single_element_container begin() const { return single_element_container(elem); }
-        single_element_container end() const { return single_element_container(nullptr); }
+        constexpr size_t size() const {
+            return 1;
+        }
+        single_element_container begin() const {
+            return single_element_container(elem);
+        }
+        single_element_container end() const {
+            return single_element_container(nullptr);
+        }
         single_element_container& operator++() {
             elem = nullptr;
             return *this;
         }
-        bool operator!=(single_element_container const& sec) { return elem != sec.elem; }
+        bool operator!=(single_element_container const& sec) {
+            return elem != sec.elem;
+        }
 
-        T operator*() { return *elem; }
+        T operator*() {
+            return *elem;
+        }
 
     private:
         explicit single_element_container(T* t) : elem(t) {}
@@ -145,35 +165,64 @@ public:
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
-    explicit program(engine& engine,
-                const ExecutionConfig& config = {});
+    explicit program(engine& engine, const ExecutionConfig& config = {});
     ~program();
-    engine& get_engine() const { return _engine; }
-    const ExecutionConfig& get_config() const { return _config; }
-    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return _task_executor; }
+    engine& get_engine() const {
+        return _engine;
+    }
+    const ExecutionConfig& get_config() const {
+        return _config;
+    }
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const {
+        return _task_executor;
+    }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
     std::vector<program_node*>& get_outputs() {
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
-    bool is_body_program() const { return _is_body_program; }
-    bool can_be_optimized() const { return _can_be_optimized; }
-    bool is_internal_program() const { return is_internal; }
+    bool is_body_program() const {
+        return _is_body_program;
+    }
+    bool can_be_optimized() const {
+        return _can_be_optimized;
+    }
+    bool is_internal_program() const {
+        return is_internal;
+    }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
-    uint32_t get_prog_id() { return prog_id; }
-    stream& get_stream() { return *_stream; }
-    stream::ptr get_stream_ptr() const { return _stream; }
-    const stream& get_stream() const { return *_stream; }
-    const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
-    const std::list<optimized_info>& get_optimized() const { return optimized; }
-    bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
+    uint32_t get_prog_id() {
+        return prog_id;
+    }
+    stream& get_stream() {
+        return *_stream;
+    }
+    stream::ptr get_stream_ptr() const {
+        return _stream;
+    }
+    const stream& get_stream() const {
+        return *_stream;
+    }
+    const std::list<primitive_id>& get_optimized_out() const {
+        return optimized_out;
+    }
+    const std::list<optimized_info>& get_optimized() const {
+        return optimized;
+    }
+    bool has_node(const primitive_id& prim) const {
+        return nodes_map.count(prim) > 0;
+    }
     program_node& get_node(primitive_id const& id);
     program_node const& get_node(primitive_id const& id) const;
-    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) { return nodes_map.at(prim); }
-    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const { return nodes_map.at(prim); }
+    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) {
+        return nodes_map.at(prim);
+    }
+    std::shared_ptr<program_node> get_node_ptr(const primitive_id& prim) const {
+        return nodes_map.at(prim);
+    }
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -212,9 +261,7 @@ public:
 
     bool extract(program_node& node);
 
-    bool move_node(program_node& node,
-                   program_node& new_prev,
-                   program_node& new_next);
+    bool move_node(program_node& node, program_node& new_prev, program_node& new_next);
 
     // Fuses two nodes into fused_node and removes peer_node from graph
     void fuse_nodes(program_node& fused_node,
@@ -238,9 +285,12 @@ public:
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
 
-    void add_optimized_primitive_info(primitive_id optimized_primitive_id, std::vector<primitive_id> replaced_with_ids = {});
+    void add_optimized_primitive_info(primitive_id optimized_primitive_id,
+                                      std::vector<primitive_id> replaced_with_ids = {});
 
-    uint32_t get_id() const { return prog_id; }
+    uint32_t get_id() const {
+        return prog_id;
+    }
 
     static ptr build_program(engine& engine,
                              const topology& topology,
@@ -272,13 +322,20 @@ public:
     kernels_cache& get_kernels_cache() const;
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
-    std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
+    std::pair<int64_t /*const alloc*/, int64_t /*general alloc*/> get_estimated_device_mem_usage();
 
-    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
+    using ImplementationsCache =
+        cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
 
-    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
-    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
-    std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }
+    ImplementationsCache& get_implementations_cache() const {
+        return *_impls_cache;
+    }
+    ICompilationContext& get_compilation_context() const {
+        return *_compilation_context;
+    }
+    std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const {
+        return _compilation_context;
+    }
     void cancel_compilation_context();
 
     static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
@@ -286,7 +343,9 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib);
-    bool is_loaded_from_cache() const { return _loaded_from_cache; }
+    bool is_loaded_from_cache() const {
+        return _loaded_from_cache;
+    }
 
 private:
     uint32_t prog_id = 0;
@@ -378,7 +437,9 @@ private:
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
     void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
-    void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
+    void replace_all_usages(program_node& old_node,
+                            std::pair<program_node*, int32_t> new_node,
+                            bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

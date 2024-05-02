@@ -22,15 +22,15 @@ size_t calculateLevels(const float dataPrecisionMin,
     float updatedOutputHighValue;
 
     const auto levels = ov::pass::low_precision::NetworkHelper::calculateLevels(dataPrecisionMin,
-                                                                                    dataPrecisionMax,
-                                                                                    combinedIntervalLow,
-                                                                                    combinedIntervalHigh,
-                                                                                    minIntervalLow,
-                                                                                    minIntervalHigh,
-                                                                                    dequantizationMul,
-                                                                                    dequantizationSub,
-                                                                                    updatedOutputLowValue,
-                                                                                    updatedOutputHighValue);
+                                                                                dataPrecisionMax,
+                                                                                combinedIntervalLow,
+                                                                                combinedIntervalHigh,
+                                                                                minIntervalLow,
+                                                                                minIntervalHigh,
+                                                                                dequantizationMul,
+                                                                                dequantizationSub,
+                                                                                updatedOutputLowValue,
+                                                                                updatedOutputHighValue);
 
     return levels;
 }
@@ -43,22 +43,14 @@ TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_U8_256) {
 }
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_I8_256) {
-    const auto levels = calculateLevels(0.f,
-                                        ov::pass::low_precision::DataPrecision::getMaxValue(256ul),
-                                        -1.28f,
-                                        1.27f,
-                                        -1.28f,
-                                        1.27f);
+    const auto levels =
+        calculateLevels(0.f, ov::pass::low_precision::DataPrecision::getMaxValue(256ul), -1.28f, 1.27f, -1.28f, 1.27f);
     ASSERT_EQ(256ul, levels);
 }
 
 TEST(LPT_CalculateLevelsTestTransformation, calculateLevels_U8_128) {
-    const auto levels = calculateLevels(0.f,
-                                        ov::pass::low_precision::DataPrecision::getMaxValue(256ul),
-                                        0.f,
-                                        2.55f,
-                                        0.f,
-                                        2.55f / 2.f);
+    const auto levels =
+        calculateLevels(0.f, ov::pass::low_precision::DataPrecision::getMaxValue(256ul), 0.f, 2.55f, 0.f, 2.55f / 2.f);
     ASSERT_EQ(129ul, levels);
 }
 

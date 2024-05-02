@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "program_wrapper.h"
 #include "fully_connected_inst.h"
+#include "program_wrapper.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -12,15 +12,13 @@ using namespace ::tests;
 TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
-    auto weights = engine.allocate_memory({{ 2, 32 }, data_types::f32, format::bfyx });
+    auto input = engine.allocate_memory({{2, 32}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
 
-    topology topology(
-        input_layout("input", input->get_layout()),
-        input_layout("weights", weights->get_layout()),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16)
-    );
+    topology topology(input_layout("input", input->get_layout()),
+                      input_layout("weights", weights->get_layout()),
+                      reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
+                      fully_connected("fc", input_info("input"), {"reorder_dt"}, "", data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -40,16 +38,15 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
     if (engine.get_device_info().supports_immad)
         return;
 
-    auto weights = engine.allocate_memory({{ 2, 32 }, data_types::f32, format::bfyx });
+    auto weights = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
 
-    auto in_layout = layout{ ov::PartialShape{ov::Dimension(1), ov::Dimension(-1), ov::Dimension(32)}, data_types::f16, format::bfyx };
+    auto in_layout =
+        layout{ov::PartialShape{ov::Dimension(1), ov::Dimension(-1), ov::Dimension(32)}, data_types::f16, format::bfyx};
 
-    topology topology(
-        input_layout("input", in_layout),
-        input_layout("weights", weights->get_layout()),
-        reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, {}, 3)
-    );
+    topology topology(input_layout("input", in_layout),
+                      input_layout("weights", weights->get_layout()),
+                      reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
+                      fully_connected("fc", input_info("input"), {"reorder_dt"}, "", data_types::f16, {}, 3));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -68,19 +65,17 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
 TEST(post_optimize_weights, weights_reorder_constant_folding_test) {
     auto& engine = get_test_engine();
 
-    ov::Shape pshape = { 4, 16 };
-    auto input = engine.allocate_memory({ pshape, data_types::f32, format::bfyx });
-    auto weights = engine.allocate_memory({ pshape, data_types::f32, format::bfyx });
+    ov::Shape pshape = {4, 16};
+    auto input = engine.allocate_memory({pshape, data_types::f32, format::bfyx});
+    auto weights = engine.allocate_memory({pshape, data_types::f32, format::bfyx});
 
     std::vector<float> weights_data(pshape[0] * pshape[1]);
     std::iota(weights_data.begin(), weights_data.end(), 0.f);
     set_values(weights, weights_data);
 
-    topology topology(
-        input_layout("input", input->get_layout()),
-        data("weights", weights),
-        fully_connected("fc", input_info("input"), { "weights" })
-    );
+    topology topology(input_layout("input", input->get_layout()),
+                      data("weights", weights),
+                      fully_connected("fc", input_info("input"), {"weights"}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -97,9 +92,8 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test) {
     auto& weights_node = prog->get_node("weights_weights_reorder_0");
     ASSERT_TRUE(weights_node.is_type<data>());
 
-    size_t align = 16; // os_iyx_osv16 format
-    size_t aligned_b_size = pshape[0] % align == 0 ? pshape[0]
-                                                   : pshape[0] - pshape[0] % align + align;
+    size_t align = 16;  // os_iyx_osv16 format
+    size_t aligned_b_size = pshape[0] % align == 0 ? pshape[0] : pshape[0] - pshape[0] % align + align;
     std::vector<float> expected(aligned_b_size * pshape[1], 0.f);
     size_t input_idx = 0;
     for (size_t i = 0; i < pshape[0]; ++i) {
@@ -120,19 +114,18 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     auto& engine = get_test_engine();
     if (engine.get_device_info().supports_immad)
         return;
-    ov::Shape pshape = { 4, 32 };
-    auto in_layout = layout{ ov::PartialShape{ov::Dimension(1), ov::Dimension(-1), ov::Dimension(32)}, data_types::f16, format::bfyx };
-    auto weights = engine.allocate_memory({pshape, data_types::f32, format::bfyx });
+    ov::Shape pshape = {4, 32};
+    auto in_layout =
+        layout{ov::PartialShape{ov::Dimension(1), ov::Dimension(-1), ov::Dimension(32)}, data_types::f16, format::bfyx};
+    auto weights = engine.allocate_memory({pshape, data_types::f32, format::bfyx});
 
     std::vector<float> weights_data(pshape[0] * pshape[1]);
     std::iota(weights_data.begin(), weights_data.end(), 0.f);
     set_values(weights, weights_data);
 
-    topology topology(
-        input_layout("input", in_layout),
-        data("weights", weights),
-        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, {}, 3)
-    );
+    topology topology(input_layout("input", in_layout),
+                      data("weights", weights),
+                      fully_connected("fc", input_info("input"), {"weights"}, "", data_types::f16, {}, 3));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -149,9 +142,8 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     auto& weights_node = prog->get_node("weights_weights_reorder_0");
     ASSERT_TRUE(weights_node.is_type<data>());
 
-    size_t align = 16; // os_iyx_osv16 format
-    size_t aligned_b_size = pshape[0] % align == 0 ? pshape[0]
-                                                   : pshape[0] - pshape[0] % align + align;
+    size_t align = 16;  // os_iyx_osv16 format
+    size_t aligned_b_size = pshape[0] % align == 0 ? pshape[0] : pshape[0] - pshape[0] % align + align;
     std::vector<float> expected(aligned_b_size * pshape[1], 0.f);
     size_t input_idx = 0;
     for (size_t i = 0; i < pshape[0]; ++i) {
@@ -170,20 +162,19 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
 
 TEST(post_optimize_weights, fuse_only_with_supported_weights_layout) {
     // This test case checks that the reorder node is not fused with unsupported weights layout such as b_fs_yx_fsv16.
-    //    - Previous : When the weight layout which is a reorder node, is b_fs_yx_fsv16, fusing was attempted but the program terminates.
+    //    - Previous : When the weight layout which is a reorder node, is b_fs_yx_fsv16, fusing was attempted but the
+    //    program terminates.
     //    - Current : If the layout format is not supported, do not fuse and the program won't terminate.
     //
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ { 2, 32 }, data_types::f16, format::bfyx });
-    auto weights = engine.allocate_memory({{ 2, 32 }, data_types::f32, format::b_fs_yx_fsv16 });
+    auto input = engine.allocate_memory({{2, 32}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({{2, 32}, data_types::f32, format::b_fs_yx_fsv16});
 
-    topology topology(
-        input_layout("input", input->get_layout()),
-        input_layout("weights", weights->get_layout()),
-        reorder("reorder", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder" }, "", data_types::f16)
-    );
+    topology topology(input_layout("input", input->get_layout()),
+                      input_layout("weights", weights->get_layout()),
+                      reorder("reorder", input_info("weights"), format::bfyx, data_types::f16),
+                      fully_connected("fc", input_info("input"), {"reorder"}, "", data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));

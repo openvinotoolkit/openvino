@@ -45,14 +45,14 @@ JitConstants PoolingKernelGPUByxfOpt::GetJitConstants(const pooling_params& para
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"",
-                                     {"b", "f + i", "y", "x"},
-                                     "pool_result",
-                                     input_dt,
-                                     1,
-                                     LoadType::LT_UNALIGNED,
-                                     BoundaryCheck::ENABLED,
-                                     IndexType::TENSOR_COORD,
-                                     Tensor::DataChannelName::FEATURE};
+                                      {"b", "f + i", "y", "x"},
+                                      "pool_result",
+                                      input_dt,
+                                      1,
+                                      LoadType::LT_UNALIGNED,
+                                      BoundaryCheck::ENABLED,
+                                      IndexType::TENSOR_COORD,
+                                      Tensor::DataChannelName::FEATURE};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jit;

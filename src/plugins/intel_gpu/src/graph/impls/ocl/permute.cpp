@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "permute_inst.h"
-#include "permute/permute_kernel_selector.h"
 #include "permute/permute_kernel_ref.h"
+#include "permute/permute_kernel_selector.h"
+#include "permute_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -79,15 +78,12 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
 namespace detail {
 
 attach_permute_impl::attach_permute_impl() {
-    implementation_map<permute>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<permute>::create<permute_impl>, {});
+    implementation_map<permute>::add(impl_types::ocl,
+                                     shape_types::static_shape,
+                                     typed_primitive_impl_ocl<permute>::create<permute_impl>,
+                                     {});
 
-    auto dyn_types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32
-    };
+    auto dyn_types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32};
 
     auto dyn_formats = {
         format::bfyx,

@@ -26,12 +26,10 @@ public:
     OPENVINO_RTTI("LowPrecision::Precisions", "", ov::RuntimeAttribute);
     PrecisionsAttribute(const std::vector<ov::element::Type>& precisions);
 
-    static ov::Any create(
-        const std::shared_ptr<ov::Node>& node,
-        const AttributeParameters& params);
+    static ov::Any create(const std::shared_ptr<ov::Node>& node, const AttributeParameters& params);
     // merge attribute instances which can be got from different sources: node, input port or output port
     void merge_attributes(std::vector<ov::Any>& attributes);
     // vizualize shared attributes details in VizualizeTree pass
     std::string to_string() const override;
 };
-} // namespace ov
+}  // namespace ov

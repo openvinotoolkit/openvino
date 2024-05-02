@@ -27,7 +27,8 @@ function cleanWord(w) {
   for (const c of w.normalize('NFD')) {
     const charCode = c.charCodeAt(0);
     // Remove mark nonspacing code and controls
-    if (charCode < 32 || charCode == 127) continue;
+    if (charCode < 32 || charCode == 127)
+      continue;
 
     wo += c;
   }
@@ -55,11 +56,12 @@ function encodeByVoc(w, vocab) {
         tokens.push(vocab[subword]);
         s = e;
         e = e0;
-      }
-      else e -= 1;
+      } else
+        e -= 1;
     }
 
-    if (s < e0) tokens.push(vocab['[UNK]']);
+    if (s < e0)
+      tokens.push(vocab['[UNK]']);
 
     res.push(...tokens);
   }
@@ -83,11 +85,12 @@ function splitToWords(text) {
       if (prevIsSep)
         start = i;
       else {
-        result.push([start, i]);
+        result.push([ start, i ]);
         prevIsSep = curIsSep;
       }
 
-    if (isPunc) result.push([i, i + 1]);
+    if (isPunc)
+      result.push([ i, i + 1 ]);
 
     prevIsSep = curIsSep;
   }
@@ -108,9 +111,9 @@ function textToTokens(text, vocab) {
 
     for (const token of encodedTokens) {
       tokensId.push(token);
-      tokensSe.push([start, end]);
+      tokensSe.push([ start, end ]);
     }
   }
 
-  return [tokensId, tokensSe];
+  return [ tokensId, tokensSe ];
 }

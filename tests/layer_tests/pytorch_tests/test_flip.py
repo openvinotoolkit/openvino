@@ -2,21 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestFlip(PytorchLayerTest):
     def _prepare_input(self, out=False, dtype="float32"):
         import numpy as np
+
         x = np.random.randn(2, 3, 4, 5).astype(dtype)
         if not out:
             return (x,)
         return (x, np.zeros_like(x).astype(dtype))
 
-
     def create_model(self, axis, out):
         import torch
+
         class aten_flip(torch.nn.Module):
             def __init__(self, dim, out):
                 super(aten_flip, self).__init__()
@@ -26,7 +26,7 @@ class TestFlip(PytorchLayerTest):
 
             def forward(self, x):
                 return torch.flip(x, self.dim)
-            
+
             def forward_out(self, x, y):
                 return torch.flip(x, self.dim, out=y), y
 
@@ -41,4 +41,10 @@ class TestFlip(PytorchLayerTest):
     @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "uint8"])
     def test_flip(self, axis, out, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(axis, out), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "dtype": dtype})
+        self._test(
+            *self.create_model(axis, out),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={"out": out, "dtype": dtype}
+        )

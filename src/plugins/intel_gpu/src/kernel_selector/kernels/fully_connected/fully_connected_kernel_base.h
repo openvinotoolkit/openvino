@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include "weight_bias_kernel_base.h"
-#include "fully_connected_params.h"
 #include <string>
 #include <vector>
+
+#include "fully_connected_params.h"
+#include "weight_bias_kernel_base.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +48,7 @@ public:
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
     std::vector<std::string> autoTuneOptions = {EXE_MODE_DEFAULT, EXE_MODE_NO_PRERA_SCH, EXE_MODE_AGE_BASED};
     using WeightBiasKernelBase::GetTunedKernelsDataByIndex;
-    virtual KernelsData GetTunedKernelsDataByIndex(const Params &params,
+    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                                    DataLayout dl,
                                                    WeightsLayout wl,
                                                    const int autoTuneIndex = -1) const;
@@ -55,8 +56,10 @@ public:
 protected:
     using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
-    virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const;
-    KernelsData GetCommonKernelsData(const Params &params,
+    virtual DispatchData SetDefault(const fully_connected_params& params,
+                                    int autoTuneIndex = -1,
+                                    int kernel_number = 0) const;
+    KernelsData GetCommonKernelsData(const Params& params,
                                      DataLayout dl,
                                      WeightsLayout wl,
                                      const std::string exeMode = EXE_MODE_DEFAULT,
@@ -64,7 +67,8 @@ protected:
                                      int kernel_number = 0) const;
 
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params,
+                                                        const DispatchData& dispatchData) const;
     Datatype GetAccumulatorType(const fully_connected_params& params) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops

@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-
 import openvino.runtime.opset8 as ov
+
 from openvino import Type
 
 
@@ -20,8 +20,16 @@ def test_ctc_loss_props():
     ctc_merge_repeated = True
     unique = False
 
-    node = ov.ctc_loss(logits, logit_length, labels, label_length, blank_index,
-                       preprocess_collapse_repeated, ctc_merge_repeated, unique)
+    node = ov.ctc_loss(
+        logits,
+        logit_length,
+        labels,
+        label_length,
+        blank_index,
+        preprocess_collapse_repeated,
+        ctc_merge_repeated,
+        unique,
+    )
     assert node.get_type_name() == "CTCLoss"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2]

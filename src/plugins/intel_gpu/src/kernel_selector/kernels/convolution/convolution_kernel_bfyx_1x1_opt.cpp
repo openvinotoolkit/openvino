@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_bfyx_1x1_opt.h"
+
 #include <vector>
 
 namespace kernel_selector {
@@ -45,7 +46,8 @@ static block_params get_out_block_size(const convolution_params& p) {
     if (p.outputs[0].X().v == 7) {
         auto gws0 = p.outputs[0].X().v / 7;
         auto gws1 = p.outputs[0].Y().v / 1;
-        auto gws2 = 2 * (p.outputs[0].Feature().v * p.outputs[0].Batch().v) / 8;  // process 8 output channels per Workitem
+        auto gws2 =
+            2 * (p.outputs[0].Feature().v * p.outputs[0].Batch().v) / 8;  // process 8 output channels per Workitem
 
         auto compute_units = p.engineInfo.computeUnitsCount;
         auto total_threads = (gws0 * gws1 * gws2) / 64;
@@ -143,7 +145,7 @@ JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_
     return jit;
 }
 
-WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp) const {
+WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params& cp) const {
     auto block = get_out_block_size(cp);
     if (block.out_depth == 8)
         return WeightsLayout::os_iyx_osv64;

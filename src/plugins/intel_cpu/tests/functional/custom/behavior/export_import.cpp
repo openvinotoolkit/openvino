@@ -2,14 +2,14 @@
 // SPDX-License-corer: Apache-2.0
 //
 
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/compiled_model.hpp"
-#include "common_test_utils/test_common.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-
 #include <openvino/opsets/opset9.hpp>
+
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace {
 
@@ -21,7 +21,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
     const ov::element::Type precision = ov::element::f32;
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
     auto matmul_const = ov::test::utils::deprecated::make_constant(precision, {4096, 1024}, std::vector<float>{}, true);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
@@ -116,13 +116,13 @@ const std::vector<ov::AnyMap> testing_property_for_enable_cpu_pinning = {{ov::hi
                                                                          {ov::hint::enable_cpu_pinning(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
-                        ExportOptimalNumStreams,
-                        ::testing::Combine(::testing::Values(std::string("CPU")),
-                                           ::testing::Values(testing_property_for_streams,
-                                                             testing_property_for_threads,
-                                                             testing_property_for_performance_mode,
-                                                             testing_property_for_scheduling_core_type,
-                                                             testing_property_for_enable_hyper_threading,
-                                                             testing_property_for_enable_cpu_pinning)));
+                         ExportOptimalNumStreams,
+                         ::testing::Combine(::testing::Values(std::string("CPU")),
+                                            ::testing::Values(testing_property_for_streams,
+                                                              testing_property_for_threads,
+                                                              testing_property_for_performance_mode,
+                                                              testing_property_for_scheduling_core_type,
+                                                              testing_property_for_enable_hyper_threading,
+                                                              testing_property_for_enable_cpu_pinning)));
 
 }  // namespace

@@ -4,10 +4,10 @@
 
 #include "snippets/lowered/pass/mark_loops.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -24,10 +24,8 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
 
     // Parameters, Results or Constants are ignored. They can't be in Loops
     auto is_loop_outside_op = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v0::Result>(node) ||
-               ov::is_type<ov::op::v0::Constant>(node) ||
-               ov::is_type<ov::op::v0::Parameter>(node) ||
-               ov::is_type<op::RankNormalization>(node) ||
+        return ov::is_type<ov::op::v0::Result>(node) || ov::is_type<ov::op::v0::Constant>(node) ||
+               ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<op::RankNormalization>(node) ||
                ov::is_type<op::Reshape>(node);
     };
 
@@ -86,7 +84,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

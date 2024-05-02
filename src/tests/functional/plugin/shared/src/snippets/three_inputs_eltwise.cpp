@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/three_inputs_eltwise.hpp"
-#include "subgraph_simple.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj) {
+std::string ThreeInputsEltwise::getTestCaseName(
+    testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj) {
     InputShape inputShapes0, inputShapes1, inputShapes2;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, inputShapes2,
-             num_nodes, num_subgraphs, targetDevice) = obj.param;
+    std::tie(inputShapes0, inputShapes1, inputShapes2, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -42,8 +43,7 @@ std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test:
 
 void ThreeInputsEltwise::SetUp() {
     InputShape inputShape0, inputShape1, inputShape2;
-    std::tie(inputShape0, inputShape1, inputShape2,
-             ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    std::tie(inputShape0, inputShape1, inputShape2, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({inputShape0, inputShape1, inputShape2});
 
     auto f = ov::test::snippets::EltwiseThreeInputsFunction(inputDynamicShapes);
@@ -58,6 +58,6 @@ TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

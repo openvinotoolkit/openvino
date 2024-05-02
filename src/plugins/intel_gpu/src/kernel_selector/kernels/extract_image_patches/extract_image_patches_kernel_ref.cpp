@@ -3,9 +3,11 @@
 //
 
 #include "extract_image_patches_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 KernelsData ExtractImagePatchesKernelRef::GetKernelsData(const Params& params) const {

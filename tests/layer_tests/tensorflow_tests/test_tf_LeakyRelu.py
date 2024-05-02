@@ -13,7 +13,7 @@ class TestLeakyRelu(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'x')
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, "x")
             if alpha_value is None:
                 tf.raw_ops.LeakyRelu(features=x)
             else:
@@ -25,7 +25,9 @@ class TestLeakyRelu(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        pytest.param(dict(x_shape=[], alpha_value=0.3), marks=pytest.mark.xfail(reason="98673")),
+        pytest.param(
+            dict(x_shape=[], alpha_value=0.3), marks=pytest.mark.xfail(reason="98673")
+        ),
         dict(x_shape=[2, 3], alpha_value=None),
         dict(x_shape=[3, 4, 2], alpha_value=3),
     ]
@@ -33,10 +35,18 @@ class TestLeakyRelu(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_leaky_relu_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                              use_legacy_frontend):
-        self._test(*self.create_leaky_relu_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_leaky_relu_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_leaky_relu_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

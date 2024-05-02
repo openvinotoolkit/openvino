@@ -9,7 +9,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(TransposeMatMulFusion, CompareWithRefs){
+TEST_P(TransposeMatMulFusion, CompareWithRefs) {
     run();
 };
 

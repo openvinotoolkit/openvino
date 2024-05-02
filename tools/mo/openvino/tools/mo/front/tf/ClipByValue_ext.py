@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.ClipByValueTF import ClibByValueTF
 
 
 class ClipByValueExtractor(FrontExtractorOp):
-    op = 'ClipByValue'
+    op = "ClipByValue"
     enabled = True
 
     @classmethod

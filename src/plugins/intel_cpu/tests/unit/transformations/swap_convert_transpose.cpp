@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include <transformations/cpu_opset/common/pass/swap_convert_transpose.hpp>
 #include <transformations/init_node_info.hpp>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
 
 using namespace testing;
 
-class SwapConvertTransposeTest: public TransformationTestsF {
+class SwapConvertTransposeTest : public TransformationTestsF {
 public:
     SwapConvertTransposeTest() : TransformationTestsF() {
         comparator.enable(FunctionsComparator::CmpValues::NAMES);
@@ -31,7 +31,8 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
 
         auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
 
-        auto transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(convert, transpose_const);
         transpose->set_friendly_name(transpose_name);
 
@@ -41,7 +42,8 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
 
-        auto transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, transpose_const);
 
         auto convert = std::make_shared<ov::op::v0::Convert>(transpose, out_type);
@@ -65,11 +67,13 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTransposeImpossible) {
 
         auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
 
-        auto transpose0_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose0_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose0 = std::make_shared<ov::op::v1::Transpose>(convert, transpose0_const);
         transpose0->set_friendly_name(transpose_name + "_0");
 
-        auto transpose1_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
+        auto transpose1_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{input_order.size()}, input_order);
         auto transpose1 = std::make_shared<ov::op::v1::Transpose>(convert, transpose1_const);
         transpose1->set_friendly_name(transpose_name + "_1");
 

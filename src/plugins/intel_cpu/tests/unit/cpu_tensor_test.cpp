@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_tensor.h"
+
 #include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest-param-test.h>
@@ -10,14 +12,12 @@
 #include <openvino/core/shape.hpp>
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
+
+#include "cpu_memory.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
-
-#include "cpu_memory.h"
-#include "cpu_tensor.h"
 #include "openvino/runtime/itensor.hpp"
-
 
 using namespace ov::intel_cpu;
 
@@ -46,7 +46,7 @@ public:
     MOCK_METHOD(const VectorDims&, getStrides, (), (const, override));
     MOCK_METHOD(bool, blocksExtended, (), (const, override));
     MOCK_METHOD(size_t, getPaddedElementsCount, (), (const, override));
-    MOCK_METHOD(bool, isCompatible, (const BlockedMemoryDesc &, CmpMask), (const, override));
+    MOCK_METHOD(bool, isCompatible, (const BlockedMemoryDesc&, CmpMask), (const, override));
 
     MOCK_METHOD(void, setPrecision, (ov::element::Type), (override));
 
@@ -78,10 +78,18 @@ public:
     MOCK_METHOD(void, nullify, (), (override));
     MOCK_METHOD(void*, getData, (), (const, override));
 
-    void set_memDesc(MemoryDescPtr memdesc) { m_pMemDesc = memdesc; }
-    void set_memDesc(const MemoryDesc& memdesc) { m_pMemDesc = memdesc.clone(); }
-    MemoryDesc& get_memDesc() const { return *m_pMemDesc; }
-    MemoryDescPtr get_memDescPtr() { return m_pMemDesc; }
+    void set_memDesc(MemoryDescPtr memdesc) {
+        m_pMemDesc = memdesc;
+    }
+    void set_memDesc(const MemoryDesc& memdesc) {
+        m_pMemDesc = memdesc.clone();
+    }
+    MemoryDesc& get_memDesc() const {
+        return *m_pMemDesc;
+    }
+    MemoryDescPtr get_memDescPtr() {
+        return m_pMemDesc;
+    }
 
 private:
     MemoryDescPtr m_pMemDesc;
@@ -121,31 +129,28 @@ inline MemoryPtr create_memory(MemoryDescPtr memdesc) {
     ::testing::Mock::AllowLeak(memptr.get());
 
     // getDesc
-    EXPECT_CALL(*memptr, getDescPtr)
-        .Times(::testing::AnyNumber())
-        .WillRepeatedly([memptr]() {
-                        return memptr->get_memDescPtr();
-                    });
+    EXPECT_CALL(*memptr, getDescPtr).Times(::testing::AnyNumber()).WillRepeatedly([memptr]() {
+        return memptr->get_memDescPtr();
+    });
     EXPECT_CALL(*memptr, getDesc).WillRepeatedly(::testing::ReturnRef(memptr->get_memDesc()));
 
     // data
     static size_t memSize = 0;
-    EXPECT_CALL(*memptr, getData)
-        .WillRepeatedly([memptr]() {
-                        auto memdesc = memptr->get_memDescPtr();
-                        auto required = memdesc->getCurrentMemSize();
-                        if (memSize >= required) {
-                            return reinterpret_cast<void*>(memSize);
-                        } else {
-                            memSize = required;
-                            return reinterpret_cast<void*>(required);
-                        }
-                    });
+    EXPECT_CALL(*memptr, getData).WillRepeatedly([memptr]() {
+        auto memdesc = memptr->get_memDescPtr();
+        auto required = memdesc->getCurrentMemSize();
+        if (memSize >= required) {
+            return reinterpret_cast<void*>(memSize);
+        } else {
+            memSize = required;
+            return reinterpret_cast<void*>(required);
+        }
+    });
 
     // redefineDesc
     ON_CALL(*memptr, redefineDesc).WillByDefault([memptr](MemoryDescPtr desc) {
-                memptr->set_memDesc(desc);
-            });
+        memptr->set_memDesc(desc);
+    });
     EXPECT_CALL(*memptr, redefineDesc).Times(::testing::AtLeast(1));
 
     return memptr;
@@ -237,7 +242,8 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
 
     ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-    ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+    ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()),
+              t->get_strides());
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
@@ -252,6 +258,7 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
         auto desc2 = memptr->getDescPtr()->cloneWithNewDims(newShape.getStaticDims(), true);
         memptr->redefineDesc(desc2);
         ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-        ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+        ASSERT_EQ(byte_strides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()),
+                  t->get_strides());
     }
 }

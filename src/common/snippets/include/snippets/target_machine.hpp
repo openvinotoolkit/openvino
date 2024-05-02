@@ -9,8 +9,8 @@
 #pragma once
 
 #include "emitter.hpp"
-#include "snippets/lowered/expression.hpp"
 #include "kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov {
 namespace snippets {
@@ -24,11 +24,13 @@ struct CompiledSnippet {
 using CompiledSnippetPtr = std::shared_ptr<CompiledSnippet>;
 
 typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)>,
-        std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
+                  std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>>
+    jitters_value;
 
 /**
  * @interface TargetMachine
- * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
+ * @brief Base class Target machine representation. Target derives from this class to provide generator information
+ * about supported emitters
  * @ingroup snippets
  */
 class TargetMachine {
@@ -53,10 +55,12 @@ public:
 
     /**
      * @brief called by generator to all the emitter for a target machine
-     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
+     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation
+     * type
      */
     std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> get(const ov::DiscreteTypeInfo& type) const;
-    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo& type) const;
+    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(
+        const ov::DiscreteTypeInfo& type) const;
 
     /**
      * @brief checks if emitter for a specific operation is supported
@@ -71,5 +75,5 @@ protected:
     std::shared_ptr<KernelExecutorTable> kernel_executor_table;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

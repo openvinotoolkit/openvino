@@ -18,7 +18,7 @@
 #include <memory>
 
 void example1() {
-// ! [itask_executor:define_pipeline]
+    // ! [itask_executor:define_pipeline]
     // std::promise is move only object so to satisfy copy callable constraint we use std::shared_ptr
     auto promise = std::make_shared<std::promise<void>>();
     // When the promise is created we can get std::future to wait the result
@@ -40,7 +40,7 @@ void example1() {
         std::exception_ptr currentException;
         try {
             task();
-        } catch(...) {
+        } catch (...) {
             // If there is some exceptions store the pointer to current exception
             currentException = std::current_exception();
         }
@@ -48,7 +48,7 @@ void example1() {
         if (nullptr == currentException) {
             promise->set_value();  //  <-- If there is no problems just call std::promise::set_value()
         } else {
-            promise->set_exception(currentException);    //  <-- If there is an exception forward it to std::future object
+            promise->set_exception(currentException);  //  <-- If there is an exception forward it to std::future object
         }
     });
     // To wait the task completion we call std::future::wait method
@@ -58,8 +58,8 @@ void example1() {
     // If the future store the exception it will be rethrown in std::future::get method
     try {
         future.get();
-    } catch(std::exception& /*e*/) {
+    } catch (std::exception& /*e*/) {
         // ProcessError(e);
     }
-// ! [itask_executor:define_pipeline]
+    // ! [itask_executor:define_pipeline]
 }

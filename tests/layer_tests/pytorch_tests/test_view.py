@@ -4,19 +4,13 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('input_shapes',
-[
-    [
-        [2, 3, 2], np.array(2), np.array(6)
-    ],
-    [
-        [4], np.array(2), np.array(2)
-    ]
-])
+@pytest.mark.parametrize(
+    "input_shapes",
+    [[[2, 3, 2], np.array(2), np.array(6)], [[4], np.array(2), np.array(2)]],
+)
 class TestViewListConstruct(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -43,12 +37,8 @@ class TestViewListConstruct(PytorchLayerTest):
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
-@pytest.mark.parametrize('input_shapes',
-[
-    [
-        [4], np.array(2)
-    ]
-])
+
+@pytest.mark.parametrize("input_shapes", [[[4], np.array(2)]])
 class TestViewDtype(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -76,12 +66,7 @@ class TestViewDtype(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 
-@pytest.mark.parametrize('input_shapes',
-[
-    [
-        [4], [2, 2]
-    ]
-])
+@pytest.mark.parametrize("input_shapes", [[[4], [2, 2]]])
 class TestViewSize(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -108,18 +93,10 @@ class TestViewSize(PytorchLayerTest):
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
-@pytest.mark.parametrize('input_shapes',
-[
-    [
-        [2, 3, 2], 2, 6
-    ],
-    [
-        [4], 2, 2
-    ],
-    [
-        [4], 2, 2.1
-    ]
-])
+
+@pytest.mark.parametrize(
+    "input_shapes", [[[2, 3, 2], 2, 6], [[4], 2, 2], [[4], 2, 2.1]]
+)
 class TestView(PytorchLayerTest):
 
     def _prepare_input(self):

@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "openvino/pass/pass.hpp"
-#include "low_precision/lpt_visibility.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/lpt_visibility.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace pass {
@@ -22,8 +22,8 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by `QuantizationAlignmentAttribute`
- * attribute after FakeQuantize operations.
+ * @brief AlignQuantizationParameters transformation marks precision preserved operations subgraph by
+ * `QuantizationAlignmentAttribute` attribute after FakeQuantize operations.
  *
  * For more details about the transformation, refer to
  * [AlignQuantizationParameters](@ref openvino_docs_OV_UG_lpt_AlignQuantizationParameters) page
@@ -32,8 +32,10 @@ class LP_TRANSFORMATIONS_API AlignQuantizationParameters;
 class ov::pass::low_precision::AlignQuantizationParameters : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("AlignQuantizationParameters", "0");
-    AlignQuantizationParameters(const std::vector<ov::element::Type> defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support());
+    AlignQuantizationParameters(const std::vector<ov::element::Type> defaultPrecisions =
+                                    ov::pass::low_precision::precision_set::get_int8_support());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
 private:
     const std::vector<ov::element::Type> defaultPrecisions;
 };

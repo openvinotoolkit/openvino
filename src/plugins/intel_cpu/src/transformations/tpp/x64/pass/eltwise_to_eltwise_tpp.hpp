@@ -16,12 +16,11 @@ namespace pass {
  * @brief Converts elementwise operations supported by the TPP backend to the dedicated TPP opset
  * @ingroup snippets
  */
-class EltwiseToEltwiseTPP: public ov::pass::MatcherPass {
+class EltwiseToEltwiseTPP : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EltwiseToEltwiseTPP", "0");
     EltwiseToEltwiseTPP();
 };
-
 
 }  // namespace pass
 }  // namespace tpp

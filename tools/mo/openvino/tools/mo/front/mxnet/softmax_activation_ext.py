@@ -7,7 +7,7 @@ from openvino.tools.mo.ops.softmax import Softmax
 
 
 class SoftmaxActivationExtractor(FrontExtractorOp):
-    op = 'SoftmaxActivation'
+    op = "SoftmaxActivation"
     enabled = True
 
     @classmethod
@@ -21,7 +21,7 @@ class SoftmaxActivationExtractor(FrontExtractorOp):
             axis = -1
 
         update_attrs = {
-            'axis': axis,
+            "axis": axis,
         }
 
         # update the attributes of the node

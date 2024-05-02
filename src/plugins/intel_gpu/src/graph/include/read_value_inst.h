@@ -18,24 +18,29 @@ private:
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        return get_dependency(0);
+    }
 
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 };
 
 using read_value_node = typed_program_node<read_value>;
 
-template<>
+template <>
 class typed_primitive_inst<read_value> : public typed_primitive_inst_base<read_value>, public memory_state::variable {
     using parent = typed_primitive_inst_base<read_value>;
 
 public:
-    template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(read_value_node const& /*node*/, const kernel_impl_params& impl_param) {
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(read_value_node const& /*node*/,
+                                                   const kernel_impl_params& impl_param) {
         auto desc = impl_param.typed_desc<read_value>();
         const auto default_layout = desc->output_layout;
 
-        return { impl_param.state_layout.value_or(default_layout) };
+        return {impl_param.state_layout.value_or(default_layout)};
     }
 
     static layout calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param);
@@ -53,4 +58,4 @@ protected:
 
 using read_value_inst = typed_primitive_inst<read_value>;
 
-} // namespace cldnn
+}  // namespace cldnn

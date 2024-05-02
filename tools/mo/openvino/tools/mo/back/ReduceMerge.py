@@ -5,11 +5,11 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.ops.ReduceOps import reduce_map
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.ops.concat import Concat
+from openvino.tools.mo.ops.ReduceOps import reduce_map
 
 
 class ReduceMerge(BackReplacementPattern):
@@ -19,13 +19,14 @@ class ReduceMerge(BackReplacementPattern):
         - `keep_dims` attribute should be the same for all Reduces in the sequence
         - in case `keep_dims`=False: next Reduce axes should be strictly less than previous Reduce axes
     """
+
     enabled = True
     force_clean_up = True
 
     @staticmethod
     def fuse_reduces(first_reduce, second_reduce):
-        first_reduce_name = first_reduce.soft_get('name', first_reduce.id)
-        second_reduce_name = second_reduce.soft_get('name', second_reduce.id)
+        first_reduce_name = first_reduce.soft_get("name", first_reduce.id)
+        second_reduce_name = second_reduce.soft_get("name", second_reduce.id)
         reduce_type = first_reduce.type
 
         assert first_reduce.type == second_reduce.type
@@ -50,30 +51,47 @@ class ReduceMerge(BackReplacementPattern):
 
         graph = second_reduce.graph
 
-        new_axes = Concat(graph, {'name': second_reduce_name + '/Axes', 'axis': int64_array(0), 'in_ports_count': 2,
-                                  'override_output_shape': True}).create_node()
+        new_axes = Concat(
+            graph,
+            {
+                "name": second_reduce_name + "/Axes",
+                "axis": int64_array(0),
+                "in_ports_count": 2,
+                "override_output_shape": True,
+            },
+        ).create_node()
         new_axes.in_port(0).connect(first_reduce.in_port(1).get_source())
         new_axes.in_port(1).connect(second_reduce.in_port(1).get_source())
 
-        first_reduce.in_port(0).get_source().node['need_shape_inference'] = True
-        first_reduce.in_port(0).get_source().node['override_output_shape'] = True
+        first_reduce.in_port(0).get_source().node["need_shape_inference"] = True
+        first_reduce.in_port(0).get_source().node["override_output_shape"] = True
 
         second_reduce.in_port(1).get_connection().set_source(new_axes.out_port(0))
 
-        first_reduce.out_port(0).get_connection().set_source(first_reduce.in_port(0).get_connection().get_source())
+        first_reduce.out_port(0).get_connection().set_source(
+            first_reduce.in_port(0).get_connection().get_source()
+        )
         first_reduce.in_port(1).disconnect()
         graph.remove_node(first_reduce.id)
 
-        log.debug('{0} nodes {1} and {2} were fused to a single {2} node with updated axes input'
-                  ''.format(reduce_type, first_reduce_name, second_reduce_name))
+        log.debug(
+            "{0} nodes {1} and {2} were fused to a single {2} node with updated axes input"
+            "".format(reduce_type, first_reduce_name, second_reduce_name)
+        )
 
     def find_and_replace_pattern(self, graph: Graph):
         rsorted_nodes = graph.pseudo_topological_sort(reverse=True)
         for reduce_type in reduce_map.keys():
-            reduces_of_type = [n for n in rsorted_nodes if n.id in graph and n.soft_get('type') == reduce_type]
+            reduces_of_type = [
+                n
+                for n in rsorted_nodes
+                if n.id in graph and n.soft_get("type") == reduce_type
+            ]
             for second_reduce_node in reduces_of_type:
                 if second_reduce_node.id not in graph:
                     continue
                 first_reduce_node = second_reduce_node.in_port(0).get_source().node
-                if first_reduce_node.soft_get('type', None) == reduce_type:
-                    ReduceMerge.fuse_reduces(first_reduce=first_reduce_node, second_reduce=second_reduce_node)
+                if first_reduce_node.soft_get("type", None) == reduce_type:
+                    ReduceMerge.fuse_reduces(
+                        first_reduce=first_reduce_node, second_reduce=second_reduce_node
+                    )

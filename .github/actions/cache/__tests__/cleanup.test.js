@@ -14,7 +14,7 @@ const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-cleanup-'));
 const cacheRemotePath = path.join(tempDir, 'cache_remote');
 
-const cacheFiles = ['cache_1.cache', 'cache_2.cache', 'cache_3.cache'];
+const cacheFiles = [ 'cache_1.cache', 'cache_2.cache', 'cache_3.cache' ];
 const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 // Mock the action's main function
@@ -25,7 +25,7 @@ describe('cleanup', () => {
     jest.clearAllMocks();
 
     // Set up file system before each test
-    fs.mkdirSync(cacheRemotePath, { recursive: true });
+    fs.mkdirSync(cacheRemotePath, {recursive : true});
 
     const fileSizeInBytes = 1024 * 1024 * 1024; // 1 GB
     const buffer = Buffer.alloc(fileSizeInBytes);
@@ -34,17 +34,12 @@ describe('cleanup', () => {
       const cachePath = path.join(cacheRemotePath, cache);
       fs.writeFileSync(cachePath, buffer);
       fs.utimesSync(
-        cachePath,
-        new Date(Date.now() - minAccessTime * id++),
-        new Date()
-      );
+          cachePath, new Date(Date.now() - minAccessTime * id++), new Date());
     }
   });
 
   // Clean up mock file system after each test
-  afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true });
-  });
+  afterEach(() => { fs.rmSync(tempDir, {recursive : true}); });
 
   it('Cleanup old files using restore key', async () => {
     // Set the action's inputs as return values from core.getInput()
@@ -130,10 +125,7 @@ describe('cleanup', () => {
     for (const cache of cacheFiles) {
       const cachePath = path.join(cacheRemotePath, cache);
       fs.utimesSync(
-        cachePath,
-        new Date(Date.now() - minAccessTime / 2),
-        new Date()
-      );
+          cachePath, new Date(Date.now() - minAccessTime / 2), new Date());
     }
 
     // Set the action's inputs as return values from core.getInput()
@@ -167,10 +159,7 @@ describe('cleanup', () => {
     for (const cache of cacheFiles) {
       const cachePath = path.join(cacheRemotePath, cache);
       fs.utimesSync(
-        cachePath,
-        new Date(Date.now() - minAccessTime / 2),
-        new Date()
-      );
+          cachePath, new Date(Date.now() - minAccessTime / 2), new Date());
     }
 
     // Set the action's inputs as return values from core.getInput()
@@ -256,7 +245,7 @@ describe('cleanup', () => {
 
   it('Cleanup directory with subdirectory', async () => {
     const cacheSubPath = path.join(cacheRemotePath, 'cache_subdir.cache');
-    fs.mkdirSync(cacheSubPath, { recursive: true });
+    fs.mkdirSync(cacheSubPath, {recursive : true});
     // Set the action's inputs as return values from core.getInput()
     getInputMock.mockImplementation(name => {
       switch (name) {

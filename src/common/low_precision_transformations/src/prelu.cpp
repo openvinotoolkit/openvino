@@ -9,11 +9,10 @@
 #include <string>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -21,7 +20,8 @@ namespace low_precision {
 
 PReluTransformation::PReluTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(PReluTransformation);
-    auto matcher = pattern::wrap_type<ov::opset1::PRelu>({ pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::PRelu>(
+        {pattern::wrap_type<ov::opset1::Multiply>(), pattern::wrap_type<ov::opset1::Constant>()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -35,7 +35,7 @@ PReluTransformation::PReluTransformation(const Params& params) : LayerTransforma
     this->register_matcher(m, callback);
 }
 
-bool PReluTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool PReluTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     std::shared_ptr<Node> prelu = m.get_match_root();
     if (!canBeTransformed(context, prelu)) {
         return false;
@@ -64,13 +64,15 @@ bool PReluTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     const auto scales = dequantization.multiplyConstant->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {
+    if (std::any_of(scales.begin(), scales.end(), [](const float value) {
+            return value < 0.f;
+        })) {
         return false;
     }
 
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

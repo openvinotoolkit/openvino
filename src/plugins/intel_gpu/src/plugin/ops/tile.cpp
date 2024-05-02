@@ -3,12 +3,12 @@
 //
 
 #include "openvino/op/tile.hpp"
-#include "openvino/op/constant.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/tile.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -45,13 +45,9 @@ static void CreateTileOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Ti
             }
         }
 
-        p.add_primitive(*op, cldnn::tile(layerName,
-                                         inputs[0],
-                                         repeats));
+        p.add_primitive(*op, cldnn::tile(layerName, inputs[0], repeats));
     } else {
-        p.add_primitive(*op, cldnn::tile(layerName,
-                                         inputs[0],
-                                         inputs[1]));
+        p.add_primitive(*op, cldnn::tile(layerName, inputs[0], inputs[1]));
     }
 }
 

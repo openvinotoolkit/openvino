@@ -69,6 +69,7 @@ public:
     Napi::Value get_property(const Napi::CallbackInfo& info);
 
     void add_extension(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,

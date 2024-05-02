@@ -3,8 +3,10 @@
 //
 
 #include "mvn_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 

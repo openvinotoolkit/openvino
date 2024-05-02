@@ -3,6 +3,7 @@
 //
 
 #include "low_precision_transformations/clamp_transformation.hpp"
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -16,14 +17,13 @@ std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<Cl
     ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ClampTransformationParam param;;
+    ClampTransformationParam param;
+    ;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
-           param.fakeQuantize << "_" <<
-        "min=" << param.clampLowConst <<
-        "max=" << param.clampHighConst;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << param.fakeQuantize
+           << "_" << "min=" << param.clampLowConst << "max=" << param.clampHighConst;
     return result.str();
 }
 
@@ -36,16 +36,15 @@ void ClampTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ov::builder::subgraph::ClampFunction::getOriginal(
-        netPrecision,
-        inputShape,
-        param.fakeQuantize,
-        param.clampLowConst,
-        param.clampHighConst);
+    function = ov::builder::subgraph::ClampFunction::getOriginal(netPrecision,
+                                                                 inputShape,
+                                                                 param.fakeQuantize,
+                                                                 param.clampLowConst,
+                                                                 param.clampHighConst);
 }
 
 TEST_P(ClampTransformation, CompareWithRefImpl) {
     run();
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace LayerTestsDefinitions

@@ -3,11 +3,12 @@
 //
 
 #include "convolution_kernel_mmad_bfyx_to_b_fs_yx_fsv4.h"
-#include <vector>
-#include <utility>
-#include <string>
+
 #include <algorithm>
 #include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace kernel_selector {
 
@@ -39,7 +40,8 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_device_features_key(
+    const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_blocked_read_write();
     k.requires_blocked_read_write_short();
@@ -47,7 +49,7 @@ DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_devi
     return k;
 }
 
-bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) const {
+bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
         return false;
     }
@@ -60,16 +62,16 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) cons
     return true;
 }
 
-ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetAutoTuneOptions(const Params &p,
-                                                                                                                        int autoTuneIndex) const {
+ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption
+ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetAutoTuneOptions(const Params& p, int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
 
     AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
-    auto &params = dynamic_cast<const convolution_params &>(p);
-    auto &output = params.outputs[0];
+    auto& params = dynamic_cast<const convolution_params&>(p);
+    auto& output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;
@@ -83,8 +85,9 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mm
     return option;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::SetDefault(const convolution_params &cp,
-                                                                                            int autoTuneIndex) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::SetDefault(
+    const convolution_params& cp,
+    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
@@ -107,8 +110,8 @@ KernelsPriority ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsPriority(
     return FORCE_PRIORITY_2;
 }
 
-JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const convolution_params &params,
-                                                                        const DispatchData &dispatchData) const {
+JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const convolution_params& params,
+                                                                          const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
@@ -119,8 +122,9 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     auto input = params.inputs[0];
     auto output = params.outputs[0];
     auto blockWidth = dispatchData.cldnnStyle.blockWidth;
-    size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
-                                      input.X().v + input.X().pad.Total());
+    size_t input_line_size =
+        std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1,
+                 input.X().v + input.X().pad.Total());
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
@@ -138,12 +142,12 @@ JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetJitConstants(const 
     return jit;
 }
 
-KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params &params) const {
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsData(const Params& params) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params);
     return kd;
 }
 
-KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params &params) const {
+KernelsData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetKernelsDataForAutoTune(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }

@@ -6,10 +6,10 @@
 
 #include <memory>
 
-#include "openvino/opsets/opset1.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 namespace ov {
 namespace builder {
@@ -25,23 +25,22 @@ std::shared_ptr<ov::Model> ReluFunction::getOriginal(
     const std::shared_ptr<Node> relu = std::make_shared<ov::opset1::Relu>(dequantizationOp);
     relu->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(relu) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReluFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ReluFunction");
 }
 
-std::shared_ptr<ov::Model> ReluFunction::getOriginal(
-    const ov::PartialShape& inputShape,
-    const ov::element::Type precisionBeforeFq,
-    const FakeQuantizeOnData& fqOnData) {
+std::shared_ptr<ov::Model> ReluFunction::getOriginal(const ov::PartialShape& inputShape,
+                                                     const ov::element::Type precisionBeforeFq,
+                                                     const FakeQuantizeOnData& fqOnData) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeFq, inputShape);
 
-    const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
-        std::dynamic_pointer_cast<ov::Node>(input) :
-        makeFakeQuantize(input, precisionBeforeFq, fqOnData);
+    const std::shared_ptr<Node> quantizationOp = fqOnData.empty()
+                                                     ? std::dynamic_pointer_cast<ov::Node>(input)
+                                                     : makeFakeQuantize(input, precisionBeforeFq, fqOnData);
     const std::shared_ptr<Node> relu = std::make_shared<ov::opset1::Relu>(quantizationOp);
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(relu) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReluFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ReluFunction");
 }
 
 std::shared_ptr<ov::Model> ReluFunction::getReference(
@@ -63,8 +62,8 @@ std::shared_ptr<ov::Model> ReluFunction::getReference(
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(relu, dequantizationAfter);
     quantizationOpAfter->set_friendly_name("output");
 
-    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(quantizationOpAfter) };
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ReluFunction");
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(quantizationOpAfter)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{input}, "ReluFunction");
 }
 
 }  // namespace subgraph

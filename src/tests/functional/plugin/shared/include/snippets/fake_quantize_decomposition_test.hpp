@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
 
@@ -30,14 +30,15 @@ public:
     std::vector<ov::Shape> fakeQuantizeShapes;
 };
 
-typedef std::tuple<
-    TestValues,                 // test values
-    std::pair<std::shared_ptr<ov::Node>, std::pair<std::string, std::string>>,   // operation
-    std::pair<size_t, size_t>,  // number of nodes
-    std::string                 // target device
-> testsParams;
+typedef std::tuple<TestValues,                                                                 // test values
+                   std::pair<std::shared_ptr<ov::Node>, std::pair<std::string, std::string>>,  // operation
+                   std::pair<size_t, size_t>,                                                  // number of nodes
+                   std::string                                                                 // target device
+                   >
+    testsParams;
 
-class FakeQuantizeDecompositionTest : public testing::WithParamInterface<testsParams>, virtual public ov::test::SnippetsTestsCommon {
+class FakeQuantizeDecompositionTest : public testing::WithParamInterface<testsParams>,
+                                      virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<testsParams> obj);
 

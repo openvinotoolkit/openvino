@@ -4,8 +4,8 @@
 
 #include "assign_inst.h"
 #include "implementation_map.hpp"
-#include "register.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -48,8 +48,10 @@ struct assign_impl : public typed_primitive_impl<assign> {
         auto& variable = instance.get_network().get_variable(variable_id);
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
-                        "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
-                        " assign output layout: ", instance.get_output_layout().to_short_string());
+                        "[GPU] Layout mismatch: variable layout: ",
+                        variable.get_layout().to_short_string(),
+                        " assign output layout: ",
+                        instance.get_output_layout().to_short_string());
 
         auto& stream = instance.get_network().get_stream();
 
@@ -70,7 +72,6 @@ public:
         return make_unique<assign_impl>();
     }
 };
-
 
 namespace detail {
 

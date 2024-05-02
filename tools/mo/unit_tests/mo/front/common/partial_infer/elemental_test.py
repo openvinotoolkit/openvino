@@ -18,7 +18,7 @@ class FakeNode:
 
 
 class TestElementalInference(unittest.TestCase):
-    @patch('openvino.tools.mo.front.common.partial_infer.elemental.single_output_infer')
+    @patch("openvino.tools.mo.front.common.partial_infer.elemental.single_output_infer")
     def test_copy_shape_infer(self, single_output_infer_mock):
         single_output_infer_mock.return_value = 0
         node = FakeNode(np.array([1, 2]))

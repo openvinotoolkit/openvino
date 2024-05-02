@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_test_utils.hpp"
-
-#include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "intel_gpu/op/convolution.hpp"
-#include "intel_gpu/op/placeholder.hpp"
-
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 
 #include <memory>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/convolution.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -28,12 +27,12 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_1) {
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 8, 11, 12 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 2, 8, 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 8, 11, 12});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{2, 8, 4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 1, 1, 1 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 1, 1, 1 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 16, 1, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 1, 1, 1}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 1, 1, 1}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 16, 1, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -48,16 +47,16 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 8, 11, 12 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 2, 8, 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 8, 11, 12});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{2, 8, 4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 32, 1, 1 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 1, 1, 1 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 32, 1, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 32, 1, 1}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 1, 1, 1}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 32, 1, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -72,7 +71,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_1) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -82,12 +81,12 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_2) {
     ov::CoordinateDiff pads_begin{2};
     ov::CoordinateDiff pads_end{0};
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 3, 11 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 3, 11});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 1, 1 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 1, 1 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 4, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 1, 1}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 1, 1}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -102,16 +101,16 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 3, 11 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 3, 11});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1, 32, 1 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 1, 1 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 32, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 32, 1}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 1, 1}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 32, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -126,7 +125,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_2) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 }
 
@@ -136,12 +135,12 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_3) {
     ov::CoordinateDiff pads_begin{2};
     ov::CoordinateDiff pads_end{0};
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 3, 11 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 3, 11});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 1 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 4, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -156,16 +155,16 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
         manager.register_pass<BroadcastAndPadZeroPointBuffers>(32);
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{ 2, 3, 11 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 4, 3, 3 }, { 1 });
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{2, 3, 11});
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4, 3, 3}, {1});
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32 }, { 1 });
-        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32 }, { 1 });
-        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 32, 1 }, { 1 });
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32}, {1});
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32}, {1});
+        auto compensation = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 32, 1}, {1});
         auto conv = std::make_shared<ov::intel_gpu::op::Convolution>(input,
                                                                      weights_const,
                                                                      no_bias,
@@ -180,7 +179,7 @@ TEST_F(TransformationTestsF, BroadcastAndPadZeroPointBuffers_3) {
                                                                      ov::op::PadType::EXPLICIT,
                                                                      ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 }
 

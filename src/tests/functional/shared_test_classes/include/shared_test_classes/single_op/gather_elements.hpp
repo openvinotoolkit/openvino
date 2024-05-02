@@ -12,17 +12,17 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<InputShape>,  // Input shapes
-        ov::Shape,                // Indices shape
-        int,                      // Axis
-        ov::element::Type,        // Model type
-        ov::element::Type,        // Indices type
-        std::string               // Device name
-> GatherElementsParams;
+typedef std::tuple<std::vector<InputShape>,  // Input shapes
+                   ov::Shape,                // Indices shape
+                   int,                      // Axis
+                   ov::element::Type,        // Model type
+                   ov::element::Type,        // Indices type
+                   std::string               // Device name
+                   >
+    GatherElementsParams;
 
 class GatherElementsLayerTest : public testing::WithParamInterface<GatherElementsParams>,
-                          virtual public ov::test::SubgraphBaseTest {
+                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsParams>& obj);
 

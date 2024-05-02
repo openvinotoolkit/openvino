@@ -4,16 +4,18 @@
 
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
+                                       lowered::LinearIR::constExprIt begin,
+                                       lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeLoopSingleEvaluation")
     bool is_modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
@@ -44,8 +46,7 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::Li
     return is_modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "common_test_utils/test_enums.hpp"
 #include "./snippets_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {

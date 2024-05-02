@@ -10,12 +10,12 @@
 #include <openvino/core/shape.hpp>
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "openvino/core/except.hpp"
-#include "openvino/core/partial_shape.hpp"
 
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/runtime/itensor.hpp"
 
 using namespace ov::intel_cpu;
@@ -68,7 +68,8 @@ TEST_F(CPUTensorExtTest, canAccessF16Tensor) {
 // SetShape
 TEST_F(CPUTensorExtTest, canSetShape) {
     const ov::Shape origShape({1, 2, 3});
-    std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, {1, 2, 3}));
+    std::shared_ptr<ov::ITensor> t =
+        std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, {1, 2, 3}));
     const ov::Shape newShape({4, 5, 6});
 
     const void* orig_data = t->data();
@@ -142,7 +143,8 @@ TEST_F(CPUTensorExtTest, canSyncMemoryAndTensor) {
     auto memptr = create_memory(ov::element::f32, orig_shape);
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
     ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-    ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+    ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()),
+              t->get_strides());
 
     // reallocate memory out boundary of tensor instance
     {
@@ -151,6 +153,7 @@ TEST_F(CPUTensorExtTest, canSyncMemoryAndTensor) {
         auto desc2 = memptr->getDescPtr()->cloneWithNewDims(new_shape.getStaticDims(), true);
         memptr->redefineDesc(desc2);
         ASSERT_EQ(memptr->getDescPtr()->getShape().toPartialShape().to_shape(), t->get_shape());
-        ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()), t->get_strides());
+        ASSERT_EQ(byteStrides(memptr->getDescWithType<BlockedMemoryDesc>()->getStrides(), t->get_element_type()),
+                  t->get_strides());
     }
 }

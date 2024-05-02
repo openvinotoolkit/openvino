@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/gather.hpp"
+
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-
-#include "low_precision/gather.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -23,9 +23,8 @@ namespace low_precision {
 
 namespace {
 
-std::shared_ptr<opset1::Constant> gatherDeqConstant(
-    const std::shared_ptr<ov::Node> &gather,
-    const std::shared_ptr<ov::Node> &dequantizationConstant) {
+std::shared_ptr<opset1::Constant> gatherDeqConstant(const std::shared_ptr<ov::Node>& gather,
+                                                    const std::shared_ptr<ov::Node>& dequantizationConstant) {
     auto constant = ov::as_type_ptr<ov::opset1::Constant>(dequantizationConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
@@ -40,11 +39,12 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
         }
         const auto newConstant = fold<ov::opset1::Broadcast>(
             constant,
-            ov::opset1::Constant::create(ov::element::i32, { constantShape.size() }, constantShape));
+            ov::opset1::Constant::create(ov::element::i32, {constantShape.size()}, constantShape));
         constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
     }
 
-    const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
+    const int64_t axis =
+        ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis =
         ov::util::normalize_axis(gather->get_friendly_name(), axis, gather->get_input_partial_shape(0).rank());
 
@@ -52,30 +52,25 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     if (constantShape[normalizedAxis] != 1ul) {
         const auto gather1 = ov::as_type_ptr<ov::opset1::Gather>(gather);
         if (gather1) {
-            const auto output = fold<ov::opset1::Gather>(
-                constant,
-                gather1->input_value(1),
-                gather1->input_value(2));
+            const auto output = fold<ov::opset1::Gather>(constant, gather1->input_value(1), gather1->input_value(2));
             constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
         }
 
         const auto gather7 = ov::as_type_ptr<ov::opset7::Gather>(gather);
         if (gather7) {
-            const auto output = fold<ov::opset7::Gather>(
-                constant,
-                gather7->input_value(1),
-                gather7->input_value(2),
-                gather7->get_batch_dims());
+            const auto output = fold<ov::opset7::Gather>(constant,
+                                                         gather7->input_value(1),
+                                                         gather7->input_value(2),
+                                                         gather7->get_batch_dims());
             constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
         }
 
         const auto gather8 = ov::as_type_ptr<ov::opset8::Gather>(gather);
         if (gather8) {
-            const auto output = fold<ov::opset8::Gather>(
-                constant,
-                gather8->input_value(1),
-                gather8->input_value(2),
-                gather8->get_batch_dims());
+            const auto output = fold<ov::opset8::Gather>(constant,
+                                                         gather8->input_value(1),
+                                                         gather8->input_value(2),
+                                                         gather8->get_batch_dims());
             constant = ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(output));
         }
     }
@@ -86,9 +81,8 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
 
 GatherTransformation::GatherTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(GatherTransformation);
-    auto gather = pattern::wrap_type<opset1::Gather, opset7::Gather, opset8::Gather>({ pattern::wrap_type<opset1::Multiply>(),
-                                                        pattern::any_input(),
-                                                        pattern::any_input() });
+    auto gather = pattern::wrap_type<opset1::Gather, opset7::Gather, opset8::Gather>(
+        {pattern::wrap_type<opset1::Multiply>(), pattern::any_input(), pattern::any_input()});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -102,13 +96,14 @@ GatherTransformation::GatherTransformation(const Params& params) : LayerTransfor
     this->register_matcher(m, callback);
 }
 
-bool GatherTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool GatherTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     auto node = m.get_match_root();
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    const std::shared_ptr<Node> gather = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const std::shared_ptr<Node> gather =
+        NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(gather, defaultPrecisions);
 
     if (dequantization.multiply != nullptr) {
@@ -120,13 +115,15 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    const auto newOperation = moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
+    const auto newOperation =
+        moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
 
     OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
-bool GatherTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
+bool GatherTransformation::canBeTransformed(const TransformationContext& context,
+                                            std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
         return false;
     }
@@ -200,6 +197,6 @@ bool GatherTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

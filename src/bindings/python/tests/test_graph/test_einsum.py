@@ -2,15 +2,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import openvino.runtime.opset8 as ov
 import numpy as np
+import openvino.runtime.opset8 as ov
 import pytest
-
 from openvino.runtime.utils.types import get_element_type
 
 
-def einsum_op_check(input_shapes: list, equation: str, data_type: np.dtype,
-                    seed=202104):
+def einsum_op_check(
+    input_shapes: list, equation: str, data_type: np.dtype, seed=202104
+):
     """Test Einsum operation for given input shapes, equation, and data type.
 
     It generates input data of given shapes and type, receives reference results using numpy,

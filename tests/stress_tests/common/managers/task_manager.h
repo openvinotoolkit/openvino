@@ -4,88 +4,89 @@
 
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <vector>
-#include <functional>
 
 #include "../tests_utils.h"
 
 enum ManagerStatus {
-    NOT_STARTED = -2,
-    NOT_FINISHED = -1,
-    FINISHED_SUCCESSFULLY = 0,
-    FINISHED_UNEXPECTEDLY
+  NOT_STARTED = -2,
+  NOT_FINISHED = -1,
+  FINISHED_SUCCESSFULLY = 0,
+  FINISHED_UNEXPECTEDLY
 };
 
-template<typename Type>
+template <typename Type>
 using Task = std::pair<ManagerStatus, std::function<Type()>>;
 
-template<typename Type>
+template <typename Type>
 class TaskManager {
-public:
-    std::vector<Task<Type>> tasks;
-    std::vector<Type> tasks_results;
+ public:
+  std::vector<Task<Type>> tasks;
+  std::vector<Type> tasks_results;
 
-    TaskManager() {}
+  TaskManager() {}
 
-    TaskManager(const std::initializer_list<std::function<Type()>> &tasks_list) {
-        tasks.reserve(tasks_list.size());
-        for (const auto &task : tasks_list)
-            add_task(task);
+  TaskManager(const std::initializer_list<std::function<Type()>>& tasks_list) {
+    tasks.reserve(tasks_list.size());
+    for (const auto& task : tasks_list)
+      add_task(task);
+  }
+
+  void add_task(const std::function<Type()>& task) {
+    auto _task = Task<Type>(ManagerStatus::NOT_STARTED, task);
+    tasks.push_back(_task);
+  }
+
+  void run_sequentially() {
+    // TODO: make it asynchronous
+    tasks_results.reserve(tasks.size());
+    for (auto task : tasks) {
+      task.first = ManagerStatus::NOT_FINISHED;
+      tasks_results.push_back(task.second());
     }
+  }
 
-    void add_task(const std::function<Type()> &task) {
-        auto _task = Task<Type>(ManagerStatus::NOT_STARTED, task);
-        tasks.push_back(_task);
-    }
+  void run_parallel_n_wait() {
+    run_parallel();
+    wait_all();
+  }
 
-    void run_sequentially() {
-        // TODO: make it asynchronous
-        tasks_results.reserve(tasks.size());
-        for (auto task : tasks) {
-            task.first = ManagerStatus::NOT_FINISHED;
-            tasks_results.push_back(task.second());
-        }
-    }
+  void wait_all() {
+    int numtasks = tasks.size();
+    for (int i = 0; i < numtasks; i++)
+      if (tasks[i].first == ManagerStatus::NOT_FINISHED)
+        wait_task(i);
+  }
 
-    void run_parallel_n_wait() {
-        run_parallel();
-        wait_all();
-    }
+  std::vector<ManagerStatus> get_all_statuses() {
+    std::vector<ManagerStatus> statuses;
 
-    void wait_all() {
-        int numtasks = tasks.size();
-        for (int i = 0; i < numtasks; i++)
-            if (tasks[i].first == ManagerStatus::NOT_FINISHED)
-                wait_task(i);
-    }
+    int numtasks = tasks.size();
+    for (int i = 0; i < numtasks; i++)
+      statuses.push_back(get_task_status(i));
+    return statuses;
+  }
 
-    std::vector<ManagerStatus> get_all_statuses() {
-        std::vector<ManagerStatus> statuses;
+  std::vector<TestResult> get_all_results() {
+    return tasks_results;
+  }
 
-        int numtasks = tasks.size();
-        for (int i = 0; i < numtasks; i++)
-            statuses.push_back(get_task_status(i));
-        return statuses;
-    }
+  TestResult get_task_result(int task_index) {
+    if (tasks_results.empty() || tasks_results.size() < task_index ||
+        task_index < 0)
+      throw std::out_of_range(
+          "Task index " + std::to_string(task_index) +
+          " out of number of tasks");
 
-    std::vector<TestResult> get_all_results() {
-        return tasks_results;
-    }
+    return tasks_results[task_index];
+  }
 
-    TestResult get_task_result(int task_index) {
-        if (tasks_results.empty() ||
-            tasks_results.size() < task_index ||
-            task_index < 0)
-            throw std::out_of_range("Task index " + std::to_string(task_index) + " out of number of tasks");
+  virtual void run_parallel() = 0;
 
-        return tasks_results[task_index];
-    }
+  virtual void wait_task(
+      int task_index) = 0; // TODO: implement for run_sequentially
 
-    virtual void run_parallel() = 0;
-
-    virtual void wait_task(int task_index) = 0; // TODO: implement for run_sequentially
-
-    virtual ManagerStatus get_task_status(int task_index) = 0;
-
+  virtual ManagerStatus get_task_status(int task_index) = 0;
 };

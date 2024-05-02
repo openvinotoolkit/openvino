@@ -11,8 +11,8 @@ from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
-    as_nodes,
     as_node,
+    as_nodes,
     make_constant_node,
 )
 
@@ -76,7 +76,11 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales, name=name) if axes is None else as_nodes(image, output_shape, scales, axes, name=name)
+    inputs = (
+        as_nodes(image, output_shape, scales, name=name)
+        if axes is None
+        else as_nodes(image, output_shape, scales, axes, name=name)
+    )
 
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
@@ -121,7 +125,9 @@ def is_inf(
     """
     if not attributes:
         attributes = {}
-    return _get_node_factory_opset10().create("IsInf", as_nodes(data, name=name), attributes)
+    return _get_node_factory_opset10().create(
+        "IsInf", as_nodes(data, name=name), attributes
+    )
 
 
 @nameable_op

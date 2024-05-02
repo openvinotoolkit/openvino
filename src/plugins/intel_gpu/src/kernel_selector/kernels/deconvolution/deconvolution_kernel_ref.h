@@ -21,11 +21,7 @@ protected:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

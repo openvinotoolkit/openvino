@@ -9,7 +9,7 @@ def delete_selects_from(graph: Graph, node_idxs: list):
         greater_equal = Node(graph, node_id)
         for port in greater_equal.out_port(0).get_destinations():
             port_node = port.node
-            if port_node.soft_get('op') == 'Select':
+            if port_node.soft_get("op") == "Select":
 
                 port_node.in_port(1).disconnect()
                 port_node.in_port(0).disconnect()

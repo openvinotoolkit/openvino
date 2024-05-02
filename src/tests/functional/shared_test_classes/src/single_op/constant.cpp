@@ -14,8 +14,7 @@ std::vector<std::string> getElements(const std::vector<std::string>& v) {
 }
 }  // namespace
 
-std::string ConstantLayerTest::getTestCaseName(
-    const testing::TestParamInfo<constantParamsTuple>& obj) {
+std::string ConstantLayerTest::getTestCaseName(const testing::TestParamInfo<constantParamsTuple>& obj) {
     ov::Shape shape;
     ov::element::Type model_type;
     std::vector<std::string> data_elements;

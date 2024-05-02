@@ -7,8 +7,8 @@
 
 namespace cldnn {
 typedef enum { /*:int32_t*/
-    lrn_norm_region_across_channel,
-    lrn_norm_region_within_channel
+               lrn_norm_region_across_channel,
+               lrn_norm_region_within_channel
 } lrn_norm_region;
 
 /// @brief Local response normalization
@@ -77,10 +77,7 @@ struct lrn : public primitive_base<lrn> {
 
         auto rhs_casted = downcast<const lrn>(rhs);
 
-        return size == rhs_casted.size &&
-               k == rhs_casted.k &&
-               alpha == rhs_casted.alpha &&
-               beta == rhs_casted.beta &&
+        return size == rhs_casted.size && k == rhs_casted.k && alpha == rhs_casted.alpha && beta == rhs_casted.beta &&
                norm_region == rhs_casted.norm_region;
     }
 

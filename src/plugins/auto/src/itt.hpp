@@ -14,8 +14,8 @@ namespace ov {
 namespace auto_plugin {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(AutoPlugin);
+OV_ITT_DOMAIN(AutoPlugin);
 }
-} // namespace itt
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace itt
+}  // namespace auto_plugin
+}  // namespace ov

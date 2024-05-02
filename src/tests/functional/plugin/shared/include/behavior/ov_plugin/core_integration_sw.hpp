@@ -52,12 +52,14 @@ TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePrope
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(
+        ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDevice2NoThrow) {
     ov::Core ie = ov::test::utils::create_core();
-    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(
+        ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
@@ -120,13 +122,13 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigDevicePropertiesThrows) {
     ASSERT_THROW(core.set_property("", ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
     ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_CPU,
-                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
+                                   ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
     ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
-                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
+                                   ov::device::properties(ov::test::utils::DEVICE_CPU, ov::enable_profiling(true))),
                  ov::Exception);
     ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
-                                 ov::device::properties(ov::test::utils::DEVICE_CPU, ov::num_streams(4))),
+                                   ov::device::properties(ov::test::utils::DEVICE_CPU, ov::num_streams(4))),
                  ov::Exception);
 }
 
@@ -135,13 +137,16 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAutoNoThrows) {
 
     // priority config test
     ov::hint::Priority value;
-    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
+    OV_ASSERT_NO_THROW(
+        core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::LOW);
-    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
+    OV_ASSERT_NO_THROW(
+        core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
     OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
-    OV_ASSERT_NO_THROW(core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    OV_ASSERT_NO_THROW(
+        core.set_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = core.get_property(ov::test::utils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }

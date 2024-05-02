@@ -3,14 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest
 import openvino.runtime.opset8 as ov
+import pytest
+
 from openvino import Shape, Type
 
 
-@pytest.mark.parametrize(("beta"), [
-    [],
-    [ov.parameter(Shape([]), dtype=np.float32, name="beta")]])
+@pytest.mark.parametrize(
+    ("beta"), [[], [ov.parameter(Shape([]), dtype=np.float32, name="beta")]]
+)
 def test_swish(beta):
     data = ov.parameter(Shape([3, 10]), dtype=np.float32, name="data")
 

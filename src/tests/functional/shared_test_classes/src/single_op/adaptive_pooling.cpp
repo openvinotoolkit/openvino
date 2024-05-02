@@ -52,9 +52,8 @@ void AdaPoolLayerTest::SetUp() {
     auto adapoolMax = std::make_shared<ov::op::v8::AdaptiveMaxPool>(params[0], pooled_param, ov::element::i32);
     auto adapoolAvg = std::make_shared<ov::op::v8::AdaptiveAvgPool>(params[0], pooled_param);
 
-    function = (pooling_mode == "max" ?
-                std::make_shared<ov::Model>(adapoolMax->outputs(), params, "AdaPoolMax") :
-                std::make_shared<ov::Model>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+    function = (pooling_mode == "max" ? std::make_shared<ov::Model>(adapoolMax->outputs(), params, "AdaPoolMax")
+                                      : std::make_shared<ov::Model>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
 }
 }  // namespace test
 }  // namespace ov

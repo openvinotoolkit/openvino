@@ -3,6 +3,7 @@
 //
 
 #include "grn_kernel_selector.h"
+
 #include "grn_kernel_ref.h"
 
 namespace kernel_selector {

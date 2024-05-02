@@ -12,9 +12,8 @@ OpenVINO resources (tools, samples, etc) according to product installation layou
 import logging
 import os
 import subprocess
-
-from pathlib import Path
 from distutils import spawn
+from pathlib import Path
 
 from e2e_tests.common.config import openvino_root_dir
 from e2e_tests.common.sys_info_utils import os_type_is_windows
@@ -48,10 +47,14 @@ class OpenVINOResources:
             resource_path = Path(resource_path)
             if resource_path.exists():
                 self._resources[resource_name] = resource_path
-                self._log.info(f"OpenVINO resource {resource_name} found: {resource_path}")
+                self._log.info(
+                    f"OpenVINO resource {resource_name} found: {resource_path}"
+                )
                 return True
 
-        self._log.warning(f"OpenVINO resource {resource_name} not found: {resource_path}")
+        self._log.warning(
+            f"OpenVINO resource {resource_name} not found: {resource_path}"
+        )
         return False
 
     def _get_executable_from_os_path(self, resource_name, resource_filename):
@@ -59,7 +62,9 @@ class OpenVINOResources:
         if self._resources.get(resource_name):
             return self._resources[resource_name]
 
-        if self._check_resource(resource_name, spawn.find_executable(str(resource_filename))):
+        if self._check_resource(
+            resource_name, spawn.find_executable(str(resource_filename))
+        ):
             return self._resources[resource_name]
 
         raise OpenVINOResourceNotFound(f"OpenVINO resource {resource_name} not found")
@@ -111,10 +116,7 @@ class OpenVINOResources:
 
         omz_root_path = self.omz_root
         if self._check_resource(
-            resource_name,
-            omz_root_path
-            / "internal_scripts"
-            / "pytorch_to_onnx.py"
+            resource_name, omz_root_path / "internal_scripts" / "pytorch_to_onnx.py"
         ):
             return self._resources[resource_name]
 
@@ -185,11 +187,18 @@ class OpenVINOResources:
             # imported but pot tool is absent on the system.
             from openvino import tools
         except ImportError as exc:
-            raise OpenVINOResourceNotFound(f"OpenVINO resource {resource_name} not found") from exc
+            raise OpenVINOResourceNotFound(
+                f"OpenVINO resource {resource_name} not found"
+            ) from exc
 
         if self._check_resource(
             resource_name,
-            Path(tools.__file__).parent / "pot" / "api" / "samples" / "speech" / "gna_sample.py",
+            Path(tools.__file__).parent
+            / "pot"
+            / "api"
+            / "samples"
+            / "speech"
+            / "gna_sample.py",
         ):
             return self._resources[resource_name]
 
@@ -199,7 +208,9 @@ class OpenVINOResources:
         """Return final command line with setupvars script"""
 
         input_cmd = (
-            subprocess.list2cmdline(list(map(str, cmd))) if isinstance(cmd, list) else str(cmd)
+            subprocess.list2cmdline(list(map(str, cmd)))
+            if isinstance(cmd, list)
+            else str(cmd)
         )
         input_cmd_escaped = input_cmd.replace('"', '\\"')
 

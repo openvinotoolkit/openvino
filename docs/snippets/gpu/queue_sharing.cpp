@@ -1,9 +1,8 @@
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
-
-cl::CommandQueue get_ocl_queue(); // a function which returns cl queue created on the app side
-cl::Context get_ocl_context(); // a function which returns cl context created on the app side
+cl::CommandQueue get_ocl_queue();  // a function which returns cl queue created on the app side
+cl::Context get_ocl_context();     // a function which returns cl context created on the app side
 
 int main() {
     //! [queue_sharing]
@@ -33,7 +32,8 @@ int main() {
     cl::Buffer shared_out_buffer(cl_context, CL_MEM_READ_WRITE, output_size, NULL, &err);
     // wrap in and out buffers into RemoteTensor and set them to infer request
     auto shared_in_blob = remote_context.create_tensor(input->get_element_type(), input->get_shape(), shared_in_buffer);
-    auto shared_out_blob = remote_context.create_tensor(output->get_element_type(), output->get_shape(), shared_out_buffer);
+    auto shared_out_blob =
+        remote_context.create_tensor(output->get_element_type(), output->get_shape(), shared_out_buffer);
     auto infer_request = exec_net_shared.create_infer_request();
     infer_request.set_tensor(input, shared_in_blob);
     infer_request.set_tensor(output, shared_out_blob);
@@ -49,8 +49,8 @@ int main() {
                                cl::NDRange(1),
                                nullptr,
                                nullptr);
-    // Blocking clFinish() call is not required, but this barrier is added to the queue to guarantee that user kernel is finished
-    // before any inference primitive is started
+    // Blocking clFinish() call is not required, but this barrier is added to the queue to guarantee that user kernel is
+    // finished before any inference primitive is started
     queue.enqueueBarrierWithWaitList(nullptr, nullptr);
     // ...
 

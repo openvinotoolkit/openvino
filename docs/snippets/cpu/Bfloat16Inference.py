@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import openvino as ov
 import openvino.properties.device as device
 import openvino.properties.hint as hints
-
 from snippets import get_model
+
+import openvino as ov
 
 model = get_model()
 

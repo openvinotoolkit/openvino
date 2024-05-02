@@ -3,6 +3,7 @@
 //
 
 #include "acl_utils.hpp"
+
 #include "support/Mutex.h"
 
 void ov::intel_cpu::configureThreadSafe(const std::function<void(void)>& config) {

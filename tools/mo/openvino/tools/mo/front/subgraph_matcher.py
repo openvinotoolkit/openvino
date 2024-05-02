@@ -4,10 +4,15 @@
 import logging as log
 import re
 
-from openvino.tools.mo.graph.graph import Node, Graph
-from openvino.tools.mo.utils.custom_replacement_config import CustomReplacementDescriptor
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils.custom_replacement_config import (
+    CustomReplacementDescriptor,
+)
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
+from openvino.tools.mo.utils.graph import (
+    nodes_matching_name_pattern,
+    sub_graph_between_nodes,
+)
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
@@ -26,8 +31,15 @@ class SubgraphMatch(object):
     Class providing information about matched sub-graph.
     """
 
-    def __init__(self, graph: Graph, replacement_desc: CustomReplacementDescriptor, matched_nodes: list,
-                 inputs_order: list, outputs_order: list, prefix: str):
+    def __init__(
+        self,
+        graph: Graph,
+        replacement_desc: CustomReplacementDescriptor,
+        matched_nodes: list,
+        inputs_order: list,
+        outputs_order: list,
+        prefix: str,
+    ):
         """
         Creates instance of a SubgraphMatch class from the provided configuration.
         :param graph: networkx graph.
@@ -102,8 +114,12 @@ class SubgraphMatch(object):
         """
         input_nodes = self.input_nodes(port)
         if len(input_nodes) != 1:
-            raise Error('The amount of input nodes for port "{}" is not equal to 1. '.format(port) +
-                        refer_to_faq_msg(33))
+            raise Error(
+                'The amount of input nodes for port "{}" is not equal to 1. '.format(
+                    port
+                )
+                + refer_to_faq_msg(33)
+            )
         return input_nodes[0]
 
     def output_node(self, port: int):
@@ -122,27 +138,44 @@ class SubgraphMatch(object):
         :param pattern: the regular expression for the node name.
         :return: matched Node.
         """
-        if self.scope != '':
-            if self.scope[-1] == '/':
+        if self.scope != "":
+            if self.scope[-1] == "/":
                 pattern = self.scope + pattern
             else:
-                pattern = self.scope + '/' + pattern
+                pattern = self.scope + "/" + pattern
         found_names = find_object_by_pattern(self._matched_nodes_names, pattern)
         if len(found_names) > 1:
-            raise Error('The amount of nodes matched pattern "{}" is more than 1. '.format(pattern) +
-                        refer_to_faq_msg(78))
+            raise Error(
+                'The amount of nodes matched pattern "{}" is more than 1. '.format(
+                    pattern
+                )
+                + refer_to_faq_msg(78)
+            )
         if len(found_names) == 0:
             return None
         return Node(self.graph, found_names[0])
 
-    def _add_input_node(self, node_name: str, node_port: int, sub_graph_input_port: int):
-        self._input_nodes_map.setdefault(sub_graph_input_port, []).append((Node(self.graph, node_name), node_port))
+    def _add_input_node(
+        self, node_name: str, node_port: int, sub_graph_input_port: int
+    ):
+        self._input_nodes_map.setdefault(sub_graph_input_port, []).append(
+            (Node(self.graph, node_name), node_port)
+        )
 
-    def _add_output_node(self, node_name: str, node_port: int, sub_graph_output_port: int):
+    def _add_output_node(
+        self, node_name: str, node_port: int, sub_graph_output_port: int
+    ):
         if sub_graph_output_port in self._output_nodes_map:
-            raise Error('Output node for port "{}" has already been specified. '.format(sub_graph_output_port) +
-                        refer_to_faq_msg(34))
-        self._output_nodes_map[sub_graph_output_port] = (Node(self.graph, node_name), node_port)
+            raise Error(
+                'Output node for port "{}" has already been specified. '.format(
+                    sub_graph_output_port
+                )
+                + refer_to_faq_msg(34)
+            )
+        self._output_nodes_map[sub_graph_output_port] = (
+            Node(self.graph, node_name),
+            node_port,
+        )
 
 
 # TODO looks like this class is not needed. Can be implemented as pure functions.
@@ -161,17 +194,34 @@ class SubgraphMatcher(object):
 
         for list_nodes in inputs_order:
             for node_name_pattern, port in list_nodes:
-                if len(find_object_by_pattern(graph.nodes(), '.*' + node_name_pattern)) == 0:
-                    log.info('Node "{} does not exist in the graph". Failed to match sub-graph by scope "{}".'.format(
-                        node_name_pattern, self.replacement_desc.id))
+                if (
+                    len(find_object_by_pattern(graph.nodes(), ".*" + node_name_pattern))
+                    == 0
+                ):
+                    log.info(
+                        'Node "{} does not exist in the graph". Failed to match sub-graph by scope "{}".'.format(
+                            node_name_pattern, self.replacement_desc.id
+                        )
+                    )
                     return None
 
         matched_nodes = nodes_matching_name_pattern(graph, scope_pattern)
         if len(matched_nodes) == 0:
-            log.info('There are no instances of the sub-graph by scope "{}"'.format(scope_pattern))
+            log.info(
+                'There are no instances of the sub-graph by scope "{}"'.format(
+                    scope_pattern
+                )
+            )
             return None
 
-        return SubgraphMatch(graph, self.replacement_desc, matched_nodes, inputs_order, outputs_order, scope_pattern)
+        return SubgraphMatch(
+            graph,
+            self.replacement_desc,
+            matched_nodes,
+            inputs_order,
+            outputs_order,
+            scope_pattern,
+        )
 
     def _match_sub_graph_for_points(self, graph: Graph):
         """
@@ -183,14 +233,24 @@ class SubgraphMatcher(object):
         # check that start and end points exist in the graph
         for node_name in start_points + end_points:
             if node_name not in graph.nodes():
-                log.info('Node "{}" does not exist in the graph. Failed to match sub-graph by points "{}".'.format(
-                    node_name, self.replacement_desc.id))
+                log.info(
+                    'Node "{}" does not exist in the graph. Failed to match sub-graph by points "{}".'.format(
+                        node_name, self.replacement_desc.id
+                    )
+                )
                 return None
 
-        matched_nodes = sub_graph_between_nodes(graph, start_points, end_points, include_control_flow=False)
-        return SubgraphMatch(graph, self.replacement_desc, matched_nodes,
-                             self.replacement_desc.get_inputs_description(),
-                             self.replacement_desc.get_outputs_description(), '')
+        matched_nodes = sub_graph_between_nodes(
+            graph, start_points, end_points, include_control_flow=False
+        )
+        return SubgraphMatch(
+            graph,
+            self.replacement_desc,
+            matched_nodes,
+            self.replacement_desc.get_inputs_description(),
+            self.replacement_desc.get_outputs_description(),
+            "",
+        )
 
     def matched_sub_graph_instances(self, graph: Graph):
         """
@@ -198,16 +258,23 @@ class SubgraphMatcher(object):
         :param graph: graph to find instances in.
         :return: generator producing SubGraphMatch objects.
         """
-        if self.replacement_desc.match_kind == 'points':  # instance is specified with lists of start/end nodes
+        if (
+            self.replacement_desc.match_kind == "points"
+        ):  # instance is specified with lists of start/end nodes
             match = self._match_sub_graph_for_points(graph)
             if match is not None:
                 yield match
-        elif self.replacement_desc.match_kind == 'scope':  # instance is specified with a node name pattern
+        elif (
+            self.replacement_desc.match_kind == "scope"
+        ):  # instance is specified with a node name pattern
             for instance in self.replacement_desc.sub_graph_instances():
                 match = self._match_sub_graph_for_scope(graph, instance)
                 if match is not None:
                     yield match
         else:
-            raise Error('Unsupported match kind "{}". Match kinds "points" or "scope" are supported only. '.format(
-                self.replacement_desc.match_kind) +
-                        refer_to_faq_msg(35))
+            raise Error(
+                'Unsupported match kind "{}". Match kinds "points" or "scope" are supported only. '.format(
+                    self.replacement_desc.match_kind
+                )
+                + refer_to_faq_msg(35)
+            )

@@ -27,7 +27,8 @@ struct crop_borders_t {};
 constexpr auto crop_borders = crop_borders_t{};
 
 /// @brief Performs crop operation on input.
-/// @details Crops the input to the shape of reference_input across all dimensions taking into account specified input offsets.
+/// @details Crops the input to the shape of reference_input across all dimensions taking into account specified input
+/// offsets.
 /// @n       Borders variant calculated output shape from input shape minus the specified borders.
 /// @n\b Requirements (reference size variant)
 /// @n - Input size cannot be greater than reference size in any dimension
@@ -56,8 +57,10 @@ struct crop : public primitive_base<crop> {
          const tensor& reference_input,
          const tensor& offsets,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(reference_input),
-            offsets(offsets), op_mode(crop_ngraph_op_mode::none) {}
+        : primitive_base(id, {input}, {output_padding}),
+          reference_input(reference_input),
+          offsets(offsets),
+          op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (borders variant).
     ///
@@ -77,8 +80,10 @@ struct crop : public primitive_base<crop> {
          const tensor& rb_borders,
          const crop_borders_t,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(rb_borders.negate()),
-            offsets(lt_borders), op_mode(crop_ngraph_op_mode::none) {}
+        : primitive_base(id, {input}, {output_padding}),
+          reference_input(rb_borders.negate()),
+          offsets(lt_borders),
+          op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (symmetric borders variant).
     ///
@@ -95,8 +100,10 @@ struct crop : public primitive_base<crop> {
          const tensor& xy_borders,
          const crop_borders_t,
          const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), reference_input(xy_borders.negate()),
-            offsets(xy_borders), op_mode(crop_ngraph_op_mode::none) {}
+        : primitive_base(id, {input}, {output_padding}),
+          reference_input(xy_borders.negate()),
+          offsets(xy_borders),
+          op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.
@@ -113,8 +120,12 @@ struct crop : public primitive_base<crop> {
          const int output_idx,
          const size_t num_splits = 1,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}), reference_input(reference_input),
-            offsets(offsets), output_idx(output_idx), num_splits(num_splits), op_mode(op_mode) {}
+        : primitive_base(id, inputs, {output_padding}),
+          reference_input(reference_input),
+          offsets(offsets),
+          output_idx(output_idx),
+          num_splits(num_splits),
+          op_mode(op_mode) {}
 
     /// @brief Reference input tensor with the required dimensions.
     tensor reference_input;
@@ -143,10 +154,8 @@ struct crop : public primitive_base<crop> {
 
         auto rhs_casted = downcast<const crop>(rhs);
 
-        return reference_input == rhs_casted.reference_input &&
-               offsets == rhs_casted.offsets &&
-               output_idx == rhs_casted.output_idx &&
-               num_splits == rhs_casted.num_splits &&
+        return reference_input == rhs_casted.reference_input && offsets == rhs_casted.offsets &&
+               output_idx == rhs_casted.output_idx && num_splits == rhs_casted.num_splits &&
                op_mode == rhs_casted.op_mode;
     }
 

@@ -3,6 +3,7 @@
 //
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
+
 #include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -54,7 +55,8 @@ public:
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg, add}, concat_axis);
         auto assign = std::make_shared<ov::op::v6::Assign>(concat, variable);
         auto res = std::make_shared<ov::op::v0::Result>(concat);
-        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
+        function =
+            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
     }
 };
 
@@ -62,4 +64,4 @@ TEST_F(DynamicShapeStatefulModel, smoke_StateInitGraphIplaceConflicts) {
     compile_model();
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
 }
-} // namespace CPUSubgraphTestsDefinitions
+}  // namespace CPUSubgraphTestsDefinitions

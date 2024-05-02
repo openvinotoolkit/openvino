@@ -6,8 +6,8 @@ from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class GRUSequence_extender(Extender):
-    op = 'GRUSequence'
+    op = "GRUSequence"
 
     @staticmethod
     def extend(op: Node):
-        op['infer'] = Extender.use_shapes_from_ir
+        op["infer"] = Extender.use_shapes_from_ir

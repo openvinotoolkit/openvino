@@ -1,9 +1,10 @@
-import pkg_resources
+import os
 import re
 import sys
-import os
 
-req_file=sys.argv[1]
+import pkg_resources
+
+req_file = sys.argv[1]
 
 constraints = {}
 constraints_path = []
@@ -14,7 +15,9 @@ with open(req_file) as f:
     raw_requirements = f.readlines()
 for line in raw_requirements:
     if line.startswith("-c"):
-        constraints_path.append(os.path.join(os.path.dirname(req_file), line.split(' ')[1][:-1]))
+        constraints_path.append(
+            os.path.join(os.path.dirname(req_file), line.split(" ")[1][:-1])
+        )
 
 # read constraints if they exist
 if constraints_path:
@@ -22,7 +25,7 @@ if constraints_path:
         with open(constraint_path) as f:
             raw_constraints = f.readlines()
         for line in raw_constraints:
-            if line.startswith("#") or line=="\n":
+            if line.startswith("#") or line == "\n":
                 continue
             line = line.replace("\n", "")
             package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
@@ -40,7 +43,7 @@ if constraints_path:
             constraint = constraints.get(line)
             if constraint:
                 for marker in constraint:
-                    requirements.append(line+marker)
+                    requirements.append(line + marker)
             else:
                 requirements.append(line)
 else:
@@ -57,8 +60,12 @@ except Exception as inst:
         raise inst
     else:
         env = pkg_resources.Environment()
-        env['protobuf'].clear()
-        env.add(pkg_resources.DistInfoDistribution(project_name="protobuf", version="3.20.0"))
+        env["protobuf"].clear()
+        env.add(
+            pkg_resources.DistInfoDistribution(
+                project_name="protobuf", version="3.20.0"
+            )
+        )
         ws = pkg_resources.working_set
-        reqs = pkg_resources.parse_requirements(open(req_file, mode='r'))
+        reqs = pkg_resources.parse_requirements(open(req_file, mode="r"))
         dists = ws.resolve(reqs, env, replace_conflicting=True)

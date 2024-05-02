@@ -3,11 +3,12 @@
 //
 
 #include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/engine.hpp"
 
+#include <algorithm>
 #include <list>
 #include <vector>
-#include <algorithm>
+
+#include "intel_gpu/runtime/engine.hpp"
 
 namespace cldnn {
 

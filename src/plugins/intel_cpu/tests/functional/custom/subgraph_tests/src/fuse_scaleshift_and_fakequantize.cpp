@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/util/common_util.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/util/common_util.hpp"
-#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -61,13 +61,13 @@ protected:
         Shape inConstShape = Shape(inputShape.size(), 1);
         inConstShape[1] = quantizeIntervals[0].size();
         const auto quantize = ov::test::utils::make_fake_quantize(multiply,
-                                                                inputPrecision,
-                                                                256,
-                                                                inConstShape,
-                                                                quantizeIntervals[0],
-                                                                quantizeIntervals[1],
-                                                                quantizeIntervals[2],
-                                                                quantizeIntervals[3]);
+                                                                  inputPrecision,
+                                                                  256,
+                                                                  inConstShape,
+                                                                  quantizeIntervals[0],
+                                                                  quantizeIntervals[1],
+                                                                  quantizeIntervals[2],
+                                                                  quantizeIntervals[3]);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(quantize)};
         function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "FuseScaleShiftAndQuantize");
         if (inputPrecision == element::f32) {

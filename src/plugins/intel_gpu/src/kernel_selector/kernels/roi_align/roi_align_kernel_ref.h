@@ -40,4 +40,4 @@ protected:
     JitConstants GetJitConstants(const roi_align_params& params) const;
 };
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

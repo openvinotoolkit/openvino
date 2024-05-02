@@ -1,6 +1,7 @@
-import pkg_resources
-import re
 import os
+import re
+
+import pkg_resources
 
 
 def check_python_requirements(requirements_path: str) -> None:
@@ -19,14 +20,16 @@ def check_python_requirements(requirements_path: str) -> None:
         raw_requirements = f.readlines()
     for line in raw_requirements:
         if line.startswith("-c"):
-            constraints_path = os.path.join(os.path.dirname(requirements_path), line.split(' ')[1][:-1])
+            constraints_path = os.path.join(
+                os.path.dirname(requirements_path), line.split(" ")[1][:-1]
+            )
 
     # read constraints if they exist
     if constraints_path:
         with open(constraints_path) as f:
             raw_constraints = f.readlines()
         for line in raw_constraints:
-            if line.startswith("#") or line=="\n":
+            if line.startswith("#") or line == "\n":
                 continue
             line = line.replace("\n", "")
             package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
@@ -43,8 +46,8 @@ def check_python_requirements(requirements_path: str) -> None:
             else:
                 constraint = constraints.get(line)
                 if constraint:
-                    for marker in constraint: 
-                        requirements.append(line+marker)
+                    for marker in constraint:
+                        requirements.append(line + marker)
                 else:
                     requirements.append(line)
     else:

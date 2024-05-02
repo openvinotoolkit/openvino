@@ -5,7 +5,7 @@
 #include "gather_tree_kernel_ref.h"
 
 namespace kernel_selector {
-KernelsData GatherTreeKernelRef::GetKernelsData(const Params & params) const {
+KernelsData GatherTreeKernelRef::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
 

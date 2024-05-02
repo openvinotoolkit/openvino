@@ -15,5 +15,5 @@ TEST_P(MulticlassNmsLayerTest, Inference) {
 TEST_P(MulticlassNmsLayerTest8, Inference) {
     run();
 };
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

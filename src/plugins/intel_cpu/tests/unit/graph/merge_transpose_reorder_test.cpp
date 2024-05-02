@@ -5,17 +5,15 @@
 
 #include <common_test_utils/test_common.hpp>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "dummy_node.hpp"
 #include "graph.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/transpose.h"
-
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/parameter.hpp"
-
-#include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov::intel_cpu;
 using LOOK = Edge::LOOK;
@@ -103,10 +101,11 @@ protected:
             results.push_back(std::make_shared<ov::op::v0::Result>(transpose));
 
         // Replicate
-        auto replicate = [&](std::vector<NodePtr> &nodes, std::vector<EdgePtr> &edges) -> void {
+        auto replicate = [&](std::vector<NodePtr>& nodes, std::vector<EdgePtr>& edges) -> void {
             std::unordered_set<NodePtr> nodesSet;
 
-            auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
+            auto addEdge =
+                [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
                 auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
                 Node::addEdge(edge);
                 edges.push_back(edge);
@@ -116,8 +115,13 @@ protected:
 
             auto inputNode = std::make_shared<node::Input>(params[0], context);
 
-            auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-                testShape, precision, "reshape", "DummyNode", context, firstNodeLayout, firstNodeInplaceDirection);
+            auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(testShape,
+                                                                         precision,
+                                                                         "reshape",
+                                                                         "DummyNode",
+                                                                         context,
+                                                                         firstNodeLayout,
+                                                                         firstNodeInplaceDirection);
 
             auto orderNode = std::make_shared<node::Input>(constOrder, context);
             auto transposeNode = std::make_shared<node::Transpose>(transpose, context);
@@ -141,7 +145,8 @@ protected:
                 addEdge(dummyConsumer, outputNode, 0, 0);
             }
 
-            for (auto &node : nodesSet) nodes.emplace_back(node);
+            for (auto& node : nodesSet)
+                nodes.emplace_back(node);
         };
 
         std::vector<NodePtr> graphNodes;
@@ -153,7 +158,7 @@ protected:
 
     void CheckTransposeCount(size_t ref_transpose_count) const {
         size_t transpose_count = 0;
-        for (auto &node : m_graph->GetNodes()) {
+        for (auto& node : m_graph->GetNodes()) {
             if (node->getType() == Type::Transpose) {
                 transpose_count++;
             }
@@ -164,7 +169,7 @@ protected:
     void CheckReorderCount(size_t ref_optimized_reorder_count, size_t ref_not_optimized_reorder_count) const {
         size_t optimized_count = 0;
         size_t not_optimized_count = 0;
-        for (auto &node : m_graph->GetNodes()) {
+        for (auto& node : m_graph->GetNodes()) {
             if (auto reorder_node = std::dynamic_pointer_cast<node::Reorder>(node)) {
                 if (reorder_node->getOptimized())
                     optimized_count++;

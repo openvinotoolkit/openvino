@@ -18,24 +18,21 @@ namespace intel_cpu {
 
 template <size_t bypassId>
 struct use {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types,
-                                 size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
         assert(bypassId < types.size());
         return types[bypassId];
     }
 };
 
 struct bypass {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types,
-                                 size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
         return types[idx];
     }
 };
 
 template <ov::element::Type_t type>
 struct just {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types,
-                                 size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
         // ignore everything
         (void)types;
         (void)idx;
@@ -45,8 +42,7 @@ struct just {
 
 template <>
 struct just<TypeMaskAlias::fxx> {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types,
-                                 size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
         // ignore everything
         (void)types;
         (void)idx;
@@ -58,11 +54,9 @@ using policy = std::function<ov::element::Type(const std::vector<ov::element::Ty
 
 struct PortsTranslation {
     template <typename... Policies>
-    PortsTranslation(Policies... policies) :
-        m_policies{policies...} {}
+    PortsTranslation(Policies... policies) : m_policies{policies...} {}
 
-    std::vector<ov::element::Type> operator()(
-        const std::vector<ov::element::Type>& types) const {
+    std::vector<ov::element::Type> operator()(const std::vector<ov::element::Type>& types) const {
         assert(types.size() == m_policies.size());
 
         std::vector<ov::element::Type> result;
@@ -73,6 +67,7 @@ struct PortsTranslation {
 
         return result;
     }
+
 private:
     std::vector<policy> m_policies;
 };
@@ -88,9 +83,7 @@ class TypeMappingEntry {
 public:
     using EnabledPredicate = std::function<bool(void)>;
 
-    TypeMappingEntry(InOutTypeMask mask,
-                     TypeTranslationFunction translation,
-                     EnabledPredicate enabled = {})
+    TypeMappingEntry(InOutTypeMask mask, TypeTranslationFunction translation, EnabledPredicate enabled = {})
         : m_mask(std::move(mask)),
           m_translation(std::move(translation)),
           m_enabled(std::move(enabled)) {}
@@ -121,7 +114,9 @@ using TypeMapping = std::vector<TypeMappingEntry>;
 using MappingNotation = std::vector<int>;
 using pt = PortsTranslation;
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMapping& mapping, const MappingNotation& notation);
+InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
+                                const TypeMapping& mapping,
+                                const MappingNotation& notation);
 
 }  // namespace intel_cpu
 }  // namespace ov

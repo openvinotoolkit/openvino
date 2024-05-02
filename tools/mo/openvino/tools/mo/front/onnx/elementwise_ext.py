@@ -2,72 +2,86 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
-    Round, GreaterEqual, LessEqual
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
 from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.elementwise import (
+    Add,
+    Div,
+    Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    LogicalAnd,
+    LogicalOr,
+    LogicalXor,
+    Mul,
+    Pow,
+    Round,
+    Sub,
+)
 from openvino.tools.mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax, EltwiseNMin
 from openvino.tools.mo.ops.power import AttributedPower
 
 
 class AddFrontExtractor(FrontExtractorOp):
-    op = 'Add'
+    op = "Add"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        axis = onnx_attr(node, 'axis', 'i', default=None)
-        Add.update_node_stat(node, {'axis': axis})
+        axis = onnx_attr(node, "axis", "i", default=None)
+        Add.update_node_stat(node, {"axis": axis})
         return cls.enabled
 
 
 class SubFrontExtractor(FrontExtractorOp):
-    op = 'Sub'
+    op = "Sub"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        axis = onnx_attr(node, 'axis', 'i', default=None)
-        Sub.update_node_stat(node, {'axis': axis})
+        axis = onnx_attr(node, "axis", "i", default=None)
+        Sub.update_node_stat(node, {"axis": axis})
         return cls.enabled
 
 
 class MulFrontExtractor(FrontExtractorOp):
-    op = 'Mul'
+    op = "Mul"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        axis = onnx_attr(node, 'axis', 'i', default=None)
-        Mul.update_node_stat(node, {'axis': axis})
+        axis = onnx_attr(node, "axis", "i", default=None)
+        Mul.update_node_stat(node, {"axis": axis})
         return cls.enabled
 
 
 class DivFrontExtractor(FrontExtractorOp):
-    op = 'Div'
+    op = "Div"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        axis = onnx_attr(node, 'axis', 'i', default=None)
-        Div.update_node_stat(node, {'axis': axis})
+        axis = onnx_attr(node, "axis", "i", default=None)
+        Div.update_node_stat(node, {"axis": axis})
         return cls.enabled
 
 
 class SumFrontExtractor(FrontExtractorOp):
-    op = 'Sum'
+    op = "Sum"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        axis = onnx_attr(node, 'axis', 'i', default=None)
-        EltwiseNAdd.update_node_stat(node, {'axis': axis})
+        axis = onnx_attr(node, "axis", "i", default=None)
+        EltwiseNAdd.update_node_stat(node, {"axis": axis})
         return cls.enabled
 
 
 class PowFrontExtractor(FrontExtractorOp):
-    op = 'Pow'
+    op = "Pow"
     enabled = True
 
     @classmethod
@@ -77,38 +91,40 @@ class PowFrontExtractor(FrontExtractorOp):
 
 
 class NegFrontExtractor(FrontExtractorOp):
-    op = 'Neg'
+    op = "Neg"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        AttributedPower.update_node_stat(node, {'scale': -1})
+        AttributedPower.update_node_stat(node, {"scale": -1})
         return cls.enabled
 
 
 class SqrtExtractor(FrontExtractorOp):
-    op = 'Sqrt'
+    op = "Sqrt"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        AttributedPower.update_node_stat(node, {'power': 0.5})
+        AttributedPower.update_node_stat(node, {"power": 0.5})
         return cls.enabled
 
 
 class ScaleFrontExtractor(FrontExtractorOp):
-    op = 'Scale'
+    op = "Scale"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        scale = onnx_attr(node, 'scale', 'f', default=mo_array(1.0), dst_type=lambda x: mo_array(x))
-        AttributedPower.update_node_stat(node, {'scale': scale})
+        scale = onnx_attr(
+            node, "scale", "f", default=mo_array(1.0), dst_type=lambda x: mo_array(x)
+        )
+        AttributedPower.update_node_stat(node, {"scale": scale})
         return cls.enabled
 
 
 class MaxExtractor(FrontExtractorOp):
-    op = 'Max'
+    op = "Max"
     enabled = True
 
     @classmethod
@@ -118,7 +134,7 @@ class MaxExtractor(FrontExtractorOp):
 
 
 class MinExtractor(FrontExtractorOp):
-    op = 'Min'
+    op = "Min"
     enabled = True
 
     @classmethod
@@ -128,7 +144,7 @@ class MinExtractor(FrontExtractorOp):
 
 
 class EqualExtractor(FrontExtractorOp):
-    op = 'Equal'
+    op = "Equal"
     enabled = True
 
     @classmethod
@@ -138,7 +154,7 @@ class EqualExtractor(FrontExtractorOp):
 
 
 class LessExtractor(FrontExtractorOp):
-    op = 'Less'
+    op = "Less"
     enabled = True
 
     @classmethod
@@ -148,7 +164,7 @@ class LessExtractor(FrontExtractorOp):
 
 
 class GreaterExtractor(FrontExtractorOp):
-    op = 'Greater'
+    op = "Greater"
     enabled = True
 
     @classmethod
@@ -158,7 +174,7 @@ class GreaterExtractor(FrontExtractorOp):
 
 
 class GreaterOrEqualExtractor(FrontExtractorOp):
-    op = 'GreaterOrEqual'
+    op = "GreaterOrEqual"
     enabled = True
 
     @classmethod
@@ -168,7 +184,7 @@ class GreaterOrEqualExtractor(FrontExtractorOp):
 
 
 class LessOrEqualExtractor(FrontExtractorOp):
-    op = 'LessOrEqual'
+    op = "LessOrEqual"
     enabled = True
 
     @classmethod
@@ -178,7 +194,7 @@ class LessOrEqualExtractor(FrontExtractorOp):
 
 
 class AndExtractor(FrontExtractorOp):
-    op = 'And'
+    op = "And"
     enabled = True
 
     @classmethod
@@ -188,7 +204,7 @@ class AndExtractor(FrontExtractorOp):
 
 
 class OrExtractor(FrontExtractorOp):
-    op = 'Or'
+    op = "Or"
     enabled = True
 
     @classmethod
@@ -198,7 +214,7 @@ class OrExtractor(FrontExtractorOp):
 
 
 class XorExtractor(FrontExtractorOp):
-    op = 'Xor'
+    op = "Xor"
     enabled = True
 
     @classmethod
@@ -208,10 +224,10 @@ class XorExtractor(FrontExtractorOp):
 
 
 class RoundFrontExtractor(FrontExtractorOp):
-    op = 'Round'
+    op = "Round"
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
-        Round.update_node_stat(node, {'mode': 'half_to_even'})
+        Round.update_node_stat(node, {"mode": "half_to_even"})
         return cls.enabled

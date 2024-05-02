@@ -16,28 +16,28 @@ namespace {
 
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
     switch (mode) {
-        case pooling_mode::max:
-            return kernel_selector::pool_type::MAX;
-        case pooling_mode::average:
-            return kernel_selector::pool_type::AVG;
-        case pooling_mode::average_no_padding:
-            return kernel_selector::pool_type::AVG;
-        default:
-            assert(0);
-            return kernel_selector::pool_type::MAX;
+    case pooling_mode::max:
+        return kernel_selector::pool_type::MAX;
+    case pooling_mode::average:
+        return kernel_selector::pool_type::AVG;
+    case pooling_mode::average_no_padding:
+        return kernel_selector::pool_type::AVG;
+    default:
+        assert(0);
+        return kernel_selector::pool_type::MAX;
     }
 }
 
 kernel_selector::kernel_divider_mode cldnn_2_kernel_divider_mode(pooling_mode mode) {
     switch (mode) {
-        case pooling_mode::max:
-        case pooling_mode::average:
-            return kernel_selector::kernel_divider_mode::FIXED;
-        case pooling_mode::average_no_padding:
-            return kernel_selector::kernel_divider_mode::DYNAMIC;
-        default:
-            assert(0);
-            return kernel_selector::kernel_divider_mode::DONT_CARE;
+    case pooling_mode::max:
+    case pooling_mode::average:
+        return kernel_selector::kernel_divider_mode::FIXED;
+    case pooling_mode::average_no_padding:
+        return kernel_selector::kernel_divider_mode::DYNAMIC;
+    default:
+        assert(0);
+        return kernel_selector::kernel_divider_mode::DONT_CARE;
     }
 }
 }  // namespace
@@ -68,16 +68,16 @@ public:
         params.maxPoolOpset8Features = primitive->maxPoolOpset8Features;
         if (params.maxPoolOpset8Features) {
             switch (primitive->index_element_type) {
-                case cldnn::data_types::i32: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT32;
-                    break;
-                }
-                case cldnn::data_types::i64: {
-                    params.poolIndexElementType = kernel_selector::Datatype::INT64;
-                    break;
-                }
-                default:
-                    throw std::runtime_error{"Not supported index element type"};
+            case cldnn::data_types::i32: {
+                params.poolIndexElementType = kernel_selector::Datatype::INT32;
+                break;
+            }
+            case cldnn::data_types::i64: {
+                params.poolIndexElementType = kernel_selector::Datatype::INT64;
+                break;
+            }
+            default:
+                throw std::runtime_error{"Not supported index element type"};
             }
             params.poolAxis = primitive->axis;
         }
@@ -87,8 +87,7 @@ public:
 
         auto kernel = primitive->size;
         auto stride = primitive->stride;
-        auto dilation = primitive->dilation.empty() ? ov::Strides(stride.size(), 1)
-                                                    : primitive->dilation;
+        auto dilation = primitive->dilation.empty() ? ov::Strides(stride.size(), 1) : primitive->dilation;
 
         ov::CoordinateDiff pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
         ov::CoordinateDiff pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
@@ -112,15 +111,18 @@ public:
         auto& pp = params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
-        pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
-                                                                                    : kernel_selector::pool_remainder::FLOOR;
+        pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL
+                                 ? kernel_selector::pool_remainder::CEIL
+                                 : kernel_selector::pool_remainder::FLOOR;
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = false;
         for (size_t i = 0; i < spatial_rank; i++) {
-            dynamic_mode |= (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + kernel[spatial_rank - i - 1]) >
-                                 static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] + input_layout.spatial(i));
+            dynamic_mode |=
+                (((output_layout.spatial(i) - 1) * stride[spatial_rank - i - 1]) + kernel[spatial_rank - i - 1]) >
+                static_cast<size_t>(pads_end[spatial_rank - i - 1] + pads_begin[spatial_rank - i - 1] +
+                                    input_layout.spatial(i));
         }
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
@@ -136,7 +138,7 @@ public:
         uint32_t pad_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
         uint32_t pad_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
         uint32_t pad_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
-        pp.poolPad  = {pad_x, pad_y, pad_z};
+        pp.poolPad = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
         uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
@@ -155,25 +157,25 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
-    auto formats = { format::bfyx,
-                     format::byxf,
-                     format::yxfb,
-                     format::b_fs_yx_fsv4,
-                     format::b_fs_yx_fsv16,
-                     format::b_fs_yx_fsv32,
-                     format::bs_fs_yx_bsv16_fsv16,
-                     format::bs_fs_yx_bsv16_fsv32,
-                     format::bs_fs_yx_bsv32_fsv16,
-                     format::bs_fs_yx_bsv32_fsv32,
+    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8};
+    auto formats = {format::bfyx,
+                    format::byxf,
+                    format::yxfb,
+                    format::b_fs_yx_fsv4,
+                    format::b_fs_yx_fsv16,
+                    format::b_fs_yx_fsv32,
+                    format::bs_fs_yx_bsv16_fsv16,
+                    format::bs_fs_yx_bsv16_fsv32,
+                    format::bs_fs_yx_bsv32_fsv16,
+                    format::bs_fs_yx_bsv32_fsv32,
 
-                     format::bfzyx,
-                     format::b_fs_zyx_fsv16,
-                     format::b_fs_zyx_fsv32,
-                     format::bs_fs_zyx_bsv16_fsv16,
-                     format::bs_fs_zyx_bsv16_fsv32,
-                     format::bs_fs_zyx_bsv32_fsv16,
-                     format::bs_fs_zyx_bsv32_fsv32 };
+                    format::bfzyx,
+                    format::b_fs_zyx_fsv16,
+                    format::b_fs_zyx_fsv32,
+                    format::bs_fs_zyx_bsv16_fsv16,
+                    format::bs_fs_zyx_bsv16_fsv32,
+                    format::bs_fs_zyx_bsv32_fsv16,
+                    format::bs_fs_zyx_bsv32_fsv32};
 
     auto keys = implementation_map<pooling>::combine(types, formats);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);

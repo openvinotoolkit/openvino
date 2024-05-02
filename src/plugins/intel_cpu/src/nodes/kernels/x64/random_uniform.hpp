@@ -36,12 +36,16 @@ public:
     void generate() override;
 
 private:
-    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
+                                                         Xbyak::Zmm,
+                                                         isa == dnnl::impl::cpu::x64::sse41,
+                                                         Xbyak::Xmm,
+                                                         Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
+                                                           Xbyak::Opmask,
+                                                           isa == dnnl::impl::cpu::x64::sse41,
+                                                           Xbyak::Xmm,
+                                                           Xbyak::Ymm>::type;
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
@@ -76,8 +80,14 @@ private:
 
     void runPhilox(const std::vector<Vmm>& vmm_res, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n);
 
-    void calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
-                        const Vmm& vmm_n_0, const Vmm& vmm_n_1, const Vmm& vmm_aux_0, const Vmm& vmm_aux_1);
+    void calculateRound(const Vmm& vmm_k_0,
+                        const Vmm& vmm_k_1,
+                        const Vmm& vmm_c_0,
+                        const Vmm& vmm_c_1,
+                        const Vmm& vmm_n_0,
+                        const Vmm& vmm_n_1,
+                        const Vmm& vmm_aux_0,
+                        const Vmm& vmm_aux_1);
 
     void raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1);
 
@@ -92,8 +102,8 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
-}   // namespace kernel
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64

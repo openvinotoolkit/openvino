@@ -2,22 +2,23 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-import numpy as np
 import os
 
-import openvino as ov
+import numpy as np
 import openvino.properties as props
+import openvino.properties.device as device
 import openvino.properties.hint as hints
-import openvino.properties.intel_cpu as intel_cpu
 import openvino.properties.intel_auto as intel_auto
+import openvino.properties.intel_cpu as intel_cpu
 import openvino.properties.intel_gpu as intel_gpu
 import openvino.properties.intel_gpu.hint as intel_gpu_hint
-import openvino.properties.device as device
 import openvino.properties.log as log
 import openvino.properties.streams as streams
-from openvino import Core, Type, OVAny
+import pytest
 from openvino.runtime import properties
+
+import openvino as ov
+from openvino import Core, OVAny, Type
 
 
 ###
@@ -75,21 +76,37 @@ def test_properties_rw_base():
             (
                 (hints.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (hints.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
-                (hints.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
+                (
+                    hints.PerformanceMode.CUMULATIVE_THROUGHPUT,
+                    "PerformanceMode.CUMULATIVE_THROUGHPUT",
+                    3,
+                ),
             ),
         ),
         (
             hints.SchedulingCoreType,
             (
                 (hints.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
-                (hints.SchedulingCoreType.PCORE_ONLY, "SchedulingCoreType.PCORE_ONLY", 1),
-                (hints.SchedulingCoreType.ECORE_ONLY, "SchedulingCoreType.ECORE_ONLY", 2),
+                (
+                    hints.SchedulingCoreType.PCORE_ONLY,
+                    "SchedulingCoreType.PCORE_ONLY",
+                    1,
+                ),
+                (
+                    hints.SchedulingCoreType.ECORE_ONLY,
+                    "SchedulingCoreType.ECORE_ONLY",
+                    2,
+                ),
             ),
         ),
         (
             hints.ModelDistributionPolicy,
             (
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
+                (
+                    hints.ModelDistributionPolicy.TENSOR_PARALLEL,
+                    "ModelDistributionPolicy.TENSOR_PARALLEL",
+                    0,
+                ),
             ),
         ),
         (
@@ -120,9 +137,21 @@ def test_properties_rw_base():
         (
             intel_auto.SchedulePolicy,
             (
-                (intel_auto.SchedulePolicy.ROUND_ROBIN, "SchedulePolicy.ROUND_ROBIN", 0),
-                (intel_auto.SchedulePolicy.DEVICE_PRIORITY, "SchedulePolicy.DEVICE_PRIORITY", 1),
-                (intel_auto.SchedulePolicy.DEFAULT, "SchedulePolicy.DEVICE_PRIORITY", 1),
+                (
+                    intel_auto.SchedulePolicy.ROUND_ROBIN,
+                    "SchedulePolicy.ROUND_ROBIN",
+                    0,
+                ),
+                (
+                    intel_auto.SchedulePolicy.DEVICE_PRIORITY,
+                    "SchedulePolicy.DEVICE_PRIORITY",
+                    1,
+                ),
+                (
+                    intel_auto.SchedulePolicy.DEFAULT,
+                    "SchedulePolicy.DEVICE_PRIORITY",
+                    1,
+                ),
             ),
         ),
     ],
@@ -257,9 +286,17 @@ def test_properties_ro(ov_property_ro, expected_value):
             "AFFINITY",
             ((props.Affinity.NONE, props.Affinity.NONE),),
         ),
-        (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
+        (
+            props.force_tbb_terminate,
+            "FORCE_TBB_TERMINATE",
+            ((True, True), (False, False)),
+        ),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
-        (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
+        (
+            hints.inference_precision,
+            "INFERENCE_PRECISION_HINT",
+            ((Type.f32, Type.f32),),
+        ),
         (
             hints.model_priority,
             "MODEL_PRIORITY",
@@ -283,13 +320,21 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
-            ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
+            (
+                (
+                    hints.SchedulingCoreType.PCORE_ONLY,
+                    hints.SchedulingCoreType.PCORE_ONLY,
+                ),
+            ),
         ),
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
             (
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
+                (
+                    {hints.ModelDistributionPolicy.TENSOR_PARALLEL},
+                    {hints.ModelDistributionPolicy.TENSOR_PARALLEL},
+                ),
             ),
         ),
         (
@@ -421,8 +466,14 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 def test_properties_device_priorities():
     assert device.priorities == "MULTI_DEVICE_PRIORITIES"
-    assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
-    assert device.priorities("CPU", "GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
+    assert device.priorities("CPU,GPU") == (
+        "MULTI_DEVICE_PRIORITIES",
+        OVAny("CPU,GPU,"),
+    )
+    assert device.priorities("CPU", "GPU") == (
+        "MULTI_DEVICE_PRIORITIES",
+        OVAny("CPU,GPU,"),
+    )
 
     with pytest.raises(TypeError) as e:
         value = 6
@@ -434,24 +485,37 @@ def test_properties_device_properties():
     assert device.properties() == "DEVICE_PROPERTIES"
 
     def make_dict(*arg):
-        return dict(  # noqa: C406
-            [*arg])
+        return dict([*arg])  # noqa: C406
 
     def check(value1, value2):
         assert device.properties(value1) == ("DEVICE_PROPERTIES", OVAny(value2))
 
-    check({"CPU": {streams.num: 2}},
-          {"CPU": {"NUM_STREAMS": 2}})
-    check({"CPU": make_dict(streams.num(2))},
-          {"CPU": {"NUM_STREAMS": streams.Num(2)}})
-    check({"GPU": make_dict(hints.inference_precision(Type.f32))},
-          {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}})
-    check({"CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32))},
-          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)}})
-    check({"CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32)),
-           "GPU": make_dict(streams.num(1), hints.inference_precision(Type.f16))},
-          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)},
-           "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": streams.Num(1)}})
+    check({"CPU": {streams.num: 2}}, {"CPU": {"NUM_STREAMS": 2}})
+    check({"CPU": make_dict(streams.num(2))}, {"CPU": {"NUM_STREAMS": streams.Num(2)}})
+    check(
+        {"GPU": make_dict(hints.inference_precision(Type.f32))},
+        {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}},
+    )
+    check(
+        {"CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32))},
+        {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": streams.Num(2)}},
+    )
+    check(
+        {
+            "CPU": make_dict(streams.num(2), hints.inference_precision(Type.f32)),
+            "GPU": make_dict(streams.num(1), hints.inference_precision(Type.f16)),
+        },
+        {
+            "CPU": {
+                "INFERENCE_PRECISION_HINT": Type.f32,
+                "NUM_STREAMS": streams.Num(2),
+            },
+            "GPU": {
+                "INFERENCE_PRECISION_HINT": Type.f16,
+                "NUM_STREAMS": streams.Num(1),
+            },
+        },
+    )
 
 
 def test_properties_streams():
@@ -512,7 +576,10 @@ def test_single_property_setting(device):
     assert isinstance(core.get_property(device, streams.num()), int)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test",
+)
 @pytest.mark.parametrize(
     "properties_to_set",
     [
@@ -578,8 +645,12 @@ def test_core_cpu_properties(properties_to_set):
     # RO properties
     assert isinstance(core.get_property("CPU", props.supported_properties), dict)
     assert isinstance(core.get_property("CPU", props.available_devices), list)
-    assert isinstance(core.get_property("CPU", props.optimal_number_of_infer_requests), int)
+    assert isinstance(
+        core.get_property("CPU", props.optimal_number_of_infer_requests), int
+    )
     assert isinstance(core.get_property("CPU", props.range_for_streams), tuple)
-    assert isinstance(core.get_property("CPU", props.range_for_async_infer_requests), tuple)
+    assert isinstance(
+        core.get_property("CPU", props.range_for_async_infer_requests), tuple
+    )
     assert isinstance(core.get_property("CPU", device.full_name), str)
     assert isinstance(core.get_property("CPU", device.capabilities), list)

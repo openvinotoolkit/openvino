@@ -3,10 +3,12 @@
 //
 
 #include "convolution_kernel_imad.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
-#include <vector>
+
 #include <iostream>
+#include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 //
 // Kernel specific constants
@@ -30,7 +32,7 @@ static void getOutBlock_WH(size_t output_size,
     if (output_size % max_posible_tile_size == 0) {
         output_block_w = max_posible_tile_size;
     } else {
-        size_t min_horisontal_block_size = 2; // 4;
+        size_t min_horisontal_block_size = 2;  // 4;
 
         size_t block_size = 0;
 
@@ -104,7 +106,8 @@ KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
 
-JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params,
+                                                     const DispatchData& dispatchData) const {
     auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     const auto& input = params.inputs[0];
@@ -136,12 +139,11 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
 
     size_t obw, obh;
     getOutBlock_WH(output.X().v, params.stride.x, weights.X().v, params.dilation.x, obw, obh);
-    mem_consts.AddConstants({MakeJitConstant("OUT_BLOCK_WIDTH", obw),
-                             MakeJitConstant("OUT_BLOCK_HEIGHT", obh)});
+    mem_consts.AddConstants({MakeJitConstant("OUT_BLOCK_WIDTH", obw), MakeJitConstant("OUT_BLOCK_HEIGHT", obh)});
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch", "f", "(or+r)", "(oc+c)"}, "res", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch", "f", "(or+r)", "(oc+c)"}, "res", input_dt, 1};
         conf_scalar.SetLoopAxes({Tensor::DataChannelName::Y, Tensor::DataChannelName::X});
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
@@ -149,8 +151,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params,
-                                                                       int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData;
 
     const auto& output = params.outputs[0];
@@ -159,14 +160,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     size_t otw, oth;
     getOutBlock_WH(output.X().v, params.stride.x, weights.X().v, params.dilation.x, otw, oth);
 
-    dispatchData.gws = { // number of tiles needed to cover output width
-                         CeilDiv(output.X().v, otw),
+    dispatchData.gws = {// number of tiles needed to cover output width
+                        CeilDiv(output.X().v, otw),
 
-                         // number of tiles needed to cover output height
-                         CeilDiv(output.Y().v, oth),
+                        // number of tiles needed to cover output height
+                        CeilDiv(output.Y().v, oth),
 
-                         // round depth range up
-                         Align(weights.OFM().v, SIMD_SIZE) * params.groups * output.Batch().v };
+                        // round depth range up
+                        Align(weights.OFM().v, SIMD_SIZE) * params.groups * output.Batch().v};
 
     dispatchData.lws = {1, 1, SIMD_SIZE};
 
@@ -202,15 +203,13 @@ bool ConvolutionKernel_imad::Validate(const Params& params) const {
             (conv_params.compensation.empty()))
             return false;
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
+        if ((conv_params.activations_zero_points.empty()) && (conv_params.compensation.empty()))
             return false;
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
             return false;
     } else {
-        if (!conv_params.activations_zero_points.empty() ||
-            !conv_params.weights_zero_points.empty() ||
+        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty() ||
             !conv_params.compensation.empty())
             return false;
     }

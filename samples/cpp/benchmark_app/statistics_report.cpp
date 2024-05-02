@@ -74,12 +74,8 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
-    dumper << "layerName"
-           << "execStatus"
-           << "layerType"
-           << "execType";
-    dumper << "realTime (ms)"
-           << "cpuTime (ms)";
+    dumper << "layerName" << "execStatus" << "layerType" << "execType";
+    dumper << "realTime (ms)" << "cpuTime (ms)";
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
@@ -94,10 +90,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
         dumper.endLine();
     }
 
-    dumper << "Total"
-           << ""
-           << ""
-           << "";
+    dumper << "Total" << "" << "" << "";
     dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0;
     dumper.endLine();
     dumper.endLine();
@@ -108,13 +101,8 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
     std::chrono::microseconds total = std::chrono::microseconds::zero();
     std::chrono::microseconds total_cpu = std::chrono::microseconds::zero();
 
-    dumper << "layerName"
-           << "execStatus"
-           << "layerType"
-           << "execType";
-    dumper << "realTime (ms)"
-           << "cpuTime (ms)"
-           << " %";
+    dumper << "layerName" << "execStatus" << "layerType" << "execType";
+    dumper << "realTime (ms)" << "cpuTime (ms)" << " %";
     dumper.endLine();
 
     for (const auto& layer : perfCounts) {
@@ -140,10 +128,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
         }
     }
 
-    dumper << "Total"
-           << ""
-           << ""
-           << "";
+    dumper << "Total" << "" << "" << "";
     dumper << total.count() / 1000.0 << total_cpu.count() / 1000.0 << 100.0;
     dumper.endLine();
     dumper.endLine();

@@ -3,6 +3,7 @@
 //
 
 #include "group_normalization_kernel_ref.h"
+
 #include <kernel_selector_utils.h>
 
 namespace kernel_selector {
@@ -22,7 +23,7 @@ ParamsKey GroupNormalizationKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static std::size_t InternalBufferSize(const group_normalization_params &params) {
+static std::size_t InternalBufferSize(const group_normalization_params& params) {
     const auto& output = params.outputs[0];
     return output.Batch().v * params.num_groups * sizeof(float);
 }
@@ -33,37 +34,33 @@ static GroupNormalizationKernelRef::KernelId operator++(GroupNormalizationKernel
 }
 
 GroupNormalizationKernelRef::DispatchData GroupNormalizationKernelRef::SetDefault(
-    KernelId id, const group_normalization_params &params) const {
+    KernelId id,
+    const group_normalization_params& params) const {
     DispatchData dispatch_data;
     auto& output = params.outputs[0];
     switch (id) {
     case eCalcMeanKernel:
     case eCalcStandardDeviationKernel: {
         auto maxWorkGroupSize = params.engineInfo.maxWorkGroupSize;
-        dispatch_data.gws = std::vector<std::size_t>{
-            output.Batch().v,
-            static_cast<std::size_t>(params.num_groups),
-            1
-        };
-        dispatch_data.lws = std::vector<std::size_t>{
-            output.Batch().v * params.num_groups > maxWorkGroupSize ? maxWorkGroupSize / params.num_groups : output.Batch().v,
-            static_cast<std::size_t>(params.num_groups),
-            1};
+        dispatch_data.gws = std::vector<std::size_t>{output.Batch().v, static_cast<std::size_t>(params.num_groups), 1};
+        dispatch_data.lws = std::vector<std::size_t>{output.Batch().v * params.num_groups > maxWorkGroupSize
+                                                         ? maxWorkGroupSize / params.num_groups
+                                                         : output.Batch().v,
+                                                     static_cast<std::size_t>(params.num_groups),
+                                                     1};
         break;
     }
     case eNormalize: {
         auto in_layout = params.inputs[0].GetLayout();
         auto out_layout = output.GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
-            { Tensor::DataChannelName::BATCH },
-            { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::Z  },
-            { Tensor::DataChannelName::X, Tensor::DataChannelName::Y }};
-        dispatch_data.gws = std::vector<std::size_t>{
-            output.Batch().v,
-            output.Feature().v * output.Z().v,
-            output.X().v * output.Y().v};
-        dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo,
-            in_layout, out_layout, dims_by_gws);
+            {Tensor::DataChannelName::BATCH},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::Z},
+            {Tensor::DataChannelName::X, Tensor::DataChannelName::Y}};
+        dispatch_data.gws =
+            std::vector<std::size_t>{output.Batch().v, output.Feature().v * output.Z().v, output.X().v * output.Y().v};
+        dispatch_data.lws =
+            GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
         break;
     }
     default:
@@ -74,7 +71,7 @@ GroupNormalizationKernelRef::DispatchData GroupNormalizationKernelRef::SetDefaul
 }
 
 JitConstants GroupNormalizationKernelRef::GetJitConstants(KernelId kernelId,
-                                                          const group_normalization_params &params) const {
+                                                          const group_normalization_params& params) const {
     auto jit = MakeBaseParamsJitConstants(params);
     jit.AddConstant(MakeJitConstant("EPSILON", static_cast<float>(params.epsilon)));
     jit.AddConstant(MakeJitConstant("NUM_GROUPS", params.num_groups));
@@ -89,13 +86,12 @@ JitConstants GroupNormalizationKernelRef::GetJitConstants(KernelId kernelId,
         jit.AddConstant(MakeJitConstant("NORMALIZE_KERNEL_ENABLED", true));
         jit.AddConstant(MakeJitConstant("INPUT_INDICES_ORDER", "batch, feature, z, y, x"));
         if (!params.fused_ops.empty()) {
-            FusedOpsConfiguration conf{
-                "",
-                params.outputs[0].Dimentions() == 5 ? std::vector<std::string>{"batch", "feature", "z", "y", "x"} :
-                    std::vector<std::string>{"batch", "feature", "y", "x"},
-                "res",
-                params.outputs[0].GetDType()
-            };
+            FusedOpsConfiguration conf{"",
+                                       params.outputs[0].Dimentions() == 5
+                                           ? std::vector<std::string>{"batch", "feature", "z", "y", "x"}
+                                           : std::vector<std::string>{"batch", "feature", "y", "x"},
+                                       "res",
+                                       params.outputs[0].GetDType()};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         }
         break;
@@ -140,7 +136,7 @@ void GroupNormalizationKernelRef::SetKernelArguments(const group_normalization_p
     }
 }
 
-KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params) const {
+KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params& params) const {
     const group_normalization_params& parameters = static_cast<const group_normalization_params&>(params);
     KernelData kd = KernelData::Default<group_normalization_params>(params, eKernelsNum);
     kd.internalBufferDataType = Datatype::F32;
@@ -167,4 +163,4 @@ KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params) co
     return {kd};
 }
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

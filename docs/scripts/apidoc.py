@@ -19,10 +19,10 @@
 """
 from __future__ import print_function
 
-import os
-import sys
 import argparse
 import errno
+import os
+import sys
 import xml.etree.ElementTree
 
 # Account for FileNotFoundError in Python 2
@@ -44,7 +44,7 @@ TYPEDICT = {
     "file": "File",
     "namespace": "Namespace",
     "group": "Group",
-    "enum": "Enum"
+    "enum": "Enum",
 }
 
 # Types that accept the :members: option.
@@ -58,7 +58,7 @@ BLACKLIST = {
     "file": [],
     "namespace": ["pass::low_precision", "pass"],
     "group": [],
-    "enum": []
+    "enum": [],
 }
 
 
@@ -99,7 +99,11 @@ def write_file(name, text, args):
 
 def format_heading(level, text):
     """Create a heading of <level> [1, 2 or 3 supported]."""
-    underlining = ["=", "-", "~",][
+    underlining = [
+        "=",
+        "-",
+        "~",
+    ][
         level - 1
     ] * len(text)
     return "%s\n%s\n\n" % (text, underlining)
@@ -117,20 +121,22 @@ def format_directive(package_type, package, args):
 
 def get_compound_data(compound, args, hide=True):
     """Parse compound data and return it with toctrees"""
-    index = xml.etree.ElementTree.parse(os.path.join(args.rootpath, compound.get("refid") + ".xml"))
+    index = xml.etree.ElementTree.parse(
+        os.path.join(args.rootpath, compound.get("refid") + ".xml")
+    )
     root = index.getroot()
     try:
-        title = index.findall('.//title')[0].text
+        title = index.findall(".//title")[0].text
     except IndexError:
-        title = compound.findtext("name")    
+        title = compound.findtext("name")
     refs = []
-    for ing in root.iter('innergroup'):
-        refs.append((ing.text, ing.get('refid') + '.rst'))
-    for inc in root.iter('innerclass'):
-        if ' ' not in inc.text:
-            refs.append((inc.text, inc.get('refid') + '.rst'))
+    for ing in root.iter("innergroup"):
+        refs.append((ing.text, ing.get("refid") + ".rst"))
+    for inc in root.iter("innerclass"):
+        if " " not in inc.text:
+            refs.append((inc.text, inc.get("refid") + ".rst"))
     if refs:
-        result =  ".. toctree::\n"
+        result = ".. toctree::\n"
         if hide:
             result += "   :hidden:\n\n"
         for ref in refs:
@@ -147,9 +153,11 @@ def create_package_file(compound, args):
         return
     if compound.findtext("name") in BLACKLIST[compound.get("kind")]:
         return
-    if ' ' not in compound.findtext("name"):
-        directive = format_directive(compound.get("kind"), compound.findtext("name"), args)
-        if compound.findtext("name") in ('ov_c_api', 'ov_cpp_api'):
+    if " " not in compound.findtext("name"):
+        directive = format_directive(
+            compound.get("kind"), compound.findtext("name"), args
+        )
+        if compound.findtext("name") in ("ov_c_api", "ov_cpp_api"):
             title, toc = get_compound_data(compound, args, hide=False)
             directive = ""
         else:
@@ -181,9 +189,7 @@ def recurse_tree(args):
 
     # Assuming this is a valid Doxygen XML
     for compound in index.getroot():
-        create_package_file(
-            compound, args
-        )
+        create_package_file(compound, args)
 
 
 class TypeAction(argparse.Action):
@@ -220,7 +226,11 @@ Note: By default this script will not overwrite already created files.""",
         required=True,
     )
     parser.add_argument(
-        "-f", "--force", action="store_true", dest="force", help="Overwrite existing files"
+        "-f",
+        "--force",
+        action="store_true",
+        dest="force",
+        help="Overwrite existing files",
     )
     parser.add_argument(
         "-m",
@@ -266,7 +276,11 @@ Note: By default this script will not overwrite already created files.""",
         help="types of output to generate, comma-separated list",
     )
     parser.add_argument(
-        "-q", "--quiet", action="store_true", dest="quiet", help="suppress informational messages"
+        "-q",
+        "--quiet",
+        action="store_true",
+        dest="quiet",
+        help="suppress informational messages",
     )
     parser.add_argument("rootpath", type=str, help="The directory contains index.xml")
     args = parser.parse_args()

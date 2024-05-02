@@ -15,7 +15,8 @@ using namespace ov::intel_cpu;
 using namespace ov::opset10;
 using namespace testing;
 
-class EmbeddingBagPackedSumV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::EmbeddingBagPackedSum> {
+class EmbeddingBagPackedSumV3StaticShapeInferenceTest
+    : public OpStaticShapeInferenceTest<op::v3::EmbeddingBagPackedSum> {
 protected:
     void SetUp() override {
         output_shapes.resize(1);
@@ -41,7 +42,6 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, default_ctor) {
         EXPECT_EQ(output_shapes[0], expected_output);
     }
 }
-
 
 TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic_2in) {
     auto emb_table = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());

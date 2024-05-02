@@ -12,6 +12,6 @@ class NextIterationExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        node['is_cyclic'] = True
-        node['infer'] = copy_shape_infer
+        node["is_cyclic"] = True
+        node["infer"] = copy_shape_infer
         return cls.enabled

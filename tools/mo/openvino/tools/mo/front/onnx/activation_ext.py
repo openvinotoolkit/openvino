@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.activation_ops import *
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.onnx.extractors.utils import onnx_attr
+from openvino.tools.mo.ops.activation_ops import *
 
 
 class AbsExtractor(FrontExtractorOp):
-    op = 'Abs'
+    op = "Abs"
     enabled = True
 
     @classmethod
@@ -17,7 +17,7 @@ class AbsExtractor(FrontExtractorOp):
 
 
 class AcosExtractor(FrontExtractorOp):
-    op = 'Acos'
+    op = "Acos"
     enabled = True
 
     @classmethod
@@ -27,7 +27,7 @@ class AcosExtractor(FrontExtractorOp):
 
 
 class AcoshExtractor(FrontExtractorOp):
-    op = 'Acosh'
+    op = "Acosh"
     enabled = True
 
     @classmethod
@@ -37,7 +37,7 @@ class AcoshExtractor(FrontExtractorOp):
 
 
 class AsinExtractor(FrontExtractorOp):
-    op = 'Asin'
+    op = "Asin"
     enabled = True
 
     @classmethod
@@ -47,7 +47,7 @@ class AsinExtractor(FrontExtractorOp):
 
 
 class AsinhExtractor(FrontExtractorOp):
-    op = 'Asinh'
+    op = "Asinh"
     enabled = True
 
     @classmethod
@@ -57,7 +57,7 @@ class AsinhExtractor(FrontExtractorOp):
 
 
 class AtanExtractor(FrontExtractorOp):
-    op = 'Atan'
+    op = "Atan"
     enabled = True
 
     @classmethod
@@ -67,7 +67,7 @@ class AtanExtractor(FrontExtractorOp):
 
 
 class AtanhExtractor(FrontExtractorOp):
-    op = 'Atanh'
+    op = "Atanh"
     enabled = True
 
     @classmethod
@@ -77,7 +77,7 @@ class AtanhExtractor(FrontExtractorOp):
 
 
 class CeilExtractor(FrontExtractorOp):
-    op = 'Ceil'
+    op = "Ceil"
     enabled = True
 
     @classmethod
@@ -87,7 +87,7 @@ class CeilExtractor(FrontExtractorOp):
 
 
 class CosExtractor(FrontExtractorOp):
-    op = 'Cos'
+    op = "Cos"
     enabled = True
 
     @classmethod
@@ -97,7 +97,7 @@ class CosExtractor(FrontExtractorOp):
 
 
 class CoshExtractor(FrontExtractorOp):
-    op = 'Cosh'
+    op = "Cosh"
     enabled = True
 
     @classmethod
@@ -107,18 +107,18 @@ class CoshExtractor(FrontExtractorOp):
 
 
 class EluExtractor(FrontExtractorOp):
-    op = 'Elu'
+    op = "Elu"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        alpha = onnx_attr(node, 'alpha', 'f', default=1.0)
-        Elu.update_node_stat(node, {'alpha': alpha})
+        alpha = onnx_attr(node, "alpha", "f", default=1.0)
+        Elu.update_node_stat(node, {"alpha": alpha})
         return EluExtractor.enabled
 
 
 class ErfExtractor(FrontExtractorOp):
-    op = 'Erf'
+    op = "Erf"
     enabled = True
 
     @classmethod
@@ -128,7 +128,7 @@ class ErfExtractor(FrontExtractorOp):
 
 
 class ExpExtractor(FrontExtractorOp):
-    op = 'Exp'
+    op = "Exp"
     enabled = True
 
     @classmethod
@@ -138,7 +138,7 @@ class ExpExtractor(FrontExtractorOp):
 
 
 class FloorExtractor(FrontExtractorOp):
-    op = 'Floor'
+    op = "Floor"
     enabled = True
 
     @classmethod
@@ -148,32 +148,32 @@ class FloorExtractor(FrontExtractorOp):
 
 
 class ThresholdedReluExtractor(FrontExtractorOp):
-    op = 'ThresholdedRelu'
+    op = "ThresholdedRelu"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        alpha = onnx_attr(node, 'alpha', 'f', default=1.0)
-        ThresholdedRelu.update_node_stat(node, {'alpha': alpha})
+        alpha = onnx_attr(node, "alpha", "f", default=1.0)
+        ThresholdedRelu.update_node_stat(node, {"alpha": alpha})
         return cls.enabled
 
 
 class LeakyReLUExtractor(FrontExtractorOp):
-    op = 'LeakyRelu'
+    op = "LeakyRelu"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        negative_slope = onnx_attr(node, 'alpha', 'f', default=1.0)
+        negative_slope = onnx_attr(node, "alpha", "f", default=1.0)
         if negative_slope == 0:
             ReLU.update_node_stat(node)
         else:
-            LeakyReLU.update_node_stat(node, {'negative_slope': negative_slope})
+            LeakyReLU.update_node_stat(node, {"negative_slope": negative_slope})
         return cls.enabled
 
 
 class LogExtractor(FrontExtractorOp):
-    op = 'Log'
+    op = "Log"
     enabled = True
 
     @classmethod
@@ -183,7 +183,7 @@ class LogExtractor(FrontExtractorOp):
 
 
 class NotExtractor(FrontExtractorOp):
-    op = 'Not'
+    op = "Not"
     enabled = True
 
     @classmethod
@@ -193,7 +193,7 @@ class NotExtractor(FrontExtractorOp):
 
 
 class ReLUExtractor(FrontExtractorOp):
-    op = 'Relu'
+    op = "Relu"
     enabled = True
 
     @classmethod
@@ -203,7 +203,7 @@ class ReLUExtractor(FrontExtractorOp):
 
 
 class SigmoidExtractor(FrontExtractorOp):
-    op = 'Sigmoid'
+    op = "Sigmoid"
     enabled = True
 
     @classmethod
@@ -213,7 +213,7 @@ class SigmoidExtractor(FrontExtractorOp):
 
 
 class SignExtractor(FrontExtractorOp):
-    op = 'Sign'
+    op = "Sign"
     enabled = True
 
     @classmethod
@@ -223,7 +223,7 @@ class SignExtractor(FrontExtractorOp):
 
 
 class SinExtractor(FrontExtractorOp):
-    op = 'Sin'
+    op = "Sin"
     enabled = True
 
     @classmethod
@@ -233,7 +233,7 @@ class SinExtractor(FrontExtractorOp):
 
 
 class SinhExtractor(FrontExtractorOp):
-    op = 'Sinh'
+    op = "Sinh"
     enabled = True
 
     @classmethod
@@ -243,7 +243,7 @@ class SinhExtractor(FrontExtractorOp):
 
 
 class TanExtractor(FrontExtractorOp):
-    op = 'Tan'
+    op = "Tan"
     enabled = True
 
     @classmethod
@@ -253,7 +253,7 @@ class TanExtractor(FrontExtractorOp):
 
 
 class TanhExtractor(FrontExtractorOp):
-    op = 'Tanh'
+    op = "Tanh"
     enabled = True
 
     @classmethod
@@ -263,7 +263,7 @@ class TanhExtractor(FrontExtractorOp):
 
 
 class SoftSignExtractor(FrontExtractorOp):
-    op = 'Softsign'
+    op = "Softsign"
     enabled = True
 
     @classmethod

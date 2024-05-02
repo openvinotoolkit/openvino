@@ -70,7 +70,7 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     int post_nms_count = 0;
     int max_detections_per_image = 0;
     bool class_agnostic_box_regression = false;
-    float max_delta_log_wh  = 0.0f;
+    float max_delta_log_wh = 0.0f;
     std::vector<float> deltas_weights;
 
     size_t hash() const override {
@@ -94,18 +94,12 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
 
         auto rhs_casted = downcast<const experimental_detectron_detection_output>(rhs);
 
-        #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(score_threshold) &&
-               cmp_fields(nms_threshold) &&
-               cmp_fields(num_classes) &&
-               cmp_fields(post_nms_count) &&
-               cmp_fields(max_detections_per_image) &&
-               cmp_fields(class_agnostic_box_regression) &&
-               cmp_fields(max_delta_log_wh) &&
-               cmp_fields(deltas_weights) &&
-               cmp_fields(output_classes.empty()) &&
-               cmp_fields(output_scores.empty());
-        #undef cmp_fields
+#define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(score_threshold) && cmp_fields(nms_threshold) && cmp_fields(num_classes) &&
+               cmp_fields(post_nms_count) && cmp_fields(max_detections_per_image) &&
+               cmp_fields(class_agnostic_box_regression) && cmp_fields(max_delta_log_wh) &&
+               cmp_fields(deltas_weights) && cmp_fields(output_classes.empty()) && cmp_fields(output_scores.empty());
+#undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {

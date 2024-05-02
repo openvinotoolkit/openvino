@@ -25,16 +25,15 @@ struct StridedSliceSpecificParams {
     std::vector<int64_t> ellipsis_axis_mask;
 };
 
-using StridedSliceParams = std::tuple<
-        StridedSliceSpecificParams,
-        ov::element::Type,              // Model type
-        ov::test::TargetDevice          // Device name
->;
+using StridedSliceParams = std::tuple<StridedSliceSpecificParams,
+                                      ov::element::Type,      // Model type
+                                      ov::test::TargetDevice  // Device name
+                                      >;
 
 class StridedSliceLayerTest : public testing::WithParamInterface<StridedSliceParams>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams>& obj);
 
 protected:
     void SetUp() override;

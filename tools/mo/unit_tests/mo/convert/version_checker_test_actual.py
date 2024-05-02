@@ -5,14 +5,19 @@ import unittest
 
 from openvino.runtime import get_version as get_ie_version
 
-from openvino.tools.mo.utils.version import get_version, get_simplified_ie_version, \
-    get_simplified_mo_version, VersionChecker
+from openvino.tools.mo.utils.version import (
+    VersionChecker,
+    get_simplified_ie_version,
+    get_simplified_mo_version,
+    get_version,
+)
 
 
 class VersionCheckerTest(unittest.TestCase):
     def test_version_checker(self):
         import datetime
         import os
+
         ref_mo_version = get_version()
         ref_ie_version = get_ie_version()
         ref_mo_simplified_version = get_simplified_mo_version()
@@ -33,8 +38,14 @@ class VersionCheckerTest(unittest.TestCase):
             VersionChecker().check_runtime_dependencies()
             assert VersionChecker().get_mo_version() == ref_mo_version
             assert VersionChecker().get_ie_version() == ref_ie_version
-            assert VersionChecker().get_mo_simplified_version() == ref_mo_simplified_version
-            assert VersionChecker().get_ie_simplified_version() == ref_ie_simplified_version
+            assert (
+                VersionChecker().get_mo_simplified_version()
+                == ref_mo_simplified_version
+            )
+            assert (
+                VersionChecker().get_ie_simplified_version()
+                == ref_ie_simplified_version
+            )
         loop_time = (datetime.datetime.now() - start_time).total_seconds()
 
         # Check that time of loop is less than first init, so no actual initialization happens

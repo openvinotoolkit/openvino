@@ -3,8 +3,10 @@
 //
 
 #include "permute_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
@@ -13,19 +15,19 @@ bool Process_F_First(const permute_params& params) {
     auto out_layout = params.outputs[0].GetLayout();
 
     std::function<bool(const std::vector<uint16_t>&)> f_to_x = [](const std::vector<uint16_t>& order) {
-        return ((int32_t) order[2] == 1);
+        return ((int32_t)order[2] == 1);
     };
 
     std::function<bool(const DataLayout&)> is_fsv = [](const DataLayout& layout) {
         switch (layout) {
-            case Tensor::DataLayout::b_fs_yx_fsv4:
-            case Tensor::DataLayout::b_fs_yx_fsv16:
-            case Tensor::DataLayout::b_fs_yx_fsv32:
-            case Tensor::DataLayout::b_fs_zyx_fsv16:
-            case Tensor::DataLayout::b_fs_zyx_fsv32:
-                return true;
-            default:
-                return false;
+        case Tensor::DataLayout::b_fs_yx_fsv4:
+        case Tensor::DataLayout::b_fs_yx_fsv16:
+        case Tensor::DataLayout::b_fs_yx_fsv32:
+        case Tensor::DataLayout::b_fs_zyx_fsv16:
+        case Tensor::DataLayout::b_fs_zyx_fsv32:
+            return true;
+        default:
+            return false;
         }
         return false;
     };
@@ -46,16 +48,15 @@ static void GetOrderVector(std::string s, std::vector<std::string>* res) {
     return;
 }
 
-static std::string GetReorderedOutputOrder(const permute_params& params, const std::vector<std::string>& permute_out_idx,
-                                            const std::pair<size_t, size_t>& dim_change) {
-    std::map<std::string, std::string> size_str_map = {
-        {"b", "INPUT0_BATCH_NUM"},
-        {"f", "INPUT0_FEATURE_NUM"},
-        {"w", "INPUT0_SIZE_W"},
-        {"z", "INPUT0_SIZE_Z"},
-        {"y", "INPUT0_SIZE_Y"},
-        {"x", "INPUT0_SIZE_X"}
-    };
+static std::string GetReorderedOutputOrder(const permute_params& params,
+                                           const std::vector<std::string>& permute_out_idx,
+                                           const std::pair<size_t, size_t>& dim_change) {
+    std::map<std::string, std::string> size_str_map = {{"b", "INPUT0_BATCH_NUM"},
+                                                       {"f", "INPUT0_FEATURE_NUM"},
+                                                       {"w", "INPUT0_SIZE_W"},
+                                                       {"z", "INPUT0_SIZE_Z"},
+                                                       {"y", "INPUT0_SIZE_Y"},
+                                                       {"x", "INPUT0_SIZE_X"}};
 
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
 
@@ -63,13 +64,15 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
     if (dim_diff > 0) {
         // dim is shrinked
         std::vector<std::string> merged_indices;
-        if (dim_diff == 2) merged_indices.push_back(permute_out_idx[dim_change.first - 3]);
+        if (dim_diff == 2)
+            merged_indices.push_back(permute_out_idx[dim_change.first - 3]);
         merged_indices.push_back(permute_out_idx[dim_change.first - 2]);
         merged_indices.push_back(permute_out_idx[dim_change.first - 1]);
         std::string pitches = "1";
-        for (size_t i = 0 ; i < merged_indices.size(); ++i) {
-            if (i > 0) reordered_order += "+";
-            reordered_order +=  (merged_indices[i] + "*" + pitches);
+        for (size_t i = 0; i < merged_indices.size(); ++i) {
+            if (i > 0)
+                reordered_order += "+";
+            reordered_order += (merged_indices[i] + "*" + pitches);
             pitches = size_str_map[merged_indices[i]] + "*" + pitches;
         }
         for (size_t i = dim_change.first - 1 - merged_indices.size(); i > 1; --i) {
@@ -78,20 +81,18 @@ static std::string GetReorderedOutputOrder(const permute_params& params, const s
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Y().v)
-                                 + ", " + permute_out_idx[2]);
+            reordered_order +=
+                (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Y().v) + ", " + permute_out_idx.back() +
+                 "%" + toCodeString(params.outputs[0].Y().v) + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.outputs[0].Y().v)
-                                 + " * " + toCodeString(params.outputs[0].Z().v) + ")"
-                                 + ", " + permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Y().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Y().v)
-                                 + ", " + permute_out_idx[2]);
+            reordered_order += (permute_out_idx.back() + "/ (" + toCodeString(params.outputs[0].Y().v) + " * " +
+                                toCodeString(params.outputs[0].Z().v) + ")" + ", " + permute_out_idx.back() + "/" +
+                                toCodeString(params.outputs[0].Y().v) + ", " + permute_out_idx.back() + "%" +
+                                toCodeString(params.outputs[0].Y().v) + ", " + permute_out_idx[2]);
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            reordered_order += (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Z().v)
-                                 + ", " + permute_out_idx.back() + "%" + toCodeString(params.outputs[0].Z().v)
-                                 + ", " + permute_out_idx[3]
-                                 + ", " + permute_out_idx[2]);
+            reordered_order +=
+                (permute_out_idx.back() + "/" + toCodeString(params.outputs[0].Z().v) + ", " + permute_out_idx.back() +
+                 "%" + toCodeString(params.outputs[0].Z().v) + ", " + permute_out_idx[3] + ", " + permute_out_idx[2]);
         }
     }
     return reordered_order;
@@ -127,43 +128,58 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
 
-    const auto& in =  params.inputs[0];
+    const auto& in = params.inputs[0];
     if (Process_F_First(params)) {
         // f is contiguous in output
         // if both input and output are blocked format, need to process with f axis only for the blocked size (TODO)
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::FEATURE},
-                                                                        {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                                                                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
-                                                                         Tensor::DataChannelName::U, Tensor::DataChannelName::V,
-                                                                         Tensor::DataChannelName::BATCH}};
-        dispatchData.gws = {in.Feature().v, in.X().v * in.Y().v, in.Z().v * in.W().v  * in.U().v  * in.V().v * in.Batch().v};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::FEATURE},
+            {Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+            {Tensor::DataChannelName::Z,
+             Tensor::DataChannelName::W,
+             Tensor::DataChannelName::U,
+             Tensor::DataChannelName::V,
+             Tensor::DataChannelName::BATCH}};
+        dispatchData.gws = {in.Feature().v,
+                            in.X().v * in.Y().v,
+                            in.Z().v * in.W().v * in.U().v * in.V().v * in.Batch().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     } else {
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
-                                                                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
-                                                                         Tensor::DataChannelName::U, Tensor::DataChannelName::V},
-                                                                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-        dispatchData.gws = {in.X().v, in.Y().v * in.Z().v * in.W().v * in.U().v  * in.V().v , in.Feature().v * in.Batch().v};
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::X},
+            {Tensor::DataChannelName::Y,
+             Tensor::DataChannelName::Z,
+             Tensor::DataChannelName::W,
+             Tensor::DataChannelName::U,
+             Tensor::DataChannelName::V},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.gws = {in.X().v,
+                            in.Y().v * in.Z().v * in.W().v * in.U().v * in.V().v,
+                            in.Feature().v * in.Batch().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     }
 
     return dispatchData;
 }
 
 bool PermuteKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p))
+        return false;
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
     auto in_rank = params.inputs[0].GetDims().size();
     auto out_rank = params.outputs[0].GetDims().size();
     if (in_rank != out_rank && (in_rank > 6 || out_rank > 6))
-       return false;
+        return false;
 
     return true;
 }
 
-JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params,
+                                               const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     std::vector<std::string> in_idx;
     std::vector<std::string> permute_out_idx;
@@ -171,18 +187,29 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     std::pair<size_t, size_t> dim_change;
     bool reorder_to_different_dim = false;
     std::vector<std::string> reordered_out_idx;
-    if (DataTensor::ChannelsCount(params.inputs[0].GetLayout()) != DataTensor::ChannelsCount(params.outputs[0].GetLayout())) {
+    if (DataTensor::ChannelsCount(params.inputs[0].GetLayout()) !=
+        DataTensor::ChannelsCount(params.outputs[0].GetLayout())) {
         // subsequent reorder to differnt dimension is fused
         dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
         reorder_to_different_dim = true;
     }
 
     switch (DataTensor::ChannelsCount(params.inputs[0].GetLayout())) {
-        case 8: in_idx = {"b", "f", "x", "y", "z", "w", "u", "v" }; break;
-        case 7: in_idx = {"b", "f", "x", "y", "z", "w", "u" }; break;
-        case 6: in_idx = {"b", "f", "x", "y", "z", "w" }; break;
-        case 5: in_idx = {"b", "f", "x", "y", "z" }; break;
-        default: in_idx = {"b", "f", "x", "y" }; break;
+    case 8:
+        in_idx = {"b", "f", "x", "y", "z", "w", "u", "v"};
+        break;
+    case 7:
+        in_idx = {"b", "f", "x", "y", "z", "w", "u"};
+        break;
+    case 6:
+        in_idx = {"b", "f", "x", "y", "z", "w"};
+        break;
+    case 5:
+        in_idx = {"b", "f", "x", "y", "z"};
+        break;
+    default:
+        in_idx = {"b", "f", "x", "y"};
+        break;
     }
 
     assert(params.order.size() == in_idx.size());
@@ -207,7 +234,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     } else {
         std::string output_order = permute_out_idx[0] + "," + permute_out_idx[1];
         for (size_t i = in_idx.size() - 1; i > 1; i--) {
-           output_order += "," + permute_out_idx[i];
+            output_order += "," + permute_out_idx[i];
         }
         jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
     }

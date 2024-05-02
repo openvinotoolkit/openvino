@@ -11,28 +11,47 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestUnsortedSegmentSum(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data:0' in inputs_info, "Test error: inputs_info must contain `data`"
-        assert 'segment_ids:0' in inputs_info, "Test error: inputs_info must contain `segment_ids`"
-        data_shape = inputs_info['data:0']
-        segment_ids_shape = inputs_info['segment_ids:0']
+        assert "data:0" in inputs_info, "Test error: inputs_info must contain `data`"
+        assert (
+            "segment_ids:0" in inputs_info
+        ), "Test error: inputs_info must contain `segment_ids`"
+        data_shape = inputs_info["data:0"]
+        segment_ids_shape = inputs_info["segment_ids:0"]
         inputs_data = {}
-        inputs_data['data:0'] = np.random.randint(-50, 50, data_shape).astype(self.data_type)
+        inputs_data["data:0"] = np.random.randint(-50, 50, data_shape).astype(
+            self.data_type
+        )
         # segment_ids can have negative values
-        inputs_data['segment_ids:0'] = np.random.randint(-self.num_segments_val, self.num_segments_val, segment_ids_shape)
+        inputs_data["segment_ids:0"] = np.random.randint(
+            -self.num_segments_val, self.num_segments_val, segment_ids_shape
+        )
         return inputs_data
 
-    def create_unsorted_segment_sum_net(self, data_shape, segment_ids_shape, num_segments_val, data_type,
-                                        segment_ids_type, num_segments_type):
+    def create_unsorted_segment_sum_net(
+        self,
+        data_shape,
+        segment_ids_shape,
+        num_segments_val,
+        data_type,
+        segment_ids_type,
+        num_segments_type,
+    ):
         self.data_type = data_type
         self.segment_ids_type = segment_ids_type
         self.num_segments_val = num_segments_val
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            data = tf.compat.v1.placeholder(data_type, data_shape, 'data')
-            segment_ids = tf.compat.v1.placeholder(segment_ids_type, segment_ids_shape, 'segment_ids')
-            num_segments = tf.constant(num_segments_val, dtype=num_segments_type, shape=[])
-            tf.raw_ops.UnsortedSegmentSum(data=data, segment_ids=segment_ids, num_segments=num_segments)
+            data = tf.compat.v1.placeholder(data_type, data_shape, "data")
+            segment_ids = tf.compat.v1.placeholder(
+                segment_ids_type, segment_ids_shape, "segment_ids"
+            )
+            num_segments = tf.constant(
+                num_segments_val, dtype=num_segments_type, shape=[]
+            )
+            tf.raw_ops.UnsortedSegmentSum(
+                data=data, segment_ids=segment_ids, num_segments=num_segments
+            )
             tf.compat.v1.global_variables_initializer()
 
             tf_net = sess.graph_def
@@ -46,26 +65,41 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.parametrize("data_type", [
-        np.float32, np.int32
-    ])
-    @pytest.mark.parametrize("segment_ids_type", [
-        np.int32, np.int64
-    ])
-    @pytest.mark.parametrize("num_segments_type", [
-        np.int32, np.int64
-    ])
+    @pytest.mark.parametrize("data_type", [np.float32, np.int32])
+    @pytest.mark.parametrize("segment_ids_type", [np.int32, np.int64])
+    @pytest.mark.parametrize("num_segments_type", [np.int32, np.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
-                                        precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
+    @pytest.mark.xfail(
+        condition=platform.system() == "Darwin" and platform.machine() == "arm64",
+        reason="Ticket - 122716",
+    )
+    def test_unsorted_segment_sum_basic(
+        self,
+        params,
+        data_type,
+        segment_ids_type,
+        num_segments_type,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
         if not use_legacy_frontend:
-            pytest.skip("UnsortedSegmentSum operation is not supported via legacy frontend.")
+            pytest.skip(
+                "UnsortedSegmentSum operation is not supported via legacy frontend."
+            )
         self._test(
-            *self.create_unsorted_segment_sum_net(**params, data_type=data_type, segment_ids_type=segment_ids_type,
-                                                  num_segments_type=num_segments_type),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            *self.create_unsorted_segment_sum_net(
+                **params,
+                data_type=data_type,
+                segment_ids_type=segment_ids_type,
+                num_segments_type=num_segments_type
+            ),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

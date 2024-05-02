@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "low_precision/layer_transformation.hpp"
-#include "common/fake_quantize_on_data.hpp"
 #include "common/builders.hpp"
+#include "common/fake_quantize_on_data.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ov {
 namespace builder {
@@ -28,10 +28,9 @@ public:
         // -1 - no FakeQuantize
         const int fakeQuantizeBranch);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type originalFunctionPrecision,
-        const ov::Shape& inputShape,
-        const FakeQuantizeOnData& fakeQuantizeOnData);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type originalFunctionPrecision,
+                                                  const ov::Shape& inputShape,
+                                                  const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,

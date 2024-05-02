@@ -4,21 +4,21 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+#include <string>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/fold_fake_quantize.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include <sstream>
-#include <string>
-#include "transformations/init_node_info.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "layer_transformation.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
 #include "ov_lpt_models/convolution.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace {
 class ConvolutionWithIncorrectWeightsTestValues {
@@ -60,8 +60,7 @@ public:
             testValues.isCorrect);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(
-            testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
         transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
         transform.transform(actualFunction);

@@ -6,9 +6,10 @@
 
 // ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a
 // primitive
-#include "pooling_inst.h"
-#include <vector>
 #include <queue>
+#include <vector>
+
+#include "pooling_inst.h"
 
 using namespace cldnn;
 
@@ -24,10 +25,12 @@ void trim_to_outputs::run(program& p) {
     queue.push(p.get_outputs());
 
     std::vector<program_node*> special_nodes;
-    for (auto& node : p.get_processing_order()) {   // input layout may become disconnected during prior boxes calculations so
-        if (node->is_type<input_layout>()) {        // it may have not been marked at this place but we don't want to remove it
-            special_nodes.push_back(node);          // ToDo: remove this after support for multi-outputs in primitives will
-        }                                           // be implemented.
+    for (auto& node :
+         p.get_processing_order()) {          // input layout may become disconnected during prior boxes calculations so
+        if (node->is_type<input_layout>()) {  // it may have not been marked at this place but we don't want to remove
+                                              // it
+            special_nodes.push_back(node);    // ToDo: remove this after support for multi-outputs in primitives will
+        }  // be implemented.
     }
     queue.push(special_nodes);
 
@@ -39,7 +42,7 @@ void trim_to_outputs::run(program& p) {
             if (!node->is_marked()) {
                 node->mark();
                 if (!node->get_dependencies().empty()) {
-                   std::vector<program_node*> deps;
+                    std::vector<program_node*> deps;
                     for (auto& dep : node->get_dependencies()) {
                         deps.push_back(dep.first);
                     }

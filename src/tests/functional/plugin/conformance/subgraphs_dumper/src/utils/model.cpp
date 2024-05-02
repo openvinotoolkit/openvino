@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/file_util.hpp"
 #include "utils/model.hpp"
+
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace util {
@@ -15,33 +16,32 @@ std::string get_model_type(const std::shared_ptr<ov::Model>& model) {
     return "static";
 }
 
-std::map<std::string, ov::conformance::InputInfo>
-get_input_info_by_model(const std::shared_ptr<ov::Model>& model) {
+std::map<std::string, ov::conformance::InputInfo> get_input_info_by_model(const std::shared_ptr<ov::Model>& model) {
     std::map<std::string, ov::conformance::InputInfo> in_info;
     for (const auto& node : model->get_ordered_ops()) {
-        ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE, ov::conformance::DEFAULT_MAX_VALUE);
+        ov::conformance::InputInfo::Range ranges(ov::conformance::DEFAULT_MIN_VALUE,
+                                                 ov::conformance::DEFAULT_MAX_VALUE);
         bool is_const = false;
         if (ov::op::util::is_constant(node)) {
             std::shared_ptr<ov::op::v0::Constant> constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-            auto const_ranges = get_const_ranges(constant,
-                                                 constant->get_default_output().get_element_type());
+            auto const_ranges = get_const_ranges(constant, constant->get_default_output().get_element_type());
             ranges = const_ranges;
         } else if (!ov::op::util::is_parameter(node)) {
             continue;
         }
         auto partial_shape = node->get_default_output().get_partial_shape();
-        in_info.insert({node->get_friendly_name(),
-                        ov::conformance::InputInfo(partial_shape, ranges.min, ranges.max, is_const)});
+        in_info.insert(
+            {node->get_friendly_name(), ov::conformance::InputInfo(partial_shape, ranges.min, ranges.max, is_const)});
     }
     return in_info;
 }
 
-std::map<std::string, ov::conformance::InputInfo>
-align_input_info(const std::shared_ptr<ov::Model>& model,
-                 const std::shared_ptr<ov::Model>& model_ref,
-                 const std::map<std::string, ov::conformance::InputInfo>& in_info,
-                 const std::map<std::string, ov::conformance::InputInfo>& in_info_ref,
-                 const std::unordered_map<std::string, std::string> &matched_op) {
+std::map<std::string, ov::conformance::InputInfo> align_input_info(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<ov::Model>& model_ref,
+    const std::map<std::string, ov::conformance::InputInfo>& in_info,
+    const std::map<std::string, ov::conformance::InputInfo>& in_info_ref,
+    const std::unordered_map<std::string, std::string>& matched_op) {
     std::map<std::string, ov::conformance::InputInfo> updated_input_info(in_info_ref);
     for (const auto& op : model->get_ordered_ops()) {
         const auto op_name = op->get_friendly_name();
@@ -55,9 +55,8 @@ align_input_info(const std::shared_ptr<ov::Model>& model,
     return updated_input_info;
 }
 
-void
-get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
-                      const std::shared_ptr<ov::Node>& node) {
+void get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
+                           const std::shared_ptr<ov::Node>& node) {
     if (nodes_to_check.empty()) {
         nodes_to_check.insert(node);
     }
@@ -76,8 +75,8 @@ get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_ch
     return;
 }
 
-bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
-                           const std::shared_ptr<ov::Model> &second_model) {
+bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model>& fist_model,
+                           const std::shared_ptr<ov::Model>& second_model) {
     size_t fist_paired_op_cnt = 0;
     size_t second_paired_op_cnt = 0;
 
@@ -96,8 +95,10 @@ bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
     return fist_paired_op_cnt == second_paired_op_cnt;
 }
 
-bool build_control_dependency(std::shared_ptr<ov::Model> &model) {
-    std::map<std::string, std::pair<std::shared_ptr<ov::op::util::ReadValueBase>, std::shared_ptr<ov::op::util::AssignBase>>> dependency_pairs;
+bool build_control_dependency(std::shared_ptr<ov::Model>& model) {
+    std::map<std::string,
+             std::pair<std::shared_ptr<ov::op::util::ReadValueBase>, std::shared_ptr<ov::op::util::AssignBase>>>
+        dependency_pairs;
     for (auto& node : model->get_ordered_ops()) {
         if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
             dependency_pairs[read_value->get_variable_id()].first = read_value;

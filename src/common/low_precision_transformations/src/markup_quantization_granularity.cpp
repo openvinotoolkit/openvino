@@ -7,9 +7,10 @@
 #include <cassert>
 #include <memory>
 #include <vector>
-#include "openvino/core/node.hpp"
+
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "openvino/core/node.hpp"
 
 using namespace ov;
 
@@ -29,10 +30,12 @@ ov::pass::low_precision::MarkupQuantizationGranularity::MarkupQuantizationGranul
 
 bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupPerTensorQuantization);
-    auto setRestriction = [](const std::shared_ptr<Node>& node, const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts) {
-        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity granularity){
-            auto &rt = input.get_rt_info();
-            rt.emplace(QuantizationGranularityAttribute::get_type_info_static(), QuantizationGranularityAttribute(granularity));
+    auto setRestriction = [](const std::shared_ptr<Node>& node,
+                             const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts) {
+        auto createAttribute = [](Input<Node>& input, const QuantizationGranularityAttribute::Granularity granularity) {
+            auto& rt = input.get_rt_info();
+            rt.emplace(QuantizationGranularityAttribute::get_type_info_static(),
+                       QuantizationGranularityAttribute(granularity));
         };
 
         if (restrictedPorts.empty()) {
@@ -81,7 +84,8 @@ bool ov::pass::low_precision::MarkupQuantizationGranularity::run_on_model(const 
             setRestriction(node, restrictedPorts);
         } else {
             assert(restriction.portsByVersion.size() == 1ul);
-            const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts = restriction.portsByVersion.begin()->second;
+            const std::vector<PortQuantizationGranularityRestriction>& restrictedPorts =
+                restriction.portsByVersion.begin()->second;
             setRestriction(node, restrictedPorts);
         }
     }

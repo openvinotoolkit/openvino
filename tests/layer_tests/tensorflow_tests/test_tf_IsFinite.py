@@ -10,21 +10,21 @@ from common.utils.tf_utils import mix_array_with_value
 
 class TestIsFinite(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x:0']
+        assert "x:0" in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info["x:0"]
         inputs_data = {}
         data = np.random.randint(-50, 50, x_shape).astype(np.float32)
         # mix data with np.inf and np.nan
         data = mix_array_with_value(data, np.nan)
-        inputs_data['x:0'] = mix_array_with_value(data, np.inf)
+        inputs_data["x:0"] = mix_array_with_value(data, np.inf)
         return inputs_data
 
     def create_is_finite_net(self, x_shape, x_type):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(x_type, x_shape, 'x')
-            tf.raw_ops.IsFinite(x=x, name='is_finite')
+            x = tf.compat.v1.placeholder(x_type, x_shape, "x")
+            tf.raw_ops.IsFinite(x=x, name="is_finite")
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -39,12 +39,18 @@ class TestIsFinite(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_is_finite_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        if ie_device == 'GPU':
-            pytest.xfail('104855')
+    def test_is_finite_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU":
+            pytest.xfail("104855")
         if not use_legacy_frontend:
             pytest.skip("IsFinite operation is not supported via legacy frontend.")
-        self._test(*self.create_is_finite_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_is_finite_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

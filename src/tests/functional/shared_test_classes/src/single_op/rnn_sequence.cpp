@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/single_op/rnn_sequence.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "shared_test_classes/single_op/rnn_sequence.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
 
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
@@ -15,7 +16,7 @@ using ov::test::utils::SequenceTestsMode;
 namespace ov {
 namespace test {
 
-std::string RNNSequenceTest::getTestCaseName(const testing::TestParamInfo<RNNSequenceParams> &obj) {
+std::string RNNSequenceTest::getTestCaseName(const testing::TestParamInfo<RNNSequenceParams>& obj) {
     SequenceTestsMode mode;
     size_t seq_lengths;
     size_t batch;
@@ -29,11 +30,24 @@ std::string RNNSequenceTest::getTestCaseName(const testing::TestParamInfo<RNNSeq
     ov::element::Type model_type;
     InputLayerType WRBType;
     std::string target_device;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, WRBType,
-            model_type, target_device) = obj.param;
+    std::tie(mode,
+             seq_lengths,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             direction,
+             WRBType,
+             model_type,
+             target_device) = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {
-            {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {hidden_size, input_size},
-                    {hidden_size, hidden_size}, {hidden_size}},
+        {{batch, input_size},
+         {batch, hidden_size},
+         {batch, hidden_size},
+         {hidden_size, input_size},
+         {hidden_size, hidden_size},
+         {hidden_size}},
     };
     std::ostringstream result;
     result << "mode=" << mode << "_";
@@ -63,14 +77,26 @@ void RNNSequenceTest::SetUp() {
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType WRBType;
     ov::element::Type model_type;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, WRBType,
-            model_type, targetDevice) = this->GetParam();
+    std::tie(mode,
+             seq_lengths,
+             batch,
+             hidden_size,
+             input_size,
+             activations,
+             clip,
+             direction,
+             WRBType,
+             model_type,
+             targetDevice) = this->GetParam();
 
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
     std::vector<ov::Shape> input_shapes = {
-            {{batch, seq_lengths, input_size}, {batch, num_directions, hidden_size}, {batch},
-                {num_directions, hidden_size, input_size}, {num_directions, hidden_size, hidden_size},
-                {num_directions, hidden_size}},
+        {{batch, seq_lengths, input_size},
+         {batch, num_directions, hidden_size},
+         {batch},
+         {num_directions, hidden_size, input_size},
+         {num_directions, hidden_size, hidden_size},
+         {num_directions, hidden_size}},
     };
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shapes[0])),
@@ -84,7 +110,7 @@ void RNNSequenceTest::SetUp() {
         params.push_back(param);
         seq_lengths_node = param;
     } else if (mode == ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
-                mode == ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
+               mode == ov::test::utils::SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = 0;
         in_data.range = seq_lengths;
@@ -119,12 +145,22 @@ void RNNSequenceTest::SetUp() {
         B = std::make_shared<ov::op::v0::Constant>(B_tensor);
     }
 
-    auto rnn_sequence = std::make_shared<ov::op::v5::RNNSequence>(params[0], params[1], seq_lengths_node, W, R, B, hidden_size, direction,
-                                                                activations, activations_alpha, activations_beta, clip);
+    auto rnn_sequence = std::make_shared<ov::op::v5::RNNSequence>(params[0],
+                                                                  params[1],
+                                                                  seq_lengths_node,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  hidden_size,
+                                                                  direction,
+                                                                  activations,
+                                                                  activations_alpha,
+                                                                  activations_beta,
+                                                                  clip);
     function = std::make_shared<ov::Model>(rnn_sequence->outputs(), params, "rnn_sequence");
-    bool is_pure_sequence = (mode == SequenceTestsMode::PURE_SEQ ||
-                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
-                             mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
+    bool is_pure_sequence =
+        (mode == SequenceTestsMode::PURE_SEQ || mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM ||
+         mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST);
     if (!is_pure_sequence) {
         ov::pass::Manager manager;
         if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)

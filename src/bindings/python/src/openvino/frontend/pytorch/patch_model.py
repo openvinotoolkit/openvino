@@ -49,7 +49,8 @@ def patch_model(model, module_extensions, orig_forward_name):
                         m.forward = getattr(m, orig_forward_name)
                         # call user code
                         results = extension.evaluate(
-                            m, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)  # call user code
+                            m, *Trampoline.stashed_args, **Trampoline.stashed_kwargs
+                        )  # call user code
                         m.forward = patched_forward  # return patched forward back
                         return results
 
@@ -57,14 +58,17 @@ def patch_model(model, module_extensions, orig_forward_name):
                 Trampoline.stashed_args = args
                 Trampoline.stashed_kwargs = kwargs
                 return extension.convert(m, Trampoline.apply, *args, **kwargs)
+
             setattr(m, orig_forward_name, m.forward)
             m.forward = new_forward
 
     for name, m in model.named_modules():
         if hasattr(m, orig_forward_name):
             # already patched, skipping with a warning because it is unexpected
-            print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
-                  'Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.')
+            print(
+                f"[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. "
+                "Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model."
+            )
             continue
         module_patcher(m, name)
 
@@ -76,6 +80,8 @@ def unpatch_model(model, orig_forward_name):
                 m.forward = getattr(m, orig_forward_name)
                 delattr(m, orig_forward_name)
             except Exception as error:
-                print('[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model.')
-                print('Original exception details:')
+                print(
+                    "[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model."
+                )
+                print("Original exception details:")
                 print(error)

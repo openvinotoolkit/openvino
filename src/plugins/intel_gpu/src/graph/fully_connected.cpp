@@ -1,14 +1,14 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "fully_connected_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
-#include <string>
 #include <algorithm>
-#include "utils.hpp"
+#include <string>
 
+#include "fully_connected_inst.h"
+#include "json_object.h"
 #include "matmul_shape_inference.hpp"
+#include "primitive_type_base.h"
+#include "utils.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
@@ -18,20 +18,20 @@ bool is_batch_after_spatial(const std::string order) {
     bool spatial_found = false;
     for (auto c : order) {
         switch (c) {
-            case 'b':
-            case 'n':
-                return spatial_found;
+        case 'b':
+        case 'n':
+            return spatial_found;
 
-            case 'x':
-            case 'y':
-            case 'z':
-            case 'w':
-            case 's':
-                spatial_found = true;
-                break;
+        case 'x':
+        case 'y':
+        case 'z':
+        case 'w':
+        case 's':
+            spatial_found = true;
+            break;
 
-            default:
-                break;
+        default:
+            break;
         }
     }
     return false;
@@ -49,8 +49,7 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
         return format::bfyx;
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
-        (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_f_bsv16 ||
+        (is_batch_after_spatial(input_layout.format.order()) || input_layout.format == format::bs_f_bsv16 ||
          input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
@@ -63,25 +62,19 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
         no_spatial_padding &= (input_layout.data_padding.upper_size().spatial[i] == 0);
     }
 
-    if (input_layout.data_type == data_types::f32 &&
-        input_layout.format == format::bfyx &&
-        no_spatial_padding &&
+    if (input_layout.data_type == data_types::f32 && input_layout.format == format::bfyx && no_spatial_padding &&
         input_layout.batch() != 8)
         return format::bfyx;
 
     auto input_pitches = input_layout.get_pitches();
-    if (input_layout.data_type == data_types::f16 &&
-        input_layout.format == format::bfyx &&
-        no_spatial_padding &&
-        input_pitches.batch[0] % 2 == 0 &&
-        input_layout.batch() != 16)
+    if (input_layout.data_type == data_types::f16 && input_layout.format == format::bfyx && no_spatial_padding &&
+        input_pitches.batch[0] % 2 == 0 && input_layout.batch() != 16)
         return format::bfyx;
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
     // extra reorder between input and this fc from bfyx to yxfb format (so
     // "is_batch_after_spatial" should return true)
-    if (data_type_traits::is_floating_point(input_layout.data_type) &&
-        input_layout.format == format::bfyx &&
+    if (data_type_traits::is_floating_point(input_layout.data_type) && input_layout.format == format::bfyx &&
         input_layout.batch() > 1)
         return format::yxfb;
 
@@ -90,7 +83,8 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
 }  // namespace
 
-layout fully_connected_inst::calc_output_layout(fully_connected_node const& node, kernel_impl_params const& impl_param) {
+layout fully_connected_inst::calc_output_layout(fully_connected_node const& node,
+                                                kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
 
     auto input_layout = impl_param.get_input_layout();
@@ -107,8 +101,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        size_t total =
+            std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = {static_cast<int64_t>(total) / feature, feature};
         return reshapeSize;
     };
 
@@ -118,7 +113,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (desc->input_size > 3) {
-       input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
     }
     if (weights_pshape.size() != 2) {
         weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
@@ -133,8 +128,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     return layout(output_type, output_format, output_size);
 }
 
-template<typename ShapeType>
-std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node,
+                                                              const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
@@ -149,22 +145,20 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul op;
     op.set_transpose_b(true);
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        weights_layout.get<ShapeType>()
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>(), weights_layout.get<ShapeType>()};
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
-    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
-                                              input_layout.format.value;
+    bool allow_new_shape_infer =
+        impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format =
+        is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) : input_layout.format.value;
 
     if (node.get_preferred_output_fmt() != format::any)
         output_format = node.get_preferred_output_fmt();
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    return {layout{output_shapes[0], output_type, output_format}};
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
@@ -188,13 +182,12 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
 
-    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
+    if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx &&
+        can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
 
-        auto batch_size = std::accumulate(input_shape.begin(),
-                                          input_shape.end() - 1,
-                                          size_t{1},
-                                          std::multiplies<size_t>());
+        auto batch_size =
+            std::accumulate(input_shape.begin(), input_shape.end() - 1, size_t{1}, std::multiplies<size_t>());
 
         // Vector by matrix multiplication sometimes works slower if we align it
         if (batch_size == 1 && input_shape.back() >= 1024) {
@@ -220,9 +213,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                                 orig_input_layout.format,
                                                 orig_input_layout.data_padding);
         updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
-                                             orig_output_layout.data_type,
-                                             orig_output_layout.format,
-                                             orig_output_layout.data_padding);
+                                                 orig_output_layout.data_type,
+                                                 orig_output_layout.format,
+                                                 orig_output_layout.data_padding);
 
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("
@@ -234,8 +227,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     return std::move(orig_impl_param);
 }
 
-template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(fully_connected_node const& node,
-                                                                                         const kernel_impl_params& impl_param);
+template std::vector<layout> fully_connected_inst::calc_output_layouts<ov::PartialShape>(
+    fully_connected_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     auto desc = node.get_primitive();
@@ -264,5 +258,5 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
-    : parent(network, node) { }
+    : parent(network, node) {}
 }  // namespace cldnn

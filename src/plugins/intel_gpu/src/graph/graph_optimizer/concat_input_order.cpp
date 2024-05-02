@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+#include <vector>
+
+#include "convolution_inst.h"
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "pass_manager.h"
 #include "pooling_inst.h"
-#include "convolution_inst.h"
-#include "fully_connected_inst.h"
-#include "data_inst.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-#include <vector>
-#include <tuple>
 
 using namespace cldnn;
 
@@ -27,9 +27,9 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
             return false;
 
         return conv_node.get_groups() == 1 && node.get_dependency_index(concat_node) == 0 &&
-            conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
-            !conv_node.activations_zero_points_term() &&
-            wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
+               conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
+               !conv_node.activations_zero_points_term() && wei_node.is_type<data>() && wei_node.is_constant() &&
+               !wei_node.is_output();
     }
     if (node.is_type<fully_connected>()) {
         auto& fc_node = node.as<fully_connected>();
@@ -37,7 +37,8 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
         if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
             return false;
 
-        return node.get_dependency_index(concat_node) == 0 && wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
+        return node.get_dependency_index(concat_node) == 0 && wei_node.is_type<data>() && wei_node.is_constant() &&
+               !wei_node.is_output();
     }
 
     bool pass_through = false;
@@ -63,7 +64,10 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     auto wei_layout = node.get_output_layout();
     auto old_weights_memory = node.get_attached_memory_ptr();
     bool need_reset = static_cast<bool>(wei_layout.data_padding) || wei_layout.format.is_blocked();
-    auto new_weights_memory = old_weights_memory->get_engine()->allocate_memory(wei_layout, old_weights_memory->get_allocation_type(), need_reset);
+    auto new_weights_memory =
+        old_weights_memory->get_engine()->allocate_memory(wei_layout,
+                                                          old_weights_memory->get_allocation_type(),
+                                                          need_reset);
 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
     mem_lock<uint8_t, mem_lock_type::read> old_weights_memory_lock{old_weights_memory, stream};
@@ -83,7 +87,8 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
                                 auto old_offset = wei_layout.get_linear_offset(old_coords);
                                 auto new_offset = wei_layout.get_linear_offset(new_coords);
                                 for (size_t byte = 0; byte < bytes_per_elem; ++byte) {
-                                    new_ptr[new_offset * bytes_per_elem + byte] = old_ptr[old_offset * bytes_per_elem + byte];
+                                    new_ptr[new_offset * bytes_per_elem + byte] =
+                                        old_ptr[old_offset * bytes_per_elem + byte];
                                 }
                             }
                         }
@@ -195,7 +200,8 @@ void concat_input_order::run(program& p) {
         std::vector<std::pair<program_node*, int32_t>> new_dependencies = {};
         new_dependencies.reserve(inputs_count);
         for (auto& ord : new_order) {
-            new_dependencies.push_back({concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
+            new_dependencies.push_back(
+                {concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
         }
         // Update in place with const cast instead of replacing
         auto& dependencies = concat_node.get_dependencies();

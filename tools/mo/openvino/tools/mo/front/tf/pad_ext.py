@@ -6,7 +6,7 @@ from openvino.tools.mo.ops.pad import TFPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
-    op = 'Pad'
+    op = "Pad"
     enabled = True
 
     @classmethod
@@ -16,7 +16,7 @@ class PadFrontExtractor(FrontExtractorOp):
 
 
 class PadV2FrontExtractor(FrontExtractorOp):
-    op = 'PadV2'
+    op = "PadV2"
     enabled = True
 
     @classmethod
@@ -26,10 +26,12 @@ class PadV2FrontExtractor(FrontExtractorOp):
 
 
 class MirrorPadFrontExtractor(FrontExtractorOp):
-    op = 'MirrorPad'
+    op = "MirrorPad"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        TFPad.update_node_stat(node, {'mode': node.pb.attr['mode'].s.decode('utf-8').lower()})
+        TFPad.update_node_stat(
+            node, {"mode": node.pb.attr["mode"].s.decode("utf-8").lower()}
+        )
         return cls.enabled

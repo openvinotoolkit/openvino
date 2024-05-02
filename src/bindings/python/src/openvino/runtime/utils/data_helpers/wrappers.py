@@ -2,15 +2,24 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from functools import singledispatchmethod
 from collections.abc import Mapping
-from typing import Dict, Set, Tuple, Union, Iterator, Optional
-from typing import KeysView, ItemsView, ValuesView
+from functools import singledispatchmethod
+from typing import (
+    Dict,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    ValuesView,
+)
 
-from openvino._pyopenvino import Tensor, ConstOutput
+import numpy as np
+from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
+from openvino._pyopenvino import Tensor
 
 
 def tensor_from_file(path: str) -> Tensor:
@@ -67,6 +76,7 @@ class OVDict(Mapping):
         # or alternatively:
         out1, out2, out3, _ = request.infer(inputs).to_tuple()
     """
+
     def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
         self._names: Optional[Dict[ConstOutput, Set[str]]] = None

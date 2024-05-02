@@ -13,7 +13,7 @@ namespace subgraph_dumper {
 
 class ReadValueAssignExtractor final : public SubgraphExtractor {
 public:
-    std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model) override;
+    std::vector<ExtractedPattern> extract(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace subgraph_dumper

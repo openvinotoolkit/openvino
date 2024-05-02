@@ -13,12 +13,11 @@
 
 namespace ov {
 namespace test {
-using logSoftmaxLayerTestParams = std::tuple<
-        ov::element::Type,                  // Model type
-        std::vector<InputShape>,            // Input shapes
-        int64_t,                            // Axis
-        std::string                         // Target device
->;
+using logSoftmaxLayerTestParams = std::tuple<ov::element::Type,        // Model type
+                                             std::vector<InputShape>,  // Input shapes
+                                             int64_t,                  // Axis
+                                             std::string               // Target device
+                                             >;
 
 class LogSoftmaxLayerTest : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
                             virtual public ov::test::SubgraphBaseTest {

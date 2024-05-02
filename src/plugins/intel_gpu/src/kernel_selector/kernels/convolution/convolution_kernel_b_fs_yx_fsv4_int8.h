@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <string>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -27,12 +28,12 @@ protected:
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
-    bool NeedPaddedInput() const override { return true; }
+    bool NeedPaddedInput() const override {
+        return true;
+    }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

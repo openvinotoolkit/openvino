@@ -4,16 +4,26 @@
 import os
 
 import numpy as np
-
 from openvino.runtime import Core
 from openvino.tools.ovc.convert import convert_model
 
 
-def basic_check(input_model, argv_input, input_data, expected_dtype, expected_value, \
-    only_conversion=False, input_model_is_text=True, use_new_frontend=True, extensions=None):
+def basic_check(
+    input_model,
+    argv_input,
+    input_data,
+    expected_dtype,
+    expected_value,
+    only_conversion=False,
+    input_model_is_text=True,
+    use_new_frontend=True,
+    extensions=None,
+):
     path = os.path.dirname(__file__)
     if isinstance(input_model, (tuple, list)):
-        input_model = tuple(os.path.join(path, "test_models", part) for part in input_model)
+        input_model = tuple(
+            os.path.join(path, "test_models", part) for part in input_model
+        )
     else:
         input_model = os.path.join(path, "test_models", input_model)
 
@@ -29,8 +39,9 @@ def basic_check(input_model, argv_input, input_data, expected_dtype, expected_va
     values = list(results.values())[0]
     if expected_dtype is not None:
         assert values.dtype == expected_dtype
-    assert np.allclose(values,
-                       expected_value), "Expected and actual values are different." \
-                                        " Expected value: {}, actual value: {}".format(expected_value, values)
+    assert np.allclose(values, expected_value), (
+        "Expected and actual values are different."
+        " Expected value: {}, actual value: {}".format(expected_value, values)
+    )
 
     return ov_model

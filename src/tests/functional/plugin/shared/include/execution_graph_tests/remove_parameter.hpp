@@ -6,10 +6,9 @@
 
 namespace ExecutionGraphTests {
 
-class ExecGraphRemoveParameterNode
-    : public testing::TestWithParam<std::string> {
+class ExecGraphRemoveParameterNode : public testing::TestWithParam<std::string> {
 public:
-  static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
 };
 
-} // namespace ExecutionGraphTests
+}  // namespace ExecutionGraphTests

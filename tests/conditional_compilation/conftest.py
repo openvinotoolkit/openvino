@@ -13,19 +13,29 @@ from inspect import getsourcefile
 from pathlib import Path
 
 # add utils folder to imports
-sys.path.insert(0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "utils").resolve(strict=True)))
+sys.path.insert(
+    0,
+    str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "utils").resolve(strict=True)),
+)
 
-import yaml
 import pytest
-
+import yaml
 from install_pkg import get_openvino_environment  # pylint: disable=import-error
 from path_utils import expand_env_vars  # pylint: disable=import-error
 from proc_utils import cmd_exec  # pylint: disable=import-error
-from test_utils import make_build, validate_path_arg, write_session_info, \
-    SESSION_INFO_FILE  # pylint: disable=import-error
+from test_utils import (  # pylint: disable=import-error
+    SESSION_INFO_FILE,
+    make_build,
+    validate_path_arg,
+    write_session_info,
+)
 
 log = logging.getLogger()
-logging.basicConfig(format="[ %(name)s ] [ %(levelname)s ] %(message)s", level=logging.INFO, stream=sys.stdout)
+logging.basicConfig(
+    format="[ %(name)s ] [ %(levelname)s ] %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 
 OMZ_NUM_ATTEMPTS = 6
 
@@ -38,11 +48,7 @@ def pytest_addoption(parser):
         default=Path(__file__).parent / "test_config.yml",
         help="Path to models root directory",
     )
-    parser.addoption(
-        "--sea_runtool",
-        type=Path,
-        help="Path to sea_runtool.py"
-    )
+    parser.addoption("--sea_runtool", type=Path, help="Path to sea_runtool.py")
     parser.addoption(
         "--collector_dir",
         type=Path,
@@ -102,8 +108,8 @@ def pytest_generate_tests(metafunc):
                 test_id_list.append(model["path"].split("/")[-1])
                 model["path"] = Path(expand_env_vars(model["path"]))
             model_list.append(model)
-        ids = ids + ['-'.join(test_id_list)]
-        params.append(pytest.param('-'.join(test_id_list), model_list), **extra_args)
+        ids = ids + ["-".join(test_id_list)]
+        params.append(pytest.param("-".join(test_id_list), model_list), **extra_args)
 
     metafunc.parametrize("test_id, models", params, ids=ids)
 
@@ -160,9 +166,13 @@ def openvino_ref(request, artifacts):
     build_dir = openvino_root_dir / "build_instrumented"
     openvino_ref_path = artifacts / "ref_pkg"
 
-    log.info("--openvino_ref is not specified. Preparing instrumented build at %s", build_dir)
+    log.info(
+        "--openvino_ref is not specified. Preparing instrumented build at %s", build_dir
+    )
 
-    build_target = {"sea_itt_lib": Path(build_dir / "thirdparty" / "itt_collector" / "sea_itt_lib")}
+    build_target = {
+        "sea_itt_lib": Path(build_dir / "thirdparty" / "itt_collector" / "sea_itt_lib")
+    }
 
     return_code, output = make_build(
         openvino_root_dir,
@@ -170,9 +180,11 @@ def openvino_ref(request, artifacts):
         openvino_ref_path,
         build_target=build_target,
         cmake_additional_args=["-DSELECTIVE_BUILD=COLLECT"],
-        log=log
+        log=log,
     )
-    assert return_code == 0, f"Command exited with non-zero status {return_code}:\n {output}"
+    assert (
+        return_code == 0
+    ), f"Command exited with non-zero status {return_code}:\n {output}"
 
     return openvino_ref_path
 
@@ -193,7 +205,9 @@ def test_info(request, pytestconfig):
 def save_session_info(pytestconfig, artifacts):
     """Fixture function for saving additional attributes to configuration file."""
     yield
-    write_session_info(path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info)
+    write_session_info(
+        path=artifacts / SESSION_INFO_FILE, data=pytestconfig.session_info
+    )
 
 
 @pytest.fixture(scope="session")
@@ -213,8 +227,10 @@ def omz_cache_dir(request):
         try:
             validate_path_arg(omz_cache_dir, is_dir=True)
         except ValueError:
-            log.warning(f'The Open Model Zoo cache directory'
-                        f' "{omz_cache_dir}" does not exist.')
+            log.warning(
+                f"The Open Model Zoo cache directory"
+                f' "{omz_cache_dir}" does not exist.'
+            )
 
     return omz_cache_dir
 
@@ -226,7 +242,9 @@ def prepared_models(openvino_ref, models, omz_repo, omz_cache_dir, tmpdir):
     """
     for model in models:
         if model.get("type") == "omz":
-            model["path"] = prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir)
+            model["path"] = prepare_omz_model(
+                openvino_ref, model, omz_repo, omz_cache_dir, tmpdir
+            )
     models = [model["path"] for model in models]
     return models
 
@@ -245,15 +263,21 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     model_path_root = tmpdir
 
     # Step 1: downloader
-    cmd = [f'{python_executable}', f'{downloader_path}',
-           '--name', f'{model["name"]}',
-           f'--precisions={model["precision"]}',
-           '--num_attempts', f'{OMZ_NUM_ATTEMPTS}',
-           '--output_dir', f'{model_path_root}']
+    cmd = [
+        f"{python_executable}",
+        f"{downloader_path}",
+        "--name",
+        f'{model["name"]}',
+        f'--precisions={model["precision"]}',
+        "--num_attempts",
+        f"{OMZ_NUM_ATTEMPTS}",
+        "--output_dir",
+        f"{model_path_root}",
+    ]
 
     if omz_cache_dir:
-        cmd.append('--cache_dir')
-        cmd.append(f'{omz_cache_dir}')
+        cmd.append("--cache_dir")
+        cmd.append(f"{omz_cache_dir}")
 
     return_code, output = cmd_exec(cmd, log=omz_log)
     assert return_code == 0, "Downloading OMZ models has failed!"
@@ -261,26 +285,38 @@ def prepare_omz_model(openvino_ref, model, omz_repo, omz_cache_dir, tmpdir):
     # Step 2: converter
     ir_path = model_path_root / "_IR"
     # Note: remove --precisions if both precisions (FP32 & FP16) are required
-    cmd = [f'{python_executable}', f'{converter_path}',
-           '--name', f'{model["name"]}',
-           '-p', f'{python_executable}',
-           f'--precisions={model["precision"]}',
-           '--output_dir', f'{ir_path}',
-           '--download_dir', f'{model_path_root}']
+    cmd = [
+        f"{python_executable}",
+        f"{converter_path}",
+        "--name",
+        f'{model["name"]}',
+        "-p",
+        f"{python_executable}",
+        f'--precisions={model["precision"]}',
+        "--output_dir",
+        f"{ir_path}",
+        "--download_dir",
+        f"{model_path_root}",
+    ]
 
-    return_code, output = cmd_exec(cmd, env=get_openvino_environment(openvino_ref), log=omz_log)
+    return_code, output = cmd_exec(
+        cmd, env=get_openvino_environment(openvino_ref), log=omz_log
+    )
     assert return_code == 0, "Converting OMZ models has failed!"
 
     # Step 3: info_dumper
-    cmd = [f'{python_executable}',
-           f'{info_dumper_path}',
-           '--name', f'{model["name"]}']
+    cmd = [f"{python_executable}", f"{info_dumper_path}", "--name", f'{model["name"]}']
 
     return_code, output = cmd_exec(cmd, log=omz_log)
     assert return_code == 0, "Getting information about OMZ models has failed!"
     model_info = json.loads(output)[0]
 
     # Step 4: form model_path
-    model_path = ir_path / model_info["subdirectory"] / model["precision"] / f'{model_info["name"]}.xml'
+    model_path = (
+        ir_path
+        / model_info["subdirectory"]
+        / model["precision"]
+        / f'{model_info["name"]}.xml'
+    )
 
     return model_path

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantize_inst.h"
-#include "primitive_type_base.h"
+#include <string>
+
+#include "data_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
-#include "data_inst.h"
-#include <string>
+#include "primitive_type_base.h"
+#include "quantize_inst.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(quantize)

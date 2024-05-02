@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "openvino/core/type/element_type.hpp"
 #include "low_precision/lpt_visibility.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 class LP_TRANSFORMATIONS_API AttributeParameters {
 public:
-    AttributeParameters(
-        const ov::element::Type deqPrecision = ov::element::f32,
-        const std::vector<ov::element::Type> defaultPrecisions = { ov::element::u8, ov::element::i8 })
-    : deqPrecision(deqPrecision), defaultPrecisions(defaultPrecisions) {}
+    AttributeParameters(const ov::element::Type deqPrecision = ov::element::f32,
+                        const std::vector<ov::element::Type> defaultPrecisions = {ov::element::u8, ov::element::i8})
+        : deqPrecision(deqPrecision),
+          defaultPrecisions(defaultPrecisions) {}
     ov::element::Type deqPrecision;
     std::vector<ov::element::Type> defaultPrecisions;
 };

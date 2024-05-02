@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "quantize_kernel_scale_shift_opt.h"
-#include "kernel_selector_utils.h"
+
+#include <iostream>
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 static const size_t sub_group_size = 32;
 static const size_t feature_size = 32;
@@ -46,10 +48,14 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
-    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
-               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-               output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
-               output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
+    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+               output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
+               output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         dispatchData.gws[0] = output.Z().v * output.Y().v * output.X().v;
         dispatchData.gws[1] = Align(output.Feature().v, feature_size);
         dispatchData.gws[2] = Align(output.Batch().v, feature_size);
@@ -66,15 +72,21 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
     return dispatchData;
 }
 
-JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
+JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params,
+                                                       const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
         params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
-        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         jit.AddConstant(MakeJitConstant("FEATURE_BLOCKED_FORMAT", true));
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));
         jit.AddConstant(MakeJitConstant("GWS_FEATURE", 1));
@@ -86,7 +98,8 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
     }
 
     auto can_use_output_range = params.per_tensor_output_range && params.out_lo < params.out_hi;
-    auto has_output_range_round = !(params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8);
+    auto has_output_range_round =
+        !(params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8);
 
     jit.AddConstant(MakeJitConstant("HAS_POST_SCALE", params.has_post_scale));
     jit.AddConstant(MakeJitConstant("HAS_POST_SHIFT", params.has_post_shift));

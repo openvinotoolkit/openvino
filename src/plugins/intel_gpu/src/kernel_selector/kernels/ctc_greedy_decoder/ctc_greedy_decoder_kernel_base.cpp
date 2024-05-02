@@ -3,48 +3,40 @@
 //
 
 #include "ctc_greedy_decoder_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
 
+#include "kernel_selector_utils.h"
+
 namespace kernel_selector {
-JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decoder_params& params, CTCGreedyDecoderKernelBase::DispatchData) const {
+JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decoder_params& params,
+                                                         CTCGreedyDecoderKernelBase::DispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     auto inp = params.inputs[0];
 
-    jit.AddConstants({
-        MakeJitConstant("ctc_merge_repeated_", params.merge_repeated),
-        MakeJitConstant("blank_index_", params.blank_index),
-        MakeJitConstant("C_", inp.Y().v)
-    });
+    jit.AddConstants({MakeJitConstant("ctc_merge_repeated_", params.merge_repeated),
+                      MakeJitConstant("blank_index_", params.blank_index),
+                      MakeJitConstant("C_", inp.Y().v)});
 
     if (params.outputs_num == 2) {
         if (params.inputs.size() == 3) {
-            jit.AddConstants({
-                MakeJitConstant("LEGACY_MULTIPLE_OUTPUTS", 1)
-            });
+            jit.AddConstants({MakeJitConstant("LEGACY_MULTIPLE_OUTPUTS", 1)});
         } else {
-            jit.AddConstants({
-                MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1)
-            });
+            jit.AddConstants({MakeJitConstant("NEW_MULTIPLE_OUTPUTS", 1)});
         }
-        jit.AddConstants({
-            MakeJitConstant("N_", inp.Batch().v),
-            MakeJitConstant("T_", inp.Feature().v)
-        });
+        jit.AddConstants({MakeJitConstant("N_", inp.Batch().v), MakeJitConstant("T_", inp.Feature().v)});
     } else {
-        jit.AddConstants({
-            MakeJitConstant("T_", inp.Batch().v),
-            MakeJitConstant("N_", inp.Feature().v)
-        });
+        jit.AddConstants({MakeJitConstant("T_", inp.Batch().v), MakeJitConstant("N_", inp.Feature().v)});
     }
 
     return jit;
 }
 
-CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(const ctc_greedy_decoder_params& params) const {
+CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
+    const ctc_greedy_decoder_params& params) const {
     DispatchData dispatchData;
 
-    dispatchData.gws = { 1, 1, 1 };
+    dispatchData.gws = {1, 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

@@ -23,9 +23,9 @@ public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
     using DispatchData = CommonDispatchData;
 
-    protected:
-        JitConstants GetJitConstants(const gather_tree_params& params) const;
-        DispatchData SetDefault(const gather_tree_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params) const;
+protected:
+    JitConstants GetJitConstants(const gather_tree_params& params) const;
+    DispatchData SetDefault(const gather_tree_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

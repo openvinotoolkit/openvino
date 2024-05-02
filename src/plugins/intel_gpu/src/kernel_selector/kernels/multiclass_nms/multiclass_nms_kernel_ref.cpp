@@ -46,11 +46,7 @@ namespace {
 MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& params, size_t stage_idx) {
     MulticlassNmsKernelRef::DispatchData dispatch_data;
 
-    enum KernelStages : size_t {
-        Main = 0,
-        SortAcrossBatches = 1,
-        FillOutputs = 2
-    };
+    enum KernelStages : size_t { Main = 0, SortAcrossBatches = 1, FillOutputs = 2 };
 
     if (stage_idx == KernelStages::Main || stage_idx == KernelStages::FillOutputs) {
         const auto num_batches = params.has_roisnum ? params.inputs[2].Batch().v : params.inputs[1].Batch().v;
@@ -65,7 +61,8 @@ MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& par
 }  // namespace
 
 void MulticlassNmsKernelRef::SetKernelArguments(const multiclass_nms_params& params,
-                                                size_t idx, cldnn::arguments_desc& arguments) const {
+                                                size_t idx,
+                                                cldnn::arguments_desc& arguments) const {
     for (auto i = 0; i < 2 + params.has_roisnum + 2; ++i) {
         arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i});
     }

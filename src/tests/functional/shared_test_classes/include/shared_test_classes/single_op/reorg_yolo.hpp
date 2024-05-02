@@ -4,25 +4,24 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-using ReorgYoloParamsTuple = typename std::tuple<
-    std::vector<size_t>,            // Input shape
-    size_t,                         // Stride
-    ov::element::Type,              // Model type
-    ov::test::TargetDevice          // Device name
->;
+using ReorgYoloParamsTuple = typename std::tuple<std::vector<size_t>,    // Input shape
+                                                 size_t,                 // Stride
+                                                 ov::element::Type,      // Model type
+                                                 ov::test::TargetDevice  // Device name
+                                                 >;
 
 class ReorgYoloLayerTest : public testing::WithParamInterface<ReorgYoloParamsTuple>,
-                            virtual public ov::test::SubgraphBaseStaticTest {
+                           virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple>& obj);
 
 protected:
     void SetUp() override;

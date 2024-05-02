@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include "primitive.hpp"
-#include "intel_gpu/graph/topology.hpp"
-#include "intel_gpu/graph/program.hpp"
 #include <vector>
+
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -36,7 +37,7 @@ struct condition : public primitive_base<condition> {
 
             ss << " output_map : [(outer_idx,inner_id),";
             for (auto& out_iter : output_map) {
-                ss << "(" << out_iter.first << ","<< out_iter.second << "),";
+                ss << "(" << out_iter.first << "," << out_iter.second << "),";
             }
             ss << "]}";
             return ss.str();
@@ -84,19 +85,21 @@ struct condition : public primitive_base<condition> {
     ///
     /// @param id                 An identifier of new primitive.
     /// @param inputs             A list of Input primitive ids (pred, inputs(optional)).
-    ///                           pred is condition's predicate primitive which has scalar value determining whether to execute branch_true or branch_false.
-    ///                           sometimes, if
-    /// @param branch_true        Branch containg primitives, which will be executed when pred is true. then body in ngraph
-    /// @param branch_false       Branch containg primitives, which will be executed when pred is false. else body in ngraph
+    ///                           pred is condition's predicate primitive which has scalar value determining whether to
+    ///                           execute branch_true or branch_false. sometimes, if
+    /// @param branch_true        Branch containg primitives, which will be executed when pred is true. then body in
+    /// ngraph
+    /// @param branch_false       Branch containg primitives, which will be executed when pred is false. else body in
+    /// ngraph
     /// @param output_padding     Optional padding for output from primitive.
     condition(const primitive_id& id,
-            const std::vector<input_info>& inputs,
-            const branch& branch_true,
-            const branch& branch_false,
-            const size_t num_outputs = 1)
+              const std::vector<input_info>& inputs,
+              const branch& branch_true,
+              const branch& branch_false,
+              const size_t num_outputs = 1)
         : primitive_base(id, inputs, {padding()}, {optional_data_type()}, num_outputs),
-        branch_true(branch_true),
-        branch_false(branch_false) {}
+          branch_true(branch_true),
+          branch_false(branch_false) {}
 
     branch branch_true;
     branch branch_false;
@@ -114,14 +117,16 @@ struct condition : public primitive_base<condition> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override { return {}; }
+    std::vector<input_info> get_dependencies() const override {
+        return {};
+    }
 };
 
-static inline std::ostream& operator<< (std::ostream& os, condition::branch& info) {
+static inline std::ostream& operator<<(std::ostream& os, condition::branch& info) {
     os << info.str();
     return os;
 }
 }  // namespace cldnn
-  /// @}
-  /// @}
-  /// @}
+   /// @}
+   /// @}
+   /// @}

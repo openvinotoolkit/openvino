@@ -10,6 +10,7 @@ class CheckSoftmaxNodeInputs(FrontReplacementPattern):
 
     def run_before(self):
         from openvino.tools.mo.front.user_data_repack import UserDataRepack
+
         return [UserDataRepack]
 
     def run_after(self):
@@ -19,9 +20,16 @@ class CheckSoftmaxNodeInputs(FrontReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('softmax', dict(op=lambda op: op in ['SoftMax', 'SoftmaxActivation', 'SoftmaxOutput']))
+                (
+                    "softmax",
+                    dict(
+                        op=lambda op: op
+                        in ["SoftMax", "SoftmaxActivation", "SoftmaxOutput"]
+                    ),
+                )
             ],
-            edges=[])
+            edges=[],
+        )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
@@ -34,7 +42,7 @@ class CheckSoftmaxNodeInputs(FrontReplacementPattern):
          match : dict
            Patterns which were found in graph structure.
         """
-        softmax_node = match['softmax']
+        softmax_node = match["softmax"]
         softmax_nodes_len = len(softmax_node.in_nodes())
         for i in reversed(range(1, softmax_nodes_len)):
             in_node = softmax_node.in_node(i)

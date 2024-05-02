@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(PowerLayerTest, Inference){
+TEST_P(PowerLayerTest, Inference) {
     run();
 };
 }  // namespace test

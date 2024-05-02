@@ -6,37 +6,33 @@
 
 #include <memory>
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/op/util/multi_subgraph_base.hpp"
-
-#include "transformations/utils/utils.hpp"
-#include "low_precision/lpt_itt.hpp"
-
 #include "low_precision/align_quantization_intervals.hpp"
+#include "low_precision/align_quantization_parameters.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
-#include "low_precision/markup_bias.hpp"
-#include "low_precision/markup_precisions.hpp"
-#include "low_precision/markup_can_be_quantized.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/lpt_itt.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
+#include "low_precision/markup_bias.hpp"
+#include "low_precision/markup_can_be_quantized.hpp"
+#include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_quantization_granularity.hpp"
 #include "low_precision/propagate_precisions.hpp"
-#include "low_precision/align_quantization_parameters.hpp"
-
-#include "openvino/util/log.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "low_precision/fold_convert.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/util/log.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/utils/utils.hpp"
 
 // branch specific transformations
 #include "low_precision/concat.hpp"
-
 #include "low_precision/fake_quantize_decomposition.hpp"
 
 // general transformations
@@ -49,10 +45,12 @@
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/depth_to_space.hpp"
 #include "low_precision/fake_quantize.hpp"
+#include "low_precision/gather.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/interpolate.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
+#include "low_precision/move_fake_quantize.hpp"
 #include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
 #include "low_precision/normalize_l2.hpp"
@@ -63,19 +61,17 @@
 #include "low_precision/reduce_mean.hpp"
 #include "low_precision/reduce_min.hpp"
 #include "low_precision/reduce_sum.hpp"
-#include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
-#include "low_precision/squeeze.hpp"
-#include "low_precision/subtract.hpp"
+#include "low_precision/reshape.hpp"
+#include "low_precision/shuffle_channels.hpp"
 #include "low_precision/space_to_batch.hpp"
 #include "low_precision/split.hpp"
-#include "low_precision/shuffle_channels.hpp"
+#include "low_precision/squeeze.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/subtract.hpp"
 #include "low_precision/transpose.hpp"
-#include "low_precision/gather.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
-#include "low_precision/move_fake_quantize.hpp"
 
 // cleanup transformations
 #include "itt.hpp"
@@ -90,11 +86,10 @@
 ov::pass::low_precision::LowPrecision::LowPrecision(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
     const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
-    const LayerTransformation::Params params) :
-    precisionRestrictions(precisionRestrictions),
-    quantizationRestrictions(quantizationRestrictions),
-    params(params) {
-}
+    const LayerTransformation::Params params)
+    : precisionRestrictions(precisionRestrictions),
+      quantizationRestrictions(quantizationRestrictions),
+      params(params) {}
 
 using namespace ov::pass::low_precision;
 
@@ -139,22 +134,22 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(p_node, matcher_name);
     auto match_pass = std::make_shared<ov::pass::MatcherPass>(
-            m->get_name(),
-            m,
-            [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                    OV_PASS_CALLBACK(m);
-                    bool status = callback(*m.get());
-                    // explicitly clear Matcher state because it holds pointers to matched nodes
-                    m->clear_state();
-                    return status;
-                }
+        m->get_name(),
+        m,
+        [m, callback](const std::shared_ptr<Node>& node) -> bool {
+            OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+            if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                OV_PASS_CALLBACK(m);
+                bool status = callback(*m.get());
+                // explicitly clear Matcher state because it holds pointers to matched nodes
+                m->clear_state();
+                return status;
+            }
             m->clear_state();
             return false;
-             },
-            ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+        },
+        ov::pass::PassProperty::CHANGE_DYNAMIC_STATE);
     transformation->add_matcher(match_pass);
 }
 
@@ -182,10 +177,10 @@ ov::pass::low_precision::TypeRelaxedReplacer::TypeRelaxedReplacer() {
 MarkupOptimizations::MarkupOptimizations(
     const std::vector<PrecisionsRestriction>& precisionRestrictions,
     const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
-    const AttributeParameters& params) :
-    precisionRestrictions(precisionRestrictions),
-    quantizationRestrictions(quantizationRestrictions),
-    params(params) {}
+    const AttributeParameters& params)
+    : precisionRestrictions(precisionRestrictions),
+      quantizationRestrictions(quantizationRestrictions),
+      params(params) {}
 
 bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
@@ -231,8 +226,8 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
 
     AttributeParameters attributeParams(params.deqPrecision, params.defaultPrecisions);
     manager.register_pass<ov::pass::low_precision::MarkupOptimizations>(precisionRestrictions,
-                                                                            quantizationRestrictions,
-                                                                            attributeParams);
+                                                                        quantizationRestrictions,
+                                                                        attributeParams);
 
     std::shared_ptr<ov::pass::GraphRewrite> common = manager.register_pass<ov::pass::GraphRewrite>();
 
@@ -297,9 +292,8 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::set<levels>& supported_levels) {
+bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& model,
+                                                                const std::set<levels>& supported_levels) {
     std::set<std::shared_ptr<ov::Node>> handledNodes;
     std::deque<std::shared_ptr<ov::Node>> nodes;
     for (const auto& result : model->get_results()) {
@@ -338,9 +332,8 @@ bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::isFQLevelsPresent(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::set<size_t>& levels) {
+bool ov::pass::low_precision::LowPrecision::isFQLevelsPresent(const std::shared_ptr<const ov::Model>& model,
+                                                              const std::set<size_t>& levels) {
     std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
     for (auto& node : nodes) {
         const auto fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(node);

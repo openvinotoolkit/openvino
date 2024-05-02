@@ -4,15 +4,16 @@
 
 #include "low_precision_transformations/convolution_backprop_data_transformation.hpp"
 
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
 
 #include "ov_lpt_models/convolution_backprop_data.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
+std::string ConvolutionBackpropDataTransformation::getTestCaseName(
+    const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
     ov::element::Type netPrecision;
     std::pair<ov::PartialShape, bool> inputShape;
     ov::Shape outputShape;
@@ -22,11 +23,9 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
     std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape.first, targetDevice, params) << "_" <<
-           outputShape << "_" <<
-        param.fakeQuantizeOnData << "_" <<
-        param.fakeQuantizeOnWeights << "_" <<
-        param.dequantizationOnWeights;
+    result << get_test_case_name_by_params(netPrecision, inputShape.first, targetDevice, params) << "_" << outputShape
+           << "_" << param.fakeQuantizeOnData << "_" << param.fakeQuantizeOnWeights << "_"
+           << param.dequantizationOnWeights;
     return result.str();
 }
 
@@ -37,7 +36,6 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     ov::pass::low_precision::LayerTransformation::Params params;
     ConvolutionBackpropDataTransformationParam param;
     std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
-
 
     std::shared_ptr<ov::Node> weights;
 
@@ -50,23 +48,20 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     weightsShape[1] = inputShape[1].get_length() / 2;
 
     if (!param.fakeQuantizeOnWeights.empty()) {
-        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
-            weightsShape,
-            netPrecision,
-            param.fakeQuantizeOnWeights);
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(weightsShape,
+                                                                                     netPrecision,
+                                                                                     param.fakeQuantizeOnWeights);
     } else {
-        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
-            weightsShape,
-            netPrecision,
-            param.dequantizationOnWeights);
+        weights = ov::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(weightsShape,
+                                                                                     netPrecision,
+                                                                                     param.dequantizationOnWeights);
     }
 
-    function = ov::builder::subgraph::ConvolutionBackpropDataFunction::get(
-        netPrecision,
-        inputShape,
-        outputShape,
-        param.fakeQuantizeOnData,
-        weights);
+    function = ov::builder::subgraph::ConvolutionBackpropDataFunction::get(netPrecision,
+                                                                           inputShape,
+                                                                           outputShape,
+                                                                           param.fakeQuantizeOnData,
+                                                                           weights);
 }
 
 void ConvolutionBackpropDataTransformation::run() {

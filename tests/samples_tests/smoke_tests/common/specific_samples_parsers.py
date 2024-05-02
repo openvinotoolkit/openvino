@@ -10,12 +10,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
-import sys
-import re
-import logging as log
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+import logging as log
+import os
+import re
+import sys
+
+log.basicConfig(
+    format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+)
+
 
 def parse_hello_reshape_ssd(stdout):
     """
@@ -36,24 +40,41 @@ def parse_hello_reshape_ssd(stdout):
     """
     is_ok = True
     for line in stdout:
-        if 'Resulting input shape' in line:
-            if re.match(r"^Resulting input shape\s+=\s+\[\d+,\d+,\d+,\d+]", line) is None:
+        if "Resulting input shape" in line:
+            if (
+                re.match(r"^Resulting input shape\s+=\s+\[\d+,\d+,\d+,\d+]", line)
+                is None
+            ):
                 is_ok = False
-                log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
-                          '(Example: Resulting input shape = [1,3,500,500])'.format(line))
-        elif 'Resulting output shape' in line:
-            if re.match(r"^Resulting output shape\s+=\s+\[\d+,\d+,\d+,\d+]", line) is None:
+                log.error(
+                    "Wrong output line: {}, while the test expects the following format: 4d shape"
+                    "(Example: Resulting input shape = [1,3,500,500])".format(line)
+                )
+        elif "Resulting output shape" in line:
+            if (
+                re.match(r"^Resulting output shape\s+=\s+\[\d+,\d+,\d+,\d+]", line)
+                is None
+            ):
                 is_ok = False
-                log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
-                          '(Example: Resulting output shape = [1,1,200,7])'.format(line))
-        elif 'element, prob' in line:
-            if re.match("^.*prob\\s+=.*\\d,\\s+\\(.*\\d,.*\\d\\)-\\(.*\\d,.*\\d\\)", line) is None:
+                log.error(
+                    "Wrong output line: {}, while the test expects the following format: 4d shape"
+                    "(Example: Resulting output shape = [1,1,200,7])".format(line)
+                )
+        elif "element, prob" in line:
+            if (
+                re.match(
+                    "^.*prob\\s+=.*\\d,\\s+\\(.*\\d,.*\\d\\)-\\(.*\\d,.*\\d\\)", line
+                )
+                is None
+            ):
                 is_ok = False
-                log.error('Wrong output line: {}, while the test expects the following format: 4d shape'
-                          '(Example: [33,59] element, prob = 0.963015, bbox = (189.776,110.933)-(309.288,306.952), '
-                          'batch id = 0)'.format(line))
-        elif 'was saved' in line:
-            path_result = line.split(' ')[-1].strip()
+                log.error(
+                    "Wrong output line: {}, while the test expects the following format: 4d shape"
+                    "(Example: [33,59] element, prob = 0.963015, bbox = (189.776,110.933)-(309.288,306.952), "
+                    "batch id = 0)".format(line)
+                )
+        elif "was saved" in line:
+            path_result = line.split(" ")[-1].strip()
             if not os.path.isfile(path_result):
                 log.error("Image after infer was not found: {}".format(path_result))
                 is_ok = False

@@ -2,65 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "kernel_selector_common.h"
 #include "reorder_kernel_base.h"
-#include "common_tools.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "common_tools.h"
+#include "kernel_selector_common.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 inline uint32_t SubGroupSize(WeightsLayout l) {
     switch (l) {
-        case WeightsLayout::os_iyx_osv16:
-        case WeightsLayout::os_iyx_osv32:
-        case WeightsLayout::os_iyx_osv64:
-        case WeightsLayout::os_iyx_osv16_rotate_180:
-        case WeightsLayout::os_i_osv16:
-        case WeightsLayout::os_i_osv16__ai8:
-        case WeightsLayout::i_yxs_os_yxsv2_osv16:
-        case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:
-        case WeightsLayout::os_is_yx_isv16_osv16:
-        case WeightsLayout::os_is_zyx_isv16_osv16:
-        case WeightsLayout::is_os_zyx_isv16_osv16:
-        case WeightsLayout::is_os_yx_isv16_osv16:
-        case WeightsLayout::os_is_yx_isv8_osv16_isv2:
-        case WeightsLayout::os_is_zyx_isv8_osv16_isv2:
-        case WeightsLayout::os_zyxi_osv16:
-        case WeightsLayout::g_os_iyx_osv16:
-        case WeightsLayout::g_os_iyx_osv32:
-        case WeightsLayout::gs_oiyx_gsv16:
-        case WeightsLayout::gs_oizyx_gsv16:
-        case WeightsLayout::gs_oiyx_gsv32:
-        case WeightsLayout::g_os_iyx_osv16_rotate_180:
-        case WeightsLayout::gi_yxs_os_yxsv2_osv16:
-        case WeightsLayout::g_is_os_zyx_isv16_osv16:
-        case WeightsLayout::g_is_os_yx_isv16_osv16:
-        case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
-        case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
-        case WeightsLayout::g_os_is_zyx_isv16_osv16:
-        case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
-        case WeightsLayout::g_os_is_yx_isv16_osv16:
-        case WeightsLayout::os_is_yx_osv16_isv16:
-            return 16;
-        case WeightsLayout::os_i_osv8__ai8:
-        case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
-        case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
-        case WeightsLayout::g_os_iyx_osv8:
-            return 8;
-        default:
-            return 1;
+    case WeightsLayout::os_iyx_osv16:
+    case WeightsLayout::os_iyx_osv32:
+    case WeightsLayout::os_iyx_osv64:
+    case WeightsLayout::os_iyx_osv16_rotate_180:
+    case WeightsLayout::os_i_osv16:
+    case WeightsLayout::os_i_osv16__ai8:
+    case WeightsLayout::i_yxs_os_yxsv2_osv16:
+    case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:
+    case WeightsLayout::os_is_yx_isv16_osv16:
+    case WeightsLayout::os_is_zyx_isv16_osv16:
+    case WeightsLayout::is_os_zyx_isv16_osv16:
+    case WeightsLayout::is_os_yx_isv16_osv16:
+    case WeightsLayout::os_is_yx_isv8_osv16_isv2:
+    case WeightsLayout::os_is_zyx_isv8_osv16_isv2:
+    case WeightsLayout::os_zyxi_osv16:
+    case WeightsLayout::g_os_iyx_osv16:
+    case WeightsLayout::g_os_iyx_osv32:
+    case WeightsLayout::gs_oiyx_gsv16:
+    case WeightsLayout::gs_oizyx_gsv16:
+    case WeightsLayout::gs_oiyx_gsv32:
+    case WeightsLayout::g_os_iyx_osv16_rotate_180:
+    case WeightsLayout::gi_yxs_os_yxsv2_osv16:
+    case WeightsLayout::g_is_os_zyx_isv16_osv16:
+    case WeightsLayout::g_is_os_yx_isv16_osv16:
+    case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
+    case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
+    case WeightsLayout::g_os_is_zyx_isv16_osv16:
+    case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
+    case WeightsLayout::g_os_is_yx_isv16_osv16:
+    case WeightsLayout::os_is_yx_osv16_isv16:
+        return 16;
+    case WeightsLayout::os_i_osv8__ai8:
+    case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
+    case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
+    case WeightsLayout::g_os_iyx_osv8:
+        return 8;
+    default:
+        return 1;
     }
 }
 
 inline uint32_t SubGroupSize(DataLayout l) {
     switch (l) {
-        case DataLayout::bs_f_bsv16__af8:
-            return 16;
-        case DataLayout::bs_f_bsv8__af8:
-            return 8;
-        default:
-            return 1;
+    case DataLayout::bs_f_bsv16__af8:
+        return 16;
+    case DataLayout::bs_f_bsv8__af8:
+        return 8;
+    default:
+        return 1;
     }
 }
 
@@ -114,7 +116,8 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
 
     // Type JITs:
 
-    // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16 support
+    // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16
+    // support
     bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
                       params.mode == MeanSubtractMode::NONE && params.activations.empty());
 
@@ -142,7 +145,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 
     DispatchData dispatchData;
 
-    dispatchData.gws = { out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v };
+    dispatchData.gws = {out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -156,8 +159,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     auto input_l = input.GetLayout();
     auto output_l = output.GetLayout();
     DataTensor input_tensor = input;
-    // Image formats reorders use read_image and write_image functions that operate on 4 channels at once, and support only single batch,
-    // make sure that reorder size is equal to spatials sizes only
+    // Image formats reorders use read_image and write_image functions that operate on 4 channels at once, and support
+    // only single batch, make sure that reorder size is equal to spatials sizes only
     if (input_l == DataLayout::image_2d_rgba || output_l == DataLayout::image_2d_rgba) {
         std::vector<size_t> input_sizes(4, 1);
         input_sizes[0] = input.X().v;
@@ -169,7 +172,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     if (input_l == DataLayout::fs_b_yx_fsv32) {
-        std::vector<size_t> sizes = { 32, 16, 8, 4 };
+        std::vector<size_t> sizes = {32, 16, 8, 4};
         for (auto& s : sizes) {
             if (dispatchData.gws[2] % s == 0) {
                 dispatchData.lws[0] = 1;
@@ -178,10 +181,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
                 break;
             }
         }
-    } else if ((output_l == DataLayout::bs_fs_yx_bsv16_fsv16 ||
-                output_l == DataLayout::bs_fs_yx_bsv32_fsv32 ||
-                output_l == DataLayout::b_fs_yx_fsv16 ||
-                output_l == DataLayout::bs_fs_yx_bsv32_fsv16) &&
+    } else if ((output_l == DataLayout::bs_fs_yx_bsv16_fsv16 || output_l == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+                output_l == DataLayout::b_fs_yx_fsv16 || output_l == DataLayout::bs_fs_yx_bsv32_fsv16) &&
                input.Feature().v % 16 == 0 && dispatchData.gws[1] % 16 == 0) {
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
@@ -246,7 +247,12 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
                      "",
                      false,
                      false,
@@ -255,7 +261,8 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
                      1,
                      newParams.is_shape_agnostic);
 
-    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
+    kernel.params.arguments =
+        GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }

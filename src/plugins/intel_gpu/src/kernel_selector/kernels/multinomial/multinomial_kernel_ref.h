@@ -12,9 +12,9 @@ namespace kernel_selector {
 struct multinomial_params : public base_params {
     multinomial_params() : base_params(KernelType::MULTINOMIAL) {}
 
-    ov::element::Type_t output_data_type {};
-    bool with_replacement {};
-    bool log_probs {};
+    ov::element::Type_t output_data_type{};
+    bool with_replacement{};
+    bool log_probs{};
 
     ParamsKey GetParamsKey() const override {
         return base_params::GetParamsKey();
@@ -28,9 +28,9 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 private:
-    JitConstants GetJitConstants(const multinomial_params &params) const;
-    CommonDispatchData SetDefault(const multinomial_params &params) const;
-    bool Validate(const Params &p) const override;
+    JitConstants GetJitConstants(const multinomial_params& params) const;
+    CommonDispatchData SetDefault(const multinomial_params& params) const;
+    bool Validate(const Params& p) const override;
 };
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

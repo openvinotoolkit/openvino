@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
 #include "mutable_data_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

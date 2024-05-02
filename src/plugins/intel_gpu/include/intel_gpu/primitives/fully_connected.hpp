@@ -3,9 +3,10 @@
 //
 
 #pragma once
+#include <vector>
+
 #include "intel_gpu/runtime/optionals.hpp"
 #include "primitive.hpp"
-#include <vector>
 
 namespace cldnn {
 
@@ -52,8 +53,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           weights(weights),
           bias(bias),
           input_size(input_size),
-          weights_rank(weights_rank)
-    {}
+          weights_rank(weights_rank) {}
 
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
@@ -68,12 +68,11 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const padding& output_padding = padding(),
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
-        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           input_size(input_size),
-          weights_rank(weights_rank)
-    {}
+          weights_rank(weights_rank) {}
 
     /// @brief Constructs fully connected compressed layer.
     /// @param id This primitive id.
@@ -92,7 +91,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const padding& output_padding = padding(),
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
-        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           compressed_weights(true),
@@ -100,7 +99,8 @@ struct fully_connected : public primitive_base<fully_connected> {
           decompression_zero_point(decompression_zero_point),
           input_size(input_size),
           weights_rank(weights_rank) {
-        OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
+        OPENVINO_ASSERT(!decompression_scale.empty(),
+                        "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
     /// @brief Primitive id containing weights data.
@@ -137,13 +137,12 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         auto rhs_casted = downcast<const fully_connected>(rhs);
 
-        return input_size == rhs_casted.input_size &&
-               weights_rank == rhs_casted.weights_rank &&
-               bias.empty() == rhs_casted.bias.empty() &&
-               compressed_weights == rhs_casted.compressed_weights &&
+        return input_size == rhs_casted.input_size && weights_rank == rhs_casted.weights_rank &&
+               bias.empty() == rhs_casted.bias.empty() && compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.empty() == rhs_casted.decompression_scale.empty() &&
                decompression_zero_point.empty() == rhs_casted.decompression_zero_point.empty() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
+               decompression_zero_point_scalar.value_or(0.0f) ==
+                   rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
     }
 
     void save(BinaryOutputBuffer& ob) const override {

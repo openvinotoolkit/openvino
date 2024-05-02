@@ -7,7 +7,6 @@
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
 
-
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -19,7 +18,8 @@ using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
+jit_memory_emitter::jit_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     src_prc = n->get_input_element_type(0);
     dst_prc = n->get_output_element_type(0);
@@ -40,8 +40,7 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
 }
 
-void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in,
-                            const std::vector<size_t>& out) const {
+void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -54,7 +53,7 @@ void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_load_memory_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_load_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (!load_emitter)
         OV_CPU_JIT_EMITTER_THROW("Load CPU emitter isn't initialized!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -77,8 +76,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
     in_out_type_ = emitter_in_out_map::gpr_to_vec;
 }
 
-void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in,
-                                     const std::vector<size_t>& out) const {
+void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -91,19 +89,26 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    using Vmm = typename dnnl::impl::utils::
+        conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     Reg64 in_reg(in[0]);
     Vmm vmm_dst = Vmm(out[0]);
 
-    // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for `BroadcastLoad`,
-    // key point here is not to add post-increment, it might be fixed by some other approach in future
+    // In doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for
+    // `BroadcastLoad`, key point here is not to add post-increment, it might be fixed by some other approach in future
     switch (src_prc.size()) {
-        case 4: h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + byte_offset]); break;
-        case 2: h->vpbroadcastw(vmm_dst, h->ptr[in_reg + byte_offset]); break;
-        case 1: h->vpbroadcastb(vmm_dst, h->ptr[in_reg + byte_offset]); break;
-        default: OV_CPU_JIT_EMITTER_THROW("Unsupported data type");
+    case 4:
+        h->uni_vbroadcastss(vmm_dst, h->ptr[in_reg + byte_offset]);
+        break;
+    case 2:
+        h->vpbroadcastw(vmm_dst, h->ptr[in_reg + byte_offset]);
+        break;
+    case 1:
+        h->vpbroadcastb(vmm_dst, h->ptr[in_reg + byte_offset]);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported data type");
     }
 }
 
@@ -116,8 +121,7 @@ jit_load_convert_emitter::jit_load_convert_emitter(jit_generator* h, cpu_isa_t i
     load_emitter.reset(new jit_load_emitter(h, isa, src_prc, dst_prc, count));
 }
 
-void jit_load_convert_emitter::emit_impl(const std::vector<size_t>& in,
-                                   const std::vector<size_t>& out) const {
+void jit_load_convert_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -130,7 +134,7 @@ void jit_load_convert_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_load_convert_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_load_convert_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (!load_emitter)
         OV_CPU_JIT_EMITTER_THROW("Load CPU emitter isn't initialized!");
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -140,7 +144,8 @@ void jit_load_convert_emitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_memory_emitter(h, isa, expr) {
+jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_memory_emitter(h, isa, expr) {
     if (src_prc != dst_prc)
         OV_CPU_JIT_EMITTER_THROW("supports only equal input and output types but gets: ",
                                  src_prc.get_type_name(),
@@ -154,8 +159,7 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
     store_emitter.reset(new jit_store_emitter(h, isa, src_prc, dst_prc, count));
 }
 
-void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in,
-                             const std::vector<size_t>& out) const {
+void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -168,7 +172,7 @@ void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_store_memory_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (!store_emitter)
         OV_CPU_JIT_EMITTER_THROW("Store CPU emitter isn't initialized!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -192,8 +196,7 @@ jit_store_convert_emitter::jit_store_convert_emitter(jit_generator* h, cpu_isa_t
     }
 }
 
-void jit_store_convert_emitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out) const {
+void jit_store_convert_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -206,7 +209,7 @@ void jit_store_convert_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_store_convert_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_store_convert_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (!store_emitter)
         OV_CPU_JIT_EMITTER_THROW("Store CPU emitter isn't initialized!");
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -216,5 +219,5 @@ void jit_store_convert_emitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

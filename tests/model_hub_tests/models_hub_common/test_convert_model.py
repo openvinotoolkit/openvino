@@ -3,12 +3,14 @@
 import gc
 
 import numpy as np
+
 # noinspection PyUnresolvedReferences
 import openvino_tokenizers  # do not delete, needed for text models
 from models_hub_common.multiprocessing_utils import multiprocessing_run
 from models_hub_common.utils import compare_two_tensors
-from openvino import convert_model
 from openvino.runtime import Core
+
+from openvino import convert_model
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results
@@ -37,7 +39,7 @@ class TestConvertModel:
             assert False, "Unsupported type {}".format(input_type)
 
     def prepare_inputs(self, inputs_info):
-        if len(inputs_info) > 0 and inputs_info[0] == 'list':
+        if len(inputs_info) > 0 and inputs_info[0] == "list":
             inputs = []
             inputs_info = inputs_info[1:]
             for input_name, input_shape, input_type in inputs_info:
@@ -62,21 +64,27 @@ class TestConvertModel:
         return ov_outputs
 
     def compare_results(self, fw_outputs, ov_outputs):
-        assert len(fw_outputs) == len(ov_outputs), \
-            "Different number of outputs between framework and OpenVINO:" \
+        assert len(fw_outputs) == len(ov_outputs), (
+            "Different number of outputs between framework and OpenVINO:"
             " {} vs. {}".format(len(fw_outputs), len(ov_outputs))
+        )
 
         fw_eps = 5e-2
         is_ok = True
         if isinstance(fw_outputs, np.ndarray):
-            assert isinstance(ov_outputs, np.ndarray), "OV output structure does not match FW output."
+            assert isinstance(
+                ov_outputs, np.ndarray
+            ), "OV output structure does not match FW output."
             print(f"fw_re: {fw_outputs};\n ov_res: {ov_outputs}")
             is_ok = is_ok and compare_two_tensors(fw_outputs, ov_outputs, fw_eps)
         elif isinstance(fw_outputs, dict):
             for out_name in fw_outputs.keys():
                 cur_fw_res = fw_outputs[out_name]
-                assert out_name in ov_outputs, \
-                    "OpenVINO outputs does not contain tensor with name {}".format(out_name)
+                assert (
+                    out_name in ov_outputs
+                ), "OpenVINO outputs does not contain tensor with name {}".format(
+                    out_name
+                )
                 cur_ov_res = ov_outputs[out_name]
                 is_ok = is_ok and self.compare_results(cur_fw_res, cur_ov_res)
         elif isinstance(fw_outputs, (list, tuple)):
@@ -105,7 +113,7 @@ class TestConvertModel:
         ov_model = self.convert_model(fw_model)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-        
+
         # Run original FW inference after OV inference, as original FW inference may change original FW model,
         # which results in corruption of shared memory.
         print("Infer the original model")
@@ -114,4 +122,9 @@ class TestConvertModel:
         self.compare_results(fw_outputs, ov_outputs)
 
     def run(self, model_name, model_link, ie_device):
-        multiprocessing_run(self._run, [model_name, model_link, ie_device], model_name, self.infer_timeout)
+        multiprocessing_run(
+            self._run,
+            [model_name, model_link, ie_device],
+            model_name,
+            self.infer_timeout,
+        )

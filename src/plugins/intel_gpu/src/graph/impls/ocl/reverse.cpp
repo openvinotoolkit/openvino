@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "reverse_inst.h"
 #include "reverse/reverse_kernel_ref.h"
 #include "reverse/reverse_kernel_selector.h"
+#include "reverse_inst.h"
 
 namespace cldnn {
 namespace ocl {

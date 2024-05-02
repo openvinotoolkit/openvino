@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-
 #include "matchers/subgraph/repeat_pattern.hpp"
-#include "utils/model.hpp"
-#include "utils/model_comparator.hpp"
 
 #include "base_test.hpp"
+#include "gtest/gtest.h"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
 #include "test_models/model_3.hpp"
-
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "utils/model.hpp"
+#include "utils/model_comparator.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
-
 
 // ======================= ExtractorsManagerTest Func tests =======================
 class RepeatPatternExtractorFuncTest : public SubgraphsDumperBaseTest {
@@ -37,9 +34,8 @@ protected:
         std::sort(pattern_vec.begin(), pattern_vec.end());
     }
 
-    void
-    is_equal_borders(const std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>& pattern_vec_orig,
-                     const std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>& pattern_vec_ref) {
+    void is_equal_borders(const std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>& pattern_vec_orig,
+                          const std::vector<std::vector<RepeatPatternExtractor::PatternBorders>>& pattern_vec_ref) {
         ASSERT_EQ(pattern_vec_orig.size(), pattern_vec_ref.size());
         size_t orig_borders_cnt = 0, ref_borderd_cnt = 0, eq_borders = 0;
         for (const auto& pattern_orig : pattern_vec_orig) {

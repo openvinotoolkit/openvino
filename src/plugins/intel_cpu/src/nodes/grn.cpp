@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "grn.h"
+
 #include <string>
 
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/parallel.hpp"
-#include "grn.h"
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -97,11 +98,12 @@ void GRN::execute(dnnl::stream strm) {
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;
         for (int c = 0; c < C; c++) {
-            variance += std::pow(src_data[b*C*H*W + c*H*W + h*W + w], 2);
+            variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);
         }
         variance = std::pow(variance + bias, 0.5f);
         for (int c = 0; c < C; c++) {
-            dst_data[b*C*H*W + c*H*W + h*W + w] = src_data[b*C*H*W + c*H*W + h*W + w] / static_cast<float>(variance);
+            dst_data[b * C * H * W + c * H * W + h * W + w] =
+                src_data[b * C * H * W + c * H * W + h * W + w] / static_cast<float>(variance);
         }
     });
 }
@@ -110,6 +112,6 @@ bool GRN::created() const {
     return getType() == Type::GRN;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

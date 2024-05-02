@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/shuffle_channels.hpp>
 #include <intel_gpu/primitives/strided_slice.hpp>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -35,20 +35,14 @@ void test_multiple_outputs(bool is_caching_test) {
     tensor after_strided_slice = tensor(spatial(y_size, feature_num), feature(batch_num), batch(1));
     tensor after_reshape = tensor(feature(batch_num * feature_num * y_size * x_size));
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, initial_shape });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, initial_shape});
+    auto begin = engine.allocate_memory({data_types::i32, format::bfyx, {4, 1, 1, 1}});
+    auto end = engine.allocate_memory({data_types::i32, format::bfyx, {4, 1, 1, 1}});
+    auto strides = engine.allocate_memory({data_types::i32, format::bfyx, {4, 1, 1, 1}});
 
-    set_values(begin, {
-            1, 0, 1, 0
-    });
-    set_values(end, {
-            2, 2, 4, 4
-    });
-    set_values(strides, {
-            1, 1, 1, 2
-    });
+    set_values(begin, {1, 0, 1, 0});
+    set_values(end, {2, 2, 4, 4});
+    set_values(strides, {1, 1, 1, 2});
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -57,14 +51,25 @@ void test_multiple_outputs(bool is_caching_test) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("shuffle_channels"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {6, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice",
+                               input_info("shuffle_channels"),
+                               input_info("input2"),
+                               input_info("input3"),
+                               input_info("input4"),
+                               {},
+                               {},
+                               {1},
+                               {},
+                               {},
+                               {6, 1, 1, 1}));
 
-    std::vector<T> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
-    std::vector<T> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
+    std::vector<T> input_vec = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    std::vector<T> out_vec = {0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f};
     set_values(input, input_vec);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "shuffle_channels", "reshape", "strided_slice" }));
+    config.set_property(
+        ov::intel_gpu::custom_outputs(std::vector<std::string>{"shuffle_channels", "reshape", "strided_slice"}));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -89,7 +94,7 @@ void test_multiple_outputs(bool is_caching_test) {
         ASSERT_EQ(output_ptr2[i], out_vec[i]);
 }
 
-TEST(removing_output_node, DISABLED_multiple_outputs) { // Issue 129991
+TEST(removing_output_node, DISABLED_multiple_outputs) {  // Issue 129991
     test_multiple_outputs<float>(false);
 }
 
@@ -116,14 +121,13 @@ void test_output_node_optimization(bool is_caching_test) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32,format::yxfb,{ 1, 1, 5, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {1, 1, 5, 4}});
+    auto weights = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 3, 2}});
 
-    set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
-    VVF<T> output_vec = {
-            { 20.0f, 27.0f, 38.0f },
-            { 17.0f, 19.0f, 19.0f } };
+    set_values(input, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+                       3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    set_values(weights, {1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f});
+    VVF<T> output_vec = {{20.0f, 27.0f, 38.0f}, {17.0f, 19.0f, 19.0f}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -131,7 +135,8 @@ void test_output_node_optimization(bool is_caching_test) {
     topology.add(convolution("conv", input_info("input"), "weights", "", 1, {2, 1}, {1, 1}, {0, 0}, {0, 0}, false));
     topology.add(activation("relu", input_info("conv"), activation_func::relu));
 
-    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network =
+        get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
 
     // checking the output node has the same name after output node deleting due to ReLU optimization

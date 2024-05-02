@@ -18,16 +18,14 @@ namespace subgraph {
 
 class SubtractMultiplyToMultiplyAddFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::PartialShape& inputShape,
-        const ov::element::Type precisionBeforeDequantization,
-        const ov::builder::subgraph::DequantizationOperations& dequantization,
-        const ov::element::Type precisionAfterDequantization);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::PartialShape& inputShape,
+                                                  const ov::element::Type precisionBeforeDequantization,
+                                                  const ov::builder::subgraph::DequantizationOperations& dequantization,
+                                                  const ov::element::Type precisionAfterDequantization);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::PartialShape& inputShape,
-        const ov::element::Type precision,
-        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::PartialShape& inputShape,
+                                                  const ov::element::Type precision,
+                                                  const ov::builder::subgraph::FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,

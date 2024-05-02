@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(MaxMinLayerTest, Inference){
+TEST_P(MaxMinLayerTest, Inference) {
     run();
 };
 }  // namespace test

@@ -28,10 +28,10 @@ namespace test {
 struct GWDShapeParams {
     GWDShapeParams() = default;
     GWDShapeParams(ov::Shape data_shape,
-                InputShape indices_shape,
-                int axis,
-                int64_t batch_dims,
-                int decompression_group_size = -1)
+                   InputShape indices_shape,
+                   int axis,
+                   int64_t batch_dims,
+                   int decompression_group_size = -1)
         : data_shape(std::move(data_shape)),
           indices_shape(std::move(indices_shape)),
           axis(axis),

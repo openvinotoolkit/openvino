@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/properties.hpp"
+
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
-#include "utils/precision_support.h"
-#include "utils/properties_test.hpp"
+#include <algorithm>
+
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
-
-#include <algorithm>
+#include "utils/precision_support.h"
+#include "utils/properties_test.hpp"
 
 namespace {
 
@@ -130,7 +131,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
     int32_t value = 0;
     int32_t num_streams = 1;
 
-    auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty){
+    auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty) {
         ASSERT_NO_THROW(ie.set_property("CPU", ov::num_streams(setProperty)));
         ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::num_streams));
     };
@@ -141,12 +142,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
     num_streams = ov::streams::NUMA;
 
     setGetProperty(value, num_streams);
-    ASSERT_GT(value, 0); // value has been configured automatically
+    ASSERT_GT(value, 0);  // value has been configured automatically
 
     num_streams = ov::streams::AUTO;
 
     setGetProperty(value, num_streams);
-    ASSERT_GT(value, 0); // value has been configured automatically
+    ASSERT_GT(value, 0);  // value has been configured automatically
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
@@ -210,9 +211,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 }
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    const auto expected_precision_for_performance_mode = ov::intel_cpu::hasHardwareSupport(ov::element::f16) ? ov::element::f16 : ov::element::f32;
+const auto expected_precision_for_performance_mode =
+    ov::intel_cpu::hasHardwareSupport(ov::element::f16) ? ov::element::f16 : ov::element::f32;
 #else
-    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 #endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
@@ -252,11 +254,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
-const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {
-    {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
-                                            expected_precision_for_performance_mode}},
-    {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
-                                            ov::element::f32}},
+const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode{
+    {ov::hint::ExecutionMode::PERFORMANCE,
+     {ov::hint::ExecutionMode::PERFORMANCE, expected_precision_for_performance_mode}},
+    {ov::hint::ExecutionMode::ACCURACY, {ov::hint::ExecutionMode::ACCURACY, ov::element::f32}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {
@@ -298,7 +299,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     };
 
     auto expect_inference_precision = [&](const ov::element::Type expected_value) {
-        auto inference_precision_value = ov::element::undefined;;
+        auto inference_precision_value = ov::element::undefined;
+        ;
         ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, expected_value);
     };
@@ -309,8 +311,9 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     // verify that conflicting property values work as expect
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)));
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
-    expect_execution_mode(ov::hint::ExecutionMode::PERFORMANCE); // inference_preicision does not affect execution_mode property itself
-    expect_inference_precision(ov::element::f32); // inference_preicision has more priority than performance mode
+    expect_execution_mode(
+        ov::hint::ExecutionMode::PERFORMANCE);  // inference_preicision does not affect execution_mode property itself
+    expect_inference_precision(ov::element::f32);  // inference_preicision has more priority than performance mode
 
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
@@ -320,19 +323,18 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
     ov::Core ie;
-    //check default value
+    // check default value
     ov::Any value;
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
     ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
 
-    //check set and get
-    const std::vector<ov::log::Level> logLevels = {
-        ov::log::Level::ERR,
-        ov::log::Level::NO,
-        ov::log::Level::WARNING,
-        ov::log::Level::INFO,
-        ov::log::Level::DEBUG,
-        ov::log::Level::TRACE};
+    // check set and get
+    const std::vector<ov::log::Level> logLevels = {ov::log::Level::ERR,
+                                                   ov::log::Level::NO,
+                                                   ov::log::Level::WARNING,
+                                                   ov::log::Level::INFO,
+                                                   ov::log::Level::DEBUG,
+                                                   ov::log::Level::TRACE};
 
     for (unsigned int i = 0; i < logLevels.size(); i++) {
         ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
@@ -342,11 +344,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
 
     // check throwing message
     auto property = ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RW);
-    const std::string expect_message = std::string("Wrong value DUMMY VALUE for property key ")  +
-        ov::log::level.name() + ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.";
+    const std::string expect_message = std::string("Wrong value DUMMY VALUE for property key ") +
+                                       ov::log::level.name() +
+                                       ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.";
     OV_EXPECT_THROW(ie.set_property("CPU", {{property, "DUMMY VALUE"}}),
-            ov::Exception,
-            testing::HasSubstr(expect_message));
+                    ov::Exception,
+                    testing::HasSubstr(expect_message));
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
@@ -384,4 +387,4 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 #endif
 }
 
-} // namespace
+}  // namespace

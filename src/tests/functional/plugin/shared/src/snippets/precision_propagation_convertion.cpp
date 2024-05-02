@@ -40,7 +40,8 @@ void PrecisionPropagationConvertion::SetUp() {
     std::tie(input_shapes, fake_quantize_intervals, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(input_shapes);
 
-    function = PrecisionPropagationConvertionFunction(inputDynamicShapes, ov::element::f32, fake_quantize_intervals).getOriginal();
+    function = PrecisionPropagationConvertionFunction(inputDynamicShapes, ov::element::f32, fake_quantize_intervals)
+                   .getOriginal();
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
@@ -51,6 +52,6 @@ TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

@@ -3,6 +3,7 @@
 //
 
 #include "softmax_kernel_items_class_optimized.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -11,12 +12,18 @@ static const auto workitems_per_classes = 16;
 
 inline static size_t get_class_pitch(const DataTensor& tensor, SoftmaxDim dim) {
     switch (dim) {
-        case SoftmaxDim::X: return tensor.X().pitch;
-        case SoftmaxDim::Y: return tensor.Y().pitch;
-        case SoftmaxDim::Z: return tensor.Z().pitch;
-        case SoftmaxDim::FEATURE: return tensor.Feature().pitch;
-        case SoftmaxDim::BATCH: return tensor.Batch().pitch;
-        default: return 0;
+    case SoftmaxDim::X:
+        return tensor.X().pitch;
+    case SoftmaxDim::Y:
+        return tensor.Y().pitch;
+    case SoftmaxDim::Z:
+        return tensor.Z().pitch;
+    case SoftmaxDim::FEATURE:
+        return tensor.Feature().pitch;
+    case SoftmaxDim::BATCH:
+        return tensor.Batch().pitch;
+    default:
+        return 0;
     }
 }
 
@@ -24,23 +31,23 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
     size_t item_class_count = 0;
 
     switch (dim) {
-        case SoftmaxDim::X:
-            item_class_count = input.X().v;
-            break;
-        case SoftmaxDim::Y:
-            item_class_count = input.Y().v;
-            break;
-        case SoftmaxDim::Z:
-            item_class_count = input.Z().v;
-            break;
-        case SoftmaxDim::FEATURE:
-            item_class_count = input.Feature().v;
-            break;
-        case SoftmaxDim::BATCH:
-            item_class_count = input.Batch().v;
-            break;
-        default:
-            break;
+    case SoftmaxDim::X:
+        item_class_count = input.X().v;
+        break;
+    case SoftmaxDim::Y:
+        item_class_count = input.Y().v;
+        break;
+    case SoftmaxDim::Z:
+        item_class_count = input.Z().v;
+        break;
+    case SoftmaxDim::FEATURE:
+        item_class_count = input.Feature().v;
+        break;
+    case SoftmaxDim::BATCH:
+        item_class_count = input.Batch().v;
+        break;
+    default:
+        break;
     }
 
     return item_class_count;
@@ -87,7 +94,8 @@ DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_
     return k;
 }
 
-SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(const softmax_params& params) const {
+SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(
+    const softmax_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
     auto& input = params.inputs[0];
@@ -97,12 +105,13 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
     assert(global.size() == 3);
 
     dispatchData.gws[0] = global[0];
-    dispatchData.gws[1] = global[1] * workitems_per_classes;  // we multiply it by workitems_per_classes because we split computations of
-                                                              // one "full item classes output" into multiple workitems by "full item
-                                                              // classes output" i mean N outputs where N is number of item classes.
+    dispatchData.gws[1] =
+        global[1] * workitems_per_classes;  // we multiply it by workitems_per_classes because we split computations of
+                                            // one "full item classes output" into multiple workitems by "full item
+                                            // classes output" i mean N outputs where N is number of item classes.
     dispatchData.gws[2] = global[2];
 
-    dispatchData.lws = { 1, static_cast<size_t>(workitems_per_classes), 1 };
+    dispatchData.lws = {1, static_cast<size_t>(workitems_per_classes), 1};
 
     dispatchData.dataSetsCount = dispatchData.gws[2];
     dispatchData.dataSetSize = GetItemClassCount(input, params.dim);
@@ -117,7 +126,8 @@ KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params
     return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params,
+                                                              DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     // sub_group_block_write requires

@@ -6,24 +6,20 @@
 
 #include <tuple>
 
+#include "base_test.hpp"
 #include "gtest/gtest.h"
-
 #include "matchers/subgraph/read_value_assign.hpp"
-#include "utils/model.hpp"
-#include "utils/model_comparator.hpp"
-
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "test_models/model_0.hpp"
 #include "test_models/model_4.hpp"
 #include "test_models/model_5.hpp"
-#include "base_test.hpp"
-
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
+#include "utils/model.hpp"
+#include "utils/model_comparator.hpp"
 
 namespace {
 
 using namespace ov::tools::subgraph_dumper;
-
 
 // ======================= ExtractorsManagerTest Unit tests =======================
 class ReadValueAssignExtractorTest : public SubgraphsDumperBaseTest {

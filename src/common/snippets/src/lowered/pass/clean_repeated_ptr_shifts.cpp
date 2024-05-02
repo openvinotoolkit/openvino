@@ -4,17 +4,18 @@
 
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr) {
+bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager,
+                                                      const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
@@ -25,7 +26,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
 
     std::set<size_t> resetting_data_indexes;
     std::set<size_t> buffers_ids;
-    // We count expressions only on inputs of Loop because we can only read from the same data but not write to the same data.
+    // We count expressions only on inputs of Loop because we can only read from the same data but not write to the same
+    // data.
     //       Parameter
     //        |    |
     //    Load_0  Load_1
@@ -63,7 +65,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
                 if (buffers_ids.count(buffer->get_id()) == 0) {
                     buffers_ids.insert(buffer->get_id());
                 } else {
-                    // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for resetting
+                    // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for
+                    // resetting
                     resetting_data_indexes.insert(input_count + i);
                 }
             } else if (ov::is_type<op::LoopEnd>(child_node)) {
@@ -89,7 +92,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     if (const auto loop_end_dynamic = ov::as_type_ptr<op::LoopEndDynamic>(loop_end_expr->get_node())) {
         for (auto idx_to_drop : resetting_data_indexes) {
             new_is_incremented[idx_to_drop] = false;
-            auto& loop_port = idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
+            auto& loop_port =
+                idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
             loop_port.is_incremented = false;
         }
     } else if (const auto loop_end_static = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node())) {
@@ -99,7 +103,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             new_ptr_increments[idx_to_drop] = 0;
             new_finalization_offsets[idx_to_drop] = 0;
             new_is_incremented[idx_to_drop] = false;
-            auto& loop_port = idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
+            auto& loop_port =
+                idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
             loop_port.ptr_increment = 0;
             loop_port.finalization_offset = 0;
             loop_port.is_incremented = false;
@@ -113,7 +118,9 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     return true;
 }
 
-bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir,
+                                         lowered::LinearIR::constExprIt begin,
+                                         lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
     bool modified = false;
 
@@ -129,7 +136,7 @@ bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir, lowered::
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

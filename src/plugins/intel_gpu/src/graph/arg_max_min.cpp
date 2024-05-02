@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+#include <string>
+
 #include "arg_max_min_inst.h"
-#include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
-#include <limits>
-
+#include "primitive_type_base.h"
 #include "topk_shape_inference.hpp"
 
 namespace cldnn {
@@ -66,8 +66,9 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};
 }
 
-template<typename ShapeType>
-std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const& /*node*/,
+                                                          const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<arg_max_min>();
@@ -80,17 +81,14 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     op.set_sort_type(desc->sort);
 
     std::vector<ShapeType> output_shapes = {ShapeType{}, ShapeType{}};
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        ShapeType{}
-    };
+    std::vector<ShapeType> input_shapes = {input_layout.get<ShapeType>(), ShapeType{}};
 
     auto& constant_mem = impl_param.memory_deps;
     if (desc->top_k > 0) {
         std::unordered_map<size_t, ov::Tensor> const_data;
         auto topk = desc->top_k;
         auto top_k_tensor = ov::Tensor(ov::element::u32, ov::Shape{1}, static_cast<void*>(&topk));
-        const_data = { {1, top_k_tensor} };
+        const_data = {{1, top_k_tensor}};
 
         output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (constant_mem.count(1)) {
@@ -111,7 +109,9 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     return layouts;
 }
 
-template std::vector<layout> arg_max_min_inst::calc_output_layouts<ov::PartialShape>(arg_max_min_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> arg_max_min_inst::calc_output_layouts<ov::PartialShape>(
+    arg_max_min_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     auto desc = node.get_primitive();

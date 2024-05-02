@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/arg_max_min.hpp>
-#include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
 
 #include "arg_max_min_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -32,7 +29,7 @@ struct arg_max_min_test_params {
     std::vector<layout> expected_layouts;
 };
 
-class arg_max_min_test : public testing::TestWithParam<arg_max_min_test_params> { };
+class arg_max_min_test : public testing::TestWithParam<arg_max_min_test_params> {};
 
 TEST_P(arg_max_min_test, shape_infer) {
     auto p = GetParam();
@@ -62,10 +59,17 @@ TEST_P(arg_max_min_test, shape_infer) {
         input_prim_ids.push_back(input_info(prim_id));
     }
 
-    auto arg_max_min_prim = std::make_shared<arg_max_min>("output", p.inputs.empty() ? input_prim_ids : p.inputs,
-                                                          p.mode, p.top_k, p.axis,
-                                                          ov::op::TopKSortType::SORT_VALUES, false, false, padding(),
-                                                          p.output_data_type, p.num_outputs);
+    auto arg_max_min_prim = std::make_shared<arg_max_min>("output",
+                                                          p.inputs.empty() ? input_prim_ids : p.inputs,
+                                                          p.mode,
+                                                          p.top_k,
+                                                          p.axis,
+                                                          ov::op::TopKSortType::SORT_VALUES,
+                                                          false,
+                                                          false,
+                                                          padding(),
+                                                          p.output_data_type,
+                                                          p.num_outputs);
     std::vector<padding> output_paddings;
     std::vector<optional_data_type> output_data_types;
     for (size_t i = 0; i < p.num_outputs; i++) {
@@ -80,53 +84,76 @@ TEST_P(arg_max_min_test, shape_infer) {
         program_wrapper::add_connection(prog, input_layout_node, arg_max_min_node);
     }
 
-    auto res = arg_max_min_inst::calc_output_layouts<ov::PartialShape>(arg_max_min_node, *arg_max_min_node.get_kernel_impl_params());
+    auto res = arg_max_min_inst::calc_output_layouts<ov::PartialShape>(arg_max_min_node,
+                                                                       *arg_max_min_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), p.num_outputs);
     for (size_t i = 0; i < p.expected_layouts.size(); i++)
         ASSERT_EQ(res[i], p.expected_layouts[i]);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, arg_max_min_test,
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    arg_max_min_test,
     testing::ValuesIn(std::vector<arg_max_min_test_params>{
-        {
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
-            ov::op::TopKMode::MIN, 2, 0, data_types::f32, {}, 1,
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
-            ov::op::TopKMode::MIN, 1, 2, data_types::i32, {}, 1,
-            {layout{ov::PartialShape{2, 4, 1, 2}, data_types::i32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 4, 2, 2, 1}, data_types::f32, format::bfzyx}},
-            ov::op::TopKMode::MIN, 2, 0, data_types::i32, {}, 1,
-            {layout{ov::PartialShape{2, 4, 2, 2, 1}, data_types::i32, format::bfzyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
-            ov::op::TopKMode::MIN, 2, 0, data_types::f32, {}, 1,
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx}},
-            ov::op::TopKMode::MIN, 2, 0, data_types::f32, {input_info("input", 0), input_info("const0", 0)}, 2,
-            {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}
-        },
-        {
-            {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
-             layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
-            ov::op::TopKMode::MIN, 2, 0, data_types::f32, {input_info("input", 0), input_info("const0", 0)}, 2,
-            {layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-                    data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-                    data_types::f32, format::bfyx}}
-        },
+        {{layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
+         ov::op::TopKMode::MIN,
+         2,
+         0,
+         data_types::f32,
+         {},
+         1,
+         {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}},
+        {{layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
+         ov::op::TopKMode::MIN,
+         1,
+         2,
+         data_types::i32,
+         {},
+         1,
+         {layout{ov::PartialShape{2, 4, 1, 2}, data_types::i32, format::bfyx}}},
+        {{layout{ov::PartialShape{2, 4, 2, 2, 1}, data_types::f32, format::bfzyx}},
+         ov::op::TopKMode::MIN,
+         2,
+         0,
+         data_types::i32,
+         {},
+         1,
+         {layout{ov::PartialShape{2, 4, 2, 2, 1}, data_types::i32, format::bfzyx}}},
+        {{layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}},
+         ov::op::TopKMode::MIN,
+         2,
+         0,
+         data_types::f32,
+         {},
+         1,
+         {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}},
+        {{layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx}},
+         ov::op::TopKMode::MIN,
+         2,
+         0,
+         data_types::f32,
+         {input_info("input", 0), input_info("const0", 0)},
+         2,
+         {layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx},
+          layout{ov::PartialShape{2, 4, 2, 2}, data_types::f32, format::bfyx}}},
+        {{layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+          layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
+         ov::op::TopKMode::MIN,
+         2,
+         0,
+         data_types::f32,
+         {input_info("input", 0), input_info("const0", 0)},
+         2,
+         {layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                 data_types::f32,
+                 format::bfyx},
+          layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                 data_types::f32,
+                 format::bfyx}}},
     }));
 
 }  // namespace shape_infer_tests

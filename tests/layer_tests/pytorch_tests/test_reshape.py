@@ -3,7 +3,6 @@
 
 import numpy as np
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -26,16 +25,19 @@ class TestReshape(PytorchLayerTest):
 
         return aten_reshape(shape), ref_net, "aten::reshape"
 
-    @pytest.mark.parametrize(("shape"), [
-        [-1, 6],
-        [12, 12, 24, 1],
-        [12, 12, 12, 2],
-        [12, -1, 12, 24],
-        [24, 12, 12, 1],
-        [24, 12, 12, -1],
-        [24, 1, -1, 12],
-        [24, 1, 1, -1, 12],
-    ])
+    @pytest.mark.parametrize(
+        ("shape"),
+        [
+            [-1, 6],
+            [12, 12, 24, 1],
+            [12, 12, 12, 2],
+            [12, -1, 12, 24],
+            [24, 12, 12, 1],
+            [24, 12, 12, -1],
+            [24, 1, -1, 12],
+            [24, 1, 1, -1, 12],
+        ],
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export

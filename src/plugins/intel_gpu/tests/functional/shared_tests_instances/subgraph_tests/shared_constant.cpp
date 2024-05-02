@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace ov::test;
 
@@ -19,7 +19,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes {
+        std::vector<InputShape> input_shapes{
             {ov::PartialShape{1}, {{1}}},
             {ov::PartialShape{1}, {{1}}},
             {ov::PartialShape{2}, {{2}}},
@@ -51,12 +51,10 @@ protected:
         auto add3 = std::make_shared<ov::op::v1::Add>(p3, c3);
 
         ov::ParameterVector params{p0, p1, p2, p3};
-        ov::ResultVector results {
-            std::make_shared<ov::op::v0::Result>(add0->output(0)),
-            std::make_shared<ov::op::v0::Result>(add1->output(0)),
-            std::make_shared<ov::op::v0::Result>(add2->output(0)),
-            std::make_shared<ov::op::v0::Result>(add3->output(0))
-        };
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add0->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(add1->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(add2->output(0)),
+                                 std::make_shared<ov::op::v0::Result>(add3->output(0))};
         function = std::make_shared<ov::Model>(results, params, "SharedConstantGPUTest");
 
         this->configuration.insert({ov::hint::inference_precision(ov::element::f32)});
@@ -69,6 +67,6 @@ TEST_F(SharedConstantGPUTest, CompareWithRefs) {
     run();
 }
 
-} // namespace intel_gpu
-} // namespace test
-} // namespace ov
+}  // namespace intel_gpu
+}  // namespace test
+}  // namespace ov

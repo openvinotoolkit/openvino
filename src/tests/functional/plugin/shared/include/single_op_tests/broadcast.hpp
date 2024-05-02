@@ -11,5 +11,5 @@ namespace test {
 TEST_P(BroadcastLayerTest, CompareWithRefs) {
     run();
 }
-} //  namespace test
-} //  namespace ov
+}  //  namespace test
+}  //  namespace ov

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <map>
-#include <vector>
 #include <cctype>
+#include <map>
 #include <string>
+#include <vector>
 
 /// \brief Class providing interface to retrieve a list of primitive implementations per primitive id
 ///
@@ -22,7 +22,9 @@ struct primitive_db {
     primitive_db();
 
     std::vector<code> get(const primitive_id& id) const;
-    std::vector<code> get_batch_header_str() const { return std::move(batch_header_str); }
+    std::vector<code> get_batch_header_str() const {
+        return std::move(batch_header_str);
+    }
 
 private:
     struct case_insensitive_compare {
@@ -31,7 +33,9 @@ private:
                                                 lhs.end(),
                                                 rhs.begin(),
                                                 rhs.end(),
-                                                [](const char& a, const char& b) { return tolower(a) < tolower(b); });
+                                                [](const char& a, const char& b) {
+                                                    return tolower(a) < tolower(b);
+                                                });
         }
     };
     std::multimap<primitive_id, code, case_insensitive_compare> primitives;

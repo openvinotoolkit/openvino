@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/roi_pooling.hpp"
-#include "openvino/op/psroi_pooling.hpp"
-#include "openvino/op/deformable_psroi_pooling.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -25,7 +24,8 @@ static cldnn::pooling_mode GetPoolingMode(std::string method) {
         return cldnn::pooling_mode::deformable_bilinear;
 }
 
-static void CreateDeformablePSROIPoolingOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& op) {
+static void CreateDeformablePSROIPoolingOp(ProgramBuilder& p,
+                                           const std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& op) {
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

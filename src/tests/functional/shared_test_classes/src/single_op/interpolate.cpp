@@ -5,10 +5,10 @@
 #include "shared_test_classes/single_op/interpolate.hpp"
 
 #include "common_test_utils/test_enums.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -31,7 +31,16 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
     ov::op::v4::Interpolate::CoordinateTransformMode coordinate_transform_mode;
     ov::op::v4::Interpolate::NearestMode nearest_mode;
     double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    std::tie(mode,
+             shape_calc_mode,
+             coordinate_transform_mode,
+             nearest_mode,
+             antialias,
+             pad_begin,
+             pad_end,
+             cube_coef,
+             axes,
+             scales) = interpolate_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -81,24 +90,38 @@ void InterpolateLayerTest::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
 
     double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    std::tie(mode,
+             shape_calc_mode,
+             coordinate_transform_mode,
+             nearest_mode,
+             antialias,
+             pad_begin,
+             pad_end,
+             cube_coef,
+             axes,
+             scales) = interpolate_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto sizes_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
+    auto sizes_input =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{target_shape.size()}, target_shape);
 
     auto scales_input = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{scales.size()}, scales);
 
-    ov::op::v4::Interpolate::InterpolateAttrs interpolate_attributes{mode, shape_calc_mode, pad_begin,
-        pad_end, coordinate_transform_mode, nearest_mode, antialias, cube_coef};
+    ov::op::v4::Interpolate::InterpolateAttrs interpolate_attributes{mode,
+                                                                     shape_calc_mode,
+                                                                     pad_begin,
+                                                                     pad_end,
+                                                                     coordinate_transform_mode,
+                                                                     nearest_mode,
+                                                                     antialias,
+                                                                     cube_coef};
 
     std::shared_ptr<ov::op::v4::Interpolate> interpolate;
     if (axes.empty()) {
-        interpolate = std::make_shared<ov::op::v4::Interpolate>(param,
-                                                                sizes_input,
-                                                                scales_input,
-                                                                interpolate_attributes);
+        interpolate =
+            std::make_shared<ov::op::v4::Interpolate>(param, sizes_input, scales_input, interpolate_attributes);
     } else {
         auto axesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
 
@@ -122,15 +145,16 @@ std::string Interpolate11LayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 namespace {
-std::shared_ptr<ov::op::v0::Constant> make_scales_or_sizes_input(ov::op::util::InterpolateBase::ShapeCalcMode shape_calc_mode,
-                                                                        const std::vector<size_t>& sizes,
-                                                                        const std::vector<float>& scales) {
+std::shared_ptr<ov::op::v0::Constant> make_scales_or_sizes_input(
+    ov::op::util::InterpolateBase::ShapeCalcMode shape_calc_mode,
+    const std::vector<size_t>& sizes,
+    const std::vector<float>& scales) {
     if (shape_calc_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SIZES)
         return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{sizes.size()}, sizes);
     else
         return std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{scales.size()}, scales);
 }
-}
+}  // namespace
 void Interpolate11LayerTest::SetUp() {
     InterpolateSpecificParams interpolate_params;
     ov::element::Type model_type;
@@ -150,28 +174,39 @@ void Interpolate11LayerTest::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
 
     double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    std::tie(mode,
+             shape_calc_mode,
+             coordinate_transform_mode,
+             nearest_mode,
+             antialias,
+             pad_begin,
+             pad_end,
+             cube_coef,
+             axes,
+             scales) = interpolate_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
     auto scales_orsizes_input = make_scales_or_sizes_input(shape_calc_mode, target_shape, scales);
 
-    ov::op::util::InterpolateBase::InterpolateAttrs interpolate_attributes{mode, shape_calc_mode, pad_begin,
-        pad_end, coordinate_transform_mode, nearest_mode, antialias, cube_coef};
+    ov::op::util::InterpolateBase::InterpolateAttrs interpolate_attributes{mode,
+                                                                           shape_calc_mode,
+                                                                           pad_begin,
+                                                                           pad_end,
+                                                                           coordinate_transform_mode,
+                                                                           nearest_mode,
+                                                                           antialias,
+                                                                           cube_coef};
 
     std::shared_ptr<ov::op::v11::Interpolate> interpolate{};
     if (axes.empty()) {
-        interpolate = std::make_shared<ov::op::v11::Interpolate>(param,
-                                                                     scales_orsizes_input,
-                                                                     interpolate_attributes);
+        interpolate = std::make_shared<ov::op::v11::Interpolate>(param, scales_orsizes_input, interpolate_attributes);
     } else {
         auto axesInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
 
-        interpolate = std::make_shared<ov::op::v11::Interpolate>(param,
-                                                                     scales_orsizes_input,
-                                                                     axesInput,
-                                                                     interpolate_attributes);
+        interpolate =
+            std::make_shared<ov::op::v11::Interpolate>(param, scales_orsizes_input, axesInput, interpolate_attributes);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(interpolate);

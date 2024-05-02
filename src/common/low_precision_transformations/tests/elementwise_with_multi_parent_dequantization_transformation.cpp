@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <sstream>
+#include <string>
 #include <utility>
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
-
+#include "layer_transformation.hpp"
 #include "low_precision/add.hpp"
-#include "ov_lpt_models/elementwise_with_multi_parent_dequantization.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/elementwise_with_multi_parent_dequantization.hpp"
+#include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -50,47 +47,44 @@ public:
     Expected expected;
 };
 
-class ElementwiseWithMultiParentDequantizationTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<ElementwiseWithMultiParentDequantizationTransformationTestValues> {
+class ElementwiseWithMultiParentDequantizationTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<ElementwiseWithMultiParentDequantizationTransformationTestValues> {
 public:
     void SetUp() override {
         const ElementwiseWithMultiParentDequantizationTransformationTestValues testValues = GetParam();
 
-        actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
-            testValues.precision,
-            testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
-            testValues.actual.precision1,
-            testValues.actual.dequantization1,
-            testValues.actual.precision2,
-            testValues.actual.dequantization2);
+        actualFunction =
+            ElementwiseWithMultiParentDequantizationFunction::get(testValues.precision,
+                                                                  testValues.inputShape,
+                                                                  TestTransformationParams::toParams(testValues.params),
+                                                                  testValues.actual.precision1,
+                                                                  testValues.actual.dequantization1,
+                                                                  testValues.actual.precision2,
+                                                                  testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
-            testValues.precision,
-            testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
-            testValues.expected.precision1,
-            testValues.expected.dequantization1,
-            testValues.expected.precision2,
-            testValues.expected.dequantization2);
+        referenceFunction =
+            ElementwiseWithMultiParentDequantizationFunction::get(testValues.precision,
+                                                                  testValues.inputShape,
+                                                                  TestTransformationParams::toParams(testValues.params),
+                                                                  testValues.expected.precision1,
+                                                                  testValues.expected.dequantization1,
+                                                                  testValues.expected.precision2,
+                                                                  testValues.expected.dequantization2);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<ElementwiseWithMultiParentDequantizationTransformationTestValues> obj) {
+    static std::string getTestCaseName(
+        testing::TestParamInfo<ElementwiseWithMultiParentDequantizationTransformationTestValues> obj) {
         const ElementwiseWithMultiParentDequantizationTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result <<
-            testValues.precision << "_" <<
-            testValues.inputShape << "_" <<
-            testValues.actual.precision1 << "_" <<
-            testValues.actual.dequantization1 << "_" <<
-            testValues.actual.precision2 << "_" <<
-            testValues.actual.dequantization2;
+        result << testValues.precision << "_" << testValues.inputShape << "_" << testValues.actual.precision1 << "_"
+               << testValues.actual.dequantization1 << "_" << testValues.actual.precision2 << "_"
+               << testValues.actual.dequantization2;
         return result.str();
     }
 };
@@ -103,45 +97,29 @@ TEST_P(ElementwiseWithMultiParentDequantizationTransformation, CompareFunctions)
 
 const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValues> addTransformationTestValues = {
     // U8
-    {
-        ov::element::f32,
-        ov::Shape{1, 4, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ov::element::u8,
-            { {ov::element::f32},  { 7.f }, { 10.f }},
-            ov::element::u8,
-            {},
-        },
-        {
-            ov::element::u8,
-            { {ov::element::f32},  { 7.f }, { 10.f }},
-            ov::element::u8,
-            {},
-        }
-    },
+    {ov::element::f32,
+     ov::Shape{1, 4, 16, 16},
+     LayerTransformation::createParamsU8I8(),
+     {
+         ov::element::u8,
+         {{ov::element::f32}, {7.f}, {10.f}},
+         ov::element::u8,
+         {},
+     },
+     {
+         ov::element::u8,
+         {{ov::element::f32}, {7.f}, {10.f}},
+         ov::element::u8,
+         {},
+     }},
     // U8
-    {
-        ov::element::f32,
-        ov::Shape{1, 4, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            { {ov::element::f32},  { 7.f }, { 10.f }}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            { {ov::element::f32},  { 7.f }, { 10.f }}
-        }
-    }
-};
+    {ov::element::f32,
+     ov::Shape{1, 4, 16, 16},
+     LayerTransformation::createParamsU8I8(),
+     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {7.f}, {10.f}}},
+     {ov::element::u8, {}, ov::element::u8, {{ov::element::f32}, {7.f}, {10.f}}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ElementwiseWithMultiParentDequantizationTransformation,
-    ::testing::ValuesIn(addTransformationTestValues),
-    ElementwiseWithMultiParentDequantizationTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ElementwiseWithMultiParentDequantizationTransformation,
+                         ::testing::ValuesIn(addTransformationTestValues),
+                         ElementwiseWithMultiParentDequantizationTransformation::getTestCaseName);

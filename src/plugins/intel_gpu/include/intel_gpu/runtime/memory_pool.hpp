@@ -4,15 +4,15 @@
 
 #pragma once
 
+#include <atomic>
+#include <list>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "layout.hpp"
 #include "memory_caps.hpp"
-
-#include <vector>
-#include <set>
-#include <map>
-#include <list>
-#include <string>
-#include <atomic>
 
 namespace cldnn {
 
@@ -32,10 +32,13 @@ struct memory_user {
     primitive_id _prim_id;
 
     memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id)
-        : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id) {}
+        : _unique_id(unique_id),
+          _network_id(network_id),
+          _prim_id(prim_id) {}
 
     friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user) {
-        os << memory_user._prim_id << " (unique_id:" << memory_user._unique_id << ", net_id:" << memory_user._network_id << ")";
+        os << memory_user._prim_id << " (unique_id:" << memory_user._unique_id << ", net_id:" << memory_user._network_id
+           << ")";
         return os;
     }
 };

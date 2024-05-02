@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <intel_gpu/plugin/common_utils.hpp>
-#include "intel_gpu/plugin/program_builder.hpp"
-#include <intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp>
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+
+#include <intel_gpu/plugin/common_utils.hpp>
+#include <intel_gpu/primitives/experimental_detectron_prior_grid_generator.hpp>
+
+#include "intel_gpu/plugin/program_builder.hpp"
 
 namespace ov {
 namespace intel_gpu {

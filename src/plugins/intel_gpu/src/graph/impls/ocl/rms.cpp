@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "rms_inst.h"
-#include "rms/rms_kernel_selector.h"
 #include "rms/rms_kernel_ref.h"
+#include "rms/rms_kernel_selector.h"
+#include "rms_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -59,16 +58,9 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
 namespace detail {
 
 attach_rms_impl::attach_rms_impl() {
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i32
-    };
+    auto types = {data_types::f32, data_types::f16, data_types::i32};
 
-    auto formats = {
-        format::bfyx,
-        format::bfzyx
-    };
+    auto formats = {format::bfyx, format::bfzyx};
 
     implementation_map<rms>::add(impl_types::ocl,
                                  shape_types::any,

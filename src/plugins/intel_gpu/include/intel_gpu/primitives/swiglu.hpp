@@ -26,10 +26,10 @@ struct swiglu : public primitive_base<swiglu> {
            const int64_t& split_lengths,
            const tensor output_size,
            const padding& output_padding = padding())
-           : primitive_base(id, {input}, {output_padding}),
-             axis(axis),
-             split_lengths(split_lengths),
-             output_size(output_size) {}
+        : primitive_base(id, {input}, {output_padding}),
+          axis(axis),
+          split_lengths(split_lengths),
+          output_size(output_size) {}
 
     int64_t axis = 0;
     int64_t split_lengths = 0;

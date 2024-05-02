@@ -2,14 +2,16 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import pytest
 from sys import platform
-from openvino import compile_model, Model
-from openvino.runtime import Extension
+
+import numpy as np
 import openvino.runtime.opset8 as ov
+import pytest
+from openvino.runtime import Extension
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
+
+from openvino import Model, compile_model
 
 
 def test_node_factory_add():
@@ -48,7 +50,9 @@ def test_node_factory_topk():
     factory = NodeFactory("opset1")
     arguments = NodeFactory._arguments_as_outputs([data, const])
     node = factory.create(
-        "TopK", arguments, {"axis": 1, "mode": "max", "sort": "value"},
+        "TopK",
+        arguments,
+        {"axis": 1, "mode": "max", "sort": "value"},
     )
     attributes = node.get_attributes()
 
@@ -90,7 +94,9 @@ def test_node_factory_validate_missing_arguments():
 
     try:
         factory.create(
-            "TopK", None, {"axis": 1, "mode": "max", "sort": "value"},
+            "TopK",
+            None,
+            {"axis": 1, "mode": "max", "sort": "value"},
         )
     except UserInputError:
         pass

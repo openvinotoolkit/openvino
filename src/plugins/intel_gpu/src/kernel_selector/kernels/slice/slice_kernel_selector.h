@@ -20,4 +20,4 @@ public:
     KernelsData GetBestKernels(const Params& params) const override;
 };
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

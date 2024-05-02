@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <memory>
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
-
-#include "base/ov_behavior_test_utils.hpp"
 
 using namespace ::testing;
 
@@ -80,7 +79,7 @@ TEST(CustomOp, CanReadValidCustomOpConfig) {
 TEST(CustomOp, NoRedundantReordersInserted) {
     ov::Core core;
     auto model = get_simple_model_with_custom_op();
-    ov::AnyMap config = { ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH}};
+    ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", TEST_CUSTOM_OP_CONFIG_PATH}};
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
     auto runtime_graph = compiled_model.get_runtime_model();
@@ -88,10 +87,11 @@ TEST(CustomOp, NoRedundantReordersInserted) {
     auto ops = runtime_graph->get_ordered_ops();
     ASSERT_EQ(ops.size(), 3);
     ASSERT_STREQ(ops[0]->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>().c_str(), "Input");
-    ASSERT_STREQ(ops[1]->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>().c_str(), "CustomGPUPrimitive");
+    ASSERT_STREQ(ops[1]->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>().c_str(),
+                 "CustomGPUPrimitive");
     ASSERT_STREQ(ops[2]->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>().c_str(), "Result");
 }
 
-} // namespace intel_gpu
-} // namespace test
-} // namespace ov
+}  // namespace intel_gpu
+}  // namespace test
+}  // namespace ov

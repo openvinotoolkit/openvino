@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -22,15 +22,15 @@ struct assign : public primitive_base<assign> {
     /// @param inputs Input parameters ids
     /// @param variable_id Variable id
     /// @param output_layout Memory layout
-    assign(const primitive_id &id,
+    assign(const primitive_id& id,
            const std::vector<input_info>& inputs,
            const std::string& variable_id,
            const layout& output_layout,
            const ov::element::Type& user_specified_type = ov::element::undefined)
-      : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
-        variable_id{variable_id},
-        output_layout{output_layout},
-        user_specified_type(user_specified_type) {}
+        : primitive_base(id, inputs, {padding()}, {optional_data_type{output_layout.data_type}}),
+          variable_id{variable_id},
+          output_layout{output_layout},
+          user_specified_type(user_specified_type) {}
 
     std::string variable_id;
     layout output_layout;
@@ -42,8 +42,7 @@ struct assign : public primitive_base<assign> {
 
         auto rhs_casted = downcast<const assign>(rhs);
 
-        return variable_id == rhs_casted.variable_id &&
-               user_specified_type == rhs_casted.user_specified_type;
+        return variable_id == rhs_casted.variable_id && user_specified_type == rhs_casted.user_specified_type;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

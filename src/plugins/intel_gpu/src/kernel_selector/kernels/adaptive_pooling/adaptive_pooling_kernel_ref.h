@@ -25,6 +25,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 protected:
     bool Validate(const Params& p) const override;
 };

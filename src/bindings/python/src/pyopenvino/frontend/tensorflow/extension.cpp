@@ -3,7 +3,6 @@
 //
 
 #include "extension.hpp"
-#include "utils.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -13,11 +12,11 @@
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/extension/op.hpp"
+#include "utils.hpp"
 
 namespace py = pybind11;
 
 using namespace ov::frontend::tensorflow;
-
 
 void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
     py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
@@ -44,10 +43,9 @@ void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
 }
 
 void regclass_frontend_tensorflow_OpExtension(py::module m) {
-    py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(
-            m,
-            "OpExtensionTensorflow",
-            py::dynamic_attr());
+    py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(m,
+                                                                                               "OpExtensionTensorflow",
+                                                                                               py::dynamic_attr());
 
     ext.def(py::init([](const std::string& fw_type_name,
                         const std::map<std::string, std::string>& attr_names_map,
@@ -57,7 +55,8 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
                 return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
-            }), py::arg("fw_type_name"),
+            }),
+            py::arg("fw_type_name"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, ov::Any>());
 

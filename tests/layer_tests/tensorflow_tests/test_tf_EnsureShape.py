@@ -9,10 +9,12 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestEnsureShape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'tensor:0' in inputs_info
-        tensor_shape = inputs_info['tensor:0']
+        assert "tensor:0" in inputs_info
+        tensor_shape = inputs_info["tensor:0"]
         inputs_data = {}
-        inputs_data['tensor:0'] = np.random.randint(-10, 10, tensor_shape).astype(self.input_type)
+        inputs_data["tensor:0"] = np.random.randint(-10, 10, tensor_shape).astype(
+            self.input_type
+        )
         return inputs_data
 
     def create_ensure_shape_net(self, input_shape, input_type, target_shape):
@@ -20,7 +22,7 @@ class TestEnsureShape(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tensor = tf.compat.v1.placeholder(input_type, input_shape, 'tensor')
+            tensor = tf.compat.v1.placeholder(input_type, input_shape, "tensor")
             shape = tf.constant(target_shape, dtype=tf.int32)
             reshape = tf.raw_ops.Reshape(tensor=tensor, shape=shape)
             tf.raw_ops.EnsureShape(input=reshape, shape=target_shape)
@@ -37,10 +39,16 @@ class TestEnsureShape(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_ensure_shape_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
-        if ie_device == 'GPU':
+    def test_ensure_shape_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        if ie_device == "GPU":
             pytest.skip("timeout issue on GPU")
-        self._test(*self.create_ensure_shape_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(
+            *self.create_ensure_shape_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

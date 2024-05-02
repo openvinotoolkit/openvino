@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.scale_shift import ScaleShiftOp
 
 
 class RescaleFrontExtractor(FrontExtractorOp):
-    op = 'rescale'
+    op = "rescale"
     enabled = True
 
     @classmethod
@@ -17,6 +17,6 @@ class RescaleFrontExtractor(FrontExtractorOp):
         read_learning_info(pb)
         weights = read_binary_vector(pb)
         mapping_rule = {}
-        embed_input(mapping_rule, 1, 'weights', weights)
+        embed_input(mapping_rule, 1, "weights", weights)
         ScaleShiftOp.update_node_stat(node, mapping_rule)
         return cls.enabled

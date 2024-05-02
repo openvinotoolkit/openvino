@@ -5,19 +5,21 @@
 # exp paddle model generator
 #
 
-import paddle
-import numpy as np
-from save_model import saveModel
 import sys
+
+import numpy as np
+import paddle
+from save_model import saveModel
 
 
 def exp(name: str, x):
     import paddle
+
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
-        if paddle.__version__ >= '2.0.0':
+        node_x = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
+        if paddle.__version__ >= "2.0.0":
             out = paddle.exp(x=node_x)
         else:
             out = paddle.fluid.layers.exp(x=node_x)
@@ -26,12 +28,17 @@ def exp(name: str, x):
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
 
-        outs = exe.run(
-            feed={'x': x},
-            fetch_list=[out])
+        outs = exe.run(feed={"x": x}, fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[
-                  x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(
+            name,
+            exe,
+            feedkeys=["x"],
+            fetchlist=[out],
+            inputs=[x],
+            outputs=[outs[0]],
+            target_dir=sys.argv[1],
+        )
 
     return outs[0]
 

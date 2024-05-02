@@ -12,8 +12,8 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-/// \brief Similar to common v6::ReadValue, but it's not derived from ReadValueBase class to avoid ReadValue-Assign pairing check
-/// This is needed to have ReadValue-KVCache pair instead of ReadValue-Assign
+/// \brief Similar to common v6::ReadValue, but it's not derived from ReadValueBase class to avoid ReadValue-Assign
+/// pairing check This is needed to have ReadValue-KVCache pair instead of ReadValue-Assign
 class ReadValue : public ov::op::Op, public ov::op::util::VariableExtension {
 public:
     OPENVINO_OP("ReadValue", "gpu_opset");
@@ -35,6 +35,6 @@ public:
     }
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov

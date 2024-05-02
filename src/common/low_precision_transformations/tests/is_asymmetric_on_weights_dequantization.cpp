@@ -4,15 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/weightable_layer_transformation.hpp"
 #include <memory>
 #include <sstream>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "layer_transformation.hpp"
+#include "low_precision/weightable_layer_transformation.hpp"
 #include "ov_lpt_models/convolution.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -42,12 +42,12 @@ public:
 
         actualFunction =
             ov::builder::subgraph::ConvolutionFunction::getOriginal(netPrecision,
-                                                                        testValues.precisionBeforeDequantization,
-                                                                        inputShape,
-                                                                        testValues.dequantizationOnActivations,
-                                                                        testValues.weights,
-                                                                        {},
-                                                                        testValues.dequantizationOnWeights);
+                                                                    testValues.precisionBeforeDequantization,
+                                                                    inputShape,
+                                                                    testValues.dequantizationOnActivations,
+                                                                    testValues.weights,
+                                                                    {},
+                                                                    testValues.dequantizationOnWeights);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<IsAsymmetricOnWeightsDequantizationParams> obj) {
@@ -58,8 +58,8 @@ public:
         std::ostringstream result;
         result << toString(testValues.params) << "_" << netPrecision << "_" << inputShape << "_"
                << testValues.precisionBeforeDequantization << "_" << testValues.dequantizationOnActivations << "_"
-               << "_weights_" << testValues.weights->get_element_type() << "_"
-               << "{ " << testValues.weights->cast_vector<float>()[0] << " }_" << testValues.dequantizationOnWeights;
+               << "_weights_" << testValues.weights->get_element_type() << "_" << "{ "
+               << testValues.weights->cast_vector<float>()[0] << " }_" << testValues.dequantizationOnWeights;
         return result.str();
     }
 };
@@ -72,10 +72,9 @@ TEST_P(IsAsymmetricOnWeightsDequantizationTransformation, CompareFunctions) {
 
     IsAsymmetricOnWeightsDequantizationTestValues testValues = std::get<2>(GetParam());
 
-    const auto isAsymmetricOnWeights =
-        ov::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(
-            convolutions[0],
-            testValues.params.defaultPrecisions);
+    const auto isAsymmetricOnWeights = ov::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(
+        convolutions[0],
+        testValues.params.defaultPrecisions);
     ASSERT_EQ(testValues.isAsymmetricOnWeights, isAsymmetricOnWeights);
 }
 

@@ -63,7 +63,9 @@ public:
         in_data.range = data_size * 5;
         in_data.resolution = 10;
         in_data.seed = 7235346;
-        ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+        ov::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
+                                                                        targetInputStaticShapes[0],
+                                                                        in_data);
         ov::Tensor tensorBucket =
             ov::test::utils::create_and_fill_tensor_unique_sequence(funcInputs[1].get_element_type(),
                                                                     targetInputStaticShapes[1],

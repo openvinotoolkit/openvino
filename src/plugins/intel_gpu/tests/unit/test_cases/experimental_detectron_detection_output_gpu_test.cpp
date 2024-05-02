@@ -59,7 +59,7 @@ struct ExperimentalDetectronDetectionOutputParams {
 
 template <typename T>
 using ExperimentalDetectronDetectionOutputParamsWithLayout =
-        std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type, bool>;
+    std::tuple<ExperimentalDetectronDetectionOutputParams<T>, format::type, bool>;
 
 template <typename T>
 struct experimental_detectron_detection_output_test
@@ -143,7 +143,8 @@ public:
         const primitive_id eddo_id = "experimental_detectron_detection_output";
         topology.add(reorder(eddo_id, input_info(b_eddo_primitive) /*b_eddo_id*/, format::bfyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_boxes_id, input_boxes);
         network->set_input_data(input_deltas_id, input_deltas);
@@ -169,7 +170,8 @@ public:
         const primitive_id output_classes_id = "OutputClasses";
         cldnn::topology reorder_classes_topology;
         reorder_classes_topology.add(input_layout(b_output_classes_id, output_classes_layout));
-        reorder_classes_topology.add(reorder(output_classes_id, input_info(b_output_classes_id), format::bfyx, data_types::i32));
+        reorder_classes_topology.add(
+            reorder(output_classes_id, input_info(b_output_classes_id), format::bfyx, data_types::i32));
         cldnn::network reorder_classes_net{engine, reorder_classes_topology, get_test_default_config(engine)};
         reorder_classes_net.set_input_data(b_output_classes_id, b_output_classes);
         const auto classes_result = reorder_classes_net.execute();
@@ -207,83 +209,78 @@ TEST_P(experimental_detectron_detection_output_test_f16, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-const std::vector<format::type> layouts{
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32};
+const std::vector<format::type> layouts{format::bfyx,
+                                        format::b_fs_yx_fsv16,
+                                        format::b_fs_yx_fsv32,
+                                        format::bs_fs_yx_bsv16_fsv16,
+                                        format::bs_fs_yx_bsv32_fsv16,
+                                        format::bs_fs_yx_bsv32_fsv32};
 
 template <typename T>
 std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetectronDetectionOutputParams() {
     std::vector<ExperimentalDetectronDetectionOutputParams<T>> params = {
-        {
-            0.01000000074505806f,       // score_threshold
-            0.2f,                       // nms_threshold
-            2.0f,                       // max_delta_log_wh
-            2,                          // num_classes
-            500,                        // post_nms_count
-            5,                          // max_detections_per_image
-            true,                       // class_agnostic_box_regression
-            {10.0f, 10.0f, 5.0f, 5.0f}, // deltas_weights
-            16,                         // roi count
+        {0.01000000074505806f,        // score_threshold
+         0.2f,                        // nms_threshold
+         2.0f,                        // max_delta_log_wh
+         2,                           // num_classes
+         500,                         // post_nms_count
+         5,                           // max_detections_per_image
+         true,                        // class_agnostic_box_regression
+         {10.0f, 10.0f, 5.0f, 5.0f},  // deltas_weights
+         16,                          // roi count
 
-            // boxes
-            getValues<T>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
+         // boxes
+         getValues<T>({1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f,  4.0f,  1.0f, 8.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
 
-            // deltas
-            getValues<T>(
-                {5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+         // deltas
+         getValues<T>({5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
-                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
 
-            // scores
-            getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
+         // scores
+         getValues<T>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                       1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}),
 
-            // im_info
-            getValues<T>({1.0f, 1.0f, 1.0f}),
+         // im_info
+         getValues<T>({1.0f, 1.0f, 1.0f}),
 
-            // out_boxes
-            getValues<T>({0.8929862f,
-                          0.892986297607421875,
-                          12.10701370239257812,
-                          12.10701370239257812,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0f,
-                          0.0}),
+         // out_boxes
+         getValues<T>({0.8929862f,
+                       0.892986297607421875,
+                       12.10701370239257812,
+                       12.10701370239257812,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0f,
+                       0.0}),
 
-            // out_classes
-            std::vector<int32_t>{1, 0, 0, 0, 0},
+         // out_classes
+         std::vector<int32_t>{1, 0, 0, 0, 0},
 
-            // out_scores
-            getValues<T>({1.0f, 0.0f, 0.0f, 0.0f, 0.0f})
-        },
+         // out_scores
+         getValues<T>({1.0f, 0.0f, 0.0f, 0.0f, 0.0f})},
         {
             0.01000000074505806f,        // score_threshold
             0.2f,                        // nms_threshold
@@ -322,9 +319,8 @@ std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetect
             getValues<T>({16.0f, 12.0f, 1.0f}),
 
             // out_boxes
-            getValues<T>({ 0.0f, 0.892987f, 10.107f, 12.107f, 0.0f, 0.0f, 0.0f, 0.0f,
-                           0.0f, 0.0f,       0.0f,    0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-                           0.0f, 0.0f,       0.0f,    0.0f}),
+            getValues<T>({0.0f, 0.892987f, 10.107f, 12.107f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f,      0.0f,    0.0f,    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}),
 
             // out_classes
             std::vector<int32_t>{1, 0, 0, 0, 0},
@@ -392,12 +388,11 @@ std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetect
             }),
 
             // out_boxes
-            getValues<T>({ 0.0f,     2.97829f, 14.8295f,  11.1221f, 0.0f,     6.29737f, 16.2088f,  16.3451f,
-                           4.37184f, 6.41816f,  6.03075f, 15.934f,  5.95092f, 3.66966f,  6.81878f, 16.9983f,
-                           0.0f,     5.64766f, 17.3085f,  12.3716f, 1.31074f, 9.12453f, 13.1104f,  10.6441f,
-                           3.24828f, 7.11447f,  9.16656f, 10.1058f, 0.0f,     0.0f,     10.0008f,  14.6173f,
-                           4.20346f, 0.0f,      8.5746f,  18.8736f, 0.0f,     0.0f,     15.661f,   22.4114f}
-            ),
+            getValues<T>({0.0f,     2.97829f, 14.8295f, 11.1221f, 0.0f,     6.29737f, 16.2088f, 16.3451f,
+                          4.37184f, 6.41816f, 6.03075f, 15.934f,  5.95092f, 3.66966f, 6.81878f, 16.9983f,
+                          0.0f,     5.64766f, 17.3085f, 12.3716f, 1.31074f, 9.12453f, 13.1104f, 10.6441f,
+                          3.24828f, 7.11447f, 9.16656f, 10.1058f, 0.0f,     0.0f,     10.0008f, 14.6173f,
+                          4.20346f, 0.0f,     8.5746f,  18.8736f, 0.0f,     0.0f,     15.661f,  22.4114f}),
 
             // out_classes
             std::vector<int32_t>({
@@ -433,24 +428,20 @@ std::vector<ExperimentalDetectronDetectionOutputParams<T>> getExperimentalDetect
 
 INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
                          experimental_detectron_detection_output_test_f32,
-                         testing::Combine(
-                             ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<float>()),
-                             ::testing::ValuesIn(layouts),
-                             ::testing::Values(false)
-                         ));
+                         testing::Combine(::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<float>()),
+                                          ::testing::ValuesIn(layouts),
+                                          ::testing::Values(false)));
 
-INSTANTIATE_TEST_SUITE_P(experimental_detectron_detection_output_gpu_test,
-                         experimental_detectron_detection_output_test_f16,
-                         testing::Combine(
-                             ::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<ov::float16>()),
-                             ::testing::ValuesIn(layouts),
-                             ::testing::Values(false)
-                         ));
+INSTANTIATE_TEST_SUITE_P(
+    experimental_detectron_detection_output_gpu_test,
+    experimental_detectron_detection_output_test_f16,
+    testing::Combine(::testing::ValuesIn(getExperimentalDetectronDetectionOutputParams<ov::float16>()),
+                     ::testing::ValuesIn(layouts),
+                     ::testing::Values(false)));
 
-INSTANTIATE_TEST_SUITE_P(export_import,
-                         experimental_detectron_detection_output_test_f16,
-                         testing::Combine(
-                             ::testing::Values(getExperimentalDetectronDetectionOutputParams<ov::float16>()[0]),
-                             ::testing::Values(layouts[0]),
-                             ::testing::Values(true)
-                         ));
+INSTANTIATE_TEST_SUITE_P(
+    export_import,
+    experimental_detectron_detection_output_test_f16,
+    testing::Combine(::testing::Values(getExperimentalDetectronDetectionOutputParams<ov::float16>()[0]),
+                     ::testing::Values(layouts[0]),
+                     ::testing::Values(true)));

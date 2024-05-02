@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <iomanip>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "pass_manager.h"
 #include "program_node.h"
-
-#include <iomanip>
-#include <string>
-#include <vector>
-#include <memory>
-#include <utility>
-#include <map>
 
 using namespace cldnn;
 

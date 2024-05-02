@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+
 #include "common/fake_quantize_on_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 
@@ -15,10 +16,9 @@ namespace subgraph {
 
 class FuseFakeQuantizeAndScaleShiftFunction {
 public:
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type precision,
-        const ov::PartialShape& inputShape,
-        const FakeQuantizeOnData& fakeQuantizeOnData);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type precision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const FakeQuantizeOnData& fakeQuantizeOnData);
 };
 
 }  // namespace subgraph

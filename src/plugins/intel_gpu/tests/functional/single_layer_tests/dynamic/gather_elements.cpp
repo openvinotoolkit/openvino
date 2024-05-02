@@ -2,23 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/gather_elements.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-using GatherElementsParams = std::tuple<
-        std::vector<InputShape>,           // Dynamic shape + Target static shapes
-        int,                               // Axis
-        ov::element::Type,                 // Data type
-        ov::element::Type,                 // Indices type
-        std::string>;                      // Device name
+using GatherElementsParams = std::tuple<std::vector<InputShape>,  // Dynamic shape + Target static shapes
+                                        int,                      // Axis
+                                        ov::element::Type,        // Data type
+                                        ov::element::Type,        // Indices type
+                                        std::string>;             // Device name
 
 class GatherElementsGPUTest : public testing::WithParamInterface<GatherElementsParams>,
                               virtual public ov::test::SubgraphBaseTest {
@@ -60,7 +59,9 @@ public:
             in_data.start_from = 0;
             in_data.range = 15;
             in_data.resolution = 32768;
-            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                             targetInputStaticShapes[i],
+                                                             in_data);
 
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -91,19 +92,18 @@ TEST_P(GatherElementsGPUTest, Inference) {
 }
 
 const std::vector<std::vector<InputShape>> inDynamicShapeParams = {
-    {{{-1, -1, -1, -1}, {{2, 3, 5, 7}, {3, 4, 6, 8}}},
-     {{-1, -1, -1, -1}, {{2, 3, 9, 7}, {3, 4, 4, 8}}}},
+    {{{-1, -1, -1, -1}, {{2, 3, 5, 7}, {3, 4, 6, 8}}}, {{-1, -1, -1, -1}, {{2, 3, 9, 7}, {3, 4, 4, 8}}}},
     {{{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{3, 4, 6, 8}, {2, 3, 5, 7}}},
-     {{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{3, 4, 4, 8}, {2, 3, 9, 7}}}}
-};
+     {{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{3, 4, 4, 8}, {2, 3, 9, 7}}}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsGPUTest,
-                ::testing::Combine(
-                    ::testing::ValuesIn(inDynamicShapeParams),                // shape
-                    ::testing::ValuesIn(std::vector<int>({2, -2})),           // Axis
-                    ::testing::ValuesIn(std::vector<ov::element::Type>({ov::element::f16, ov::element::f32})),
-                    ::testing::Values(ov::element::i32),
-                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        GatherElementsGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_set1,
+                         GatherElementsGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),       // shape
+                                            ::testing::ValuesIn(std::vector<int>({2, -2})),  // Axis
+                                            ::testing::ValuesIn(std::vector<ov::element::Type>({ov::element::f16,
+                                                                                                ov::element::f32})),
+                                            ::testing::Values(ov::element::i32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         GatherElementsGPUTest::getTestCaseName);
 
-} // namespace
+}  // namespace

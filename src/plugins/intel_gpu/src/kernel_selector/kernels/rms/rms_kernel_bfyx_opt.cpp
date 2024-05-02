@@ -3,8 +3,10 @@
 //
 
 #include "rms_kernel_bfyx_opt.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
@@ -33,33 +35,29 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         DimensionAccessHelper dims(input);
         std::string data_size;
         switch (params.ov_input_rank) {
-            case 1 :
-                data_size = dims.b();
-                break;
-            case 2 :
-                data_size = dims.f();
-                break;
-            case 3 :
-                data_size = dims.y();
-                break;
-            default:
-                data_size = dims.x();
-                break;
+        case 1:
+            data_size = dims.b();
+            break;
+        case 2:
+            data_size = dims.f();
+            break;
+        case 3:
+            data_size = dims.y();
+            break;
+        default:
+            data_size = dims.x();
+            break;
         }
 
         const std::string lws_0 = "get_local_size(0)";
-        jit.AddConstants({
-            MakeJitConstant("DATA_SIZE", data_size),
-            MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize)
-        });
+        jit.AddConstants({MakeJitConstant("DATA_SIZE", data_size),
+                          MakeJitConstant("LWS", lws_0),
+                          MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize)});
     } else {
-        jit.AddConstants({
-            MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
-            MakeJitConstant("LWS", dispatchData.slmSize),
-            MakeJitConstant("SLM_SIZE", dispatchData.slmSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers)
-        });
+        jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
+                          MakeJitConstant("LWS", dispatchData.slmSize),
+                          MakeJitConstant("SLM_SIZE", dispatchData.slmSize),
+                          MakeJitConstant("LEFTOVERS", dispatchData.leftovers)});
     }
     jit.AddConstants({
         MakeJitConstant("VEC_SIZE", vec_size),
@@ -88,22 +86,22 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
         switch (params.ov_input_rank) {
-            case 1:
-                dispatchData.dataSize = input.Batch().v;
-                dispatchData.dataCount = 1;
-                break;
-            case 2:
-                dispatchData.dataSize = input.Feature().v;
-                dispatchData.dataCount = input.Batch().v;
-                break;
-            case 3:
-                dispatchData.dataSize = input.Y().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v;
-                break;
-            default:
-                dispatchData.dataSize = input.X().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
-                break;
+        case 1:
+            dispatchData.dataSize = input.Batch().v;
+            dispatchData.dataCount = 1;
+            break;
+        case 2:
+            dispatchData.dataSize = input.Feature().v;
+            dispatchData.dataCount = input.Batch().v;
+            break;
+        case 3:
+            dispatchData.dataSize = input.Y().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v;
+            break;
+        default:
+            dispatchData.dataSize = input.X().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
+            break;
         }
 
         dispatchData.slmSize = dispatchData.dataSize / vec_size;
@@ -133,7 +131,8 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
             return false;
         }
         auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
-        auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+        auto max_lws =
+            std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
         auto slm_size = data_size / vec_size;
         if (slm_size > max_lws) {
             return false;

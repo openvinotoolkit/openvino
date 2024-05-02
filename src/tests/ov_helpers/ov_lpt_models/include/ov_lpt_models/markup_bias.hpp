@@ -5,9 +5,9 @@
 #pragma once
 
 #include <memory>
-#include "openvino/core/model.hpp"
 
 #include "common/builders.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace builder {

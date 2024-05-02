@@ -7,15 +7,13 @@ from openvino.tools.mo.ops.flatten import FlattenONNX
 
 
 class FlattenFrontExtractor(FrontExtractorOp):
-    op = 'Flatten'
+    op = "Flatten"
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        axis = onnx_attr(node, 'axis', 'i', 1)
-        attrs = {
-            'axis': axis
-        }
+        axis = onnx_attr(node, "axis", "i", 1)
+        attrs = {"axis": axis}
 
         FlattenONNX.update_node_stat(node, attrs)
         return cls.enabled

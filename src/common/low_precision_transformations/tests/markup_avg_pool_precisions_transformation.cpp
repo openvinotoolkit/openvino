@@ -4,6 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <string>
+
+#include "layer_transformation.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/fake_quantize.hpp"
@@ -13,15 +17,11 @@
 #include "low_precision/low_precision.hpp"
 #include "low_precision/max_pool.hpp"
 #include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
-#include <memory>
-#include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "layer_transformation.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -69,13 +69,13 @@ public:
 
         actualFunction =
             ov::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getOriginal(precision,
-                                                                                    testValues.actual.inputPrecision,
-                                                                                    shape,
-                                                                                    addFakeQuantize,
-                                                                                    additionalLayer,
-                                                                                    testValues.actual.dequantization,
-                                                                                    1,
-                                                                                    0);
+                                                                                testValues.actual.inputPrecision,
+                                                                                shape,
+                                                                                addFakeQuantize,
+                                                                                additionalLayer,
+                                                                                testValues.actual.dequantization,
+                                                                                1,
+                                                                                0);
 
         ov::pass::low_precision::TypeRelaxedReplacer pass;
         pass.run_on_model(actualFunction);
@@ -87,8 +87,7 @@ public:
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation);
         transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::AvgPoolTransformation>();
         transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::ConvolutionTransformation>();
-        transform.commonGraphRewrite
-            ->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>();
+        transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>();
         transform.commonGraphRewrite->add_matcher<ov::pass::low_precision::MaxPoolTransformation>();
         transform.cleanup->add_matcher<ov::pass::low_precision::FakeQuantizeTransformation>();
         transform.cleanup->add_matcher<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
@@ -191,9 +190,7 @@ const std::vector<MarkupAvgPoolPrecisionsTransformationTestValues> testValues = 
          {{}, {{128.f, 128.f, 128.f}}, {{3.f, 3.f, 3.f}}},
      }},
     // U8 without dequantization
-    {LayerTransformation::createParamsU8I8(),
-     {ov::element::f32, {}},
-     {ov::element::f32, {}, ov::element::f32, {}}},
+    {LayerTransformation::createParamsU8I8(), {ov::element::f32, {}}, {ov::element::f32, {}, ov::element::f32, {}}},
     // U8 not update precisions
     {LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
      {ov::element::f32, {{}, {128.f}, {0.02f}}},
@@ -226,9 +223,7 @@ const std::vector<MarkupAvgPoolPrecisionsTransformationTestValues> testValues = 
          {{}, {{64.f, 64.f, 64.f}}, {{3.f, 3.f, 3.f}}},
      }},
     // I8 without dequantization
-    {LayerTransformation::createParamsI8I8(),
-     {ov::element::f32, {}},
-     {ov::element::f32, {}, ov::element::f32, {}}},
+    {LayerTransformation::createParamsI8I8(), {ov::element::f32, {}}, {ov::element::f32, {}, ov::element::f32, {}}},
     // I8 not update precisions
     {LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
      {ov::element::f32, {{}, {128.f}, {0.02f}}},

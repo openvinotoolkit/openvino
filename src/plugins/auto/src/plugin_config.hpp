@@ -5,14 +5,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "utils/log.hpp"
 #include "utils/log_util.hpp"
-#include "openvino/runtime/device_id_parser.hpp"
-#include <string>
-#include <map>
-#include <vector>
 
 namespace ov {
 namespace auto_plugin {
@@ -24,7 +25,7 @@ public:
     virtual bool is_valid(const ov::Any& v) const = 0;
 };
 
-template<typename T>
+template <typename T>
 class PropertyTypeValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
@@ -58,7 +59,9 @@ public:
 class PluginConfig {
 public:
     PluginConfig();
-    PluginConfig(std::initializer_list<ov::AnyMap::value_type> values) { set_property(ov::AnyMap(values)); }
+    PluginConfig(std::initializer_list<ov::AnyMap::value_type> values) {
+        set_property(ov::AnyMap(values));
+    }
 
     void set_default();
     void set_property(const ov::AnyMap& properties);
@@ -68,31 +71,37 @@ public:
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
 
-    void register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator = nullptr);
+    void register_property_impl(const ov::AnyMap::value_type& property,
+                                ov::PropertyMutability mutability,
+                                BaseValidator::Ptr validator = nullptr);
 
     template <typename T, ov::PropertyMutability mutability>
     void register_property_impl(const ov::Property<T, mutability>&);
 
-    template <typename... PropertyInitializer, typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
-    void register_property_impl() { }
+    template <typename... PropertyInitializer,
+              typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
+    void register_property_impl() {}
 
     template <typename ValueT, typename... PropertyInitializer>
-    void register_property_impl(const std::tuple<ov::device::Priorities, ValueT>& property, PropertyInitializer&&... properties) {
+    void register_property_impl(const std::tuple<ov::device::Priorities, ValueT>& property,
+                                PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<std::string>>());
         register_property_impl(std::move(p), ov::PropertyMutability::RW, std::move(v));
         register_property_impl(properties...);
     }
 
-    template <typename T,  ov::PropertyMutability mutability, typename... PropertyInitializer>
-    void register_property_impl(const std::tuple<ov::Property<T, mutability>>& property, PropertyInitializer&&... properties) {
+    template <typename T, ov::PropertyMutability mutability, typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::Property<T, mutability>>& property,
+                                PropertyInitializer&&... properties) {
         auto p = std::get<0>(property);
         register_property_impl(std::move(p));
         register_property_impl(properties...);
     }
 
-    template <typename T,  ov::PropertyMutability mutability, typename ValueT, typename... PropertyInitializer>
-    void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
+    template <typename T, ov::PropertyMutability mutability, typename ValueT, typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property,
+                                PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<T>>());
         register_property_impl(std::move(p), mutability, std::move(v));
@@ -104,8 +113,9 @@ public:
               typename ValueT,
               typename ValidatorT,
               typename... PropertyInitializer>
-    typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type
-    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+    typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type register_property_impl(
+        const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property,
+        PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<ValidatorT>(std::get<2>(property)));
         register_property_impl(std::move(p), mutability, std::move(v));
@@ -147,12 +157,14 @@ public:
                 supported_configKeys.push_back(iter.first);
         }
         auto multi_supported_configKeys = supported_configKeys;
-        multi_supported_configKeys.erase(std::remove(
-                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_startup_fallback.name()),
-                                multi_supported_configKeys.end());
-        multi_supported_configKeys.erase(std::remove(
-                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
-                                multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(multi_supported_configKeys.begin(),
+                                                     multi_supported_configKeys.end(),
+                                                     ov::intel_auto::enable_startup_fallback.name()),
+                                         multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(multi_supported_configKeys.begin(),
+                                                     multi_supported_configKeys.end(),
+                                                     ov::intel_auto::enable_runtime_fallback.name()),
+                                         multi_supported_configKeys.end());
         return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
@@ -162,12 +174,14 @@ public:
             supported_properties.push_back(ov::PropertyName(iter.first, iter.second.as<ov::PropertyMutability>()));
 
         auto multi_supported_properties = supported_properties;
-        multi_supported_properties.erase(std::remove(
-                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_startup_fallback),
-                                multi_supported_properties.end());
-        multi_supported_properties.erase(std::remove(
-                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
-                                multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::enable_startup_fallback),
+                                         multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::enable_runtime_fallback),
+                                         multi_supported_properties.end());
         return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
 
@@ -222,12 +236,12 @@ public:
     }
 
 private:
-    ov::AnyMap internal_properties;   // internal supported properties for auto/multi
-    ov::AnyMap user_properties;       // user set properties, including secondary properties
-    ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
-    ov::AnyMap property_mutabilities; // mutability for supported properties installation
+    ov::AnyMap internal_properties;    // internal supported properties for auto/multi
+    ov::AnyMap user_properties;        // user set properties, including secondary properties
+    ov::AnyMap full_properties;        // combined with user set properties, including secondary properties
+    ov::AnyMap property_mutabilities;  // mutability for supported properties installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
     static const std::set<std::string> device_block_list;
 };
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

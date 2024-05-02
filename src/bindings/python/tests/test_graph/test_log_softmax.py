@@ -4,6 +4,7 @@
 
 import numpy as np
 import openvino.runtime.opset8 as ov
+
 from openvino import Shape, Type
 
 

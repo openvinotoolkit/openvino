@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "register.hpp"
+#include "openvino/op/concat.hpp"
+
 #include "concatenation_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/concat.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -53,7 +52,8 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "concat::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -75,7 +75,8 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
             auto& dep = instance.dependencies().at(i);
             if (dep.first->get_output_layout().count() > 0) {
                 auto mem_ptr = instance.dep_memory_ptr(i);
-                input_host_tensors.push_back(make_tensor(params->input_layouts[i], mem_ptr->lock(stream, mem_lock_type::read)));
+                input_host_tensors.push_back(
+                    make_tensor(params->input_layouts[i], mem_ptr->lock(stream, mem_lock_type::read)));
                 // push mem_ptr to input_mem_ptr to unlock after processing
                 input_mem_ptrs.push_back(mem_ptr);
             }
@@ -93,7 +94,8 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute concat primitive with id ", instance.id());
+                        "[GPU] Couldn't execute concat primitive with id ",
+                        instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
@@ -109,7 +111,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -118,7 +120,6 @@ public:
         return make_unique<concatenation_impl>();
     }
 };
-
 
 namespace detail {
 
@@ -138,8 +139,16 @@ attach_concatenation_impl::attach_concatenation_impl() {
         data_types::u8,
     };
 
-    implementation_map<concatenation>::add(impl_types::cpu, shape_types::static_shape, concatenation_impl::create, types, formats);
-    implementation_map<concatenation>::add(impl_types::cpu, shape_types::dynamic_shape, concatenation_impl::create, types, formats);
+    implementation_map<concatenation>::add(impl_types::cpu,
+                                           shape_types::static_shape,
+                                           concatenation_impl::create,
+                                           types,
+                                           formats);
+    implementation_map<concatenation>::add(impl_types::cpu,
+                                           shape_types::dynamic_shape,
+                                           concatenation_impl::create,
+                                           types,
+                                           formats);
 }
 
 }  // namespace detail

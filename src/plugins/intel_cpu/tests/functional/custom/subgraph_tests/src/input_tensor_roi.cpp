@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_plugin_cache.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 

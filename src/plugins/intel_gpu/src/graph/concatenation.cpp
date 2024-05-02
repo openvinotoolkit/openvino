@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "concatenation_inst.h"
-#include "concat_shape_inference.hpp"
-#include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "json_object.h"
+#include <list>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <list>
+
+#include "concat_shape_inference.hpp"
+#include "concatenation_inst.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(concatenation)
@@ -41,11 +42,12 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
 
     auto def_fmt = format::get_default_format(input_layout.get_rank());
 
-    return layout {output_dt, output_format, tensor(def_fmt, result_sizes)};
+    return layout{output_dt, output_format, tensor(def_fmt, result_sizes)};
 }
 
-template<typename ShapeType>
-std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_node& /* node */, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_node& /* node */,
+                                                            const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<concatenation>();
 
     auto input_layout = impl_param.get_input_layout();
@@ -71,10 +73,12 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     op.set_friendly_name(desc->id);
     op.set_concatenation_axis(axis_index);
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
-    return { layout {output_shapes[0], output_dt, output_format} };
+    return {layout{output_shapes[0], output_dt, output_format}};
 }
 
-template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(concatenation_node const& node, const kernel_impl_params& impl_param);
+template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(
+    concatenation_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string concatenation_inst::to_string(concatenation_node const& node) {
     auto node_info = node.desc_to_json();
@@ -103,9 +107,9 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
     return primitive_description.str();
 }
 
-concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
-    : parent(network, node) {
-    if (node.is_dynamic()) return;
+concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node) : parent(network, node) {
+    if (node.is_dynamic())
+        return;
     auto input_layout = node.get_input_layout();
 
     auto output_layout = node.get_output_layout();

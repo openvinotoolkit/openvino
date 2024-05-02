@@ -31,8 +31,7 @@ namespace ov {
 namespace intel_cpu {
 namespace unit_test {
 namespace {
-#define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) \
-    registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
+#define INTEL_CPU_CUSTOM_SHAPE_INFER(__prim, __type) registerNodeIfRequired(intel_cpu, __prim, __type, __prim)
 
 class EltwiseShapeInferTestFactory : public node::EltwiseShapeInferFactory {
 public:
@@ -46,22 +45,22 @@ public:
 
 class CustomShapeInferFF : public openvino::cc::Factory<Type, ShapeInferFactory*(const std::shared_ptr<ov::Node>& op)> {
 public:
-    CustomShapeInferFF():Factory("CpuCustomShapeInferTestFactory") {
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::AdaptivePoolingShapeInferFactory, Type::AdaptivePooling);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(EltwiseShapeInferTestFactory, Type::Eltwise);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::FCShapeInferFactory, Type::FullyConnected);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::ColorConvertShapeInferFactory, Type::ColorConvert);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::ReshapeShapeInferFactory, Type::Reshape);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxShapeInferFactory, Type::PriorBox);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
-    INTEL_CPU_CUSTOM_SHAPE_INFER(node::SDPAShapeInferFactory, Type::ScaledDotProductAttention);
+    CustomShapeInferFF() : Factory("CpuCustomShapeInferTestFactory") {
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::AdaptivePoolingShapeInferFactory, Type::AdaptivePooling);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(EltwiseShapeInferTestFactory, Type::Eltwise);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::FCShapeInferFactory, Type::FullyConnected);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::TransposeShapeInferFactory, Type::Transpose);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(ShapeOfShapeInferTestFactory, Type::ShapeOf);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::ColorConvertShapeInferFactory, Type::ColorConvert);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::ReshapeShapeInferFactory, Type::Reshape);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::MMShapeInferFactory, Type::MatMul);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::OneHotShapeInferFactory, Type::OneHot);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::StridedSliceShapeInferFactory, Type::StridedSlice);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxShapeInferFactory, Type::PriorBox);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::PriorBoxClusteredShapeInferFactory, Type::PriorBoxClustered);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::NgramShapeInferFactory, Type::Ngram);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::GatherShapeInferFactory, Type::Gather);
+        INTEL_CPU_CUSTOM_SHAPE_INFER(node::SDPAShapeInferFactory, Type::ScaledDotProductAttention);
 #undef INTEL_CPU_CUSTOM_SHAPE_INFER
     }
 
@@ -69,7 +68,7 @@ public:
         ShapeInferFactory* newShapeInferFactory = nullptr;
         std::unique_ptr<ShapeInferFactory> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op));
         if (ol != nullptr) {
-             newShapeInferFactory = ol.release();
+            newShapeInferFactory = ol.release();
         }
         return newShapeInferFactory;
     }
@@ -85,7 +84,7 @@ void compare_result(const std::vector<StaticShape>& ref, const std::vector<Vecto
     }
 }
 
-} //namespace
+}  // namespace
 
 void cpu_test_shape_infer(ov::Node* op,
                           const std::vector<StaticShape>& input_shapes,
@@ -94,7 +93,7 @@ void cpu_test_shape_infer(ov::Node* op,
     static std::shared_ptr<CustomShapeInferFF> cusFactory = std::make_shared<CustomShapeInferFF>();
     auto shapeInferFactory = cusFactory->create(op->shared_from_this());
     ASSERT_TRUE(shapeInferFactory != nullptr);
-    auto cusShapeInfer =  shapeInferFactory->makeShapeInfer();
+    auto cusShapeInfer = shapeInferFactory->makeShapeInfer();
     std::vector<std::reference_wrapper<const VectorDims>> cusInputShapes;
     std::vector<VectorDims> tmpInputShapes;
     cusInputShapes.reserve(input_shapes.size());
@@ -128,9 +127,7 @@ void cpu_test_shape_infer(ov::Node* op,
                     data = const_op->get_data_ptr();
                     elementType = const_op->get_element_type();
                 }
-                CpuBlockedMemoryDesc desc(
-                        elementType,
-                        ov::intel_cpu::Shape(tmpInputShapes[port]));
+                CpuBlockedMemoryDesc desc(elementType, ov::intel_cpu::Shape(tmpInputShapes[port]));
                 MemoryPtr memoryPtr = std::make_shared<Memory>(eng, desc, data, true);
                 cusInputValues[port] = memoryPtr;
             }
@@ -145,6 +142,6 @@ std::string boolToString(const bool value) {
     return value ? "true" : "false";
 }
 
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

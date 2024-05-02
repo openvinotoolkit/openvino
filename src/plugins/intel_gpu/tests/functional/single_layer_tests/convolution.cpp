@@ -1,27 +1,27 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "shared_test_classes/single_op/convolution.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
 
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
 namespace {
-using ov::test::InputShape;
 using ov::test::convSpecificParams;
+using ov::test::InputShape;
 
-typedef std::tuple<
-        convSpecificParams,
-        ov::element::Type,     // Net precision
-        ov::element::Type,     // Input precision
-        ov::element::Type,     // Output precision
-        InputShape,            // Input shape
-        bool,                  // ReduceSum replacement test
-        std::string            // Device name
-> convLayerTestParamsSet;
+typedef std::tuple<convSpecificParams,
+                   ov::element::Type,  // Net precision
+                   ov::element::Type,  // Input precision
+                   ov::element::Type,  // Output precision
+                   InputShape,         // Input shape
+                   bool,               // ReduceSum replacement test
+                   std::string         // Device name
+                   >
+    convLayerTestParamsSet;
 
 class ConvolutionLayerGPUTest : public testing::WithParamInterface<convLayerTestParamsSet>,
                                 virtual public ov::test::SubgraphBaseTest {
@@ -43,14 +43,17 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
         if (is_ReduceSum_test)
-            result << "K" << ov::test::utils::vec2str(std::vector<size_t>{inputShape.second[0].at(-2), inputShape.second[0].at(-1)}) << "_";
+            result << "K"
+                   << ov::test::utils::vec2str(
+                          std::vector<size_t>{inputShape.second[0].at(-2), inputShape.second[0].at(-1)})
+                   << "_";
         else
             result << "K" << ov::test::utils::vec2str(kernel) << "_";
         result << "S" << ov::test::utils::vec2str(stride) << "_";
@@ -94,12 +97,19 @@ protected:
             kernel.push_back(input_static_shape.at(-2));
             kernel.push_back(input_static_shape.at(-1));
         }
-        auto convolutionNode = ov::test::utils::make_convolution(inputParams.front(), netType, kernel, stride, padBegin,
-                                                                 padEnd, dilation, padType, convOutChannels);
+        auto convolutionNode = ov::test::utils::make_convolution(inputParams.front(),
+                                                                 netType,
+                                                                 kernel,
+                                                                 stride,
+                                                                 padBegin,
+                                                                 padEnd,
+                                                                 dilation,
+                                                                 padType,
+                                                                 convOutChannels);
 
         ov::ResultVector results;
         for (size_t i = 0; i < convolutionNode->get_output_size(); i++)
-                results.push_back(std::make_shared<ov::op::v0::Result>(convolutionNode->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(convolutionNode->output(i)));
 
         function = std::make_shared<ov::Model>(results, inputParams, "Convolution");
     }
@@ -110,44 +120,42 @@ TEST_P(ConvolutionLayerGPUTest, Inference) {
 }
 
 // Check 3D input tensor for convolution is handled properly and its output is correct comparing with ov runtime.
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, ConvolutionLayerGPUTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::Values(std::vector<size_t>{3}),
-                        ::testing::Values(std::vector<size_t>{1}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0}),
-                        ::testing::Values(std::vector<size_t>{1}),
-                        ::testing::Values(13),
-                        ::testing::Values(ov::op::PadType::SAME_UPPER)),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::undefined),
-                ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
-                ::testing::Values(false),
-                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                ConvolutionLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic,
+                         ConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{3}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(13),
+                                                               ::testing::Values(ov::op::PadType::SAME_UPPER)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
+                                            ::testing::Values(false),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerGPUTest::getTestCaseName);
 
 // Customer model input/filter shape
 std::vector<InputShape> input_shape_reducesum_test = {
     {{}, {{1, 1, 36, 64}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_4D_tensor_ReduceSum, ConvolutionLayerGPUTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::Values(std::vector<size_t>{36, 64}),
-                        ::testing::Values(std::vector<size_t>{1, 1}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<size_t>{1, 1}),
-                        ::testing::Values(1),
-                        ::testing::Values(ov::op::PadType::EXPLICIT)),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::undefined),
-                ::testing::ValuesIn(input_shape_reducesum_test),
-                ::testing::Values(true),
-                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                ConvolutionLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_4D_tensor_ReduceSum,
+                         ConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{36, 64}),
+                                                               ::testing::Values(std::vector<size_t>{1, 1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                                                               ::testing::Values(std::vector<size_t>{1, 1}),
+                                                               ::testing::Values(1),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::ValuesIn(input_shape_reducesum_test),
+                                            ::testing::Values(true),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerGPUTest::getTestCaseName);
 }  // namespace

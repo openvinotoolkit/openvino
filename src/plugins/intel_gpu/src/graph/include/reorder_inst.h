@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-
-#include <string>
-#include <memory>
 
 namespace cldnn {
 
@@ -30,16 +30,30 @@ public:
         set_runtime_skippable(true);
     }
 
-    program_node& mean_nv12() const { return get_dependency(2); }
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    program_node& mean() const { return get_dependency(1); }
+    program_node& mean_nv12() const {
+        return get_dependency(2);
+    }
+    program_node& input(size_t idx = 0) const {
+        return get_dependency(idx);
+    }
+    program_node& mean() const {
+        return get_dependency(1);
+    }
 
-    bool has_mean() const { return !typed_desc()->mean.empty(); }
+    bool has_mean() const {
+        return !typed_desc()->mean.empty();
+    }
 
-    bool requires_reinterpret() const { return req_reinterpr; }
-    void requires_reinterpret(bool val) { req_reinterpr = (optimized && val); }
+    bool requires_reinterpret() const {
+        return req_reinterpr;
+    }
+    void requires_reinterpret(bool val) {
+        req_reinterpr = (optimized && val);
+    }
 
-    void set_input_layout(layout const& lo) { input_layout = lo; }
+    void set_input_layout(layout const& lo) {
+        input_layout = lo;
+    }
 
     bool is_type_conversion_only() const {
         auto in_layout = get_input_layout();
@@ -57,20 +71,20 @@ public:
     }
 
     bool is_simple_reorder() const {
-        return !has_fused_primitives() &&
-               !has_mean() &&
-               get_primitive()->subtract_per_feature.empty() &&
+        return !has_fused_primitives() && !has_mean() && get_primitive()->subtract_per_feature.empty() &&
                !get_primitive()->weights_reorder_params;
     }
 
     std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
         return std::make_shared<ReorderFuseParams>(input_layout, get_output_layout());
     }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override {
+        return {};
+    }
 
 private:
     bool req_reinterpr = false;
-    layout input_layout = layout(data_types::f32, format::bfyx, { 0, 0, 0, 0 });
+    layout input_layout = layout(data_types::f32, format::bfyx, {0, 0, 0, 0});
 };
 
 using reorder_node = typed_program_node<reorder>;
@@ -81,7 +95,7 @@ class typed_primitive_inst<reorder> : public typed_primitive_inst_base<reorder> 
     using parent::parent;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(reorder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reorder_node const& node);
@@ -90,10 +104,16 @@ public:
     typed_primitive_inst(network& network);
     typed_primitive_inst(network& network, reorder_node const& node);
 
-    memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
-    memory::ptr mean_memory() const { return dep_memory_ptr(1); }
+    memory::ptr mean_nv12_memory() const {
+        return dep_memory_ptr(2);
+    }
+    memory::ptr mean_memory() const {
+        return dep_memory_ptr(1);
+    }
 
-    bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
+    bool has_mean() const {
+        return !get_typed_desc<reorder>()->mean.empty();
+    }
 
     void update_output_memory() override;
     bool requires_reinterpret() const {

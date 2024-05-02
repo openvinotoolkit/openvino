@@ -15,10 +15,11 @@
 #                         IntelSEAPI statistics files in CSV format
 #   --out cc.h            C++ header file to be generated
 
-import argparse, csv
+import argparse
+import csv
+from abc import ABC, abstractmethod
 from glob import glob
 from pathlib import Path
-from abc import ABC, abstractmethod
 
 Domain = ["SIMPLE_", "SWITCH_", "FACTORY_", "TYPE_LIST_"]
 
@@ -28,6 +29,7 @@ FILE_FOOTER = "\n"
 ENABLED_SCOPE_FMT = "#define %s_%s 1\n"
 ENABLED_SWITCH_FMT = "#define %s_%s 1\n#define %s_%s_cases %s\n"
 ENABLED_FACTORY_INSTANCE_FMT = "#define %s_%s 1\n"
+
 
 class IScope(ABC):
     @abstractmethod
@@ -42,6 +44,7 @@ class Scope(IScope):
     def generate(self, f, module):
         f.write(ENABLED_SCOPE_FMT % (module, self.name))
 
+
 class Switch(IScope):
     def __init__(self, name):
         self.name = name
@@ -51,7 +54,11 @@ class Switch(IScope):
         self.cases.add(val)
 
     def generate(self, f, module):
-        f.write(ENABLED_SWITCH_FMT % (module, self.name, module, self.name, ', '.join(self.cases)))
+        f.write(
+            ENABLED_SWITCH_FMT
+            % (module, self.name, module, self.name, ", ".join(self.cases))
+        )
+
 
 class Factory(IScope):
     def __init__(self, name):
@@ -137,23 +144,55 @@ class Stat:
                     rows = list(reader)
                     if rows:
                         # Scopes
-                        scopes = list(filter(lambda row: len(row) and row[0].startswith(Domain[0]), rows))
+                        scopes = list(
+                            filter(
+                                lambda row: len(row) and row[0].startswith(Domain[0]),
+                                rows,
+                            )
+                        )
                         for row in scopes:
-                            moduleName = row[0][len(Domain[0]):]
+                            moduleName = row[0][len(Domain[0]) :]
                             self.module(moduleName).scope(row[1])
 
                         # Switches
-                        switches = list(map(lambda row: [row[0][len(Domain[1]):]] + row[1].strip().split('$'),
-                                            filter(lambda row: len(row) and row[0].startswith(Domain[1]), rows)))
+                        switches = list(
+                            map(
+                                lambda row: [row[0][len(Domain[1]) :]]
+                                + row[1].strip().split("$"),
+                                filter(
+                                    lambda row: len(row)
+                                    and row[0].startswith(Domain[1]),
+                                    rows,
+                                ),
+                            )
+                        )
                         for switch in switches:
                             self.module(switch[0]).switch(switch[1]).case(switch[2])
 
                         # Factories
-                        factories = list(map(lambda row: [row[0][len(Domain[2]):]] + row[1].strip().split('$'),
-                                            filter(lambda row: len(row) and row[0].startswith(Domain[2]), rows)))
-                        for reg in list(filter(lambda row: len(row) > 1 and row[1] == 'REG', factories)):
+                        factories = list(
+                            map(
+                                lambda row: [row[0][len(Domain[2]) :]]
+                                + row[1].strip().split("$"),
+                                filter(
+                                    lambda row: len(row)
+                                    and row[0].startswith(Domain[2]),
+                                    rows,
+                                ),
+                            )
+                        )
+                        for reg in list(
+                            filter(
+                                lambda row: len(row) > 1 and row[1] == "REG", factories
+                            )
+                        ):
                             self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
-                        for cre in list(filter(lambda row: len(row) > 1 and row[1] == 'CREATE', factories)):
+                        for cre in list(
+                            filter(
+                                lambda row: len(row) > 1 and row[1] == "CREATE",
+                                factories,
+                            )
+                        ):
                             self.module(cre[0]).factory(cre[2]).create(cre[3])
 
                         # Type list generator filter, returns tuple of (domain, (region, type))
@@ -168,7 +207,7 @@ class Stat:
                             module.type_list(region).append(type)
 
     def generate(self, out):
-        with open(str(out), 'w') as f:
+        with open(str(out), "w") as f:
             f.write(FILE_HEADER)
 
             for _, module in self.modules.items():
@@ -176,16 +215,29 @@ class Stat:
 
             f.write(FILE_FOOTER)
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--stat', type=Path, nargs='+', metavar='PATH[ PATH...]',
-        help='IntelSEAPI statistics files in CSV format', required=True)
-    parser.add_argument('--out', type=Path, metavar='cc.h',
-        help='C++ header file to be generated', required=True)
+    parser.add_argument(
+        "--stat",
+        type=Path,
+        nargs="+",
+        metavar="PATH[ PATH...]",
+        help="IntelSEAPI statistics files in CSV format",
+        required=True,
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        metavar="cc.h",
+        help="C++ header file to be generated",
+        required=True,
+    )
     args = parser.parse_args()
 
     stat = Stat(args.stat)
     stat.generate(args.out)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

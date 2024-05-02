@@ -104,12 +104,20 @@ def test_dynamic_attr_transitivity(proposal_node):
     node2 = node
 
     node.set_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
-    assert np.allclose(node.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
-    assert np.allclose(node2.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
+    assert np.allclose(
+        node.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64)
+    )
+    assert np.allclose(
+        node2.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64)
+    )
 
     node2.set_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
-    assert np.allclose(node2.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
-    assert np.allclose(node.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
+    assert np.allclose(
+        node2.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64)
+    )
+    assert np.allclose(
+        node.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64)
+    )
 
 
 def test_dynamic_attributes_simple():

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
 #include "concatenation_kernel_b_fs_yx_fsv16.h"
+
+#include <iostream>
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -12,7 +14,7 @@ namespace {
 
 size_t getTileXY(const concatenation_params& params) {
     auto& input = params.inputs[0];
-    size_t tileXY =  1;
+    size_t tileXY = 1;
     if (params.isAligned) {
         switch (input.GetDType()) {
         case Datatype::F16:
@@ -102,7 +104,8 @@ bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     return true;
 }
 
-ConcatenationKernelBase::DispatchData ConcatenationKernel_b_fs_yx_fsv16::SetDefault(const concatenation_params& params) const {
+ConcatenationKernelBase::DispatchData ConcatenationKernel_b_fs_yx_fsv16::SetDefault(
+    const concatenation_params& params) const {
     DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
     auto tileXY = getTileXY(params);

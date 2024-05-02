@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace test {
@@ -18,7 +18,8 @@ protected:
 
         auto type = element::f32;
         auto param = std::make_shared<ov::opset8::Parameter>(type, Shape{1, 32, 64, 32});
-        auto weights = ov::test::utils::deprecated::make_constant(type, Shape{32, 32, 1, 1}, std::vector<float>{}, true);
+        auto weights =
+            ov::test::utils::deprecated::make_constant(type, Shape{32, 32, 1, 1}, std::vector<float>{}, true);
         auto conv = std::make_shared<ov::opset8::Convolution>(param,
                                                               weights,
                                                               Strides{1, 1},

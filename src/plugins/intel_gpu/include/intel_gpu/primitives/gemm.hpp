@@ -3,8 +3,9 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -51,7 +52,7 @@ struct gemm : public primitive_base<gemm> {
          const size_t input_rank = 4,
          const size_t weight_rank = 4,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           transpose_input0(transpose_input0 ? 1 : 0),
           transpose_input1(transpose_input1 ? 1 : 0),
           alpha(alpha),
@@ -62,7 +63,7 @@ struct gemm : public primitive_base<gemm> {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
 
-        auto get_transposed_order = [] (size_t rank, bool transposed) {
+        auto get_transposed_order = [](size_t rank, bool transposed) {
             std::vector<int64_t> order(rank);
             std::iota(order.begin(), order.end(), 0);
             if (transposed && rank > 1)
@@ -92,7 +93,7 @@ struct gemm : public primitive_base<gemm> {
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           input0_transpose_order(input0_transpose_order),
           input1_transpose_order(input1_transpose_order),
           output_transpose_order(output_transpose_order),
@@ -120,7 +121,7 @@ struct gemm : public primitive_base<gemm> {
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           input0_transpose_order(input0_transpose_order),
           input1_transpose_order(input1_transpose_order),
           output_transpose_order(output_transpose_order),
@@ -183,13 +184,9 @@ struct gemm : public primitive_base<gemm> {
 
         auto rhs_casted = downcast<const gemm>(rhs);
 
-        return transpose_input0 == rhs_casted.transpose_input0 &&
-               transpose_input1 == rhs_casted.transpose_input1 &&
-               alpha == rhs_casted.alpha &&
-               beta == rhs_casted.beta &&
-               indirect_a == rhs_casted.indirect_a &&
-               indirect_b == rhs_casted.indirect_b &&
-               input_rank == rhs_casted.input_rank &&
+        return transpose_input0 == rhs_casted.transpose_input0 && transpose_input1 == rhs_casted.transpose_input1 &&
+               alpha == rhs_casted.alpha && beta == rhs_casted.beta && indirect_a == rhs_casted.indirect_a &&
+               indirect_b == rhs_casted.indirect_b && input_rank == rhs_casted.input_rank &&
                weight_rank == rhs_casted.weight_rank;
     }
 
@@ -229,7 +226,7 @@ struct gemm : public primitive_base<gemm> {
 
     std::vector<input_info> get_dependencies() const override {
         if (beam_table.is_valid())
-            return { beam_table };
+            return {beam_table};
         return {};
     }
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/interpolate.hpp"
+
 #include <optional>
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -9,7 +11,6 @@
 #include "intel_gpu/primitives/resample.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/interpolate.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -19,7 +20,12 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
     auto inputRank = op->get_input_partial_shape(0).size();
     if (op->get_input_size() == axes_index + 1) {
         auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(axes_index));
-        OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+        OPENVINO_ASSERT(axes_constant,
+                        "Unsupported parameter node type in ",
+                        op->get_friendly_name(),
+                        " (",
+                        op->get_type_name(),
+                        ")");
 
         axes = axes_constant->cast_vector<int64_t>();
         ov::util::normalize_axes(op.get(), inputRank, axes);
@@ -31,26 +37,24 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
     return axes;
 }
 
-static void ValidateAxesAndThrowIfError(const std::shared_ptr<ov::op::util::InterpolateBase>& op, const std::vector<int64_t>& axes) {
+static void ValidateAxesAndThrowIfError(const std::shared_ptr<ov::op::util::InterpolateBase>& op,
+                                        const std::vector<int64_t>& axes) {
     auto inputRank = op->get_input_partial_shape(0).size();
     auto interpolateMode = op->get_attrs().mode;
     if (interpolateMode == ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX) {
-        OPENVINO_ASSERT(inputRank == 2 || inputRank == 4 || inputRank == 5, "Mode 'linear_onnx' supports only 2D or 4D, 5D tensors");
+        OPENVINO_ASSERT(inputRank == 2 || inputRank == 4 || inputRank == 5,
+                        "Mode 'linear_onnx' supports only 2D or 4D, 5D tensors");
 
         OPENVINO_ASSERT(axes.size() == 2 || axes.size() == 3 || inputRank == axes.size(),
                         "Mode 'linear_onnx' supports only axes with size 2, 3 or equal to input rank");
 
-        bool correctAxes =
-            ((axes.size() == 2 || axes.size() == 4) && inputRank < 5) &&
-            ((axes[0] == 0 && axes[1] == 1) ||
-             (axes[0] == 1 && axes[1] == 0) ||
-             (axes[0] == 2 && axes[1] == 3) ||
-             (axes[0] == 3 && axes[1] == 2));
+        bool correctAxes = ((axes.size() == 2 || axes.size() == 4) && inputRank < 5) &&
+                           ((axes[0] == 0 && axes[1] == 1) || (axes[0] == 1 && axes[1] == 0) ||
+                            (axes[0] == 2 && axes[1] == 3) || (axes[0] == 3 && axes[1] == 2));
 
         correctAxes |=
             (axes.size() == 3 || axes.size() == 5) && inputRank == 5 &&
-            ((axes[0] == 0 && axes[1] == 1 && axes[2] == 2) ||
-             (axes[0] == 2 && axes[1] == 3 && axes[2] == 4));
+            ((axes[0] == 0 && axes[1] == 1 && axes[2] == 2) || (axes[0] == 2 && axes[1] == 3 && axes[2] == 4));
 
         if ((axes.size() == 4 && inputRank == 4) || (axes.size() == 5 && inputRank == 5)) {
             for (size_t i = 0; i < axes.size(); ++i) {
@@ -60,8 +64,9 @@ static void ValidateAxesAndThrowIfError(const std::shared_ptr<ov::op::util::Inte
                 }
             }
         }
-        OPENVINO_ASSERT(correctAxes, "Mode 'linear_onnx' supports only case when axes = {2, 3} or ",
-                                     "axes = {0, 1} or axes = {0, 1, 2, 3} or axes = {2, 3, 4} for 5d");
+        OPENVINO_ASSERT(correctAxes,
+                        "Mode 'linear_onnx' supports only case when axes = {2, 3} or ",
+                        "axes = {0, 1} or axes = {0, 1, 2, 3} or axes = {2, 3, 4} for 5d");
     }
 }
 
@@ -85,7 +90,9 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     std::vector<int64_t> axes = ExtractAxes(op, AXES_INDEX);
 
     if (attrs.shape_calculation_mode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES && scales_constant) {
-        OPENVINO_ASSERT(axes.size() == scales.size(), "[GPU] Incorrect axes and scales values for Interpolate operation with id ", op->get_friendly_name());
+        OPENVINO_ASSERT(axes.size() == scales.size(),
+                        "[GPU] Incorrect axes and scales values for Interpolate operation with id ",
+                        op->get_friendly_name());
     }
 
     // TODO shouldn't be all this checking done in ov::op::v4::Interpolate?
@@ -156,16 +163,23 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto attrs = op->get_attrs();
 
-    auto scales_or_sizes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
-    std::vector<float> scales = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES ?
-        scales_or_sizes_constant->cast_vector<float>() : std::vector<float>{};
-    std::vector<int64_t> sizes = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SIZES ?
-        scales_or_sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
+    auto scales_or_sizes_constant =
+        std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
+    std::vector<float> scales =
+        scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES
+            ? scales_or_sizes_constant->cast_vector<float>()
+            : std::vector<float>{};
+    std::vector<int64_t> sizes =
+        scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SIZES
+            ? scales_or_sizes_constant->cast_vector<int64_t>()
+            : std::vector<int64_t>{};
 
     std::vector<int64_t> axes = ExtractAxes(op, eAxesIndex);
 
     if (attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES && scales_or_sizes_constant) {
-        OPENVINO_ASSERT(axes.size() == scales.size(), "[GPU] Incorrect axes and scales values for Interpolate operation with id ", op->get_friendly_name());
+        OPENVINO_ASSERT(axes.size() == scales.size(),
+                        "[GPU] Incorrect axes and scales values for Interpolate operation with id ",
+                        op->get_friendly_name());
     }
 
     // TODO shouldn't be all this checking done in ov::op::v4::Interpolate?

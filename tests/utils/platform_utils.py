@@ -27,9 +27,10 @@ class UnsupportedOsError(Exception):
 
 class OsType(Enum):
     """Container for supported os types."""
-    WINDOWS = 'Windows'
-    LINUX = 'Linux'
-    DARWIN = 'Darwin'
+
+    WINDOWS = "Windows"
+    LINUX = "Linux"
+    DARWIN = "Darwin"
 
 
 def get_os_type():
@@ -90,7 +91,7 @@ def get_cpu_info():
     :return: CPU name and frequency
     :rtype: str
     """
-    model = ''
+    model = ""
     if os_type_is_linux():
         command = r"lscpu | sed -n 's/Model name:[ \t]*//p'"
         model = subprocess.check_output(command, shell=True)
@@ -98,9 +99,9 @@ def get_cpu_info():
         command = 'wmic cpu get name | find /v "Name"'
         model = subprocess.check_output(command, shell=True)
     elif os_type_is_darwin():
-        command = ['/usr/sbin/sysctl', "-n", "machdep.cpu.brand_string"]
+        command = ["/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string"]
         model = subprocess.check_output(command)
     else:
         raise UnsupportedOsError()
-    info = model.decode('utf-8').strip()
+    info = model.decode("utf-8").strip()
     return info

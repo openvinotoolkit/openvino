@@ -3,23 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import pytest
 from copy import copy, deepcopy
 
 import openvino.runtime.opset13 as ops
-from openvino import (
-    Shape,
-    PartialShape,
-    Type,
-    Core,
-    OVAny,
-)
-from openvino.runtime import (
-    ConstOutput,
-    Output,
-    RTMap,
-)
+import pytest
+from openvino.runtime import ConstOutput, Output, RTMap
 from tests.utils.helpers import get_relu_model
+
+from openvino import Core, OVAny, PartialShape, Shape, Type
 
 
 def test_const_output_type(device):

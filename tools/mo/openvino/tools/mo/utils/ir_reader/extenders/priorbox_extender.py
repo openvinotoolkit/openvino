@@ -1,26 +1,39 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from openvino.tools.mo.front.common.partial_infer.multi_box_prior import (
+    multi_box_prior_infer_mxnet,
+)
 from openvino.tools.mo.utils.graph import Node
 from openvino.tools.mo.utils.ir_reader.extender import Extender
 
 
 class PriorBox_extender(Extender):
-    op = 'PriorBox'
+    op = "PriorBox"
 
     @staticmethod
     def extend(op: Node):
-        op['V10_infer'] = True
+        op["V10_infer"] = True
 
-        attrs = ['min_size', 'max_size', 'aspect_ratio', 'variance', 'fixed_ratio', 'fixed_size', 'density']
+        attrs = [
+            "min_size",
+            "max_size",
+            "aspect_ratio",
+            "variance",
+            "fixed_ratio",
+            "fixed_size",
+            "density",
+        ]
         for attr in attrs:
             PriorBox_extender.attr_restore(op, attr)
 
-        if 'framework' in op.graph.graph['cmd_params'] and op.graph.graph['cmd_params'].framework == 'mxnet':
+        if (
+            "framework" in op.graph.graph["cmd_params"]
+            and op.graph.graph["cmd_params"].framework == "mxnet"
+        ):
             # Need to use separate shape inference function as done in MO pipeline.
-            op['infer'] = multi_box_prior_infer_mxnet
-            op['stop_attr_upd'] = True
+            op["infer"] = multi_box_prior_infer_mxnet
+            op["stop_attr_upd"] = True
 
     @staticmethod
     def attr_restore(node: Node, attribute: str, value=None):

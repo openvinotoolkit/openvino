@@ -3,28 +3,28 @@
 //
 
 #include "shared_test_classes/single_op/generate_proposals.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
 std::string GenerateProposalsLayerTest::getTestCaseName(
-        const testing::TestParamInfo<GenerateProposalsTestParams>& obj) {
+    const testing::TestParamInfo<GenerateProposalsTestParams>& obj) {
     std::vector<InputShape> shapes;
     ov::op::v9::GenerateProposals::Attributes attributes;
     ov::element::Type model_type;
     ov::element::Type roi_num_type;
     std::string targetName;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        attributes.normalized,
-        model_type,
-        roi_num_type,
-        targetName) = obj.param;
+    std::tie(shapes,
+             attributes.min_size,
+             attributes.nms_threshold,
+             attributes.post_nms_count,
+             attributes.pre_nms_count,
+             attributes.normalized,
+             model_type,
+             roi_num_type,
+             targetName) = obj.param;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -54,16 +54,15 @@ void GenerateProposalsLayerTest::SetUp() {
     ov::op::v9::GenerateProposals::Attributes attributes;
     ov::element::Type model_type;
     ov::element::Type roi_num_type;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        attributes.normalized,
-        model_type,
-        roi_num_type,
-        targetDevice) = this->GetParam();
+    std::tie(shapes,
+             attributes.min_size,
+             attributes.nms_threshold,
+             attributes.post_nms_count,
+             attributes.pre_nms_count,
+             attributes.normalized,
+             model_type,
+             roi_num_type,
+             targetDevice) = this->GetParam();
 
     inType = outType = model_type;
     if (targetDevice == ov::test::utils::DEVICE_GPU) {
@@ -81,17 +80,13 @@ void GenerateProposalsLayerTest::SetUp() {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
     }
 
-    auto generate_proposals = std::make_shared<ov::op::v9::GenerateProposals>(
-        params[0], // im_info
-        params[1], // anchors
-        params[2], // deltas
-        params[3], // scores
-        attributes,
-        roi_num_type);
-    function = std::make_shared<ov::Model>(
-        generate_proposals->outputs(),
-        params,
-        "GenerateProposals");
+    auto generate_proposals = std::make_shared<ov::op::v9::GenerateProposals>(params[0],  // im_info
+                                                                              params[1],  // anchors
+                                                                              params[2],  // deltas
+                                                                              params[3],  // scores
+                                                                              attributes,
+                                                                              roi_num_type);
+    function = std::make_shared<ov::Model>(generate_proposals->outputs(), params, "GenerateProposals");
 }
 
 void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected,
@@ -116,8 +111,9 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
-        rel_threshold = ov::test::utils::tensor_comparation::calculate_default_rel_threshold(
-            expected[i].get_element_type(), actual[i].get_element_type());
+        rel_threshold =
+            ov::test::utils::tensor_comparation::calculate_default_rel_threshold(expected[i].get_element_type(),
+                                                                                 actual[i].get_element_type());
 
         if (outType == ov::element::f32) {
             ov::test::utils::compare_raw_data(reinterpret_cast<const float*>(expectedBuffer),
@@ -154,5 +150,5 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
     // output 2 - rois_num
     ov::test::utils::compare(expected[2], actual[2], abs_threshold, rel_threshold);
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -19,16 +19,14 @@ namespace behavior {
 using ovModelGenerator = std::function<std::shared_ptr<ov::Model>(ov::element::Type, std::size_t)>;
 using ovModelWithName = std::tuple<ovModelGenerator, std::string>;
 
-using compileModelCacheParams = std::tuple<
-        ovModelWithName,        // openvino model with friendly name
-        ov::element::Type,      // element type
-        size_t,                 // batch size
-        std::string,            // device name
-        ov::AnyMap              // device configuration
->;
+using compileModelCacheParams = std::tuple<ovModelWithName,    // openvino model with friendly name
+                                           ov::element::Type,  // element type
+                                           size_t,             // batch size
+                                           std::string,        // device name
+                                           ov::AnyMap          // device configuration
+                                           >;
 
-using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape,
-                                                                    ov::element::Type_t type)>;
+using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape, ov::element::Type_t type)>;
 
 class CompileModelCacheTestBase : public testing::WithParamInterface<compileModelCacheParams>,
                                   virtual public SubgraphBaseTest,
@@ -45,7 +43,7 @@ public:
     void TearDown() override;
     void run() override;
 
-    bool importExportSupported(ov::Core &core) const;
+    bool importExportSupported(ov::Core& core) const;
 
     // Wrapper of most part of available builder functions
     static ovModelGenerator inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape);
@@ -57,13 +55,12 @@ public:
     static std::vector<ovModelWithName> getStandardFunctions();
 };
 
-using compileModelLoadFromFileParams = std::tuple<
-        std::string,            // device name
-        ov::AnyMap              // device configuration
->;
+using compileModelLoadFromFileParams = std::tuple<std::string,  // device name
+                                                  ov::AnyMap    // device configuration
+                                                  >;
 class CompileModelLoadFromFileTestBase : public testing::WithParamInterface<compileModelLoadFromFileParams>,
-                                  virtual public SubgraphBaseTest,
-                                  virtual public OVPluginTestBase {
+                                         virtual public SubgraphBaseTest,
+                                         virtual public OVPluginTestBase {
 public:
     std::string m_cacheFolderName;
     std::string m_modelName;
@@ -116,7 +113,7 @@ public:
 
 using compileModelLoadFromMemoryParams = std::tuple<std::string,  // device name
                                                     ov::AnyMap    // device configuration
->;
+                                                    >;
 class CompileModelLoadFromMemoryTestBase : public testing::WithParamInterface<compileModelLoadFromMemoryParams>,
                                            virtual public SubgraphBaseTest,
                                            virtual public OVPluginTestBase {
@@ -129,25 +126,24 @@ protected:
     std::string m_model;
     ov::Tensor m_weights;
 
-
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromMemoryParams> obj);
 
     void SetUp() override;
     void TearDown() override;
     void run() override;
-    bool importExportSupported(ov::Core &core) const;
+    bool importExportSupported(ov::Core& core) const;
 };
 
-using compileKernelsCacheParams = std::tuple<
-        std::string,                          // device name
-        std::pair<ov::AnyMap, std::string>    // device and cache configuration
->;
+using compileKernelsCacheParams = std::tuple<std::string,                        // device name
+                                             std::pair<ov::AnyMap, std::string>  // device and cache configuration
+                                             >;
 class CompiledKernelsCacheTest : virtual public SubgraphBaseTest,
                                  virtual public OVPluginTestBase,
                                  public testing::WithParamInterface<compileKernelsCacheParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj);
+
 protected:
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     std::string cache_path;
@@ -156,6 +152,6 @@ protected:
     void SetUp() override;
     void TearDown() override;
 };
-} // namespace behavior
-} // namespace test
-} // namespace ov
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

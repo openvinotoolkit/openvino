@@ -1,13 +1,14 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "mutable_data_inst.h"
-#include "primitive_type_base.h"
+#include <algorithm>
+#include <memory>
+#include <string>
+
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
-#include <string>
-#include <memory>
-#include <algorithm>
+#include "mutable_data_inst.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
@@ -31,7 +32,8 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
 }  // namespace
 
 mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program& prog)
-    : parent(dprim, prog), mem(dprim->mem) {
+    : parent(dprim, prog),
+      mem(dprim->mem) {
     recalc_output_layout(false);
     can_share_buffer(false);
 }

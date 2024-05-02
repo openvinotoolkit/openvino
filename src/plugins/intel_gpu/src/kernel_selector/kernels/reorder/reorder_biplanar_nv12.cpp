@@ -3,6 +3,7 @@
 //
 
 #include "reorder_biplanar_nv12.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {

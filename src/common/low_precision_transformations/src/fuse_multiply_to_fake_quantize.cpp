@@ -3,13 +3,15 @@
 //
 
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+
 #include <memory>
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+
+#include "itt.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "low_precision/rt_info/intervals_alignment_attribute.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace pass {
@@ -32,7 +34,8 @@ FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformati
     this->register_matcher(m, callback);
 }
 
-bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& context,
+                                                         ov::pass::pattern::Matcher& m) {
     const auto multiply = m.get_match_root();
     if (!canBeTransformed(context, multiply)) {
         return false;
@@ -54,9 +57,9 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     auto outputLowConst_f32 = foldConvert(fakeQuantize->input_value(3), deqPrecision);
     auto outputHighConst_f32 = foldConvert(fakeQuantize->input_value(4), deqPrecision);
 
-    const auto value = multiplyConstant->get_output_element_type(0) == element::f32 ?
-        multiplyConstant :
-        foldConvert(multiplyConstant, deqPrecision);
+    const auto value = multiplyConstant->get_output_element_type(0) == element::f32
+                           ? multiplyConstant
+                           : foldConvert(multiplyConstant, deqPrecision);
 
     outputLowConst_f32 = fold<ov::opset1::Multiply>(outputLowConst_f32, value);
     outputHighConst_f32 = fold<ov::opset1::Multiply>(outputHighConst_f32, value);
@@ -69,13 +72,12 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
 
     auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
-        ov::opset1::FakeQuantize(
-            fakeQuantize->input_value(0),
-            inputLow,
-            inputHigh,
-            outputLowConst_f32,
-            outputHighConst_f32,
-            fakeQuantize->get_levels()),
+        ov::opset1::FakeQuantize(fakeQuantize->input_value(0),
+                                 inputLow,
+                                 inputHigh,
+                                 outputLowConst_f32,
+                                 outputHighConst_f32,
+                                 fakeQuantize->get_levels()),
         multiply->get_output_element_type(0));
 
     replace_node(multiply, newFakeQuantize);
@@ -94,6 +96,6 @@ bool FuseMultiplyToFakeQuantizeTransformation::isPrecisionPreserved(std::shared_
     return false;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

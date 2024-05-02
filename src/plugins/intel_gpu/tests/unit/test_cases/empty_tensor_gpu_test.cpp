@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
+#include <cstddef>
+#include <intel_gpu/graph/network.hpp>
+#include <intel_gpu/graph/topology.hpp>
+#include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
-#include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/runtime/memory.hpp>
-#include <intel_gpu/graph/topology.hpp>
-#include <intel_gpu/graph/network.hpp>
-#include "openvino/reference/non_zero.hpp"
 
-#include <cstddef>
+#include "openvino/reference/non_zero.hpp"
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -34,7 +33,8 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     auto nonzero_input_mem = engine.allocate_memory(p.nonzero_input_layout);
     auto concat_data_mem = engine.allocate_memory(p.concat_input_layout);
 
-    std::vector<int32_t> concat_another_input_data = rg.generate_random_1d<int32_t>(p.concat_input_layout.count(), 0, 100);
+    std::vector<int32_t> concat_another_input_data =
+        rg.generate_random_1d<int32_t>(p.concat_input_layout.count(), 0, 100);
 
     set_values(concat_data_mem, concat_another_input_data);
 
@@ -43,7 +43,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     topology.add(data("concat_data", concat_data_mem));
     topology.add(count_nonzero("count_nonzero", input_info("nonzero_input")));
     topology.add(gather_nonzero("gather_nonzero", input_info("nonzero_input"), input_info("count_nonzero")));
-    topology.add(concatenation("concat", { input_info("gather_nonzero"), input_info("concat_data") }, p.concat_axis));
+    topology.add(concatenation("concat", {input_info("gather_nonzero"), input_info("concat_data")}, p.concat_axis));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -52,7 +52,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
 
     std::vector<int32_t> nonzero_input_with_all_zero(p.nonzero_input_layout.count());
     std::fill(nonzero_input_with_all_zero.begin(), nonzero_input_with_all_zero.end(), 0);
-    set_values(nonzero_input_mem, nonzero_input_with_all_zero); // nonzero output shape will be (2, 0)
+    set_values(nonzero_input_mem, nonzero_input_with_all_zero);  // nonzero output shape will be (2, 0)
 
     network.set_input_data("nonzero_input", nonzero_input_mem);
     auto outputs = network.execute();
@@ -63,22 +63,16 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_empty, test_empty_tensor,
-    testing::ValuesIn(std::vector<empty_tensor_test_params>{
-        {
-            layout{ov::PartialShape{1, 2}, data_types::i32, format::bfyx},
-            layout{ov::PartialShape{2, 3}, data_types::i32, format::bfyx},
-            1
-        },
-        {
-            layout{ov::PartialShape{2, 3, 4}, data_types::i32, format::bfyx},
-            layout{ov::PartialShape{3, 4}, data_types::i32, format::bfyx},
-            1
-        },
-        {
-            layout{ov::PartialShape{3, 1, 2, 5, 1}, data_types::i32, format::bfzyx},
-            layout{ov::PartialShape{5, 3}, data_types::i32, format::bfyx},
-            1
-        }
-    }));
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_empty,
+                         test_empty_tensor,
+                         testing::ValuesIn(std::vector<empty_tensor_test_params>{
+                             {layout{ov::PartialShape{1, 2}, data_types::i32, format::bfyx},
+                              layout{ov::PartialShape{2, 3}, data_types::i32, format::bfyx},
+                              1},
+                             {layout{ov::PartialShape{2, 3, 4}, data_types::i32, format::bfyx},
+                              layout{ov::PartialShape{3, 4}, data_types::i32, format::bfyx},
+                              1},
+                             {layout{ov::PartialShape{3, 1, 2, 5, 1}, data_types::i32, format::bfzyx},
+                              layout{ov::PartialShape{5, 3}, data_types::i32, format::bfyx},
+                              1}}));
+}  // namespace

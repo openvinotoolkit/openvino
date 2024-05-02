@@ -21,11 +21,11 @@ public:
                    const ov::element::Type& input_precision,
                    const ov::builder::subgraph::DequantizationOperations& dequantization,
                    const ov::builder::subgraph::FakeQuantizeOnData& fake_quantize)
-                   : inputShape(inputShape),
-                     constant(constant),
-                     input_precision(input_precision),
-                     dequantization(dequantization),
-                     fake_quantize(fake_quantize) {}
+        : inputShape(inputShape),
+          constant(constant),
+          input_precision(input_precision),
+          dequantization(dequantization),
+          fake_quantize(fake_quantize) {}
 
     PartialShape inputShape;
     ov::builder::subgraph::Constant constant;
@@ -39,7 +39,9 @@ public:
     MultiplyValues(const MultiplyBranch& branch1,
                    const MultiplyBranch& branch2,
                    const ov::builder::subgraph::DequantizationOperations& after_dequantization)
-                   : branch1(branch1), branch2(branch2), after_dequantization(after_dequantization) {}
+        : branch1(branch1),
+          branch2(branch2),
+          after_dequantization(after_dequantization) {}
 
     MultiplyBranch branch1;
     MultiplyBranch branch2;

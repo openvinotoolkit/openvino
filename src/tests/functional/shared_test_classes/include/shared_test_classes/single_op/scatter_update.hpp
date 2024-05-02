@@ -13,22 +13,20 @@
 
 namespace ov {
 namespace test {
-using axisUpdateShapeInShape = std::tuple<
-        std::vector<InputShape>,           // input, update shapes
-        ov::Shape,                         // indices shape
-        int64_t>;                          // axis
-using scatterUpdateParamsTuple = typename std::tuple<
-        axisUpdateShapeInShape,
-        std::vector<int64_t>,              // Indices value
-        ov::element::Type,                 // Model type
-        ov::element::Type,                 // Indices type
-        ov::test::TargetDevice             // Device name
->;
+using axisUpdateShapeInShape = std::tuple<std::vector<InputShape>,  // input, update shapes
+                                          ov::Shape,                // indices shape
+                                          int64_t>;                 // axis
+using scatterUpdateParamsTuple = typename std::tuple<axisUpdateShapeInShape,
+                                                     std::vector<int64_t>,   // Indices value
+                                                     ov::element::Type,      // Model type
+                                                     ov::element::Type,      // Indices type
+                                                     ov::test::TargetDevice  // Device name
+                                                     >;
 
 class ScatterUpdateLayerTest : public testing::WithParamInterface<scatterUpdateParamsTuple>,
                                virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<scatterUpdateParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<scatterUpdateParamsTuple>& obj);
 
 protected:
     void SetUp() override;

@@ -8,8 +8,8 @@
 
 #include "openvino/op/ops.hpp"
 #include "openvino/util/common_util.hpp"
-#include "utils.hpp"
 #include "shape_inference/shape_inference.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -124,13 +124,14 @@ TEST_P(StaticShapeInferenceGatherNDV5Test, gather_nd_v5_test) {
 INSTANTIATE_TEST_SUITE_P(
     shape_infer,
     StaticShapeInferenceGatherNDV5Test,
-    ::testing::Values(GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{24, 13}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 7, 2}}, StaticShape{24, 5, 7, 13}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 3}}, StaticShape{24}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 3}}, StaticShape{24, 5}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{24, 13}, 3},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{24}, 3},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{24, 5}, 3}),
+    ::testing::Values(
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{24, 13}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 7, 2}}, StaticShape{24, 5, 7, 13}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 3}}, StaticShape{24}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 3}}, StaticShape{24, 5}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{24, 13}, 3},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{24}, 3},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{24, 5}, 3}),
     print_params);
 
 // ------------------------------ V8 ------------------------------
@@ -143,11 +144,12 @@ TEST_P(StaticShapeInferenceGatherNDV8Test, gather_nd_v8_test) {
 INSTANTIATE_TEST_SUITE_P(
     shape_infer,
     StaticShapeInferenceGatherNDV8Test,
-    ::testing::Values(GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 7, 2}}, StaticShape{6, 4, 5, 7, 13}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 3}}, StaticShape{6, 4}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 3}}, StaticShape{6, 4, 5}, 2},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{6, 4, 1, 13}, 3},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{6, 4, 1}, 3},
-                      GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{6, 4, 1, 5}, 3}),
+    ::testing::Values(
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 2}}, StaticShape{6, 4, 13}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 7, 2}}, StaticShape{6, 4, 5, 7, 13}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 3}}, StaticShape{6, 4}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 11, 12, 13}, {6, 4, 5, 3}}, StaticShape{6, 4, 5}, 2},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 1}}, StaticShape{6, 4, 1, 13}, 3},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 2}}, StaticShape{6, 4, 1}, 3},
+        GatherNDTestParams{ShapeVector{{6, 4, 1, 12, 13}, {6, 4, 1, 5, 2}}, StaticShape{6, 4, 1, 5}, 3}),
     print_params);

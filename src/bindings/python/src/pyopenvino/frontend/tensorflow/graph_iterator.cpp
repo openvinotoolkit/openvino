@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph_iterator.hpp"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-
-#include "graph_iterator.hpp"
 
 #include "openvino/frontend/graph_iterator.hpp"
 
@@ -16,7 +16,8 @@ using namespace ov::frontend;
 using ov::Any;
 
 void regclass_frontend_tensorflow_graph_iterator(py::module m) {
-    py::class_<ov::frontend::tensorflow::GraphIterator, PyGraphIterator, std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(m, "_FrontEndPyGraphIterator")
-            .def(py::init<>());
-
+    py::class_<ov::frontend::tensorflow::GraphIterator,
+               PyGraphIterator,
+               std::shared_ptr<ov::frontend::tensorflow::GraphIterator>>(m, "_FrontEndPyGraphIterator")
+        .def(py::init<>());
 }

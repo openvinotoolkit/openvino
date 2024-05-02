@@ -71,7 +71,8 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
     const auto filterOfmNum = params.weights.OFM().v;
     const auto batchSize = params.outputs[0].Batch().v;
 
-    const bool bInputValidated = (filterOfmNum > 0) && (batchSize > 0) && (params.outputs[0].Feature().v == filterOfmNum);
+    const bool bInputValidated =
+        (filterOfmNum > 0) && (batchSize > 0) && (params.outputs[0].Feature().v == filterOfmNum);
 
     if (!bInputValidated) {
         return false;

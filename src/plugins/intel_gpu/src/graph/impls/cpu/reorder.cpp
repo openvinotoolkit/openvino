@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "implementation_map.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
+#include "openvino/op/convert.hpp"
 #include "register.hpp"
 #include "reorder_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "openvino/op/convert.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -39,7 +37,8 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "reorder::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -69,7 +68,8 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         }
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute reorder primitive with id ", instance.id());
+                        "[GPU] Couldn't execute reorder primitive with id ",
+                        instance.id());
 
         if (pass_through_events) {
             if (events.size() > 1) {
@@ -82,7 +82,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -92,17 +92,10 @@ public:
     }
 };
 
-
 namespace detail {
 
 attach_reorder_impl::attach_reorder_impl() {
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx
-    };
+    auto formats = {format::bfyx, format::bfzyx, format::bfwzyx, format::bfuwzyx, format::bfvuwzyx};
 
     auto types = {
         data_types::f32,

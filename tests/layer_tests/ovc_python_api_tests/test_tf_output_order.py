@@ -48,9 +48,15 @@ def check_outputs_by_order(fw_output, ov_output, eps):
     for idx, output in enumerate(fw_output):
         fw_out = output.numpy()
         ov_out = ov_output[idx]
-        assert fw_out.shape == ov_out.shape, "Output with index {} has shape different from original FW.".format(idx)
+        assert (
+            fw_out.shape == ov_out.shape
+        ), "Output with index {} has shape different from original FW.".format(idx)
         diff = np.max(np.abs(fw_out - ov_out))
-        assert diff < eps, "Output with index {} has inference result different from original FW.".format(idx)
+        assert (
+            diff < eps
+        ), "Output with index {} has inference result different from original FW.".format(
+            idx
+        )
 
 
 def check_outputs_by_names(fw_output, ov_output, eps):
@@ -58,24 +64,51 @@ def check_outputs_by_names(fw_output, ov_output, eps):
     for name, output in fw_output.items():
         fw_out = output.numpy()
         ov_out = ov_output[name]
-        assert fw_out.shape == ov_out.shape, "Output with name {} has shape different from original FW.".format(name)
+        assert (
+            fw_out.shape == ov_out.shape
+        ), "Output with name {} has shape different from original FW.".format(name)
         diff = np.max(np.abs(fw_out - ov_out))
-        assert diff < eps, "Output with name {} has inference result different from original FW.".format(name)
+        assert (
+            diff < eps
+        ), "Output with name {} has inference result different from original FW.".format(
+            name
+        )
 
 
-class TestTFInputOutputOrder():
+class TestTFInputOutputOrder:
     def setup_method(self):
         Path(constants.out_path).mkdir(parents=True, exist_ok=True)
         self.tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
 
-    @pytest.mark.parametrize("save_to_file, create_model_method, compare_model_method", [
-        (False, create_net_list, check_outputs_by_order),
-        (False, create_net_dict, check_outputs_by_names),
-        pytest.param(True, create_net_list, check_outputs_by_order, marks=pytest.mark.xfail(reason='124436')),
-        pytest.param(True, create_net_dict, check_outputs_by_names, marks=pytest.mark.xfail(reason='124436')),
-    ])
-    def test_order(self, ie_device, precision, save_to_file, create_model_method, compare_model_method):
-        from openvino import convert_model, compile_model
+    @pytest.mark.parametrize(
+        "save_to_file, create_model_method, compare_model_method",
+        [
+            (False, create_net_list, check_outputs_by_order),
+            (False, create_net_dict, check_outputs_by_names),
+            pytest.param(
+                True,
+                create_net_list,
+                check_outputs_by_order,
+                marks=pytest.mark.xfail(reason="124436"),
+            ),
+            pytest.param(
+                True,
+                create_net_dict,
+                check_outputs_by_names,
+                marks=pytest.mark.xfail(reason="124436"),
+            ),
+        ],
+    )
+    def test_order(
+        self,
+        ie_device,
+        precision,
+        save_to_file,
+        create_model_method,
+        compare_model_method,
+    ):
+        from openvino import compile_model, convert_model
+
         input_names = ["k", "b", "m", "c", "x"]
         input_shapes = [[1, 1], [1, 3], [1, 2], [1, 5], [1, 4]]
         epsilon = 0.001

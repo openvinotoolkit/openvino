@@ -8,10 +8,14 @@ from openvino.tools.ovc.moc_frontend.preprocessing import apply_preprocessing
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
-    from openvino._offline_transformations import compress_quantize_weights_transformation, \
-        apply_moc_transformations  # pylint: disable=no-name-in-module,import-error
-    from openvino.tools.ovc.moc_frontend.offline_transformations import apply_moc_legacy_transformations, \
-        apply_fused_names_cleanup
+    from openvino._offline_transformations import (  # pylint: disable=no-name-in-module,import-error
+        apply_moc_transformations,
+        compress_quantize_weights_transformation,
+    )
+    from openvino.tools.ovc.moc_frontend.offline_transformations import (
+        apply_fused_names_cleanup,
+        apply_moc_legacy_transformations,
+    )
 
     # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
@@ -22,8 +26,11 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     if argv.framework == "onnx":  # TODO: Consider removing
         # set OldApi map in IR to be executed via OV API 1.x and for parity with legacy MO
-        params_with_custom_types = [] if argv.placeholder_data_types is None \
+        params_with_custom_types = (
+            []
+            if argv.placeholder_data_types is None
             else list(argv.placeholder_data_types.keys())
+        )
         apply_moc_legacy_transformations(ngraph_function, params_with_custom_types)
 
     apply_fused_names_cleanup(ngraph_function)

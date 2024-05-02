@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "roi_pooling_inst.h"
-#include "roi_pooling/roi_pooling_kernel_selector.h"
 #include "roi_pooling/roi_pooling_kernel_ref.h"
+#include "roi_pooling/roi_pooling_kernel_selector.h"
+#include "roi_pooling_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -14,19 +13,19 @@ namespace ocl {
 namespace {
 kernel_selector::pool_type cldnn_2_pool_type(pooling_mode mode) {
     switch (mode) {
-        case pooling_mode::max:
-            return kernel_selector::pool_type::MAX;
-        case pooling_mode::average:
-            return kernel_selector::pool_type::AVG;
-        case pooling_mode::average_no_padding:
-            return kernel_selector::pool_type::AVG;
-        case pooling_mode::bilinear:
-            return kernel_selector::pool_type::BILINEAR;
-        case pooling_mode::deformable_bilinear:
-            return kernel_selector::pool_type::DEFORMABLE_BILINEAR;
-        default:
-            assert(0);
-            return kernel_selector::pool_type::MAX;
+    case pooling_mode::max:
+        return kernel_selector::pool_type::MAX;
+    case pooling_mode::average:
+        return kernel_selector::pool_type::AVG;
+    case pooling_mode::average_no_padding:
+        return kernel_selector::pool_type::AVG;
+    case pooling_mode::bilinear:
+        return kernel_selector::pool_type::BILINEAR;
+    case pooling_mode::deformable_bilinear:
+        return kernel_selector::pool_type::DEFORMABLE_BILINEAR;
+    default:
+        assert(0);
+        return kernel_selector::pool_type::MAX;
     }
 }
 }  // namespace
@@ -47,15 +46,13 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance) const override {
         kernel_arguments_data args;
 
-        if (instance.get_typed_desc<roi_pooling>()->mode == pooling_mode::deformable_bilinear && !instance.get_typed_desc<roi_pooling>()->no_trans)
-            args.inputs = {
-                instance.input_memory_ptr(),
-                instance.rois_memory(),
-                instance.trans_memory()};
+        if (instance.get_typed_desc<roi_pooling>()->mode == pooling_mode::deformable_bilinear &&
+            !instance.get_typed_desc<roi_pooling>()->no_trans)
+            args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.trans_memory()};
         else
             args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
 
-        args.outputs = { instance.output_memory_ptr() };
+        args.outputs = {instance.output_memory_ptr()};
 
         return args;
     }
@@ -98,7 +95,10 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 
     auto types = {data_types::f16, data_types::f32};
 
-    implementation_map<roi_pooling>::add(impl_types::ocl, typed_primitive_impl_ocl<roi_pooling>::create<roi_pooling_impl>, types, formats);
+    implementation_map<roi_pooling>::add(impl_types::ocl,
+                                         typed_primitive_impl_ocl<roi_pooling>::create<roi_pooling_impl>,
+                                         types,
+                                         formats);
 }
 
 }  // namespace detail

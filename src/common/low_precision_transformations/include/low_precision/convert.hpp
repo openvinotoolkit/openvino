@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "low_precision/layer_transformation.hpp"
 
 namespace ov {
@@ -15,10 +14,10 @@ class LP_TRANSFORMATIONS_API ConvertTransformation : public LayerTransformation 
 public:
     OPENVINO_RTTI("ConvertTransformation", "0");
     ConvertTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

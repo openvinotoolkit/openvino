@@ -40,12 +40,12 @@ def pytest_collection_modifyitems(items):
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    pytest_html = item.config.pluginmanager.getplugin('html')
+    pytest_html = item.config.pluginmanager.getplugin("html")
     outcome = yield
     report = outcome.get_result()
-    extra = getattr(report, 'extra', [])
-    if report.when == 'call':
-        xfail_reason = getattr(report, 'wasxfail', None)
+    extra = getattr(report, "extra", [])
+    if report.when == "call":
+        xfail_reason = getattr(report, "wasxfail", None)
         if report.skipped and xfail_reason:
             jira_ticket_nums = re.findall(r"\*-\d+", xfail_reason)
             for ticket_num in jira_ticket_nums:
@@ -59,35 +59,38 @@ def pytest_addoption(parser):
         "--ir_version",
         default=11,
         action="store",
-        help="Version of IR to generate by Model Optimizer")
+        help="Version of IR to generate by Model Optimizer",
+    )
     parser.addoption(
         "--use_legacy_frontend",
         required=False,
         action="store_true",
-        help="Use Model Optimizer with legacy FrontEnd")
+        help="Use Model Optimizer with legacy FrontEnd",
+    )
     parser.addoption(
         "--tflite",
         required=False,
         action="store_true",
-        help="Switch to tflite tests version")
+        help="Switch to tflite tests version",
+    )
 
 
 @pytest.fixture(scope="session")
 def ir_version(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('ir_version')
+    return request.config.getoption("ir_version")
 
 
 @pytest.fixture(scope="session")
 def use_legacy_frontend(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('use_legacy_frontend')
+    return request.config.getoption("use_legacy_frontend")
 
 
 @pytest.fixture(scope="session")
 def tflite(request):
     """Fixture function for command-line option."""
-    return request.config.getoption('tflite')
+    return request.config.getoption("tflite")
 
 
 @pytest.fixture(scope="function")
@@ -96,5 +99,7 @@ def temp_dir(request):
     Path(constants.out_path).mkdir(parents=True, exist_ok=True)
     test_name = re.sub(r"[^\w_]", "_", request.node.originalname)
     device = request.node.funcargs["ie_device"].upper()
-    temp_dir = tempfile.TemporaryDirectory(dir=constants.out_path, prefix=f"{device}_{test_name}")
+    temp_dir = tempfile.TemporaryDirectory(
+        dir=constants.out_path, prefix=f"{device}_{test_name}"
+    )
     yield str(temp_dir.name)

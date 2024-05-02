@@ -2,40 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/scatter_update.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ScatterUpdateShapes = std::vector<ov::test::InputShape>;
 using IndicesValues = std::vector<std::int64_t>;
 
-enum class Scatterupdate_type {
-    Basic,
-    ND,
-    Elements
-};
+enum class Scatterupdate_type { Basic, ND, Elements };
 
 struct ScatterUpdateLayerParams {
     ScatterUpdateShapes inputShapes;
     IndicesValues indicesValues;
-    Scatterupdate_type  scType; // scatter update type
+    Scatterupdate_type scType;  // scatter update type
 };
 
-typedef std::tuple<
-    ScatterUpdateLayerParams,
-    ov::element::Type,        // input precision
-    ov::element::Type         // indices precision
-> ScatterUpdateParams;
+typedef std::tuple<ScatterUpdateLayerParams,
+                   ov::element::Type,  // input precision
+                   ov::element::Type   // indices precision
+                   >
+    ScatterUpdateParams;
 
 class ScatterUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpdateParams>,
-                                    virtual public ov::test::SubgraphBaseTest {
+                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ScatterUpdateParams> obj) {
         ScatterUpdateLayerParams scatterParams;
@@ -49,7 +45,7 @@ public:
         std::ostringstream result;
         result << model_type << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
@@ -63,15 +59,15 @@ public:
         result << "_idx_precision=" << idx_type;
         result << "_scatter_mode=";
         switch (scType) {
-            case Scatterupdate_type::ND:
-                result << "ScatterNDUpdate_";
-                break;
-            case Scatterupdate_type::Elements:
-                result << "ScatterElementsUpdate_";
-                break;
-            case Scatterupdate_type::Basic:
-            default:
-                result << "ScatterUpdate_";
+        case Scatterupdate_type::ND:
+            result << "ScatterNDUpdate_";
+            break;
+        case Scatterupdate_type::Elements:
+            result << "ScatterElementsUpdate_";
+            break;
+        case Scatterupdate_type::Basic:
+        default:
+            result << "ScatterUpdate_";
         }
         result << "trgDev=GPU";
         return result.str();
@@ -87,7 +83,7 @@ protected:
             const auto& targetShape = targetInputStaticShapes[i];
             ov::Tensor tensor;
             if (i == 1) {
-                tensor = ov::Tensor{ model_type, targetShape };
+                tensor = ov::Tensor{model_type, targetShape};
                 const auto indicesVals = std::get<0>(this->GetParam()).indicesValues;
                 if (model_type == ov::element::i32) {
                     auto data = tensor.data<std::int32_t>();
@@ -113,7 +109,7 @@ protected:
                     tensor = ov::test::utils::create_and_fill_tensor(model_type, targetShape);
                 }
             }
-            inputs.insert({ funcInput.get_node_shared_ptr(), tensor });
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
@@ -128,9 +124,8 @@ protected:
 
         init_input_shapes({inputShapes[0], inputShapes[1], inputShapes[2]});
 
-
         ov::ParameterVector dataParams{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),
-                                   std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2])};
+                                       std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[2])};
 
         auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idx_type, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
@@ -139,25 +134,30 @@ protected:
 
         std::shared_ptr<ov::Node> scatter;
         switch (scType) {
-            case Scatterupdate_type::ND: {
-                scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
-                break;
-            }
-            case Scatterupdate_type::Elements: {
-                auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
-                break;
-            }
-            case Scatterupdate_type::Basic:
-            default: {
-                auto axis = ov::op::v0::Constant::create(ov::element::i32, inputShapes[3].first.get_shape(), inputShapes[3].second[0]);
-                scatter = std::make_shared<ov::op::v3::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
-            }
+        case Scatterupdate_type::ND: {
+            scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
+            break;
+        }
+        case Scatterupdate_type::Elements: {
+            auto axis = ov::op::v0::Constant::create(ov::element::i32,
+                                                     inputShapes[3].first.get_shape(),
+                                                     inputShapes[3].second[0]);
+            scatter =
+                std::make_shared<ov::op::v3::ScatterElementsUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+            break;
+        }
+        case Scatterupdate_type::Basic:
+        default: {
+            auto axis = ov::op::v0::Constant::create(ov::element::i32,
+                                                     inputShapes[3].first.get_shape(),
+                                                     inputShapes[3].second[0]);
+            scatter = std::make_shared<ov::op::v3::ScatterUpdate>(dataParams[0], indicesParam, dataParams[1], axis);
+        }
         }
 
-        ov::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
+        ov::ParameterVector allParams{dataParams[0], indicesParam, dataParams[1]};
 
-        auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
+        auto makeFunction = [](ov::ParameterVector& params, const std::shared_ptr<ov::Node>& lastNode) {
             ov::ResultVector results;
 
             for (size_t i = 0; i < lastNode->get_output_size(); i++)
@@ -180,69 +180,48 @@ const std::vector<ScatterUpdateLayerParams> scatterNDParams = {
             {{2, 2, 1}, {{2, 2, 1}, {2, 2, 1}, {2, 2, 1}}},
             {{-1, -1, -1, -1, -1, -1}, {{2, 2, 9, 10, 9, 10}, {2, 2, 1, 11, 2, 5}, {2, 2, 15, 8, 1, 7}}},
         },
-        IndicesValues{ 5, 6, 2, 8 },
-        Scatterupdate_type::ND
-    },
+        IndicesValues{5, 6, 2, 8},
+        Scatterupdate_type::ND},
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{-1, -1, -1, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+                                                 {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+                                                 {{-1, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+                             IndicesValues{0, 1, 1, 2, 2, 2},
+                             Scatterupdate_type::ND},
     ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
-            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-            {{-1, -1}, {{2, 11}, {2, 12}, {2, 8}}}
-        },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 },
-        Scatterupdate_type::ND
-    },
+        ScatterUpdateShapes{{{{3, 10}, -1, {3, 9}, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+                            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+                            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+        IndicesValues{0, 1, 1, 2, 2, 2},
+        Scatterupdate_type::ND},
     ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{{3, 10}, -1, {3, 9}, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
-            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
-        },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 },
-        Scatterupdate_type::ND
-    },
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
-            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
-            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
-        },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 },
-        Scatterupdate_type::ND
-    },
+        ScatterUpdateShapes{{{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+                            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+                            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}},
+        IndicesValues{0, 1, 1, 2, 2, 2},
+        Scatterupdate_type::ND},
 };
 
 const std::vector<ScatterUpdateLayerParams> scatterElementsParams = {
     ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1, -1}, {{10, 9, 10, 9, 10}, {10, 5, 11, 4, 5}, {10, 15, 8, 1, 7}}},
-            {{-1, -1, -1, -1, -1 }, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
-            {{-1, -1, -1, -1, -1 }, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
-            {{1}, {{1}}}
-        },
-        IndicesValues{ 5, 6, 2, 8, 5, 6, 2, 8, 5, 6, 2, 8 },
-        Scatterupdate_type::Elements
-    },
+        ScatterUpdateShapes{{{-1, -1, -1, -1, -1}, {{10, 9, 10, 9, 10}, {10, 5, 11, 4, 5}, {10, 15, 8, 1, 7}}},
+                            {{-1, -1, -1, -1, -1}, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
+                            {{-1, -1, -1, -1, -1}, {{3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}, {3, 2, 1, 2, 1}}},
+                            {{1}, {{1}}}},
+        IndicesValues{5, 6, 2, 8, 5, 6, 2, 8, 5, 6, 2, 8},
+        Scatterupdate_type::Elements},
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{-1, -1, -1, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+                                                 {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
+                                                 {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
+                                                 {{1}, {{1}}}},
+                             IndicesValues{0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2},
+                             Scatterupdate_type::Elements},
     ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
-            {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
-            {{-1, -1, -1, -1}, {{3, 1, 2, 3}, {3, 1, 2, 3}, {3, 1, 2, 3}}},
-            {{1}, {{1}}}
-        },
-        IndicesValues{ 0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2, 0, 1, 1, 2, 2, 2 },
-        Scatterupdate_type::Elements
-    },
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{{3, 10}, -1, {3, 9}, -1}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
-            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
-            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
-            {{1}, {{1}}}
-        },
-        IndicesValues{ 0, 1, 1, 2, 2, 2 },
-        Scatterupdate_type::Elements
-    },
+        ScatterUpdateShapes{{{{3, 10}, -1, {3, 9}, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
+                            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
+                            {{2, -1, 3, -1}, {{2, 1, 3, 1}, {2, 1, 3, 1}, {2, 1, 3, 1}}},
+                            {{1}, {{1}}}},
+        IndicesValues{0, 1, 1, 2, 2, 2},
+        Scatterupdate_type::Elements},
 };
 
 const std::vector<ov::element::Type> model_types = {
@@ -254,76 +233,64 @@ const std::vector<ov::element::Type> constantPrecisions = {
 };
 
 const std::vector<ScatterUpdateLayerParams> scatterUpdate_EmptyInput1_2Params = {
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
-            {{-1}, {{ 0 }}},
-            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
-            {{1}, {{0}}}
-        },
-        IndicesValues{ 0 },
-        Scatterupdate_type::Basic
-    },
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{-1, -1, -1, -1}, {{100, 256, 14, 14}}},
+                                                 {{-1}, {{0}}},
+                                                 {{-1, 256, 14, 14}, {{0, 256, 14, 14}}},
+                                                 {{1}, {{0}}}},
+                             IndicesValues{0},
+                             Scatterupdate_type::Basic},
 };
 
 const std::vector<ScatterUpdateLayerParams> scatterNDUpdate_EmptyInput1_2Params = {
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
-            {{-1, 1}, {{ 0, 1 }}},
-            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}}
-        },
-        IndicesValues{ 0 },
-        Scatterupdate_type::ND
-    },
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{-1, -1, -1, -1}, {{100, 256, 14, 14}}},
+                                                 {{-1, 1}, {{0, 1}}},
+                                                 {{-1, 256, 14, 14}, {{0, 256, 14, 14}}}},
+                             IndicesValues{0},
+                             Scatterupdate_type::ND},
 };
 
 const std::vector<ScatterUpdateLayerParams> scatterElementsUpdate_EmptyInput1_2Params = {
-    ScatterUpdateLayerParams{
-        ScatterUpdateShapes{
-            {{-1, -1, -1, -1}, {{ 100, 256, 14, 14 }}},
-            {{-1, -1, 14, 14}, {{ 0, 256, 14, 14 }}},
-            {{-1, 256, 14, 14}, {{ 0, 256, 14, 14 }}},
-            {{1}, {{0}}}
-        },
-        IndicesValues{ 0 },
-        Scatterupdate_type::Elements
-    },
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{-1, -1, -1, -1}, {{100, 256, 14, 14}}},
+                                                 {{-1, -1, 14, 14}, {{0, 256, 14, 14}}},
+                                                 {{-1, 256, 14, 14}, {{0, 256, 14, 14}}},
+                                                 {{1}, {{0}}}},
+                             IndicesValues{0},
+                             Scatterupdate_type::Elements},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterNDParams),
-        ::testing::ValuesIn(model_types),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_CompareWithRefs_dynamic,
+                         ScatterUpdateLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterNDParams),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterElementsParams),
-        ::testing::ValuesIn(model_types),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_CompareWithRefs_dynamic,
+                         ScatterUpdateLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterElementsParams),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(model_types),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_EmptyInput1_2_CompareWithRefs_dynamic,
+                         ScatterUpdateLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterUpdate_EmptyInput1_2Params),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterNDUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(model_types),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_EmptyInput1_2_CompareWithRefs_dynamic,
+                         ScatterUpdateLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterNDUpdate_EmptyInput1_2Params),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerGPUTest::getTestCaseName);
 
 // ScatterELementsUpdate doesn't support dynamic shape yet. Need to enable when it supports.
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_EmptyInput1_2_CompareWithRefs_dynamic, ScatterUpdateLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(scatterElementsUpdate_EmptyInput1_2Params),
-        ::testing::ValuesIn(model_types),
-        ::testing::ValuesIn(constantPrecisions)),
-    ScatterUpdateLayerGPUTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate_EmptyInput1_2_CompareWithRefs_dynamic,
+                         ScatterUpdateLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(scatterElementsUpdate_EmptyInput1_2Params),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerGPUTest::getTestCaseName);
+}  // namespace

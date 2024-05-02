@@ -3,10 +3,12 @@
 //
 
 #include "reduce_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
 #include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -31,14 +33,9 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
         DimensionAccessHelper dims(output);
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
-                                                                                              dims.y(),
-                                                                                              dims.z(),
-                                                                                              dims.w(),
-                                                                                              dims.u(),
-                                                                                              dims.v(),
-                                                                                              dims.f(),
-                                                                                              dims.b()})));
+        jit.AddConstant(MakeJitConstant(
+            "COMPUTATIONAL_OPERATIONS_NUMBER",
+            toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.u(), dims.v(), dims.f(), dims.b()})));
     } else {
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }
@@ -67,48 +64,78 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     auto getDimSizeNameByNum = [&](size_t dim) -> std::string {
         if (params.inputs[0].Dimentions() == 8) {
             switch (dim) {
-                case 0: return "BATCH_NUM";
-                case 1: return "FEATURE_NUM";
-                case 2: return "SIZE_V";
-                case 3: return "SIZE_U";
-                case 4: return "SIZE_W";
-                case 5: return "SIZE_Z";
-                case 6: return "SIZE_Y";
-                case 7: return "SIZE_X";
+            case 0:
+                return "BATCH_NUM";
+            case 1:
+                return "FEATURE_NUM";
+            case 2:
+                return "SIZE_V";
+            case 3:
+                return "SIZE_U";
+            case 4:
+                return "SIZE_W";
+            case 5:
+                return "SIZE_Z";
+            case 6:
+                return "SIZE_Y";
+            case 7:
+                return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 7) {
             switch (dim) {
-                case 0: return "BATCH_NUM";
-                case 1: return "FEATURE_NUM";
-                case 2: return "SIZE_U";
-                case 3: return "SIZE_W";
-                case 4: return "SIZE_Z";
-                case 5: return "SIZE_Y";
-                case 6: return "SIZE_X";
+            case 0:
+                return "BATCH_NUM";
+            case 1:
+                return "FEATURE_NUM";
+            case 2:
+                return "SIZE_U";
+            case 3:
+                return "SIZE_W";
+            case 4:
+                return "SIZE_Z";
+            case 5:
+                return "SIZE_Y";
+            case 6:
+                return "SIZE_X";
             }
-        } else  if (params.inputs[0].Dimentions() == 6) {
+        } else if (params.inputs[0].Dimentions() == 6) {
             switch (dim) {
-                case 0: return "BATCH_NUM";
-                case 1: return "FEATURE_NUM";
-                case 2: return "SIZE_W";
-                case 3: return "SIZE_Z";
-                case 4: return "SIZE_Y";
-                case 5: return "SIZE_X";
+            case 0:
+                return "BATCH_NUM";
+            case 1:
+                return "FEATURE_NUM";
+            case 2:
+                return "SIZE_W";
+            case 3:
+                return "SIZE_Z";
+            case 4:
+                return "SIZE_Y";
+            case 5:
+                return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 5) {
             switch (dim) {
-                case 0: return "BATCH_NUM";
-                case 1: return "FEATURE_NUM";
-                case 2: return "SIZE_Z";
-                case 3: return "SIZE_Y";
-                case 4: return "SIZE_X";
+            case 0:
+                return "BATCH_NUM";
+            case 1:
+                return "FEATURE_NUM";
+            case 2:
+                return "SIZE_Z";
+            case 3:
+                return "SIZE_Y";
+            case 4:
+                return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 4) {
             switch (dim) {
-                case 0: return "BATCH_NUM";
-                case 1: return "FEATURE_NUM";
-                case 2: return "SIZE_Y";
-                case 3: return "SIZE_X";
+            case 0:
+                return "BATCH_NUM";
+            case 1:
+                return "FEATURE_NUM";
+            case 2:
+                return "SIZE_Y";
+            case 3:
+                return "SIZE_X";
             }
         }
         return "";
@@ -163,30 +190,30 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     for (size_t a = 0; a < params.reduceAxes.size(); a++) {
         switch (params.reduceAxes[a]) {
-            case 0:
-                jit.AddConstant(MakeJitConstant("REDUCE_BATCH", 1));
-                break;
-            case 1:
-                jit.AddConstant(MakeJitConstant("REDUCE_FEATURE", 1));
-                break;
-            case 2:
-                jit.AddConstant(MakeJitConstant("REDUCE_X", 1));
-                break;
-            case 3:
-                jit.AddConstant(MakeJitConstant("REDUCE_Y", 1));
-                break;
-            case 4:
-                jit.AddConstant(MakeJitConstant("REDUCE_Z", 1));
-                break;
-            case 5:
-                jit.AddConstant(MakeJitConstant("REDUCE_W", 1));
-                break;
-            case 6:
-                jit.AddConstant(MakeJitConstant("REDUCE_U", 1));
-                break;
-            case 7:
-                jit.AddConstant(MakeJitConstant("REDUCE_V", 1));
-                break;
+        case 0:
+            jit.AddConstant(MakeJitConstant("REDUCE_BATCH", 1));
+            break;
+        case 1:
+            jit.AddConstant(MakeJitConstant("REDUCE_FEATURE", 1));
+            break;
+        case 2:
+            jit.AddConstant(MakeJitConstant("REDUCE_X", 1));
+            break;
+        case 3:
+            jit.AddConstant(MakeJitConstant("REDUCE_Y", 1));
+            break;
+        case 4:
+            jit.AddConstant(MakeJitConstant("REDUCE_Z", 1));
+            break;
+        case 5:
+            jit.AddConstant(MakeJitConstant("REDUCE_W", 1));
+            break;
+        case 6:
+            jit.AddConstant(MakeJitConstant("REDUCE_U", 1));
+            break;
+        case 7:
+            jit.AddConstant(MakeJitConstant("REDUCE_V", 1));
+            break;
         }
     }
 
@@ -201,11 +228,16 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
         return input_dt;
     } else {
         switch (input_dt) {
-            case Datatype::F32: return Datatype::F32;
-            case Datatype::F16: return Datatype::F32;
-            case Datatype::INT8: return Datatype::INT32;
-            case Datatype::UINT8: return Datatype::INT32;
-            default: return Datatype::F32;
+        case Datatype::F32:
+            return Datatype::F32;
+        case Datatype::F16:
+            return Datatype::F32;
+        case Datatype::INT8:
+            return Datatype::INT32;
+        case Datatype::UINT8:
+            return Datatype::INT32;
+        default:
+            return Datatype::F32;
         }
     }
 }
@@ -213,11 +245,8 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
 Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) const {
     const auto& reduce_mode = params.reduceMode;
 
-    if (reduce_mode == ReduceMode::MEAN ||
-        reduce_mode == ReduceMode::LOG_SUM_EXP ||
-        reduce_mode == ReduceMode::LOG_SUM ||
-        reduce_mode == ReduceMode::L2 ||
-        reduce_mode == ReduceMode::L1) {
+    if (reduce_mode == ReduceMode::MEAN || reduce_mode == ReduceMode::LOG_SUM_EXP ||
+        reduce_mode == ReduceMode::LOG_SUM || reduce_mode == ReduceMode::L2 || reduce_mode == ReduceMode::L1) {
         return Datatype::F32;
     } else {
         return GetAccumulatorType(params);

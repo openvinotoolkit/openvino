@@ -2,8 +2,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.runtime.op.util import Variable, VariableInfo
+
 from openvino import PartialShape, Type
-from openvino.runtime.op.util import VariableInfo, Variable
 
 
 def test_info_as_property():

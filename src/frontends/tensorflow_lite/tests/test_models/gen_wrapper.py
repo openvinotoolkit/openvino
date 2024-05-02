@@ -6,14 +6,17 @@ import subprocess
 import sys
 
 if len(sys.argv) < 4:
-    print("Script[model in pbtxt format], output folder and mark file must be specified as arguments", str(sys.argv))
+    print(
+        "Script[model in pbtxt format], output folder and mark file must be specified as arguments",
+        str(sys.argv),
+    )
     exit(1)
 
 gen_script = sys.argv[1]
 out_folder = sys.argv[2]
 mark_file = sys.argv[3]
 
-assert gen_script.endswith('.py'), "Unexpected script: " + gen_script
+assert gen_script.endswith(".py"), "Unexpected script: " + gen_script
 try:
     subprocess.run([sys.executable, gen_script, out_folder], env=os.environ, check=True)
 except subprocess.CalledProcessError as cpe:

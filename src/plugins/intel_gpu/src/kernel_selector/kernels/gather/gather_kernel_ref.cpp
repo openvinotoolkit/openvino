@@ -3,9 +3,11 @@
 //
 
 #include "gather_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 static size_t GetGatherChannelIndex(const gather_params& params) {
@@ -14,20 +16,20 @@ static size_t GetGatherChannelIndex(const gather_params& params) {
     size_t inputSize = params.inputs[0].GetDims().size();
 
     switch (params.axis) {
-        case GatherAxis::X:
-            return inputSize - 1;
-        case GatherAxis::Y:
-            return inputSize - 2;
-        case GatherAxis::Z:
-            return inputSize - 3;
-        case GatherAxis::W:
-            return 2;
-        case GatherAxis::FEATURE:
-            return 1;
-        case GatherAxis::BATCH:
-            return 0;
-        default:
-            break;
+    case GatherAxis::X:
+        return inputSize - 1;
+    case GatherAxis::Y:
+        return inputSize - 2;
+    case GatherAxis::Z:
+        return inputSize - 3;
+    case GatherAxis::W:
+        return 2;
+    case GatherAxis::FEATURE:
+        return 1;
+    case GatherAxis::BATCH:
+        return 0;
+    default:
+        break;
     }
 
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
@@ -238,15 +240,20 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
+    jit.AddConstant(
+        MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
+    jit.AddConstant(
+        MakeJitConstant("INDICES_INDEX_ORDER",
+                        GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
 
     bool dyn_gather_idx_dim = GetGatherIndexDim(params).is_dynamic;
     if (params.support_neg_ind) {
         if (!dyn_gather_idx_dim) {
             jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
         } else {
-            jit.AddConstant(MakeJitConstant("INDEX_DIM", "shape_info[" + std::to_string(GetGatherAxisIndexInShapeInfo(params)) + "]"));
+            jit.AddConstant(
+                MakeJitConstant("INDEX_DIM",
+                                "shape_info[" + std::to_string(GetGatherAxisIndexInShapeInfo(params)) + "]"));
         }
     }
 
@@ -259,7 +266,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
 
-        FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf = {"", idx_order, "val", params.inputs[0].GetDType()};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
@@ -316,8 +323,7 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
     if (params.outputs[0].is_dynamic()) {
         auto supported_tensor_layout = [](const DataTensor& t) -> bool {
-            if (t.GetLayout() == DataLayout::bfyx ||
-                t.GetLayout() == DataLayout::bfzyx ||
+            if (t.GetLayout() == DataLayout::bfyx || t.GetLayout() == DataLayout::bfzyx ||
                 t.GetLayout() == DataLayout::bfwzyx) {
                 return true;
             }

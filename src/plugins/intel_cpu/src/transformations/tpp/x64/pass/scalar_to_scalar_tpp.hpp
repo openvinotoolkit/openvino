@@ -16,12 +16,11 @@ namespace pass {
  * @brief Converts snippets::op::Scalar to tpp::op::Scalar, since TPP operations require a dedicated emitter
  * @ingroup snippets
  */
-class ScalarToScalarTPP: public ov::pass::MatcherPass {
+class ScalarToScalarTPP : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ScalarToScalarTPP", "0");
     ScalarToScalarTPP();
 };
-
 
 }  // namespace pass
 }  // namespace tpp

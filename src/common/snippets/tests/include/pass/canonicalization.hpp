@@ -6,9 +6,9 @@
 
 #include "lowering_utils.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets_helpers.hpp"
-#include "snippets/shape_types.hpp"
 #include "snippets/pass/canonicalization.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets_helpers.hpp"
 
 namespace ov {
 namespace test {

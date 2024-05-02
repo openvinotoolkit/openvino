@@ -1,5 +1,5 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
-// 
+//
 // Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
@@ -7,22 +7,23 @@
 //
 // http://opensource.org/licenses/MIT
 //
-// Unless required by applicable law or agreed to in writing, software distributed 
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #ifndef RAPIDJSON_FILEREADSTREAM_H_
 #define RAPIDJSON_FILEREADSTREAM_H_
 
-#include "stream.h"
 #include <cstdio>
+
+#include "stream.h"
 
 #ifdef __clang__
 RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(padded)
-RAPIDJSON_DIAG_OFF(unreachable-code)
-RAPIDJSON_DIAG_OFF(missing-noreturn)
+RAPIDJSON_DIAG_OFF(unreachable - code)
+RAPIDJSON_DIAG_OFF(missing - noreturn)
 #endif
 
 RAPIDJSON_NAMESPACE_BEGIN
@@ -33,7 +34,7 @@ RAPIDJSON_NAMESPACE_BEGIN
 */
 class FileReadStream {
 public:
-    typedef char Ch;    //!< Character type (byte).
+    typedef char Ch;  //!< Character type (byte).
 
     //! Constructor.
     /*!
@@ -41,21 +42,47 @@ public:
         \param buffer user-supplied buffer.
         \param bufferSize size of buffer in bytes. Must >=4 bytes.
     */
-    FileReadStream(std::FILE* fp, char* buffer, size_t bufferSize) : fp_(fp), buffer_(buffer), bufferSize_(bufferSize), bufferLast_(0), current_(buffer_), readCount_(0), count_(0), eof_(false) { 
+    FileReadStream(std::FILE* fp, char* buffer, size_t bufferSize)
+        : fp_(fp),
+          buffer_(buffer),
+          bufferSize_(bufferSize),
+          bufferLast_(0),
+          current_(buffer_),
+          readCount_(0),
+          count_(0),
+          eof_(false) {
         RAPIDJSON_ASSERT(fp_ != 0);
         RAPIDJSON_ASSERT(bufferSize >= 4);
         Read();
     }
 
-    Ch Peek() const { return *current_; }
-    Ch Take() { Ch c = *current_; Read(); return c; }
-    size_t Tell() const { return count_ + static_cast<size_t>(current_ - buffer_); }
+    Ch Peek() const {
+        return *current_;
+    }
+    Ch Take() {
+        Ch c = *current_;
+        Read();
+        return c;
+    }
+    size_t Tell() const {
+        return count_ + static_cast<size_t>(current_ - buffer_);
+    }
 
     // Not implemented
-    void Put(Ch) { RAPIDJSON_ASSERT(false); }
-    void Flush() { RAPIDJSON_ASSERT(false); } 
-    Ch* PutBegin() { RAPIDJSON_ASSERT(false); return 0; }
-    size_t PutEnd(Ch*) { RAPIDJSON_ASSERT(false); return 0; }
+    void Put(Ch) {
+        RAPIDJSON_ASSERT(false);
+    }
+    void Flush() {
+        RAPIDJSON_ASSERT(false);
+    }
+    Ch* PutBegin() {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
+    size_t PutEnd(Ch*) {
+        RAPIDJSON_ASSERT(false);
+        return 0;
+    }
 
     // For encoding detection only.
     const Ch* Peek4() const {
@@ -81,10 +108,10 @@ private:
     }
 
     std::FILE* fp_;
-    Ch *buffer_;
+    Ch* buffer_;
     size_t bufferSize_;
-    Ch *bufferLast_;
-    Ch *current_;
+    Ch* bufferLast_;
+    Ch* current_;
     size_t readCount_;
     size_t count_;  //!< Number of characters read
     bool eof_;
@@ -96,4 +123,4 @@ RAPIDJSON_NAMESPACE_END
 RAPIDJSON_DIAG_POP
 #endif
 
-#endif // RAPIDJSON_FILESTREAM_H_
+#endif  // RAPIDJSON_FILESTREAM_H_

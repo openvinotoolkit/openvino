@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import onnx
+from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 from openvino.tools.mo.front.onnx.pad_ext import PadFrontExtractor
 from openvino.tools.mo.graph.graph import Graph
-from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class TestPad(BaseExtractorsTestingClass):
@@ -16,17 +16,12 @@ class TestPad(BaseExtractorsTestingClass):
         if value is None:
             value = 0.0
         if mode is None:
-            mode = 'constant'
+            mode = "constant"
         pb = onnx.helper.make_node(
-            'Pad',
-            pads=pads,
-            mode=mode,
-            value=value,
-            inputs=['a'],
-            outputs=['b']
+            "Pad", pads=pads, mode=mode, value=value, inputs=["a"], outputs=["b"]
         )
         graph = Graph()
-        node = PB({'pb': pb, 'graph': graph})
+        node = PB({"pb": pb, "graph": graph})
 
         return node
 
@@ -35,38 +30,26 @@ class TestPad(BaseExtractorsTestingClass):
         PadFrontExtractor.extract(node)
         self.res = node
 
-        self.expected = {
-            'pads': [[1, 3], [2, 4]],
-            'mode': 'constant',
-            'fill_value': 0
-        }
+        self.expected = {"pads": [[1, 3], [2, 4]], "mode": "constant", "fill_value": 0}
 
         self.compare()
 
     def test_older_pad_opset_11(self):
         node = self._create_node()
-        node.graph.graph['fw_opset_version'] = 11
+        node.graph.graph["fw_opset_version"] = 11
         PadFrontExtractor.extract(node)
         self.res = node
 
-        self.expected = {
-            'pads': [[1, 3], [2, 4]],
-            'mode': 'constant',
-            'fill_value': 0
-        }
+        self.expected = {"pads": [[1, 3], [2, 4]], "mode": "constant", "fill_value": 0}
 
         self.compare()
 
     def test_reflect(self):
-        node = self._create_node(mode='reflect')
+        node = self._create_node(mode="reflect")
         PadFrontExtractor.extract(node)
         self.res = node
 
-        self.expected = {
-            'pads': [[1, 3], [2, 4]],
-            'mode': 'reflect',
-            'fill_value': 0
-        }
+        self.expected = {"pads": [[1, 3], [2, 4]], "mode": "reflect", "fill_value": 0}
 
         self.compare()
 
@@ -76,9 +59,9 @@ class TestPad(BaseExtractorsTestingClass):
         self.res = node
 
         self.expected = {
-            'pads': [[1, 3], [2, 4]],
-            'mode': 'constant',
-            'fill_value': 1.0
+            "pads": [[1, 3], [2, 4]],
+            "mode": "constant",
+            "fill_value": 1.0,
         }
 
         self.compare()

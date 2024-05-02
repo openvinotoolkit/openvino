@@ -3,14 +3,16 @@
 //
 
 #include "shared_test_classes/subgraph/quantized_convolution_backprop_data.hpp"
-#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
+
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
 
-std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
+std::string QuantConvBackpropDataLayerTest::getTestCaseName(
+    const testing::TestParamInfo<quantConvBackpropDataLayerTestParamsSet>& obj) {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::element::Type element_type;
     ov::Shape inputShapes;
@@ -22,7 +24,8 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
     size_t convOutChannels;
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
+        groupConvBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -51,7 +54,8 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     size_t convOutChannels;
     size_t quantLevels;
     ov::test::utils::QuantizationGranularity quantGranularity;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) = groupConvBackpropDataParams;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, quantLevels, quantGranularity) =
+        groupConvBackpropDataParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, inputShape)};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);
@@ -63,7 +67,8 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
     std::vector<float> weightsData;
-    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
+    auto weightsNode =
+        ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)
@@ -72,7 +77,14 @@ void QuantConvBackpropDataLayerTest::SetUp() {
     auto weightsFq = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
     auto convBackpropData = std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(
-            ov::test::utils::make_convolution_backprop_data(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
+        ov::test::utils::make_convolution_backprop_data(dataFq,
+                                                        weightsFq,
+                                                        element_type,
+                                                        stride,
+                                                        padBegin,
+                                                        padEnd,
+                                                        dilation,
+                                                        padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convBackpropData)};
     function = std::make_shared<ov::Model>(results, params, "QuantConvolutionBackpropData");

@@ -3,8 +3,9 @@
 //
 
 #include "reduce_kernel_selector.h"
-#include "reduce_kernel_ref.h"
+
 #include "reduce_kernel_b_fs_yx_fsv16.h"
+#include "reduce_kernel_ref.h"
 
 namespace kernel_selector {
 

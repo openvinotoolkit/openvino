@@ -1,18 +1,18 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
 class Assert(Op):
-    op = 'Assert'
+    op = "Assert"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
-            'infer': Assert.assert_infer,
-            'cf_infer': Assert.assert_control_flow_infer
+            "op": __class__.op,
+            "infer": Assert.assert_infer,
+            "cf_infer": Assert.assert_control_flow_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -23,7 +23,9 @@ class Assert(Op):
         node.out_node().shape = []
 
     @staticmethod
-    def assert_control_flow_infer(node: Node,  is_executable: bool, mark_executability: callable):
+    def assert_control_flow_infer(
+        node: Node, is_executable: bool, mark_executability: callable
+    ):
         """
         Infers control flow through assert operation node. It marks output data nodes executability according to
         executability of current node and assert data value
@@ -35,4 +37,3 @@ class Assert(Op):
         assert_value = node.out_node().value
         for n in [v for _, v in graph.out_edges(node.id)]:
             mark_executability(n, assert_value and is_executable)
-

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_api_conformance_helpers.hpp"
 #include "behavior/ov_plugin/version.hpp"
+
+#include "ov_api_conformance_helpers.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;

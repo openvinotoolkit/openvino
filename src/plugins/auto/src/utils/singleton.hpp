@@ -12,11 +12,11 @@
 
 #include "non_copyable.hpp"
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
+#ifdef MULTIUNITTEST
+#    define MOCKTESTMACRO virtual
+#    define auto_plugin   mock_auto_plugin
 #else
-#define MOCKTESTMACRO
+#    define MOCKTESTMACRO
 #endif
 
 namespace ov {
@@ -28,7 +28,7 @@ public:
         static std::shared_ptr<Type> obj;
         std::call_once(m_onceFlag, [&]() {
             auto* objPtr = new Type();
-            assert(objPtr!= nullptr);
+            assert(objPtr != nullptr);
             obj.reset(objPtr);
         });
         return obj;
@@ -42,5 +42,5 @@ protected:
 
 template <typename Type>
 std::once_flag Singleton<Type>::m_onceFlag;
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov

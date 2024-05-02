@@ -187,29 +187,31 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : Bas
         .WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
-    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
-        auto item = fullConfigs.find(ov::device::properties.name());
-        ov::AnyMap deviceConfigs;
-        if (item != fullConfigs.end()) {
-            ov::AnyMap devicesProperties;
-            std::stringstream strConfigs(item->second.as<std::string>());
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
-            auto it = devicesProperties.find(device);
-            if (it != devicesProperties.end()) {
-                std::stringstream strConfigs(it->second.as<std::string>());
-                ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
-            }
-        }
-        for (auto&& item : fullConfigs) {
-            if (item.first != ov::device::properties.name()) {
-                // primary property
-                // override will not happen here if the property already present in the device config list.
-                deviceConfigs.insert(item);
-            }
-        }
-        return deviceConfigs;
-    });
+    ON_CALL(*core, get_supported_property)
+        .WillByDefault(
+            [](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
+                auto item = fullConfigs.find(ov::device::properties.name());
+                ov::AnyMap deviceConfigs;
+                if (item != fullConfigs.end()) {
+                    ov::AnyMap devicesProperties;
+                    std::stringstream strConfigs(item->second.as<std::string>());
+                    // Parse the device properties to common property into deviceConfigs.
+                    ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+                    auto it = devicesProperties.find(device);
+                    if (it != devicesProperties.end()) {
+                        std::stringstream strConfigs(it->second.as<std::string>());
+                        ov::util::Read<ov::AnyMap>{}(strConfigs, deviceConfigs);
+                    }
+                }
+                for (auto&& item : fullConfigs) {
+                    if (item.first != ov::device::properties.name()) {
+                        // primary property
+                        // override will not happen here if the property already present in the device config list.
+                        deviceConfigs.insert(item);
+                    }
+                }
+                return deviceConfigs;
+            });
 }
 
 ov::mock_auto_plugin::tests::AutoTest::~AutoTest() {

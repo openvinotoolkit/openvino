@@ -26,12 +26,11 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 
 protected:
-    virtual void changeDequantizationValues(
-        const std::shared_ptr<Node>& reduce,
-        FakeQuantizeDequantization& dequantization) const;
+    virtual void changeDequantizationValues(const std::shared_ptr<Node>& reduce,
+                                            FakeQuantizeDequantization& dequantization) const;
     virtual bool getUpdatePrecision(const std::shared_ptr<Node>& reduce) const;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

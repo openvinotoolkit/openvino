@@ -34,5 +34,5 @@ std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -49,7 +49,9 @@ bool LRNKernelWithinChannelOpt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants LRNKernelWithinChannelOpt::GetJitConstants(const lrn_params& params, const LRNKernelWithinChannelOpt::Parent::DispatchData& dispatchData) const {
+JitConstants LRNKernelWithinChannelOpt::GetJitConstants(
+    const lrn_params& params,
+    const LRNKernelWithinChannelOpt::Parent::DispatchData& dispatchData) const {
     const auto& input_dt = params.inputs[0].GetDType();
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 

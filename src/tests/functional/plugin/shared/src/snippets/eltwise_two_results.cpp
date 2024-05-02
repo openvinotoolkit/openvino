@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
 #include "snippets/eltwise_two_results.hpp"
+
+#include "common_test_utils/common_utils.hpp"
 #include "subgraph_simple.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-std::string EltwiseTwoResults::getTestCaseName(testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams> obj) {
+std::string EltwiseTwoResults::getTestCaseName(
+    testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams> obj) {
     InputShape inputShapes0, inputShapes1;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -51,6 +53,6 @@ TEST_P(EltwiseTwoResults, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

@@ -51,7 +51,7 @@ bool SerializeDataFlow::run(LinearIR& linear_ir) {
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

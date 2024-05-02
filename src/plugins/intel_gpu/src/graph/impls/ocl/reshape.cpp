@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "reshape_inst.h"
 #include "reshape/reshape_kernel_ref.h"
 #include "reshape/reshape_kernel_selector.h"
+#include "reshape_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -27,29 +26,20 @@ struct reshape_impl : public typed_primitive_impl_ocl<reshape> {
         return get_default_params<kernel_selector::reshape_params>(impl_param);
     }
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 };
 
 namespace detail {
 
 attach_reshape_impl::attach_reshape_impl() {
-    implementation_map<reshape>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<reshape>::create<reshape_impl>, {});
+    implementation_map<reshape>::add(impl_types::ocl,
+                                     shape_types::static_shape,
+                                     typed_primitive_impl_ocl<reshape>::create<reshape_impl>,
+                                     {});
 
-    auto dyn_types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i32
-    };
+    auto dyn_types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32};
 
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-        format::bfuwzyx,
-        format::bfvuwzyx
-    };
+    auto dyn_formats = {format::bfyx, format::bfzyx, format::bfwzyx, format::bfuwzyx, format::bfvuwzyx};
 
     implementation_map<reshape>::add(impl_types::ocl,
                                      shape_types::dynamic_shape,

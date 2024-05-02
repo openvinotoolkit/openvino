@@ -4,13 +4,11 @@
 
 #include <array>
 
-#include "register.hpp"
 #include "crop_inst.h"
 #include "implementation_map.hpp"
-
 #include "intel_gpu/runtime/error_handler.hpp"
-
 #include "openvino/op/slice.hpp"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -41,7 +39,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "crop::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events =
+            (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -58,7 +57,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
         auto offsets_shape = input_offset.get_partial_shape(input_shape.size(), input_layout.get_rank()).to_shape();
         auto output_shape = output_layout.get_partial_shape().to_shape();
 
-        OPENVINO_ASSERT(offsets_shape.size() == output_shape.size(), "[GPU] Offset shape is supposed to have the same rank as output shape");
+        OPENVINO_ASSERT(offsets_shape.size() == output_shape.size(),
+                        "[GPU] Offset shape is supposed to have the same rank as output shape");
 
         auto input_mem_ptr = instance.input_memory_ptr();
         auto output_mem_ptr = instance.output_memory_ptr();
@@ -79,7 +79,6 @@ struct crop_impl : public typed_primitive_impl<crop> {
         for (size_t i = 0; i < start_vec.size(); i++)
             stop_vec.push_back(start_vec[i] + output_shape[i]);
 
-
         auto start_tensor = ov::Tensor(ov::element::i64, {start_vec.size()}, start_vec.data());
         auto stop_tensor = ov::Tensor(ov::element::i64, {stop_vec.size()}, stop_vec.data());
         auto steps_tensor = ov::Tensor(ov::element::i64, {steps_vec.size()}, steps_vec.data());
@@ -98,7 +97,8 @@ struct crop_impl : public typed_primitive_impl<crop> {
             op = std::make_shared<ov::op::v8::Slice>();
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
-                        "[GPU] Couldn't execute crop primitive with id ", instance.id());
+                        "[GPU] Couldn't execute crop primitive with id ",
+                        instance.id());
 
         if (pass_through_events) {
             if (events.size() > 1) {
@@ -111,7 +111,7 @@ struct crop_impl : public typed_primitive_impl<crop> {
         return stream.create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {}
 
@@ -120,7 +120,6 @@ public:
         return make_unique<crop_impl>();
     }
 };
-
 
 namespace detail {
 

@@ -20,5 +20,7 @@ class TestingErrorClassifier(unittest.TestCase):
         self.assertEqual(classify_error_type(message), "cannot import name 'IECore'")
 
     def test_cannot_import_name_neg(self):
-        message = "import name 'IECore' from 'openvino.inference_engine' (unknown location)"
+        message = (
+            "import name 'IECore' from 'openvino.inference_engine' (unknown location)"
+        )
         self.assertEqual(classify_error_type(message), "undefined")

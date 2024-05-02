@@ -3,50 +3,49 @@
 //
 
 #include "ocl_device.hpp"
-#include "ocl_common.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include <map>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <unordered_map>
-#include <string>
-#include <cassert>
 #include <time.h>
-#include <limits>
+
+#include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <map>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "ocl_common.hpp"
 
 #ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#include <setupapi.h>
-#include <devguid.h>
-#include <cstring>
-#else
-#include <unistd.h>
-#include <limits.h>
-#include <link.h>
-#include <dlfcn.h>
-#endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <devguid.h>
+#    include <setupapi.h>
+#    include <windows.h>
 
+#    include <cstring>
+#else
+#    include <dlfcn.h>
+#    include <limits.h>
+#    include <link.h>
+#    include <unistd.h>
+#endif
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
 int driver_dev_id() {
-    const std::vector<int> unused_ids = {
-        0x4905, 0x4906, 0x4907, 0x4908
-    };
+    const std::vector<int> unused_ids = {0x4905, 0x4906, 0x4907, 0x4908};
     std::vector<int> result;
 
 #ifdef _WIN32
@@ -81,7 +80,7 @@ int driver_dev_id() {
     }
 #elif defined(__linux__)
     {
-        std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
+        std::string dev_base{"/sys/devices/pci0000:00/0000:00:02.0/"};
         std::ifstream ifs(dev_base + "vendor");
         if (ifs.good()) {
             int ven_id;
@@ -119,7 +118,6 @@ device_type get_device_type(const cl::Device& device) {
     return unified_mem ? device_type::integrated_gpu : device_type::discrete_gpu;
 }
 
-
 gfx_version parse_version(cl_uint gmdid) {
     union GMDID {
         uint32_t value;
@@ -134,7 +132,9 @@ gfx_version parse_version(cl_uint gmdid) {
     GMDID gmd_id = {gmdid};
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
-        return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
+        return {static_cast<uint16_t>(gmd_id.architecture),
+                static_cast<uint8_t>(gmd_id.release),
+                static_cast<uint8_t>(gmd_id.revision)};
     } else {
         // Old format
         cl_uint ver = gmdid;
@@ -149,16 +149,12 @@ gfx_version parse_version(cl_uint gmdid) {
 bool get_imad_support(const cl::Device& device) {
     std::string dev_name = device.getInfo<CL_DEVICE_NAME>();
 
-    if (dev_name.find("Gen12") != std::string::npos ||
-        dev_name.find("Xe") != std::string::npos)
+    if (dev_name.find("Gen12") != std::string::npos || dev_name.find("Xe") != std::string::npos)
         return true;
 
     if (get_device_type(device) == device_type::integrated_gpu) {
-        const std::vector<int> imad_ids = {
-            0x9A40, 0x9A49, 0x9A59, 0x9AD9,
-            0x9A60, 0x9A68, 0x9A70, 0x9A78,
-            0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
-        };
+        const std::vector<int> imad_ids =
+            {0x9A40, 0x9A49, 0x9A59, 0x9AD9, 0x9A60, 0x9A68, 0x9A70, 0x9A78, 0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9};
         int dev_id = driver_dev_id();
         if (dev_id == 0)
             return false;
@@ -216,7 +212,8 @@ device_info init_device_info(const cl::Device& device) {
     info.supports_intel_subgroups = extensions.find("cl_intel_subgroups ") != std::string::npos;
     info.supports_intel_subgroups_short = extensions.find("cl_intel_subgroups_short ") != std::string::npos;
     info.supports_intel_subgroups_char = extensions.find("cl_intel_subgroups_char ") != std::string::npos;
-    info.supports_intel_required_subgroup_size = extensions.find("cl_intel_required_subgroup_size ") != std::string::npos;
+    info.supports_intel_required_subgroup_size =
+        extensions.find("cl_intel_required_subgroup_size ") != std::string::npos;
 
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
@@ -260,16 +257,16 @@ device_info init_device_info(const cl::Device& device) {
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
         info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
-        if (info.dev_type == device_type::discrete_gpu ||
-            info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
+        if (info.dev_type == device_type::discrete_gpu || info.gfx_ver.major > 12 ||
+            (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
-        GPU_DEBUG_INFO << "GPU version: "
-            << static_cast<int>(info.gfx_ver.major) << "." << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
-            << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
+        GPU_DEBUG_INFO << "GPU version: " << static_cast<int>(info.gfx_ver.major) << "."
+                       << static_cast<int>(info.gfx_ver.minor) << "." << static_cast<int>(info.gfx_ver.revision)
+                       << (info.has_separate_cache ? " with separate cache" : "") << std::endl;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
-            info.supports_immad = false;
+        info.supports_immad = false;
     } else if (nv_device_attr_supported) {
         info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
                         static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
@@ -287,7 +284,8 @@ device_info init_device_info(const cl::Device& device) {
     if (info.supports_queue_families) {
         cl_uint num_queues = 0;
 
-        std::vector<cl_queue_family_properties_intel> qfprops = device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
+        std::vector<cl_queue_family_properties_intel> qfprops =
+            device.getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
         for (cl_uint q = 0; q < qfprops.size(); q++) {
             if (qfprops[q].capabilities == CL_QUEUE_DEFAULT_CAPABILITIES_INTEL && qfprops[q].count > num_queues) {
                 num_queues = qfprops[q].count;
@@ -301,8 +299,13 @@ device_info init_device_info(const cl::Device& device) {
 
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
-    auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, NULL);
-    if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
+    auto err = clGetDeviceInfo(device.get(),
+                               param,
+                               sizeof(cl_device_unified_shared_memory_capabilities_intel),
+                               &capabilities,
+                               NULL);
+    if (err)
+        throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
 
     return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
 }
@@ -326,13 +329,12 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 
 }  // namespace
 
-
 ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform)
-: _context(ctx)
-, _device(dev)
-, _platform(platform)
-, _info(init_device_info(dev))
-, _mem_caps(init_memory_caps(dev, _info)) { }
+    : _context(ctx),
+      _device(dev),
+      _platform(platform),
+      _info(init_device_info(dev)),
+      _mem_caps(init_memory_caps(dev, _info)) {}
 
 bool ocl_device::is_same(const device::ptr other) {
     auto casted = downcast<ocl_device>(other.get());

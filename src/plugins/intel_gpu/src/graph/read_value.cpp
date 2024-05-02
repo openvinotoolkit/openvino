@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <read_value_inst.h>
-#include "primitive_type_base.h"
-#include <sstream>
 #include <json_object.h>
+#include <read_value_inst.h>
+
+#include <sstream>
+
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
-read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
-    parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
-    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
-}
+read_value_inst::typed_primitive_inst(network& network, const read_value_node& node)
+    : parent(network,
+             node,
+             !node.can_be_optimized() &&
+                 (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())),
+      memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {}
 
 layout read_value_inst::calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param) {
     return impl_param.typed_desc<read_value>()->output_layout;
@@ -46,4 +50,4 @@ void read_value_inst::update_output_memory() {
     GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 }
-} // namespace cldnn
+}  // namespace cldnn

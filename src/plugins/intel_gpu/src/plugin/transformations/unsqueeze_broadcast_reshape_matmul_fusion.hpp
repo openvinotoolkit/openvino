@@ -15,5 +15,5 @@ public:
     UnsqueezeBroadcastReshapeMatmulFusion();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace intel_gpu
+}  // namespace ov

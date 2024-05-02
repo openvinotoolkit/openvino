@@ -325,9 +325,9 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
 }
 
 bool DnnlPostOpsComposer::appendAttrPostOps(const FakeQuantizePostOp& postOp,
-                                               bool isLastPostOp,
-                                               bool doRounding,
-                                               bool allowBinary) {
+                                            bool isLastPostOp,
+                                            bool doRounding,
+                                            bool allowBinary) {
     DEBUG_LOG("isLastPostOp=",
               isLastPostOp,
               ", outDataType=",
@@ -541,9 +541,9 @@ bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allo
 }
 
 bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
-                                          const std::vector<float>& shift,
-                                          bool isLastPostOp,
-                                          bool allowBinary) {
+                                       const std::vector<float>& shift,
+                                       bool isLastPostOp,
+                                       bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
             return appendScale(scale, isLastPostOp, allowBinary);
@@ -600,14 +600,19 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         shape.push_back(1);
     }
     if (shape.size() != 2 && shape.size() != 3)
-         OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
+        OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
     Shape dstShape = needTranspose ? Shape({shape[0], shape[1]}) : Shape({shape[shape.size() - 1], shape[0]});
-    DnnlBlockedMemoryDesc dstMemoryDesc(dstShape, DnnlExtensionUtils::ElementTypeToDataType(dstPrc), dnnl::memory::format_tag::io);
+    DnnlBlockedMemoryDesc dstMemoryDesc(dstShape,
+                                        DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
+                                        dnnl::memory::format_tag::io);
     auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
 
     auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
-    DnnlBlockedMemoryDesc srcMemoryDesc(dstShape, DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()), srcFormat);
+    DnnlBlockedMemoryDesc srcMemoryDesc(
+        dstShape,
+        DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
+        srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
     dstMem->load(*srcMem);
@@ -626,13 +631,16 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
         cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
 }
 
-void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose, ov::element::Type dstPrecision) {
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
+                                                        bool needTranspose,
+                                                        ov::element::Type dstPrecision) {
     if (zero_points_ptr == nullptr)
         return;
 
     auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
     attr.set_zero_points_dims(DNNL_ARG_WEIGHTS,
-        DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()), DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+                              DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
+                              DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
     dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
 }

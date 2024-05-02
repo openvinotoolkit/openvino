@@ -4,19 +4,17 @@
 
 #pragma once
 
-#include "config.h"
-#include "cpu_memory.h"
-#include "openvino/runtime/profiling_info.hpp"
-#include "node.h"
-#include "edge.h"
-#include "graph_context.h"
-#include "openvino/runtime/profiling_info.hpp"
-
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "config.h"
+#include "cpu_memory.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_mgr.h"
 
@@ -26,17 +24,13 @@ namespace intel_cpu {
 class SyncInferRequest;
 namespace node {
 class MemoryStateNode;
-} // namespace node
+}  // namespace node
 
 class Graph {
 public:
     typedef std::shared_ptr<Graph> Ptr;
 
-    enum class Status {
-        NotReady = 0,
-        ReadyStatic = 1,
-        ReadyDynamic = 2
-    };
+    enum class Status { NotReady = 0, ReadyStatic = 1, ReadyDynamic = 2 };
 
     Graph() = default;
 
@@ -46,15 +40,15 @@ public:
         return (status != Status::NotReady);
     }
 
-    const Config & getConfig() const {
+    const Config& getConfig() const {
         return context->getConfig();
     }
 
-    template<typename NET>
-    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
+    template <typename NET>
+    void CreateGraph(NET& network, const GraphContext::CPtr ctx);
 
-    void CreateGraph(const std::vector<NodePtr> &graphNodes,
-                     const std::vector<EdgePtr> &graphEdges,
+    void CreateGraph(const std::vector<NodePtr>& graphNodes,
+                     const std::vector<EdgePtr>& graphEdges,
                      const GraphContext::CPtr ctx,
                      std::string name);
 
@@ -79,14 +73,14 @@ public:
         return outputNodesMap;
     }
 
-    NodePtr getInputNodeByIndex(const std::size_t &index) {
+    NodePtr getInputNodeByIndex(const std::size_t& index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
         return input->second;
     }
 
-    NodePtr getOutputNodeByIndex(const std::size_t &index) {
+    NodePtr getOutputNodeByIndex(const std::size_t& index) {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
@@ -101,12 +95,9 @@ public:
         return context;
     }
 
-    void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
+    void GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const;
 
-    void CreateEdge(const NodePtr& parent,
-                 const NodePtr& child,
-                 int parentPort = 0,
-                 int childPort = 0);
+    void CreateEdge(const NodePtr& parent, const NodePtr& child, int parentPort = 0, int childPort = 0);
     void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
@@ -116,9 +107,9 @@ public:
 
     /**
      * @brief Insert Reorder node at the edge-specified location.
-     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor descriptors do not match.
-     * The Reorder node rearranges the elements in memory according to inDesc and outDesc, or reinterprets memory descriptor without
-     * rearrangement of elements if isOptimized is true.
+     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor
+     * descriptors do not match. The Reorder node rearranges the elements in memory according to inDesc and outDesc, or
+     * reinterprets memory descriptor without rearrangement of elements if isOptimized is true.
      * @param edge
      * pointer to the edge in the graph where Reorder node will be inserted
      * @param layerName
@@ -135,14 +126,18 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
+    NodePtr InsertReorder(EdgePtr edge,
+                          std::string layerName,
+                          const MemoryDesc& inDesc,
+                          const MemoryDesc& outDesc,
+                          bool isOptimized = false,
+                          const std::vector<int>& src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
-     * node without initialization.
+     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors
+     * initialization, supported primitive descriptors selection, etc.), which can be useful after the
+     * ResolveEdgeConflicts() completes. The second is just inserting the node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
      * @param node
@@ -155,10 +150,10 @@ public:
 
     /**
      * @brief Insert Node between two specified nodes.
-     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
-     * node without initialization.
+     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created
+     * objects to the graph. This method supports two regimes. First, the node is inserted without initialization (i.e.
+     * supported descriptors initialization, supported primitive descriptors selection, etc.), which can be useful after
+     * the ResolveEdgeConflicts() completes. The second is just inserting the node without initialization.
      * @param parent
      * pointer to the parent node
      * @param child
@@ -175,7 +170,9 @@ public:
 
     std::shared_ptr<ov::Model> dump() const;
 
-    void ResetInferCount() { infer_count = 0; }
+    void ResetInferCount() {
+        infer_count = 0;
+    }
 
     void SortTopologically();
 
@@ -183,9 +180,10 @@ public:
         return graphHasDynamicInput;
     }
 
-    Status getStatus() const {return status;}
-    const std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>>&
-    getInternalStateNodes() const {
+    Status getStatus() const {
+        return status;
+    }
+    const std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>>& getInternalStateNodes() const {
         return internalStateNodes;
     }
     void InitGraph(bool optimize = true);
@@ -200,7 +198,7 @@ protected:
         graphEdges.clear();
         syncNodesInds.clear();
     }
-    Status status { Status::NotReady };
+    Status status{Status::NotReady};
 
     // For dumping purposes. -1 - no counting, all other positive
     // values mean increment it within each Infer() call
@@ -217,7 +215,7 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model>& subgraph);
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -239,7 +237,7 @@ protected:
                        const std::function<void(size_t, size_t)>& func) const;
 
     friend class intel_cpu::SyncInferRequest;
-    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
+    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph);
 
 private:
     // TODO: change std::map to std::unordered_map

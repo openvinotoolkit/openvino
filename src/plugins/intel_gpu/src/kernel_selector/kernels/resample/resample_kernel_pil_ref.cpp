@@ -3,14 +3,12 @@
 //
 
 #include "resample_kernel_pil_ref.h"
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
-enum AxisIndex {
-    eVertical,
-    eHorizontal
-};
+enum AxisIndex { eVertical, eHorizontal };
 
 namespace {
 
@@ -54,14 +52,16 @@ Tensor::Dim ExtractDim(const DataTensor& tensor, InterpolateAxis axis) {
 
 bool NeedHorizontalPass(const resample_params& params) {
     auto inputHorizontalSize = ExtractDim(params.inputs[0], params.axes[eHorizontal]).v +
-        params.pads_begin[ConvertToNCHW(params.axes[eHorizontal])] + params.pads_end[ConvertToNCHW(params.axes[eHorizontal])];
+                               params.pads_begin[ConvertToNCHW(params.axes[eHorizontal])] +
+                               params.pads_end[ConvertToNCHW(params.axes[eHorizontal])];
     auto outputHorizontalSize = ExtractDim(params.outputs[0], params.axes[eHorizontal]).v;
     return inputHorizontalSize != outputHorizontalSize;
 }
 
 bool NeedVerticalPass(const resample_params& params) {
     auto inputVerticalSize = ExtractDim(params.inputs[0], params.axes[eVertical]).v +
-        params.pads_begin[ConvertToNCHW(params.axes[eVertical])] + params.pads_end[ConvertToNCHW(params.axes[eVertical])];
+                             params.pads_begin[ConvertToNCHW(params.axes[eVertical])] +
+                             params.pads_end[ConvertToNCHW(params.axes[eVertical])];
     auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
     return inputVerticalSize != outputVerticalSize;
 }
@@ -74,7 +74,8 @@ std::size_t GetKernelsNum(const resample_params& params) {
 
 std::size_t GetFirstRow(const resample_params& params) {
     auto inputVerticalSize = ExtractDim(params.inputs[0], params.axes[eVertical]).v +
-        params.pads_begin[ConvertToNCHW(params.axes[eVertical])] + params.pads_end[ConvertToNCHW(params.axes[eVertical])];
+                             params.pads_begin[ConvertToNCHW(params.axes[eVertical])] +
+                             params.pads_end[ConvertToNCHW(params.axes[eVertical])];
     auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
     float scale = static_cast<float>(inputVerticalSize) / outputVerticalSize;
     float filter_scale = std::max(1.f, scale);
@@ -86,7 +87,8 @@ std::size_t GetFirstRow(const resample_params& params) {
 
 std::size_t GetLastRow(const resample_params& params) {
     auto inputVerticalSize = ExtractDim(params.inputs[0], params.axes[eVertical]).v +
-        params.pads_begin[ConvertToNCHW(params.axes[eVertical])] + params.pads_end[ConvertToNCHW(params.axes[eVertical])];
+                             params.pads_begin[ConvertToNCHW(params.axes[eVertical])] +
+                             params.pads_end[ConvertToNCHW(params.axes[eVertical])];
     auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
     float scale = static_cast<float>(inputVerticalSize) / outputVerticalSize;
     float filter_scale = std::max(1.f, scale);
@@ -108,7 +110,7 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
     return result;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     ParamsKey k;
@@ -127,56 +129,65 @@ ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     return k;
 }
 
-inline ResampleKernelPilRef::KernelId& operator++(ResampleKernelPilRef::KernelId &id) {
-  using IntType = typename std::underlying_type<ResampleKernelPilRef::KernelId>::type;
-  id = static_cast<ResampleKernelPilRef::KernelId>((static_cast<IntType>(id) + 1));
-  return id;
+inline ResampleKernelPilRef::KernelId& operator++(ResampleKernelPilRef::KernelId& id) {
+    using IntType = typename std::underlying_type<ResampleKernelPilRef::KernelId>::type;
+    id = static_cast<ResampleKernelPilRef::KernelId>((static_cast<IntType>(id) + 1));
+    return id;
 }
 
-ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(KernelId id, const resample_params &arg) const {
+ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(KernelId id,
+                                                                           const resample_params& arg) const {
     ResampleKernelBase::DispatchData dispatchData;
     switch (id) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
         auto outputHorizontalSize = ExtractDim(arg.outputs[0], arg.axes[eHorizontal]).v;
         dispatchData.gws = std::vector<std::size_t>{outputHorizontalSize, 1, 1};
-        dispatchData.lws = std::vector<std::size_t>{std::min(outputHorizontalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
+        dispatchData.lws =
+            std::vector<std::size_t>{std::min(outputHorizontalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
         auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-            { Tensor::DataChannelName::Y },
-            { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-        dispatchData.gws = { output.X().v, output.Y().v, output.Feature().v * output.Batch().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::X},
+            {Tensor::DataChannelName::Y},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
         return dispatchData;
     }
     case ResampleKernelPilRef::eCalcVerticalCoefficients: {
         auto outputVerticalSize = ExtractDim(arg.outputs[0], arg.axes[eVertical]).v;
         dispatchData.gws = std::vector<std::size_t>{outputVerticalSize, 1, 1};
-        dispatchData.lws = std::vector<std::size_t>{std::min(outputVerticalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
+        dispatchData.lws =
+            std::vector<std::size_t>{std::min(outputVerticalSize, arg.engineInfo.maxWorkGroupSize), 1, 1};
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleVertical: {
         auto& output = arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
-        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
-            { Tensor::DataChannelName::Y },
-            { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-        dispatchData.gws = { output.X().v, output.Y().v, output.Feature().v * output.Batch().v };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {
+            {Tensor::DataChannelName::X},
+            {Tensor::DataChannelName::Y},
+            {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dispatchData.lws =
+            GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
         return dispatchData;
     }
     default:
-        throw std::invalid_argument("Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
+        throw std::invalid_argument(
+            "Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
     }
     return dispatchData;
 }
 
-static void SetKernelArguments(const resample_params& params, ResampleKernelPilRef::KernelId kernelId,
+static void SetKernelArguments(const resample_params& params,
+                               ResampleKernelPilRef::KernelId kernelId,
                                cldnn::arguments_desc& arguments,
                                std::vector<std::size_t>& internalBufferSizes) {
     std::size_t out_horizontal_size = ExtractDim(params.outputs[0], params.axes[eHorizontal]).v;
@@ -186,23 +197,23 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
     int ksize = static_cast<int>(ceil(support)) * 2 + 1;
     switch (kernelId) {
     case ResampleKernelPilRef::eCalcHorizontalCoefficients: {
-        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // bounds
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // bounds
         internalBufferSizes.push_back(out_horizontal_size * 2 * sizeof(int));
-        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // coefficients
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // coefficients
         internalBufferSizes.push_back(out_horizontal_size * ksize * sizeof(float));
         break;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
-        arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});           // input image
-        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // bounds
-        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // coefficients
+        arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});            // input image
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // bounds
+        arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // coefficients
         if (NeedVerticalPass(params)) {
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2}); // output
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // output
             auto intermediateBufferTensor = GetIntermediateBufferSize(params);
             internalBufferSizes.push_back(intermediateBufferTensor.PhysicalSize() *
-                BytesPerElement(intermediateBufferTensor.GetDType()));
+                                          BytesPerElement(intermediateBufferTensor.GetDType()));
         } else {
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // output
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // output
         }
         break;
     }
@@ -210,30 +221,31 @@ static void SetKernelArguments(const resample_params& params, ResampleKernelPilR
         internalBufferSizes.push_back(out_vertical_size * 2 * sizeof(int));
         internalBufferSizes.push_back(out_vertical_size * ksize * sizeof(float));
         if (NeedHorizontalPass(params)) {
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // bounds
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4}); // coefficients
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // bounds
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // coefficients
         } else {
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // bounds
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // coefficients
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // bounds
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // coefficients
         }
         break;
     }
     case ResampleKernelPilRef::eResampleVertical: {
         if (NeedHorizontalPass(params)) {
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});           // input image
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // bounds
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4}); // coefficients
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // output
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // input image
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // bounds
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // coefficients
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});           // output
         } else {
-            arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});           // input image
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0}); // bounds
-            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1}); // coefficients
-            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0}); // output
+            arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});            // input image
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // bounds
+            arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // coefficients
+            arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});           // output
         }
         break;
     }
     default:
-        throw std::invalid_argument("Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
+        throw std::invalid_argument(
+            "Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
     }
 }
 
@@ -250,101 +262,108 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
     });
     auto inputHorizontalSize = ExtractDim(params.inputs[0], params.axes[eHorizontal]).v;
     auto inputHorizontalSizeWithPadding = inputHorizontalSize +
-        params.pads_begin[ConvertToNCHW(params.axes[eHorizontal])] +
-        params.pads_end[ConvertToNCHW(params.axes[eHorizontal])];
+                                          params.pads_begin[ConvertToNCHW(params.axes[eHorizontal])] +
+                                          params.pads_end[ConvertToNCHW(params.axes[eHorizontal])];
     auto inputVerticalSize = ExtractDim(params.inputs[0], params.axes[eVertical]).v;
     auto inputVerticalSizeWithPadding = inputVerticalSize + params.pads_begin[ConvertToNCHW(params.axes[eVertical])] +
-        params.pads_end[ConvertToNCHW(params.axes[eVertical])];
+                                        params.pads_end[ConvertToNCHW(params.axes[eVertical])];
     auto outputHorizontalSize = ExtractDim(params.outputs[0], params.axes[eHorizontal]).v;
     auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
     switch (id) {
-        case eCalcHorizontalCoefficients: {
-            float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-            int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            jit_constants.AddConstants({MakeJitConstant("IN_DIM_BEGIN", 0.f),
-                MakeJitConstant("IN_DIM_END", static_cast<float>(inputHorizontalSizeWithPadding)),
-                MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputHorizontalSizeWithPadding)),
-                MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputHorizontalSize)),
-                MakeJitConstant("SCALE", scale),
-                MakeJitConstant("FILTER_SCALE", filter_scale),
-                MakeJitConstant("SUPPORT", support),
-                MakeJitConstant("KSIZE", ksize),
-                MakeJitConstant("CUBE_COEFF", params.cube_coeff),
-            });
-            break;
-        }
-        case eResampleHorizontal: {
-            float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-            int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            auto ybox_first = GetFirstRow(params);
-            jit_constants.AddConstants({MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
-                MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
-                MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
-                MakeJitConstant("BEGIN_PADDING_Y", params.pads_begin[2]),
-                MakeJitConstant("BEGIN_PADDING_X", params.pads_begin[3]),
-                MakeJitConstant("BATCH_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::BATCH),
-                MakeJitConstant("FEATURE_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::FEATURE),
-                MakeJitConstant("Y_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::Y),
-                MakeJitConstant("X_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::X),
-                MakeJitConstant("BATCH_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::BATCH ? ybox_first : 0),
-                MakeJitConstant("FEATURE_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::FEATURE ? ybox_first : 0),
-                MakeJitConstant("Y_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::Y ? ybox_first : 0),
-                MakeJitConstant("X_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::X ? ybox_first : 0),
-                MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
-                MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
-                MakeJitConstant("KSIZE", ksize),
-            });
-            break;
-        }
-        case eCalcVerticalCoefficients: {
-            float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-            int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
-            jit_constants.AddConstants({MakeJitConstant("IN_DIM_BEGIN", 0.f),
-                MakeJitConstant("IN_DIM_END", static_cast<float>(inputVerticalSizeWithPadding)),
-                MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputVerticalSizeWithPadding)),
-                MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputVerticalSize)),
-                MakeJitConstant("SCALE", scale),
-                MakeJitConstant("FILTER_SCALE", filter_scale),
-                MakeJitConstant("SUPPORT", support),
-                MakeJitConstant("KSIZE", ksize),
-                MakeJitConstant("CUBE_COEFF", params.cube_coeff),
-            });
-            break;
-        }
-        case eResampleVertical: {
-            float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
-            float filter_scale = std::max(1.f, scale);
-            float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
-            int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
-            jit_constants.AddConstants({MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
-                MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
-                MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
-                MakeJitConstant("BEGIN_PADDING_Y", params.pads_begin[2]),
-                MakeJitConstant("BEGIN_PADDING_X", params.pads_begin[3]),
-                MakeJitConstant("BATCH_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::BATCH),
-                MakeJitConstant("FEATURE_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::FEATURE),
-                MakeJitConstant("Y_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::Y),
-                MakeJitConstant("X_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::X),
-                MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
-                MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
-                MakeJitConstant("KSIZE", ksize),
-            });
-            break;
-        }
-        default:
-            throw std::invalid_argument("Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
-        }
+    case eCalcHorizontalCoefficients: {
+        float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+        jit_constants.AddConstants({
+            MakeJitConstant("IN_DIM_BEGIN", 0.f),
+            MakeJitConstant("IN_DIM_END", static_cast<float>(inputHorizontalSizeWithPadding)),
+            MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputHorizontalSizeWithPadding)),
+            MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputHorizontalSize)),
+            MakeJitConstant("SCALE", scale),
+            MakeJitConstant("FILTER_SCALE", filter_scale),
+            MakeJitConstant("SUPPORT", support),
+            MakeJitConstant("KSIZE", ksize),
+            MakeJitConstant("CUBE_COEFF", params.cube_coeff),
+        });
+        break;
+    }
+    case eResampleHorizontal: {
+        float scale = static_cast<float>(inputHorizontalSizeWithPadding) / outputHorizontalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+        auto ybox_first = GetFirstRow(params);
+        jit_constants.AddConstants({
+            MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
+            MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
+            MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
+            MakeJitConstant("BEGIN_PADDING_Y", params.pads_begin[2]),
+            MakeJitConstant("BEGIN_PADDING_X", params.pads_begin[3]),
+            MakeJitConstant("BATCH_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::BATCH),
+            MakeJitConstant("FEATURE_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::FEATURE),
+            MakeJitConstant("Y_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::Y),
+            MakeJitConstant("X_IS_HORIZONTAL_AXIS", params.axes[eHorizontal] == InterpolateAxis::X),
+            MakeJitConstant("BATCH_HORIZONTAL_OFFSET",
+                            params.axes[eHorizontal] == InterpolateAxis::BATCH ? ybox_first : 0),
+            MakeJitConstant("FEATURE_HORIZONTAL_OFFSET",
+                            params.axes[eHorizontal] == InterpolateAxis::FEATURE ? ybox_first : 0),
+            MakeJitConstant("Y_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::Y ? ybox_first : 0),
+            MakeJitConstant("X_HORIZONTAL_OFFSET", params.axes[eHorizontal] == InterpolateAxis::X ? ybox_first : 0),
+            MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
+            MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
+            MakeJitConstant("KSIZE", ksize),
+        });
+        break;
+    }
+    case eCalcVerticalCoefficients: {
+        float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+        auto outputVerticalSize = ExtractDim(params.outputs[0], params.axes[eVertical]).v;
+        jit_constants.AddConstants({
+            MakeJitConstant("IN_DIM_BEGIN", 0.f),
+            MakeJitConstant("IN_DIM_END", static_cast<float>(inputVerticalSizeWithPadding)),
+            MakeJitConstant("IN_DIM_SIZE", static_cast<int>(inputVerticalSizeWithPadding)),
+            MakeJitConstant("OUT_DIM_SIZE", static_cast<int>(outputVerticalSize)),
+            MakeJitConstant("SCALE", scale),
+            MakeJitConstant("FILTER_SCALE", filter_scale),
+            MakeJitConstant("SUPPORT", support),
+            MakeJitConstant("KSIZE", ksize),
+            MakeJitConstant("CUBE_COEFF", params.cube_coeff),
+        });
+        break;
+    }
+    case eResampleVertical: {
+        float scale = static_cast<float>(inputVerticalSizeWithPadding) / outputVerticalSize;
+        float filter_scale = std::max(1.f, scale);
+        float support = params.resampleType == ResampleType::BILINEAR_PILLOW ? 1.f : 2.f * filter_scale;
+        int ksize = static_cast<int>(std::ceil(support)) * 2 + 1;
+        jit_constants.AddConstants({
+            MakeJitConstant("INTERMEDIATE_BUF", GetIntermediateBufferSize(params)),
+            MakeJitConstant("BEGIN_PADDING_BATCH", params.pads_begin[0]),
+            MakeJitConstant("BEGIN_PADDING_FEATURE", params.pads_begin[1]),
+            MakeJitConstant("BEGIN_PADDING_Y", params.pads_begin[2]),
+            MakeJitConstant("BEGIN_PADDING_X", params.pads_begin[3]),
+            MakeJitConstant("BATCH_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::BATCH),
+            MakeJitConstant("FEATURE_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::FEATURE),
+            MakeJitConstant("Y_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::Y),
+            MakeJitConstant("X_IS_VERTICAL_AXIS", params.axes[eVertical] == InterpolateAxis::X),
+            MakeJitConstant("ENABLE_VERTICAL_PASS", NeedVerticalPass(params)),
+            MakeJitConstant("ENABLE_HORIZONTAL_PASS", NeedHorizontalPass(params)),
+            MakeJitConstant("KSIZE", ksize),
+        });
+        break;
+    }
+    default:
+        throw std::invalid_argument(
+            "Kernel index is out of range. Kernel index for resample_pillow should be in range 0..3.");
+    }
     return jit_constants;
 }
 
-KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
+KernelsData ResampleKernelPilRef::GetKernelsData(const Params& params) const {
     const resample_params& resample_parameters = static_cast<const resample_params&>(params);
     KernelData kd = KernelData::Default<resample_params>(params, GetKernelsNum(resample_parameters));
     kd.internalBufferDataType = Datatype::F32;
@@ -353,8 +372,7 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
         if (!NeedHorizontalPass(resample_parameters) &&
             (id == eCalcHorizontalCoefficients || id == eResampleHorizontal))
             continue;
-        if (!NeedVerticalPass(resample_parameters) &&
-            (id == eCalcVerticalCoefficients || id == eResampleVertical))
+        if (!NeedVerticalPass(resample_parameters) && (id == eCalcVerticalCoefficients || id == eResampleVertical))
             continue;
         auto& kernel = kd.kernels[i++];
         const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, i);
@@ -378,4 +396,4 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     return {kd};
 }
 
-} // namespace kernel_selector
+}  // namespace kernel_selector

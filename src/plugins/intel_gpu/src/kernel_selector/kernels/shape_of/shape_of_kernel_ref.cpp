@@ -10,10 +10,10 @@ namespace kernel_selector {
 
 namespace {
 
-CommonDispatchData SetDefault(const shape_of_params &params) {
+CommonDispatchData SetDefault(const shape_of_params& params) {
     CommonDispatchData dispatchData;
 
-    dispatchData.gws = { 1, 1, params.input_rank };
+    dispatchData.gws = {1, 1, params.input_rank};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -43,24 +43,35 @@ void ShapeOfKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params) const {
+KernelsData ShapeOfKernelRef::GetKernelsData(const Params& params) const {
     KernelsData kernels_data;
     if (!Validate(params))
         return kernels_data;
     kernels_data.push_back(KernelData::Default<shape_of_params>(params));
-    KernelData &kernel_data = kernels_data.front();
-    auto &derived_params = dynamic_cast<shape_of_params&>(*kernel_data.params.get());
+    KernelData& kernel_data = kernels_data.front();
+    auto& derived_params = dynamic_cast<shape_of_params&>(*kernel_data.params.get());
     auto dispatch_data = SetDefault(derived_params);
     auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params);
     auto jit_constants = GetJitConstants(derived_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
-    auto &clKernelData = kernel_data.kernels[0];
+    auto& clKernelData = kernel_data.kernels[0];
     clKernelData.skip_execution = SkipKernelExecution(derived_params);
 
     GetUpdateDispatchDataFunc(kernel_data);
 
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
-                     false, false, 0, 0, 1, derived_params.is_shape_agnostic);
+    FillCLKernelData(clKernelData,
+                     dispatch_data,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     0,
+                     0,
+                     1,
+                     derived_params.is_shape_agnostic);
     return kernels_data;
 }
 
@@ -91,7 +102,7 @@ ParamsKey ShapeOfKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool ShapeOfKernelRef::Validate(const Params &p) const {
+bool ShapeOfKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SHAPE_OF)
         return false;
 

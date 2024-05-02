@@ -28,9 +28,7 @@ struct activation_params : public base_params {
 // activation_fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct activation_fuse_params : fuse_params {
-    explicit activation_fuse_params(base_activation_params param)
-    : fuse_params(KernelType::ACTIVATION)
-    , param(param) {}
+    explicit activation_fuse_params(base_activation_params param) : fuse_params(KernelType::ACTIVATION), param(param) {}
 
     base_activation_params param;
 };

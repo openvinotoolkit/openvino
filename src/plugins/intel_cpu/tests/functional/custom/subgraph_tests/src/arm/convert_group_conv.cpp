@@ -13,8 +13,9 @@ namespace test {
 
 typedef std::tuple<InputShape> groupConvLayerCPUTestParamsSet;
 
-class GroupConvToConvTransformationCPUTest: public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
-                                            virtual public SubgraphBaseTest, public CPUTestsBase {
+class GroupConvToConvTransformationCPUTest : public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
+                                             virtual public SubgraphBaseTest,
+                                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
         InputShape inputShapes;
@@ -74,21 +75,18 @@ TEST_P(GroupConvToConvTransformationCPUTest, CompareWithRefs) {
 }
 
 namespace {
-std::vector<InputShape> inShapes = {
-    {{}, {{ 2, 12, 7 }}},
-    {
-        //dynamic shape
-        {-1, 12, {1, 20}},
-        { //target static shapes
-            { 2, 12, 7 },
-            { 1, 12, 5 }
-        }
-    }
-};
+std::vector<InputShape> inShapes = {{{}, {{2, 12, 7}}},
+                                    {// dynamic shape
+                                     {-1, 12, {1, 20}},
+                                     {// target static shapes
+                                      {2, 12, 7},
+                                      {1, 12, 5}}}};
 const auto groupConvTransformationParams = ::testing::Combine(::testing::ValuesIn(inShapes));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest, GroupConvToConvTransformationCPUTest,
-                         groupConvTransformationParams, GroupConvToConvTransformationCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvToConvTransformationTest,
+                         GroupConvToConvTransformationCPUTest,
+                         groupConvTransformationParams,
+                         GroupConvToConvTransformationCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

@@ -10,22 +10,24 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import os
 import sys
+
 from common.samples_common_test_class import SamplesCommonTestClass
 
 
 class Test_sync_benchmark_cpp(SamplesCommonTestClass):
-    sample_name = 'sync_benchmark'
+    sample_name = "sync_benchmark"
 
     def test(self, cache):
-        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)
+        self._test({"m": "bvlcalexnet-12.onnx"}, cache, use_preffix=False)
 
 
 class Test_sync_benchmark_py(SamplesCommonTestClass):
-    sample_name = 'sync_benchmark'
+    sample_name = "sync_benchmark"
     executable_path = f'{sys.executable} -bb -W error -X dev -X warn_default_encoding "{os.environ["IE_APP_PYTHON_PATH"]}/benchmark/{sample_name}/{sample_name}.py"'
 
     def test(self, monkeypatch, cache):
-        monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)
+        monkeypatch.setenv("PYTHONCOERCECLOCALE", "warn")
+        self._test({"m": "bvlcalexnet-12.onnx"}, cache, use_preffix=False)

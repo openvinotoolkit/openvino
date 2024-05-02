@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <iostream>
-#include <algorithm>
 #include "concatenation_kernel_fs_b_yx_fsv32.h"
+
+#include <algorithm>
+#include <iostream>
+
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
@@ -52,7 +54,8 @@ bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p) const {
     return true;
 }
 
-ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefault(const concatenation_params& params) const {
+ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefault(
+    const concatenation_params& params) const {
     DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
 
@@ -106,7 +109,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params,  i);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);

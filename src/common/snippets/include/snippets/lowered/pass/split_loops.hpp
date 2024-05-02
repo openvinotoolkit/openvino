@@ -21,11 +21,11 @@ namespace pass {
  *              ...                                        ...                                           ...
  *         Loop_1_end (wa = 128, inc = 32)             Loop_1_end (wa = 128, inc = 32)               Split_loop_2_begin
  *              ...                         Splitting      ...                               Fusing      ...
- *         Loop_2_begin                         =>     Split_loop_1_begin                      =>    Split_loop_2_end (wa = 32, inc = 1)
+ *         Loop_2_begin                         =>     Split_loop_1_begin                      =>    Split_loop_2_end
+ * (wa = 32, inc = 1)
  *              ...                                    Split_loop_2_begin                                ...
- *         Loop_2_end (wa = 128, inc = 1)                  ...                                       Loop_1_end (wa = 128, inc = 32)
- *                                                     Split_loop_2_end (wa = 32, inc = 1)
- *                                                     Split_loop_1_end (wa = 128, inc = 32)
+ *         Loop_2_end (wa = 128, inc = 1)                  ...                                       Loop_1_end (wa =
+ * 128, inc = 32) Split_loop_2_end (wa = 32, inc = 1) Split_loop_1_end (wa = 128, inc = 32)
  * @ingroup snippets
  */
 
@@ -39,7 +39,7 @@ private:
     static bool can_be_split(const LoopInfoPtr& current, const LoopInfoPtr& target);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

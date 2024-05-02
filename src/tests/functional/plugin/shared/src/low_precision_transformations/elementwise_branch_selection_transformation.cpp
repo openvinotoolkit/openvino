@@ -7,12 +7,13 @@
 #include <memory>
 #include <tuple>
 
-#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/add.hpp"
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
+std::string ElementwiseBranchSelectionTransformation::getTestCaseName(
+    const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     std::string targetDevice;
@@ -22,8 +23,8 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     std::tie(netPrecision, inputShapes, targetDevice, param, elementwiseType) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
-           "_elementwiseType_" << elementwiseType;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_elementwiseType_"
+           << elementwiseType;
 
     auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
@@ -31,18 +32,14 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
         }
 
         std::stringstream ss;
-        ss << "_on_branch1_" <<
-            fqOnData.inputLowValues[0] << "_" <<
-            fqOnData.inputHighValues[0] << "_" <<
-            fqOnData.outputLowValues[0] << "_" <<
-            fqOnData.outputHighValues[0];
+        ss << "_on_branch1_" << fqOnData.inputLowValues[0] << "_" << fqOnData.inputHighValues[0] << "_"
+           << fqOnData.outputLowValues[0] << "_" << fqOnData.outputHighValues[0];
         return ss.str();
     };
 
-    result <<
-        "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter) <<
-        "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter) <<
-        "_" << toString(param.fakeQuantizeAfter);
+    result << "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter)
+           << "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter)
+           << "_" << toString(param.fakeQuantizeAfter);
 
     return result.str();
 }
@@ -54,20 +51,19 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
-    init_input_shapes({ inputShape, inputShape });
+    init_input_shapes({inputShape, inputShape});
 
-    function = ov::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
-        precision,
-        inputShape,
-        false,
-        elementwiseType,
-        param.branch1.fakeQuantizeBefore,
-        param.branch1.convolution,
-        param.branch1.fakeQuantizeAfter,
-        param.branch2.fakeQuantizeBefore,
-        param.branch2.convolution,
-        param.branch2.fakeQuantizeAfter,
-        param.fakeQuantizeAfter);
+    function = ov::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(precision,
+                                                                                       inputShape,
+                                                                                       false,
+                                                                                       elementwiseType,
+                                                                                       param.branch1.fakeQuantizeBefore,
+                                                                                       param.branch1.convolution,
+                                                                                       param.branch1.fakeQuantizeAfter,
+                                                                                       param.branch2.fakeQuantizeBefore,
+                                                                                       param.branch2.convolution,
+                                                                                       param.branch2.fakeQuantizeAfter,
+                                                                                       param.fakeQuantizeAfter);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
@@ -110,8 +106,8 @@ void ElementwiseBranchSelectionTransformation::run() {
     }
 
     for (auto it : params.expectedPrecisions) {
-        const auto actualPrecision = get_runtime_precision_by_fused_name(
-                it.first == "eltwise" ? elementwiseType : it.first);
+        const auto actualPrecision =
+            get_runtime_precision_by_fused_name(it.first == "eltwise" ? elementwiseType : it.first);
         ASSERT_EQ(it.second, actualPrecision) << "actual precision for operation '" << it.first << "' is not correct";
     }
 }

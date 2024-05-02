@@ -3,34 +3,19 @@
 //
 
 #include "single_op_tests/region_yolo.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using ov::test::RegionYoloLayerTest;
 
-const std::vector<std::vector<size_t>> inShapes_caffe = {
-    {1, 125, 13, 13}
-};
+const std::vector<std::vector<size_t>> inShapes_caffe = {{1, 125, 13, 13}};
 
-const std::vector<std::vector<size_t>> inShapes_mxnet = {
-    {1, 75, 52, 52},
-    {1, 75, 32, 32},
-    {1, 75, 26, 26},
-    {1, 75, 16, 16},
-    {1, 75, 13, 13},
-    {1, 75, 8, 8}
-};
+const std::vector<std::vector<size_t>> inShapes_mxnet =
+    {{1, 75, 52, 52}, {1, 75, 32, 32}, {1, 75, 26, 26}, {1, 75, 16, 16}, {1, 75, 13, 13}, {1, 75, 8, 8}};
 
-const std::vector<std::vector<size_t>> inShapes_v3 = {
-    {1, 255, 52, 52},
-    {1, 255, 26, 26},
-    {1, 255, 13, 13}
-};
+const std::vector<std::vector<size_t>> inShapes_v3 = {{1, 255, 52, 52}, {1, 255, 26, 26}, {1, 255, 13, 13}};
 
-const std::vector<std::vector<int64_t>> masks = {
-    {0, 1, 2},
-    {3, 4, 5},
-    {6, 7, 8}
-};
+const std::vector<std::vector<int64_t>> masks = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}};
 
 const std::vector<bool> do_softmax = {true, false};
 const std::vector<size_t> classes = {80, 20};

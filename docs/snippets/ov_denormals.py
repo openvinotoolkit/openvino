@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino as ov
 from utils import get_model
 
-device_name = 'CPU'
+import openvino as ov
+
+device_name = "CPU"
 model = get_model()
 
 # ! [ov:intel_cpu:denormals_optimization:part0]

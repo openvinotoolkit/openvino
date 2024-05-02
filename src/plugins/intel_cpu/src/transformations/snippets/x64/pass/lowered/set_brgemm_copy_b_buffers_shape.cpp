@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "set_brgemm_copy_b_buffers_shape.hpp"
+
+#include "snippets/itt.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
-
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
 bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::LinearIR& linear_ir,
@@ -18,7 +17,8 @@ bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::Lin
     auto get_buffer_from_output = [](const snippets::lowered::ExpressionPtr& expr, const size_t out_idx) {
         const auto& consumers = expr->get_output_port_connector(out_idx)->get_consumers();
         OPENVINO_ASSERT(consumers.size() == 1, "BrgemmCopyB must have only 1 consumer");
-        const auto buffer = ov::as_type_ptr<ov::snippets::op::IntermediateMemoryBuffer>(consumers.begin()->get_expr()->get_node());
+        const auto buffer =
+            ov::as_type_ptr<ov::snippets::op::IntermediateMemoryBuffer>(consumers.begin()->get_expr()->get_node());
         OPENVINO_ASSERT(buffer, "BrgemmCopyB consumer must be Buffer");
         return buffer;
     };

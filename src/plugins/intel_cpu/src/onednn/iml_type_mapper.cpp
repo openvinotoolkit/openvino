@@ -3,6 +3,7 @@
 //
 
 #include "iml_type_mapper.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -13,16 +14,20 @@ namespace intel_cpu {
 impl_desc_type parse_impl_name(std::string impl_desc_name) {
     impl_desc_type res = impl_desc_type::unknown;
 
-#define REPLACE_WORD(_wrd, _sub) auto pos = impl_desc_name.find(#_wrd); \
-    if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
+#define REPLACE_WORD(_wrd, _sub)           \
+    auto pos = impl_desc_name.find(#_wrd); \
+    if (pos != std::string::npos)          \
+        impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub);
 
     REPLACE_WORD(simple, ref);
 #undef REPLACE_WORD
 
-#define SEARCH_WORD(_wrd) if (impl_desc_name.find(#_wrd) != std::string::npos) \
-    res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
-#define SEARCH_WORD_2(_wrd, _key) if (impl_desc_name.find(#_wrd) != std::string::npos) \
-    res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
+#define SEARCH_WORD(_wrd)                                \
+    if (impl_desc_name.find(#_wrd) != std::string::npos) \
+        res = static_cast<impl_desc_type>(res | impl_desc_type::_wrd);
+#define SEARCH_WORD_2(_wrd, _key)                        \
+    if (impl_desc_name.find(#_wrd) != std::string::npos) \
+        res = static_cast<impl_desc_type>(res | impl_desc_type::_key);
 
     SEARCH_WORD(ref);
     SEARCH_WORD(jit);
@@ -48,8 +53,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
-    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 &&
-        (res & impl_desc_type::avx) != impl_desc_type::avx &&
+    if ((res & impl_desc_type::sse42) != impl_desc_type::sse42 && (res & impl_desc_type::avx) != impl_desc_type::avx &&
         (res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(uni);
@@ -65,9 +69,11 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 }
 
 const char* impl_type_to_string(impl_desc_type type) {
-#define CASE(_type) do {                    \
-    if (type == _type) return #_type;       \
-} while (0)
+#define CASE(_type)        \
+    do {                   \
+        if (type == _type) \
+            return #_type; \
+    } while (0)
     CASE(unknown);
     CASE(undef);
     CASE(ref);
@@ -138,4 +144,4 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
 }
 
 }  // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov

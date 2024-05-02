@@ -4,18 +4,18 @@
 
 #include <gtest/gtest.h>
 
-#include "low_precision/transpose.hpp"
 #include <memory>
 #include <sstream>
 #include <string>
-#include "transformations/init_node_info.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "layer_transformation.hpp"
+#include "low_precision/transpose.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/transpose.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace testing;
@@ -55,21 +55,21 @@ public:
 
         actualFunction =
             ov::builder::subgraph::TransposeFunction::getOriginal(inputShape,
-                                                                      testValues.transposeConstValues,
-                                                                      testValues.actual.precisionBeforeDequantization,
-                                                                      testValues.actual.dequantization);
+                                                                  testValues.transposeConstValues,
+                                                                  testValues.actual.precisionBeforeDequantization,
+                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::TransposeTransformation, ov::op::v1::Transpose>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::TransposeFunction::getReference(
-            inputShape,
-            testValues.transposeConstValues,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantizationBefore,
-            testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter);
+        referenceFunction =
+            ov::builder::subgraph::TransposeFunction::getReference(inputShape,
+                                                                   testValues.transposeConstValues,
+                                                                   testValues.expected.precisionBeforeDequantization,
+                                                                   testValues.expected.dequantizationBefore,
+                                                                   testValues.expected.precisionAfterOperation,
+                                                                   testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj) {
@@ -100,8 +100,7 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {{0, 1, 3, 2},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,
@@ -193,8 +192,7 @@ const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {PartialShape::
 const std::vector<TransposeTransformationTestValues> testValues = {
     {{0, 1, 3, 2},
      LayerTransformation::createParamsU8I8(),
-     {ov::element::u8,
-      {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
+     {ov::element::u8, {{ov::element::f32}, {{128}, ov::element::f32, {}, true, 1, ov::element::u8, true}, {0.1f}}},
      {ov::element::u8,
       {{}, {}, {}},
       ov::element::u8,

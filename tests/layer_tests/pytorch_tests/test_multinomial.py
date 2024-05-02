@@ -4,7 +4,6 @@
 import numpy as np
 import pytest
 import torch
-
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -31,7 +30,9 @@ class TestMultinomial(PytorchLayerTest):
                 return self.mode(multinomial)
 
             def multinomial_out(self, input, num_samples, out):
-                multinomial = torch.multinomial(input, num_samples, self.replacement, out=out)
+                multinomial = torch.multinomial(
+                    input, num_samples, self.replacement, out=out
+                )
                 return self.mode(multinomial)
 
             def mode(self, op):
@@ -43,7 +44,11 @@ class TestMultinomial(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_multinomial(replacement, out, test_type), ref_net, "aten::multinomial"
+        return (
+            aten_multinomial(replacement, out, test_type),
+            ref_net,
+            "aten::multinomial",
+        )
 
     @pytest.mark.parametrize(
         ("input", "num_samples", "replacement", "test_type"),
@@ -55,13 +60,23 @@ class TestMultinomial(PytorchLayerTest):
                 "exact",
             ),
             (
-                np.array([[0.001, 0.001, 0.1, 0.9], [5, 10, 0.1, 256], [1, 1e-5, 1e-5, 1e-5]], dtype=np.float32),
+                np.array(
+                    [
+                        [0.001, 0.001, 0.1, 0.9],
+                        [5, 10, 0.1, 256],
+                        [1, 1e-5, 1e-5, 1e-5],
+                    ],
+                    dtype=np.float32,
+                ),
                 4,
                 False,
                 "sorted",
             ),
             (
-                np.array([[0.001, 0, 0.1, 0.9], [5, 10, 0, 256], [0.9, 0.001, 1e-5, 0]], dtype=np.float64),
+                np.array(
+                    [[0.001, 0, 0.1, 0.9], [5, 10, 0, 256], [0.9, 0.001, 1e-5, 0]],
+                    dtype=np.float64,
+                ),
                 3,
                 False,
                 "sorted",
@@ -89,7 +104,17 @@ class TestMultinomial(PytorchLayerTest):
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_multinomial(self, input, num_samples, replacement, out, test_type, ie_device, precision, ir_version):
+    def test_multinomial(
+        self,
+        input,
+        num_samples,
+        replacement,
+        out,
+        test_type,
+        ie_device,
+        precision,
+        ir_version,
+    ):
         if ie_device == "GPU":
             pytest.xfail(reason="multinomial with num_samples is unsupported on GPU")
         self._test(
@@ -97,5 +122,9 @@ class TestMultinomial(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"input": input, "num_samples": num_samples, "out": out}
+            kwargs_to_prepare_input={
+                "input": input,
+                "num_samples": num_samples,
+                "out": out,
+            }
         )

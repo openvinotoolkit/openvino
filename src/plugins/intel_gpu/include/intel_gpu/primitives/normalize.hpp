@@ -3,8 +3,9 @@
 //
 
 #pragma once
-#include "primitive.hpp"
 #include <vector>
+
+#include "primitive.hpp"
 
 namespace cldnn {
 
@@ -12,8 +13,8 @@ namespace cldnn {
 /// The scale can be equal for all channels or one scale per channel.
 /// @details The L2 norm is computed as:<br>
 /// Across spatial mode (across_spatial=true)-<br>
-/// norm(i,x,y) = sqrt( &Sigma;( in(f,w,h)^2 ) + epsilon ) where f in range (0,num_of_features), w in range (0,input_width), h in range (0,input_height).<br>
-/// The summation is performed over all the pixels in the batch.<br>
+/// norm(i,x,y) = sqrt( &Sigma;( in(f,w,h)^2 ) + epsilon ) where f in range (0,num_of_features), w in range
+/// (0,input_width), h in range (0,input_height).<br> The summation is performed over all the pixels in the batch.<br>
 /// Within spatial mode (across_spatial=false)-<br>
 /// norm(i,x,y) = sqrt( &Sigma;( in(f,x,y)^2 ) + epsilon ) where f in range (0,num_of_features).<br>
 /// The summation is performed over this (x,y) position on all the features.<br>
@@ -33,9 +34,10 @@ struct normalize : public primitive_base<normalize> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param scale_input Scale input primitive id with values needed for scaling after the normalization.
-    /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
-    /// All other dimensions should be 1.
-    /// @param across_spatial Determines if the normalization is done across or within spatial (see documentation above).
+    /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale
+    /// per channel). All other dimensions should be 1.
+    /// @param across_spatial Determines if the normalization is done across or within spatial (see documentation
+    /// above).
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
     normalize(const primitive_id& id,
               const input_info& input,
@@ -49,8 +51,8 @@ struct normalize : public primitive_base<normalize> {
           epsilon(epsilon) {}
 
     /// @brief Scale input primitive id with values needed for scaling after the normalization.
-    /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
-    /// All other dimensions should be 1.
+    /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale
+    /// per channel). All other dimensions should be 1.
     primitive_id scale_input;
     /// @brief Determines if the normalization is done across or within spatial (see documentation above).
     bool across_spatial = true;
@@ -70,8 +72,7 @@ struct normalize : public primitive_base<normalize> {
 
         auto rhs_casted = downcast<const normalize>(rhs);
 
-        return across_spatial == rhs_casted.across_spatial &&
-               epsilon == rhs_casted.epsilon;
+        return across_spatial == rhs_casted.across_spatial && epsilon == rhs_casted.epsilon;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -89,6 +90,8 @@ struct normalize : public primitive_base<normalize> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override { return {scale_input}; }
+    std::vector<input_info> get_dependencies() const override {
+        return {scale_input};
+    }
 };
 }  // namespace cldnn

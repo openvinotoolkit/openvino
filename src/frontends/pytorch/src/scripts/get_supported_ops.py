@@ -25,8 +25,9 @@ def get_ops_in_specific_map(map_name: str, lines: list) -> list:
 
 
 if __name__ == "__main__":
-    filepath = os.path.join(os.path.dirname(
-        os.path.realpath(__file__)), "..", "op_table.cpp")
+    filepath = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "..", "op_table.cpp"
+    )
     with open(filepath, "r") as f:
         ops = get_ops_in_specific_map("get_supported_ops_ts", f.readlines())
     for op in ops:

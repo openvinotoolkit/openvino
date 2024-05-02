@@ -91,24 +91,21 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
     }
 
     switch (params.dim) {
-        case SoftmaxDim::X:
-            return ((!input.Y().is_dynamic && input.Y().v == 1) || input.GetLayout() == DataLayout::bfyx) &&
-                   !input.Z().is_dynamic && input.Z().v == 1 &&
-                   ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
-        case SoftmaxDim::Y:
-            return !input.X().is_dynamic && input.X().v == 1 &&
-                   !input.Z().is_dynamic && input.Z().v == 1 &&
-                   ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
-        case SoftmaxDim::Z:
-            return !input.X().is_dynamic && input.X().v == 1 &&
-                   !input.Y().is_dynamic && input.Y().v == 1 &&
-                   !input.Feature().is_dynamic && input.Feature().v == 1;
-        case SoftmaxDim::FEATURE:
-            return !input.X().is_dynamic && input.X().v == 1 &&
-                   !input.Y().is_dynamic && input.Y().v == 1 &&
-                   !input.Z().is_dynamic && input.Z().v == 1;
-        default:
-            return false;
+    case SoftmaxDim::X:
+        return ((!input.Y().is_dynamic && input.Y().v == 1) || input.GetLayout() == DataLayout::bfyx) &&
+               !input.Z().is_dynamic && input.Z().v == 1 &&
+               ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
+    case SoftmaxDim::Y:
+        return !input.X().is_dynamic && input.X().v == 1 && !input.Z().is_dynamic && input.Z().v == 1 &&
+               ((!input.Feature().is_dynamic && input.Feature().v == 1) || input.GetLayout() == DataLayout::bfyx);
+    case SoftmaxDim::Z:
+        return !input.X().is_dynamic && input.X().v == 1 && !input.Y().is_dynamic && input.Y().v == 1 &&
+               !input.Feature().is_dynamic && input.Feature().v == 1;
+    case SoftmaxDim::FEATURE:
+        return !input.X().is_dynamic && input.X().v == 1 && !input.Y().is_dynamic && input.Y().v == 1 &&
+               !input.Z().is_dynamic && input.Z().v == 1;
+    default:
+        return false;
     }
 }
 
@@ -119,10 +116,13 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_pa
 
     if (params.dim == SoftmaxDim::Y && input.Feature().v > 1 && input.GetLayout() == DataLayout::bfyx) {
         // Flatten BF for such case, X is expected to be 1
-        OPENVINO_ASSERT(input.X().v == 1, "[GPU] SoftmaxKernelBaseBF: input.X() is expected to be 1 while actual value is ", input.X().v);
+        OPENVINO_ASSERT(input.X().v == 1,
+                        "[GPU] SoftmaxKernelBaseBF: input.X() is expected to be 1 while actual value is ",
+                        input.X().v);
         dispatchData.dataSetSize = input.Y().v;
         dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
-    } else if (params.dim == SoftmaxDim::X && (input.Feature().v > 1 || input.Y().v > 1) && input.GetLayout() == DataLayout::bfyx) {
+    } else if (params.dim == SoftmaxDim::X && (input.Feature().v > 1 || input.Y().v > 1) &&
+               input.GetLayout() == DataLayout::bfyx) {
         // Flatten BFY for such case
         dispatchData.dataSetSize = input.X().v;
         dispatchData.dataSetsCount = input.Batch().v * input.Feature().v * input.Y().v;

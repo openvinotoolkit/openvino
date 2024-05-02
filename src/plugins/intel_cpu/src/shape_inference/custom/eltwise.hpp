@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -18,9 +19,8 @@ using Result = IShapeInfer::Result;
  */
 class EltwiseShapeInfer : public ShapeInferEmptyPads {
 public:
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
     }
@@ -32,7 +32,6 @@ public:
         return std::make_shared<EltwiseShapeInfer>();
     }
 };
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

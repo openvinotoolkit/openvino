@@ -9,5 +9,5 @@ namespace intel_cpu {
 
 std::atomic_size_t MultiCache::_typeIdCounter{0};
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

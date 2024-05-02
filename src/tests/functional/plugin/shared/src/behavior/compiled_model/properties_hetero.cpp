@@ -8,10 +8,11 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-void OVClassHeteroCompiledModelGetMetricTest::SetCpuAffinity(ov::Core& core, std::vector<std::string>& expectedTargets) {
+void OVClassHeteroCompiledModelGetMetricTest::SetCpuAffinity(ov::Core& core,
+                                                             std::vector<std::string>& expectedTargets) {
 #ifdef ENABLE_INTEL_CPU
     auto layermap = core.query_model(actualNetwork, heteroDeviceName);
-    for (auto &iter : layermap) {
+    for (auto& iter : layermap) {
         if (iter.first.find("Concat") != std::string::npos)
             layermap[iter.first] = ov::test::utils::DEVICE_CPU;
     }

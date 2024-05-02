@@ -1,22 +1,25 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-
-from e2e_tests.common.ref_collector.provider import ClassProvider
-from e2e_tests.test_utils.path_utils import resolve_file_path
-import numpy as np
 import logging as log
 import sys
+
+import numpy as np
+import torch
+from e2e_tests.common.ref_collector.provider import ClassProvider
+from e2e_tests.test_utils.path_utils import resolve_file_path
 
 
 class PrecollectedRefs(ClassProvider):
     """Precollected reference provider."""
+
     __action_name__ = "precollected"
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(
+        format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+    )
 
     def __init__(self, config):
-        self.path = resolve_file_path(config['path'], as_str=True)
+        self.path = resolve_file_path(config["path"], as_str=True)
 
     def get_refs(self, **kwargs):
         """Return existing reference results."""
@@ -26,11 +29,14 @@ class PrecollectedRefs(ClassProvider):
 
 class PrecollectedTorchRefs(ClassProvider):
     """Precollected reference provider."""
+
     __action_name__ = "torch_precollected"
-    log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+    log.basicConfig(
+        format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout
+    )
 
     def __init__(self, config):
-        self.path = resolve_file_path(config['path'], as_str=True)
+        self.path = resolve_file_path(config["path"], as_str=True)
 
     def get_refs(self, **kwargs):
         """Return existing reference results."""

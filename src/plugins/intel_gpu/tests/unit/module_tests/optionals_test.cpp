@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
 #include "intel_gpu/runtime/optionals.hpp"
+
 #include <memory>
+
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -28,7 +30,7 @@ TEST(optional_data_types, basic) {
     ASSERT_EQ(o2.value(), cldnn::data_types::f32);
 
     {
-        cldnn::optional_data_type o2 = { cldnn::data_types::f32 };
+        cldnn::optional_data_type o2 = {cldnn::data_types::f32};
         ASSERT_EQ(o2.value(), cldnn::data_types::f32);
     }
 

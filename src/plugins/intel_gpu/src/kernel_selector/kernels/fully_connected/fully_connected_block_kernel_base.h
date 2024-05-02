@@ -6,7 +6,6 @@
 
 #include "fully_connected_kernel_base.h"
 
-
 namespace kernel_selector {
 class FullyConnectedBlockKernelBase : public FullyConnectedKernelBase {
 public:

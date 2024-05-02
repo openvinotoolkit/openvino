@@ -6,16 +6,19 @@ from openvino.tools.mo.ops.op import Op
 
 
 class ATen(Op):
-    op = 'ATen'
+    op = "ATen"
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': None,
-
-            'infer': None,
-        }, attrs)
+        super().__init__(
+            graph,
+            {
+                "op": self.op,
+                "type": None,
+                "infer": None,
+            },
+            attrs,
+        )
 
     def supported_attrs(self):
-        return ['mode', 'operator']
+        return ["mode", "operator"]

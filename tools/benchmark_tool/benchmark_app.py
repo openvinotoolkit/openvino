@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
-from openvino.tools.benchmark.main import main
 
+from openvino.tools.benchmark.main import main
 
 if __name__ == "__main__":
     sys.exit(main() or 0)

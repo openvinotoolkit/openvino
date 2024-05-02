@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "read_value_inst.h"
 #include "implementation_map.hpp"
-#include "register.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
+#include "read_value_inst.h"
+#include "register.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -50,11 +50,13 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         }
 
         auto& variable = instance.get_network().get_variable(variable_id);
-        auto &stream = instance.get_network().get_stream();
+        auto& stream = instance.get_network().get_stream();
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
-                "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
-                " read_value output layout: ", instance.get_output_layout().to_short_string());
+                        "[GPU] Layout mismatch: variable layout: ",
+                        variable.get_layout().to_short_string(),
+                        " read_value output layout: ",
+                        instance.get_output_layout().to_short_string());
 
         if (!variable.is_set()) {
             if (instance.get_impl_params()->input_layouts.size() > 0) {
@@ -71,7 +73,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         return instance.get_network().get_stream().create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {

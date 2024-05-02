@@ -4,38 +4,37 @@
 
 #pragma once
 
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
 #ifdef _WIN32
-#include <process.h>
+#    include <process.h>
 #endif
 
 #include <gtest/gtest.h>
 
-
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/kso_func.hpp"
+#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-#include "common_test_utils/file_utils.hpp"
-
-#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
-#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/kso_func.hpp"
-#include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
-#include "common_test_utils/subgraph_builders/concat_with_params.hpp"
-#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(std::vector<size_t> inputShape = {1, 2, 32, 32},
-                                                                              ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
+inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDevice(
+    std::vector<size_t> inputShape = {1, 2, 32, 32},
+    ov::element::Type_t ngPrc = ov::element::Type_t::f32) {
     return ov::test::utils::make_split_concat(inputShape, ngPrc);
 }
 
@@ -48,7 +47,7 @@ class APIBaseTest : public ov::test::TestsCommon {
 private:
     // in case of crash jump will be made and work will be continued
     const std::unique_ptr<ov::test::utils::CrashHandler> crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(
-                                                                        new ov::test::utils::CrashHandler(ov::test::utils::CONFORMANCE_TYPE::api));
+        new ov::test::utils::CrashHandler(ov::test::utils::CONFORMANCE_TYPE::api));
 
 protected:
     double k = 1.0;
@@ -59,12 +58,16 @@ protected:
 public:
     APIBaseTest() = default;
 
-    virtual void set_api_entity() { api_entity = ov::test::utils::ov_entity::undefined; }
+    virtual void set_api_entity() {
+        api_entity = ov::test::utils::ov_entity::undefined;
+    }
 
     void SetUp() override {
         set_api_entity();
         auto test_name = this->GetFullTestName();
-        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos
+                ? 1.0
+                : 0.0;
         if (ov::test::utils::is_print_rel_influence_coef)
             std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
@@ -85,34 +88,33 @@ public:
     }
 };
 
-class OVInferRequestTestBase :  public APIBaseTest {
+class OVInferRequestTestBase : public APIBaseTest {
 private:
     void set_api_entity() override {
         api_entity = ov::test::utils::ov_entity::ov_infer_request;
     };
 };
 
-class OVCompiledNetworkTestBase :  public APIBaseTest {
+class OVCompiledNetworkTestBase : public APIBaseTest {
 private:
     void set_api_entity() override {
         api_entity = ov::test::utils::ov_entity::ov_compiled_model;
     };
 };
 
-class OVPluginTestBase :  public APIBaseTest {
+class OVPluginTestBase : public APIBaseTest {
 private:
     void set_api_entity() override {
         api_entity = ov::test::utils::ov_entity::ov_plugin;
     };
 };
 
-typedef std::tuple<
-        std::string, // Device name
-        ov::AnyMap   // Config
-> InferRequestParams;
+typedef std::tuple<std::string,  // Device name
+                   ov::AnyMap    // Config
+                   >
+    InferRequestParams;
 
-class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>,
-                            public OVInferRequestTestBase {
+class OVInferRequestTests : public testing::WithParamInterface<InferRequestParams>, public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
         std::string targetDevice;
@@ -123,7 +125,7 @@ public:
         result << "targetDevice=" << targetDevice << "_";
         if (!configuration.empty()) {
             using namespace ov::test::utils;
-            for (auto &configItem : configuration) {
+            for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
                 configItem.second.print(result);
             }
@@ -169,8 +171,8 @@ inline ov::Core createCoreWithTemplate() {
     std::string pluginName = "openvino_template_plugin";
     pluginName += OV_BUILD_POSTFIX;
     core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
-        ov::test::utils::DEVICE_TEMPLATE);
-#endif // !OPENVINO_STATIC_LIBRARY
+                         ov::test::utils::DEVICE_TEMPLATE);
+#endif  // !OPENVINO_STATIC_LIBRARY
     return core;
 }
 
@@ -190,15 +192,15 @@ public:
         ksoNetwork = ov::test::utils::make_kso_function();
     }
 
-    virtual void setHeteroNetworkAffinity(const std::string &targetDevice) {
-        const std::map<std::string, std::string> deviceMapping = {{"Split_2",       targetDevice},
+    virtual void setHeteroNetworkAffinity(const std::string& targetDevice) {
+        const std::map<std::string, std::string> deviceMapping = {{"Split_2", targetDevice},
                                                                   {"Convolution_4", targetDevice},
                                                                   {"Convolution_7", ov::test::utils::DEVICE_CPU},
-                                                                  {"Relu_5",        ov::test::utils::DEVICE_CPU},
-                                                                  {"Relu_8",        targetDevice},
-                                                                  {"Concat_9",      ov::test::utils::DEVICE_CPU}};
+                                                                  {"Relu_5", ov::test::utils::DEVICE_CPU},
+                                                                  {"Relu_8", targetDevice},
+                                                                  {"Concat_9", ov::test::utils::DEVICE_CPU}};
 
-        for (const auto &op : actualNetwork->get_ops()) {
+        for (const auto& op : actualNetwork->get_ops()) {
             auto it = deviceMapping.find(op->get_friendly_name());
             if (it != deviceMapping.end()) {
                 std::string affinity = it->second;
@@ -265,6 +267,6 @@ public:
     }
 };
 
-} // namespace behavior
-} // namespace test
-} // namespace ov
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
@@ -23,15 +23,11 @@ public:
     std::string expectedRuntimePrecision;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string,
-    MatMulTransformationTestValues> MatMulTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, MatMulTransformationTestValues>
+    MatMulTransformationParams;
 
-class MatMulTransformation :
-    public testing::WithParamInterface<MatMulTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class MatMulTransformation : public testing::WithParamInterface<MatMulTransformationParams>,
+                             public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj);
 

@@ -1,59 +1,62 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import undefined_shape_of_rank, set_input_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import (
+    set_input_shapes,
+    undefined_shape_of_rank,
+)
 from openvino.tools.mo.front.extractor import attr_getter, bool_to_str
-from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.op import Op
 
 
 class ProposalOp(Op):
-    op = 'Proposal'
+    op = "Proposal"
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': self.op,
-            'op': self.op,
-            'version': 'opset4',
-            'post_nms_topn': 300,  # default in caffe-shared
-            'infer': ProposalOp.proposal_infer,
-            'reverse_infer': self.reverse_infer,
-            'in_ports_count': 3,
-            'out_ports_count': 1 if attrs.get('version') == 'opset1' else 2,
-            'normalize': False,
-            'clip_before_nms': True,
-            'clip_after_nms': False,
+            "type": self.op,
+            "op": self.op,
+            "version": "opset4",
+            "post_nms_topn": 300,  # default in caffe-shared
+            "infer": ProposalOp.proposal_infer,
+            "reverse_infer": self.reverse_infer,
+            "in_ports_count": 3,
+            "out_ports_count": 1 if attrs.get("version") == "opset1" else 2,
+            "normalize": False,
+            "clip_before_nms": True,
+            "clip_after_nms": False,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
         return [
-            'feat_stride',
-            'base_size',
-            'min_size',
-            'ratio',
-            'scale',
-            'pre_nms_topn',
-            'post_nms_topn',
-            'nms_thresh',
+            "feat_stride",
+            "base_size",
+            "min_size",
+            "ratio",
+            "scale",
+            "pre_nms_topn",
+            "post_nms_topn",
+            "nms_thresh",
         ]
 
     def backend_attrs(self):
         return [
-            'feat_stride',
-            'base_size',
-            'min_size',
-            ('ratio', lambda node: attr_getter(node, 'ratio')),
-            ('scale', lambda node: attr_getter(node, 'scale')),
-            'pre_nms_topn',
-            'post_nms_topn',
-            'nms_thresh',
-            'framework',
-            'box_coordinate_scale',
-            'box_size_scale',
-            ('normalize', lambda node: bool_to_str(node, 'normalize')),
-            ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
-            ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
+            "feat_stride",
+            "base_size",
+            "min_size",
+            ("ratio", lambda node: attr_getter(node, "ratio")),
+            ("scale", lambda node: attr_getter(node, "scale")),
+            "pre_nms_topn",
+            "post_nms_topn",
+            "nms_thresh",
+            "framework",
+            "box_coordinate_scale",
+            "box_size_scale",
+            ("normalize", lambda node: bool_to_str(node, "normalize")),
+            ("clip_after_nms", lambda node: bool_to_str(node, "clip_after_nms")),
+            ("clip_before_nms", lambda node: bool_to_str(node, "clip_before_nms")),
         ]
 
     @staticmethod

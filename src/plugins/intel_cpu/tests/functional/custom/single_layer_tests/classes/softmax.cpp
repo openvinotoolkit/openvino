@@ -3,6 +3,7 @@
 //
 
 #include "softmax.hpp"
+
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
 
@@ -64,8 +65,6 @@ TEST_P(SoftMaxLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Softmax");
 }
 
-namespace SoftMax {
-
-}  // namespace SoftMax
+namespace SoftMax {}  // namespace SoftMax
 }  // namespace test
 }  // namespace ov

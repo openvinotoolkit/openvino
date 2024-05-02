@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
-#include <intel_gpu/primitives/data.hpp>
-
-#include "softmax_inst.h"
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "softmax_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -25,7 +22,7 @@ struct softmax_test_params {
     int64_t axis;
 };
 
-class softmax_si_test : public testing::TestWithParam<softmax_test_params> { };
+class softmax_si_test : public testing::TestWithParam<softmax_test_params> {};
 
 TEST_P(softmax_si_test, shape_infer) {
     auto p = GetParam();
@@ -40,20 +37,21 @@ TEST_P(softmax_si_test, shape_infer) {
     auto& input0_layout_node = prog.get_or_create(input0_layout_prim);
     auto& softmax_node = prog.get_or_create(softmax_prim);
     program_wrapper::add_connection(prog, input0_layout_node, softmax_node);
-    auto res = softmax_inst::calc_output_layouts<ov::PartialShape>(softmax_node, *softmax_node.get_kernel_impl_params());
+    auto res =
+        softmax_inst::calc_output_layouts<ov::PartialShape>(softmax_node, *softmax_node.get_kernel_impl_params());
 
     ASSERT_EQ(res.size(), 1);
     auto expected_layout = p.input_layout;
     ASSERT_EQ(res[0], expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, softmax_si_test,
-    testing::ValuesIn(std::vector<softmax_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, 1},
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, 2},
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, 4},
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, 2},
-        { layout{ov::PartialShape::dynamic(5), data_types::f16, format::bfzyx}, -1}
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         softmax_si_test,
+                         testing::ValuesIn(std::vector<softmax_test_params>{
+                             {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, 1},
+                             {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, 2},
+                             {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, 4},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, 2},
+                             {layout{ov::PartialShape::dynamic(5), data_types::f16, format::bfzyx}, -1}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

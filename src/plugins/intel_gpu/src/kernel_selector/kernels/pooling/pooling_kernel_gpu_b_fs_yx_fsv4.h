@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "pooling_kernel_base.h"
 #include <vector>
+
+#include "pooling_kernel_base.h"
 
 namespace kernel_selector {
 class PoolingKerneGPU_b_fs_yx_fsv4 : public PoolingKernelBase {
@@ -18,9 +19,7 @@ public:
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const pooling_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
 protected:

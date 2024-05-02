@@ -10,13 +10,13 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        ov::element::Type_t,  // Network Precision
-        InputShape,           // Input1 Shape,
-        InputShape,           // Input2 Shape,
-        bool,
-        std::string           // Target Device
-> CodegenGeluParams;
+typedef std::tuple<ov::element::Type_t,  // Network Precision
+                   InputShape,           // Input1 Shape,
+                   InputShape,           // Input2 Shape,
+                   bool,
+                   std::string  // Target Device
+                   >
+    CodegenGeluParams;
 
 class CodegenGelu : public testing::WithParamInterface<ov::test::snippets::CodegenGeluParams>,
                     virtual public ov::test::SnippetsTestsCommon {
@@ -27,7 +27,6 @@ protected:
     void SetUp() override;
 };
 
-
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

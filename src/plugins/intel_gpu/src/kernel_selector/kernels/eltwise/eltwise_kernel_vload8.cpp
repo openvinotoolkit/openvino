@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation/activation_kernel_base.h"
 #include "eltwise_kernel_vload8.h"
-#include "kernel_selector_utils.h"
-#include <string>
+
 #include <algorithm>
+#include <string>
+
+#include "activation/activation_kernel_base.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -34,34 +36,33 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     // Only one activation can be fused.
-    if (ewParams.fused_ops.size() > 1 ||
-        (ewParams.activations.size() !=0 && ewParams.fused_ops.size() != 0)) {
+    if (ewParams.fused_ops.size() > 1 || (ewParams.activations.size() != 0 && ewParams.fused_ops.size() != 0)) {
         return false;
     }
 
-        for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-            const auto input_layout = ewParams.inputs[i].GetLayout();
-            const auto batch_size = ewParams.inputs[i].Batch().v;
-            const auto feature_size = ewParams.inputs[i].Feature().v;
-            if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
-                (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
-                input_layout == DataLayout::fs_b_yx_fsv32 ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
-                return false;
-        }
-        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
-            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
+    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
+        const auto input_layout = ewParams.inputs[i].GetLayout();
+        const auto batch_size = ewParams.inputs[i].Batch().v;
+        const auto feature_size = ewParams.inputs[i].Feature().v;
+        if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
+            (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
+            (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
+            (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
+            input_layout == DataLayout::fs_b_yx_fsv32 ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0)))
             return false;
+    }
+    if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+        ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+         (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+         (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)))
+        return false;
 
     const auto& output = ewParams.outputs[0];
     const auto count = output.PhysicalSize();
@@ -117,8 +118,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params) const {
 
     try {
         // move a fused activation from fused_ops to activations
-        if (newParams.activations.size() == 0 &&
-            newParams.fused_ops.size() == 1 &&
+        if (newParams.activations.size() == 0 && newParams.fused_ops.size() == 1 &&
             newParams.fused_ops[0].GetType() == KernelType::ACTIVATION) {
             auto p = newParams.fused_ops[0].GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;

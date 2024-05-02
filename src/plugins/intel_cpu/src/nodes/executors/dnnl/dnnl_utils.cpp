@@ -17,7 +17,8 @@ namespace utils {
 
 DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
     const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    const auto reorderedWeiDesc =
+        dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
     const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
@@ -49,8 +50,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
 
     auto globalWeightCache = context->getWeightsCache();
     MemoryPtr ptr;
-    if (globalWeightCache &&
-        dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
+    if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
         const std::string string_hash = format + "_" + std::to_string(weightsMem->getSize()) + "_" +
                                         std::to_string(*weightsMem->getDataAs<uint64_t>());
         ptr = *globalWeightCache->findOrCreate(string_hash, create);

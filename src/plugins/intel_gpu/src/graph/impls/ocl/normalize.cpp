@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
-#include "normalize_inst.h"
-#include "normalize/normalize_kernel_selector.h"
 #include "normalize/normalize_kernel_base.h"
+#include "normalize/normalize_kernel_selector.h"
+#include "normalize_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -24,7 +23,7 @@ struct normalize_impl : typed_primitive_impl_ocl<normalize> {
     }
 
 protected:
-     kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
         args.scale_table = instance.scale_memory();
         return args;
@@ -63,7 +62,10 @@ attach_normalize_impl::attach_normalize_impl() {
         format::bs_fs_yx_bsv32_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
     };
-    implementation_map<normalize>::add(impl_types::ocl, typed_primitive_impl_ocl<normalize>::create<normalize_impl>, types, formats);
+    implementation_map<normalize>::add(impl_types::ocl,
+                                       typed_primitive_impl_ocl<normalize>::create<normalize_impl>,
+                                       types,
+                                       formats);
 }
 
 }  // namespace detail

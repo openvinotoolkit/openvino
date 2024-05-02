@@ -18,7 +18,7 @@ namespace pass {
  *              This op is used for real Convert ops inside subgraph body in CPU Plugin
  * @ingroup snippets
  */
-class TransformConvertToConvertTruncation: public ov::pass::MatcherPass {
+class TransformConvertToConvertTruncation : public ov::pass::MatcherPass {
 public:
     TransformConvertToConvertTruncation();
 };

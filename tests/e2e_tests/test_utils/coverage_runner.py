@@ -21,24 +21,36 @@
 
 import argparse
 import os
-import sys
 import subprocess
+import sys
 from glob import iglob
 
-parser = argparse.ArgumentParser(description="Runner for coverage measurement "
-                                             "for each tests explicitly")
-parser.add_argument("-f", "--test-filters", "--test_filters", nargs="+",
-                    help="Tests for which we want measure coverage separately",
-                    required=True)
-parser.add_argument("--py-cov-path", "--cov",
-                    help="Path to python module which coverage is inspected.")
-parser.add_argument("--py-cov-config", "--cov_config",
-                    help="Path to python coverage configuration file")
-parser.add_argument("--c-gcov-notes",
-                    help="Path to gcov notes directory (C/C++ coverage)")
-parser.add_argument("--output-dir", "--output_dir",
-                    help="Path to directory where coverage info will be stored.",
-                    default=os.path.join(os.getcwd(), "..", "reports"))
+parser = argparse.ArgumentParser(
+    description="Runner for coverage measurement " "for each tests explicitly"
+)
+parser.add_argument(
+    "-f",
+    "--test-filters",
+    "--test_filters",
+    nargs="+",
+    help="Tests for which we want measure coverage separately",
+    required=True,
+)
+parser.add_argument(
+    "--py-cov-path", "--cov", help="Path to python module which coverage is inspected."
+)
+parser.add_argument(
+    "--py-cov-config", "--cov_config", help="Path to python coverage configuration file"
+)
+parser.add_argument(
+    "--c-gcov-notes", help="Path to gcov notes directory (C/C++ coverage)"
+)
+parser.add_argument(
+    "--output-dir",
+    "--output_dir",
+    help="Path to directory where coverage info will be stored.",
+    default=os.path.join(os.getcwd(), "..", "reports"),
+)
 args = parser.parse_args()
 
 
@@ -56,30 +68,54 @@ def run_coverage():
             env["GCOV_PREFIX_STRIP"] = str(len(build_prefix.strip("/").split("/")))
         subprocess.run(
             [
-                "pytest", "collect_irs.py",
-                "-k", test, "-m", "not launch_only_if_manually_specified",
-                "--env_conf", ".automation/env_config.yml",
-                "--test_conf", ".automation/test_configs/coverage_test_config.yml",
-                "--modules", "pipelines", "-s", "--tb=native",
-                "--log-cli-level", "INFO",
-                "--pregen_irs", "irs_mapping.csv",
-                "--cov-report", f"xml:{args.output_dir}/{test}.xml",
-                "--cov", args.py_cov_path,
-                "--cov-config", args.py_cov_config
+                "pytest",
+                "collect_irs.py",
+                "-k",
+                test,
+                "-m",
+                "not launch_only_if_manually_specified",
+                "--env_conf",
+                ".automation/env_config.yml",
+                "--test_conf",
+                ".automation/test_configs/coverage_test_config.yml",
+                "--modules",
+                "pipelines",
+                "-s",
+                "--tb=native",
+                "--log-cli-level",
+                "INFO",
+                "--pregen_irs",
+                "irs_mapping.csv",
+                "--cov-report",
+                f"xml:{args.output_dir}/{test}.xml",
+                "--cov",
+                args.py_cov_path,
+                "--cov-config",
+                args.py_cov_config,
             ],
             cwd=f"{os.path.dirname(os.path.realpath(__file__))}/..",
-            env=env
+            env=env,
         )
         if args.c_gcov_notes:
             output = f"{args.output_dir}/{test}.info"
-            subprocess.run([
-                "grcov", "-t", "lcov", args.c_gcov_notes,
-                "--ignore", "/usr/*",
-                "--ignore", "*tbb*",
-                "--ignore", "*.inc",
-                "--ignore", "**/*thirdparty/pugixml*",
-                "-o", output
-            ])
+            subprocess.run(
+                [
+                    "grcov",
+                    "-t",
+                    "lcov",
+                    args.c_gcov_notes,
+                    "--ignore",
+                    "/usr/*",
+                    "--ignore",
+                    "*tbb*",
+                    "--ignore",
+                    "*.inc",
+                    "--ignore",
+                    "**/*thirdparty/pugixml*",
+                    "-o",
+                    output,
+                ]
+            )
 
             # clean coverage data for the next test
             for item in iglob(f"{args.c_gcov_notes}/**/*.gcda", recursive=True):

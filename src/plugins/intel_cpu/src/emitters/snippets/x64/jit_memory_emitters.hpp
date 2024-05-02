@@ -7,13 +7,13 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 
-
 namespace ov {
 namespace intel_cpu {
 
-class jit_memory_emitter : public jit_emitter  {
+class jit_memory_emitter : public jit_emitter {
 public:
-    jit_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                       dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
 protected:
@@ -23,22 +23,25 @@ protected:
     size_t count = 0;
     size_t byte_offset = 0;
 #ifdef SNIPPETS_DEBUG_CAPS
-    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter *emitter);
+    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
 #endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {
 public:
-    jit_load_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_load_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {return 0;}
+    size_t get_inputs_num() const override {
+        return 0;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     void emit_data() const override;
 
 private:
@@ -47,48 +50,57 @@ private:
 
 class jit_load_broadcast_emitter : public jit_memory_emitter {
 public:
-    jit_load_broadcast_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_load_broadcast_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                               dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {return 0;}
+    size_t get_inputs_num() const override {
+        return 0;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 };
 
 class jit_load_convert_emitter : public jit_memory_emitter {
 public:
-    jit_load_convert_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_load_convert_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {return 0;}
+    size_t get_inputs_num() const override {
+        return 0;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     void emit_data() const override;
 
 private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
-class jit_store_memory_emitter : public jit_memory_emitter  {
+class jit_store_memory_emitter : public jit_memory_emitter {
 public:
-    jit_store_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_store_memory_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {return 1;}
+    size_t get_inputs_num() const override {
+        return 1;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     void emit_data() const override;
 
 private:
@@ -97,21 +109,24 @@ private:
 
 class jit_store_convert_emitter : public jit_memory_emitter {
 public:
-    jit_store_convert_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+    jit_store_convert_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                               const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {return 1;}
+    size_t get_inputs_num() const override {
+        return 1;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     void emit_data() const override;
 
 private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

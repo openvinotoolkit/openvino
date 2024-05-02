@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
@@ -30,20 +30,20 @@ public:
                      const bool& antialias,
                      const std::vector<size_t>& pads_begin,
                      const std::vector<size_t>& pads_end,
-                     const bool& shouldBeTransformed = true) :
-            axes(axes), mode(mode), align_corners(align_corners),
-            antialias(antialias), pads_begin(pads_begin), pads_end(pads_end) {}
+                     const bool& shouldBeTransformed = true)
+        : axes(axes),
+          mode(mode),
+          align_corners(align_corners),
+          antialias(antialias),
+          pads_begin(pads_begin),
+          pads_end(pads_end) {}
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    std::pair<ov::PartialShape, ov::Shape>,
-    std::string,
-    interpAttributes> InterpolateTransformationParams;
+typedef std::tuple<ov::element::Type, std::pair<ov::PartialShape, ov::Shape>, std::string, interpAttributes>
+    InterpolateTransformationParams;
 
-class InterpolateTransformation :
-    public testing::WithParamInterface<InterpolateTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class InterpolateTransformation : public testing::WithParamInterface<InterpolateTransformationParams>,
+                                  public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj);
 

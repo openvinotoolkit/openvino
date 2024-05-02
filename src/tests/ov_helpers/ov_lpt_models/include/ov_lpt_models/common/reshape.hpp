@@ -19,6 +19,7 @@ public:
 
     std::vector<size_t> values;
     bool special_zero;
+
 private:
     bool isEmpty;
 };

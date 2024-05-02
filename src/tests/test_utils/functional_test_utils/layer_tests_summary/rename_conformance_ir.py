@@ -1,22 +1,26 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import defusedxml.ElementTree as ET
-
-from argparse import ArgumentParser
-from dataclasses import dataclass
-from pathlib import Path
-from hashlib import sha256
-from utils.conformance_utils import get_logger, set_env_variable
-from utils.constants import PY_OPENVINO, LD_LIB_PATH_NAME, PYTHON_NAME, REL_WEIGHTS_FILENAME, REL_WEIGHTS_REPLACE_STR
-from utils.file_utils import get_ov_path, find_latest_dir
-import defusedxml.ElementTree as ET
-
+import errno
 import os
 import re
-import errno
+from argparse import ArgumentParser
+from dataclasses import dataclass
+from hashlib import sha256
+from pathlib import Path
 
-logger = get_logger('rename_conformance_ir')
+import defusedxml.ElementTree as ET
+from utils.conformance_utils import get_logger, set_env_variable
+from utils.constants import (
+    LD_LIB_PATH_NAME,
+    PY_OPENVINO,
+    PYTHON_NAME,
+    REL_WEIGHTS_FILENAME,
+    REL_WEIGHTS_REPLACE_STR,
+)
+from utils.file_utils import find_latest_dir, get_ov_path
+
+logger = get_logger("rename_conformance_ir")
 
 try:
     from openvino.runtime import Core
@@ -29,23 +33,27 @@ except:
 
         env = set_env_variable(env, "PYTHONPATH", py_ov)
         env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
-        logger.warning("Set the following env varibles to rename conformance ir based on hash: ")
+        logger.warning(
+            "Set the following env varibles to rename conformance ir based on hash: "
+        )
         logger.warning(f'PYTHONPATH={env["PYTHONPATH"]}')
-        logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
+        logger.warning(f"{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}")
         exit(0)
     else:
-        print(f'Impossible to run the tool! PyOpenVINO was not built!')
+        print(f"Impossible to run the tool! PyOpenVINO was not built!")
         exit(-1)
-    
+
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
 META_EXTENSION = ".meta"
 
+
 @dataclass
 class TestStructure:
     dynamic: float = 0.0
     static: float = 0.0
+
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -54,21 +62,30 @@ def parse_arguments():
     rel_weights_dir = "Path to dir to save rel_weights_file"
 
     parser.add_argument("--input_dir", help=in_dir_help, nargs="*", required=True)
-    parser.add_argument("--rel_weights_dir", help=rel_weights_dir, type=str, default=None, required=False)
+    parser.add_argument(
+        "--rel_weights_dir",
+        help=rel_weights_dir,
+        type=str,
+        default=None,
+        required=False,
+    )
 
     return parser.parse_args()
+
 
 def check_file(path: Path):
     if not path.is_file:
         logger.error(f"File {path} is not exist or can't be opened!")
         raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
+
 def generate_op_name(type_info):
     op_name = type_info.name
-    op_version = type_info.version_id.replace('opset', '')
+    op_version = type_info.version_id.replace("opset", "")
     return f"{op_name}-{op_version}"
 
-def get_rel_weight(meta_info_file:Path):
+
+def get_rel_weight(meta_info_file: Path):
     try:
         meta_info_root = ET.parse(meta_info_file).getroot()
         graph_priority_node = meta_info_root.find("graph_priority")
@@ -78,19 +95,21 @@ def get_rel_weight(meta_info_file:Path):
         logger.error(f"Meta info {meta_info_file} is incorrect!")
         return 1
 
-def update_rel_weight(meta_info_file:Path, additional_value: float):
+
+def update_rel_weight(meta_info_file: Path, additional_value: float):
     try:
         meta_info_root = ET.parse(meta_info_file).getroot()
         graph_priority_node = meta_info_root.find("graph_priority")
         value_attrib = float(graph_priority_node.attrib.get("value"))
         graph_priority_node.set("value", str(value_attrib + additional_value))
         with open(meta_info_file, "w") as xml_file:
-            xml_file.write(ET.tostring(meta_info_root).decode('utf8'))
+            xml_file.write(ET.tostring(meta_info_root).decode("utf8"))
         # logger.info(f"Meta info file {meta_info_file} was updated")
     except:
         logger.error(f"Meta info {meta_info_file} is incorrect!")
 
-def is_report_op(op_name:str):
+
+def is_report_op(op_name: str):
     if "Parameter-1" == op_name or "Result-1" == op_name or "Constant-1" == op_name:
         return False
     return True
@@ -109,20 +128,31 @@ def generate_node_hash(node):
         try:
             partial_shape = input.get_partial_shape()
 
-            if 'Convolution' in str(input_node.get_type_info().name):
+            if "Convolution" in str(input_node.get_type_info().name):
                 offset = 2
-                if 'GroupConvolution' in str(input_node.get_type_info().name) or\
-                   'GroupConvolutionBackpropData' in str(input_node.get_type_info().name):
+                if "GroupConvolution" in str(
+                    input_node.get_type_info().name
+                ) or "GroupConvolutionBackpropData" in str(
+                    input_node.get_type_info().name
+                ):
                     offset = 3
-                shape_str += '[' + ','.join([str(val) for val in list(partial_shape)[offset:]]) + ']'
+                shape_str += (
+                    "["
+                    + ",".join([str(val) for val in list(partial_shape)[offset:]])
+                    + "]"
+                )
 
             shape_str += str(len(partial_shape))
             shape_str += str(partial_shape.is_dynamic)
         except:
             logger.error(f"Impossible to get input_shape for {input_node.name}")
 
-        str_to_hash += shape_str + str(input.get_element_type().get_type_name()) + \
-            str(input_node.get_type_info().name) + str(input_node.get_type_info().version_id)
+        str_to_hash += (
+            shape_str
+            + str(input.get_element_type().get_type_name())
+            + str(input_node.get_type_info().name)
+            + str(input_node.get_type_info().version_id)
+        )
 
     for output in node.outputs():
         output_node = output.get_node()
@@ -135,10 +165,15 @@ def generate_node_hash(node):
         except:
             logger.error(f"Impossible to get output_shape for {output.names.pop()}")
 
-        str_to_hash += shape_str + str(output.get_element_type().get_type_name()) + \
-            str(output_node.get_type_info().name) + str(output_node.get_type_info().version_id)
+        str_to_hash += (
+            shape_str
+            + str(output.get_element_type().get_type_name())
+            + str(output_node.get_type_info().name)
+            + str(output_node.get_type_info().version_id)
+        )
 
     return str_to_hash
+
 
 def create_hash(in_dir_path: Path, operations=dict()):
     core = Core()
@@ -168,7 +203,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                         model_dir, _ = os.path.split(model_path)
                         model_dir = str(model_dir).replace(model_prefix, "")
                         if op_name in model_dir:
-                            model_dir = model_dir[:model_dir.find(op_name):]
+                            model_dir = model_dir[: model_dir.find(op_name) :]
                         model_dir = model_dir[:-1:]
                         model_dir = model_dir.replace(os.path.sep, "_")
                         str_to_hash += model_dir
@@ -196,7 +231,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 logger.error(f"Impossible to add input_info to hash for {model_path}")
 
             old_name = model_path
-            new_name = str(sha256(str_to_hash.encode('utf-8')).hexdigest())
+            new_name = str(sha256(str_to_hash.encode("utf-8")).hexdigest())
 
             new_meta_path = Path(meta_path.parent, new_name + META_EXTENSION)
             new_xml_path = Path(model_path.parent, new_name + XML_EXTENSION)
@@ -210,19 +245,29 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 # logger.info(f"{old_name} -> {new_name}")
             elif old_name != new_xml_path:
                 # TODO: if some models are still not renaming and there are duplicates, remove files here
-                logger.warning(f"Could not rename model {old_name} ! Model file name already exists {new_xml_path} ")
+                logger.warning(
+                    f"Could not rename model {old_name} ! Model file name already exists {new_xml_path} "
+                )
                 update_rel_weight(new_meta_path, rel_weight)
         except:
             pass
     return operations
 
-def save_rel_weights(rel_weights_dir:Path, operations: dict):
+
+def save_rel_weights(rel_weights_dir: Path, operations: dict):
     if not rel_weights_dir.is_dir:
         logger.info(f"Create rel weight_dir: {rel_weights_dir}")
         os.mkdir(rel_weights_dir)
-    rel_weights_path = os.path.join(rel_weights_dir, REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, ""))
-    dyn_rel_weights_path = os.path.join(rel_weights_dir, REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, "dynamic"))
-    static_rel_weights_path = os.path.join(rel_weights_dir, REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, "static"))
+    rel_weights_path = os.path.join(
+        rel_weights_dir, REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, "")
+    )
+    dyn_rel_weights_path = os.path.join(
+        rel_weights_dir,
+        REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, "dynamic"),
+    )
+    static_rel_weights_path = os.path.join(
+        rel_weights_dir, REL_WEIGHTS_FILENAME.replace(REL_WEIGHTS_REPLACE_STR, "static")
+    )
 
     rel_weights_file = open(rel_weights_path, "w")
     dyn_rel_weights_file = open(dyn_rel_weights_path, "w")
@@ -234,15 +279,18 @@ def save_rel_weights(rel_weights_dir:Path, operations: dict):
         if rel_weight.static != 0:
             static_rel_weights_file.write(f"{op}:{rel_weight.static}\n")
         rel_weights_file.write((f"{op}:{rel_weight.static + rel_weight.dynamic}\n"))
-    
+
     rel_weights_file.close()
     dyn_rel_weights_file.close()
     static_rel_weights_file.close()
 
-    logger.info(f"Relative weights are saved to {rel_weights_path}, {dyn_rel_weights_path}, {static_rel_weights_path}")
+    logger.info(
+        f"Relative weights are saved to {rel_weights_path}, {dyn_rel_weights_path}, {static_rel_weights_path}"
+    )
     return rel_weights_path, dyn_rel_weights_path, static_rel_weights_path
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     args = parse_arguments()
     operations = dict()
     rel_weights_dir = None
@@ -258,7 +306,7 @@ if __name__=="__main__":
             continue
         # logger.info(f"Starting to rename models in {in_dir}")
         operations = create_hash(Path(in_dir), operations)
-    
+
     if not rel_weights_dir is None:
         save_rel_weights(rel_weights_dir, operations)
 

@@ -3,11 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
+from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from functools import partial
-
 from openvino.runtime import Node, Shape
 from openvino.runtime.op import Constant, Parameter
 from openvino.runtime.opset_utils import _get_node_factory
@@ -209,7 +208,11 @@ def embedding_segments_sum(
     :param name: Optional name for output node.
     :return: EmbeddingSegmentsSum node
     """
-    inputs = [as_node(emb_table, name=name), as_node(indices, name=name), as_node(segment_ids, name=name)]
+    inputs = [
+        as_node(emb_table, name=name),
+        as_node(indices, name=name),
+        as_node(segment_ids, name=name),
+    ]
     if per_sample_weights is not None:
         inputs.append(as_node(num_segments, name=name))
         inputs.append(as_node(default_index, name=name))
@@ -347,7 +350,14 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(
+        boxes,
+        scores,
+        max_output_boxes_per_class,
+        iou_threshold,
+        score_threshold,
+        name=name,
+    )
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -358,7 +368,9 @@ def non_max_suppression(
 
 
 @nameable_op
-def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
+def non_zero(
+    data: NodeInput, output_type: str = "i64", name: Optional[str] = None
+) -> Node:
     """Return the indices of the elements that are non-zero.
 
     :param data: Input data.
@@ -374,7 +386,9 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
 
 @nameable_op
-def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+def read_value(
+    init_value: NodeInput, variable_id: str, name: Optional[str] = None
+) -> Node:
     """Return a node which produces the Assign operation.
 
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
@@ -542,7 +556,9 @@ def scatter_update(
 
 
 @nameable_op
-def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = None) -> Node:
+def shape_of(
+    data: NodeInput, output_type: str = "i64", name: Optional[str] = None
+) -> Node:
     """Return a node which produces a tensor containing the shape of its input data.
 
     :param data: The tensor containing the input data.
@@ -557,7 +573,9 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
 
 @nameable_op
-def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = None) -> Node:
+def shuffle_channels(
+    data: Node, axis: int, group: int, name: Optional[str] = None
+) -> Node:
     """Perform permutation on data in the channel dimension of the input tensor.
 
     :param data: The node with input tensor.
@@ -634,5 +652,10 @@ def topk(
     return _get_node_factory_opset3().create(
         "TopK",
         as_nodes(data, k, name=name),
-        {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},
+        {
+            "axis": axis,
+            "mode": mode,
+            "sort": sort,
+            "index_element_type": index_element_type,
+        },
     )

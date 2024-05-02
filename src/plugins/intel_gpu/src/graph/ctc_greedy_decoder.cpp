@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ctc_greedy_decoder_inst.h"
-#include "primitive_type_base.h"
-#include "json_object.h"
 #include <string>
 
+#include "ctc_greedy_decoder_inst.h"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
+#include "json_object.h"
+#include "primitive_type_base.h"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
 
-layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param) {
+layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node,
+                                                   kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_input_layout();
     auto prim = impl_param.typed_desc<ctc_greedy_decoder>();
     auto output_type = prim->output_data_types[0].value_or(input_node_layout.data_type);
@@ -21,8 +22,9 @@ layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const
     return layout(output_type, input_node_layout.format, prim->output_tensor);
 }
 
-template<typename ShapeType>
-std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_decoder_node const& /*node*/, const kernel_impl_params& impl_param) {
+template <typename ShapeType>
+std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_decoder_node const& /*node*/,
+                                                                 const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;
 
     auto desc = impl_param.typed_desc<ctc_greedy_decoder>();
@@ -55,9 +57,9 @@ std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_deco
     return layouts;
 }
 
-template std::vector<layout>
-ctc_greedy_decoder_inst::calc_output_layouts<ov::PartialShape>(ctc_greedy_decoder_node const& node,
-                                                               const kernel_impl_params& impl_param);
+template std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts<ov::PartialShape>(
+    ctc_greedy_decoder_node const& node,
+    const kernel_impl_params& impl_param);
 
 std::string ctc_greedy_decoder_inst::to_string(ctc_greedy_decoder_node const& node) {
     auto node_info = node.desc_to_json();
@@ -81,5 +83,6 @@ std::string ctc_greedy_decoder_inst::to_string(ctc_greedy_decoder_node const& no
     return primitive_description.str();
 }
 
-ctc_greedy_decoder_inst::typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node) : parent(network, node) {}
+ctc_greedy_decoder_inst::typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node)
+    : parent(network, node) {}
 }  // namespace cldnn

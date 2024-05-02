@@ -3,8 +3,9 @@
 //
 
 #include "roi_pooling_kernel_selector.h"
-#include "roi_pooling_kernel_ref.h"
+
 #include "roi_pooling_kernel_ps_ref.h"
+#include "roi_pooling_kernel_ref.h"
 
 namespace kernel_selector {
 roi_pooling_kernel_selector::roi_pooling_kernel_selector() {

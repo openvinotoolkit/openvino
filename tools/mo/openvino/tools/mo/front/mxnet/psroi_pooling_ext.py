@@ -1,13 +1,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
 from openvino.tools.mo.front.extractor import FrontExtractorOp
 from openvino.tools.mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
 
 
 class PSROIPoolingFrontExtractor(FrontExtractorOp):
-    op = '_contrib_PSROIPooling'
+    op = "_contrib_PSROIPooling"
     enabled = True
 
     @classmethod
@@ -23,9 +23,9 @@ class PSROIPoolingFrontExtractor(FrontExtractorOp):
             group_size = pooled_size
 
         data = {
-            'spatial_scale': spatial_scale,
-            'output_dim': output_dim,
-            'group_size': group_size,
+            "spatial_scale": spatial_scale,
+            "output_dim": output_dim,
+            "group_size": group_size,
         }
 
         # update the attributes of the node

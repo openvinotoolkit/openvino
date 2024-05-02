@@ -4,7 +4,6 @@
 import pytest
 import torch
 import torch.nn.functional as F
-
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 OPS = {
@@ -67,7 +66,7 @@ OPS = {
     "aten::asinh_": torch.asinh_,
     "aten::atanh": torch.atanh,
     "aten::atanh_": torch.atanh_,
-    "aten::hardswish": F.hardswish
+    "aten::hardswish": F.hardswish,
 }
 
 
@@ -119,143 +118,197 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
-    @pytest.mark.parametrize("op_type",
-                             [
-                                 "aten::abs",
-                                 "aten::rsqrt",
-                                 "aten::sqrt",
-                                 "aten::erf",
-                                 "aten::erfc",
-                                 "aten::exp",
-                                 "aten::expm1",
-                                 "aten::relu",
-                                 skip_if_export("aten::relu_"),
-                                 "aten::ceil",
-                                 skip_if_export("aten::ceil_"),
-                                 "aten::floor",
-                                 skip_if_export("aten::floor_"),
-                                 "aten::sigmoid",
-                                 "aten::reciprocal",
-                                 "aten::log",
-                                 "aten::log2",
-                                 "aten::log10",
-                                 "aten::log1p",
-                                 # trigonometry
-                                 "aten::cos",
-                                 "aten::sin",
-                                 "aten::tan",
-                                 "aten::cosh",
-                                 "aten::sinh",
-                                 "aten::tanh",
-                                 "aten::acos",
-                                 "aten::asin",
-                                 "aten::atan",
-                                 "aten::acosh",
-                                 "aten::asinh",
-                                 "aten::atanh"
-                             ])
+    @pytest.mark.parametrize(
+        "dtype",
+        [
+            torch.float32,
+            torch.float64,
+            torch.int8,
+            torch.uint8,
+            torch.int32,
+            torch.int64,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "op_type",
+        [
+            "aten::abs",
+            "aten::rsqrt",
+            "aten::sqrt",
+            "aten::erf",
+            "aten::erfc",
+            "aten::exp",
+            "aten::expm1",
+            "aten::relu",
+            skip_if_export("aten::relu_"),
+            "aten::ceil",
+            skip_if_export("aten::ceil_"),
+            "aten::floor",
+            skip_if_export("aten::floor_"),
+            "aten::sigmoid",
+            "aten::reciprocal",
+            "aten::log",
+            "aten::log2",
+            "aten::log10",
+            "aten::log1p",
+            # trigonometry
+            "aten::cos",
+            "aten::sin",
+            "aten::tan",
+            "aten::cosh",
+            "aten::sinh",
+            "aten::tanh",
+            "aten::acos",
+            "aten::asin",
+            "aten::atan",
+            "aten::acosh",
+            "aten::asinh",
+            "aten::atanh",
+        ],
+    )
     def test_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
-                   ie_device, precision, ir_version)
+        self._test(
+            unary_op_net(OPS[op_type], dtype),
+            None,
+            op_type,
+            ie_device,
+            precision,
+            ir_version,
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    @pytest.mark.parametrize("op_type",
-                             [
-                                 # some pytorch inplace ops do not support int
-                                 "aten::abs_",
-                                 "aten::erf_",
-                                 "aten::erfc_",
-                                 "aten::exp_",
-                                 "aten::expm1_",
-                                 "aten::sigmoid_",
-                                 "aten::reciprocal_",
-                                 "aten::relu6",
-                                 "aten::selu",
-                                 "aten::silu",
-                                 "aten::log_sigmoid",
-                                 "aten::log_",
-                                 "aten::log2_",
-                                 "aten::log10_",
-                                 "aten::log1p_",
-                                 "aten::mish",
-                                 # trigonometry
-                                 "aten::cos_",
-                                 "aten::sin_",
-                                 "aten::tan_",
-                                 "aten::cosh_",
-                                 "aten::sinh_",
-                                 "aten::tanh_",
-                                 "aten::acos_",
-                                 "aten::asin_",
-                                 "aten::atan_",
-                                 "aten::acosh_",
-                                 "aten::asinh_",
-                                 "aten::atanh_",
-                                 "aten::hardswish"
-                             ])
+    @pytest.mark.parametrize(
+        "op_type",
+        [
+            # some pytorch inplace ops do not support int
+            "aten::abs_",
+            "aten::erf_",
+            "aten::erfc_",
+            "aten::exp_",
+            "aten::expm1_",
+            "aten::sigmoid_",
+            "aten::reciprocal_",
+            "aten::relu6",
+            "aten::selu",
+            "aten::silu",
+            "aten::log_sigmoid",
+            "aten::log_",
+            "aten::log2_",
+            "aten::log10_",
+            "aten::log1p_",
+            "aten::mish",
+            # trigonometry
+            "aten::cos_",
+            "aten::sin_",
+            "aten::tan_",
+            "aten::cosh_",
+            "aten::sinh_",
+            "aten::tanh_",
+            "aten::acos_",
+            "aten::asin_",
+            "aten::atan_",
+            "aten::acosh_",
+            "aten::asinh_",
+            "aten::atanh_",
+            "aten::hardswish",
+        ],
+    )
     def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
-                   ie_device, precision, ir_version)
+        self._test(
+            unary_op_net(OPS[op_type], dtype),
+            None,
+            op_type,
+            ie_device,
+            precision,
+            ir_version,
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
-    @pytest.mark.parametrize("op_type",
-                             [
-                                 "aten::abs",
-                                 "aten::rsqrt",
-                                 "aten::sqrt",
-                                 "aten::erf",
-                                 "aten::erfc",
-                                 "aten::exp",
-                                 "aten::expm1",
-                                 "aten::relu",
-                                 "aten::ceil",
-                                 "aten::floor",
-                                 "aten::sigmoid",
-                                 "aten::reciprocal",
-                                 "aten::log",
-                                 "aten::log2",
-                                 "aten::log10",
-                                 "aten::log1p",
-                                 # trigonometry
-                                 "aten::cos",
-                                 "aten::sin",
-                                 "aten::tan",
-                                 "aten::cosh",
-                                 "aten::sinh",
-                                 "aten::tanh",
-                                 "aten::acos",
-                                 "aten::asin",
-                                 "aten::atan",
-                                 "aten::acosh",
-                                 "aten::asinh",
-                                 "aten::atanh"
-                             ])
+    @pytest.mark.parametrize(
+        "dtype",
+        [
+            torch.float32,
+            torch.float64,
+            torch.int8,
+            torch.uint8,
+            torch.int32,
+            torch.int64,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "op_type",
+        [
+            "aten::abs",
+            "aten::rsqrt",
+            "aten::sqrt",
+            "aten::erf",
+            "aten::erfc",
+            "aten::exp",
+            "aten::expm1",
+            "aten::relu",
+            "aten::ceil",
+            "aten::floor",
+            "aten::sigmoid",
+            "aten::reciprocal",
+            "aten::log",
+            "aten::log2",
+            "aten::log10",
+            "aten::log1p",
+            # trigonometry
+            "aten::cos",
+            "aten::sin",
+            "aten::tan",
+            "aten::cosh",
+            "aten::sinh",
+            "aten::tanh",
+            "aten::acos",
+            "aten::asin",
+            "aten::atan",
+            "aten::acosh",
+            "aten::asinh",
+            "aten::atanh",
+        ],
+    )
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(unary_op_out_net(OPS[op_type], dtype), None, op_type,
-                   ie_device, precision, ir_version)
+        self._test(
+            unary_op_out_net(OPS[op_type], dtype),
+            None,
+            op_type,
+            ie_device,
+            precision,
+            ir_version,
+        )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    @pytest.mark.parametrize("op_type",
-                             [
-                                 "aten::relu6",
-                                 "aten::selu",
-                                 "aten::silu",
-                                 "aten::hardswish",
-                                 "aten::mish",
-                             ])
-    def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
+    @pytest.mark.parametrize(
+        "op_type",
+        [
+            "aten::relu6",
+            "aten::selu",
+            "aten::silu",
+            "aten::hardswish",
+            "aten::mish",
+        ],
+    )
+    def test_unary_func_op_inplace(
+        self, op_type, dtype, ie_device, precision, ir_version
+    ):
         self.dtype = dtype
-        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), None, op_type + "_",
-                   ie_device, precision, ir_version)
+        self._test(
+            unary_func_op_inplace_net(OPS[op_type], dtype),
+            None,
+            op_type + "_",
+            ie_device,
+            precision,
+            ir_version,
+        )

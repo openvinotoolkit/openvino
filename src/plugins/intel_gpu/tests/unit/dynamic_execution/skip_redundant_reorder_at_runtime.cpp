@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -48,7 +46,8 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     network.set_input_data("input", input_mem);
     network.execute();
     ASSERT_EQ(reorder_inst->can_be_optimized(), true);
-    ASSERT_EQ(network.get_output_memory("reorder")->buffer_ptr(), network.get_primitive("fc")->output_memory_ptr()->buffer_ptr());
+    ASSERT_EQ(network.get_output_memory("reorder")->buffer_ptr(),
+              network.get_primitive("fc")->output_memory_ptr()->buffer_ptr());
 }
 
 TEST(skip_reorder_at_runtime, correct_memory_reuse) {
@@ -99,4 +98,4 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
     auto reorder_fsv16_memory_deps = reorder_fsv16_inst->get_runtime_memory_dependencies();
     ASSERT_TRUE(reorder_fsv16_memory_deps.find(fc_unique_id) != reorder_fsv16_memory_deps.end());
 }
-}  // memory_realloc_tests
+}  // namespace skip_reorder_tests

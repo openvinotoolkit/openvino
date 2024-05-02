@@ -1,14 +1,22 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates
+from openvino.tools.mo.front.extractor import FrontExtractorOp, extract_node_attrs
+from openvino.tools.mo.front.tf.extractor import (
+    create_tf_edge,
+    tf_op_extractor,
+    tf_op_extractors,
+)
+from openvino.tools.mo.front.tf.extractors.subgraph_utils import (
+    convert_graph_inputs_to_parameters,
+    create_internal_graph,
+    get_graph_proto,
+    update_body_graph,
+)
+from openvino.tools.mo.graph.graph import Graph, Node, add_opoutput
 from openvino.tools.mo.ops.loop import Loop
 from openvino.tools.mo.ops.parameter import Parameter
-from openvino.tools.mo.front.common.register_custom_ops import check_for_duplicates
-from openvino.tools.mo.front.extractor import extract_node_attrs, FrontExtractorOp
-from openvino.tools.mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
-from openvino.tools.mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
-    get_graph_proto, create_internal_graph
-from openvino.tools.mo.graph.graph import add_opoutput, Graph, Node
 
 
 class WhileExtractor(FrontExtractorOp):
@@ -17,7 +25,8 @@ class WhileExtractor(FrontExtractorOp):
     While can have stateful operations in the body and condition graphs that does not influence on inference so
     the logic for handling While and StatelessWhile (see below) is the same.
     """
-    op = 'While'
+
+    op = "While"
     enabled = True
 
     @classmethod
@@ -26,26 +35,32 @@ class WhileExtractor(FrontExtractorOp):
 
         # check that required body and condition functions exist in the graph library
         main_graph = loop_node.graph
-        body_graph_proto = get_graph_proto(main_graph, 'body', loop_node)
-        cond_graph_proto = get_graph_proto(main_graph, 'cond', loop_node)
+        body_graph_proto = get_graph_proto(main_graph, "body", loop_node)
+        cond_graph_proto = get_graph_proto(main_graph, "cond", loop_node)
 
         body_graph = create_internal_graph(main_graph)
-        loop_node['body'] = body_graph
+        loop_node["body"] = body_graph
         # create Parameter nodes for the body graph
-        body_parameters, body_parameter_names = convert_graph_inputs_to_parameters(body_graph, body_graph_proto)
+        body_parameters, body_parameter_names = convert_graph_inputs_to_parameters(
+            body_graph, body_graph_proto
+        )
 
         # update the loop body graph with the body function graph
         body_results = []
-        update_body_graph(body_graph, body_graph_proto, body_parameter_names, body_results)
+        update_body_graph(
+            body_graph, body_graph_proto, body_parameter_names, body_results
+        )
 
         # update the loop body graph with the condition function graph
-        update_body_graph(body_graph, cond_graph_proto, body_parameter_names, body_results)
+        update_body_graph(
+            body_graph, cond_graph_proto, body_parameter_names, body_results
+        )
 
         # add 'internal_layer_id' attribute which is a must have attribute for the loop body node
         for idx, body_node in enumerate(body_graph.get_op_nodes()):
-            body_node['internal_layer_id'] = idx
+            body_node["internal_layer_id"] = idx
 
-        body_graph.stage = 'front'
+        body_graph.stage = "front"
 
         # Currently,
         # Loop Inputs Order:
@@ -89,7 +104,10 @@ class WhileExtractor(FrontExtractorOp):
             Loop.connect_body_output(loop_node, idx, body_results[idx])
 
         # run function to parse body nodes attributes similar to the main graph
-        extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+        extract_node_attrs(
+            body_graph,
+            lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)),
+        )
         return cls.enabled
 
 
@@ -98,7 +116,8 @@ class StatelessWhileExtractor(FrontExtractorOp):
     The StatelessWhile operation is a variation of the while_loop primitive from TensorFlow 2 Python API.
     StatelessWhile does not have stateful operations in the body and condition graphs.
     """
-    op = 'StatelessWhile'
+
+    op = "StatelessWhile"
     enabled = True
 
     @classmethod

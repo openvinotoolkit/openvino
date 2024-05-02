@@ -6,7 +6,7 @@
 
 namespace ov {
 namespace test {
-std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
+std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     std::vector<int64_t> block_shape, crops_begin, crops_end;
     ov::element::Type model_type;
@@ -45,7 +45,8 @@ void BatchToSpaceLayerTest::SetUp() {
     auto crops_begin_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape, crops_begin.data());
     auto crops_end_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, const_shape, crops_end.data());
 
-    auto b2s = std::make_shared<ov::op::v1::BatchToSpace>(params[0], block_shape_node, crops_begin_node, crops_end_node);
+    auto b2s =
+        std::make_shared<ov::op::v1::BatchToSpace>(params[0], block_shape_node, crops_begin_node, crops_end_node);
     ov::OutputVector results{std::make_shared<ov::op::v0::Result>(b2s)};
     function = std::make_shared<ov::Model>(results, params, "BatchToSpace");
 }

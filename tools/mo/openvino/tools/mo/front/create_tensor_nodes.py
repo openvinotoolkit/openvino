@@ -15,10 +15,11 @@ class CreateTensorNodes(FrontReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.front.pass_separator import FrontFinish
+
         return [FrontFinish]
 
     def find_and_replace_pattern(self, graph: Graph):
-        graph.stage = 'middle'
+        graph.stage = "middle"
         graph.strict_mode = False
         create_tensor_nodes(graph)
         graph.strict_mode = True

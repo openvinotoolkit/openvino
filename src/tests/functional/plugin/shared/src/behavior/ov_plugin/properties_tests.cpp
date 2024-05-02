@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "behavior/ov_plugin/properties_tests.hpp"
+
 #include <cstdint>
 
-#include "behavior/ov_plugin/properties_tests.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -39,7 +40,8 @@ void OVPropertiesTests::TearDown() {
     APIBaseTest::TearDown();
 }
 
-std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj) {
+std::string OVSetPropComplieModleGetPropTests::getTestCaseName(
+    testing::TestParamInfo<CompileModelPropertiesParams> obj) {
     std::string target_device;
     AnyMap properties;
     AnyMap compileModelProperties;
@@ -173,7 +175,7 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
         OV_ASSERT_NO_THROW(property = core.get_property(target_device, supported_property));
         ASSERT_FALSE(property.empty());
         if (supported_property.is_mutable()) {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, {{ supported_property, property}}));
+            OV_ASSERT_NO_THROW(core.set_property(target_device, {{supported_property, property}}));
         }
     }
 }
@@ -202,7 +204,7 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyAndComplieModelWithPropsWor
         ASSERT_EQ(property_item.second.as<std::string>(), exeNetProperty.as<std::string>());
     }
 
-    //the value of get property should be the same as set property
+    // the value of get property should be the same as set property
     for (const auto& property_item : properties) {
         Any property;
         OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
@@ -214,7 +216,8 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryPr
     std::vector<ov::AnyMap> res;
     res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
     if (!is_sw_device) {
-        res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
@@ -231,7 +234,8 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryPr
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalProperties(bool is_sw_device) {
     std::vector<ov::AnyMap> res;
     if (is_sw_device) {
-        res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
+        res.push_back(
+            {{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
@@ -253,22 +257,23 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalPro
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::configureProperties(std::vector<std::string> props) {
     std::vector<ov::AnyMap> res;
 
-    for (auto &prop : props) {
+    for (auto& prop : props) {
         res.push_back({{ov::PropertyName(prop, ov::PropertyMutability::RO), nullptr}});
     }
 
     return res;
 }
 
-std::vector<ov::AnyMap>
-OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(
-    const std::vector<std::string>& props, bool is_sw_device) {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(
+    const std::vector<std::string>& props,
+    bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
         ov::hint::PerformanceMode performance_modes[] = {ov::hint::PerformanceMode::LATENCY,
-                ov::hint::PerformanceMode::THROUGHPUT, ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
-        for (auto &performance_mode : performance_modes) {
+                                                         ov::hint::PerformanceMode::THROUGHPUT,
+                                                         ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
+        for (auto& performance_mode : performance_modes) {
             res.push_back({{ov::hint::performance_mode(performance_mode)}});
         }
     }
@@ -278,8 +283,9 @@ OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(
     }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::execution_mode.name()) != props.end()) {
-        ov::hint::ExecutionMode execution_modes[] = {ov::hint::ExecutionMode::PERFORMANCE, ov::hint::ExecutionMode::ACCURACY};
-        for (auto &execution_mode : execution_modes) {
+        ov::hint::ExecutionMode execution_modes[] = {ov::hint::ExecutionMode::PERFORMANCE,
+                                                     ov::hint::ExecutionMode::ACCURACY};
+        for (auto& execution_mode : execution_modes) {
             res.push_back({{ov::hint::execution_mode(execution_mode)}});
         }
     }
@@ -298,9 +304,9 @@ OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(
     return res;
 }
 
-std::vector<ov::AnyMap>
-OVPropertiesTestsWithCompileModelProps::getWrongRWMandatoryPropertiesValues(
-    const std::vector<std::string>& props, bool is_sw_device) {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWMandatoryPropertiesValues(
+    const std::vector<std::string>& props,
+    bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
@@ -328,9 +334,9 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWMandatoryPropertiesValues(
     return res;
 }
 
-std::vector<ov::AnyMap>
-OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
-    const std::vector<std::string>& props, bool is_sw_device) {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
+    const std::vector<std::string>& props,
+    bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
@@ -339,13 +345,17 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
     }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::affinity.name()) != props.end()) {
-        ov::Affinity affinities[] = {ov::Affinity::NONE , ov::Affinity::CORE, ov::Affinity::NUMA, ov::Affinity::HYBRID_AWARE};
-        for (auto &affinity : affinities) {
+        ov::Affinity affinities[] = {ov::Affinity::NONE,
+                                     ov::Affinity::CORE,
+                                     ov::Affinity::NUMA,
+                                     ov::Affinity::HYBRID_AWARE};
+        for (auto& affinity : affinities) {
             res.push_back({ov::affinity(affinity)});
         }
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
+    if (props.empty() ||
+        std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
         res.push_back({ov::hint::enable_hyper_threading(true)});
         res.push_back({ov::hint::enable_hyper_threading(false)});
     }
@@ -359,7 +369,7 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
         ov::hint::SchedulingCoreType schedulingCoreTypes[] = {ov::hint::SchedulingCoreType::ANY_CORE,
                                                               ov::hint::SchedulingCoreType::PCORE_ONLY,
                                                               ov::hint::SchedulingCoreType::ECORE_ONLY};
-        for (auto &schedulingCoreType : schedulingCoreTypes) {
+        for (auto& schedulingCoreType : schedulingCoreTypes) {
             res.push_back({ov::hint::scheduling_core_type(schedulingCoreType)});
         }
     }
@@ -370,9 +380,13 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
     }
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
-        ov::log::Level log_levels[] = {ov::log::Level::NO , ov::log::Level::ERR, ov::log::Level::WARNING,
-                                       ov::log::Level::INFO, ov::log::Level::DEBUG, ov::log::Level::TRACE};
-        for (auto &log_level : log_levels) {
+        ov::log::Level log_levels[] = {ov::log::Level::NO,
+                                       ov::log::Level::ERR,
+                                       ov::log::Level::WARNING,
+                                       ov::log::Level::INFO,
+                                       ov::log::Level::DEBUG,
+                                       ov::log::Level::TRACE};
+        for (auto& log_level : log_levels) {
             res.push_back({ov::log::level(log_level)});
         }
     }
@@ -386,9 +400,9 @@ OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
     return res;
 }
 
-std::vector<ov::AnyMap>
-OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
-    const std::vector<std::string>& props, bool is_sw_device) {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
+    const std::vector<std::string>& props,
+    bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
@@ -400,7 +414,8 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
         res.push_back({{ov::affinity.name(), -5}});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
+    if (props.empty() ||
+        std::find(props.begin(), props.end(), ov::hint::enable_hyper_threading.name()) != props.end()) {
         res.push_back({{ov::hint::enable_hyper_threading.name(), -1}});
     }
 
@@ -446,7 +461,7 @@ TEST_P(OVCheckSetIncorrectRWMetricsPropsTests, ChangeIncorrectProperties) {
 }
 
 TEST_P(OVCheckSetSupportedRWMetricsPropsTests, ChangeCorrectProperties) {
-    std::vector<ov::PropertyName>supported_properties;
+    std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
         auto supported = util::contains(supported_properties, property_item.first);
@@ -503,11 +518,12 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
         auto pos = device_name_with_id.find('.');
         if (pos != std::string::npos) {
             device_name = device_name_with_id.substr(0, pos);
-            device_id =  device_name_with_id.substr(pos + 1,  device_name_with_id.size());
+            device_id = device_name_with_id.substr(pos + 1, device_name_with_id.size());
         }
 
         std::string full_name;
-        OV_ASSERT_NO_THROW(full_name = core->get_property(device_name, ov::device::full_name, ov::device::id(device_id)));
+        OV_ASSERT_NO_THROW(full_name =
+                               core->get_property(device_name, ov::device::full_name, ov::device::id(device_id)));
         ASSERT_FALSE(full_name.empty());
 
         if (device_id != "") {
@@ -530,12 +546,24 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
     OV_ASSERT_NO_THROW(default_property = core->get_property(target_device, ov::hint::inference_precision));
     ASSERT_FALSE(default_property.empty());
 
-    const std::vector<ov::element::Type> ovElemTypes = {
-        ov::element::f64, ov::element::f32, ov::element::f16, ov::element::bf16,
-        ov::element::i64, ov::element::i32, ov::element::i16, ov::element::i8, ov::element::i4,
-        ov::element::u64, ov::element::u32, ov::element::u16, ov::element::u8, ov::element::u4,  ov::element::u1,
-        ov::element::boolean, ov::element::undefined, ov::element::dynamic
-    };
+    const std::vector<ov::element::Type> ovElemTypes = {ov::element::f64,
+                                                        ov::element::f32,
+                                                        ov::element::f16,
+                                                        ov::element::bf16,
+                                                        ov::element::i64,
+                                                        ov::element::i32,
+                                                        ov::element::i16,
+                                                        ov::element::i8,
+                                                        ov::element::i4,
+                                                        ov::element::u64,
+                                                        ov::element::u32,
+                                                        ov::element::u16,
+                                                        ov::element::u8,
+                                                        ov::element::u4,
+                                                        ov::element::u1,
+                                                        ov::element::boolean,
+                                                        ov::element::undefined,
+                                                        ov::element::dynamic};
 
     bool any_supported = false;
     for (ov::element::Type type : ovElemTypes) {
@@ -545,11 +573,11 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
         } catch (const Exception& ex) {
             std::string err_msg(ex.what());
             ASSERT_TRUE(err_msg.find("Wrong value") != std::string::npos ||
-                        err_msg.find("Unsupported precision") != std::string::npos) <<
-                        "Error message is unclear. The err msg:" << err_msg << std::endl;
-            ASSERT_TRUE(err_msg.find("Supported values") != std::string::npos) <<
-                        "The error message doesn't provide info about supported precicions." <<
-                        "The err msg: " << err_msg << std::endl;
+                        err_msg.find("Unsupported precision") != std::string::npos)
+                << "Error message is unclear. The err msg:" << err_msg << std::endl;
+            ASSERT_TRUE(err_msg.find("Supported values") != std::string::npos)
+                << "The error message doesn't provide info about supported precicions." << "The err msg: " << err_msg
+                << std::endl;
             continue;
         }
 
@@ -618,7 +646,7 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         clear_target_device = target_device.substr(0, pos);
-        deviceID =  target_device.substr(pos + 1,  target_device.size());
+        deviceID = target_device.substr(pos + 1, target_device.size());
     }
     // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
     if (sw_plugin_in_target_device(target_device)) {
@@ -628,7 +656,7 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL() << "No DeviceID" << std::endl;
     }
-    auto device_name = [&clear_target_device] (const std::string& id) {
+    auto device_name = [&clear_target_device](const std::string& id) {
         return clear_target_device + "." + id;
     };
     // Set default device id to target device
@@ -638,7 +666,7 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     ASSERT_EQ(ie.get_property(clear_target_device, ov::num_streams), ov::streams::AUTO);
     // Check if it is applied for all devices
     for (auto& id : deviceIDs) {
-        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams),  ov::streams::AUTO);
+        ASSERT_EQ(ie.get_property(device_name(id), ov::num_streams), ov::streams::AUTO);
     }
     for (auto& id : deviceIDs) {
         // Set different properties for different devices
@@ -659,7 +687,7 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         clear_target_device = target_device.substr(0, pos);
-        deviceID =  target_device.substr(pos + 1,  target_device.size());
+        deviceID = target_device.substr(pos + 1, target_device.size());
     }
     // sw plugins are not requested to support `ov::available_devices` property
     if (!sw_plugin_in_target_device(target_device)) {
@@ -672,7 +700,7 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
     std::vector<ov::PropertyName> configValues;
     OV_ASSERT_NO_THROW(configValues = ie.get_property(target_device, ov::supported_properties));
 
-    for (auto &&confKey : configValues) {
+    for (auto&& confKey : configValues) {
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
@@ -709,7 +737,7 @@ TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         cleartarget_device = target_device.substr(0, pos);
-        deviceID =  target_device.substr(pos + 1,  target_device.size());
+        deviceID = target_device.substr(pos + 1, target_device.size());
     }
     // sw plugins are not requested to support `ov::available_devices` property
     if (!sw_plugin_in_target_device(target_device)) {
@@ -724,7 +752,6 @@ TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::enable_profiling));
     ASSERT_TRUE(value);
 }
-
 
 TEST_P(OVClassSetDevicePriorityConfigPropsTest, SetConfigAndCheckGetConfigNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
@@ -746,7 +773,8 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
 
     for (auto&& device_id : device_ids) {
         std::string full_name;
-        OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
+        OV_ASSERT_NO_THROW(full_name =
+                               ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
         ASSERT_FALSE(full_name.empty());
     }
 
@@ -791,7 +819,7 @@ TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckS
     ASSERT_TRUE(property.count(ov::num_streams.name()));
     auto actual = property.at(ov::num_streams.name()).as<int32_t>();
     ov::Any value;
-    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
+    // AutoExcutableNetwork GetMetric() does not support key ov::num_streams
     OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
@@ -802,12 +830,17 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES)
     std::vector<std::string> capabilities;
     OV_ASSERT_NO_THROW(capabilities = ie.get_property(target_device, ov::device::capabilities));
     std::cout << "Optimization capabilities: " << std::endl;
-    std::vector<std::string> possible_capabilities{ov::device::capability::FP32, ov::device::capability::BF16,
-                                                   ov::device::capability::FP16, ov::device::capability::INT8,
-                                                   ov::device::capability::INT16, ov::device::capability::BIN,
-                                                   ov::device::capability::WINOGRAD, ov::device::capability::EXPORT_IMPORT};
+    std::vector<std::string> possible_capabilities{ov::device::capability::FP32,
+                                                   ov::device::capability::BF16,
+                                                   ov::device::capability::FP16,
+                                                   ov::device::capability::INT8,
+                                                   ov::device::capability::INT16,
+                                                   ov::device::capability::BIN,
+                                                   ov::device::capability::WINOGRAD,
+                                                   ov::device::capability::EXPORT_IMPORT};
     for (auto&& capability : capabilities) {
-        ASSERT_TRUE(std::find(possible_capabilities.begin(), possible_capabilities.end(), capability) != possible_capabilities.end());
+        ASSERT_TRUE(std::find(possible_capabilities.begin(), possible_capabilities.end(), capability) !=
+                    possible_capabilities.end());
         std::cout << capability << std::endl;
     }
     OV_ASSERT_PROPERTY_SUPPORTED(ov::device::capabilities);
@@ -820,10 +853,10 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_ASYNC_IN
     ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(target_device, ov::range_for_async_infer_requests));
 
     std::cout << "Range for async infer requests: " << std::endl
-    << start << std::endl
-    << end << std::endl
-    << step << std::endl
-    << std::endl;
+              << start << std::endl
+              << end << std::endl
+              << step << std::endl
+              << std::endl;
 
     ASSERT_LE(start, end);
     ASSERT_GE(step, 1u);
@@ -836,10 +869,7 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS)
 
     ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(target_device, ov::range_for_streams));
 
-    std::cout << "Range for streams: " << std::endl
-    << start << std::endl
-    << end << std::endl
-    << std::endl;
+    std::cout << "Range for streams: " << std::endl << start << std::endl << end << std::endl << std::endl;
 
     ASSERT_LE(start, end);
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);

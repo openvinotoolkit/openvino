@@ -26,8 +26,8 @@ class Automation:
             rmtree(target_dir)
         os.makedirs(target_dir)
         for file in bom:
-            src = os.path.join(root_path, file.strip('\n'))
-            dst = os.path.join(target_dir, file.strip('\n'))
+            src = os.path.join(root_path, file.strip("\n"))
+            dst = os.path.join(target_dir, file.strip("\n"))
             if not os.path.exists(os.path.dirname(dst)):
                 os.makedirs(os.path.dirname(dst))
             if os.path.isdir(src):
@@ -38,16 +38,25 @@ class Automation:
 
     @staticmethod
     def add_version_txt(dst_path, build_number, git_hash_short):
-        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip("\n")
+        git_hash = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"])
+            .decode("utf-8")
+            .strip("\n")
+        )
         if git_hash_short == "0":
-            git_hash_short = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip(
-                "\n")
-        verson = "{0}.{1}.{2}.{3}".format(major_version, minor_version, build_number, git_hash_short)
+            git_hash_short = (
+                subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+                .decode("utf-8")
+                .strip("\n")
+            )
+        verson = "{0}.{1}.{2}.{3}".format(
+            major_version, minor_version, build_number, git_hash_short
+        )
         timestamp = datetime.now().strftime("%I:%M%p %B %d, %Y")
-        with open(os.path.join(dst_path, "version.txt"), 'w') as f:
-            f.write(timestamp + '\n')
-            f.write(verson + '\n')
-            f.write(git_hash + '\n')
+        with open(os.path.join(dst_path, "version.txt"), "w") as f:
+            f.write(timestamp + "\n")
+            f.write(verson + "\n")
+            f.write(git_hash + "\n")
         return verson
 
     @staticmethod

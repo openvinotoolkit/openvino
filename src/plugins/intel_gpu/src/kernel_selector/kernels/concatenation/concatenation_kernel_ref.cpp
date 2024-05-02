@@ -3,9 +3,11 @@
 //
 
 #include "concatenation_kernel_ref.h"
-#include "kernel_selector_utils.h"
-#include <vector>
+
 #include <string>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -76,10 +78,10 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
     std::vector<std::string> dims_id = {"d3", "d2", "d1", "d0"};
     auto axis = ConcatenationKernelBase::GetConcatChannel(params);
 
-    std::vector<Tensor::DataChannelName> axis_order = { Tensor::DataChannelName::BATCH,
-                                                        Tensor::DataChannelName::FEATURE,
-                                                        Tensor::DataChannelName::Y,
-                                                        Tensor::DataChannelName::X };
+    std::vector<Tensor::DataChannelName> axis_order = {Tensor::DataChannelName::BATCH,
+                                                       Tensor::DataChannelName::FEATURE,
+                                                       Tensor::DataChannelName::Y,
+                                                       Tensor::DataChannelName::X};
 
     std::string input_dims_order = "";
     std::string output_dims_order = "";
@@ -98,7 +100,8 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
     cldnnJit.AddConstant(MakeJitConstant("INPUT_DIMS_ORDER", input_dims_order));
     cldnnJit.AddConstant(MakeJitConstant("OUTPUT_DIMS_ORDER", output_dims_order));
 
-    cldnnJit.AddConstant(MakeJitConstant("INPUT_DIM_0", DataTensor::Channelndex(input_format, Tensor::DataChannelName::X)));
+    cldnnJit.AddConstant(
+        MakeJitConstant("INPUT_DIM_0", DataTensor::Channelndex(input_format, Tensor::DataChannelName::X)));
 
     if (!params.fused_ops.empty()) {
         auto idx_order = dims_id;
@@ -106,7 +109,7 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
         idx_order[axis_idx] = "(" + idx_order[axis_idx] + " + output_offset_in_concat_axis)";
 
         auto conf = FusedOpsConfiguration("", idx_order, "result", params.inputs[0].GetDType());
-        cldnnJit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        cldnnJit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return cldnnJit;
 }

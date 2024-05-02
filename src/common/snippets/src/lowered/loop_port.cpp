@@ -6,13 +6,14 @@
 
 #include "snippets/utils.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
 
 LoopPort::LoopPort(const ExpressionPort& port, bool is_incremented, size_t dim_idx)
-    : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_incremented), dim_idx(dim_idx) {
+    : expr_port(std::make_shared<ExpressionPort>(port)),
+      is_incremented(is_incremented),
+      dim_idx(dim_idx) {
     OPENVINO_ASSERT(dim_idx < port.get_descriptor_ptr()->get_shape().size(),
                     "LoopPort dim_idx (",
                     dim_idx,
@@ -48,6 +49,6 @@ bool operator<(const LoopPort& lhs, const LoopPort& rhs) {
              (lhs.is_incremented == rhs.is_incremented && lhs.dim_idx < rhs.dim_idx)));
 }
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

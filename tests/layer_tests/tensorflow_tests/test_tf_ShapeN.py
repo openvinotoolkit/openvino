@@ -13,7 +13,11 @@ class TestShapeN(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             inputs = []
             for ind, input_shape in enumerate(input_shapes):
-                inputs.append(tf.compat.v1.placeholder(tf.float32, input_shape, 'input_{}'.format(ind)))
+                inputs.append(
+                    tf.compat.v1.placeholder(
+                        tf.float32, input_shape, "input_{}".format(ind)
+                    )
+                )
 
             shapen = tf.raw_ops.ShapeN(input=inputs, out_type=out_type)
             tf.raw_ops.ConcatV2(values=shapen, axis=0)
@@ -31,8 +35,14 @@ class TestShapeN(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_shape_n_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
-        self._test(*self.create_shape_n_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_shape_n_basic(
+        self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
+    ):
+        self._test(
+            *self.create_shape_n_net(**params),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )

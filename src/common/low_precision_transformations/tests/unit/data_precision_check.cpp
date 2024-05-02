@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <gtest/gtest.h>
+
+#include <memory>
+
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -12,27 +14,11 @@ using namespace ov;
 TEST(smoke_LPT_DataPrecision, check) {
     using namespace ov::pass::low_precision;
 
-    const std::vector<element::Type> type_items = {
-        element::i4,
-        element::u4,
-        element::i8,
-        element::u8,
-        element::i16,
-        element::u16,
-        element::i32,
-        element::u32
-    };
+    const std::vector<element::Type> type_items =
+        {element::i4, element::u4, element::i8, element::u8, element::i16, element::u16, element::i32, element::u32};
 
-    const std::vector<levels> level_items = {
-        int4,
-        int4_narrow_range,
-        int8,
-        int8_narrow_range,
-        int16,
-        int16_narrow_range,
-        int32,
-        int32_narrow_range
-    };
+    const std::vector<levels> level_items =
+        {int4, int4_narrow_range, int8, int8_narrow_range, int16, int16_narrow_range, int32, int32_narrow_range};
 
     const std::map<element::Type, std::set<levels>> items = {
         {element::i4, {levels::int4, levels::int4_narrow_range}},

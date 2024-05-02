@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -24,15 +25,15 @@ protected:
     bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
-    bool NeedPaddedInput() const override { return true; }
+    bool NeedPaddedInput() const override {
+        return true;
+    }
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& p) const override {
         return p.groups > 1 ? WeightsLayout::g_os_is_zyx_osv16_isv16 : WeightsLayout::os_is_zyx_osv16_isv16;
     }
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION};
     }
 
     struct BlockParams {

@@ -8,6 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestBatchNorm(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
         import numpy as np
+
         shape5d = [20, 6, 10, 10, 10]
         shape = shape5d[:ndim]
         return (np.random.randn(*shape).astype(np.float32),)
@@ -27,7 +28,15 @@ class TestBatchNorm(PytorchLayerTest):
                 self.eps = eps
 
             def forward(self, x):
-                return F.batch_norm(x, self.running_mean, self.running_var, self.weight, self.bias, eps=self.eps, training=False)
+                return F.batch_norm(
+                    x,
+                    self.running_mean,
+                    self.running_var,
+                    self.weight,
+                    self.bias,
+                    eps=self.eps,
+                    training=False,
+                )
 
         class aten_batch_norm_train(torch.nn.Module):
             def __init__(self, weights=True, bias=True, eps=1e-05, running_stats=False):
@@ -39,26 +48,59 @@ class TestBatchNorm(PytorchLayerTest):
                 self.eps = eps
 
             def forward(self, x):
-                return F.batch_norm(x, self.running_mean, self.running_var, self.weight, self.bias, eps=self.eps, training=True)
+                return F.batch_norm(
+                    x,
+                    self.running_mean,
+                    self.running_var,
+                    self.weight,
+                    self.bias,
+                    eps=self.eps,
+                    training=True,
+                )
 
         ref_net = None
 
-        return aten_batch_norm_inference(weights, bias, eps) if not train else aten_batch_norm_train(weights, bias, eps, running_stats), ref_net, "aten::batch_norm"
+        return (
+            (
+                aten_batch_norm_inference(weights, bias, eps)
+                if not train
+                else aten_batch_norm_train(weights, bias, eps, running_stats)
+            ),
+            ref_net,
+            "aten::batch_norm",
+        )
 
     @pytest.mark.parametrize("weights", [True, False])
     @pytest.mark.parametrize("bias", [True, False])
     @pytest.mark.parametrize("eps", [1.0, 0.00005, 0.5, 0.042])
-    @pytest.mark.parametrize(("train", "running_stats"), [(True, False), (True, True), (False, False)])
-    @pytest.mark.parametrize("kwargs_to_prepare_input",
-     [
-        {"ndim": 3},
-        {'ndim': 4},
-        {"ndim": 5}
-    ])
+    @pytest.mark.parametrize(
+        ("train", "running_stats"), [(True, False), (True, True), (False, False)]
+    )
+    @pytest.mark.parametrize(
+        "kwargs_to_prepare_input", [{"ndim": 3}, {"ndim": 4}, {"ndim": 5}]
+    )
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
-    def test_batch_norm(self, weights, bias, eps, train, running_stats, ie_device, precision, ir_version, kwargs_to_prepare_input):
-        self._test(*self.create_model(weights, bias, eps, train, running_stats),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, dynamic_shapes=False, use_mo_convert=False)
+    def test_batch_norm(
+        self,
+        weights,
+        bias,
+        eps,
+        train,
+        running_stats,
+        ie_device,
+        precision,
+        ir_version,
+        kwargs_to_prepare_input,
+    ):
+        self._test(
+            *self.create_model(weights, bias, eps, train, running_stats),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input=kwargs_to_prepare_input,
+            dynamic_shapes=False,
+            use_mo_convert=False
+        )

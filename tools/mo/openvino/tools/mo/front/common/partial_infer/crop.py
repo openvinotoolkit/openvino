@@ -23,7 +23,7 @@ def crop_infer(node):
     """
     N = len(node.in_nodes())
     if N < 2:
-        log.debug('Wrong number of bottom blobs in ' + node.node)
+        log.debug("Wrong number of bottom blobs in " + node.node)
         return
 
     shapes = [node.in_node(i).shape for i in range(N)]
@@ -55,7 +55,7 @@ def crop_infer(node):
             crop_offset = node.offset[i - start_axis]
 
         if input_shape[i] - crop_offset < reference_shape[i]:
-            log.error('The crop for dimension is out of bounds in ' + node.node)
+            log.error("The crop for dimension is out of bounds in " + node.node)
             return
 
         dim.append(reference_shape[i])

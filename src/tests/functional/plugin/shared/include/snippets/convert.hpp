@@ -10,13 +10,14 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        std::vector<InputShape>,                                                    // InputShapes
-        std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>,  // Input and Output data types for Converts
-        size_t,                                                                     // Expected num nodes
-        size_t,                                                                     // Expected num subgraphs
-        std::string                                                                 // Target Device
-> ConvertParams;
+typedef std::tuple<std::vector<InputShape>,                                                    // InputShapes
+                   std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>>,  // Input and Output data
+                                                                                               // types for Converts
+                   size_t,                                                                     // Expected num nodes
+                   size_t,                                                                     // Expected num subgraphs
+                   std::string                                                                 // Target Device
+                   >
+    ConvertParams;
 
 using parameters = std::vector<std::tuple<int32_t, int32_t, int32_t>>;
 
@@ -71,6 +72,6 @@ protected:
     void SetUp() override;
 };
 
-} // namespace snippets
-} // namespace test
-} // namespace ov
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

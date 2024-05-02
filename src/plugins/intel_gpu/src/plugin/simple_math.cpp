@@ -3,12 +3,13 @@
 //
 
 #include "intel_gpu/plugin/simple_math.hpp"
+
 #include <cctype>
-#include <string>
+#include <map>
 #include <set>
 #include <stack>
-#include <map>
 #include <stdexcept>
+#include <string>
 
 // Using the algorithm from: https://en.wikipedia.org/wiki/Shunting-yard_algorithm
 
@@ -17,18 +18,18 @@ const std::set<char> SimpleMathExpression::whitespaces = {
     '\t',
 };
 const std::map<char, SimpleMathExpression::Operator> SimpleMathExpression::operators = {
-    { '+', { 0, std::plus<int>() } },
-    { '-', { 0, std::minus<int>() } },
-    { '*', { 1, std::multiplies<int>() } },
-    { '/', { 1, std::divides<int>()  } },
-    { '%', { 1, std::modulus<int>()  } },
+    {'+', {0, std::plus<int>()}},
+    {'-', {0, std::minus<int>()}},
+    {'*', {1, std::multiplies<int>()}},
+    {'/', {1, std::divides<int>()}},
+    {'%', {1, std::modulus<int>()}},
 };
 
 void SimpleMathExpression::SetVariables(const std::map<char, int>& vars) {
     m_variables = vars;
 }
 
-bool SimpleMathExpression::SetExpression(const std::string & expression) {
+bool SimpleMathExpression::SetExpression(const std::string& expression) {
     m_expression = expression;
     m_parsed = Parse();
     return m_parsed;
@@ -55,8 +56,7 @@ int SimpleMathExpression::Evaluate() const {
             int val1 = values.top();
             values.pop();
             values.push(operators.at(t.op).second(val1, val2));
-        }
-            break;
+        } break;
         default:
             throw std::runtime_error("Illegal expression: unhandled token");
         }
@@ -74,7 +74,8 @@ bool SimpleMathExpression::Parse() {
     // while there are tokens to be read:
     for (size_t i = 0; i != m_expression.length(); i++) {
         //  read a token.
-        while (whitespaces.find(m_expression.at(i)) != whitespaces.end()) i++;  // ignore whitespaces
+        while (whitespaces.find(m_expression.at(i)) != whitespaces.end())
+            i++;  // ignore whitespaces
         char curr = m_expression.at(i);
 
         //  if the token is a number, then push it to the output queue.
@@ -94,17 +95,16 @@ bool SimpleMathExpression::Parse() {
 
         //  if the token is an operator, then:
         if (operators.find(curr) != operators.end()) {
-        //    while there is an operator at the top of the operator stack with
-        //      greater than or equal to precedence:
-        //        pop operators from the operator stack, onto the output queue;
-            while ( !operatorStack.empty() &&
-                    (operators.find(operatorStack.top()) != operators.end()) &&
-                    (operators.at(operatorStack.top()).first >= operators.at(curr).first)) {
+            //    while there is an operator at the top of the operator stack with
+            //      greater than or equal to precedence:
+            //        pop operators from the operator stack, onto the output queue;
+            while (!operatorStack.empty() && (operators.find(operatorStack.top()) != operators.end()) &&
+                   (operators.at(operatorStack.top()).first >= operators.at(curr).first)) {
                 char op = operatorStack.top();
                 operatorStack.pop();
                 m_parsedTokens.push_back(Token(Token::Operator, 0, op));
             }
-        //      push the read operator onto the operator stack.
+            //      push the read operator onto the operator stack.
             operatorStack.push(curr);
             continue;
         }

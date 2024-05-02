@@ -57,5 +57,5 @@ void BucketizeLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(bucketize);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{data, buckets}, "Bucketize");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

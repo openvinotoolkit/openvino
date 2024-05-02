@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "openvino/core/except.hpp"
-
 #include <memory>
+
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 
 // This class is supposed to be compatible with std::optional, so can be removed after migration to c++17
-template<typename T>
+template <typename T>
 class optional_value {
 public:
     optional_value() {}
@@ -64,8 +64,12 @@ public:
         return default_value;
     }
 
-    bool has_value() const noexcept { return storage != nullptr; }
-    operator bool() const noexcept { return storage != nullptr; }
+    bool has_value() const noexcept {
+        return storage != nullptr;
+    }
+    operator bool() const noexcept {
+        return storage != nullptr;
+    }
 
 private:
     std::unique_ptr<T> storage = nullptr;

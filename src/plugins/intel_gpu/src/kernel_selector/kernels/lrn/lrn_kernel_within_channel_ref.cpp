@@ -40,8 +40,9 @@ CommonDispatchData LRNKernelWithinChannel::SetDefault(const lrn_params& params) 
     return dispatchData;
 }
 
-JitConstants LRNKernelWithinChannel::GetJitConstants(const lrn_params& params,
-                                                     const LRNKernelWithinChannel::Parent::DispatchData& dispatchData) const {
+JitConstants LRNKernelWithinChannel::GetJitConstants(
+    const lrn_params& params,
+    const LRNKernelWithinChannel::Parent::DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 

@@ -3,9 +3,11 @@
 //
 
 #include "function_helper.hpp"
-#include "common_test_utils/data_utils.hpp"
-#include <snippets/snippets_isa.hpp>
+
 #include <snippets/op/subgraph.hpp>
+#include <snippets/snippets_isa.hpp>
+
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -19,19 +21,19 @@ std::vector<std::shared_ptr<Node>> FunctionHelper::makePrerequisitesOriginal() {
     parameter->set_friendly_name("parameter");
     nodes.push_back(parameter);
 
-    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(
-        parameter,
-        Strides{ 1, 1 }, // strides
-        Shape{ 0, 0 },   // pads_begin
-        Shape{ 0, 0 },   // pads_end
-        Shape{ 1, 1 });  // kernel
+    const auto maxPool = std::make_shared<ov::opset1::MaxPool>(parameter,
+                                                               Strides{1, 1},  // strides
+                                                               Shape{0, 0},    // pads_begin
+                                                               Shape{0, 0},    // pads_end
+                                                               Shape{1, 1});   // kernel
     maxPool->set_friendly_name("maxPool");
     nodes.push_back(maxPool);
 
     return nodes;
 }
 
-std::shared_ptr<Node> FunctionHelper::applyPrerequisites(const std::shared_ptr<Node>& parent, const std::vector<std::shared_ptr<Node>>& prerequisites) {
+std::shared_ptr<Node> FunctionHelper::applyPrerequisites(const std::shared_ptr<Node>& parent,
+                                                         const std::vector<std::shared_ptr<Node>>& prerequisites) {
     std::shared_ptr<ov::Node> currentParent;
     if (prerequisites.empty()) {
         currentParent = parent;

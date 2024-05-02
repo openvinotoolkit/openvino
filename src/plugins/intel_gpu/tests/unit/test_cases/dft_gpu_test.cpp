@@ -102,7 +102,8 @@ public:
         dft_type type;
         dft_params p;
         bool is_caching_test;
-        std::tie(plain_format, blocked_format, type, p, is_caching_test) = testing::TestWithParam<dft_test_params>::GetParam();
+        std::tie(plain_format, blocked_format, type, p, is_caching_test) =
+            testing::TestWithParam<dft_test_params>::GetParam();
 
         auto& engine = get_test_engine();
 
@@ -114,11 +115,13 @@ public:
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reorder_input", input_info("input"), blocked_format, data_type));
-        topology.add(dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
+        topology.add(
+            dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
         // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
         topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network =
+            get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         const auto outputs = network->execute();
@@ -2000,14 +2003,14 @@ TEST_P(dft_gpu_test_float16, test) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-#define INSTANTIATE_DFT_TEST_SUITE(dftType, dimension, inputType)                               \
-    INSTANTIATE_TEST_SUITE_P(smoke_##dftType##_##dimension##_##inputType,                       \
-                             dft_gpu_test_##inputType,                                          \
-                             testing::Combine(testing::Values(plain_format_##dimension),        \
-                                              testing::ValuesIn(blocked_format_##dimension),    \
-                                              testing::Values(dftType),                         \
-                                              testing::ValuesIn(dftType##_params_##dimension),  \
-                                              testing::Values(false)),                          \
+#define INSTANTIATE_DFT_TEST_SUITE(dftType, dimension, inputType)                              \
+    INSTANTIATE_TEST_SUITE_P(smoke_##dftType##_##dimension##_##inputType,                      \
+                             dft_gpu_test_##inputType,                                         \
+                             testing::Combine(testing::Values(plain_format_##dimension),       \
+                                              testing::ValuesIn(blocked_format_##dimension),   \
+                                              testing::Values(dftType),                        \
+                                              testing::ValuesIn(dftType##_params_##dimension), \
+                                              testing::Values(false)),                         \
                              dft_gpu_test_##inputType::PrintToStringParamName);
 
 using ov::float16;
@@ -2052,7 +2055,8 @@ TEST(dft_gpu_test, irdft_output_shape) {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reorder_input", input_info("input"), blocked_format, data_type));
-        topology.add(dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
+        topology.add(
+            dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
 
         {
             network network(engine, topology, get_test_default_config(engine));

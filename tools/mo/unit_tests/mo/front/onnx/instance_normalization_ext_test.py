@@ -2,21 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import onnx
-
-from openvino.tools.mo.front.onnx.instance_normalization_ext import InstanceNormalizationExtractor
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
+
+from openvino.tools.mo.front.onnx.instance_normalization_ext import (
+    InstanceNormalizationExtractor,
+)
 
 
 class TestInstanceNormalization(BaseExtractorsTestingClass):
     @staticmethod
     def _create_node():
         pb = onnx.helper.make_node(
-            'InstanceNormalization',
-            inputs=['a'],
-            outputs=['b'],
+            "InstanceNormalization",
+            inputs=["a"],
+            outputs=["b"],
             epsilon=0.5,
         )
-        node = PB({'pb': pb})
+        node = PB({"pb": pb})
         return node
 
     def test_image_scaler_ext(self):
@@ -25,7 +27,7 @@ class TestInstanceNormalization(BaseExtractorsTestingClass):
         self.res = node
 
         self.expected = {
-            'epsilon': 0.5,
+            "epsilon": 0.5,
         }
 
         self.compare()

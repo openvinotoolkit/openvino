@@ -14,15 +14,16 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<
-        PartialShape,  // Input shape
-        int,          // Softmax axis
-        SoftmaxVersion
-> SoftmaxDecompositionTestParams;
+typedef std::tuple<PartialShape,  // Input shape
+                   int,           // Softmax axis
+                   SoftmaxVersion>
+    SoftmaxDecompositionTestParams;
 
-class SoftmaxDecompositionTest : public LoweringTests, public testing::WithParamInterface<SoftmaxDecompositionTestParams> {
+class SoftmaxDecompositionTest : public LoweringTests,
+                                 public testing::WithParamInterface<SoftmaxDecompositionTestParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SoftmaxDecompositionTestParams> obj);
+
 protected:
     void SetUp() override;
     std::shared_ptr<SnippetsFunctionBase> snippets_model;

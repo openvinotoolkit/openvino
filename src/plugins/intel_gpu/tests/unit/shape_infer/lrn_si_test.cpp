@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/lrn.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "lrn_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -29,7 +26,7 @@ struct lrn_test_params {
     lrn_norm_region norm_region;
 };
 
-class lrn_test : public testing::TestWithParam<lrn_test_params> { };
+class lrn_test : public testing::TestWithParam<lrn_test_params> {};
 
 TEST_P(lrn_test, shape_infer) {
     auto p = GetParam();
@@ -51,13 +48,38 @@ TEST_P(lrn_test, shape_infer) {
     ASSERT_EQ(res[0], expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, lrn_test,
-    testing::ValuesIn(std::vector<lrn_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, 5, 0.1f, 0.2f, 0.75f, lrn_norm_region::lrn_norm_region_across_channel},
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, 3, 0.1f, 0.2f, 0.75f, lrn_norm_region::lrn_norm_region_within_channel},
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, 6, 0.1f, 0.2f, 0.75f, lrn_norm_region::lrn_norm_region_across_channel},
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, 2, 0.1f, 0.2f, 0.75f, lrn_norm_region::lrn_norm_region_within_channel},
-        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, 5, 0.1f, 0.2f, 0.75, lrn_norm_region::lrn_norm_region_across_channel}
-    }));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         lrn_test,
+                         testing::ValuesIn(std::vector<lrn_test_params>{
+                             {layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx},
+                              5,
+                              0.1f,
+                              0.2f,
+                              0.75f,
+                              lrn_norm_region::lrn_norm_region_across_channel},
+                             {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+                              3,
+                              0.1f,
+                              0.2f,
+                              0.75f,
+                              lrn_norm_region::lrn_norm_region_within_channel},
+                             {layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx},
+                              6,
+                              0.1f,
+                              0.2f,
+                              0.75f,
+                              lrn_norm_region::lrn_norm_region_across_channel},
+                             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
+                              2,
+                              0.1f,
+                              0.2f,
+                              0.75f,
+                              lrn_norm_region::lrn_norm_region_within_channel},
+                             {layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx},
+                              5,
+                              0.1f,
+                              0.2f,
+                              0.75,
+                              lrn_norm_region::lrn_norm_region_across_channel}}));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

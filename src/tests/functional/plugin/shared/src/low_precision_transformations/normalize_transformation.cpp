@@ -5,18 +5,17 @@
 #include "low_precision_transformations/normalize_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
-
 #include "ov_lpt_models/normalize_l2.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
+std::string NormalizeL2Transformation::getTestCaseName(
+    const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
     ov::element::Type netPrecision;
     std::pair<ov::PartialShape, ov::Shape> shapes;
     std::string targetDevice;
@@ -27,14 +26,9 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
     std::tie(netPrecision, shapes, targetDevice, axes, fuseMultiply, shift) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" <<
-           shapes.first << "_" <<
-           shapes.second << "_" <<
-           targetDevice << "_" <<
-                               to_string(params) << "_" <<
-           "_axes" << axes.size() <<
-        (fuseMultiply ? "_multiply" : "") <<
-        (shift ? "_shift" : "");
+    result << netPrecision << "_" << shapes.first << "_" << shapes.second << "_" << targetDevice << "_"
+           << to_string(params) << "_" << "_axes" << axes.size() << (fuseMultiply ? "_multiply" : "")
+           << (shift ? "_shift" : "");
     return result.str();
 }
 
@@ -48,13 +42,12 @@ void NormalizeL2Transformation::SetUp() {
 
     init_input_shapes(shapes.first);
 
-    function = ov::builder::subgraph::NormalizeL2Function::getOriginal(
-        precision,
-        shapes,
-        ov::element::u8,
-        axes,
-        fuseMultiply,
-        shift);
+    function = ov::builder::subgraph::NormalizeL2Function::getOriginal(precision,
+                                                                       shapes,
+                                                                       ov::element::u8,
+                                                                       axes,
+                                                                       fuseMultiply,
+                                                                       shift);
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {

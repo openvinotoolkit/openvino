@@ -10,24 +10,25 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
 
     def run_after(self):
         from openvino.tools.mo.back.pass_separator import BackFinish
+
         return [BackFinish]
 
     def run_before(self):
-        from openvino.tools.mo.back.SpecialNodesFinalization import CreateConstNodesReplacement
+        from openvino.tools.mo.back.SpecialNodesFinalization import (
+            CreateConstNodesReplacement,
+        )
+
         return [CreateConstNodesReplacement]
 
     @staticmethod
     def pattern():
         return dict(
             nodes=[
-                ('memory_node', dict(op='Assign')),
-                ('data_node', dict(kind='data')),
-                ('op_output', dict(op='Result'))
+                ("memory_node", dict(op="Assign")),
+                ("data_node", dict(kind="data")),
+                ("op_output", dict(op="Result")),
             ],
-            edges=[
-                ('memory_node', 'data_node'),
-                ('data_node', 'op_output')
-            ]
+            edges=[("memory_node", "data_node"), ("data_node", "op_output")],
         )
 
     @staticmethod
@@ -48,9 +49,9 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
         match : dict
            Patterns which were found in graph structure.
         """
-        memory = match['memory_node']
-        data = match['data_node']
-        op_output = match['op_output']
+        memory = match["memory_node"]
+        data = match["data_node"]
+        op_output = match["op_output"]
 
         graph.remove_edge(memory.id, data.id)
         graph.remove_node(data.id)

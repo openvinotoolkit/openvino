@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.ops.select import Select
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.select import Select
 
 
 class WhereFrontExtractor(FrontExtractorOp):
-    op = 'where'
+    op = "where"
     enabled = True
 
     @classmethod

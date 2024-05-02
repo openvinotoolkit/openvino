@@ -2,38 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "kernels_factory.hpp"
 #include "kernels_cache.hpp"
-#include "ocl/ocl_kernel.hpp"
-#include "ocl/ocl_engine.hpp"
-#include "ocl/ocl_common.hpp"
-#include "intel_gpu/graph/serialization/set_serializer.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
+
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "kernels_factory.hpp"
+#include "ocl/ocl_common.hpp"
+#include "ocl/ocl_engine.hpp"
+#include "ocl/ocl_kernel.hpp"
 
 #ifdef WIN32
-#include <sdkddkver.h>
-#ifdef NTDDI_WIN10_RS5
-#include <appmodel.h>
-#endif
+#    include <sdkddkver.h>
+#    ifdef NTDDI_WIN10_RS5
+#        include <appmodel.h>
+#    endif
 #endif
 
 #include <algorithm>
 #include <cassert>
-#include <sstream>
 #include <fstream>
+#include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <tuple>
-#include <memory>
 #include <utility>
 
 #if defined(__unix__) && !defined(__ANDROID__)
-#include <malloc.h>
+#    include <malloc.h>
 #endif
 
 namespace {
@@ -92,7 +93,8 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
     return _config.get_property(ov::intel_gpu::max_kernels_per_batch);
 }
 
-void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
+void kernels_cache::get_program_source(const kernels_code& kernels_source_code,
+                                       std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
@@ -123,7 +125,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             auto& bucket_id = std::get<0>(program_buckets[key]);
             auto& current_bucket = std::get<1>(program_buckets[key]);
-            if (current_bucket.empty()) { // new bucket
+            if (current_bucket.empty()) {  // new bucket
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
@@ -132,8 +134,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
+            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch() ||
+                current_bucket.back().entry_point_to_id.find(entry_point) !=
+                    current_bucket.back().entry_point_to_id.end()) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
             }
@@ -148,10 +151,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     }
 
     // Compute hash value for each batch
-    // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
-    // of the precompiled binaries or get_undef_jit calls
-    // Hash is computed for string that contains compilation options + driver version +
-    // full source code (jit + template + undef sections) of all kernels in the batches
+    // Hash calculation might require additional optimizations, but currently execution time of this part is much
+    // smaller than loading of the precompiled binaries or get_undef_jit calls Hash is computed for string that contains
+    // compilation options + driver version + full source code (jit + template + undef sections) of all kernels in the
+    // batches
     for (auto& c : program_buckets) {
         auto options = c.first;
         auto& batches = std::get<1>(c.second);
@@ -172,11 +175,11 @@ kernels_cache::kernels_cache(engine& engine,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::vector<std::string>& batch_header_str)
-    : _engine(engine)
-    , _task_executor(task_executor)
-    , _config(config)
-    , _prog_id(prog_id)
-    , batch_header_str(std::move(batch_header_str)) { }
+    : _engine(engine),
+      _task_executor(task_executor),
+      _config(config),
+      _prog_id(prog_id),
+      batch_header_str(std::move(batch_header_str)) {}
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
@@ -195,7 +198,9 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels) {
+void kernels_cache::build_batch(const engine& build_engine,
+                                const batch_program& batch,
+                                compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
@@ -216,8 +221,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
-        current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
-                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ".cl";
+        current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" +
+                                  std::to_string(batch.bucket_id) + "_part_" + std::to_string(batch.batch_id) + "_" +
+                                  std::to_string(batch.hash_value) + ".cl";
     }
 
     std::ofstream dump_file;
@@ -251,7 +257,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (precompiled_kernels.empty()) {
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
-                OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildProgram::RunCompilation");
+                OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin,
+                                   "KernelsCache::BuildProgram::RunCompilation");
                 if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
                     throw std::runtime_error("Failed in building program.");
             }
@@ -267,15 +274,17 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             program.createKernels(&kernels);
 
             if (is_cache_enabled()) {
-                // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
-                // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
-                // compile time.
+                // If kernels caching is enabled, then we save compiled bucket to binary file with name
+                // ${code_hash_value}.cl_cache Note: Bin file contains full bucket, not separate kernels, so kernels
+                // reuse across different models is quite limited Bucket size can be changed in
+                // get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
                 ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));
             }
         } else {
-            cl::Program program(cl_build_engine.get_cl_context(), {cl_build_engine.get_cl_device()}, precompiled_kernels);
+            cl::Program program(cl_build_engine.get_cl_context(),
+                                {cl_build_engine.get_cl_device()},
+                                precompiled_kernels);
             if (program.build({cl_build_engine.get_cl_device()}, batch.options.c_str()) != CL_SUCCESS)
                 throw std::runtime_error("Failed in building program with a precompiled kernel.");
 
@@ -296,10 +305,10 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     if (compiled_kernels.find(params) != compiled_kernels.end()) {
                         compiled_kernels[params].push_back(std::make_pair(kernel, kernel_part_idx));
                     } else {
-                        compiled_kernels[params] = { std::make_pair(kernel, kernel_part_idx) };
+                        compiled_kernels[params] = {std::make_pair(kernel, kernel_part_idx)};
                     }
                     if (_kernel_batch_hash.find(params) == _kernel_batch_hash.end()) {
-                       _kernel_batch_hash[params] = batch.hash_value;
+                        _kernel_batch_hash[params] = batch.hash_value;
                     }
                 } else {
                     throw std::runtime_error("Could not find entry point");
@@ -336,9 +345,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 std::cout << "...." << std::endl;
         }
 
-        throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + + "_part_"
-                                 + std::to_string(batch.batch_id)
-                                 + "): You may enable OCL source dump to see the error log.\n");
+        throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + +"_part_" +
+                                 std::to_string(batch.batch_id) +
+                                 "): You may enable OCL source dump to see the error log.\n");
     }
 }
 
@@ -382,11 +391,12 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
 
         cl::Event ev;
         cl::CommandQueue queue(ctx, device);
-        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) != CL_SUCCESS)
+        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) !=
+            CL_SUCCESS)
             return false;
 
         uint8_t result[8];
-        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
+        uint8_t expected[8] = {1, 3, 5, 7, 9, 11, 13, 15};
         if (queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result) != CL_SUCCESS)
             return false;
 
@@ -454,11 +464,10 @@ void kernels_cache::build_all() {
         _kernels_code.clear();
         _pending_compilation = false;
 #if defined(__unix__) && !defined(__ANDROID__)
-    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
-    //  (It is at least 500 MB when we perform parallel compilation)
-    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
-    //  Also, this is not happening in Windows.
-    //  So, added malloc_trim for linux build until we figure out a better solution.
+        //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to
+        //  system thought they are freed. (It is at least 500 MB when we perform parallel compilation) It is observed
+        //  that freeing the memory manually with malloc_trim saves significant amount of the memory. Also, this is not
+        //  happening in Windows. So, added malloc_trim for linux build until we figure out a better solution.
         malloc_trim(0);
 #endif
     }
@@ -472,8 +481,8 @@ void kernels_cache::reset() {
 }
 
 void kernels_cache::add_kernels_source(const kernel_impl_params& params,
-                                        const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
-                                        bool dump_custom_program) {
+                                       const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
+                                       bool dump_custom_program) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (!kernel_sources.empty() && (_kernels_code.find(params) == _kernels_code.end())) {
@@ -562,7 +571,9 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
         for (auto& precompiled_kernel : precompiled_kernels) {
             cl::vector<cl::Kernel> kernels;
-            cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {precompiled_kernel.second});
+            cl::Program program(build_engine->get_cl_context(),
+                                {build_engine->get_cl_device()},
+                                {precompiled_kernel.second});
             program.build({build_engine->get_cl_device()});
             program.createKernels(&kernels);
 
@@ -587,9 +598,10 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     }
 }
 
-kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params& params,
-                                            const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
-                                            bool dump_custom_program) {
+kernels_cache::compiled_kernels kernels_cache::compile(
+    const kernel_impl_params& params,
+    const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
+    bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::compile");
     if (kernel_sources.empty())
         return {};
@@ -617,12 +629,11 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
 
     t_kernels_code.clear();
 #if defined(__unix__) && !defined(__ANDROID__)
-    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
-    //  (It is at least 500 MB when we perform parallel compilation)
-    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
-    //  Also, this is not happening in Windows.
-    //  So, added malloc_trim for linux build until we figure out a better solution.
-        malloc_trim(0);
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system
+    //  thought they are freed. (It is at least 500 MB when we perform parallel compilation) It is observed that freeing
+    //  the memory manually with malloc_trim saves significant amount of the memory. Also, this is not happening in
+    //  Windows. So, added malloc_trim for linux build until we figure out a better solution.
+    malloc_trim(0);
 #endif
 
     return output_kernels;

@@ -5,15 +5,18 @@
 #pragma once
 
 #include <type_traits>
+
 #include "buffer.hpp"
 #include "helpers.hpp"
-#include "kernel_selector_common.h"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "kernel_selector_common.h"
 
 namespace cldnn {
 
 template <typename BufferType>
-class Serializer<BufferType, kernel_selector::clKernelData, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 kernel_selector::clKernelData,
+                 typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void save(BufferType& buffer, const kernel_selector::clKernelData& data) {
         const auto& params = data.params;
@@ -24,14 +27,17 @@ public:
         }
         buffer << params.scalars.size();
         for (const auto& scalar : params.scalars) {
-            buffer << make_data(&scalar.t, sizeof(scalar_desc::Types)) << make_data(&scalar.v, sizeof(scalar_desc::ValueT));
+            buffer << make_data(&scalar.t, sizeof(scalar_desc::Types))
+                   << make_data(&scalar.v, sizeof(scalar_desc::ValueT));
         }
         buffer << params.layerID;
     }
 };
 
 template <typename BufferType>
-class Serializer<BufferType, kernel_selector::clKernelData, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+class Serializer<BufferType,
+                 kernel_selector::clKernelData,
+                 typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
 public:
     static void load(BufferType& buffer, kernel_selector::clKernelData& data) {
         auto& params = data.params;
@@ -48,7 +54,8 @@ public:
         buffer >> scalars_desc_size;
         params.scalars.resize(scalars_desc_size);
         for (auto& scalar : params.scalars) {
-                buffer >> make_data(&scalar.t, sizeof(scalar_desc::Types)) >> make_data(&scalar.v, sizeof(scalar_desc::ValueT));
+            buffer >> make_data(&scalar.t, sizeof(scalar_desc::Types)) >>
+                make_data(&scalar.v, sizeof(scalar_desc::ValueT));
         }
 
         buffer >> params.layerID;

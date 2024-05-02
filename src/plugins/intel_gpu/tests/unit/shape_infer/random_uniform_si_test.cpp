@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/data.hpp>
-
-#include "random_uniform_inst.h"
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "program_wrapper.h"
+#include "random_uniform_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -23,7 +21,7 @@ struct random_uniform_si_test_params {
     std::pair<float, float> min_max_vals;
 };
 
-class random_uniform_si_test : public testing::TestWithParam<random_uniform_si_test_params> { };
+class random_uniform_si_test : public testing::TestWithParam<random_uniform_si_test_params> {};
 
 TEST_P(random_uniform_si_test, shape_infer) {
     auto p = GetParam();
@@ -49,7 +47,8 @@ TEST_P(random_uniform_si_test, shape_infer) {
         input_prim_ids.push_back(input_info(prim_id));
     }
 
-    auto random_uniform_prim = std::make_shared<random_uniform>("random_uniform", input_prim_ids, p.out_data_type, 0, 0);
+    auto random_uniform_prim =
+        std::make_shared<random_uniform>("random_uniform", input_prim_ids, p.out_data_type, 0, 0);
     auto& random_uniform_node = prog.get_or_create(random_uniform_prim);
 
     for (auto& iprim : input_prims) {
@@ -63,26 +62,26 @@ TEST_P(random_uniform_si_test, shape_infer) {
         auto in_layout = input_layouts[idx];
         auto allocated_mem = engine.allocate_memory(in_layout);
         switch (p.out_data_type) {
-            case data_types::f16:
-                set_values(allocated_mem, {ov::float16(val).to_bits()});
-                break;
-            case data_types::f32:
-                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::f32>::value_type>(val)});
-                break;
-            case data_types::i32:
-                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i32>::value_type>(val)});
-                break;
-            case data_types::i64:
-                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i64>::value_type>(val)});
-                break;
-            case data_types::i8:
-                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i8>::value_type>(val)});
-                break;
-            case data_types::u8:
-                set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::u8>::value_type>(val)});
-                break;
-            default:
-                break;
+        case data_types::f16:
+            set_values(allocated_mem, {ov::float16(val).to_bits()});
+            break;
+        case data_types::f32:
+            set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::f32>::value_type>(val)});
+            break;
+        case data_types::i32:
+            set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i32>::value_type>(val)});
+            break;
+        case data_types::i64:
+            set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i64>::value_type>(val)});
+            break;
+        case data_types::i8:
+            set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::i8>::value_type>(val)});
+            break;
+        case data_types::u8:
+            set_values(allocated_mem, {static_cast<ov::element_type_traits<data_types::u8>::value_type>(val)});
+            break;
+        default:
+            break;
         }
         return allocated_mem;
     };
@@ -99,7 +98,8 @@ TEST_P(random_uniform_si_test, shape_infer) {
     if (p.min_max_vals.first < p.min_max_vals.second) {
         auto res = random_uniform_inst::calc_output_layouts<ov::PartialShape>(random_uniform_node, *params);
 
-        auto expected_out_layout = layout{p.expected_out_pshape, p.out_data_type, format::get_default_format(p.expected_out_pshape.size())};
+        auto expected_out_layout =
+            layout{p.expected_out_pshape, p.out_data_type, format::get_default_format(p.expected_out_pshape.size())};
         ASSERT_EQ(res.size(), 1);
         ASSERT_EQ(res[0], expected_out_layout);
     } else {
@@ -107,36 +107,37 @@ TEST_P(random_uniform_si_test, shape_infer) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, random_uniform_si_test,
-    testing::ValuesIn(std::vector<random_uniform_si_test_params>{
-        {ov::PartialShape{2}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2}, data_types::i8,  {0, 10}},
-        {ov::PartialShape{2}, data_types::u8,  {0, 10}},
-        {ov::PartialShape{2}, data_types::i64, {0, 10}},
-        {ov::PartialShape{2}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2}, data_types::f32, {0, 10}},
-        {ov::PartialShape{2}, data_types::f16, {0, 10}},
-        {ov::PartialShape{2,4}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2,4}, data_types::f32, {0, 10}},
-        {ov::PartialShape{2,4,3}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2,4,3}, data_types::f32, {0, 10}},
-        {ov::PartialShape{2,4,3,2}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2,4,3,2}, data_types::f32, {0, 10}},
-        {ov::PartialShape{2,4,3,1,2}, data_types::i32, {0, 10}},
-        {ov::PartialShape{2,4,3,1,2}, data_types::f32, {0, 10}},
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         random_uniform_si_test,
+                         testing::ValuesIn(std::vector<random_uniform_si_test_params>{
+                             {ov::PartialShape{2}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2}, data_types::i8, {0, 10}},
+                             {ov::PartialShape{2}, data_types::u8, {0, 10}},
+                             {ov::PartialShape{2}, data_types::i64, {0, 10}},
+                             {ov::PartialShape{2}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2}, data_types::f32, {0, 10}},
+                             {ov::PartialShape{2}, data_types::f16, {0, 10}},
+                             {ov::PartialShape{2, 4}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2, 4}, data_types::f32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3}, data_types::f32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3, 2}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3, 2}, data_types::f32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3, 1, 2}, data_types::i32, {0, 10}},
+                             {ov::PartialShape{2, 4, 3, 1, 2}, data_types::f32, {0, 10}},
 
-        // Dynamic output shape
-        {ov::PartialShape::dynamic(1), data_types::f32, {0, 10}},
-        {ov::PartialShape::dynamic(2), data_types::f32, {0, 10}},
-        {ov::PartialShape::dynamic(3), data_types::f32, {0, 10}},
-        {ov::PartialShape::dynamic(4), data_types::f32, {0, 10}},
-        {ov::PartialShape::dynamic(5), data_types::f32, {0, 10}},
+                             // Dynamic output shape
+                             {ov::PartialShape::dynamic(1), data_types::f32, {0, 10}},
+                             {ov::PartialShape::dynamic(2), data_types::f32, {0, 10}},
+                             {ov::PartialShape::dynamic(3), data_types::f32, {0, 10}},
+                             {ov::PartialShape::dynamic(4), data_types::f32, {0, 10}},
+                             {ov::PartialShape::dynamic(5), data_types::f32, {0, 10}},
 
-        // Incorrect min/max values
-        {ov::PartialShape{2}, data_types::i32, {20, 20}},
-        {ov::PartialShape{2,4,3,1,2}, data_types::i32, {20, 10}},
-        {ov::PartialShape::dynamic(1), data_types::f32, {20, 20}},
-        {ov::PartialShape::dynamic(5), data_types::f32, {20, 10}},
-    }));
+                             // Incorrect min/max values
+                             {ov::PartialShape{2}, data_types::i32, {20, 20}},
+                             {ov::PartialShape{2, 4, 3, 1, 2}, data_types::i32, {20, 10}},
+                             {ov::PartialShape::dynamic(1), data_types::f32, {20, 20}},
+                             {ov::PartialShape::dynamic(5), data_types::f32, {20, 10}},
+                         }));
 
-};  // shape_infer_tests
+};  // namespace shape_infer_tests

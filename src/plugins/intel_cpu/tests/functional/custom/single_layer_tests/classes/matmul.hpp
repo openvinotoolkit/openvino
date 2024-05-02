@@ -12,10 +12,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-enum class MatMulNodeType {
-    MatMul,
-    FullyConnected
-};
+enum class MatMulNodeType { MatMul, FullyConnected };
 
 struct ShapeRelatedParams {
     std::vector<InputShape> inputShapes;
@@ -32,34 +29,33 @@ typedef std::tuple<ShapeRelatedParams,
                    >
     MatMulLayerTestParamsSet;
 
-using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
-                                              MatMulNodeType,
-                                              fusingSpecificParams,
-                                              CPUSpecificParams>;
+using MatMulLayerCPUTestParamSet =
+    std::tuple<MatMulLayerTestParamsSet, MatMulNodeType, fusingSpecificParams, CPUSpecificParams>;
 
 class MatMulLayerCPUTest : public testing::WithParamInterface<MatMulLayerCPUTestParamSet>,
-                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
+                           virtual public SubgraphBaseTest,
+                           public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerCPUTestParamSet>& obj);
 
 protected:
     std::string cpuNodeType;
 
-    template<typename T>
+    template <typename T>
     void transpose(T& shape);
 
     void SetUp() override;
 };
 
 namespace MatMul {
-   const std::vector<ElementType>& netPRCs();
-   const std::vector<fusingSpecificParams>& matmulFusingParams();
-   const std::vector<ov::AnyMap>& additionalConfig();
-   const ov::AnyMap& emptyAdditionalConfig();
-   const std::vector<CPUSpecificParams>& filterSpecificParams();
-   const std::vector<ShapeRelatedParams>& IS2D_nightly();
-   const std::vector<ShapeRelatedParams>& IS2D_smoke();
-   const std::vector<ShapeRelatedParams>& IS3D_smoke();
+const std::vector<ElementType>& netPRCs();
+const std::vector<fusingSpecificParams>& matmulFusingParams();
+const std::vector<ov::AnyMap>& additionalConfig();
+const ov::AnyMap& emptyAdditionalConfig();
+const std::vector<CPUSpecificParams>& filterSpecificParams();
+const std::vector<ShapeRelatedParams>& IS2D_nightly();
+const std::vector<ShapeRelatedParams>& IS2D_smoke();
+const std::vector<ShapeRelatedParams>& IS3D_smoke();
 }  // namespace MatMul
 }  // namespace test
 }  // namespace ov

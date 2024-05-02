@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "split.hpp"
 #include "openvino/core/node.hpp"
+#include "split.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,6 +26,6 @@ public:
     OPENVINO_RTTI("VariadicSplitTransformation", "0");
     VariadicSplitTransformation(const Params& params = Params());
 };
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

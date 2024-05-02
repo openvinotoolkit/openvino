@@ -4,11 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include "utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -105,5 +105,7 @@ INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_minimum, StaticShapeInferenceTest_BEA
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_mod, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Mod>);
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_multiply, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Multiply>);
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_power, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Power>);
-INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_squared_difference, StaticShapeInferenceTest_BEA, ::testing::Types<op::v0::SquaredDifference>);
+INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_squared_difference,
+                               StaticShapeInferenceTest_BEA,
+                               ::testing::Types<op::v0::SquaredDifference>);
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer_subtract, StaticShapeInferenceTest_BEA, ::testing::Types<op::v1::Subtract>);

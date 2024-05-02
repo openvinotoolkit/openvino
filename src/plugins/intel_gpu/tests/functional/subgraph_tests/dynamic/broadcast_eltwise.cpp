@@ -3,22 +3,20 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 using ov::test::InputShape;
 
-using BroadcastEltwiseParams = std::tuple<
-    ov::element::Type, // input type
-    InputShape,        // input shape
-    ov::Shape          // target broadcast shape
->;
+using BroadcastEltwiseParams = std::tuple<ov::element::Type,  // input type
+                                          InputShape,         // input shape
+                                          ov::Shape           // target broadcast shape
+                                          >;
 
 class BroadcastEltwise : virtual public ov::test::SubgraphBaseTest,
                          public testing::WithParamInterface<BroadcastEltwiseParams> {
@@ -30,7 +28,8 @@ public:
         std::tie(model_type, input_shape, target_shape) = obj.param;
 
         std::ostringstream result;
-        result << "precision=" << model_type << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
+        result << "precision=" << model_type << "IS=(" << ov::test::utils::partialShape2str({input_shape.first})
+               << ")_TS=(";
         for (const auto& item : input_shape.second) {
             result << ov::test::utils::vec2str(item) << "_";
         }
@@ -63,7 +62,8 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        auto data_tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0]);
+        auto data_tensor =
+            ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0]);
         inputs.insert({funcInputs[0].get_node_shared_ptr(), data_tensor});
 
         auto shape_tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[1]};
@@ -110,5 +110,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BroadcastEltwise,
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(target_shapes)),
                          BroadcastEltwise::getTestCaseName);
-} // namespace
-
+}  // namespace

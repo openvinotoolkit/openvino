@@ -1,15 +1,15 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-from openvino.tools.mo.ops.regionyolo import RegionYoloOp
 from openvino.tools.mo.front.caffe.collect_attributes import merge_attrs
 from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.ops.regionyolo import RegionYoloOp
 
 
 class RegionYoloFrontExtractor(FrontExtractorOp):
-    op = 'RegionYolo'
+    op = "RegionYolo"
     enabled = True
 
     @classmethod
@@ -23,18 +23,15 @@ class RegionYoloFrontExtractor(FrontExtractorOp):
         classes = param.classes
         num = param.num
         update_attrs = {
-            'coords': coords,
-            'classes': classes,
-            'num': num,
-            'do_softmax': int(param.do_softmax),
-            'anchors': mo_array(param.anchors),
-            'mask': mo_array(param.mask)
+            "coords": coords,
+            "classes": classes,
+            "num": num,
+            "do_softmax": int(param.do_softmax),
+            "anchors": mo_array(param.anchors),
+            "mask": mo_array(param.mask),
         }
 
-        flatten_attrs = {
-            'axis': axis,
-            'end_axis': end_axis
-        }
+        flatten_attrs = {"axis": axis, "end_axis": end_axis}
 
         mapping_rule = merge_attrs(param, update_attrs)
 

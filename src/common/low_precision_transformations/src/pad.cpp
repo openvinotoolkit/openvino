@@ -7,12 +7,11 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/util/log.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset12.hpp"
-
-#include "low_precision/network_helper.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,7 +23,7 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
     auto padsBegin = pattern::wrap_type<ov::opset1::Constant>();
     auto padsEnd = pattern::wrap_type<ov::opset1::Constant>();
     auto padsValue = pattern::wrap_type<ov::opset1::Constant>();
-    auto matcher = pattern::wrap_type<ov::op::util::PadBase>({ mul, padsBegin, padsEnd, padsValue });
+    auto matcher = pattern::wrap_type<ov::op::util::PadBase>({mul, padsBegin, padsEnd, padsValue});
 
     ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,23 +38,23 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
 }
 
 namespace {
-    bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
-        const auto padsBegin = pad->get_pads_begin();
-        const auto padsEnd = pad->get_pads_end();
-        auto pred = [](int64_t a) {
-            return a > 0;
-        };
-        return std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
-               std::any_of(padsEnd.begin(), padsEnd.end(), pred);
-    }
-} // namespace
+bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
+    const auto padsBegin = pad->get_pads_begin();
+    const auto padsEnd = pad->get_pads_end();
+    auto pred = [](int64_t a) {
+        return a > 0;
+    };
+    return std::any_of(padsBegin.begin(), padsBegin.end(), pred) || std::any_of(padsEnd.begin(), padsEnd.end(), pred);
+}
+}  // namespace
 
 bool PadTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
-    const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(
+        NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
     const auto padConstantValue = padConstant->cast_vector<float>()[0];
 
@@ -66,7 +65,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     auto dequantization = NetworkHelper::getDequantization(pad, defaultPrecisions);
 
     if (padMode == op::PadMode::CONSTANT && hasPositiveIndexes(pad)) {
-        auto bcastConstant = [&](const std::shared_ptr<ov::opset1::Constant> &constant) {
+        auto bcastConstant = [&](const std::shared_ptr<ov::opset1::Constant>& constant) {
             size_t padIdx = 0;
             for (size_t i = 0; i < padsBegin.size(); ++i) {
                 if (padsBegin[i] != 0 || padsEnd[i] != 0) {
@@ -81,7 +80,8 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
             auto bcastedShape = Shape(inputPShape.rank().get_length(), 1ul);
             bcastedShape[padIdx] = inputPShape[padIdx].get_length();
 
-            const auto bCastConst = ov::opset1::Constant::create(element::i32, Shape{bcastedShape.size()}, bcastedShape);
+            const auto bCastConst =
+                ov::opset1::Constant::create(element::i32, Shape{bcastedShape.size()}, bcastedShape);
             return ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(constant, bCastConst));
         };
 
@@ -99,9 +99,9 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     }
 
     auto foldConstantIfNecessary = [&padMode, &padsBegin, &padsEnd](
-        const std::shared_ptr<ov::opset1::Constant>& constant,
-        const std::shared_ptr<ov::op::util::PadBase>& pad,
-        float padVal) {
+                                       const std::shared_ptr<ov::opset1::Constant>& constant,
+                                       const std::shared_ptr<ov::op::util::PadBase>& pad,
+                                       float padVal) {
         const auto constantShape = constant->get_shape();
         if (shape_size(constantShape) == 1ul) {
             return NetworkHelper::toScalar(constant);
@@ -125,11 +125,14 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
         }
 
         if (foldingIsNecessary) {
-            const auto beginConst = ov::opset1::Constant::create(element::i32, { padsForConstantBegin.size() }, padsForConstantBegin);
-            const auto endConst = ov::opset1::Constant::create(element::i32, { padsForConstantEnd.size() }, padsForConstantEnd);
-            const auto padValueConstant = ov::opset1::Constant::create(constant->get_element_type(), Shape{}, { padVal });
+            const auto beginConst =
+                ov::opset1::Constant::create(element::i32, {padsForConstantBegin.size()}, padsForConstantBegin);
+            const auto endConst =
+                ov::opset1::Constant::create(element::i32, {padsForConstantEnd.size()}, padsForConstantEnd);
+            const auto padValueConstant = ov::opset1::Constant::create(constant->get_element_type(), Shape{}, {padVal});
 
-            const auto foldedConstant = fold<ov::opset12::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
+            const auto foldedConstant =
+                fold<ov::opset12::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
             return ov::as_type_ptr<ov::opset1::Constant>(foldedConstant);
         } else {
             return constant;
@@ -161,7 +164,8 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     }
 
     // we must convert pad value in low precision
-    const auto convertedZero = ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, { padConstantValue });
+    const auto convertedZero =
+        ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, {padConstantValue});
     pad->set_argument(3, convertedZero);
 
     const auto newOperation = moveDequantizationAfter(context, pad, dequantization);
@@ -181,9 +185,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     const auto mode = pad->get_pad_mode();
-    if (mode != op::PadMode::CONSTANT &&
-        mode != op::PadMode::EDGE &&
-        mode != op::PadMode::REFLECT &&
+    if (mode != op::PadMode::CONSTANT && mode != op::PadMode::EDGE && mode != op::PadMode::REFLECT &&
         mode != op::PadMode::SYMMETRIC) {
         return false;
     }
@@ -235,7 +237,6 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
             if (padInputRank.is_dynamic() || padInputPShape[paddingDimension].is_dynamic()) {
                 return false;
             }
-
 
             const size_t inputRankValue = padInputRank.get_length();
             auto deqShape = deqConst->get_shape();
@@ -300,6 +301,6 @@ bool PadTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const 
     return true;
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

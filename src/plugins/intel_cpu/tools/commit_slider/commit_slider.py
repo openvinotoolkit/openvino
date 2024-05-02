@@ -1,30 +1,33 @@
 # Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import subprocess
 import os
 import shutil
+import subprocess
 import sys
 from distutils.dir_util import copy_tree
 from distutils.errors import DistutilsFileError
-from utils.helpers import safeClearDir, getParams
+
+from utils.helpers import getParams, safeClearDir
 
 args, cfgData, customCfgPath = getParams()
 
 if args.utility != "no_utility":
     from utils.helpers import runUtility
+
     runUtility(cfgData, args)
 
 elif args.isWorkingDir:
     # rerun script from work directory
+    from utils.helpers import CfgError, checkArgAndGetCommits
     from utils.modes import Mode
-    from utils.helpers import CfgError
-    from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if "commitList" in cfgData["runConfig"] and\
-        "explicitList" in cfgData["runConfig"]["commitList"]:
-            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+    if (
+        "commitList" in cfgData["runConfig"]
+        and "explicitList" in cfgData["runConfig"]["commitList"]
+    ):
+        commitList = cfgData["runConfig"]["commitList"]["explicitList"]
     elif args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]

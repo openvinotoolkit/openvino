@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "grn_kernel_base.h"
 #include <string>
 #include <vector>
+
+#include "grn_kernel_base.h"
 
 namespace kernel_selector {
 class GRNKernelRef : public GRNKernelBase {

@@ -4,22 +4,21 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import logging
+import typing as t
 from typing import Dict
 
 import torch
-from torch.nn import Module
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_disabled_ops
 from torch._ops import OpOverload
-
 from torch.fx.node import Node, _get_qualified_name
 from torch.fx.passes.operator_support import OperatorSupport
 from torch.fx.passes.tools_common import CALLABLE_NODE_OPS
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_disabled_ops
-
-import typing as t
-import logging
+from torch.nn import Module
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+
 
 class OperatorSupport(OperatorSupport):
     """
@@ -250,8 +249,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.quantized_decomposed.quantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.quantize_per_channel.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
-            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None
-
+            "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
         }
 
         for op in _get_disabled_ops(options):

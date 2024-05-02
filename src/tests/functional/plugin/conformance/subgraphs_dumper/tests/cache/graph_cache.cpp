@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cache/graph_cache.hpp"
+
 #include <memory>
 
-#include "openvino/op/ops.hpp"
-#include "openvino/util/file_util.hpp"
-#include "openvino/op/util/op_types.hpp"
-
+#include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-
-#include "cache/graph_cache.hpp"
-#include "utils/node.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/util/file_util.hpp"
 #include "test_models/model_0.hpp"
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
-#include "base_test.hpp"
+#include "utils/node.hpp"
 
 namespace {
 
@@ -75,8 +74,7 @@ TEST_F(GraphCacheFuncTest, serialize_cache) {
 
 // ====================== Graph Cache Unit tests ==============================
 
-class GraphCacheUnitTest : public GraphCacheFuncTest,
-                           public virtual GraphCache {
+class GraphCacheUnitTest : public GraphCacheFuncTest, public virtual GraphCache {
 protected:
     std::shared_ptr<ov::op::v0::Convert> convert_node;
     ov::conformance::MetaInfo test_meta;
@@ -92,10 +90,14 @@ TEST_F(GraphCacheUnitTest, update_cache_by_graph) {
     std::map<std::string, ov::conformance::InputInfo> in_info;
     for (const auto& op : model_to_cache->get_ordered_ops()) {
         if (ov::op::util::is_parameter(op)) {
-            in_info.insert({ op->get_friendly_name(), ov::conformance::InputInfo()});
+            in_info.insert({op->get_friendly_name(), ov::conformance::InputInfo()});
         }
     }
-    this->update_cache(model_to_cache, test_model_path, in_info, "test_extractor", model_to_cache->get_ordered_ops().size());
+    this->update_cache(model_to_cache,
+                       test_model_path,
+                       in_info,
+                       "test_extractor",
+                       model_to_cache->get_ordered_ops().size());
     ASSERT_EQ(m_graph_cache.size(), 1);
 }
 }  // namespace

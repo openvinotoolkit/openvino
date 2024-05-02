@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
@@ -22,7 +23,8 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
 /**
  * @ingroup ov_transformation_common_api
  * @brief PullReshapeThroughDequantization propagates dequantization operations through Reshape operations.
- * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
+ * The transformation is used on constant subgraph weights to prepare a model for the next low precision
+ * transformations.
  *
  * For more details about the transformation, refer to
  * [PullReshapeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization) page

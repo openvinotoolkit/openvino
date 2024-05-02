@@ -21,9 +21,9 @@ class RemoteContextWrapper {
 public:
     RemoteContextWrapper() {}
 
-    RemoteContextWrapper(ov::RemoteContext& _context): context{_context} {}
+    RemoteContextWrapper(ov::RemoteContext& _context) : context{_context} {}
 
-    RemoteContextWrapper(ov::RemoteContext&& _context): context{std::move(_context)} {}
+    RemoteContextWrapper(ov::RemoteContext&& _context) : context{std::move(_context)} {}
 
     ov::RemoteContext context;
 };
@@ -32,9 +32,9 @@ void regclass_RemoteContext(py::module m);
 
 class VAContextWrapper : public RemoteContextWrapper {
 public:
-    VAContextWrapper(ov::RemoteContext& _context): RemoteContextWrapper{_context} {}
+    VAContextWrapper(ov::RemoteContext& _context) : RemoteContextWrapper{_context} {}
 
-    VAContextWrapper(ov::RemoteContext&& _context): RemoteContextWrapper{std::move(_context)} {}
+    VAContextWrapper(ov::RemoteContext&& _context) : RemoteContextWrapper{std::move(_context)} {}
 };
 
 void regclass_VAContext(py::module m);

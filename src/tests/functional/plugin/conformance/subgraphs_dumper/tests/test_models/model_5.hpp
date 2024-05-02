@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "openvino/op/add.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/read_value.hpp"
-#include "openvino/op/assign.hpp"
 #include "matchers/subgraph/read_value_assign.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 
 class Model_5 {
 protected:
@@ -34,7 +34,6 @@ public:
         //                        assign_1
         //                           |
         //                        result_0
-
 
         auto param_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 80});
         param_0->set_friendly_name("param_0");
@@ -64,8 +63,7 @@ public:
         auto result_0 = std::make_shared<ov::op::v0::Result>(assign_1);
         result_0->set_friendly_name("result_0");
 
-        model = std::make_shared<ov::Model>(ov::ResultVector{result_0},
-                                    ov::ParameterVector{param_0, param_1});
+        model = std::make_shared<ov::Model>(ov::ResultVector{result_0}, ov::ParameterVector{param_0, param_1});
     }
 
     std::shared_ptr<ov::Model> get() {
@@ -87,8 +85,7 @@ public:
 
         auto result_0 = std::make_shared<ov::op::v0::Result>(assign);
 
-        auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_0},
-                                                     ov::ParameterVector{param_0});
+        auto ref_model = std::make_shared<ov::Model>(ov::ResultVector{result_0}, ov::ParameterVector{param_0});
         ref_models.push_back(ref_model);
 
         return ref_models;

@@ -3,15 +3,15 @@
 //
 
 #include "fullyconnected.hpp"
+
 #include "utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Result FCShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& activationShape = input_shapes[0].get();
     const VectorDims& weightShape = input_shapes[1].get();
     size_t activationRank = activationShape.size();
@@ -33,6 +33,6 @@ Result FCShapeInfer::infer(
 
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

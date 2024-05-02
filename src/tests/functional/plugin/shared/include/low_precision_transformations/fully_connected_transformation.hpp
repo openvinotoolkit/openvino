@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
+
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 class MatMulShapes {
@@ -16,17 +17,13 @@ public:
     bool transposeB;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    MatMulShapes,
-    std::string,
-    ov::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;
+typedef std::tuple<ov::element::Type, MatMulShapes, std::string, ov::pass::low_precision::LayerTransformation::Params>
+    FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {
 
-class FullyConnectedTransformation :
-    public testing::WithParamInterface<FullyConnectedTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+class FullyConnectedTransformation : public testing::WithParamInterface<FullyConnectedTransformationParams>,
+                                     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj);
 

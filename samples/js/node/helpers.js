@@ -1,8 +1,8 @@
 const path = require('node:path');
-const { cv } = require('opencv-wasm');
-const { createWriteStream } = require('node:fs');
-const { mkdir, stat } = require('node:fs/promises');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const {cv} = require('opencv-wasm');
+const {createWriteStream} = require('node:fs');
+const {mkdir, stat} = require('node:fs/promises');
+const {HttpsProxyAgent} = require('https-proxy-agent');
 
 const {
   Image,
@@ -45,8 +45,9 @@ function getImageBuffer(imageOrImageData) {
   else if (imageOrImageData instanceof ImageData)
     ctx.putImageData(imageOrImageData, 0, 0);
   else
-    throw Error(`Passed parameters has type '${typeof imageOrImageData}'. `
-      + 'It is\'t supported.');
+    throw Error(
+        `Passed parameters has type '${typeof imageOrImageData}'. ` +
+        'It is\'t supported.');
 
   return canvas.toBuffer('image/jpeg');
 }
@@ -59,29 +60,30 @@ function displayImage(imageOrImageData, display) {
 
 function displayArrayAsImage(arr, width, height, display) {
   const alpha = 255;
-  const componentsPerPixel = arr.length / (width*height);
+  const componentsPerPixel = arr.length / (width * height);
 
   try {
     switch (componentsPerPixel) {
-    case 1:
-      arr = arr.reduce((acc, val) => {
-        acc.push(val, val, val, alpha);
+      case 1:
+        arr = arr.reduce((acc, val) => {
+          acc.push(val, val, val, alpha);
 
-        return acc;
-      }, []);
-      break;
+          return acc;
+        }, []);
+        break;
 
-    case 3:
-      arr = arr.reduce((acc, val, index) => {
-        if (index && index%3 === 0) acc.push(alpha);
+      case 3:
+        arr = arr.reduce((acc, val, index) => {
+          if (index && index % 3 === 0)
+            acc.push(alpha);
 
-        acc.push(val);
+          acc.push(val);
 
-        return acc;
-      }, []);
-      break;
+          return acc;
+        }, []);
+        break;
     }
-  } catch(e) {
+  } catch (e) {
     console.log(e);
   }
 
@@ -92,7 +94,7 @@ function displayArrayAsImage(arr, width, height, display) {
 
 async function getImageData(path) {
   const image = await loadImage(path);
-  const { width, height } = image;
+  const {width, height} = image;
 
   const canvas = await createCanvas(width, height);
   const ctx = canvas.getContext('2d');
@@ -102,7 +104,7 @@ async function getImageData(path) {
   return ctx.getImageData(0, 0, width, height);
 }
 
-function transform(arr, { width, height }, order) {
+function transform(arr, {width, height}, order) {
   const img = new cv.Mat(height, width, cv.CV_8UC3);
 
   img.data.set(arr, 0, arr.length);
@@ -116,7 +118,7 @@ function transform(arr, { width, height }, order) {
 }
 
 async function downloadFile(url, filename, destination) {
-  const { env } = process;
+  const {env} = process;
   const timeout = 5000;
 
   await applyFolderPath(destination);
@@ -135,12 +137,10 @@ async function downloadFile(url, filename, destination) {
   }
 
   return new Promise((resolve, reject) => {
-    file.on('error', e => {
-      reject(`Error oppening file stream: ${e}`);
-    });
+    file.on('error', e => { reject(`Error oppening file stream: ${e}`); });
 
-    const getRequest = module.get(url, { agent }, res => {
-      const { statusCode } = res;
+    const getRequest = module.get(url, {agent}, res => {
+      const {statusCode} = res;
 
       if (statusCode !== 200)
         return reject(`Server returns status code: ${statusCode}`);
@@ -154,9 +154,7 @@ async function downloadFile(url, filename, destination) {
       });
     });
 
-    getRequest.on('error', e => {
-      reject(`Error sending request: ${e}`);
-    });
+    getRequest.on('error', e => { reject(`Error sending request: ${e}`); });
 
     getRequest.setTimeout(timeout, () => {
       getRequest.destroy();
@@ -166,11 +164,11 @@ async function downloadFile(url, filename, destination) {
 }
 
 function sum(array) {
-  return array.reduce((acc, val) => acc+val, 0);
+  return array.reduce((acc, val) => acc + val, 0);
 }
 
 function mul(array) {
-  return array.reduce((acc, val) => acc*val, 1);
+  return array.reduce((acc, val) => acc * val, 1);
 }
 
 function setShape(flatArray, shape) {
@@ -188,13 +186,12 @@ function createMultidimensionArray(flatArray, shape, offset) {
   if (remainingShape.length === 0) {
     for (let i = 0; i < currentDim; i++)
       currentArray.push(flatArray[offset + i]);
-  }
-  else {
+  } else {
     const innerArrayLength = mul(shape) / currentDim;
 
     for (let i = 0; i < currentDim; i++) {
-      const innerArray = createMultidimensionArray(flatArray, remainingShape,
-        offset + i*innerArrayLength);
+      const innerArray = createMultidimensionArray(
+          flatArray, remainingShape, offset + i * innerArrayLength);
 
       currentArray.push(innerArray);
     }
@@ -206,8 +203,7 @@ function createMultidimensionArray(flatArray, shape, offset) {
 function extractValues(arrOrVal, collector = []) {
   if (arrOrVal[Symbol.iterator] && arrOrVal.map) {
     arrOrVal.map(v => extractValues(v, collector));
-  }
-  else {
+  } else {
     collector.push(arrOrVal);
   }
 
@@ -219,9 +215,8 @@ function isIterableArray(arr) {
 }
 
 function eachInner(arrOrValue, fn) {
-  return isIterableArray(arrOrValue)
-    ? arrOrValue.map(e => eachInner(e, fn))
-    : fn(arrOrValue);
+  return isIterableArray(arrOrValue) ? arrOrValue.map(e => eachInner(e, fn))
+                                     : fn(arrOrValue);
 }
 
 function exp(arr) {
@@ -250,8 +245,9 @@ function matrixMultiplication(matrix1, matrix2) {
   const cols2 = matrix2[0].length;
 
   if (cols1 !== rows2)
-    throw new Error('Number of columns in the first matrix must match the '
-      + 'number of rows in the second matrix.');
+    throw new Error(
+        'Number of columns in the first matrix must match the ' +
+        'number of rows in the second matrix.');
 
   const result = [];
 
@@ -276,13 +272,14 @@ function findMax(arr) {
   let index = -1;
 
   for (let i = 0; i < arr.length; i++) {
-    if (arr[i] < max) continue;
+    if (arr[i] < max)
+      continue;
 
     max = arr[i];
     index = i;
   }
 
-  return { value: max, index };
+  return {value : max, index};
 }
 
 function argMax(arr) {
@@ -324,9 +321,10 @@ async function applyFolderPath(dirPath) {
     await stat(dirPath);
 
     return;
-  } catch(err) {
-    if (err.code !== 'ENOENT') throw err;
+  } catch (err) {
+    if (err.code !== 'ENOENT')
+      throw err;
 
-    await mkdir(dirPath, { recursive: true });
+    await mkdir(dirPath, {recursive : true});
   }
 }

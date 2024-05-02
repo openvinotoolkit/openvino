@@ -7,15 +7,20 @@ import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from onnx.onnx_cpp2py_export.checker import ValidationError
-
 from tests.runtime import get_runtime
-from tests.tests_python.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests.tests_python.utils import (
+    get_node_model,
+    import_onnx_model,
+    run_model,
+    run_node,
+)
 
 
 @pytest.fixture()
 def ndarray_1x1x4x4():
     return np.array(
-        [[11, 12, 13, 14], [15, 16, 17, 18], [19, 20, 21, 22], [23, 24, 25, 26]], dtype=np.float32,
+        [[11, 12, 13, 14], [15, 16, 17, 18], [19, 20, 21, 22], [23, 24, 25, 26]],
+        dtype=np.float32,
     ).reshape([1, 1, 4, 4])
 
 
@@ -43,7 +48,9 @@ def make_onnx_model_for_conv_op(x_shape, weights_shape, transpose=False, **attri
 
 def import_and_compute_conv(inputs, weights, transpose=False, **attributes):
     inputs, weights = np.array(inputs), np.array(weights)
-    onnx_model = make_onnx_model_for_conv_op(inputs.shape, weights.shape, transpose=transpose, **attributes)
+    onnx_model = make_onnx_model_for_conv_op(
+        inputs.shape, weights.shape, transpose=transpose, **attributes
+    )
     model = import_onnx_model(onnx_model)
     computation = get_runtime().computation(model)
     return computation(inputs, weights)[0]
@@ -67,12 +74,16 @@ def test_2d_conv():
     ).reshape(1, 1, 9, 9)
 
     # filter weights should have shape M x C x kH x kW
-    input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
+    input_filter = np.array(
+        [[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32
+    ).reshape(
         [1, 1, 3, 3],
     )
 
     # convolution with padding=1 should produce 9 x 9 output:
-    result = import_and_compute_conv(input_x, input_filter, pads=(1, 1, 1, 1), strides=(1, 1))
+    result = import_and_compute_conv(
+        input_x, input_filter, pads=(1, 1, 1, 1), strides=(1, 1)
+    )
     assert np.array_equal(
         result,
         np.array(
@@ -96,7 +107,9 @@ def test_2d_conv():
     )
 
     # convolution with padding=0 should produce 7 x 7 output:
-    result = import_and_compute_conv(input_x, input_filter, pads=(0, 0, 0, 0), strides=(1, 1))
+    result = import_and_compute_conv(
+        input_x, input_filter, pads=(0, 0, 0, 0), strides=(1, 1)
+    )
     assert np.array_equal(
         result,
         np.array(
@@ -118,7 +131,9 @@ def test_2d_conv():
     )
 
     # convolution with strides=2 should produce 4 x 4 output:
-    result = import_and_compute_conv(input_x, input_filter, pads=(0, 0, 0, 0), strides=(2, 2))
+    result = import_and_compute_conv(
+        input_x, input_filter, pads=(0, 0, 0, 0), strides=(2, 2)
+    )
     assert np.array_equal(
         result,
         np.array(
@@ -176,14 +191,20 @@ def test_3d_conv():
     input_x = np.broadcast_to(input_x, (1, 1, 9, 9, 4))
 
     # filter weights should have shape M x C x kH x kW x kD
-    input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
+    input_filter = np.array(
+        [[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32
+    ).reshape(
         [1, 1, 3, 3, 1],
     )
     input_filter = np.broadcast_to(input_filter, (1, 1, 3, 3, 3))
 
     # convolution with padding=0 should produce 7 x 7 x 2 output:
     result = import_and_compute_conv(
-        input_x, input_filter, dilations=(1, 1, 1), pads=(0, 0, 0, 0, 0, 0), strides=(1, 1, 1),
+        input_x,
+        input_filter,
+        dilations=(1, 1, 1),
+        pads=(0, 0, 0, 0, 0, 0),
+        strides=(1, 1, 1),
     )
 
     assert np.array_equal(
@@ -232,12 +253,16 @@ def test_2d_conv_transpose():
     ).reshape([1, 1, 9, 9])
 
     # filter weights should have shape M x C x kH x kW
-    input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
+    input_filter = np.array(
+        [[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32
+    ).reshape(
         [1, 1, 3, 3],
     )
 
     # deconvolution with padding=1 should produce 9 x 9 output:
-    result = import_and_compute_conv(input_x, input_filter, transpose=True, pads=(1, 1, 1, 1), strides=(1, 1))
+    result = import_and_compute_conv(
+        input_x, input_filter, transpose=True, pads=(1, 1, 1, 1), strides=(1, 1)
+    )
 
     assert np.array_equal(
         result.reshape([9, 9]),
@@ -267,9 +292,13 @@ def test_pad_opset_1():
     assert np.array_equal(graph_results, [outputs])
 
     inputs = np.random.randn(1, 3, 4, 5).astype(np.float32)
-    outputs = np.pad(inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
+    outputs = np.pad(
+        inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant"
+    )
 
-    model = get_node_model("Pad", inputs, mode="constant", paddings=[0, 0, 1, 3, 0, 0, 2, 4])
+    model = get_node_model(
+        "Pad", inputs, mode="constant", paddings=[0, 0, 1, 3, 0, 0, 2, 4]
+    )
     graph_results = run_model(model, [inputs])
     assert np.array_equal(graph_results, [outputs])
 
@@ -294,9 +323,13 @@ def test_pad_opset_2():
     assert np.array_equal(graph_results, [outputs])
 
     inputs = np.random.randn(1, 3, 4, 5).astype(np.float32)
-    outputs = np.pad(inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant")
+    outputs = np.pad(
+        inputs, pad_width=((0, 0), (0, 0), (1, 2), (3, 4)), mode="constant"
+    )
 
-    model = get_node_model("Pad", inputs, opset=2, mode="constant", pads=[0, 0, 1, 3, 0, 0, 2, 4])
+    model = get_node_model(
+        "Pad", inputs, opset=2, mode="constant", pads=[0, 0, 1, 3, 0, 0, 2, 4]
+    )
     graph_results = run_model(model, [inputs])
     assert np.array_equal(graph_results, [outputs])
 
@@ -337,23 +370,42 @@ def test_pad_negative_values_end():
 
 def test_pool_average(ndarray_1x1x4x4):
     inputs = ndarray_1x1x4x4
-    node = onnx.helper.make_node("AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2))
-    outputs = np.array([[13.5, 15.5], [21.5, 23.5]], dtype=np.float32).reshape([1, 1, 2, 2])
+    node = onnx.helper.make_node(
+        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2)
+    )
+    outputs = np.array([[13.5, 15.5], [21.5, 23.5]], dtype=np.float32).reshape(
+        [1, 1, 2, 2]
+    )
     graph_results = run_node(node, [inputs])
     assert np.array_equal(graph_results, [outputs])
 
     node = onnx.helper.make_node(
-        "AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2), pads=(1, 1, 1, 1),
+        "AveragePool",
+        inputs=["x"],
+        outputs=["y"],
+        kernel_shape=(2, 2),
+        strides=(2, 2),
+        pads=(1, 1, 1, 1),
     )
-    outputs = np.array([[11, 12.5, 14], [17, 18.5, 20], [23, 24.5, 26]], dtype=np.float32).reshape([1, 1, 3, 3])
+    outputs = np.array(
+        [[11, 12.5, 14], [17, 18.5, 20], [23, 24.5, 26]], dtype=np.float32
+    ).reshape([1, 1, 3, 3])
     graph_results = run_node(node, [inputs])
     assert np.array_equal(graph_results, [outputs])
 
 
 def test_pool_average_3d(ndarray_1x1x4x4):
     inputs = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
-    node = onnx.helper.make_node("AveragePool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2, 2), strides=(2, 2, 2))
-    outputs = np.array([[[13.5, 15.5], [21.5, 23.5]], [[13.5, 15.5], [21.5, 23.5]]], dtype=np.float32).reshape(
+    node = onnx.helper.make_node(
+        "AveragePool",
+        inputs=["x"],
+        outputs=["y"],
+        kernel_shape=(2, 2, 2),
+        strides=(2, 2, 2),
+    )
+    outputs = np.array(
+        [[[13.5, 15.5], [21.5, 23.5]], [[13.5, 15.5], [21.5, 23.5]]], dtype=np.float32
+    ).reshape(
         [1, 1, 2, 2, 2],
     )
     graph_results = run_node(node, [inputs])
@@ -361,7 +413,9 @@ def test_pool_average_3d(ndarray_1x1x4x4):
 
 
 def test_pool_max(ndarray_1x1x4x4):
-    node = onnx.helper.make_node("MaxPool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2))
+    node = onnx.helper.make_node(
+        "MaxPool", inputs=["x"], outputs=["y"], kernel_shape=(2, 2), strides=(2, 2)
+    )
 
     inputs = ndarray_1x1x4x4
     outputs = np.array([[16, 18], [24, 26]], dtype=np.float32).reshape([1, 1, 2, 2])

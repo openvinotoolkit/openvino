@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/node_builders/activation.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
-#include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -40,43 +40,45 @@ protected:
                                    std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape{1, 128, 32})};
 
         auto FQ = ov::test::utils::make_fake_quantize(params[1],
-                                                    netPrecision,
-                                                    256,
-                                                    {},
-                                                    {-2.8215785026550293},
-                                                    {2.799535036087036},
-                                                    {-2.8215785026550293},
-                                                    {2.799535036087036});
-        auto FQ_0 = ov::test::utils::make_fake_quantize(params[1],
                                                       netPrecision,
                                                       256,
                                                       {},
-                                                      {-5.031249523162842},
-                                                      {4.991942882537842},
-                                                      {-5.031249523162842},
-                                                      {4.991942882537842});
+                                                      {-2.8215785026550293},
+                                                      {2.799535036087036},
+                                                      {-2.8215785026550293},
+                                                      {2.799535036087036});
+        auto FQ_0 = ov::test::utils::make_fake_quantize(params[1],
+                                                        netPrecision,
+                                                        256,
+                                                        {},
+                                                        {-5.031249523162842},
+                                                        {4.991942882537842},
+                                                        {-5.031249523162842},
+                                                        {4.991942882537842});
 
         auto Add_0 = ov::test::utils::make_eltwise(FQ_0, FQ, ov::test::utils::EltwiseTypes::ADD);
 
         auto FQ_1 = ov::test::utils::make_fake_quantize(params[0],
-                                                      netPrecision,
-                                                      256,
-                                                      {},
-                                                      {-2.122633457183838},
-                                                      {2.106050491333008},
-                                                      {-2.122633457183838},
-                                                      {2.106050491333008});
+                                                        netPrecision,
+                                                        256,
+                                                        {},
+                                                        {-2.122633457183838},
+                                                        {2.106050491333008},
+                                                        {-2.122633457183838},
+                                                        {2.106050491333008});
 
-        auto Const =
-            ov::test::utils::deprecated::make_constant(netPrecision, {128, 512, 1}, std::vector<float>{-0.0512377955019474}, false);
+        auto Const = ov::test::utils::deprecated::make_constant(netPrecision,
+                                                                {128, 512, 1},
+                                                                std::vector<float>{-0.0512377955019474},
+                                                                false);
         auto FQ_2 = ov::test::utils::make_fake_quantize(Const,
-                                                      netPrecision,
-                                                      255,
-                                                      {128, 1, 1},
-                                                      {-0.56387859582901},
-                                                      {0.56387859582901},
-                                                      {-0.56387859582901},
-                                                      {0.56387859582901});
+                                                        netPrecision,
+                                                        255,
+                                                        {128, 1, 1},
+                                                        {-0.56387859582901},
+                                                        {0.56387859582901},
+                                                        {-0.56387859582901},
+                                                        {0.56387859582901});
 
         auto Conv = std::make_shared<ov::op::v1::Convolution>(FQ_1,
                                                               FQ_2,
@@ -88,26 +90,26 @@ protected:
         auto Add = ov::test::utils::make_eltwise(Add_0, Conv, ov::test::utils::EltwiseTypes::ADD);
 
         auto FQ_11 = ov::test::utils::make_fake_quantize(params[0],
-                                                       netPrecision,
-                                                       256,
-                                                       {},
-                                                       {-3.2050728797912598},
-                                                       {3.1800332069396973},
-                                                       {-3.2050728797912598},
-                                                       {3.1800332069396973});
+                                                         netPrecision,
+                                                         256,
+                                                         {},
+                                                         {-3.2050728797912598},
+                                                         {3.1800332069396973},
+                                                         {-3.2050728797912598},
+                                                         {3.1800332069396973});
 
         auto Const_ = ov::test::utils::deprecated::make_constant(netPrecision,
-                                                    {128, 512, 1},
-                                                    std::vector<float>{-0.001183388871140778},
-                                                    false);
+                                                                 {128, 512, 1},
+                                                                 std::vector<float>{-0.001183388871140778},
+                                                                 false);
         auto FQ_22 = ov::test::utils::make_fake_quantize(Const_,
-                                                       netPrecision,
-                                                       255,
-                                                       {128, 1, 1},
-                                                       {-0.325547456741333},
-                                                       {0.325547456741333},
-                                                       {-0.325547456741333},
-                                                       {0.325547456741333});
+                                                         netPrecision,
+                                                         255,
+                                                         {128, 1, 1},
+                                                         {-0.325547456741333},
+                                                         {0.325547456741333},
+                                                         {-0.325547456741333},
+                                                         {0.325547456741333});
 
         auto Conv2 = std::make_shared<ov::op::v1::Convolution>(FQ_11,
                                                                FQ_22,

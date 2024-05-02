@@ -3,8 +3,9 @@
 //
 
 #include "fully_connected_kernel_fs_byx_fsv32.h"
-#include <utility>
+
 #include <algorithm>
+#include <utility>
 
 namespace kernel_selector {
 

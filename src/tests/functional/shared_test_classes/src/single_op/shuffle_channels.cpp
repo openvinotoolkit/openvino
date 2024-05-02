@@ -6,7 +6,8 @@
 
 namespace ov {
 namespace test {
-std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj) {
+std::string ShuffleChannelsLayerTest::getTestCaseName(
+    const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj) {
     shuffleChannelsSpecificParams test_params;
     ov::element::Type model_type;
     std::vector<InputShape> input_shapes;
@@ -32,7 +33,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(const testing::TestParamIn
     result << "Axis=" << std::to_string(axis) << "_";
     result << "Group=" << std::to_string(group) << "_";
     result << "modelType=" << model_type.to_string() << "_";
-    result << "trgDev="  << target_device;
+    result << "trgDev=" << target_device;
     return result.str();
 }
 

@@ -37,8 +37,9 @@ DeviceFeaturesKey DeformableConvolutionKernel_bfyx_conv::get_required_device_fea
     return k;
 }
 
-DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_bfyx_conv::SetDefault(const convolution_params& params,
-                                                                                                      int autoTuneIndex) const {
+DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_bfyx_conv::SetDefault(
+    const convolution_params& params,
+    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.outputs[0];
@@ -67,7 +68,8 @@ JitConstants DeformableConvolutionKernel_bfyx_conv::GetJitConstants(const convol
                                                                     const DispatchData& /*dispatchData*/) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 16));
-    jit.AddConstant(MakeJitConstant("INPUT_CHANNELS", params.inputs[0].Feature().v / params.weights.X().v / params.weights.Y().v));
+    jit.AddConstant(
+        MakeJitConstant("INPUT_CHANNELS", params.inputs[0].Feature().v / params.weights.X().v / params.weights.Y().v));
     return jit;
 }
 

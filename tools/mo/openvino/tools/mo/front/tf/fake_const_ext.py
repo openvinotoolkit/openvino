@@ -15,16 +15,18 @@ class FakeConstToConst(FrontReplacementOp):
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        node = match['op']
-        if not node.has_valid('value'):
+        node = match["op"]
+        if not node.has_valid("value"):
             log.debug("No value in FakeConst node {}".format(node.id))
             return
         node_value = node.value
         extracted_attrs = {
-            'data_type': tf_dtype_extractor(node.pb.attr['dtype'].type),
-            'shape': int64_array(node_value.shape),
-            'value': node_value
+            "data_type": tf_dtype_extractor(node.pb.attr["dtype"].type),
+            "shape": int64_array(node_value.shape),
+            "value": node_value,
         }
         Const.update_node_stat(node, extracted_attrs)
-        log.debug('FakeConst op was translated to Const op with shape = {} and value.shape = {}'
-                  ''.format(extracted_attrs['shape'], extracted_attrs['value'].shape))
+        log.debug(
+            "FakeConst op was translated to Const op with shape = {} and value.shape = {}"
+            "".format(extracted_attrs["shape"], extracted_attrs["value"].shape)
+        )

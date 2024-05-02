@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "cpu_memory.h"
-
-#include <unordered_map>
-#include <functional>
-#include <string>
-#include <memory>
 #include <atomic>
-#include <mutex>
+#include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+
+#include "cpu_memory.h"
 
 // TODO: While CPU plugin has no ease way to clone graph object we use weight
 //       caching in global Engine context to avoid tensor memory duplication.
@@ -57,10 +57,7 @@ class WeightsSharing {
     struct MemoryInfo {
         typedef std::shared_ptr<MemoryInfo> Ptr;
 
-        MemoryInfo(MemoryPtr memoryPtr, bool valid)
-            : sharedMemory(memoryPtr)
-            , valid(valid)
-        {}
+        MemoryInfo(MemoryPtr memoryPtr, bool valid) : sharedMemory(memoryPtr), valid(valid) {}
 
         std::mutex guard;
         std::weak_ptr<IMemory> sharedMemory;
@@ -74,9 +71,7 @@ public:
     public:
         typedef std::shared_ptr<SharedMemory> Ptr;
 
-        SharedMemory(std::unique_lock<std::mutex> && lock,
-                     const MemoryInfo::Ptr & memory,
-                     MemoryPtr newPtr = nullptr);
+        SharedMemory(std::unique_lock<std::mutex>&& lock, const MemoryInfo::Ptr& memory, MemoryPtr newPtr = nullptr);
 
         operator MemoryPtr() const;
         bool isValid() const;
@@ -88,13 +83,13 @@ public:
         MemoryPtr newPtr;
     };
 
-    SharedMemory::Ptr findOrCreate(const std::string& key,
-                                   std::function<MemoryPtr(void)> create,
-                                   bool valid = true);
+    SharedMemory::Ptr findOrCreate(const std::string& key, std::function<MemoryPtr(void)> create, bool valid = true);
 
     SharedMemory::Ptr get(const std::string& key) const;
 
-    static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
+    static const SimpleDataHash& GetHashFunc() {
+        return simpleCRC;
+    }
 
 protected:
     mutable std::mutex guard;
@@ -118,5 +113,5 @@ private:
     std::map<int, WeightsSharing::Ptr> _cache_map;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

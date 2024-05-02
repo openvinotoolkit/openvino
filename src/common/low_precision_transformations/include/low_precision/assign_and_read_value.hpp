@@ -4,7 +4,6 @@
 
 #pragma once
 
-
 #include "layer_transformation.hpp"
 
 namespace ov {
@@ -18,10 +17,11 @@ public:
     bool transform(TransformationContext& context, ov::pass::pattern::Matcher& m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+
 private:
     std::shared_ptr<ov::Model> model;
 };
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov

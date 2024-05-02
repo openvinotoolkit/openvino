@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <memory>
-
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
 #include <low_precision/batch_to_space.hpp>
+#include <memory>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "layer_transformation.hpp"
 #include "ov_lpt_models/batch_to_space.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-
+#include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -49,9 +46,7 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<
-    ov::PartialShape,
-    BatchToSpaceTransformationTestValues> BatchToSpaceTransformationParams;
+typedef std::tuple<ov::PartialShape, BatchToSpaceTransformationTestValues> BatchToSpaceTransformationParams;
 
 class BatchToSpaceTransformation : public LayerTransformation,
                                    public testing::WithParamInterface<BatchToSpaceTransformationParams> {
@@ -60,27 +55,25 @@ public:
         const ov::PartialShape input_shape = std::get<0>(GetParam());
         const BatchToSpaceTransformationTestValues test_values = std::get<1>(GetParam());
 
-        actualFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
-            input_shape,
-            test_values.actual.input_type,
-            test_values.actual.dequantization_before,
-            test_values.block_shape,
-            test_values.crops_begin,
-            test_values.crops_end,
-            test_values.actual.dequantization_after);
+        actualFunction = ov::builder::subgraph::BatchToSpaceFunction::get(input_shape,
+                                                                          test_values.actual.input_type,
+                                                                          test_values.actual.dequantization_before,
+                                                                          test_values.block_shape,
+                                                                          test_values.crops_begin,
+                                                                          test_values.crops_end,
+                                                                          test_values.actual.dequantization_after);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::BatchToSpaceTransformation>(test_values.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ov::builder::subgraph::BatchToSpaceFunction::get(
-            input_shape,
-            test_values.expected.input_type,
-            test_values.expected.dequantization_before,
-            test_values.block_shape,
-            test_values.crops_begin,
-            test_values.crops_end,
-            test_values.expected.dequantization_after);
+        referenceFunction = ov::builder::subgraph::BatchToSpaceFunction::get(input_shape,
+                                                                             test_values.expected.input_type,
+                                                                             test_values.expected.dequantization_before,
+                                                                             test_values.block_shape,
+                                                                             test_values.crops_begin,
+                                                                             test_values.crops_end,
+                                                                             test_values.expected.dequantization_after);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<BatchToSpaceTransformationParams> obj) {
@@ -88,12 +81,9 @@ public:
         const BatchToSpaceTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << testValues.actual.input_type << "_"<<
-            shape << "_" << toString(testValues.params) << "_" <<
-            testValues.actual.dequantization_before << "_" <<
-            testValues.actual.dequantization_after << "_" <<
-            testValues.expected.dequantization_before << "_" <<
-            testValues.expected.dequantization_after << "_";
+        result << testValues.actual.input_type << "_" << shape << "_" << toString(testValues.params) << "_"
+               << testValues.actual.dequantization_before << "_" << testValues.actual.dequantization_after << "_"
+               << testValues.expected.dequantization_before << "_" << testValues.expected.dequantization_after << "_";
         return result.str();
     }
 };
@@ -108,56 +98,26 @@ TEST_P(BatchToSpaceTransformation, CompareFunctions) {
 }
 
 namespace testValues {
-const std::vector<ov::PartialShape> input_shapes = {
-    {4, 3, 50, 86}
-};
+const std::vector<ov::PartialShape> input_shapes = {{4, 3, 50, 86}};
 
 const std::vector<BatchToSpaceTransformationTestValues> test_values = {
     // per-tensor dequantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {1, 1, 2, 2},
-        {0, 0, 0, 0},
-        {0, 0, 0, 1},
-        {
-            ov::element::u8,
-            { ov::element::f32, {128.f}, {0.01f}},
-            ov::element::f32,
-            {}
-        },
-        {
-            ov::element::u8,
-            {},
-            ov::element::u8,
-            { ov::element::f32, {128.f}, {0.01f}}
-        }
-    },
+    {LayerTransformation::createParamsU8I8(),
+     {1, 1, 2, 2},
+     {0, 0, 0, 0},
+     {0, 0, 0, 1},
+     {ov::element::u8, {ov::element::f32, {128.f}, {0.01f}}, ov::element::f32, {}},
+     {ov::element::u8, {}, ov::element::u8, {ov::element::f32, {128.f}, {0.01f}}}},
     // per-channel dequantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {1, 1, 2, 2},
-        {0, 0, 0, 0},
-        {0, 0, 0, 1},
-        {
-            ov::element::u8,
-            {ov::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
-            ov::element::f32,
-            {}
-        },
-        {
-            ov::element::u8,
-            {ov::element::f32, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }},
-            ov::element::f32,
-            {}
-        }
-    }
-};
+    {LayerTransformation::createParamsU8I8(),
+     {1, 1, 2, 2},
+     {0, 0, 0, 0},
+     {0, 0, 0, 1},
+     {ov::element::u8, {ov::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}}, ov::element::f32, {}},
+     {ov::element::u8, {ov::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}}, ov::element::f32, {}}}};
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    BatchToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(input_shapes),
-        ::testing::ValuesIn(test_values)),
-    BatchToSpaceTransformation::getTestCaseName);
-} // namespace testValues
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         BatchToSpaceTransformation,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes), ::testing::ValuesIn(test_values)),
+                         BatchToSpaceTransformation::getTestCaseName);
+}  // namespace testValues

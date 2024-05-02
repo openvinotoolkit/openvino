@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <algorithm>
+#include <cmath>
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 
 #include "concatenation_inst.h"
-
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -26,7 +23,7 @@ struct concatenation_test_params {
     layout expected_layout;
 };
 
-class concatenation_test : public testing::TestWithParam<concatenation_test_params> { };
+class concatenation_test : public testing::TestWithParam<concatenation_test_params> {};
 
 TEST_P(concatenation_test, shape_infer) {
     auto p = GetParam();
@@ -57,34 +54,30 @@ TEST_P(concatenation_test, shape_infer) {
     ASSERT_EQ(res[0], p.expected_layout);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, concatenation_test,
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    concatenation_test,
     testing::ValuesIn(std::vector<concatenation_test_params>{
-        {
-            {
-                layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
-                layout{ov::PartialShape{1, 3, 3, 4}, data_types::f32, format::bfyx},
-            },
-            1,
-            layout{ov::PartialShape{1, 5, 3, 4}, data_types::f32, format::bfyx}
-        },
-        {
-            {
-                layout{ov::PartialShape{4, 2}, data_types::f32, format::bfyx},
-                layout{ov::PartialShape{3, 2}, data_types::f32, format::bfyx},
-                layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx},
-            },
-            0,
-            layout{ov::PartialShape{9, 2}, data_types::f32, format::bfyx}
-        },
-        {
-            {
-                layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
-                layout{ov::PartialShape{3, 2}, data_types::f32, format::bfyx},
-                layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx},
-            },
-            0,
-            layout{ov::PartialShape{ov::Dimension(5, -1), ov::Dimension(2, 2)}, data_types::f32, format::bfyx}
-        },
+        {{
+             layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
+             layout{ov::PartialShape{1, 3, 3, 4}, data_types::f32, format::bfyx},
+         },
+         1,
+         layout{ov::PartialShape{1, 5, 3, 4}, data_types::f32, format::bfyx}},
+        {{
+             layout{ov::PartialShape{4, 2}, data_types::f32, format::bfyx},
+             layout{ov::PartialShape{3, 2}, data_types::f32, format::bfyx},
+             layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx},
+         },
+         0,
+         layout{ov::PartialShape{9, 2}, data_types::f32, format::bfyx}},
+        {{
+             layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx},
+             layout{ov::PartialShape{3, 2}, data_types::f32, format::bfyx},
+             layout{ov::PartialShape{2, 2}, data_types::f32, format::bfyx},
+         },
+         0,
+         layout{ov::PartialShape{ov::Dimension(5, -1), ov::Dimension(2, 2)}, data_types::f32, format::bfyx}},
     }));
 
-}  // shape_infer_tests
+}  // namespace shape_infer_tests

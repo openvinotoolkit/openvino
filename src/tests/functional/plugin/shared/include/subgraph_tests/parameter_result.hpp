@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/parameter_result.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "shared_test_classes/subgraph/parameter_result.hpp"
 
 namespace ov {
 namespace test {

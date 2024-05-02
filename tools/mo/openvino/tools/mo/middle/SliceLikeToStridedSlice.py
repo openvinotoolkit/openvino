@@ -1,16 +1,20 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 from typing import Dict
+
+import numpy as np
 
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
 from openvino.tools.mo.graph.graph import Graph, Node, rename_nodes
 from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 from openvino.tools.mo.ops.shape import Shape
 from openvino.tools.mo.ops.strided_slice import StridedSlice
-from openvino.tools.mo.utils.shape import get_shape_values_by_range_idxs, new_shape_node_from_shape_nodes, \
-    get_shape_and_rank_nodes_by_port
+from openvino.tools.mo.utils.shape import (
+    get_shape_and_rank_nodes_by_port,
+    get_shape_values_by_range_idxs,
+    new_shape_node_from_shape_nodes,
+)
 
 
 class SliceLikeToStridedSlice(MiddleReplacementPattern):
@@ -43,21 +47,16 @@ class SliceLikeToStridedSlice(MiddleReplacementPattern):
     """
 
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet']
+    graph_condition = [lambda graph: graph.graph["fw"] == "mxnet"]
 
     @staticmethod
     def pattern():
-        return dict(
-            nodes=[
-                ('op', dict(kind='op', op='slice_like'))
-            ],
-            edges=[]
-        )
+        return dict(nodes=[("op", dict(kind="op", op="slice_like"))], edges=[])
 
     @staticmethod
     def replace_pattern(graph: Graph, match: Dict[str, Node]):
-        node = match['op']
-        name = node.soft_get('name', node.id)
+        node = match["op"]
+        name = node.soft_get("name", node.id)
         input_shape = node.in_port(0).data.get_shape()
         second_input_shape = node.in_port(1).data.get_shape()
 
@@ -71,25 +70,44 @@ class SliceLikeToStridedSlice(MiddleReplacementPattern):
         shrink_axis_mask = np.zeros(len(input_shape), dtype=np.int64)
         ellipsis_mask = np.zeros(len(input_shape), dtype=np.int64)
 
-        ss = create_op_with_const_inputs(graph, StridedSlice,
-                                         port_value_dict={1: np.zeros(len(input_shape), dtype=np.int64)},
-                                         op_attrs={'name': 'StridedSlice', 'begin_mask': begin_mask,
-                                                   'end_mask': end_mask, 'new_axis_mask': new_axis_mask,
-                                                   'shrink_axis_mask': shrink_axis_mask,
-                                                   'ellipsis_mask': ellipsis_mask})
+        ss = create_op_with_const_inputs(
+            graph,
+            StridedSlice,
+            port_value_dict={1: np.zeros(len(input_shape), dtype=np.int64)},
+            op_attrs={
+                "name": "StridedSlice",
+                "begin_mask": begin_mask,
+                "end_mask": end_mask,
+                "new_axis_mask": new_axis_mask,
+                "shrink_axis_mask": shrink_axis_mask,
+                "ellipsis_mask": ellipsis_mask,
+            },
+        )
         if input_shape.size == second_input_shape.size:
-            end = Shape(graph, dict(name=name + '/End')).create_node()
+            end = Shape(graph, dict(name=name + "/End")).create_node()
             end.in_port(0).connect(node.in_port(1).get_source())
             ss.in_port(2).connect(end.out_port(0))
         else:
-            shape_like, rank_like = get_shape_and_rank_nodes_by_port(node.in_port(1).get_source())
-            end_first_part = get_shape_values_by_range_idxs(shape_like, rank_like, 0, node.axes[-1], include_end=True)
+            shape_like, rank_like = get_shape_and_rank_nodes_by_port(
+                node.in_port(1).get_source()
+            )
+            end_first_part = get_shape_values_by_range_idxs(
+                shape_like, rank_like, 0, node.axes[-1], include_end=True
+            )
             if input_shape.size - 1 == node.axes[-1]:
                 ss.in_port(2).connect(end_first_part.out_port(0))
             else:
-                shape, rank = get_shape_and_rank_nodes_by_port(node.in_port(0).get_source())
-                end_second_part = get_shape_values_by_range_idxs(shape, rank, node.axes[-1], -1, include_begin=False,
-                                                                 include_end=True)
+                shape, rank = get_shape_and_rank_nodes_by_port(
+                    node.in_port(0).get_source()
+                )
+                end_second_part = get_shape_values_by_range_idxs(
+                    shape,
+                    rank,
+                    node.axes[-1],
+                    -1,
+                    include_begin=False,
+                    include_end=True,
+                )
                 end = new_shape_node_from_shape_nodes([end_first_part, end_second_part])
                 ss.in_port(2).connect(end.out_port(0))
 
@@ -97,4 +115,4 @@ class SliceLikeToStridedSlice(MiddleReplacementPattern):
         node.in_port(1).disconnect()
         node.out_port(0).get_connection().set_source(ss.out_port(0))
 
-        rename_nodes([(node, name + '/ShouldBeDeleted'), (ss, name)])
+        rename_nodes([(node, name + "/ShouldBeDeleted"), (ss, name)])

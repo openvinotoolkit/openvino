@@ -10,61 +10,66 @@ from openvino._pyopenvino import get_version
 __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
-from openvino._pyopenvino import Symbol
-from openvino._pyopenvino import Dimension
-from openvino._pyopenvino import Input
-from openvino._pyopenvino import Output
-from openvino._pyopenvino import Node
-from openvino._pyopenvino import Type
-from openvino._pyopenvino import PartialShape
-from openvino._pyopenvino import Shape
-from openvino._pyopenvino import Strides
-from openvino._pyopenvino import CoordinateDiff
-from openvino._pyopenvino import DiscreteTypeInfo
-from openvino._pyopenvino import AxisSet
-from openvino._pyopenvino import AxisVector
-from openvino._pyopenvino import Coordinate
-from openvino._pyopenvino import Layout
-from openvino._pyopenvino import ConstOutput
-from openvino._pyopenvino import layout_helpers
-from openvino._pyopenvino import OVAny
-from openvino._pyopenvino import RTMap
-from openvino.runtime.ie_api import Core
-from openvino.runtime.ie_api import CompiledModel
-from openvino.runtime.ie_api import InferRequest
-from openvino.runtime.ie_api import Model
-from openvino.runtime.ie_api import AsyncInferQueue
-from openvino._pyopenvino import Version
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import Extension
-from openvino._pyopenvino import ProfilingInfo
-from openvino._pyopenvino import get_batch
-from openvino._pyopenvino import set_batch
-from openvino._pyopenvino import serialize
-from openvino._pyopenvino import save_model
-from openvino._pyopenvino import shutdown
-
-# Import opsets
-from openvino.runtime import opset1
-from openvino.runtime import opset2
-from openvino.runtime import opset3
-from openvino.runtime import opset4
-from openvino.runtime import opset5
-from openvino.runtime import opset6
-from openvino.runtime import opset7
-from openvino.runtime import opset8
-from openvino.runtime import opset9
-from openvino.runtime import opset10
-from openvino.runtime import opset11
-from openvino.runtime import opset12
-from openvino.runtime import opset13
+from openvino._pyopenvino import (
+    AxisSet,
+    AxisVector,
+    ConstOutput,
+    Coordinate,
+    CoordinateDiff,
+    Dimension,
+    DiscreteTypeInfo,
+    Extension,
+    Input,
+    Layout,
+    Node,
+    Output,
+    OVAny,
+    PartialShape,
+    ProfilingInfo,
+    RTMap,
+    Shape,
+    Strides,
+    Symbol,
+    Tensor,
+    Type,
+    Version,
+    get_batch,
+    layout_helpers,
+    save_model,
+    serialize,
+    set_batch,
+    shutdown,
+)
 
 # Import properties API
-from openvino.runtime import properties
+# Import opsets
+from openvino.runtime import (
+    opset1,
+    opset2,
+    opset3,
+    opset4,
+    opset5,
+    opset6,
+    opset7,
+    opset8,
+    opset9,
+    opset10,
+    opset11,
+    opset12,
+    opset13,
+    properties,
+)
 
 # Helper functions for openvino module
-from openvino.runtime.ie_api import tensor_from_file
-from openvino.runtime.ie_api import compile_model
+from openvino.runtime.ie_api import (
+    AsyncInferQueue,
+    CompiledModel,
+    Core,
+    InferRequest,
+    Model,
+    compile_model,
+    tensor_from_file,
+)
 
 # Extend Node class to support binary operators
 Node.__add__ = opset13.add

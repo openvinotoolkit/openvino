@@ -4,14 +4,14 @@
 
 #include "shared_test_classes/single_op/power.hpp"
 
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
-std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerParamsTuple> &obj) {
+std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerParamsTuple>& obj) {
     std::vector<InputShape> shapes;
     ov::element::Type model_type;
     std::string device_name;
@@ -53,5 +53,5 @@ void PowerLayerTest::SetUp() {
 
     function = std::make_shared<ov::Model>(pow, ov::ParameterVector{param}, "power");
 }
-} // namespace test
-} // namespace ov
+}  // namespace test
+}  // namespace ov

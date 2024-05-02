@@ -3,8 +3,10 @@
 //
 
 #include "normalize_kernel_base.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) const {
@@ -20,9 +22,9 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
     auto activation_dt = GetActivationType(np);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     if (!np.fused_ops.empty()) {
-        std::vector<std::string> idx_order = { "b", "f", "y", "x" };
+        std::vector<std::string> idx_order = {"b", "f", "y", "x"};
         auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt);
-        jit.Merge(MakeFusedOpsJitConstants(np, { conf }));
+        jit.Merge(MakeFusedOpsJitConstants(np, {conf}));
     }
 
     return jit;

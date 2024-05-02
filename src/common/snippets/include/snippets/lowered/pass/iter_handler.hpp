@@ -49,7 +49,8 @@ private:
 
 /**
  * @interface TransformInnerSplitLoop
- * @brief The pass updates finalization offsets, work amount and increment of inner Loop basing on tail_size of the current Loop
+ * @brief The pass updates finalization offsets, work amount and increment of inner Loop basing on tail_size of the
+ * current Loop
  * @param m_tail_size - tail_size of the current Loop
  * @ingroup snippets
  */
@@ -64,7 +65,7 @@ private:
     size_t m_tail_size;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

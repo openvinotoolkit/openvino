@@ -8,7 +8,8 @@
 
 namespace kernel_selector {
 struct experimental_detectron_roi_feature_extractor_params : public base_params {
-    experimental_detectron_roi_feature_extractor_params() : base_params(KernelType::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR) {}
+    experimental_detectron_roi_feature_extractor_params()
+        : base_params(KernelType::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR) {}
 
     int output_dim = 0;
     int pooled_height = 0;
@@ -21,7 +22,8 @@ struct experimental_detectron_roi_feature_extractor_params : public base_params 
 
 class ExperimentalDetectronROIFeatureExtractorRef : public KernelBaseOpenCL {
 public:
-    ExperimentalDetectronROIFeatureExtractorRef() : KernelBaseOpenCL("experimental_detectron_roi_feature_extractor_ref") {}
+    ExperimentalDetectronROIFeatureExtractorRef()
+        : KernelBaseOpenCL("experimental_detectron_roi_feature_extractor_ref") {}
     ~ExperimentalDetectronROIFeatureExtractorRef() = default;
 
     using DispatchData = CommonDispatchData;
@@ -29,6 +31,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
 protected:
     virtual JitConstants GetJitConstants(const experimental_detectron_roi_feature_extractor_params& params) const;
 };

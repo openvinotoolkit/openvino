@@ -6,8 +6,9 @@
 
 #include <sstream>
 #include <vector>
-#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
 namespace ov {
 namespace builder {
@@ -24,11 +25,10 @@ public:
         const std::vector<float>& constantValue,
         const ov::builder::subgraph::DequantizationOperations& dequantization);
 
-    static std::shared_ptr<ov::Model> getOriginal(
-        const ov::element::Type originalFunctionPrecision,
-        const ov::PartialShape& inputShape,
-        const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
-        const size_t opsetVersion);
+    static std::shared_ptr<ov::Model> getOriginal(const ov::element::Type originalFunctionPrecision,
+                                                  const ov::PartialShape& inputShape,
+                                                  const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+                                                  const size_t opsetVersion);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::PartialShape& inputShape,

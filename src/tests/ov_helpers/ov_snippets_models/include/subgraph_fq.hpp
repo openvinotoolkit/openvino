@@ -23,6 +23,7 @@ namespace snippets {
 class ThreeFQFunction : public SnippetsFunctionBase {
 public:
     explicit ThreeFQFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase({{1, 3, 20, 20}}) {}
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;

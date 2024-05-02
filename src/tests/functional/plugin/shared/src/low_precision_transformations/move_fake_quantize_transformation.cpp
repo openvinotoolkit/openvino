@@ -5,17 +5,17 @@
 #include "low_precision_transformations/move_fake_quantize_transformation.hpp"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/move_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
+std::string MoveFakeQuantizeTransformation::getTestCaseName(
+    testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
     ov::element::Type netPrecision;
     std::vector<ov::PartialShape> inputShape;
     std::string targetDevice;
@@ -25,11 +25,9 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::tie(netPrecision, inputShape, targetDevice, params, oneInputWithSplit, param) = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape[0], targetDevice, params) <<
-           "SPLIT:" << oneInputWithSplit << "_" <<
-        "OP:" << param.operation << "_" <<
-        "FQ:" << param.fakeQuantizeAfter << "_" <<
-        "DQ:" << param.dequantizationAfter;
+    result << get_test_case_name_by_params(netPrecision, inputShape[0], targetDevice, params)
+           << "SPLIT:" << oneInputWithSplit << "_" << "OP:" << param.operation << "_"
+           << "FQ:" << param.fakeQuantizeAfter << "_" << "DQ:" << param.dequantizationAfter;
     return result.str();
 }
 
@@ -60,21 +58,20 @@ void MoveFakeQuantizeTransformation::SetUp() {
         init_input_shapes(inputShapes);
     }
 
-    function = ov::builder::subgraph::MoveFakeQuantize::get(
-        netPrecision,
-        inputShapes,
-        param.concatInputsCount,
-        {},
-        {},
-        {},
-        param.operation,
-        param.fakeQuantizeAfter,
-        param.convertAfter,
-        param.dequantizationAfter,
-        {},
-        {},
-        param.axis,
-        oneInputWithSplit);
+    function = ov::builder::subgraph::MoveFakeQuantize::get(netPrecision,
+                                                            inputShapes,
+                                                            param.concatInputsCount,
+                                                            {},
+                                                            {},
+                                                            {},
+                                                            param.operation,
+                                                            param.fakeQuantizeAfter,
+                                                            param.convertAfter,
+                                                            param.dequantizationAfter,
+                                                            {},
+                                                            {},
+                                                            param.axis,
+                                                            oneInputWithSplit);
 }
 
 void MoveFakeQuantizeTransformation::run() {
