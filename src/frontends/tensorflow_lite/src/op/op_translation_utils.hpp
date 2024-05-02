@@ -11,6 +11,7 @@
 #include "common_op_table.hpp"
 #include "decoder_map.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -52,7 +53,7 @@ void get_conv(ov::OutputVector& output,
               ov::AxisVector transpose_axes = {1, 2, 3, 0});
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::DecoderBase>& decoder);
+              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder);
 void get_activation(ov::OutputVector& output,
                     const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder);
 void get_activation(ov::OutputVector& output,

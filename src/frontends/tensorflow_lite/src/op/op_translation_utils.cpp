@@ -58,7 +58,7 @@ void get_pool(ov::OutputVector& output,
 
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::DecoderBase>& decoder) {
+              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder) {
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
