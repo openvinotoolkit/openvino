@@ -6,7 +6,7 @@ import os
 import pytest
 import torch
 from huggingface_hub import model_info
-from models_hub_common.constants import hf_hub_cache_dir
+from models_hub_common.constants import pt_hfhub_cache_dir
 from models_hub_common.utils import cleanup_dir
 import transformers
 from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, AutoFeatureExtractor, AutoModelForTextToWaveform, \
@@ -425,7 +425,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
     def teardown_method(self):
         # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
+        cleanup_dir(pt_hfhub_cache_dir)
         # restore after gptq patching
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit)
