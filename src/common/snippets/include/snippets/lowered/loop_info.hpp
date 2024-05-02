@@ -35,6 +35,17 @@ public:
     virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const = 0;
 
     /**
+     * @brief Returns count of entry points
+     * @return count
+     */
+    size_t get_entry_count() const;
+    /**
+     * @brief Returns count of exit points
+     * @return count
+     */
+    size_t get_exit_count() const;
+
+    /**
      * @brief Returns dimension index if dimension indices for all entry and exit points are equal.
      *        Otherwise returns UNDEFINED_DIM_IDX.
      * @return index
@@ -301,6 +312,19 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+
+    /**
+     * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
+     *        Note: sorts the correspondings data pointer shifts parameters: `m_ptr_increments` etc
+     * @param new_order vector of new indexes
+     */
+    void sort_entry_ports(const std::vector<size_t>& new_order) override;
+    /**
+     * @brief Sort ALL exit Loop Ports by `new_order`: `m_exit_points[new_order[i]] = m_exit_points[i]`
+     *        Note: sorts the correspondings data pointer shifts parameters: `m_ptr_increments` etc
+     * @param new_order vector of new indexes
+     */
+    void sort_exit_ports(const std::vector<size_t>& new_order) override;
 
 private:
     // ExpandedLoopInfo has LoopPorts to have opportunity to work with Loops

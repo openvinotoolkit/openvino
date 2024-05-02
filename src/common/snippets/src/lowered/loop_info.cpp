@@ -37,6 +37,14 @@ size_t LoopInfo::get_dim_idx() const {
     }
 }
 
+size_t LoopInfo::get_entry_count() const {
+    return m_entry_points.size();
+}
+
+size_t LoopInfo::get_exit_count() const {
+    return m_exit_points.size();
+}
+
 size_t LoopInfo::get_work_amount() const {
     return m_work_amount;
 }
@@ -100,25 +108,26 @@ void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const s
 }
 
 namespace {
-void sort_ports(const std::vector<size_t>& new_order, std::vector<LoopPort>& ports) {
-    OPENVINO_ASSERT(new_order.size() == ports.size(),
-                    "Failed to sort ports: `new_order` must contain new indexes for ALL ports");
+template<typename T>
+void sort(const std::vector<size_t>& new_order, std::vector<T>& values) {
+    OPENVINO_ASSERT(new_order.size() == values.size(),
+                    "Failed to sort values: `new_order` must contain new indexes for ALL values");
     OPENVINO_ASSERT(std::set<size_t>(new_order.cbegin(), new_order.cend()).size() == new_order.size(),
-                    "Failed to sort ports: new order must contain unique indexes");
-    std::vector<LoopPort> ordered_ports(ports.size());
-    for (size_t i = 0; i < ports.size(); ++i) {
-        ordered_ports[new_order[i]] = ports[i];
+                    "Failed to sort values: new order must contain unique indexes");
+    std::vector<T> ordered_values(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        ordered_values[new_order[i]] = values[i];
     }
-    ports = std::move(ordered_ports);
+    values = std::move(ordered_values);
 }
 }  // namespace
 
 void LoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
-    sort_ports(new_order, m_entry_points);
+    sort(new_order, m_entry_points);
 }
 
 void LoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
-    sort_ports(new_order, m_exit_points);
+    sort(new_order, m_exit_points);
 }
 
 void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initializer) const {
@@ -266,6 +275,35 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
 
 const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
+}
+
+namespace {
+void sort_expanded_params(std::vector<int64_t>& params, const std::vector<size_t>& new_order, size_t start_idx, size_t end_idx) {
+    std::vector<int64_t> sub_params(params.cbegin() + start_idx, params.cbegin() + end_idx);
+    sort(new_order, sub_params);
+    std::copy(sub_params.cbegin(), sub_params.cend(), params.begin() + start_idx);
+}
+
+}  // namespace
+
+void ExpandedLoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
+    LoopInfo::sort_entry_ports(new_order);
+
+    size_t start_idx = 0;
+    size_t end_idx = get_entry_count();
+    sort_expanded_params(m_ptr_increments, new_order, start_idx, end_idx);
+    sort_expanded_params(m_finalization_offsets, new_order, start_idx, end_idx);
+    sort_expanded_params(m_data_sizes, new_order, start_idx, end_idx);
+}
+
+void ExpandedLoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
+    LoopInfo::sort_exit_ports(new_order);
+
+    size_t start_idx = get_entry_count();
+    size_t end_idx = get_entry_count() + get_exit_count();
+    sort_expanded_params(m_ptr_increments, new_order, start_idx, end_idx);
+    sort_expanded_params(m_finalization_offsets, new_order, start_idx, end_idx);
+    sort_expanded_params(m_data_sizes, new_order, start_idx, end_idx);
 }
 
 } // namespace lowered
