@@ -118,11 +118,27 @@ public:
         std::for_each(m_entry_points.begin(), m_entry_points.end(), updater);
     }
     /**
+     * @brief Update the parameters of existing loop input ports
+     * @param updater - function that updates ports and need index of the port
+     */
+    inline void update_entry_points(const std::function<void(LoopPort&, size_t idx)>& updater) {
+        for (size_t i = 0; i < m_entry_points.size(); ++i)
+            updater(m_entry_points[i], i);
+    }
+    /**
      * @brief Update the parameters of existing loop output ports
      * @param updater - function that updates ports
      */
     inline void update_exit_points(const std::function<void(LoopPort&)>& updater) {
         std::for_each(m_exit_points.begin(), m_exit_points.end(), updater);
+    }
+    /**
+     * @brief Update the parameters of existing loop output ports
+     * @param updater - function that updates ports and need index of the port
+     */
+    inline void update_exit_points(const std::function<void(LoopPort&, size_t idx)>& updater) {
+        for (size_t i = 0; i < m_exit_points.size(); ++i)
+            updater(m_exit_points[i], i);
     }
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
