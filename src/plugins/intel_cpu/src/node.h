@@ -435,10 +435,13 @@ public:
 
     virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
-    virtual void execute(dnnl::stream strm) = 0;
+    // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
+    // but this requires changes in all the nodes. Since moving to a numa node right before an execute
+    // is a temprorary solution, do it this way for now.
+    void executeStatic(const dnnl::stream strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
-    void executeDynamic(dnnl::stream strm);
+    void executeDynamic(dnnl::stream strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
@@ -759,6 +762,7 @@ protected:
     virtual bool needShapeInfer() const;
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     IShapeInfer::Result shapeInfer() const;
+    virtual void execute(dnnl::stream strm) = 0;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
