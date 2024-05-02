@@ -76,16 +76,7 @@ public:
      * @param dim_idx - index
      */
     void set_dim_idx(size_t dim_idx);
-    /**
-     * @brief Set m_entry_points value
-     * @param entry_points - vector of loop input ports
-     */
-    virtual void set_entry_points(std::vector<LoopPort> entry_points);
-    /**
-     * @brief Set m_exit_points value
-     * @param exit_points - vector of loop output ports
-     */
-    virtual void set_exit_points(std::vector<LoopPort> exit_points);
+
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      * @param actual_port actual port
@@ -99,6 +90,7 @@ public:
      * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
      */
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
+
     /**
      * @brief Sort ALL entry Loop Ports by `new_order`: `m_entry_points[new_order[i]] = m_entry_points[i]`
      * @param new_order vector of new indexes
@@ -309,17 +301,6 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
-
-    /**
-     * @brief Set m_entry_points value
-     * @param entry_points - vector of loop input ports
-     */
-    void set_entry_points(std::vector<LoopPort> entry_points) override;
-    /**
-     * @brief Set m_exit_points value
-     * @param exit_points - vector of loop output ports
-     */
-    void set_exit_points(std::vector<LoopPort> exit_points) override;
 
 private:
     // ExpandedLoopInfo has LoopPorts to have opportunity to work with Loops

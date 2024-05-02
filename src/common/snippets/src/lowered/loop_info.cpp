@@ -69,14 +69,6 @@ void LoopInfo::set_dim_idx(size_t dim_idx) {
     update_exit_points(set_common_dim_idx);
 }
 
-void LoopInfo::set_entry_points(std::vector<LoopPort> entry_points) {
-    m_entry_points = std::move(entry_points);
-}
-
-void LoopInfo::set_exit_points(std::vector<LoopPort> exit_points) {
-    m_exit_points = std::move(exit_points);
-}
-
 void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
     auto& ports = actual_port.expr_port->get_type() == ExpressionPort::Input ? m_entry_points : m_exit_points;
     auto port_it = std::find_if(ports.begin(), ports.end(),
@@ -275,19 +267,6 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
 const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
 }
-
-void ExpandedLoopInfo::set_entry_points(std::vector<LoopPort> entry_points) {
-    OPENVINO_ASSERT(m_entry_points.size() == entry_points.size(),
-                    "Failed to set entry points to ExpandedLoopInfo: count of new ports is not equal to the current port count");
-    m_entry_points = std::move(entry_points);
-}
-
-void ExpandedLoopInfo::set_exit_points(std::vector<LoopPort> exit_points) {
-    OPENVINO_ASSERT(m_exit_points.size() == exit_points.size(),
-                    "Failed to set exit points to ExpandedLoopInfo: count of new ports is not equal to the current port count");
-    m_exit_points = std::move(exit_points);
-}
-
 
 } // namespace lowered
 } // namespace snippets
