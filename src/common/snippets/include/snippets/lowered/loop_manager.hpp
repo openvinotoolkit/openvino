@@ -178,22 +178,22 @@ public:
      * @param loop_id the target Loop ID
      * @param actual_port the current port
      * @param target_ports vector of the new ports (the order is important!)
-     * @param is_entry True if these ports are input, otherwise - output
      */
     template<typename T>
-    void update_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports, bool is_entry = true);
+    void update_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports) {
+        const auto& loop_info = get_loop_info(loop_id);
+        loop_info->replace_with_new_ports(actual_port, target_ports);
+    }
     /**
      * @brief Update Loop ports for several Loops.
      * @param loop_ids the target Loop IDs
      * @param actual_port the current port
      * @param target_ports vector of the new ports (the order is important!)
-     * @param is_entry True if these ports are input, otherwise - output
      */
     template<typename T>
-    void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port,
-                           const std::vector<T>& target_ports, bool is_entry = true) {
+    void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port, const std::vector<T>& target_ports) {
         for (auto loop_id : loop_ids) {
-            update_loop_port(loop_id, actual_port, target_ports, is_entry);
+            update_loop_port(loop_id, actual_port, target_ports);
         }
     }
     /**

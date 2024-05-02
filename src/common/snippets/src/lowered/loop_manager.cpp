@@ -343,42 +343,6 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& exit_points,
     exit_points = new_exit_points;
 }
 
-template<>
-void LoopManager::update_loop_port(size_t loop_id, const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports, bool is_entry) {
-    const auto& loop_info = get_loop_info(loop_id);
-    auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return *point.expr_port.get() == actual_port; });
-    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
-    // For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
-        return;
-
-    // to save other parameters except expression port
-    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
-    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
-                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
-                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
-                       copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
-                       return copy;
-                   });
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
-    is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
-}
-
-template<>
-void LoopManager::update_loop_port(size_t loop_id, const LoopPort& actual_port, const std::vector<LoopPort>& target_ports, bool is_entry) {
-    const auto& loop_info = get_loop_info(loop_id);
-    auto ports = is_entry ? loop_info->get_entry_points() : loop_info->get_exit_points();
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& point) { return point == actual_port; });
-    OPENVINO_ASSERT(port_it != ports.end(), "Failed update_loop_port: existing loop ports has not been found");
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
-    is_entry ? loop_info->set_entry_points(ports) : loop_info->set_exit_points(ports);
-}
-
 void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     auto output_ports = expr->get_output_ports();
     for (size_t i = 0; i < expr->get_input_count(); ++i) {
@@ -392,11 +356,11 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
                 continue;
             count_of_common_outer_loops = std::min(count_of_common_outer_loops, get_common_outer_loops(source.get_expr(), source_consumer.get_expr()).size());
         }
-        update_loops_port({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports, false);
+        update_loops_port({common_outer_loop_ids.cbegin(), common_outer_loop_ids.cbegin() + count_of_common_outer_loops}, source, output_ports);
         // Save previous port
         if (count_of_common_outer_loops != common_outer_loop_ids.size()) {
             output_ports.insert(output_ports.begin(), source);
-            update_loops_port({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports, false);
+            update_loops_port({common_outer_loop_ids.cbegin() + count_of_common_outer_loops, common_outer_loop_ids.cend()}, source, output_ports);
         }
     }
     const auto input_ports = expr->get_input_ports();
@@ -404,7 +368,7 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
         const auto& consumers = expr->get_output_port_connector(i)->get_consumers();
         for (const auto& consumer : consumers) {
             const auto common_outer_loop_ids = get_common_outer_loops(expr, consumer.get_expr());
-            update_loops_port(common_outer_loop_ids, consumer, input_ports, true);
+            update_loops_port(common_outer_loop_ids, consumer, input_ports);
         }
     }
 }
@@ -426,7 +390,7 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
         update_loop_port(loop_id, decomposed_expr->get_input_port(i), new_entries);
     }
     for (size_t i = 0; i < decomposed_expr->get_output_count(); ++i) {
-        update_loop_port(loop_id, decomposed_expr->get_output_port(i), new_exits, false);
+        update_loop_port(loop_id, decomposed_expr->get_output_port(i), new_exits);
     }
 }
 

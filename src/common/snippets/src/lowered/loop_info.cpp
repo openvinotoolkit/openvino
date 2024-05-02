@@ -77,6 +77,36 @@ void LoopInfo::set_exit_points(std::vector<LoopPort> exit_points) {
     m_exit_points = std::move(exit_points);
 }
 
+void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
+    auto& ports = actual_port.expr_port->get_type() == ExpressionPort::Input ? m_entry_points : m_exit_points;
+    auto port_it = std::find_if(ports.begin(), ports.end(),
+                                [&actual_port](const LoopPort& point) { return point == actual_port; });
+    OPENVINO_ASSERT(port_it != ports.end(), "Failed update_loop_port: existing loop ports has not been found");
+    port_it = ports.erase(port_it);
+    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+}
+
+void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
+    auto& ports = actual_port.get_type() == ExpressionPort::Input ? m_entry_points : m_exit_points;
+    auto port_it = std::find_if(ports.begin(), ports.end(),
+                                [&actual_port](const LoopPort& point) { return *point.expr_port.get() == actual_port; });
+    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
+    // For example, not all inner loop ports are ports of outer loops
+    if (port_it == ports.end())
+        return;
+
+    // to save other parameters except expression port
+    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
+    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
+                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
+                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
+                       copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
+                       return copy;
+                   });
+    port_it = ports.erase(port_it);
+    ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
+}
+
 void LoopInfo::init_from_ports(const std::function<void(const LoopPort&)>& initializer) const {
     std::for_each(m_entry_points.cbegin(), m_entry_points.cend(), initializer);
     std::for_each(m_exit_points.cbegin(), m_exit_points.cend(), initializer);

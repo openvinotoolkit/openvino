@@ -86,6 +86,19 @@ public:
      * @param exit_points - vector of loop output ports
      */
     virtual void set_exit_points(std::vector<LoopPort> exit_points);
+    /**
+     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
+     * @param actual_port actual port
+     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     */
+    virtual void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports);
+    /**
+     * @brief Replace the current LoopPort that contains ExpressionPort `actual_port` with new `target_ports`
+     *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
+     * @param actual_port actual port
+     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     */
+    virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
 
     /**
      * @brief Update the parameters of existing loop input ports
