@@ -2332,15 +2332,14 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         }
         std::cout << std::endl;
     }
-    /*
+    
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
     {
         auto& engine = get_test_engine();
         // convert half_t to FLOAT16
-        using type_ = typename data_type_to_type<Data_Type>::type;
-        using type = typename std::conditional<std::is_same<type_, half_t>::value, FLOAT16, type_>::type;
+        using type = typename ov::element_type_traits<Data_Type>::value_type;
 
         std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
         std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2415,7 +2414,7 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         auto output_layout_ref = network_ref.get_program()->get_node("output").get_output_layout();
         auto output_layout_opt = network_tile.get_program()->get_node("output").get_output_layout();
         std::string frm_str = cldnn::format(format).to_string();
-        std::string input_type = data_type_traits::name(Data_Type);
+        std::string input_type = ov::element::Type(Data_Type).get_type_name();
 
         std::cout << "Exectued time " << " " << "permute_ref" << " " << " input(" << tensor.to_string()
                   << ") output(" <<  output_layout_ref.to_string() << ") "
@@ -2425,16 +2424,16 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                   << frm_str << " " << input_type << " " << exectime_opt << std::endl;
 
     }
-    */
+    
 };
 
-/*
+
 // No need to run performance tests on CI
 TEST_P(TiledPerformancePermuteTest, DISABLED_f32) {
     auto p = GetParam();
     execute_perf_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
-*/
+
 
 INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {
