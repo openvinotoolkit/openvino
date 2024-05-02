@@ -80,10 +80,10 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          path: 'action_root'
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./action_root/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
@@ -277,7 +277,7 @@ jobs:
         if: runner.os != 'macOS'
         uses: actions/checkout@v4
         with:
-          sparse-checkout: openvino/docs/snippets
+          sparse-checkout: docs/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
