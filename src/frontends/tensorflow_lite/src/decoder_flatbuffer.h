@@ -77,6 +77,8 @@ public:
         size_t idx,
         const ov::frontend::InputModel& model) const;
 
+    virtual ~DecoderFlatBuffer() = default;
+
 protected:
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
         const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,

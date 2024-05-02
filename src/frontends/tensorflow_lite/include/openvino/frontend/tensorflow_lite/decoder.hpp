@@ -42,9 +42,6 @@ public:
 
     /// \brief Get output tensor info
     virtual TensorMetaInfo get_output_tensor_info(size_t idx) const = 0;
-
-    /// \brief Destructor
-    virtual ~DecoderBase();
 };
 
 class TENSORFLOW_LITE_API DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {};

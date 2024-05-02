@@ -41,7 +41,7 @@ public:
     virtual std::shared_ptr<GraphIterator> get_subgraph(const size_t& idx) const = 0;
 
     /// \brief Destructor
-    virtual ~GraphIterator() = default;
+    virtual ~GraphIterator();
 };
 
 }  // namespace tensorflow_lite
