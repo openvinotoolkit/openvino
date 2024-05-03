@@ -49,11 +49,11 @@ private:
     // This helps to avoid fusing for the ports with incompleted data
     static bool loop_ports_are_compatible(const LoopInfoPtr& loop_upper, const LoopInfoPtr& loop_lower);
     static bool fuse_upper_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
-                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+                                        const std::shared_ptr<ExpressionPort>& current_input_port,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
     static bool fuse_lower_into_current(LinearIR& linear_ir, const LoopManagerPtr& loop_manager,
-                                        const std::shared_ptr<ExpressionPort>& current_entry_point,
+                                        const std::shared_ptr<ExpressionPort>& current_input_port,
                                         size_t current_loop_id, size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos, LinearIR::constExprIt& current_loop_end_pos);
     static void move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,

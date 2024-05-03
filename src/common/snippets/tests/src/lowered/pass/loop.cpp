@@ -35,8 +35,8 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
                                 [](const ExpressionPtr& expr) { return ov::is_type<ov::op::v1::Add>(expr->get_node()); });
     ASSERT_TRUE(expr_it != linear_ir.cend());
     const auto add = *expr_it;
-    const auto loop_entry_points = std::vector<ExpressionPort>{add->get_input_port(0), add->get_input_port(1)};
-    const auto loop_exit_points = std::vector<ExpressionPort>{add->get_output_port(0)};
+    const auto loop_input_ports = std::vector<ExpressionPort>{add->get_input_port(0), add->get_input_port(1)};
+    const auto loop_output_ports = std::vector<ExpressionPort>{add->get_output_port(0)};
     const auto loop_manager = linear_ir.get_loop_manager();
     const auto in_shape0 = in_shapes[0].get_shape();
     const auto in_shape1 = in_shapes[1].get_shape();
@@ -46,9 +46,9 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto blocked_inc = 1;
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
-    loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
-    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports);
+    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {

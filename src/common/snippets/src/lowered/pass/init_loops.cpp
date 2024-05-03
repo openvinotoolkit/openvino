@@ -40,7 +40,7 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
         //     Store; Loop ids [0,1,2,3]
         //     IntermediateMemoryBuffer; Loop ids [0,1]
         //     Load; Loop ids [0,1,4,5]
-        // Store is exit port of Loop-1, but it should be incremented only in Loop-2 and Loop-3. Similar with Load.
+        // Store is output port of Loop-1, but it should be incremented only in Loop-2 and Loop-3. Similar with Load.
         auto is_ignored = [=](const ExpressionPtr& target_expr) {
             if (ov::is_type<op::IntermediateMemoryBuffer>(target_expr->get_node())) {
                 const auto& target_loops = target_expr->get_loop_ids();
@@ -114,7 +114,7 @@ inline int64_t get_data_size(const LoopPort& loop_port) {
 
 inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
-    for (const auto& loop_port : loop_info->get_entry_points()) {
+    for (const auto& loop_port : loop_info->get_input_ports()) {
         if (loop_port.is_incremented) {
             const auto& desc = loop_port.expr_port->get_descriptor_ptr();
             const auto& shape = desc->get_shape();
@@ -122,7 +122,7 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
             utils::broadcast_merge_dim(work_amount, work_amount, shape[utils::get_input_dim_idx(layout, loop_port.dim_idx)]);
         }
     }
-    for (const auto& loop_port : loop_info->get_exit_points()) {
+    for (const auto& loop_port : loop_info->get_output_ports()) {
         if (loop_port.is_incremented) {
             const auto& desc = loop_port.expr_port->get_descriptor_ptr();
             const auto& shape = desc->get_shape();
@@ -153,9 +153,9 @@ void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t
     };
 
     if (only_runtime_args) {
-        loop_info->iterate_through_port_info(init_runtime_parameters);
+        loop_info->iterate_through_ports(init_runtime_parameters);
     } else {
-        loop_info->iterate_through_port_info(init_all_parameters);
+        loop_info->iterate_through_ports(init_all_parameters);
     }
 }
 

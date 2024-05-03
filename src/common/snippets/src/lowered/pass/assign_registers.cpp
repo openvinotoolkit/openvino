@@ -216,7 +216,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     }
 
     // define life intervals
-    // liveOut[i] - regs that are live on exit from i-th (topologically ordered) operation
+    // liveOut[i] - regs that are live on output from i-th (topologically ordered) operation
     // liveIn[i] - regs that are live on entering the i-th (topologically ordered) operation
     std::vector<std::set<Reg>> life_in_vec(std::move(used_vec)),
                                life_in_gpr(std::move(used_gpr));

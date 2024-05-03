@@ -46,8 +46,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         // be in the same set of outer loops. Otherwise they won't be fused.
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
-        for (const auto& entry_point : loop->get_entry_points()) {
-            const auto& parent_port = entry_point.expr_port->get_port_connector_ptr()->get_source();
+        for (const auto& input_port : loop->get_input_ports()) {
+            const auto& parent_port = input_port.expr_port->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
             const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())
@@ -73,15 +73,15 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
 
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
-                                                                      loop_to_split->get_entry_points(),
-                                                                      loop_to_split->get_exit_points());
+                                                                      loop_to_split->get_input_ports(),
+                                                                      loop_to_split->get_output_ports());
                 const auto split_loop_id = loop_manager->mark_loop(loop_bounds.first,
                                                                    loop_bounds.second,
                                                                    loop_to_fuse->get_work_amount(),
                                                                    loop_to_fuse->get_increment(),
                                                                    loop_to_split->get_dim_idx(),
-                                                                   loop_to_split->get_entry_points(),
-                                                                   loop_to_split->get_exit_points());
+                                                                   loop_to_split->get_input_ports(),
+                                                                   loop_to_split->get_output_ports());
                 const auto& new_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(split_loop_id);
                 const auto work_amount = loop_to_fuse->get_work_amount();
                 const auto increment = loop_to_fuse->get_increment();

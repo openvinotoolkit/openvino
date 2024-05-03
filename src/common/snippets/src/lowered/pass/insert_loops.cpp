@@ -17,8 +17,8 @@ namespace pass {
 
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
+    auto loop_entries = loop_info->get_input_ports();
+    auto loop_exits = loop_info->get_output_ports();
     const auto work_amount = loop_info->get_work_amount();
     const auto work_amount_increment = loop_info->get_increment();
 
@@ -64,8 +64,8 @@ bool InsertLoops::is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info) {
     auto is_loop_port_dynamic = [](const UnifiedLoopInfo::LoopPortDesc& shifts) {
         return utils::is_dynamic_value(shifts.ptr_increment) || utils::is_dynamic_value(shifts.finalization_offset);
     };
-    const auto& entry_shifts = loop_info->get_entry_port_descs();
-    const auto& exit_shifts = loop_info->get_exit_port_descs();
+    const auto& entry_shifts = loop_info->get_input_port_descs();
+    const auto& exit_shifts = loop_info->get_output_port_descs();
     return utils::is_dynamic_value(loop_info->get_work_amount()) ||
            std::any_of(entry_shifts.cbegin(), entry_shifts.cend(), is_loop_port_dynamic) ||
            std::any_of(exit_shifts.cbegin(), exit_shifts.cend(), is_loop_port_dynamic);

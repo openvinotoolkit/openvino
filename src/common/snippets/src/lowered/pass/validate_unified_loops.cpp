@@ -83,14 +83,14 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
         const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(pair.second);
         OPENVINO_ASSERT(loop_info,
                         "ValidateUnifiedLoops expects only UnifiedLoopInfo in LoopManager");
-        const auto& entry_points = loop_info->get_entry_points();
-        const auto& exit_points = loop_info->get_exit_points();
-        validate_loop_ports(entry_points);
-        validate_loop_ports(exit_points);
+        const auto& input_ports = loop_info->get_input_ports();
+        const auto& output_ports = loop_info->get_output_ports();
+        validate_loop_ports(input_ports);
+        validate_loop_ports(output_ports);
 
         std::set<size_t> unique_dimensions;
-        add_ports_dims_to_unique_dims(entry_points, unique_dimensions, true);
-        add_ports_dims_to_unique_dims(exit_points, unique_dimensions, false);
+        add_ports_dims_to_unique_dims(input_ports, unique_dimensions, true);
+        add_ports_dims_to_unique_dims(output_ports, unique_dimensions, false);
         OPENVINO_ASSERT(unique_dimensions.size() <= 1,
                         "Loop ports have incompatible dimensions, by which the loop iterates");
     }

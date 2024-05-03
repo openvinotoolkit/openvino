@@ -78,18 +78,18 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<Expres
 
 std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR &linear_ir, size_t loop_id) const {
     const auto loop_info = get_loop_info(loop_id);
-    return get_loop_bounds(linear_ir, loop_id, loop_info->get_entry_points(), loop_info->get_exit_points());
+    return get_loop_bounds(linear_ir, loop_id, loop_info->get_input_ports(), loop_info->get_output_ports());
 }
 
 std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR &linear_ir, size_t loop_id,
                                                                                      const std::vector<LoopPort>& entries,
                                                                                      const std::vector<LoopPort>& exits) {
-    OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
-    OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
+    OPENVINO_ASSERT(!entries.empty(), "Loop must have input ports");
+    OPENVINO_ASSERT(!exits.empty(), "Loop must have output ports");
 
     const auto& entry_expr = entries.front().expr_port->get_expr();
     auto loop_begin_pos = linear_ir.find(entry_expr);
-    // Some operations in Loop can be before first entry points: Scalars, VectorBuffer.
+    // Some operations in Loop can be before first input ports: Scalars, VectorBuffer.
     // We should iterate by them till the expr is in the corresponding Loop
     auto prev_loop_ids = (*std::prev(loop_begin_pos))->get_loop_ids();
     while (std::find(prev_loop_ids.begin(), prev_loop_ids.end(), loop_id) != prev_loop_ids.end()) {
@@ -129,8 +129,8 @@ LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port
         return *it;
     };
     const auto& loop_info = get_loop_info(loop_id);
-    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_entry_points())
-                                                         : get_loop_port(loop_info->get_exit_points());
+    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_input_ports())
+                                                         : get_loop_port(loop_info->get_output_ports());
 }
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
@@ -167,8 +167,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                             LinearIR::constExprIt loop_end_pos,
                             size_t loop_depth, size_t vector_size) {
     const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
-    std::vector<ExpressionPort> loop_entry_points, loop_exit_points;
-    LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_entry_points, loop_exit_points);
+    std::vector<ExpressionPort> loop_input_ports, loop_output_ports;
+    LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_input_ports, loop_output_ports);
 
     auto broadcast = [](std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t index) -> void {
         if (rhs == lhs)
@@ -189,9 +189,9 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
     std::vector<size_t> loop_subtensor;
     std::vector<size_t> loop_tensor(loop_depth, 1);
-    for (const auto& exit_point : loop_exit_points) {
-        const auto shape = utils::get_preordered_vdims(exit_point);
-        auto subtensor = exit_point.get_descriptor_ptr()->get_subtensor();
+    for (const auto& output_port : loop_output_ports) {
+        const auto shape = utils::get_preordered_vdims(output_port);
+        auto subtensor = output_port.get_descriptor_ptr()->get_subtensor();
         if (subtensor.empty()) {
             subtensor.resize(loop_depth, 1);
             subtensor[subtensor.size() - 1] = vector_size;
@@ -223,7 +223,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
         const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
         const auto increment = subtensor_value;
-        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_entry_points, loop_exit_points);
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_input_ports, loop_output_ports);
     }
 }
 
@@ -267,11 +267,11 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto& loop_info_upper = get_loop_info<UnifiedLoopInfo>(loop_id_upper);
     const auto& loop_info_lower = get_loop_info<UnifiedLoopInfo>(loop_id_lower);
 
-    auto entry_points_upper = loop_info_upper->get_entry_points();
-    auto exit_points_upper = loop_info_upper->get_exit_points();
-    auto entry_points_lower = loop_info_lower->get_entry_points();
-    auto exit_points_lower = loop_info_lower->get_exit_points();
-    fuse_loop_ports(exit_points_upper, entry_points_lower, loop_id_upper);
+    auto input_ports_upper = loop_info_upper->get_input_ports();
+    auto output_ports_upper = loop_info_upper->get_output_ports();
+    auto input_ports_lower = loop_info_lower->get_input_ports();
+    auto output_ports_lower = loop_info_lower->get_output_ports();
+    fuse_loop_ports(output_ports_upper, input_ports_lower, loop_id_upper);
 
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
     const auto& to = fuse_into_upper ? loop_id_upper : loop_id_lower;
@@ -282,10 +282,10 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto increment = std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment());
     const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
 
-    auto new_entries = entry_points_upper;
-    new_entries.insert(new_entries.end(), entry_points_lower.begin(), entry_points_lower.end());
-    auto new_exits = exit_points_upper;
-    new_exits.insert(new_exits.end(), exit_points_lower.begin(), exit_points_lower.end());
+    auto new_entries = input_ports_upper;
+    new_entries.insert(new_entries.end(), input_ports_lower.begin(), input_ports_lower.end());
+    auto new_exits = output_ports_upper;
+    new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
     m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
 
@@ -297,26 +297,26 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     remove_loop_info(from);
 }
 
-void LoopManager::fuse_loop_ports(std::vector<LoopPort>& exit_points,
-                                  std::vector<LoopPort>& entry_points,
+void LoopManager::fuse_loop_ports(std::vector<LoopPort>& output_ports,
+                                  std::vector<LoopPort>& input_ports,
                                   size_t loop_id) {
     auto is_loop_id_found = [](const std::vector<size_t>& ids, size_t id) {
         return std::find(ids.cbegin(), ids.cend(), id) != ids.cend();
     };
 
-    std::vector<LoopPort> new_exit_points;
-    for (const auto& exit_point : exit_points) {
-        const auto consumers_inputs = exit_point.expr_port->get_connected_ports();
+    std::vector<LoopPort> new_output_ports;
+    for (const auto& output_port : output_ports) {
+        const auto consumers_inputs = output_port.expr_port->get_connected_ports();
 
-        std::set<LoopPort> mapped_entry_points;
+        std::set<LoopPort> mapped_input_ports;
         std::set<ExpressionPtr> outside_consumers;
         for (const auto& consumer_input : consumers_inputs) {
-            const auto entry_point_it = std::find_if(entry_points.begin(), entry_points.end(),
-                                                     [&consumer_input](const LoopPort& point) {
-                                                             return *point.expr_port.get() == consumer_input;
+            const auto input_port_it = std::find_if(input_ports.begin(), input_ports.end(),
+                                                     [&consumer_input](const LoopPort& port) {
+                                                             return *port.expr_port.get() == consumer_input;
                                                          });
-            if (entry_point_it != entry_points.end()) {
-                mapped_entry_points.insert(*entry_point_it);
+            if (input_port_it != input_ports.end()) {
+                mapped_input_ports.insert(*input_port_it);
                 continue;
             }
 
@@ -327,20 +327,20 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& exit_points,
             }
         }
 
-        // Remove entry points which are mapped
-        auto last_point = entry_points.end();
-        for (const auto& mapped_entry_point : mapped_entry_points) {
-            last_point = std::remove(entry_points.begin(), last_point, mapped_entry_point);
+        // Remove input ports which are mapped
+        auto last_point = input_ports.end();
+        for (const auto& mapped_input_port : mapped_input_ports) {
+            last_point = std::remove(input_ports.begin(), last_point, mapped_input_port);
         }
-        entry_points.resize(entry_points.size() - mapped_entry_points.size());
+        input_ports.resize(input_ports.size() - mapped_input_ports.size());
 
-        // Leave exit point if there are consumers outside after fusion
+        // Leave output port if there are consumers outside after fusion
         if (!outside_consumers.empty()) {
-            new_exit_points.push_back(exit_point);
+            new_output_ports.push_back(output_port);
         }
     }
 
-    exit_points = new_exit_points;
+    output_ports = new_output_ports;
 }
 
 void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
@@ -348,8 +348,8 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     for (size_t i = 0; i < expr->get_input_count(); ++i) {
         const auto& source = expr->get_input_port_connector(i)->get_source();
         const auto common_outer_loop_ids = get_common_outer_loops(expr, source.get_expr());
-        // The source output port can have several consumers (including the current expr) that can be potential exit points
-        // So we should verify on the possible future exit points
+        // The source output port can have several consumers (including the current expr) that can be potential output ports
+        // So we should verify on the possible future output ports
         size_t count_of_common_outer_loops = common_outer_loop_ids.size();
         for (const auto& source_consumer : source.get_connected_ports()) {
             if (source_consumer.get_expr() == expr)
@@ -397,8 +397,8 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
 void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
     // [113536] Update this logic please, when expression numeration will be implemented
     const auto& loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
-    const auto& loop_entries = loop_info->get_entry_points();
-    const auto& loop_exits = loop_info->get_exit_points();
+    const auto& loop_entries = loop_info->get_input_ports();
+    const auto& loop_exits = loop_info->get_output_ports();
 
     std::vector<size_t> new_entry_order, new_exit_order;
     new_entry_order.reserve(loop_entries.size());

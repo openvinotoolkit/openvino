@@ -95,10 +95,10 @@ void validate_loop_end_static(const ExpressionPtr& expr, const LinearIR& linear_
                     loop_info->get_increment() == loop_end->get_increment(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
-    const auto entry_point_infos = loop_info->get_entry_ports_info();
-    const auto exit_point_infos = loop_info->get_exit_ports_info();
-    OPENVINO_ASSERT(entry_point_infos.size() == loop_end->get_input_num() &&
-                    exit_point_infos.size() == loop_end->get_output_num(),
+    const auto input_port_infos = loop_info->get_input_ports_info();
+    const auto output_port_infos = loop_info->get_output_ports_info();
+    OPENVINO_ASSERT(input_port_infos.size() == loop_end->get_input_num() &&
+                    output_port_infos.size() == loop_end->get_output_num(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
     const auto& is_incremented = loop_end->get_is_incremented();
@@ -112,8 +112,8 @@ void validate_loop_end_static(const ExpressionPtr& expr, const LinearIR& linear_
                             "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
-    validate_loop_ports(entry_point_infos);
-    validate_loop_ports(exit_point_infos, loop_end->get_input_num());
+    validate_loop_ports(input_port_infos);
+    validate_loop_ports(output_port_infos, loop_end->get_input_num());
 }
 
 void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear_ir) {
@@ -127,10 +127,10 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
     OPENVINO_ASSERT(loop_info->get_increment() == loop_end->get_increment(),
                     "Incompatible LoopEndDynamic and the corresponding LoopInfo");
 
-    const auto& entry_points = loop_info->get_entry_points();
-    const auto& exit_points = loop_info->get_exit_points();
-    OPENVINO_ASSERT(entry_points.size() == loop_end->get_input_num() &&
-                    exit_points.size() == loop_end->get_output_num(),
+    const auto& input_ports = loop_info->get_input_ports();
+    const auto& output_ports = loop_info->get_output_ports();
+    OPENVINO_ASSERT(input_ports.size() == loop_end->get_input_num() &&
+                    output_ports.size() == loop_end->get_output_num(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
     const auto& is_incremented = loop_end->get_is_incremented();
@@ -141,8 +141,8 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
                         "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
-    validate_loop_ports(entry_points);
-    validate_loop_ports(exit_points, loop_end->get_input_num());
+    validate_loop_ports(input_ports);
+    validate_loop_ports(output_ports, loop_end->get_input_num());
 }
 } // namespace
 

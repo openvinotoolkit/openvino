@@ -68,8 +68,8 @@ private:
      * @param linear_ir target Linear IR
      * @param loop_id the target loop ID
      * @param insert_pos insertion position iterator
-     * @param new_entry_ports reference of vector with Loop entry ports that will be updated after insertion
-     * @param new_exit_ports reference of vector with Loop exit ports that will be updated after insertion
+     * @param new_entry_ports reference of vector with Loop input ports that will be updated after insertion
+     * @param new_exit_ports reference of vector with Loop output ports that will be updated after insertion
      * @return LoopBounds: iterators of new LoopBegin and LoopEnd
      */
     static LoopManager::LoopBounds insert_copy_loop(LinearIR& linear_ir, const size_t loop_id, const LinearIR::constExprIt& insert_pos,

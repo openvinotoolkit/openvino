@@ -108,15 +108,15 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(), horizon.first->get()->get_output_port_connector(0));
 
         // Update Loop info for outer loops
-        const std::vector<ExpressionPort> entry_points{(*fill.first)->get_input_port(0)};
-        const std::vector<ExpressionPort> exit_points{(*horizon.first)->get_output_port(0)};
+        const std::vector<ExpressionPort> input_ports{(*fill.first)->get_input_port(0)};
+        const std::vector<ExpressionPort> output_ports{(*horizon.first)->get_output_port(0)};
         for (auto loop_id : reduce_expr->get_loop_ids()) {
             loop_manager->expression_replacement(vector_buffer.first,
                                                  expr_it,
                                                  reduce_expr,
                                                  loop_id,
-                                                 entry_points,
-                                                 exit_points);
+                                                 input_ports,
+                                                 output_ports);
         }
 
         expr_it = linear_ir.erase(expr_it);

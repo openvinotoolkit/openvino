@@ -97,8 +97,8 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
         }
     };
     const auto original_loop_info = loop_manager->get_loop_info(loop_id);
-    clone_ports(original_loop_info->get_entry_points(), new_entry_ports);
-    clone_ports(original_loop_info->get_exit_points(), new_exit_ports);
+    clone_ports(original_loop_info->get_input_ports(), new_entry_ports);
+    clone_ports(original_loop_info->get_output_ports(), new_exit_ports);
 
     return { new_loop_begin_pos, new_loop_end_pos };
 }
@@ -146,8 +146,8 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
 
             auto decomposed_loop_end = loop_end;
             auto decomposed_loop_begin_it = begin, decomposed_loop_end_it = end;
-            auto decomposed_loop_entry_ports = unified_loop_info->get_entry_points();
-            auto decomposed_loop_exit_ports = unified_loop_info->get_exit_points();
+            auto decomposed_loop_entry_ports = unified_loop_info->get_input_ports();
+            auto decomposed_loop_exit_ports = unified_loop_info->get_output_ports();
             auto decomposed_ptr_increments = unified_loop_info->get_ptr_increments();
             auto decomposed_finalization_offsets = unified_loop_info->get_finalization_offsets();
             auto decomposed_data_sizes = unified_loop_info->get_data_sizes();

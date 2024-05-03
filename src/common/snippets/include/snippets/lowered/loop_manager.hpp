@@ -198,15 +198,15 @@ public:
     }
     /**
      * @brief The method checks the loops (LoopInfo) that the target expression is marked with and update the corresponding loop ports if needed:
-     *           - If parent of the target expression and this expression are marked by one Loop and the parent is an exit port of this Loop,
-     *             the method replace parent output port with the target expression output ports as new exit LoopPorts.
+     *           - If parent of the target expression and this expression are marked by one Loop and the parent is an output port of this Loop,
+     *             the method replace parent output port with the target expression output ports as new output LoopPorts.
      *             If there are other consumers of parent output port that are not by the same Loop (like in the example below),
-     *             the method just adds inserted expression output ports to existing parent output port as new exit LoopPorts.
+     *             the method just adds inserted expression output ports to existing parent output port as new output LoopPorts.
      *                     Parent [1, 0]
      *                    /              \                        <- Adds the target expression outputs to the existing LoopPort (parent output) of Loop[1]
      *               Another expr [2]   Target expression [1, 3]     (If Another expr is marked by Loop [1] too, the method will replace loop ports (not add))
-     *           - If the target expression and its consumers have the same outer loop ids and some of consumers are entry ports of these Loops,
-     *             the method just replace the existing entry loop ports (that contains consumer input ports) with the target expression input ports.
+     *           - If the target expression and its consumers have the same outer loop ids and some of consumers are input ports of these Loops,
+     *             the method just replace the existing input loop ports (that contains consumer input ports) with the target expression input ports.
      * @param expr the target expression
      */
     void update_loop_ports(const ExpressionPtr& expr);
@@ -235,8 +235,8 @@ public:
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
-     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
-     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
+     *        - Otherwise Loop bounds are iterators of the first input loop port (or Scalar, VectorBuffer and another LoopBegin that
+     *          are in this Loop but have another `loop_id`) and the next iterator of the last output loop port (or another LoopEnd that
      *          are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
@@ -247,8 +247,8 @@ public:
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
-     *        - Otherwise Loop bounds are iterators of the first entry loop port (or Scalar, VectorBuffer and another LoopBegin that
-     *          are in this Loop but have another `loop_id`) and the next iterator of the last exit loop port (or another LoopEnd that
+     *        - Otherwise Loop bounds are iterators of the first input loop port (or Scalar, VectorBuffer and another LoopBegin that
+     *          are in this Loop but have another `loop_id`) and the next iterator of the last output loop port (or another LoopEnd that
      *          are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
@@ -298,12 +298,12 @@ private:
                                   std::vector<ExpressionPort>& entries,
                                   std::vector<ExpressionPort>& exits);
     /**
-     * @brief Fuse exit LoopPorts of upper Loop and entry LoopPorts of lower Loop
-     * @param exit_points ref of exit LoopPorts of upper Loop
-     * @param entry_points ref of entry LoopPorts of lower Loop
+     * @brief Fuse input LoopPorts of upper Loop and output LoopPorts of lower Loop
+     * @param output_ports ref of output LoopPorts of upper Loop
+     * @param input_ports ref of input LoopPorts of lower Loop
      * @param loop_id ID of the new Loop after fusion
      */
-    static void fuse_loop_ports(std::vector<LoopPort>& exit_points, std::vector<LoopPort>& entry_points, size_t loop_id);
+    static void fuse_loop_ports(std::vector<LoopPort>& output_ports, std::vector<LoopPort>& input_ports, size_t loop_id);
 
     /* ===== The methods for work with Loop IDs of Expression ===== */
     // Notes:
