@@ -86,11 +86,6 @@ FusedNamesExtractor::extract_not_trasformed_node_names(const std::shared_ptr<ov:
         if (!is_node_transformed(compiled_op)) {
             not_transformed_nodes.insert(compiled_op->get_friendly_name());
         }
-        // else {
-            // for (const auto& a : compiled_op->get_rt_info()) {
-            //     std::cout << a.first << ": " << a.second.as<std::string>() << std::endl;
-            // }
-        // }
     }
     return not_transformed_nodes;
 }
@@ -99,142 +94,147 @@ FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
     set_target_device(device);
 }
 
-struct NodeDescriptor {
-    std::shared_ptr<ov::Node> node;
-    std::unordered_set<size_t> input_idx, output_idx;
-    size_t subgraph_id = std::numeric_limits<size_t>::max();
+// std::vector<FusedNamesExtractor::NodeDescriptor>
+// FusedNamesExtractor::extract_transformed_nodes(const std::shared_ptr<ov::Model>& model) {
+//     std::vector<NodeDescriptor> transformed_ops;
+//     const auto not_transformed_ops = extract_not_trasformed_node_names(model);
+//     {
+//         auto ordered_ops = model->get_ordered_ops();
+//         std::reverse(ordered_ops.begin(), ordered_ops.end());
+//         for (size_t i = 0; i < ordered_ops.size(); ++i) {
+//             const auto op = ordered_ops[i];
+//             if (not_transformed_ops.count(op->get_friendly_name()) || util::is_node_to_skip(op)) {
+//                 continue;
+//             }
+//             transformed_ops.push_back(op);
+//         }
+//     }
+//     for (size_t i = 0; i < transformed_ops.size(); ++i) {
+//         auto& transformed_op = transformed_ops[i];
+//         for (const auto& input_value : transformed_op.node->input_values()) {
+//             const auto input_node = input_value.get_node_shared_ptr();
+//             if (not_transformed_ops.count(input_node->get_friendly_name()) || util::is_node_to_skip(input_node)) {
+//                 continue;
+//             }
+//             for (size_t j = i; j < transformed_ops.size(); ++j) {
+//                 if (transformed_ops[j].node == input_node) {
+//                     transformed_op.input_idx.insert(j);
+//                     break;
+//                 }
+//             }
+//             for (const auto& j : transformed_op.input_idx) {
+//                 transformed_ops[j].output_idx.insert(i);
+//             }
+//         }
+//     }
+//     return transformed_ops;
+// }
 
-    NodeDescriptor(const std::shared_ptr<ov::Node>& in_node) : node(in_node) {}
+// std::unordered_map<size_t, ov::NodeVector>
+// FusedNamesExtractor::label_subgraphs(std::vector<FusedNamesExtractor::NodeDescriptor>& transformed_ops) {
+//     std::unordered_map<size_t, ov::NodeVector> subgraphs;
+//     const auto backward_propagation = [&transformed_ops, &subgraphs](size_t node_id) {
+//         std::deque<size_t> deque{node_id};
+//         const size_t subgraph_id = transformed_ops[node_id].subgraph_id;
+//         while (!deque.empty()) {
+//             size_t front_node_id = deque.front();
+//             deque.pop_front();
+//             for (const auto& out_node_id : transformed_ops[front_node_id].output_idx) {
+//                 if (transformed_ops[out_node_id].subgraph_id == subgraph_id) {
+//                     continue;
+//                 }
+//                 if (subgraphs.count(transformed_ops[out_node_id].subgraph_id)) {
+//                     const auto node_vector = subgraphs[transformed_ops[out_node_id].subgraph_id];
+//                     subgraphs[subgraph_id].insert(subgraphs[subgraph_id].end(), node_vector.begin(), node_vector.end());
+//                     subgraphs.erase(transformed_ops[out_node_id].subgraph_id);
+//                 }
+//                 transformed_ops[out_node_id].subgraph_id = subgraph_id;
+//                 deque.push_back(out_node_id);
+//             }
+//         }
+//     };
 
-    bool is_defined() {
-        return subgraph_id != std::numeric_limits<size_t>::max();
-    }
-};
+//     size_t subgraph_id = 0;
+//     for (size_t i = 0; i < transformed_ops.size(); ++i) {
+//         auto& transformed_op = transformed_ops[i];
+//         if (!transformed_op.is_defined()) {
+//             transformed_op.subgraph_id = subgraph_id++;
+//             subgraphs.insert({transformed_op.subgraph_id, {transformed_op.node}});
+//         } else if (transformed_op.output_idx.size() > 1) {
+//             backward_propagation(i);
+//         }
+//         for (const auto& in_idx : transformed_op.input_idx) {
+//             transformed_ops[in_idx].subgraph_id = transformed_op.subgraph_id;
+//             subgraphs[transformed_op.subgraph_id].push_back(transformed_ops[in_idx].node);
+//         }
+//     }
+//     return subgraphs;
+// }
 
 std::vector<FusedNamesExtractor::ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
+    // auto transformed_ops = extract_transformed_nodes(model);
     std::vector<FusedNamesExtractor::ExtractedPattern> matched_patterns;
-    std::vector<NodeDescriptor>  transformed_ops;
-    {
-        const auto not_transformed_ops = extract_not_trasformed_node_names(model);
-        {
-            auto ordered_ops = model->get_ordered_ops();
-            std::reverse(ordered_ops.begin(), ordered_ops.end());
-            for (size_t i = 0; i < ordered_ops.size(); ++i) {
-                const auto op = ordered_ops[i];
-                if (not_transformed_ops.count(op->get_friendly_name()) || util::is_node_to_skip(op)) {
-                    continue;
-                }
-                transformed_ops.push_back(op);
-            }
-        }
-        for (size_t i = 0; i < transformed_ops.size(); ++i) {
-            auto& transformed_op = transformed_ops[i];
-            for (const auto& input_value : transformed_op.node->input_values()) {
-                const auto input_node = input_value.get_node_shared_ptr();
-                if (not_transformed_ops.count(input_node->get_friendly_name()) || util::is_node_to_skip(input_node)) {
-                    continue;
-                }
-                for (size_t j = i; j < transformed_ops.size(); ++j) {
-                    if (transformed_ops[j].node == input_node) {
-                        transformed_op.input_idx.insert(j);
-                        break;
-                    }
-                }
-                for (const auto& j : transformed_op.input_idx) {
-                    transformed_ops[j].output_idx.insert(i);
-                }
-            }
-        }
-    }
+    const auto not_transformed_nodes = extract_not_trasformed_node_names(model);
 
-    std::unordered_map<size_t, ov::NodeVector> subgraphs;
-    const auto backward_propagation = [&transformed_ops, &subgraphs](size_t node_id) {
-        std::deque<size_t> deque{node_id};
-        const size_t subgraph_id = transformed_ops[node_id].subgraph_id;
-        while (!deque.empty()) {
-            size_t front_node_id = deque.front();
-            deque.pop_front();
-            for (const auto& out_node_id : transformed_ops[front_node_id].output_idx) {
-                if (transformed_ops[out_node_id].subgraph_id == subgraph_id) {
-                    continue;
-                }
-                if (subgraphs.count(transformed_ops[out_node_id].subgraph_id)) {
-                    const auto node_vector = subgraphs[transformed_ops[out_node_id].subgraph_id];
-                    subgraphs[subgraph_id].insert(subgraphs[subgraph_id].end(), node_vector.begin(), node_vector.end());
-                    subgraphs.erase(transformed_ops[out_node_id].subgraph_id);
-                }
-                transformed_ops[out_node_id].subgraph_id = subgraph_id;
-                deque.push_back(out_node_id);
-            }
-        }
-    };
-
-    size_t subgraph_id = 0;
-    for (size_t i = 0; i < transformed_ops.size(); ++i) {
-        auto& transformed_op = transformed_ops[i];
-        if (!transformed_op.is_defined()) {
-            transformed_op.subgraph_id = subgraph_id++;
-            subgraphs.insert({transformed_op.subgraph_id, {transformed_op.node}});
-        } else {
-            backward_propagation(i);
-        }
-        for (const auto& in_idx : transformed_op.input_idx) {
-            transformed_ops[in_idx].subgraph_id = transformed_op.subgraph_id;
-            subgraphs[transformed_op.subgraph_id].push_back(transformed_ops[in_idx].node);
-        }
-    }
-
-
-    auto a = 0;
-    // ov::NodeVector nodes;
-    // for (const auto& op : model->get_ordered_ops()) {
-    //     auto op_name = op->get_friendly_name();
-    //     if (ov::util::is_node_to_skip(op)) {
-    //         continue;
-    //     }
-        // if (not_transformed_nodes.count(op_name)) {
-        //     try {
-        //         auto extracted_pattern = ov::util::generate_model(nodes, is_save_const);
-        //         matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
-        //     } catch(std::exception& e) {
-        //         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
-        //             // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
-        //         }
-        //     }
-        //     nodes.clear();
-        // } else {
-        //     nodes.push_back(op);
-        // }
-    //     if (is_extract_body) {
-    //         if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
-    //             auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
-    //             auto ti_body = ti->get_function();
-    //             auto tmp_res = extract(ti_body);
-    //             matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
-    //         } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
-    //             auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
-    //             auto loop_body = loop->get_function();
-    //             auto tmp_res = extract(loop_body);
-    //             matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
-    //         } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
-    //             auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
-    //             std::vector<std::shared_ptr<ov::Model>> bodies;
-    //             for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
-    //                 auto if_body = if_op->get_function(i);
-    //                 auto tmp_res = extract(if_body);
-    //                 matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
-    //             }
+    // for (auto& subgraph : label_subgraphs(transformed_ops)) {
+    //     try {
+    //         auto extracted_pattern = ov::util::generate_model(subgraph.second, is_save_const);
+    //         matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
+    //     } catch(std::exception& e) {
+    //         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+    //             std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
     //         }
     //     }
     // }
-    // try {
-    //     auto extracted_pattern = ov::util::generate_model(nodes, is_save_const);
-    //     matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
-    // } catch(std::exception& e) {
-    //     if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
-    //         // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
-    //     }
-    // }
+    ov::NodeVector nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto op_name = op->get_friendly_name();
+        if (ov::util::is_node_to_skip(op)) {
+            continue;
+        }
+        if (not_transformed_nodes.count(op_name)) {
+            try {
+                auto extracted_pattern = ov::util::generate_model(nodes, is_save_const);
+                matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
+            } catch(std::exception& e) {
+                if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+                    // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+                }
+            }
+            nodes.clear();
+        } else {
+            nodes.push_back(op);
+        }
+        if (is_extract_body) {
+            if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
+                auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(op);
+                auto ti_body = ti->get_function();
+                auto tmp_res = extract(ti_body);
+                matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
+            } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
+                auto loop = ov::as_type_ptr<ov::op::v5::Loop>(op);
+                auto loop_body = loop->get_function();
+                auto tmp_res = extract(loop_body);
+                matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
+            } else if (std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+                auto if_op = ov::as_type_ptr<ov::op::v8::If>(op);
+                std::vector<std::shared_ptr<ov::Model>> bodies;
+                for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
+                    auto if_body = if_op->get_function(i);
+                    auto tmp_res = extract(if_body);
+                    matched_patterns.insert(matched_patterns.end(), tmp_res.begin(), tmp_res.end());
+                }
+            }
+        }
+    }
+    try {
+        auto extracted_pattern = ov::util::generate_model(nodes, is_save_const);
+        matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
+    } catch(std::exception& e) {
+        if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+            // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+        }
+    }
     return matched_patterns;
 }
