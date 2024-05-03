@@ -112,7 +112,7 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
-          should-setup-pip-paths: 'false'
+          should-setup-pip-paths: 'true'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
