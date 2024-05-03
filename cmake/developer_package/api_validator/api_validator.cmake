@@ -24,22 +24,6 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
 
     set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
 
-    # CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is only set when
-    # Visual Studio generators are used
-    if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
-        message("Trying to calculate CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION")
-
-        message("VARIABLE" $ENV{${WINDOWSSDKVERSION_ENV}})
-        message("VARIABLE" $ENV{WindowsSDKVersion})
-        if(DEFINED ENV{WindowsSDKVersion})
-            string(REPLACE "\\" "" WINDOWS_SDK_VERSION $ENV{WindowsSDKVersion})
-            message("WindowsSDKVersion without slashes ${WINDOWS_SDK_VERSION}")
-            set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION ${WINDOWS_SDK_VERSION})
-        else()
-            message(FATAL_ERROR "WindowsSDKVersion is not set, can't find Windows SDK. Try to use vcvarsall.bat script")
-        endif()
-    endif()
-
     # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
     # we don't have such variable
     if(DEFINED ENV{${PROGRAMFILES_ENV}})
