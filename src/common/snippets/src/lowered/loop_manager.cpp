@@ -418,8 +418,8 @@ void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearI
         update_order(loop_entries, expr);
         update_order(loop_exits, expr);
     }
-    loop_info->sort_entry_ports(new_entry_order);
-    loop_info->sort_exit_ports(new_exit_order);
+    loop_info->sort_input_ports(new_entry_order);
+    loop_info->sort_output_ports(new_exit_order);
 }
 
 bool LoopManager::reassign_identifiers(const std::map<size_t, size_t>& loop_id_map) {

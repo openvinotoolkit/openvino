@@ -274,12 +274,12 @@ public:
      * @brief Sort ALL input Loop Ports by `new_order`: `m_input_ports[new_order[i]] = m_input_ports[i]`
      * @param new_order vector of new indexes
      */
-    void sort_entry_ports(const std::vector<size_t>& new_order);
+    void sort_input_ports(const std::vector<size_t>& new_order);
     /**
      * @brief Sort ALL output Loop Ports by `new_order`: `m_output_ports[new_order[i]] = m_output_ports[i]`
      * @param new_order vector of new indexes
      */
-    void sort_exit_ports(const std::vector<size_t>& new_order);
+    void sort_output_ports(const std::vector<size_t>& new_order);
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
@@ -300,16 +300,16 @@ public:
      * @param caller - function that called for each LoopPortDesc
      */
     inline void iterate_through_descs(const std::function<void(LoopPortDesc&)>& caller) {
-        std::for_each(m_entry_port_descs.begin(), m_entry_port_descs.end(), caller);
-        std::for_each(m_exit_port_descs.begin(), m_exit_port_descs.end(), caller);
+        std::for_each(m_input_port_descs.begin(), m_input_port_descs.end(), caller);
+        std::for_each(m_output_port_descs.begin(), m_output_port_descs.end(), caller);
     }
     /**
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
      */
     inline void iterate_through_descs(const std::function<void(const LoopPortDesc&)>& caller) const {
-        std::for_each(m_entry_port_descs.cbegin(), m_entry_port_descs.cend(), caller);
-        std::for_each(m_exit_port_descs.cbegin(), m_exit_port_descs.cend(), caller);
+        std::for_each(m_input_port_descs.cbegin(), m_input_port_descs.cend(), caller);
+        std::for_each(m_output_port_descs.cbegin(), m_output_port_descs.cend(), caller);
     }
     /**
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
@@ -317,9 +317,9 @@ public:
      */
     inline void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
         for (size_t i = 0; i < get_input_count(); ++i)
-            caller(m_input_ports[i], m_entry_port_descs[i]);
+            caller(m_input_ports[i], m_input_port_descs[i]);
         for (size_t i = 0; i < get_output_count(); ++i)
-            caller(m_output_ports[i], m_exit_port_descs[i]);
+            caller(m_output_ports[i], m_output_port_descs[i]);
     }
     /**
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
@@ -327,9 +327,9 @@ public:
      */
     inline void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
         for (size_t i = 0; i < get_input_count(); ++i)
-            caller(m_input_ports[i], m_entry_port_descs[i]);
+            caller(m_input_ports[i], m_input_port_descs[i]);
         for (size_t i = 0; i < get_output_count(); ++i)
-            caller(m_output_ports[i], m_exit_port_descs[i]);
+            caller(m_output_ports[i], m_output_port_descs[i]);
     }
 
 private:
@@ -347,8 +347,8 @@ private:
     void validate() const;
 
     SpecificIterationHandlers m_handlers = {};
-    std::vector<LoopPortDesc> m_entry_port_descs = {};
-    std::vector<LoopPortDesc> m_exit_port_descs = {};
+    std::vector<LoopPortDesc> m_input_port_descs = {};
+    std::vector<LoopPortDesc> m_output_port_descs = {};
 };
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 

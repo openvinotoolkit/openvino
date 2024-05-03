@@ -140,7 +140,7 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
                                  const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                  const SpecificIterationHandlers& handlers)
     : LoopInfo(work_amount, increment, entries, exits), m_handlers(handlers),
-      m_entry_port_descs(std::vector<LoopPortDesc>(entries.size())), m_exit_port_descs(std::vector<LoopPortDesc>(exits.size())) {
+      m_input_port_descs(std::vector<LoopPortDesc>(entries.size())), m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
     validate();
 }
 
@@ -148,7 +148,7 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
                                  const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits,
                                  const SpecificIterationHandlers& handlers)
     : LoopInfo(work_amount, increment, entries, exits), m_handlers(handlers),
-      m_entry_port_descs(std::vector<LoopPortDesc>(entries.size())), m_exit_port_descs(std::vector<LoopPortDesc>(exits.size())) {
+      m_input_port_descs(std::vector<LoopPortDesc>(entries.size())), m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
     validate();
 }
 
@@ -156,13 +156,13 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
                                  const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                  const std::vector<LoopPortDesc>& in_shifts, const std::vector<LoopPortDesc>& out_shifts,
                                  const SpecificIterationHandlers& handlers)
-    : LoopInfo(work_amount, increment, entries, exits), m_handlers(handlers), m_entry_port_descs(in_shifts), m_exit_port_descs(out_shifts) {
+    : LoopInfo(work_amount, increment, entries, exits), m_handlers(handlers), m_input_port_descs(in_shifts), m_output_port_descs(out_shifts) {
     validate();
 }
 
 void UnifiedLoopInfo::validate() const {
-    OPENVINO_ASSERT(m_input_ports.size() == m_entry_port_descs.size(), "Incompatible count of input port and descs");
-    OPENVINO_ASSERT(m_output_ports.size() == m_exit_port_descs.size(), "Incompatible count of output port and descs");
+    OPENVINO_ASSERT(m_input_ports.size() == m_input_port_descs.size(), "Incompatible count of input port and descs");
+    OPENVINO_ASSERT(m_output_ports.size() == m_output_port_descs.size(), "Incompatible count of output port and descs");
 }
 
 std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map) const {
@@ -170,7 +170,7 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
     const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
     return std::make_shared<UnifiedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                             m_entry_port_descs, m_exit_port_descs, m_handlers);
+                                             m_input_port_descs, m_output_port_descs, m_handlers);
 }
 
 const SpecificIterationHandlers& UnifiedLoopInfo::get_handlers() const {
@@ -203,26 +203,26 @@ void UnifiedLoopInfo::set_handlers(SpecificIterationHandlers handlers) {
 }
 
 const std::vector<UnifiedLoopInfo::LoopPortDesc>& UnifiedLoopInfo::get_input_port_descs() const {
-    return m_entry_port_descs;
+    return m_input_port_descs;
 }
 
 const std::vector<UnifiedLoopInfo::LoopPortDesc>& UnifiedLoopInfo::get_output_port_descs() const {
-    return m_exit_port_descs;
+    return m_output_port_descs;
 }
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info() const {
-    OPENVINO_ASSERT(m_input_ports.size() == m_entry_port_descs.size(), "Incompatible count of input port and descs");
+    OPENVINO_ASSERT(m_input_ports.size() == m_input_port_descs.size(), "Incompatible count of input port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_input_count());
     for (size_t i = 0; i < get_input_count(); ++i)
-        info[i] = { m_input_ports[i], m_entry_port_descs[i] };
+        info[i] = { m_input_ports[i], m_input_port_descs[i] };
     return info;
 }
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_output_ports_info() const {
-    OPENVINO_ASSERT(m_output_ports.size() == m_exit_port_descs.size(), "Incompatible count of output port and descs");
+    OPENVINO_ASSERT(m_output_ports.size() == m_output_port_descs.size(), "Incompatible count of output port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_output_count());
     for (size_t i = 0; i < get_output_count(); ++i)
-        info[i] = { m_output_ports[i], m_exit_port_descs[i] };
+        info[i] = { m_output_ports[i], m_output_port_descs[i] };
     return info;
 }
 
@@ -241,22 +241,22 @@ void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
 }
 }  // namespace
 
-void UnifiedLoopInfo::sort_entry_ports(const std::vector<size_t>& new_order) {
+void UnifiedLoopInfo::sort_input_ports(const std::vector<size_t>& new_order) {
     order(new_order, m_input_ports);
-    order(new_order, m_entry_port_descs);
+    order(new_order, m_input_port_descs);
     // Verify that everything is valid after this change
     validate();
 }
 
-void UnifiedLoopInfo::sort_exit_ports(const std::vector<size_t>& new_order) {
+void UnifiedLoopInfo::sort_output_ports(const std::vector<size_t>& new_order) {
     order(new_order, m_output_ports);
-    order(new_order, m_exit_port_descs);
+    order(new_order, m_output_port_descs);
     // Verify that everything is valid after this change
     validate();
 }
 
 void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input) {
-    auto& data_ptr_shifts = is_input ? m_entry_port_descs : m_exit_port_descs;
+    auto& data_ptr_shifts = is_input ? m_input_port_descs : m_output_port_descs;
     std::vector<LoopPortDesc> target_shifts(new_count, data_ptr_shifts[actual_port_idx]);
     auto shift_it = data_ptr_shifts.erase(data_ptr_shifts.begin() + actual_port_idx);
     data_ptr_shifts.insert(shift_it, target_shifts.cbegin(), target_shifts.cend());
