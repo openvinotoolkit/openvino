@@ -88,6 +88,12 @@ jobs:
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
+      - name: Clone OpenVINO
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
       - name: Setup Python 3.11
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -97,12 +103,6 @@ jobs:
 
       - name: Search for 'Python.h'
         run: find / -depth -type f -name 'Python.h'
-
-      - name: Clone OpenVINO
-        uses: actions/checkout@v4
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
