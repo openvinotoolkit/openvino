@@ -223,7 +223,9 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
+#ifndef NDEBUG
     std::cout << "selectedType: " << selectedType << std::endl;
+#endif
     if (selectedType.find("FP") != std::string::npos)
         return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
                std::regex_match(primType,
