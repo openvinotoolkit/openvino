@@ -486,8 +486,8 @@ class Core(CoreBase):
         config: Optional[dict] = None,
         *,
         weights: Optional[bytes] = None,
-        encrypt: Optional[function] = None,
-        decrypt: Optional[function] = None
+        encrypt: Optional[object] = None,
+        decrypt: Optional[object] = None
     ) -> CompiledModel:
         """Creates a compiled model.
 
@@ -512,9 +512,9 @@ class Core(CoreBase):
         :param weights: Optional. Weights of model in memory to be loaded to the model.
         :type weights: bytes, optional, keyword-only
         :param encrypt: Optional. encryption function for cache model.
-        :type encrypt: function, optional, keyword-only
+        :type encrypt: object, optional, keyword-only
         :param decrypt: Optional. decryption function for cache model.
-        :type decrypt: function, optional, keyword-only
+        :type decrypt: object, optional, keyword-only
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
@@ -526,7 +526,9 @@ class Core(CoreBase):
                     )
                 else:
                     return CompiledModel(
-                        super().compile_model(model, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt),
+                        super().compile_model(
+                            model, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
+                            ),
                     )
             else:
                 if encrypt is None or decrypt is None:
@@ -535,7 +537,9 @@ class Core(CoreBase):
                     )
                 else:
                     return CompiledModel(
-                        super().compile_model(model, device_name, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt),
+                        super().compile_model(
+                            model, device_name, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
+                            ),
                     )
         else:
             if device_name is None:
@@ -546,7 +550,9 @@ class Core(CoreBase):
                     )
                 else:
                     return CompiledModel(
-                        super().compile_model(model, weights, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt),
+                        super().compile_model(
+                            model, weights, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
+                            ),
                         weights=weights,
                     )
             else:

@@ -317,8 +317,8 @@ void regclass_Core(py::module m) {
            const std::shared_ptr<const ov::Model>& model,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
             std::function<std::string(const std::string&)> encrypt_func =
@@ -352,9 +352,9 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
@@ -364,8 +364,8 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::shared_ptr<const ov::Model>& model,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
             auto encrypt_func = [encrypt](const std::string& in_str) -> std::string {
@@ -392,9 +392,9 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
@@ -405,8 +405,8 @@ void regclass_Core(py::module m) {
            const py::object& model_path,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
@@ -437,9 +437,9 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
@@ -451,8 +451,8 @@ void regclass_Core(py::module m) {
            const py::object& weight_buffer,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             std::stringstream _stream;
             _stream << model_buffer.cast<std::string>();
 
@@ -502,9 +502,9 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
@@ -514,8 +514,8 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const py::object& model_path,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             std::string path = Common::utils::convert_path_to_string(model_path);
             py::gil_scoped_release release;
@@ -543,9 +543,9 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
@@ -556,8 +556,8 @@ void regclass_Core(py::module m) {
            const std::shared_ptr<const ov::Model>& model,
            const RemoteContextWrapper& context,
            const std::map<std::string, py::object>& properties,
-           const py::function& encrypt,
-           const py::function& decrypt) {
+           const py::object& encrypt,
+           const py::object& decrypt) {
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
             auto encrypt_func = [encrypt](const std::string& in_str) -> std::string {
@@ -585,9 +585,9 @@ void regclass_Core(py::module m) {
             :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :param encrypt: Optional encryption function for cache model.
-            :type properties: function
+            :type encrypt: object
             :param decrypt: Optional decryption function for cache model.
-            :type properties: function
+            :type decrypt: object
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
