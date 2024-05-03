@@ -140,7 +140,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
             // Update remaining Loop work amount
             // Note: if work_amount is unknown and increment = 1, it means that a loop will iterate by whole work_amount
-            if ((!is_wa_dynamic) || (increment == 1 && utils::is_dynamic_value(work_amount))) {
+            if (!is_wa_dynamic || increment == 1) {
                 remaining_work_amount -= work_amount;
             }
 
