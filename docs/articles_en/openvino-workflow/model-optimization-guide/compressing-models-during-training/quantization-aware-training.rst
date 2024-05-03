@@ -16,83 +16,45 @@ Using NNCF QAT
 ####################
 
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with
-PyTorch or TensorFlow 2:
-
-.. note::
-   Currently, NNCF for TensorFlow 2 supports optimization of the models created using Keras
-   `Sequential API <https://www.tensorflow.org/guide/keras/sequential_model>`__ or
-   `Functional API <https://www.tensorflow.org/guide/keras/functional>`__.
+PyTorch:
 
 1. Import NNCF API
 ++++++++++++++++++++
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [imports]
 
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [imports]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [imports]
-
-2. Create NNCF configuration
+2. Create the data transformation function
 ++++++++++++++++++++++++++++
 
-Here, you should define NNCF configuration which consists of model-related parameters (``"input_info"`` section) and parameters
-of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object
-specific to the DL framework. It will be used at the model creation step to initialize quantization parameters.
+In the next step, you need to create a quantization data loader and wrap it by the nncf.Dataset, specifying a transformation
+function which prepares input data to fit into model during quantization.
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [nncf_congig]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [nncf_congig]
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [nncf_dataset]
 
 
 3. Apply optimization methods
 +++++++++++++++++++++++++++++
 
-In the next step, you need to wrap the original model object with the ``create_compressed_model()`` API using the configuration
-defined in the previous step. This method returns a so-called compression controller and a wrapped model that can be used the
-same way as the original model. It is worth noting that optimization methods are applied at this step so that the model
-undergoes a set of corresponding transformations and can contain additional operations required for the optimization. In
-the case of QAT, the compression controller object is used for model export and, optionally, in distributed training as it
-will be shown below.
+nncf.quantize function accepts model and prepared quantization dataset for performing basic quantization. Optionally,
+additional parameters like subset_size, preset, ignored_scope can be provided to improve quantization result if applicable.
+More details about supported parameters can be found on this `page <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html#tune-quantization-parameters>`__.
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [wrap_model]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [wrap_model]
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [quantize]
 
 
 4. Fine-tune the model
@@ -120,49 +82,16 @@ you can skip this step which means that the post-training optimization will be a
 
 
 
-5. Multi-GPU distributed training
-+++++++++++++++++++++++++++++++++
-
-In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before
-the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
-
-.. tab-set::
-
-   .. tab-item:: PyTorch
-      :sync: pytorch
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [distributed]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [distributed]
-
-6. Export quantized model
+5. Export quantized model
 +++++++++++++++++++++++++
 
-When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in
-the case of PyTorch and frozen graph - for TensorFlow 2.
+When fine-tuning finishes, the quantized model can be exported to the ONNX format for further inference.
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [export]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [export]
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [export]
 
 
 .. note::
@@ -178,21 +107,11 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 To save model checkpoint use the following API:
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [save_checkpoint]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [save_checkpoint]
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [save_checkpoint]
 
 
 8. (Optional) Restore from checkpoint
@@ -200,24 +119,12 @@ To save model checkpoint use the following API:
 
 To restore the model from checkpoint you should use the following API:
 
-.. tab-set::
+.. tab:: PyTorch
 
-   .. tab-item:: PyTorch
-      :sync: pytorch
+   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
+      :language: python
+      :fragment: [load_checkpoint]
 
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [load_checkpoint]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [load_checkpoint]
-
-
-For more details on saving/loading checkpoints in the NNCF, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 
 Deploying quantized model
 #########################
@@ -225,10 +132,7 @@ Deploying quantized model
 The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are
 required in this case. For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
-Examples
+Example
 ####################
 
 * `Quantizing PyTorch model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__
-
-* `Quantizing TensorFlow model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__
-
