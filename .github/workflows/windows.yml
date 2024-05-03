@@ -205,7 +205,7 @@ jobs:
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        run:
+        run: |
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
