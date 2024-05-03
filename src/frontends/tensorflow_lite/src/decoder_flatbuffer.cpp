@@ -139,6 +139,22 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         } else {
             return {};
         }
+    } else if (name == "adj_x" && m_type == "BATCH_MATMUL") {
+        bool has_attribute = this->has_attribute(&tflite::BatchMatMulOptions::adj_x);
+        if (has_attribute) {
+            return this->get_attribute(&tflite::BatchMatMulOptions::adj_x);
+        } else {
+            return {};
+        }
+    } else if (name == "adj_y" && m_type == "BATCH_MATMUL") {
+        bool has_attribute = this->has_attribute(&tflite::BatchMatMulOptions::adj_y);
+        if (has_attribute) {
+            return this->get_attribute(&tflite::BatchMatMulOptions::adj_y);
+        } else {
+            return {};
+        }
+    } else if (name == "DstT" && m_type == "CAST") {
+        return this->get_output_tensor_type(0);
     }
 
     const auto opts = m_node_def->custom_options();
