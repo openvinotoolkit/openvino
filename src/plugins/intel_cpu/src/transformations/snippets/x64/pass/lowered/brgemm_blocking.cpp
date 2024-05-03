@@ -67,8 +67,8 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto& loop_ids = brgemm_expr->get_loop_ids();
         for (const auto& id : loop_ids) {
             const auto loop = loop_manager->get_loop_info(id);
-            if (std::any_of(loop->get_entry_points().begin(), loop->get_entry_points().end(), check_port) ||
-                std::any_of(loop->get_exit_points().begin(), loop->get_exit_points().end(), check_port)) {
+            if (std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
+                std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port)) {
                 return true;
             }
         }
