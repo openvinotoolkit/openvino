@@ -153,9 +153,9 @@ void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t
     };
 
     if (only_runtime_args) {
-        loop_info->iterate_through_ports(init_runtime_parameters);
+        loop_info->iterate_through_infos(init_runtime_parameters);
     } else {
-        loop_info->iterate_through_ports(init_all_parameters);
+        loop_info->iterate_through_infos(init_all_parameters);
     }
 }
 

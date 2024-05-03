@@ -101,7 +101,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
 
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
     size_t loop_port_idx = 0;
-    loop_info->iterate_through_ports([&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& shifts) {
+    loop_info->iterate_through_infos([&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& shifts) {
         if (resetting_data_indexes.count(loop_port_idx)) {
             shifts.ptr_increment = 0;
             shifts.finalization_offset = 0;

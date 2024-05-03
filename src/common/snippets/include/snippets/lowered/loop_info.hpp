@@ -293,7 +293,7 @@ public:
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
      */
-    inline void iterate_through_ports(const std::function<void(LoopPortDesc&)>& caller) {
+    inline void iterate_through_descs(const std::function<void(LoopPortDesc&)>& caller) {
         std::for_each(m_entry_port_descs.begin(), m_entry_port_descs.end(), caller);
         std::for_each(m_exit_port_descs.begin(), m_exit_port_descs.end(), caller);
     }
@@ -301,7 +301,7 @@ public:
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
      */
-    inline void iterate_through_ports(const std::function<void(const LoopPortDesc&)>& caller) const {
+    inline void iterate_through_descs(const std::function<void(const LoopPortDesc&)>& caller) const {
         std::for_each(m_entry_port_descs.cbegin(), m_entry_port_descs.cend(), caller);
         std::for_each(m_exit_port_descs.cbegin(), m_exit_port_descs.cend(), caller);
     }
@@ -309,7 +309,7 @@ public:
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_ports(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
+    inline void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
         OPENVINO_ASSERT(m_input_ports.size() == m_entry_port_descs.size(), "Incompatible count of input port and descs");
         OPENVINO_ASSERT(m_output_ports.size() == m_exit_port_descs.size(), "Incompatible count of exit port and descs");
         for (size_t i = 0; i < get_input_count(); ++i)
@@ -321,7 +321,7 @@ public:
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_ports(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
+    inline void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
         OPENVINO_ASSERT(m_input_ports.size() == m_entry_port_descs.size(), "Incompatible count of input port and descs");
         OPENVINO_ASSERT(m_output_ports.size() == m_exit_port_descs.size(), "Incompatible count of exit port and descs");
         for (size_t i = 0; i < get_input_count(); ++i)

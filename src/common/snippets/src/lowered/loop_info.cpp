@@ -171,21 +171,21 @@ const SpecificIterationHandlers& UnifiedLoopInfo::get_handlers() const {
 std::vector<int64_t> UnifiedLoopInfo::get_ptr_increments() const {
     std::vector<int64_t> values;
     values.reserve(m_input_ports.size() + m_output_ports.size());
-    iterate_through_ports([&values](const LoopPortDesc& shift) { values.push_back(shift.ptr_increment); });
+    iterate_through_descs([&values](const LoopPortDesc& shift) { values.push_back(shift.ptr_increment); });
     return values;
 }
 
 std::vector<int64_t> UnifiedLoopInfo::get_finalization_offsets() const {
     std::vector<int64_t> values;
     values.reserve(m_input_ports.size() + m_output_ports.size());
-    iterate_through_ports([&values](const LoopPortDesc& shift) { values.push_back(shift.finalization_offset); });
+    iterate_through_descs([&values](const LoopPortDesc& shift) { values.push_back(shift.finalization_offset); });
     return values;
 }
 
 std::vector<int64_t> UnifiedLoopInfo::get_data_sizes() const {
     std::vector<int64_t> values;
     values.reserve(m_input_ports.size() + m_output_ports.size());
-    iterate_through_ports([&values](const LoopPortDesc& shift) { values.push_back(shift.data_size); });
+    iterate_through_descs([&values](const LoopPortDesc& shift) { values.push_back(shift.data_size); });
     return values;
 }
 
