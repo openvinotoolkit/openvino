@@ -470,7 +470,7 @@ bool LoopManager::reassign_identifiers(const std::map<size_t, size_t>& loop_id_m
     OPENVINO_ASSERT(saved_loops.empty(), "Failed to reassign LoopIDs: not all Loops have been reassigned");
 
     // Update the next ID
-    next_id = *m_map.crbegin() + 1;
+    next_id = m_map.crbegin()->first + 1;
 
     return true;
 }
