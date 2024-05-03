@@ -5,6 +5,7 @@
 #pragma once
 
 #include <set>
+#include <unordered_set>
 #include <type_traits>
 #include "buffer.hpp"
 #include "helpers.hpp"
@@ -27,6 +28,32 @@ class Serializer<BufferType, std::set<T>, typename std::enable_if<std::is_base_o
 public:
     static void load(BufferType& buffer, std::set<T>& set) {
         typename std::set<T>::size_type set_size = 0UL;
+        buffer >> set_size;
+
+        for (long unsigned int i = 0; i < set_size; i++) {
+            T el;
+            buffer >> el;
+            set.insert(el);
+        }
+    }
+};
+
+template <typename BufferType, typename T>
+class Serializer<BufferType, std::unordered_set<T>, typename std::enable_if<std::is_base_of<OutputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void save(BufferType& buffer, const std::unordered_set<T>& set) {
+        buffer << set.size();
+        for (const auto& el : set) {
+            buffer << el;
+        }
+    }
+};
+
+template <typename BufferType, typename T>
+class Serializer<BufferType, std::unordered_set<T>, typename std::enable_if<std::is_base_of<InputBuffer<BufferType>, BufferType>::value>::type> {
+public:
+    static void load(BufferType& buffer, std::unordered_set<T>& set) {
+        typename std::unordered_set<T>::size_type set_size = 0UL;
         buffer >> set_size;
 
         for (long unsigned int i = 0; i < set_size; i++) {

@@ -195,7 +195,7 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::set<size_t> program_node::get_memory_dependencies() const { return memory_dependencies; }
+std::unordered_set<size_t> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(size_t prim) { memory_dependencies.insert(prim); }
 
