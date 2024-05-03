@@ -94,28 +94,13 @@ bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
     }
     return false;
 }
-// TODO: Will remove macro when final confirm, remained it for the discussion
-#if 1
-bool is_user_cpu(const program_node* user) {
-    // If the user is dynamic and runtime skippable node, we still need its parents' completion event
-    // even though the user's program_node is can_be_optimized
-    if (user->can_be_optimized() && !(user->is_dynamic() && user->is_runtime_skippable()))
-        return false;
 
-    if (user->can_be_optimized() || user->is_runtime_skippable()) {
-        auto users = user->get_users();
-        for (const auto& u : users) {
-            if (is_user_cpu(u)) {
-                return true;
-            }
-        }
-    }
-    bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
-                                            : user->get_preferred_impl_type() == impl_types::cpu;
-    return is_cpu;
-}
-#else
 bool is_user_cpu(const program_node* user) {
+    // If the user is dynamic and runtime skippable node, we still need to its parents' completion event
+    // If the user is not runtime skippable in dynamic, we need to check it is cpu impl
+    if (user->is_dynamic() && user->is_runtime_skippable())
+        return true;
+
     if (user->can_be_optimized()) {
         auto users = user->get_users();
         for (const auto& u : users) {
@@ -123,16 +108,12 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        // If the user is dynamic and runtime skippable node, we still need to its parents' completion
-        // event even though the user's program_node is can_be_optimized
-        if (!user->is_dynamic() || (!user->is_runtime_skippable()))
-            return false;
     }
     bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
                                             : user->get_preferred_impl_type() == impl_types::cpu;
     return is_cpu;
 }
-#endif
+
 bool has_cpu_user_not_shape_of(const program_node* user) {
     if (user->can_be_optimized()) {
         auto users = user->get_users();
@@ -1006,6 +987,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                 u->set_can_be_optimized(true);
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
             } else {
+                u->set_can_be_optimized(false);
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
             }
         }
