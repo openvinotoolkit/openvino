@@ -58,6 +58,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
         if (axis == 1) return 2;
         if (axis == 2) return 0;
         if (axis == 3) return 3;
+        return -1;
     };
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     switch (reduceAttrs.operation) {
