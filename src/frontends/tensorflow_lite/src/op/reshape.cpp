@@ -22,7 +22,7 @@ OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
                             node.get_op_type());
     auto has_attribute = node.has_attribute("new_shape");
     Output<Node> shape;
-    if (node.has_attribute("new_shape")) {
+    if (has_attribute) {
         auto new_shape = node.get_attribute<std::vector<int64_t>>("new_shape");
         shape = opset10::Constant::create(element::i64, ov::Shape{new_shape.size()}, new_shape);
     } else {
