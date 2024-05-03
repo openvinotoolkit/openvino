@@ -179,6 +179,32 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return this->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners);
     } else if (name == "half_pixel_centers" && m_type == "RESIZE_NEAREST_NEIGHBOR") {
         return false;
+    } else if (name == "seq_dim" && m_type == "REVERSE_SEQUENCE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::ReverseSequenceOptions::seq_dim));
+    } else if (name == "batch_dim" && m_type == "REVERSE_SEQUENCE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::ReverseSequenceOptions::batch_dim));
+    } else if (name == "out_type" && m_type == "SHAPE") {
+        return get_ov_type(this->get_attribute(&tflite::ShapeOptions::out_type));
+    } else if (name == "beta" && m_type == "SOFTMAX") {
+        return this->get_attribute(&tflite::SoftmaxOptions::beta);
+    } else if (name == "block_size" && m_type == "SPACE_TO_DEPTH") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::SpaceToDepthOptions::block_size));
+    } else if (name == "num_split" && m_type == "SPLIT") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::SplitOptions::num_splits));
+    } else if (name == "axis" && m_type == "SQUEEZE") {
+        auto squeeze_dims = this->get_attribute(&tflite::SqueezeOptions::squeeze_dims);
+        std::vector<int64_t> axes{squeeze_dims->begin(), squeeze_dims->end()};
+        return axes;
+    } else if (name == "begin_mask" && m_type == "STRIDED_SLICE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::begin_mask));
+    } else if (name == "end_mask" && m_type == "STRIDED_SLICE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::end_mask));
+    } else if (name == "new_axis_mask" && m_type == "STRIDED_SLICE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::new_axis_mask));
+    } else if (name == "ellipsis_mask" && m_type == "STRIDED_SLICE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::ellipsis_mask));
+    } else if (name == "shrink_axis_mask" && m_type == "STRIDED_SLICE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::shrink_axis_mask));
     }
 
     const auto opts = m_node_def->custom_options();
