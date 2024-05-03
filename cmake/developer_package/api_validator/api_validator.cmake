@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-#cmake_policy(SET CMP0149 NEW)
-#set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "10.0.22621.0")
 if(WIN32)
     set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
 
@@ -18,12 +16,10 @@ if(WIN32)
         foreach(wdk_path IN LISTS WDK_PATHS)
             message("    * ${wdk_path}")
         endforeach()
-        set(CMAKE_FIND_DEBUG_MODE TRUE)
         find_host_program(ONECORE_API_VALIDATOR
                           NAMES apivalidator
                           PATHS ${WDK_PATHS}
                           DOC "ApiValidator for OneCore compliance")
-        set(CMAKE_FIND_DEBUG_MODE FALSE)
 
         if(ONECORE_API_VALIDATOR)
             message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
@@ -92,11 +88,6 @@ function(_ov_add_api_validator_post_build_step)
         message(FATAL_ERROR "Unknown configuration: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
     endif()
 
-    message("CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
-    message("PROGRAMFILES: ${PROGRAMFILES}")
-    message("wdk_platform: ${wdk_platform}")
-
-    set(CMAKE_FIND_DEBUG_MODE TRUE)
     find_file(ONECORE_API_VALIDATOR_APIS NAMES UniversalDDIs.xml
               PATHS "${PROGRAMFILES}/Windows Kits/10/build/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/universalDDIs/${wdk_platform}"
                     "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/${wdk_platform}"
@@ -104,7 +95,7 @@ function(_ov_add_api_validator_post_build_step)
     find_file(ONECORE_API_VALIDATOR_EXCLUSION NAMES BinaryExclusionlist.xml
               PATHS ${WDK_PATHS}
               DOC "Path to BinaryExclusionlist.xml file")
-    set(CMAKE_FIND_DEBUG_MODE FALSE)
+
     if(NOT ONECORE_API_VALIDATOR_APIS)
         message(FATAL_ERROR "Internal error: apiValidator is found (${ONECORE_API_VALIDATOR}), but UniversalDDIs.xml file has not been found for ${wdk_platform} platform")
     endif()
