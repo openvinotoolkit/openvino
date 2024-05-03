@@ -484,19 +484,17 @@ ov_status_e ov_core_compile_model_with_cache_crypto(const ov_core_t* core,
         }
         va_end(args_ptr);
 
-        auto encrypt_func =
-            [&](const std::string& in_str) {
-                int out_len;
-                auto out_ptr = encrypt(in_str.c_str(), in_str.length(), &out_len);
-                return std::string(out_ptr, out_len);
-            };
+        auto encrypt_func = [&](const std::string& in_str) {
+            int out_len;
+            auto out_ptr = encrypt(in_str.c_str(), in_str.length(), &out_len);
+            return std::string(out_ptr, out_len);
+        };
 
-        auto decrypt_func =
-            [&](const std::string& in_str) {
-                int out_len;
-                auto out_ptr = decrypt(in_str.c_str(), in_str.length(), &out_len);
-                return std::string(out_ptr, out_len);
-            };
+        auto decrypt_func = [&](const std::string& in_str) {
+            int out_len;
+            auto out_ptr = decrypt(in_str.c_str(), in_str.length(), &out_len);
+            return std::string(out_ptr, out_len);
+        };
 
         std::string dev_name = "";
         ov::CompiledModel object;
@@ -514,15 +512,14 @@ ov_status_e ov_core_compile_model_with_cache_crypto(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
-ov_status_e ov_core_compile_model_from_file_with_cache_crypto(
-    const ov_core_t* core,
-    const char* model_path,
-    const char* device_name,
-    const size_t property_args_size,
-    const crypto_func encrypt,
-    const crypto_func decrypt,
-    ov_compiled_model_t** compiled_model,
-    ...) {
+ov_status_e ov_core_compile_model_from_file_with_cache_crypto(const ov_core_t* core,
+                                                              const char* model_path,
+                                                              const char* device_name,
+                                                              const size_t property_args_size,
+                                                              const crypto_func encrypt,
+                                                              const crypto_func decrypt,
+                                                              ov_compiled_model_t** compiled_model,
+                                                              ...) {
     if (!core || !model_path || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -566,15 +563,14 @@ ov_status_e ov_core_compile_model_from_file_with_cache_crypto(
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-ov_status_e ov_core_compile_model_from_file_unicode_with_cache_crypto(
-    const ov_core_t* core,
-    const wchar_t* model_path_ws,
-    const char* device_name,
-    const size_t property_args_size,
-    const crypto_func encrypt,
-    const crypto_func decrypt,
-    ov_compiled_model_t** compiled_model,
-    ...) {
+ov_status_e ov_core_compile_model_from_file_unicode_with_cache_crypto(const ov_core_t* core,
+                                                                      const wchar_t* model_path_ws,
+                                                                      const char* device_name,
+                                                                      const size_t property_args_size,
+                                                                      const crypto_func encrypt,
+                                                                      const crypto_func decrypt,
+                                                                      ov_compiled_model_t** compiled_model,
+                                                                      ...) {
     if (!core || !model_path_ws || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -619,15 +615,14 @@ ov_status_e ov_core_compile_model_from_file_unicode_with_cache_crypto(
 }
 #endif
 
-ov_status_e ov_core_compile_model_with_context_and_cache_crypto(
-    const ov_core_t* core,
-    const ov_model_t* model,
-    const ov_remote_context_t* context,
-    const size_t property_args_size,
-    const crypto_func encrypt,
-    const crypto_func decrypt,
-    ov_compiled_model_t** compiled_model,
-    ...) {
+ov_status_e ov_core_compile_model_with_context_and_cache_crypto(const ov_core_t* core,
+                                                                const ov_model_t* model,
+                                                                const ov_remote_context_t* context,
+                                                                const size_t property_args_size,
+                                                                const crypto_func encrypt,
+                                                                const crypto_func decrypt,
+                                                                ov_compiled_model_t** compiled_model,
+                                                                ...) {
     if (!core || !model || !context || !compiled_model || property_args_size % 2 != 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -654,7 +649,8 @@ ov_status_e ov_core_compile_model_with_context_and_cache_crypto(
             return std::string(out_ptr, out_len);
         };
 
-        ov::CompiledModel object = core->object->compile_model(model->object, *context->object, property, encrypt_func, decrypt_func);
+        ov::CompiledModel object =
+            core->object->compile_model(model->object, *context->object, property, encrypt_func, decrypt_func);
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();

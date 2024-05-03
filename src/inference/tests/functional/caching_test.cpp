@@ -2285,12 +2285,13 @@ TEST_P(CachingTest, LoadMulti_Archs) {
         EXPECT_CALL(*mockPlugin, import_model(_, _, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, import_model(_, _, _))
             .Times(TEST_DEVICE_MAX_COUNT / 2)
-            .WillRepeatedly(Invoke([&](std::istream& s, const ov::AnyMap&, const std::function<std::string(const std::string&)> decrypt) {
-                std::string name;
-                s >> name;
-                std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return create_mock_compiled_model(m_models[name], mockPlugin);
-            }));
+            .WillRepeatedly(Invoke(
+                [&](std::istream& s, const ov::AnyMap&, const std::function<std::string(const std::string&)>& decrypt) {
+                    std::string name;
+                    s >> name;
+                    std::lock_guard<std::mutex> lock(mock_creation_mutex);
+                    return create_mock_compiled_model(m_models[name], mockPlugin);
+                }));
         m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
             EXPECT_CALL(net, export_model(_)).Times(1);  // each net will be exported once
         });

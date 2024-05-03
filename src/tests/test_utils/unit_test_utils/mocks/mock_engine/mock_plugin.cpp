@@ -135,9 +135,10 @@ ov::Any MockPlugin::get_property(const std::string& name, const ov::AnyMap& argu
     return m_plugin->get_property(name, arguments);
 }
 
-std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const std::function<std::string(const std::string&)>& encrypt) const {
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     set_parameters_if_need();
     return m_plugin->compile_model(model, properties, encrypt);
 }
@@ -148,10 +149,11 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::string&
     return m_plugin->compile_model(model_path, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                              const std::function<std::string(const std::string&)>& encrypt) const {
+std::shared_ptr<ov::ICompiledModel> MockPlugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const std::function<std::string(const std::string&)>& encrypt) const {
     set_parameters_if_need();
     return m_plugin->compile_model(model, properties, context, encrypt);
 }

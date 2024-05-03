@@ -145,7 +145,11 @@ CompiledModel Core::compile_model(const std::wstring& model_path,
                                   const AnyMap& config,
                                   const std::function<std::string(const std::string&)>& encryption_func,
                                   const std::function<std::string(const std::string&)>& decryption_func) {
-    return compile_model(ov::util::wstring_to_string(model_path), device_name, config, encryption_func, decryption_func);
+    return compile_model(ov::util::wstring_to_string(model_path),
+                         device_name,
+                         config,
+                         encryption_func,
+                         decryption_func);
 }
 #endif
 

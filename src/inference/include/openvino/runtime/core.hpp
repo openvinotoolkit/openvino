@@ -150,7 +150,7 @@ public:
         return compile_model(model, AnyMap{std::forward<Properties>(properties)...});
     }
 
-        /**
+    /**
      * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by AUTO
      * plugin.
      *
@@ -236,7 +236,11 @@ public:
         const std::function<std::string(const std::string&)>& encryption_func,
         const std::function<std::string(const std::string&)>& decryption_func,
         Properties&&... properties) {
-        return compile_model(model, device_name, AnyMap{std::forward<Properties>(properties)...}, decryption_func, encryption_func);
+        return compile_model(model,
+                             device_name,
+                             AnyMap{std::forward<Properties>(properties)...},
+                             decryption_func,
+                             encryption_func);
     }
 
     /**
