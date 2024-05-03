@@ -20,32 +20,46 @@ public:
                               pass::PassPipeline main_body_handlers,
                               pass::PassPipeline last_iter_handlers);
 
-    template <SpecificLoopIterType Type>
+    template <SpecificLoopIterType Type,
+              typename std::enable_if<Type == SpecificLoopIterType::FIRST_ITER, bool>::type = true>
     const pass::PassPipeline& get_passes() const {
-        switch (Type) {
-            case SpecificLoopIterType::FIRST_ITER:
-                return m_first_iter_handlers;
-            case SpecificLoopIterType::MAIN_BODY:
-                return m_main_body_handlers;
-            case SpecificLoopIterType::LAST_ITER:
-                return m_last_iter_handlers;
-            default:
-                OPENVINO_THROW("Unknown SpecificLoopIterType");
-        }
+        return m_first_iter_handlers;
     }
 
-    template <SpecificLoopIterType Type, typename Pass, class... Args>
+    template <SpecificLoopIterType Type,
+              typename std::enable_if<Type == SpecificLoopIterType::MAIN_BODY, bool>::type = true>
+    const pass::PassPipeline& get_passes() const {
+        return m_main_body_handlers;
+    }
+
+    template <SpecificLoopIterType Type,
+              typename std::enable_if<Type == SpecificLoopIterType::LAST_ITER, bool>::type = true>
+    const pass::PassPipeline& get_passes() const {
+        return m_last_iter_handlers;
+    }
+
+    template <SpecificLoopIterType Type,
+              typename T,
+              class... Args,
+              typename std::enable_if<Type == SpecificLoopIterType::FIRST_ITER, bool>::type = true>
     void register_pass(Args&&... args) {
-        switch (Type) {
-            case SpecificLoopIterType::FIRST_ITER:
-                return m_first_iter_handlers.register_pass<Pass>(args...);
-            case SpecificLoopIterType::MAIN_BODY:
-                return m_main_body_handlers.register_pass<Pass>(args...);
-            case SpecificLoopIterType::LAST_ITER:
-                return m_last_iter_handlers.register_pass<Pass>(args...);
-            default:
-                OPENVINO_THROW("Unknown SpecificLoopIterType");
-        }
+        m_first_iter_handlers.register_pass<T>(args...);
+    }
+
+    template <SpecificLoopIterType Type,
+              typename T,
+              class... Args,
+              typename std::enable_if<Type == SpecificLoopIterType::MAIN_BODY, bool>::type = true>
+    void register_pass(Args&&... args) {
+        m_main_body_handlers.register_pass<T>(args...);
+    }
+
+    template <SpecificLoopIterType Type,
+              typename T,
+              class... Args,
+              typename std::enable_if<Type == SpecificLoopIterType::LAST_ITER, bool>::type = true>
+    void register_pass(Args&&... args) {
+        m_last_iter_handlers.register_pass<T>(args...);
     }
 
     static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
