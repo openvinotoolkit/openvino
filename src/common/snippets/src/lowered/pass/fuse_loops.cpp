@@ -220,7 +220,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Upper)                 |
                 //   |               =>           |
                 // Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
-                auto input_ports = current_loop_info->get_input_ports();
+                const auto& input_ports = current_loop_info->get_input_ports();
                 bool was_fusion_up = false;
                 for (size_t in_port = 0; in_port < input_ports.size() && !was_fusion_up; ++in_port) {
                     const auto input_port = input_ports[in_port];
@@ -264,7 +264,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
-                auto output_ports = current_loop_info->get_output_ports();
+                const auto& output_ports = current_loop_info->get_output_ports();
                 bool was_fusion_down = false;
                 for (size_t out_port = 0; out_port < output_ports.size() && !was_fusion_down; ++out_port) {
                     const auto output_port = output_ports[out_port];

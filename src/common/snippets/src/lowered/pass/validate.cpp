@@ -106,9 +106,9 @@ void validate_loop_end_static(const ExpressionPtr& expr, const LinearIR& linear_
     const auto& final_offsets = loop_end->get_finalization_offsets();
     auto validate_loop_ports = [&](const std::vector<UnifiedLoopInfo::LoopPortInfo>& loop_port_infos, size_t shift = 0) {
         for (size_t i = 0; i < loop_port_infos.size(); ++i) {
-            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].first.is_incremented &&
-                            ptr_increments[i + shift] == loop_port_infos[i].second.ptr_increment &&
-                            final_offsets[i + shift] == loop_port_infos[i].second.finalization_offset,
+            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented &&
+                            ptr_increments[i + shift] == loop_port_infos[i].desc.ptr_increment &&
+                            final_offsets[i + shift] == loop_port_infos[i].desc.finalization_offset,
                             "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
@@ -127,10 +127,8 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
     OPENVINO_ASSERT(loop_info->get_increment() == loop_end->get_increment(),
                     "Incompatible LoopEndDynamic and the corresponding LoopInfo");
 
-    const auto& input_ports = loop_info->get_input_ports();
-    const auto& output_ports = loop_info->get_output_ports();
-    OPENVINO_ASSERT(input_ports.size() == loop_end->get_input_num() &&
-                    output_ports.size() == loop_end->get_output_num(),
+    OPENVINO_ASSERT(loop_info->get_input_count() == loop_end->get_input_num() &&
+                    loop_info->get_output_count() == loop_end->get_output_num(),
                     "Incompatible LoopEndStatic and the corresponding LoopInfo");
 
     const auto& is_incremented = loop_end->get_is_incremented();
@@ -141,8 +139,8 @@ void validate_loop_end_dynamic(const ExpressionPtr& expr, const LinearIR& linear
                         "Incompatible data ptr shifts in LoopEndStatic and the corresponding LoopInfo");
         }
     };
-    validate_loop_ports(input_ports);
-    validate_loop_ports(output_ports, loop_end->get_input_num());
+    validate_loop_ports(loop_info->get_input_ports());
+    validate_loop_ports(loop_info->get_output_ports(), loop_end->get_input_num());
 }
 } // namespace
 

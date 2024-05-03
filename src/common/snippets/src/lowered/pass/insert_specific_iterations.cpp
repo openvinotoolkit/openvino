@@ -161,11 +161,10 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
 
                 // Only latest loop iterations must have summarized finalization offsets!
                 // Since we inserted copy before the latest iterations, these copies should have reseted offsets
-                auto nullify_finalization_offset = [](int64_t& offset) {
+                std::for_each(decomposed_finalization_offsets.begin(), decomposed_finalization_offsets.end(), [](int64_t& offset) {
                     if (!utils::is_dynamic_value(offset))
                         offset = 0;
-                };
-                std::for_each(decomposed_finalization_offsets.begin(), decomposed_finalization_offsets.end(), nullify_finalization_offset);
+                });
             }
 
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,

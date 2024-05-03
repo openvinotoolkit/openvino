@@ -62,7 +62,7 @@ private:
      * @param loop_end the target LoopEnd
      * @return True if the Loop has been successfully decomposed, otherwise returns False.
      */
-    bool decompose(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end, const std::shared_ptr<op::LoopEnd>& loop_end);
+    static bool decompose(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end, const std::shared_ptr<op::LoopEnd>& loop_end);
     /**
      * @brief Make a copy of Loop with ID `loop_id` and insert to LinearIR before `insert_pos`
      * @param linear_ir target Linear IR

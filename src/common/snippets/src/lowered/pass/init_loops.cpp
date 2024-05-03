@@ -96,7 +96,7 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount) 
     return 0;
 }
 
-inline int64_t get_finalization_offset(size_t work_amount, uint64_t ptr_increment) {
+inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment) {
     return utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(ptr_increment) ? utils::get_dynamic_value<int64_t>()
                                                                                           : -1 * ptr_increment * work_amount;
 }
@@ -114,22 +114,16 @@ inline int64_t get_data_size(const LoopPort& loop_port) {
 
 inline void init_work_amount(const LoopInfoPtr& loop_info) {
     size_t work_amount = 1;
-    for (const auto& loop_port : loop_info->get_input_ports()) {
+    loop_info->iterate_through_ports([&work_amount](const LoopPort& loop_port) {
         if (loop_port.is_incremented) {
             const auto& desc = loop_port.expr_port->get_descriptor_ptr();
             const auto& shape = desc->get_shape();
             const auto& layout = desc->get_layout();
-            utils::broadcast_merge_dim(work_amount, work_amount, shape[utils::get_input_dim_idx(layout, loop_port.dim_idx)]);
+            const auto is_input = loop_port.expr_port->get_type() == ExpressionPort::Input;
+            const auto dim_idx = is_input ? utils::get_input_dim_idx(layout, loop_port.dim_idx) : utils::get_input_dim_idx(layout, loop_port.dim_idx);
+            utils::broadcast_merge_dim(work_amount, work_amount, shape[dim_idx]);
         }
-    }
-    for (const auto& loop_port : loop_info->get_output_ports()) {
-        if (loop_port.is_incremented) {
-            const auto& desc = loop_port.expr_port->get_descriptor_ptr();
-            const auto& shape = desc->get_shape();
-            const auto& layout = desc->get_layout();
-            utils::broadcast_merge_dim(work_amount, work_amount, shape[utils::get_output_dim_idx(layout, loop_port.dim_idx)]);
-        }
-    }
+    });
     loop_info->set_work_amount(work_amount);
 }
 }  // namespace
