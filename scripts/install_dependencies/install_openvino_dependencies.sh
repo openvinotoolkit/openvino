@@ -131,7 +131,6 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=(libtbb2)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
@@ -144,13 +143,6 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
-
-    if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] ||
-       [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
-        pkgs_core+=(libtbb12)
-    else
-        pkgs_core+=(libtbb2)
-    fi
 
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
         pkgs_python+=(libpython3.7)
@@ -207,7 +199,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
        [ "$os" == "amzn2022" ] || [ "$os" == "amzn2023" ] ||
        [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
        [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ; then
-        pkgs_core+=("tbb.$arch")
         pkgs_python+=(python3 python3-pip)
     fi
 
@@ -215,18 +206,16 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         pkgs_gpu+=("ocl-icd.$arch")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
     elif [ "$os" == "rhel8" ] ; then
-        pkgs_core+=("https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm")
         pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
-        pkgs_core+=("http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm")
         pkgs_gpu+=("https://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.13-4.el9.$arch.rpm")
         pkgs_python+=(python3 python3-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
-    pkgs_core=(libtbb2 libtbbmalloc2)
+    pkgs_core=()
     pkgs_gpu=(libOpenCL1)
     pkgs_python=(python39-base python39 python39-venv python39-pip)
     pkgs_dev=(cmake pkg-config gcc-c++ gcc make sudo)
