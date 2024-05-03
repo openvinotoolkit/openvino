@@ -116,6 +116,31 @@ ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
 }
 
 ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
+    if (name == "new_shape" && m_type == "RESHAPE") {
+        bool has_attribute = this->has_attribute(&tflite::ReshapeOptions::new_shape);
+        if (has_attribute) {
+            auto reshape_new_shape = this->get_attribute(&tflite::ReshapeOptions::new_shape);
+            const auto new_shape = std::vector<int64_t>(reshape_new_shape->begin(), reshape_new_shape->end());
+            return new_shape;
+        } else {
+            return {};
+        }
+    } else if (name == "output_type" && m_type == "ARG_MIN") {
+        bool has_attribute = this->has_attribute(&tflite::ArgMinOptions::output_type);
+        if (has_attribute) {
+            return get_ov_type(this->get_attribute(&tflite::ArgMinOptions::output_type));
+        } else {
+            return {};
+        }
+    } else if (name == "output_type" && m_type == "ARG_MAX") {
+        bool has_attribute = this->has_attribute(&tflite::ArgMaxOptions::output_type);
+        if (has_attribute) {
+            return get_ov_type(this->get_attribute(&tflite::ArgMaxOptions::output_type));
+        } else {
+            return {};
+        }
+    }
+
     const auto opts = m_node_def->custom_options();
     if (opts == nullptr)
         return {};
