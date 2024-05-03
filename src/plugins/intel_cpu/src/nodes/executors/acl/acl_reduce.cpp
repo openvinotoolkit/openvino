@@ -68,6 +68,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                 auto pos = axisCast(i, reduceAttrs.axes.size());
                 if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
                     axe = getAxeNchwLayout(axe);
+                    if (axe == -1) return false;
                 }
                 axesMean.set(pos, axe);
             }
@@ -90,6 +91,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
             int axis = axisCast(reduceAttrs.axes[0], srcDims.size());
             if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
                 axis = getAxeNchwLayout(axis);
+                if (axis == -1) return false;
             }
             Status reductionOperationStatus = NEReductionOperation::validate(&srcTensorInfo, &dstTensorInfo, axis,
                                                                              getAclReductionOperationByAlgorithm(reduceAttrs.operation), reduceAttrs.keepDims);
