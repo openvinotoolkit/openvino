@@ -47,11 +47,10 @@ class TestConcat(CommonTFLayerTest):
                                            use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
-
+    '''
     test_data_1D = [
         dict(input_shapes=[[1], [2]], axis=0, is_v2=False),
     ]
-    '''
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
