@@ -186,6 +186,8 @@ public:
         int64_t data_size = 0;
     };
     // The structure describes full information about port
+    // - TODO [140365] : UnifiedLoopInfo should have the map of LoopPorts and LoopDesc as class field
+    //                   instead of the separate vectors with descriptors.
     struct LoopPortInfo {
         LoopPort port;
         LoopPortDesc desc;
