@@ -131,6 +131,7 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
+    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
