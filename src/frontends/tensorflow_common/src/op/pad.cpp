@@ -119,7 +119,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
 }
 
 OutputVector translate_mirror_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"MirrorPad"});
+    default_op_checks(node, 2, {"MirrorPad", "MIRROR_PAD"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 

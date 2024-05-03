@@ -159,6 +159,16 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return this->get_attribute(&tflite::ConcatenationOptions::axis);
     } else if (name == "block_size" && m_type == "DEPTH_TO_SPACE") {
         return static_cast<int64_t>(this->get_attribute(&tflite::DepthToSpaceOptions::block_size));
+    } else if (name == "axis" && m_type == "GATHER") {
+        return this->get_attribute(&tflite::GatherOptions::axis);
+    } else if (name == "batch_dims" && m_type == "GATHER") {
+        return this->get_attribute(&tflite::GatherOptions::batch_dims);
+    } else if (name == "alpha" && m_type == "LEAKY_RELU") {
+        return this->get_attribute(&tflite::LeakyReluOptions::alpha);
+    } else if (name == "mode" && m_type == "MIRROR_PAD") {
+        return std::string(EnumNameMirrorPadMode(this->get_attribute(&tflite::MirrorPadOptions::mode)));
+    } else if (name == "axis" && m_type == "ONE_HOT") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::OneHotOptions::axis));
     }
 
     const auto opts = m_node_def->custom_options();
