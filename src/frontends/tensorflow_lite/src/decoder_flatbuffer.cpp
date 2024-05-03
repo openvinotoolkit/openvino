@@ -169,6 +169,16 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return std::string(EnumNameMirrorPadMode(this->get_attribute(&tflite::MirrorPadOptions::mode)));
     } else if (name == "axis" && m_type == "ONE_HOT") {
         return static_cast<int64_t>(this->get_attribute(&tflite::OneHotOptions::axis));
+    } else if (name == "axis" && m_type == "PACK") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::PackOptions::axis));
+    } else if (name == "align_corners" && m_type == "RESIZE_BILINEAR") {
+        return this->get_attribute(&tflite::ResizeBilinearOptions::align_corners);
+    } else if (name == "half_pixel_centers" && m_type == "RESIZE_BILINEAR") {
+        return this->get_attribute(&tflite::ResizeBilinearOptions::half_pixel_centers);
+    } else if (name == "align_corners" && m_type == "RESIZE_NEAREST_NEIGHBOR") {
+        return this->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners);
+    } else if (name == "half_pixel_centers" && m_type == "RESIZE_NEAREST_NEIGHBOR") {
+        return false;
     }
 
     const auto opts = m_node_def->custom_options();

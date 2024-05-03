@@ -16,7 +16,6 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    auto decoder = get_decoder(node);
     auto convert = make_shared<opset10::Convert>(node.get_input(0), element::f32);
     disable_constant_folding(convert);
     convert->set_friendly_name(node.get_name());
@@ -24,7 +23,7 @@ OutputVector quantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
 }
 
 OutputVector dequantize(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    auto decoder = get_decoder(node);
+    const auto& decoder = node.get_decoder();
     auto convert = make_shared<opset10::Convert>(node.get_input(0), decoder->get_output_tensor_type(0));
     disable_constant_folding(convert);
     convert->set_friendly_name(node.get_name());

@@ -20,7 +20,9 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_interpolate_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"ResizeBilinear", "ResizeNearestNeighbor"});
+    default_op_checks(node,
+                      2,
+                      {"ResizeBilinear", "ResizeNearestNeighbor", "RESIZE_BILINEAR", "RESIZE_NEAREST_NEIGHBOR"});
     auto images = node.get_input(0);
     auto size = node.get_input(1);
     auto op_name = node.get_name();
