@@ -2132,9 +2132,6 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
         case optimization_attributes_type::group_convolution:
             _optimization_attributes.group_convolution = val;
             break;
-        case optimization_attributes_type::deformable_convolution:
-            _optimization_attributes.deformable_convolution = val;
-            break;
         case optimization_attributes_type::bfyx_only_layer:
             _optimization_attributes.bfyx_only_layer = val;
             break;
