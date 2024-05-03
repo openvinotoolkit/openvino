@@ -205,6 +205,16 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::ellipsis_mask));
     } else if (name == "shrink_axis_mask" && m_type == "STRIDED_SLICE") {
         return static_cast<int64_t>(this->get_attribute(&tflite::StridedSliceOptions::shrink_axis_mask));
+    } else if (name == "axis" && m_type == "UNPACK") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::UnpackOptions::axis));
+    } else if (name == "num" && m_type == "UNPACK") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::UnpackOptions::num));
+    } else if (name == "out_idx" && m_type == "UNIQUE") {
+        return get_ov_type(this->get_attribute(&tflite::UniqueOptions::idx_out_type));
+    } else if (name == "cond_subgraph_index" && m_type == "WHILE") {
+        return this->get_attribute(&tflite::WhileOptions::cond_subgraph_index);
+    } else if (name == "body_subgraph_index" && m_type == "WHILE") {
+        return this->get_attribute(&tflite::WhileOptions::body_subgraph_index);
     }
 
     const auto opts = m_node_def->custom_options();
