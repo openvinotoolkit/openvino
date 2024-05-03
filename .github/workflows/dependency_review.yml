@@ -15,3 +15,5 @@ jobs:
         uses: actions/dependency-review-action@v4.2.5
         with:
           config-file: './.github/dependency_review.yml'
+          base-ref: ${{ github.pull_request.base.sha || github.event.merge_group.base_ref }}
+          head-ref: ${{ github.pull_request.head.sha || github.ref }}
