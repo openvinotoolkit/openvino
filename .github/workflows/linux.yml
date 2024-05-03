@@ -104,9 +104,6 @@ jobs:
       - name: Search for 'Python.h'
         run: find / -depth -type f -name 'Python.h'
 
-      - name: Print Python includes path
-        run: python3.11-config --includes
-
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v4
         with:
