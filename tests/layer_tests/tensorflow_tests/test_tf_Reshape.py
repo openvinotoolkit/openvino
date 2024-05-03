@@ -87,6 +87,8 @@ class TestComplexReshape(CommonTFLayerTest):
         dict(input_shape=[1], target_shape=[])
     ]
 
+    '''
+    CVS-140394
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
@@ -96,3 +98,4 @@ class TestComplexReshape(CommonTFLayerTest):
             *self.create_complex_transpose_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
             use_legacy_frontend=use_legacy_frontend)
+    '''

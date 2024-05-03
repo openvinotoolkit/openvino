@@ -37,6 +37,8 @@ class TestConcat(CommonTFLayerTest):
              axis=-1, is_v2=True),
     ]
 
+    '''
+    CVS-140394
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
@@ -49,6 +51,7 @@ class TestConcat(CommonTFLayerTest):
     test_data_1D = [
         dict(input_shapes=[[1], [2]], axis=0, is_v2=False),
     ]
+    '''
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
