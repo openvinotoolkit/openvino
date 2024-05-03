@@ -155,6 +155,10 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         }
     } else if (name == "DstT" && m_type == "CAST") {
         return this->get_output_tensor_type(0);
+    } else if (name == "axis" && m_type == "CONCATENATION") {
+        return this->get_attribute(&tflite::ConcatenationOptions::axis);
+    } else if (name == "block_size" && m_type == "DEPTH_TO_SPACE") {
+        return static_cast<int64_t>(this->get_attribute(&tflite::DepthToSpaceOptions::block_size));
     }
 
     const auto opts = m_node_def->custom_options();
