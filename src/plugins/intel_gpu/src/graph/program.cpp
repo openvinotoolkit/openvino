@@ -207,6 +207,7 @@ program::program(engine& engine,
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
+    new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
 }
 
 program::~program() {
