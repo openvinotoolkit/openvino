@@ -64,7 +64,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
     switch (reduceAttrs.operation) {
         case Algorithm::ReduceMean: {
             for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-                auto axe = axisCast(reduceAttrs.axes[i], srcDims.size());
+                int axe = axisCast(reduceAttrs.axes[i], srcDims.size());
                 auto pos = axisCast(i, reduceAttrs.axes.size());
                 if (srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
                     axe = getAxeNchwLayout(axe);
