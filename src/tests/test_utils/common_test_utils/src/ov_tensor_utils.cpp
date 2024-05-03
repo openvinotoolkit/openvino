@@ -68,6 +68,8 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE_CONVERT(ov::element::u1)
         CASE_CONVERT(ov::element::i4)
         CASE_CONVERT(ov::element::nf4)
+        CASE_CONVERT(ov::element::f8e4m3)
+        CASE_CONVERT(ov::element::f8e5m2)
     case ov::element::boolean:
         fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
                           size,

@@ -19,6 +19,7 @@
 #include "shared_test_classes/single_op/roi_align.hpp"
 
 #include "common_test_utils/data_utils.hpp"
+#include "functional_test_utils/common_utils.hpp"
 
 namespace ov {
 namespace test {
