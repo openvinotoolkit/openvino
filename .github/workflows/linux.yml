@@ -88,6 +88,16 @@ jobs:
           apt-get update
           apt-get install --assume-yes --no-install-recommends git ca-certificates
 
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'true'
+
+      - name: Search for 'Python.h'
+        run: find / -depth -type f -name 'Python.h'
+
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
