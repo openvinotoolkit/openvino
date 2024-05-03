@@ -20,7 +20,7 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node())) {
             const auto current_id = loop_end->get_id();
             OPENVINO_ASSERT(loop_id_map.count(current_id) > 0, "ID of the LoopEnd has not been found in the map!");
-            loop_end->set_id(loop_id_map.at(loop_end->get_id()));
+            loop_end->set_id(loop_id_map.at(current_id));
         }
 
         auto expr_loop_ids = expr->get_loop_ids();

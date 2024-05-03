@@ -96,14 +96,14 @@ public:
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      * @param actual_port actual port
-     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     * @param target_ports new ports. The ports order is important. Can contain `actual_port`
      */
     virtual void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports);
     /**
      * @brief Replace the current LoopPort that contains ExpressionPort `actual_port` with new `target_ports`
      *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
      * @param actual_port actual port
-     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     * @param target_ports new ports. The ports order is important. Can contain `actual_port`
      */
     virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
 
@@ -127,7 +127,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"PassBase"};
+        static ::ov::DiscreteTypeInfo type_info_static {"LoopInfoBase"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -412,7 +412,7 @@ public:
      */
     void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) override;
     /**
-     * @briefReplace the current LoopPort `actual_port` with new `target_ports`
+     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
      *        Attention: ExpandedLoopInfo supports only replace one port with one port!
      * @param actual_port actual port

@@ -66,7 +66,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
                 INFORMATIVE_ASSERT(current_work_amount == current_unified_loop_info->get_work_amount(),
                                    "total work amount of expanded loops is not equal to work amount of undefined loop");
                 INFORMATIVE_ASSERT(total_finalization_offsets == current_unified_loop_info->get_finalization_offsets(),
-                                   "total finalization offsets are not equal to finalization offsets of unified loop");
+                                   "total finalization offsets are not equal to finalization offsets of undefined loop");
             }
 
             current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
@@ -107,7 +107,7 @@ void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir)
             if (is_inner_splitted_tail(expr, loop_manager))
                 continue;
 
-            const auto expanded_loop_info = std::dynamic_pointer_cast<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
+            const auto expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_manager->get_loop_info(loop_id));
             INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
 
             INFORMATIVE_ASSERT(loop_end->get_increment() == expanded_loop_info->get_increment(),

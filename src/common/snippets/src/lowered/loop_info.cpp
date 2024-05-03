@@ -85,7 +85,7 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_po
     auto& ports = loop_port.expr_port->get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
     const auto it = std::find_if(ports.begin(), ports.end(),
                                  [&loop_port](const LoopPort& port) { return port == loop_port; });
-    OPENVINO_ASSERT(it != ports.end(), "Failed update_loop_port: existing loop ports has not been found");
+    OPENVINO_ASSERT(it != ports.end(), "Failed update_loop_port: existing loop port has not been found");
     return it;
 }
 
@@ -256,10 +256,10 @@ void UnifiedLoopInfo::sort_output_ports(const std::vector<size_t>& new_order) {
 }
 
 void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input) {
-    auto& data_ptr_shifts = is_input ? m_input_port_descs : m_output_port_descs;
-    std::vector<LoopPortDesc> target_shifts(new_count, data_ptr_shifts[actual_port_idx]);
-    auto shift_it = data_ptr_shifts.erase(data_ptr_shifts.begin() + actual_port_idx);
-    data_ptr_shifts.insert(shift_it, target_shifts.cbegin(), target_shifts.cend());
+    auto& descs = is_input ? m_input_port_descs : m_output_port_descs;
+    std::vector<LoopPortDesc> target_shifts(new_count, descs[actual_port_idx]);
+    auto shift_it = descs.erase(descs.begin() + actual_port_idx);
+    descs.insert(shift_it, target_shifts.cbegin(), target_shifts.cend());
 }
 
 void UnifiedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
