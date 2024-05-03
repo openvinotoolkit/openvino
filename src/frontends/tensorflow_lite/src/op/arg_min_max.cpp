@@ -3,8 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "op_translation_utils.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow_lite/node_context.hpp"
 
 using namespace std;
 
