@@ -157,7 +157,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 

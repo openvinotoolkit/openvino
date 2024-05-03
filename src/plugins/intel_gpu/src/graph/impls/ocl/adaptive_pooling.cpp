@@ -43,7 +43,7 @@ public:
                 }
                 default: OPENVINO_ASSERT(false, "[GPU] Not supported index element type");
             }
-            bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
             if (allow_new_shape_infer) {
                 params.outputs_num = 2;
                 params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));

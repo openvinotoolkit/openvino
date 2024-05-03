@@ -407,7 +407,7 @@ struct layout {
     bool identical(const layout& other) const;
 
     static size_t max_rank() { return 8; }
-    static ov::PartialShape transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt);
+    static ov::PartialShape transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt);
 
     size_t hash() const {
         size_t seed = 0;
