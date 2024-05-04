@@ -30,23 +30,14 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
 
 memory_pool::~memory_pool() {}
 
-bool memory_pool::has_conflict(const memory_set& a,
-                               const std::set<size_t>& b,
+bool memory_pool::has_conflict(const memory_set& mem_cand,
+                               const std::unordered_set<size_t>& restrictions,
                                uint32_t b_network_id) {
-    std::set<size_t> a_same_network;
-    for (auto const& mem_usr : a) {
-        if (mem_usr._network_id == b_network_id) {
-            a_same_network.insert(mem_usr._unique_id);
-        }
+    for (const auto& mem_usr : mem_cand) {
+        if (restrictions.find(mem_usr._unique_id) != restrictions.end())
+            return true;
     }
-    std::vector<size_t> intersection;
-    intersection.reserve(std::min(a_same_network.size(), b.size()));
-    set_intersection(a_same_network.begin(),
-                     a_same_network.end(),
-                     b.begin(),
-                     b.end(),
-                     std::back_inserter(intersection));
-    return !intersection.empty();
+    return false;
 }
 
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
@@ -119,7 +110,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
                                                   uint32_t network_id,
-                                                  const std::set<size_t>& restrictions,
+                                                  const std::unordered_set<size_t>& restrictions,
                                                   allocation_type type,
                                                   bool reset) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
@@ -153,7 +144,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               const primitive_id& prim_id,
                                               size_t unique_id,
                                               uint32_t network_id,
-                                              const std::set<size_t>& restrictions,
+                                              const std::unordered_set<size_t>& restrictions,
                                               allocation_type type) {
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
@@ -225,7 +216,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     const primitive_id& prim_id,
                                     const size_t unique_id,
                                     uint32_t network_id,
-                                    const std::set<size_t>& restrictions,
+                                    const std::unordered_set<size_t>& restrictions,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset) {
