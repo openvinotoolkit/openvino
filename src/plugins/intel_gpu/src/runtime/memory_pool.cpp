@@ -17,6 +17,12 @@
 #include <set>
 #include <stdexcept>
 
+
+#ifdef GPU_DEBUG_CONFIG
+#define MEM_USER(uid, nid, pid, cnt) uid, nid, pid, cnt
+#else
+#define MEM_USER(uid, nid, pid, cnt) uid, nid, pid
+#endif
 namespace cldnn {
 memory_record::memory_record(memory_set users,
                              std::shared_ptr<memory>& memory,
@@ -54,8 +60,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             if (it->second._network_id == network_id &&
                 it->second._type == type &&
                 it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
-                auto user_it = it->second._users.find({ unique_id, network_id, prim_id, _layout_bytes_count});
-
+                auto user_it = it->second._users.find({MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)});
                 // normally there should be only one entry
                 if (user_it != it->second._users.end()) {
                     user_it = it->second._users.erase(user_it);
@@ -91,7 +96,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                 if (list_itr->_memory.get() == mem &&
                     list_itr->_network_id == network_id &&
                     list_itr->_type == type) {
-                    auto user_it = list_itr->_users.find({ unique_id, network_id, prim_id, _layout_bytes_count});
+                    auto user_it = list_itr->_users.find({MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)});
 
                     // normally there should be only one entry
                     if (user_it != list_itr->_users.end()) {
@@ -124,34 +129,20 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
     }
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-        auto it = _no_reusable_pool.lower_bound(_layout_bytes_count);
-
-        while (it != _no_reusable_pool.end()) {
-            if (it->second._network_id == network_id &&
-                it->second._type == type &&
-                it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
-                auto user_it = it->second._users.find({ unique_id, network_id, prim_id, _layout_bytes_count});
-
-                // normally there should be only one entry
-                if (user_it != it->second._users.end()) {
-                    user_it = it->second._users.erase(user_it);
-                }
-                if (it->second._users.empty()) {
-                    GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-                        auto released_mem_size = it->first;
-                        total_mem_size_no_reusable -= released_mem_size;
-                        if (type == allocation_type::usm_host)
-                            mem_size_no_reusable_host -= released_mem_size;
-                    }
-                    // if this was the only user of the memory, then free it up
-                    it = _no_reusable_pool.erase(it);
-                }
-
-                //entry found and processed - so return
-                return;
-            } else {
-                ++it;
+        auto iter = std::find_if(_no_reusable_mems.begin(), _no_reusable_mems.end(), [&](cldnn::memory_record& r) {
+            return (network_id == r._network_id
+                && type == r._type
+                && mem->get_internal_params().mem == r._memory->get_internal_params().mem);
+        });
+        if (iter != _no_reusable_mems.end()) {
+            GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                auto released_mem_size = iter->_users.begin()->_mem_size;
+                total_mem_size_no_reusable -= released_mem_size;
+                if (type == allocation_type::usm_host)
+                    mem_size_no_reusable_host -= released_mem_size;
             }
+            iter->_users.clear();
+            _no_reusable_mems.erase(iter);
         }
     }
 #endif
@@ -176,7 +167,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
             !has_conflict(it->second._users, restrictions, network_id))) {
-            it->second._users.insert(memory_user(unique_id, network_id, prim_id, layout_bytes_count));
+            it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
             GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
             return ret_mem;
@@ -189,7 +180,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     auto mem = alloc_memory(layout, type, reset);
     {
         _non_padded_pool.emplace(layout_bytes_count,
-                                 memory_record({{unique_id, network_id, prim_id, layout_bytes_count}}, mem, network_id, type));
+                                 memory_record({{MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)}}, mem, network_id, type));
 #ifdef GPU_DEBUG_CONFIG
         {
             GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -224,19 +215,19 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions, network_id)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
-                rec_list._users.insert({unique_id, network_id, prim_id, ret_mem->size()});
+                rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
             }
         }
         auto mem = alloc_memory(layout, type);
-        const auto allocated_mem_size = mem->size();
         first_level_cache->second.emplace_back(
-            memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type));
+            memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type));
 #ifdef GPU_DEBUG_CONFIG
         {
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+                const auto allocated_mem_size = mem->size();
                 total_mem_size_padded_pool += allocated_mem_size;
                 if (type == allocation_type::usm_host)
                     mem_size_padded_pool_host += allocated_mem_size;
@@ -247,13 +238,13 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     }
     GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << ")" << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
-    const auto allocated_mem_size = mem->size();
-    std::list<memory_record> list = {memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type)};
+    std::list<memory_record> list = {memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
 #ifdef GPU_DEBUG_CONFIG
     {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->dump_memory_pool) {
+            const auto allocated_mem_size = mem->size();
             total_mem_size_padded_pool += allocated_mem_size;
             if (type == allocation_type::usm_host)
                 mem_size_padded_pool_host += allocated_mem_size;
@@ -264,7 +255,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
 }
 
 /*
-        This is not reusable within one network or it's internal micronetworks. But we can use this memory records
+        This is not reusable within one network or it's internal micro networks. But we can use this memory records
    between networks.
     */
 memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
@@ -273,13 +264,13 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
                                                        uint32_t network_id,
                                                        allocation_type type) {
     const auto layout_bytes_count = layout.bytes_count();
-    auto it = _across_network_pool.lower_bound(layout_bytes_count);
+    auto it = _no_reusable_pool.lower_bound(layout_bytes_count);
 
-    while (it != _across_network_pool.end()) {
+    while (it != _no_reusable_pool.end()) {
         if (it->second._network_id != network_id &&
             it->second._type == type) {  // don't use non reusable resources within the same network
             if (!has_conflict(it->second._users, {}, network_id)) {
-                it->second._users.insert(memory_user(unique_id, network_id, prim_id, layout_bytes_count));
+                it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
                 auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
@@ -289,8 +280,8 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     }
     auto mem = alloc_memory(layout, type);
     {
-        _across_network_pool.emplace(layout_bytes_count,
-                                  memory_record({{unique_id, network_id, prim_id, layout_bytes_count}}, mem, network_id, type));
+        _no_reusable_pool.emplace(layout_bytes_count,
+                                  memory_record({{MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)}}, mem, network_id, type));
     }
     return mem;
 }
@@ -327,8 +318,8 @@ memory::ptr memory_pool::get_memory(const layout& layout,
 #ifdef GPU_DEBUG_CONFIG
             GPU_DEBUG_IF(debug_config->dump_memory_pool) {
                 auto allocated_mem_size = mem->size();
-                _no_reusable_pool.emplace(allocated_mem_size,
-                                        memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type));
+                _no_reusable_mems.push_back(
+                                        memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
                 total_mem_size_no_reusable += allocated_mem_size;
                 if (type == allocation_type::usm_host)
                     mem_size_no_reusable_host += allocated_mem_size;
@@ -341,8 +332,8 @@ memory::ptr memory_pool::get_memory(const layout& layout,
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(debug_config->dump_memory_pool) {
             auto allocated_mem_size = mem->size();
-            _no_reusable_pool.emplace(allocated_mem_size,
-                                    memory_record({{unique_id, network_id, prim_id, allocated_mem_size}}, mem, network_id, type));
+            _no_reusable_mems.push_back(
+                                    memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
             total_mem_size_no_reusable += allocated_mem_size;
             if (type == allocation_type::usm_host)
                 mem_size_no_reusable_host += allocated_mem_size;
@@ -412,21 +403,19 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 
 #ifdef GPU_DEBUG_CONFIG
-    // free up _no_reusable_pool for this network
+    // free up _no_reusable_mems for this network
     GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-        auto itr = _no_reusable_pool.begin();
-
-        while (itr != _no_reusable_pool.end()) {
-            auto& record = itr->second;
-
-            if (record._network_id == network_id) {
+        auto itr = _no_reusable_mems.begin();
+        while (itr != _no_reusable_mems.end()) {
+            auto& record = *itr;
+            if (itr->_network_id == network_id) {
                 GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-                    auto released_mem_size = itr->first;
+                    auto released_mem_size = itr->_users.begin()->_mem_size;
                     total_mem_size_no_reusable -= released_mem_size;
                     if (record._type == allocation_type::usm_host)
                         mem_size_no_reusable_host -= released_mem_size;
                 }
-                itr = _no_reusable_pool.erase(itr);
+                itr = _no_reusable_mems.erase(itr);
             } else {
                 itr++;
             }
@@ -434,15 +423,15 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
     }
 #endif
 
-    // free up _across_network_pool for this network
+    // free up _no_reusable_pool for this network
     {
-        auto itr = _across_network_pool.begin();
+        auto itr = _no_reusable_pool.begin();
 
-        while (itr != _across_network_pool.end()) {
+        while (itr != _no_reusable_pool.end()) {
             auto& record = itr->second;
 
             if (record._network_id == network_id) {
-                itr = _across_network_pool.erase(itr);
+                itr = _no_reusable_pool.erase(itr);
             } else {
                 itr++;
             }
@@ -508,10 +497,10 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
                 }
             }
         }
-        for (auto mem : _no_reusable_pool) {
-            for (auto user : mem.second._users) {
-                of << "no_reusable_pool,," << mem.second._memory->buffer_ptr() << "," << mem.second._type << ","
-                    << mem.first << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
+        for (auto mem : _no_reusable_mems) {
+            for (auto user : mem._users) {
+                of << "no_reusable_pool,," << mem._memory->buffer_ptr() << "," << mem._type << ","
+                    << user._mem_size << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
             }
         }
         std::cout << "Dump file to " << dump_path << std::endl;
@@ -570,11 +559,10 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
     }
 
     {
-        GPU_DEBUG_COUT << "========== no reusable memory (" << _no_reusable_pool.size() << " records) ==========" << std::endl;
-        for (auto mem : _no_reusable_pool) {
-            GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
-                << ", type: " << mem.second._type << ")'s users: " << std::endl;
-            for (auto user : mem.second._users) {
+        GPU_DEBUG_COUT << "========== no reusable memory (" << _no_reusable_mems.size() << " records) ==========" << std::endl;
+        for (auto mem : _no_reusable_mems) {
+            GPU_DEBUG_COUT << mem._memory->buffer_ptr() << " (type: " << mem._type << ")'s user: " << std::endl;
+            for (auto user : mem._users) {
                 GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
                     << get_mb_size(user._mem_size) << std::endl;
             }
