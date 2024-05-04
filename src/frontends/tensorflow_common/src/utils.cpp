@@ -302,7 +302,7 @@ Output<Node> get_elements_number_1d(const Output<Node>& output, element::Type ou
 }
 
 PadMode convert_padding_mode(const NodeContext& node, const string& padding_mode) {
-    set<string> supported_ops = {"MirrorPad"};
+    set<string> supported_ops = {"MirrorPad", "MIRROR_PAD"};
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(
         node,
