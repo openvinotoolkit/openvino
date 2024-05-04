@@ -30,9 +30,6 @@ Order of SnippetsNodeType is important!:
 * SnippetsNodeType >= FusedTerminator is a Fused chain
 * SnippetsNodeType > FusedTerminator is a Fused chain that may be continued
 */
-// Todo: Snippets currently support only FP32 precision, however network inputs could be converted to another precision by plugin
-//  (in other words after tokenization). To handle this behavior, eltwise chains that start at input are marked as IgnoredAfterInputs.
-//  Tis is not a real plugin-side fusing, but rather a workaround to guarantee that snippets always executed in FP32.
 enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,

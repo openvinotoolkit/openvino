@@ -16,7 +16,7 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
+        ov::snippets::pass::SnippetsTokenization::Config config = { 1, 23, true, true, { 3, 4 } };
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
@@ -56,7 +56,7 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvSumRelu) {
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasRelu) {
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>()};
-    std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 1}};
+    std::vector<PartialShape> inputShapes {{1, 2, 16, 16}};
     const auto &f = ConvBiasActivationFunction(inputShapes, eltwiseOps);
     model = f.getOriginal();
     // Not tokenizable, since Bias + Relu can be fused into Convolution
@@ -68,7 +68,7 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasTwoRelu) {
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>(),
                                                    std::make_shared<ov::op::v0::Relu>()};
-    std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 1}};
+    std::vector<PartialShape> inputShapes {{1, 2, 16, 16}};
     const auto &f = ConvBiasTwoActivationFunction(inputShapes, eltwiseOps);
     model = f.getOriginal();
     // Partially tokenizable, since Bias and first Relu can be fused into Convolution
@@ -80,7 +80,7 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipMatMulFused_MatMulBiasTwoRel
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>(),
                                                    std::make_shared<ov::op::v0::Relu>()};
-    std::vector<PartialShape> inputShapes {{1, 2, 2, 16}, {16, 4}, {1, 1, 1, 4}};
+    std::vector<PartialShape> inputShapes {{1, 2, 2, 16}, {16, 4}};
     const auto &f = MatMulTwoActivationFunction(inputShapes, eltwiseOps);
     model = f.getOriginal();
     // Not tokenizable, since Bias and two Relu can be fused into MatMul
@@ -92,10 +92,10 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipMatMulFused_MatMulBiasReluDi
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>(),
                                                    std::make_shared<ov::op::v1::Divide>()};
-    std::vector<PartialShape> inputShapes {{1, 2, 2, 16}, {16, 4}, {1, 1, 1, 4}, {1, 2, 2, 4}};
+    std::vector<PartialShape> inputShapes {{1, 2, 2, 16}, {16, 4}, {1, 2, 2, 4}};
     const auto &f = MatMulBiasActivationBinaryFunction(inputShapes, eltwiseOps);
     model = f.getOriginal();
-    // Partially tokenizable, since Bias and first Relu can be fused into Convolution
+    // There will one Subgraph with Divide since Bias and Relu can be fused into MatMul
     model_ref = f.getReference();
     run();
 }

@@ -129,64 +129,39 @@ bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node> &node) {
     return SupportsFusingWithConvolution_Simple(node) && getNumNonConstInputs(node) == 1;
 }
 bool isSuitableChildForFusingBias(const std::shared_ptr<const Node> &node, int fusingAxis) {
-    auto is_suitable_node = [](const std::shared_ptr<const Node> &node) {
+    if (!ov::is_type<ov::op::v1::Add>(node))
+        return false;
+
+    auto is_suitable_parent = [](const std::shared_ptr<const Node> &node) {
         return  (ov::is_type<ov::op::v1::Convolution>(node) ||
                  ov::is_type<ov::op::v1::GroupConvolution>(node) ||
-                 ov::is_type<ov::op::v0::MatMul>(node)) &&
-                 node->inputs().size() == 2;
+                 ov::is_type<ov::op::v0::MatMul>(node));
     };
-    const bool is_bias = ov::is_type<ov::op::v1::Add>(node);
-    if (!is_bias)
-        return false;
-    const auto in = node->inputs();
-    if (in.size() != 2)
-        return false;
-    const bool has_suitable_parent = is_suitable_node(in[0].get_source_output().get_node_shared_ptr()) ||
-                                     is_suitable_node(in[1].get_source_output().get_node_shared_ptr());
-    if (!has_suitable_parent)
-        return false;
+
     for (const auto &in : node->inputs()) {
         const auto& parent_out = in.get_source_output();
-        size_t bias_port = 1 - in.get_index();
-        const auto& bias_out = node->input_value(bias_port);
-        const auto bias_node = bias_out.get_node_shared_ptr();
-        const bool is_input_type = ov::is_type<ov::op::v0::Parameter>(bias_node) ||
-                                   ov::is_type<ov::op::v0::Constant>(bias_node) ||
-                                   ov::is_type<ov::op::v0::Result>(bias_node) ||
-                                   ov::is_type<ov::op::v3::ReadValue>(bias_node) ||
-                                   ov::is_type<ov::op::v6::ReadValue>(bias_node);
-        if (!is_input_type)
-            continue;
-        if (bias_node->outputs().size() != 1)
-            continue;
+        const auto& parent = parent_out.get_node_shared_ptr();
         const auto& parent_pshape = parent_out.get_partial_shape();
-        const auto& bias_pshape = bias_out.get_partial_shape();
-        if (parent_pshape.is_dynamic() || bias_pshape.is_dynamic())
-            continue;
-        const auto& parent_shape = parent_pshape.get_shape();
-        const auto& bias_shape = bias_pshape.get_shape();
-        auto getNormalizedPShape = [](const ov::Shape &dims, size_t ndims) {
-            if (dims.size() >= ndims)
-                return dims;
-            ov::Shape shape(std::vector<size_t>(ndims, 1));
-            std::copy(dims.rbegin(), dims.rend(), shape.rbegin());
-            return shape;
-        };
-        const auto bias_shape_norm = getNormalizedPShape(bias_shape, parent_shape.size());
-        if (parent_shape.size() != bias_shape_norm.size() || bias_shape_norm.size() < 2)
-            continue;
-        auto dimsEqualStrong = [](size_t lhs, size_t rhs) {
-           return (lhs == rhs && lhs != std::numeric_limits<size_t>::max() && rhs != std::numeric_limits<size_t>::max());
-        };
-        if (!dimsEqualStrong(parent_shape[fusingAxis], bias_shape[fusingAxis]))
-            continue;
-        size_t i = 0;
-        for (; i < bias_shape_norm.size(); i++) {
-            if (bias_shape_norm[i] != 1 && static_cast<int>(i) != fusingAxis)
+        if (is_suitable_parent(parent) && parent_pshape.rank().is_static()) {
+            if (parent->get_output_target_inputs(0).size() > 1)
                 break;
+            const auto bias_port = 1 - in.get_index();
+            const auto bias_out = node->input_value(bias_port);
+            if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out))
+                break;
+            const auto& bias_pshape = bias_out.get_partial_shape();
+            if (bias_pshape.is_dynamic())
+                break;
+            const auto bias_shape_norm = getNormalizedDimsBySize(bias_pshape.get_shape(), parent_pshape.size());
+            if (fusingAxis >= static_cast<int>(bias_shape_norm.size()) || fusingAxis >= static_cast<int>(parent_pshape.size()) ||
+                bias_shape_norm.size() != parent_pshape.size() || bias_shape_norm.size() < 2)
+                break;
+            if (parent_pshape[fusingAxis].is_dynamic())
+                break;
+            if (((bias_shape_norm[fusingAxis] == parent_pshape[fusingAxis].get_length())) &&
+                (bias_shape_norm[fusingAxis] == static_cast<int64_t>(shape_size(bias_shape_norm))))
+                return true;
         }
-        if (i == bias_shape_norm.size())
-            return true;
     }
     return false;
 }
