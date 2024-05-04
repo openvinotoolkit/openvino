@@ -38,7 +38,7 @@ interface Core {
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
   importModelSync(
-    modelStream: Buffer, 
+    modelStream: Buffer,
     device: string,
     props: { [key: string]: string | number | boolean }
   ): CompiledModel;
