@@ -40,7 +40,7 @@ class TestUnique(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_unique_basic(self, params, ie_device, precision, ir_version, temp_dir,
                           use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -55,7 +55,7 @@ class TestUnique(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_unique_other_types(self, params, ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("Unique operation is not supported via legacy frontend.")
         self._test(*self.create_unique_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

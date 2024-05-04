@@ -54,7 +54,7 @@ class TestTFEye(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.xfail(reason="132517: MatrixDiagV3 needs to be supported")
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")

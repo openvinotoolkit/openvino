@@ -47,7 +47,7 @@ class TestSegmentSum(CommonTFLayerTest):
                        reason='Ticket - 122716')
     def test_segment_sum_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
@@ -64,7 +64,7 @@ class TestSegmentSum(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_segment_sum_different_types(self, params, ie_device, precision, ir_version, temp_dir,
                                          use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
         self._test(*self.create_segment_sum_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
