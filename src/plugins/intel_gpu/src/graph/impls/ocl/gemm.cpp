@@ -138,7 +138,8 @@ protected:
             return false;
 
         const auto& params = *inst.get_impl_params();
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+        const auto indirect_axis = desc->indirect_axis;
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
             return false;
 
         const auto& deps = inst.dependencies();
