@@ -309,13 +309,13 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
-class jit_softsign_emitter : public jit_emitter {
+class jit_soft_sign_emitter : public jit_emitter {
 public:
-    jit_softsign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                          const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_softsign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                          const std::shared_ptr<ov::Node>& node);
 
@@ -330,13 +330,13 @@ private:
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
-class jit_sigmoid_emitter : public jit_emitter {
+class jit_soft_sign_emitter : public jit_emitter {
 public:
-    jit_sigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_sigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& node);
 
