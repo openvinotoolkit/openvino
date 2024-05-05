@@ -526,9 +526,8 @@ class Core(CoreBase):
                     )
                 else:
                     return CompiledModel(
-                        super().compile_model(
-                            model, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
-                            ),
+                        super().compile_model(model, {} if config is None else config, {}
+                                              if encrypt is None else encrypt, {} if decrypt is None else decrypt),
                     )
             else:
                 if encrypt is None or decrypt is None:
@@ -537,9 +536,8 @@ class Core(CoreBase):
                     )
                 else:
                     return CompiledModel(
-                        super().compile_model(
-                            model, device_name, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
-                            ),
+                        super().compile_model(model, device_name, {} if config is None else config,
+                                              {} if encrypt is None else encrypt, {} if decrypt is None else decrypt),
                     )
         else:
             if device_name is None:
@@ -551,8 +549,9 @@ class Core(CoreBase):
                 else:
                     return CompiledModel(
                         super().compile_model(
-                            model, weights, {} if config is None else config, {} if encrypt is None else encrypt, {} if decrypt is None else decrypt
-                            ),
+                            model, weights, {} if config is None else config, {
+                            } if encrypt is None else encrypt, {} if decrypt is None else decrypt
+                        ),
                         weights=weights,
                     )
             else:

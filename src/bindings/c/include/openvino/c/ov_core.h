@@ -66,8 +66,7 @@ typedef struct {
     size_t size;     //!< devices' number
 } ov_available_devices_t;
 
-
-typedef char *(OPENVINO_C_API_CALLBACK* crypto_func)(const char*, const int, int *);
+typedef char*(OPENVINO_C_API_CALLBACK* crypto_func)(const char*, const int, int*);
 
 /**
  * @brief Get version of OpenVINO.
