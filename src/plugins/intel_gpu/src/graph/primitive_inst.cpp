@@ -103,11 +103,9 @@ bool is_user_cpu(const program_node* user) {
                 return true;
             }
         }
-        // TODO : refactor these as runtime_skippable_nodes
-        // If the user is dynamic && runtime skippable gather or strided slice, we still need to its parents' completion
+        // If the user is dynamic and runtime skippable node, we still need to its parents' completion
         // event even though the user's program_node is can_be_optimized
-        if (!user->is_dynamic() || (!user->is_type<gather>() && !user->is_type<strided_slice>() &&
-                                    !user->is_type<concatenation>() && !user->is_type<reorder>()))
+        if (!user->is_dynamic() || (!user->is_runtime_skippable()))
             return false;
     }
     bool is_cpu = user->get_selected_impl() ? user->get_selected_impl()->is_cpu()
@@ -401,7 +399,7 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
-        if (!_node->is_type<reshape>()) {
+        if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).has_dynamic_pad() && !_node->can_be_optimized())) {
             auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
             layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         }
@@ -496,7 +494,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
                 _outputs[0] = variable.get_memory();
                 // To record shape predictor
-                auto prealloc_info = sp.predict_preallocation_shape(id(), _impl_params->output_layouts[0].get_shape(), dt_size, true);
+                auto prealloc_info = sp.predict_preallocation_shape(id(), _impl_params->output_layouts[0], true);
                 return ev;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Reset output mem" << std::endl;
@@ -541,8 +539,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() ||
-        _node->is_type<strided_slice>() || _node->is_type<broadcast>()) {
+    if (_node->is_runtime_skippable()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
@@ -586,7 +583,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         // If debug config is set, repsect the config most
         tmp_prealloc_count = -1;
     }
-    prealloc_info = sp.predict_preallocation_shape(id(), current_shape, dt_size, can_reuse_buffer, tmp_prealloc_count);
+    prealloc_info = sp.predict_preallocation_shape(id(), updated_layout, can_reuse_buffer, tmp_prealloc_count);
 
     if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
         auto new_layout = updated_layout;
@@ -1813,7 +1810,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout()) ? !reset : !user_requesting_mem_reuse_false(_node);
+    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
+                                    || (!_node.is_dynamic_output_layout() && !user_requesting_mem_reuse_false(_node));
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs

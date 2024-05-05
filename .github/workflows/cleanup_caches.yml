@@ -52,4 +52,4 @@ jobs:
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_PATH }}
-          key: '*'
+          key: '.'

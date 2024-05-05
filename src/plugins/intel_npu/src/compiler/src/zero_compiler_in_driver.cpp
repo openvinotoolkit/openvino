@@ -363,9 +363,6 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
-    const std::string& firstInputName = parameters.at(0)->get_friendly_name();
-    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
-
     std::stringstream inputsPrecisionSS;
     std::stringstream inputsLayoutSS;
     std::stringstream outputsPrecisionSS;
@@ -374,19 +371,23 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     inputsPrecisionSS << INPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
-    for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-        const std::string& name = parameter->get_friendly_name();
-        const ov::element::Type& precision = parameter->get_element_type();
-        const size_t rank = parameter->get_shape().size();
+    if (!parameters.empty()) {
+        const std::string& firstInputName = parameters.at(0)->get_friendly_name();
 
-        if (name != firstInputName) {
-            inputsPrecisionSS << VALUES_SEPARATOR;
-            inputsLayoutSS << VALUES_SEPARATOR;
+        for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
+            const std::string& name = parameter->get_friendly_name();
+            const ov::element::Type& precision = parameter->get_element_type();
+            const size_t rank = parameter->get_shape().size();
+
+            if (name != firstInputName) {
+                inputsPrecisionSS << VALUES_SEPARATOR;
+                inputsLayoutSS << VALUES_SEPARATOR;
+            }
+
+            inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+            // Ticket: E-88902
+            inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
         }
-
-        inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-        // Ticket: E-88902
-        inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
     }
 
     inputsPrecisionSS << VALUE_DELIMITER;
@@ -394,6 +395,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
     outputsPrecisionSS << OUTPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
+
+    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
 
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
@@ -993,8 +996,8 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
     }
     const std::string& legacyName = arg.name;
 
-    names.push_back(legacyName);
-    nodeDescriptors[legacyName] =
+    names.push_back(arg.debug_friendly_name);
+    nodeDescriptors[arg.debug_friendly_name] =
         {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 

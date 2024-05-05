@@ -19,13 +19,18 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -36,6 +41,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -487,31 +493,265 @@ TEST(pattern, matcher) {
     }
 }
 
-TEST(pattern, matching_optional) {
-    Shape shape{};
-    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto b = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto c = std::make_shared<op::v1::Add>(a, b);
-    auto d = std::make_shared<op::v1::Add>(a, b);
+// match optional nodes with single input
+TEST(pattern, optional_match_node_with_single_input) {
+    Shape shape{1, 2, 3};
+    auto model_input_0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto model_exp = make_shared<op::v0::Exp>(model_input_0);
 
-    TestMatcher n;
+    auto model_const_input_0 =
+        make_shared<op::v0::Constant>(element::f32, shape, std::vector<float>(ov::shape_size(shape), 0.1f));
+    auto model_const_exp = make_shared<op::v0::Exp>(model_const_input_0);
 
-    // Check Optional pattern
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), c));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Relu>(c)));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
-    ASSERT_FALSE(
-        n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Result>(c)));
-
-    const auto predicate = [](const Output<Node>& output) {
-        return false;
+    TestMatcher matcher;
+    // is_on_const_path
+    auto param_predicate = [](const Output<Node>& output) {
+        return !ov::op::util::is_on_constant_path(output);
     };
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d, predicate),
-                         std::make_shared<op::v0::Abs>(c)));
+
+    auto pattern_in_0 = ov::pass::pattern::any_input();
+    auto pattern_exp = ov::pass::pattern::wrap_type<ov::op::v0::Exp>({pattern_in_0});
+
+    // without optional op
+    {
+        ASSERT_TRUE(matcher.match(pattern_exp, model_exp));
+        ASSERT_TRUE(matcher.match(pattern_exp, model_const_exp));
+    }
+
+    // with optional: 1 type
+    {
+        auto pattern = ov::pass::pattern::optional<op::v0::Abs>(pattern_exp);
+        ASSERT_TRUE(matcher.match(pattern, model_exp));
+        ASSERT_TRUE(matcher.match(pattern, model_const_exp));
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Abs>(model_exp)));
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Abs>(model_const_exp)));
+        // negative scenario
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Relu>(model_exp)));
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Relu>(model_const_exp)));
+    }
+
+    // with optional: 1 type and predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v0::Abs>(pattern_exp, param_predicate);
+        ASSERT_TRUE(matcher.match(pattern, model_exp));
+        ASSERT_TRUE(matcher.match(pattern, model_const_exp));
+        ASSERT_TRUE(matcher.match(pattern, model_exp));
+        ASSERT_TRUE(matcher.match(pattern, model_const_exp));
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Abs>(model_exp)));
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Abs>(model_const_exp)));
+    }
+
+    // with 2 types
+    {
+        auto pattern = ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(pattern_exp);
+        ASSERT_TRUE(matcher.match(pattern, model_exp));
+        ASSERT_TRUE(matcher.match(pattern, model_const_exp));
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Abs>(model_exp)));
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Relu>(model_const_exp)));
+
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Exp>(model_exp)));
+        // negative
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Cos>(model_exp)));
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Cosh>(model_const_exp)));
+    }
+
+    // with 2 types and predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(pattern_exp, param_predicate);
+
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Abs>(model_exp)));
+        // negative
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Relu>(model_const_exp)));
+        ASSERT_FALSE(matcher.match(pattern, make_shared<op::v0::Cos>(model_exp)));
+        // true: match exp without optional + exp as an input
+        ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Exp>(model_const_exp)));
+    }
 }
 
-// Optional is not working properly yet CVS-136454
-TEST(pattern, DISABLED_optional_full_match) {
+// match optional nodes with multi input where order in not important
+TEST(pattern, optional_match_cumulative_node_with_multi_input) {
+    Shape shape{1, 2, 3};
+    auto model_input_0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto model_relu = make_shared<op::v0::Relu>(model_input_0);
+    auto model_input_1 =
+        make_shared<op::v0::Constant>(element::f32, shape, std::vector<float>(ov::shape_size(shape), .1f));
+    auto model_add = std::make_shared<op::v1::Add>(model_relu, model_input_1);
+    auto model_equal = std::make_shared<op::v1::Equal>(model_relu, model_input_1);
+
+    auto arithmetic_pattern = [](const ov::Output<ov::Node>& output) {
+        return ov::op::util::is_binary_elementwise_arithmetic(output.get_node_shared_ptr());
+    };
+    auto relu_pattern = [](const ov::Output<ov::Node>& output) {
+        return output.get_node_shared_ptr()->get_type_info().is_castable(ov::op::v0::Relu::get_type_info_static());
+    };
+
+    TestMatcher matcher;
+    auto pattern_input_0 = ov::pass::pattern::any_input(relu_pattern);
+    auto pattern_input_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+
+    // 1 type, correct in_order, without predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Add>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_add));
+        ASSERT_FALSE(matcher.match(pattern, model_equal));
+        auto pattern_negative = ov::pass::pattern::optional<op::v1::Equal>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern_negative, model_add));
+    }
+
+    // 2 type, correct in_order, without predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_add));
+        ASSERT_TRUE(matcher.match(pattern, model_equal));
+        // negative
+        ASSERT_FALSE(matcher.match(pattern, std::make_shared<op::v1::Subtract>(model_relu, model_input_1)));
+    }
+
+    // 2 type, correct in_order, with predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_0, pattern_input_1},
+                                                                               arithmetic_pattern);
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_add));
+        ASSERT_FALSE(matcher.match(pattern, model_equal));
+    }
+
+    // 2 type, reverse in_order, without predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_1, pattern_input_0});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
+        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_add));
+        ASSERT_TRUE(matcher.match(pattern, model_equal));
+    }
+
+    // 2 type, reverse in_order, with predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Add, op::v1::Equal>({pattern_input_1, pattern_input_0},
+                                                                               arithmetic_pattern);
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
+        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_add));
+        ASSERT_FALSE(matcher.match(pattern, model_equal));
+    }
+}
+
+// match optional nodes with multi input where order in important
+TEST(pattern, optional_match_node_with_multi_input_order_is_cruical) {
+    Shape shape{1, 2, 3};
+    auto model_input_0 = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto model_relu = make_shared<op::v0::Relu>(model_input_0);
+    auto model_input_1 =
+        make_shared<op::v0::Constant>(element::f32, shape, std::vector<float>(ov::shape_size(shape), .1f));
+    auto model_subtract = std::make_shared<op::v1::Subtract>(model_relu, model_input_1);
+    auto model_greater = std::make_shared<op::v1::Greater>(model_relu, model_input_1);
+
+    auto arithmetic_pattern = [](const ov::Output<ov::Node>& output) {
+        return ov::op::util::is_binary_elementwise_arithmetic(output.get_node_shared_ptr());
+    };
+    auto relu_pattern = [](const ov::Output<ov::Node>& output) {
+        return output.get_node_shared_ptr()->get_type_info().is_castable(ov::op::v0::Relu::get_type_info_static());
+    };
+
+    TestMatcher matcher;
+    auto pattern_input_0 = ov::pass::pattern::any_input(relu_pattern);
+    auto pattern_input_1 = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+
+    // 1 type, correct in_order, without predicate
+    {
+        auto pattern = ov::pass::pattern::optional<op::v1::Subtract>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_subtract));
+        ASSERT_FALSE(matcher.match(pattern, model_greater));
+        auto pattern_negative = ov::pass::pattern::optional<op::v1::Greater>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern_negative, model_subtract));
+    }
+
+    // 2 type, correct in_order, without predicate
+    {
+        auto pattern =
+            ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_0, pattern_input_1});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_greater));
+        ASSERT_TRUE(matcher.match(pattern, model_subtract));
+        // negative
+        ASSERT_FALSE(matcher.match(pattern, std::make_shared<op::v1::Add>(model_relu, model_input_1)));
+    }
+
+    // 2 type, correct in_order, with predicate
+    {
+        auto pattern =
+            ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_0, pattern_input_1},
+                                                                           arithmetic_pattern);
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_TRUE(matcher.match(pattern, model_relu));
+        ASSERT_FALSE(matcher.match(pattern, model_input_1));
+        ASSERT_TRUE(matcher.match(pattern, model_subtract));
+        ASSERT_FALSE(matcher.match(pattern, model_greater));
+    }
+
+    // 2 type, reverse in_order, without predicate
+    {
+        auto pattern =
+            ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_1, pattern_input_0});
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
+        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_subtract));
+        ASSERT_FALSE(matcher.match(pattern, model_greater));
+    }
+
+    // 2 type, reverse in_order, with predicate
+    {
+        auto pattern =
+            ov::pass::pattern::optional<op::v1::Subtract, op::v1::Greater>({pattern_input_1, pattern_input_0},
+                                                                           arithmetic_pattern);
+        ASSERT_FALSE(matcher.match(pattern, model_input_0));
+        ASSERT_FALSE(matcher.match(pattern, model_relu));
+        ASSERT_TRUE(matcher.match(pattern, model_input_1));
+        ASSERT_FALSE(matcher.match(pattern, model_subtract));
+        ASSERT_FALSE(matcher.match(pattern, model_greater));
+    }
+}
+
+// complex pattern matching with `optional` and `wrap_type`
+TEST(pattern, optional_complex_pattern_matching) {
+    auto model_param = make_shared<op::v0::Parameter>(element::f32, ov::Shape{2, 3, 4});
+    auto model_constant = make_shared<op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int>{2, 0, 1});
+    auto model_abs = make_shared<op::v0::Abs>(model_param);
+    auto model_transpose_negative = std::make_shared<op::v1::Transpose>(model_abs, model_constant);
+    auto model_negative = std::make_shared<op::v0::Relu>(model_transpose_negative);
+
+    auto model_relu = make_shared<op::v0::Relu>(model_param);
+    auto model_transpose_positive = std::make_shared<op::v1::Transpose>(model_relu, model_constant);
+    auto model_positive = std::make_shared<op::v0::Relu>(model_transpose_positive);
+
+    auto pattern_param = ov::pass::pattern::any_input();
+    auto pattern_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_param});
+    auto pattern_transpose = ov::pass::pattern::optional<op::v1::Transpose>({pattern_relu, pattern_constant});
+    auto pattern = ov::pass::pattern::wrap_type<op::v0::Relu>({pattern_transpose});
+
+    TestMatcher matcher;
+    ASSERT_FALSE(matcher.match(pattern, model_negative));
+    ASSERT_TRUE(matcher.match(pattern, model_positive));
+}
+
+TEST(pattern, optional_full_match) {
     Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
@@ -523,72 +763,6 @@ TEST(pattern, DISABLED_optional_full_match) {
     TestMatcher tm;
 
     ASSERT_TRUE(tm.match(pattern_relu1, model_relu1));
-}
-
-// Optional is not working properly yet CVS-136454
-TEST(pattern, DISABLED_optional_half_match) {
-    Shape shape{};
-    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
-    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
-    auto model_relu1 = std::make_shared<op::v0::Relu>(model_relu->output(0));
-
-    auto pattern_abs = ov::pass::pattern::optional<op::v0::Abs>();
-    auto pattern_relu = std::make_shared<op::v0::Relu>(pattern_abs->output(0));
-
-    TestMatcher tm;
-
-    ASSERT_TRUE(tm.match(pattern_relu, model_relu1));
-}
-
-// Optional is not working properly yet CVS-136454
-TEST(pattern, DISABLED_optional_testing) {
-    Shape shape{};
-    auto model_input1 = std::make_shared<op::v0::Parameter>(element::i32, shape);
-    auto model_input2 = std::make_shared<op::v0::Parameter>(element::i32, shape);
-    auto model_add = std::make_shared<op::v1::Add>(model_input1->output(0), model_input2->output(0));
-    auto model_relu = std::make_shared<op::v0::Relu>(model_add->output(0));
-    auto model_abs = std::make_shared<op::v0::Abs>(model_add->output(0));
-
-    TestMatcher tm;
-
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Relu>(model_add), model_add));
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(model_add), model_add));
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Exp>(model_add), model_add));
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Cos>(model_add), model_add));
-
-    ASSERT_TRUE(
-        tm.match(ov::pass::pattern::optional<op::v0::Abs>(model_abs), std::make_shared<op::v0::Abs>(model_abs)));
-    ASSERT_FALSE(
-        tm.match(ov::pass::pattern::optional<op::v0::Abs>(model_abs), std::make_shared<op::v0::Relu>(model_abs)));
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(model_abs),
-                         std::make_shared<op::v0::Relu>(model_abs)));
-
-    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Exp>(model_add), model_abs));
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Abs>(model_add), model_abs));
-
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(model_relu),
-                         std::make_shared<op::v0::Relu>(std::make_shared<op::v0::Relu>(model_add))));
-
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(model_relu),
-                         std::make_shared<op::v0::Relu>(std::make_shared<op::v0::Relu>(model_add))));
-}
-
-// Optional is not working properly yet CVS-136454
-TEST(pattern, DISABLED_optional_one_node) {
-    Shape shape{};
-    auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
-    auto model_relu = std::make_shared<op::v0::Relu>(model_input);
-    auto model_abs = std::make_shared<op::v0::Abs>(model_input);
-
-    TestMatcher tm;
-
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_relu));
-    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Abs>(), model_relu));
-
-    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_abs));
-
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Parameter>(), model_input));
-    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_input));
 }
 
 TEST(pattern, mean) {
