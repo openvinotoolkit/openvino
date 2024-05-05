@@ -31,6 +31,7 @@ const std::vector<GWDShapeParams> input_shapes_basic = {
 const std::vector<bool> add_decompression_sub = {true, false};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<bool> per_tensor_zp = {true, false};
+const std::vector<bool> per_tensor_scale = {true, false};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                          GatherWeightsDecompression,
@@ -40,7 +41,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                                             ::testing::ValuesIn(output_precisions),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::ValuesIn(per_tensor_zp)),
+                                            ::testing::ValuesIn(per_tensor_zp),
+                                            ::testing::ValuesIn(per_tensor_scale)),
                          GatherWeightsDecompression::get_test_case_name);
 
 }  // namespace
