@@ -171,6 +171,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
         scale_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
+        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1u;
 
         if (getOriginalInputsNumber() == 5u) {
             ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
@@ -658,7 +659,15 @@ void Gather::execCompressed4Bit() {
                 if (isAxisInputConst && axis == 0) {
                     bool cond1 = have_zp && zp_group_size == scale_group_size;
                     bool cond2 = (!have_zp) || have_scalar_zp;
-                    if (cond1 || cond2) {
+                    bool cond3 = have_scalar_scale && cond2;
+                    if (cond3) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p++) {
+                            auto val = srcData[p >> 1];
+                            pdst[dst_idx] = static_cast<OUT_TYPE>((get4Bit(val, p % 2) - zp[0]) * scale[0]);
+                            dst_idx++;
+                        }
+                    } else if (cond1 || cond2) {
                         processed = true;
                         for (; p < srcIdx + afterAxisSize; p += scale_group_size) {
                             const auto& cur_scale = scale[p / scale_group_size];
@@ -733,7 +742,14 @@ void Gather::execCompressed8Bit() {
                 if (isAxisInputConst && axis == 0) {
                     bool cond1 = have_zp && zp_group_size == scale_group_size;
                     bool cond2 = (!have_zp) || have_scalar_zp;
-                    if (cond1 || cond2) {
+                    bool cond3 = have_scalar_scale && cond2;
+                    if (cond3) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p++) {
+                            pdst[dst_idx] = static_cast<OUT_TYPE>((static_cast<float>(srcData[p]) - zp[0]) * scale[0]);
+                            dst_idx++;
+                        }
+                    } else if (cond1 || cond2) {
                         processed = true;
                         for (; p < srcIdx + afterAxisSize; p += scale_group_size) {
                             const auto& cur_scale = scale[p / scale_group_size];
