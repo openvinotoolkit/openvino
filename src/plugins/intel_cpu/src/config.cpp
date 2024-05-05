@@ -10,6 +10,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
 #include "utils/cpu_utils.hpp"
@@ -69,6 +70,7 @@ void Config::applyDebugCapsProperties() {
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+    bool saveModelCache = prop.count(ov::cache_dir.name()) > 0 ? true : false;
     for (const auto& kvp : prop) {
         const auto& key = kvp.first;
         const auto& val = kvp.second;
@@ -370,6 +372,18 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
+        } else if (key == ov::cache_encryption.name()) {
+            try {
+                cacheEncrypt = val.as<std::function<std::string(const std::string&)>>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption.name());
+            }
+        } else if (key == ov::cache_decryption.name()) {
+            try {
+                cacheDecrypt = val.as<std::function<std::string(const std::string&)>>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::cache_decryption.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -389,6 +403,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else {
             inferencePrecision = ov::element::f32;
         }
+    }
+
+    if (!saveModelCache) {
+        cacheEncrypt = {};
+        cacheDecrypt = {};
+    } else if (!cacheEncrypt || !cacheDecrypt) {
+        cacheEncrypt = ov::util::codec_xor;
+        cacheDecrypt = ov::util::codec_xor;
     }
 
     if (!prop.empty())

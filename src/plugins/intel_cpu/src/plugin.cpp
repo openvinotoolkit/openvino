@@ -11,6 +11,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
@@ -583,9 +584,22 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    ModelDeserializer deserializer(networkModel, [this](const std::string& model, const ov::Tensor& weights) {
-        return get_core()->read_model(model, weights, true);
-    });
+    std::function<std::string(const std::string&)> decrypt;
+    if (config.count(ov::loaded_from_cache.name()) && config.at(ov::loaded_from_cache.name()).as<bool>() == true) {
+        if (config.count(ov::cache_decryption.name())) {
+            decrypt = config.at(ov::cache_decryption.name()).as<std::function<std::string(const std::string&)>>();
+        }
+        if (!decrypt) {
+            decrypt = ov::util::codec_xor;
+        }
+    }
+
+    ModelDeserializer deserializer(
+        networkModel,
+        [this](const std::string& model, const ov::Tensor& weights) {
+            return get_core()->read_model(model, weights, true);
+        },
+        decrypt);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
