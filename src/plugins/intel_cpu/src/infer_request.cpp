@@ -108,6 +108,22 @@ void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
     auto graphLock = m_compiled_model->get_graph();
     m_graph = &(graphLock._graph);
+    auto streams_executor = m_graph->context->getCPUStreamExecutor();
+
+    auto requests = m_asyncRequest->getSubInferRequest();
+    // std::cout << "[ infer ] " << requests.size() << "\n";
+    if (requests.size() > 0) {
+        streams_executor->server_wait(requests.size());
+        ov::threading::IStreamsExecutor::MessageInfo msg_info;
+        msg_info.msg_type = ov::threading::IStreamsExecutor::MsgType::START_INFER;
+        ov::threading::Task task = [&] {
+            SyncInferRequest::sub_streams_infer();
+        };
+        msg_info.task = std::move(task);
+        streams_executor->send_message(msg_info);
+        streams_executor->infer_wait();
+        return;
+    }
 
     throw_if_canceled();
     convert_batched_tensors();
@@ -606,6 +622,54 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
     m_tensor = std::make_shared<Tensor>(memory);
+}
+
+void SyncInferRequest::sub_streams_infer() {
+    std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
+    auto requests = m_asyncRequest->getSubInferRequest();
+    auto inputs = m_asyncRequest->get_inputs();
+    auto outputs = m_asyncRequest->get_outputs();
+    // auto sub_models = m_compiled_model->get_sub_compilemodles();
+    // auto graphLock = sub_models[0]->get_graph();
+    // m_graph = &(graphLock._graph);
+    auto streams_executor = m_graph->context->getCPUStreamExecutor();
+    size_t requests_num = requests.size();
+    size_t requests_count = 0;
+    // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
+
+    if (requests.size() > 0) {
+        for (const auto& input : inputs) {
+            auto tensor = m_asyncRequest->get_tensor(input);
+            input_tensors.insert({input, tensor});
+        }
+        for (const auto& output : outputs) {
+            auto tensor = requests[0]->get_tensor(output);
+            m_asyncRequest->set_tensor(output, tensor);
+        }
+        for (size_t i = 0; i < requests_num; i++) {
+            for (auto& input : input_tensors) {
+                requests[i]->set_tensor(input.first, input.second);
+            }
+
+            requests[i]->set_callback([i, requests, streams_executor](const std::exception_ptr& ptr) {
+                // std::cout << "set_callback------ " << i << "\n";
+                ov::threading::IStreamsExecutor::MessageInfo msg_info;
+                msg_info.msg_type = ov::threading::IStreamsExecutor::MsgType::CALL_BACK;
+                streams_executor->send_message(msg_info);
+            });
+        }
+        {
+            auto sub_models = m_compiled_model->get_sub_compilemodles();
+            auto graphLock = sub_models[0]->get_graph();
+            m_graph = &(graphLock._graph);
+            auto streams_executor = m_graph->context->getCPUStreamExecutor();
+
+            for (size_t i = 0; i < requests_num; i++) {
+                std::cout << "start_async : " << i << "\n";
+                requests[i]->start_async();
+            }
+        }
+    }
 }
 
 }   // namespace intel_cpu

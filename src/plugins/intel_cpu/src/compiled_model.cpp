@@ -60,7 +60,22 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.streamExecutorConfig);
+        IStreamsExecutor::Config executor_confg;
+        if (m_cfg.enableSubStreams) {
+            executor_confg = IStreamsExecutor::Config{"CPUMainStreamExecutor",
+                                                      1,
+                                                      1,
+                                                      IStreamsExecutor::ThreadBindingType::NONE,
+                                                      1,
+                                                      0,
+                                                      1,
+                                                      IStreamsExecutor::Config::PreferredCoreType::ANY,
+                                                      {},
+                                                      true};
+        } else {
+            executor_confg = std::move(m_cfg.streamExecutorConfig);
+        }
+        stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
         m_task_executor = stream_executor;
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
@@ -75,11 +90,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = std::max(1, m_cfg.streamExecutorConfig.get_streams());
+    int streams = m_cfg.enableSubStreams ? 1 : std::max(1, m_cfg.streamExecutorConfig.get_sub_streams());
+    std::cout << "streams: " << streams << "\n";
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (m_cfg.streamExecutorConfig.get_streams() != 0) {
+    if (m_cfg.streamExecutorConfig.get_sub_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -103,16 +119,23 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     } else {
         CompiledModel::get_graph();
     }
-    // init sub stream threads of executor
-    int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
-    if (sub_streams > 0 && stream_executor != nullptr) {
-        std::vector<Task> tasks;
-        tasks.resize(sub_streams);
-        for (auto&& task : tasks) {
-            task = [] {};
+    std::cout << "xxxxxxxxx: m_subCompileModel: " << m_cfg.enableSubStreams << ", " << m_cfg.streamExecutorConfig.get_sub_streams() << "\n";
+    if (m_cfg.enableSubStreams) {
+        m_cfg.enableSubStreams = false;
+        for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
+            m_sub_compilemodels.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
         }
-        stream_executor->run_sub_stream_and_wait(tasks);
     }
+    // init sub stream threads of executor
+    // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
+    // if (sub_streams > 0 && stream_executor != nullptr) {
+    //     std::vector<Task> tasks;
+    //     tasks.resize(sub_streams);
+    //     for (auto&& task : tasks) {
+    //         task = [] {};
+    //     }
+    //     stream_executor->run_sub_stream_and_wait(tasks);
+    // }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -168,6 +191,13 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor());
+    if (m_sub_compilemodels.size() > 0) {
+        std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
+        for (int i = 0; i < m_sub_compilemodels.size(); i++) {
+            requests.push_back(m_sub_compilemodels[i]->create_infer_request());
+        }
+        async_infer_request->setSubInferRequest(requests);
+    }
     return async_infer_request;
 }
 

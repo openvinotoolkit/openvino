@@ -19,3 +19,8 @@ ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
 void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
     check_cancelled_state();
 }
+
+void ov::intel_cpu::AsyncInferRequest::setSubInferRequest(
+    const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
+    m_sub_infer_requests = requests;
+}

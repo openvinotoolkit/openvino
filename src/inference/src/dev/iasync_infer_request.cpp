@@ -208,12 +208,12 @@ std::vector<ov::ProfilingInfo> ov::IAsyncInferRequest::get_profiling_info() cons
 }
 
 ov::SoPtr<ov::ITensor> ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    check_state();
+    // check_state();
     return m_sync_request->get_tensor(port);
 }
 
 void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
-    check_state();
+    // check_state();
     return m_sync_request->set_tensor(port, tensor);
 }
 

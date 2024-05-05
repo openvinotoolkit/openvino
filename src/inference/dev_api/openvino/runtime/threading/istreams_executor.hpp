@@ -38,6 +38,20 @@ public:
      */
     using Ptr = std::shared_ptr<IStreamsExecutor>;
 
+    enum MsgType{
+        TP,
+        START_INFER,
+        CALL_BACK
+    };
+
+    struct MessageInfo{
+        MsgType msg_type;
+        int rank;
+        int data;
+        void* buf;
+        Task task;
+    };
+
     /**
      * @brief Defines inference thread binding type
      */
@@ -203,7 +217,7 @@ public:
             return _threadBindingOffset;
         }
         int get_sub_streams() const {
-            return _sub_streams;
+            return _sub_streams > 0 ? _sub_streams : _streams;
         }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();

@@ -53,6 +53,18 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const std::string input_perf_hint,
                                                      const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
                                                      const std::vector<std::vector<int>>& proc_type_table);
+
+/**
+ * @brief      Generate streams rank table for tensor parallel according to streams info table.
+ * @param[in]  streams_info_table is streams information table for tensor parallel.
+ * @param[in]  input_rank_level is depth of rank nesting.
+ * @param[out] num_sub_streams is number of sub streams for tensor parallel.
+ * @return     streams rank table which will be used by StreamsExecutor.
+ */
+std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vector<int>>& streams_info_table,
+                                                     const int input_rank_level,
+                                                     int& num_sub_streams);
+
 /**
  * @brief      Get model_prefer_threads
  * @param[in]  num_streams is target streams set by user via NUM_STREAMS or hints.

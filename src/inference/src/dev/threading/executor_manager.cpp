@@ -130,7 +130,7 @@ std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_c
     std::lock_guard<std::mutex> guard(streamExecutorMutex);
     for (auto& it : cpuStreamsExecutors) {
         const auto& executor = it.second;
-        if (executor.use_count() != 1)
+        if (executor.use_count() != 1 && config.get_name() != "CPUStreamsExecutor")
             continue;
 
         auto& executorConfig = it.first;

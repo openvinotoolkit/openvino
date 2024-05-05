@@ -145,6 +145,9 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
+    bool m_subCompileModel = true;
+    std::vector<std::shared_ptr<ICompiledModel>> m_sub_compilemodels;
+
     friend ov::CoreImpl;
 
 protected:

@@ -277,6 +277,8 @@ private:
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;
+
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_sub_infer_requests;
 };
 
 }  // namespace ov

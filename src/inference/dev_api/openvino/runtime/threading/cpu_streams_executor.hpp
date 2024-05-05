@@ -55,6 +55,14 @@ public:
 
     void run_sub_stream(Task task, int id) override;
 
+    void send_message(MessageInfo msg_info);
+
+    void wait_message();
+
+    void infer_wait();
+
+    void server_wait(int streams_num);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;
