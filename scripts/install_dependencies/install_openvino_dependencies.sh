@@ -124,14 +124,12 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=()
     pkgs_dev=(pkg-config g++ gcc libc6-dev make sudo)
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
@@ -140,7 +138,6 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
@@ -179,7 +176,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_core=()
     pkgs_gpu=()
     pkgs_python=()
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo)
@@ -216,7 +212,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
-    pkgs_core=()
     pkgs_gpu=(libOpenCL1)
     pkgs_python=(python39-base python39 python39-venv python39-pip)
     pkgs_dev=(cmake pkg-config gcc-c++ gcc make sudo)
