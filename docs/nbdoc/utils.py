@@ -47,11 +47,11 @@ def verify_notebook_name(notebook_name: str) -> bool:
     """Verification based on notebook name
 
     :param notebook_name: Notebook name by default keeps convention:
-        [3 digit]-name-with-dashes-with-output.rst,
-        example: 001-hello-world-with-output.rst
+        name-with-dashes-with-output.rst,
+        example: hello-world-with-output.rst
     :type notebook_name: str
     :returns: Return if notebook meets requirements
     :rtype: bool
 
     """
-    return notebook_name[:3].isdigit() and notebook_name[-4:] == ".rst"
+    return notebook_name[-16:] == "-with-output.rst"

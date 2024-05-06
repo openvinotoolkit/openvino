@@ -18,7 +18,7 @@ SetBrgemmBeta::SetBrgemmBeta(float beta) : snippets::lowered::pass::RangedPass()
 bool SetBrgemmBeta::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = expr_it->get();
-        if (const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
+        if (const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(expr->get_node())) {
             brgemm->set_beta(m_beta);
         }
     }
