@@ -158,8 +158,8 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node> &node, int f
                 break;
             if (parent_pshape[fusingAxis].is_dynamic())
                 break;
-            if (((bias_shape_norm[fusingAxis] == parent_pshape[fusingAxis].get_length())) &&
-                (bias_shape_norm[fusingAxis] == static_cast<int64_t>(shape_size(bias_shape_norm))))
+            if ((bias_shape_norm[fusingAxis] == static_cast<size_t>(parent_pshape[fusingAxis].get_length())) &&
+                (bias_shape_norm[fusingAxis] == shape_size(bias_shape_norm)))
                 return true;
         }
     }
