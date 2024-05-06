@@ -1048,6 +1048,51 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
+ * @brief Structure to store PCI bus information of device (Domain/Bus/Device/Function)
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct PCIInfo {
+    /**
+     * @brief PCI domain ID
+     */
+    uint32_t domain;
+    /**
+     * @brief PCI bus ID
+     */
+    uint32_t bus;
+    /**
+     * @brief PCI device ID
+     */
+    uint32_t device;
+    /**
+     * @brief PCI function ID
+     */
+    uint32_t function;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
+    return os << "{domain: " << pci_info.domain << " bus: " << pci_info.bus << " device: 0x" << std::hex
+              << pci_info.device << " function: " << std::dec << pci_info.function << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, PCIInfo& pci_info) {
+    std::string delim;
+    if (!(is >> delim >> pci_info.domain >> delim >> pci_info.bus >> delim >> std::hex >> pci_info.device >> delim >>
+          std::dec >> pci_info.function)) {
+        OPENVINO_THROW("Could not deserialize PCIInfo. Invalid format!");
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property to get PCI bus information of device. See PCIInfo struct definition for details
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<PCIInfo, PropertyMutability::RO> pci_info{"DEVICE_PCI_INFO"};
+
+/**
  * @brief Read-only property to get a float of device thermal
  * @ingroup ov_runtime_cpp_prop_api
  */

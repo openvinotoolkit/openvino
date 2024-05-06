@@ -48,13 +48,13 @@ Install OpenVINO™ 2024.0
 
    .. dropdown:: Distribution Comparison for OpenVINO 2024.0
 
-      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan       npm
-      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
-       CPU              V           V        V         V          V           V          V          V
-       GPU              V           V        V         V          V           V          V          V
-       NPU              V\*         V\*      V\*       n/a        n/a         n/a        n/a        V\*
-      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+       Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+       CPU              V           V       V                V         V            V          V          V
+       GPU              V           V       V                V         V            V          V          V
+       NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+      ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
 
       | \* **Of the Linux systems, only Ubuntu 22.04 includes drivers for NPU device.**
       |  **For Windows, CPU inference on ARM64 is not supported.**
