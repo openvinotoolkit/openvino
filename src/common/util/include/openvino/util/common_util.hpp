@@ -41,6 +41,12 @@ std::string to_upper(const std::string& s);
 
 size_t hash_combine(const std::vector<size_t>& list);
 
+template <typename T>
+size_t hash_combine(size_t seed, const T& a) {
+    // Hash combine formula from boost
+    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
 /**
  * @brief trim from start (in place)
  * @param s - string to trim

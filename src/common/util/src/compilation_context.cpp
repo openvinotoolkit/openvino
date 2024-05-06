@@ -11,6 +11,7 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -23,24 +24,10 @@
 #endif
 
 namespace ov {
-
-template <typename T>
-static uint64_t hash_combine(uint64_t seed, const T& a) {
-    // Hash combine formula from boost
-    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
-}
-
-template <typename T>
-static int32_t as_int32_t(T v) {
-    return static_cast<int32_t>(v);
-}
-
-}  // namespace ov
-
-namespace ov {
+namespace util {
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
-    uint64_t seed = 0;
+    size_t seed = 0;
     auto absPath = filePath;
     if (filePath.size() > 0) {
         try {
@@ -50,13 +37,13 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
         }
     }
 
-    seed = hash_combine(seed, absPath);
+    seed = ov::util::hash_combine(seed, absPath);
 
     std::string res;
     struct stat result;
     if (stat(absPath.c_str(), &result) == 0) {
-        seed = hash_combine(seed, result.st_mtime);
-        seed = hash_combine(seed, result.st_size);
+        seed = ov::util::hash_combine(seed, result.st_mtime);
+        seed = ov::util::hash_combine(seed, result.st_size);
     }
     return std::to_string(seed);
 }
@@ -64,7 +51,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
     OPENVINO_ASSERT(model);
 
-    uint64_t seed = 0;
+    size_t seed = 0;
     // 1. Calculate hash on function
     ov::pass::Manager m;
     m.register_pass<ov::pass::Hash>(seed);
@@ -72,17 +59,17 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
-        seed = ov::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
+        seed = ov::util::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
     for (const auto& op : model->get_ordered_ops()) {
         const auto& rt = op->get_rt_info();
         for (const auto& rtMapData : rt) {
-            seed = ov::hash_combine(seed, rtMapData.first);
+            seed = ov::util::hash_combine(seed, rtMapData.first);
             std::stringstream strm;
             rtMapData.second.print(strm);
-            seed = ov::hash_combine(seed, strm.str());
+            seed = ov::util::hash_combine(seed, strm.str());
         }
     }
 
@@ -90,15 +77,15 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 }
 
 std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    uint64_t seed = 0;
+    size_t seed = 0;
     try {
-        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
+        seed = ov::util::hash_combine(seed, ov::util::get_absolute_file_path(modelName));
     } catch (...) {
         // can't get absolute path, use modelName for hash calculation
-        seed = hash_combine(seed, modelName);
+        seed = ov::util::hash_combine(seed, modelName);
     }
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
+        seed = ov::util::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }
@@ -106,13 +93,13 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
 std::string ModelCache::compute_hash(const std::string& modelStr,
                                      const ov::Tensor& tensor,
                                      const ov::AnyMap& compileOptions) {
-    uint64_t seed = 0;
+    size_t seed = 0;
     // model string
-    seed = hash_combine(seed, modelStr);
+    seed = ov::util::hash_combine(seed, modelStr);
 
     // tensor data
     if (tensor) {
-        seed = hash_combine(seed, tensor.get_size());
+        seed = ov::util::hash_combine(seed, tensor.get_size());
 
         auto ptr = static_cast<size_t*>(tensor.data());
         size_t size = tensor.get_size() / sizeof(size_t);
@@ -126,7 +113,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
             uint64_t local_hash = 0;
             auto local_ptr = ptr + block_size * block_idx;
             for (size_t i = 0; i < block_size; i++) {
-                local_hash = hash_combine(local_hash, local_ptr[i]);
+                local_hash = ov::util::hash_combine(local_hash, local_ptr[i]);
             }
             block_hashes[block_idx] = local_hash;
         });
@@ -136,25 +123,25 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
             auto local_ptr = ptr + block_size * blocks_num;
             auto elements_left = size - block_size * blocks_num;
             for (size_t i = 0; i < elements_left; i++) {
-                local_hash = hash_combine(local_hash, local_ptr[i]);
+                local_hash = ov::util::hash_combine(local_hash, local_ptr[i]);
             }
             block_hashes[blocks_num] = local_hash;
         }
 
         for (auto hash : block_hashes) {
-            seed = hash_combine(seed, hash);
+            seed = ov::util::hash_combine(seed, hash);
         }
 
         auto size_done = size * sizeof(size_t);
         auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
         size_t size_left = tensor.get_size() - size_done;
         for (size_t i = 0; i < size_left; i++)
-            seed = hash_combine(seed, ptr_left[i]);
+            seed = ov::util::hash_combine(seed, ptr_left[i]);
     }
 
     // compile options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
+        seed = ov::util::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }
@@ -200,4 +187,5 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     return stream;
 }
 
+}  // namespace util
 }  // namespace ov

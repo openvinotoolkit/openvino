@@ -16,6 +16,7 @@ namespace ov {
 
 class Tensor;
 class Model;
+namespace util {
 
 struct ModelCache final {
     static std::string calculate_file_info(const std::string& filePath);
@@ -54,4 +55,5 @@ public:
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);
 };
 
+}  // namespace util
 }  // namespace ov

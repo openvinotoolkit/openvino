@@ -733,8 +733,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         {
-            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::util::ModelCache::compute_hash - Model");
+            cacheContent.blobId =
+                ov::util::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -769,8 +770,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         {
-            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
-            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::util::ModelCache::compute_hash - Model");
+            cacheContent.blobId =
+                ov::util::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
@@ -797,9 +799,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
         {
-            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::util::ModelCache::compute_hash - Model");
             cacheContent.blobId =
-                ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+                ov::util::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
@@ -828,9 +830,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         {
-            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+            OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::util::ModelCache::compute_hash - Model");
             cacheContent.blobId =
-                ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
+                ov::util::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
@@ -1387,9 +1389,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
-                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath),
-                                                        compiled_model_runtime_properties);
+                networkStream << ov::util::CompiledBlobHeader(
+                    ov::get_openvino_version().buildNumber,
+                    ov::util::ModelCache::calculate_file_info(cacheContent.modelPath),
+                    compiled_model_runtime_properties);
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
@@ -1416,9 +1419,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                          ov::itt::domains::LoadTime,
                          "Core::load_model_from_cache::ReadStreamAndImport");
             try {
-                ov::CompiledBlobHeader header;
+                ov::util::CompiledBlobHeader header;
                 networkStream >> header;
-                if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                if (header.get_file_info() != ov::util::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
                 }

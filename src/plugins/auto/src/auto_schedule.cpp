@@ -170,7 +170,7 @@ void AutoSchedule::init() {
                                                 : m_context->m_ov_core->get_property("", ov::cache_dir);
 
                     if (!m_context->m_is_set_startup_fallback && !cache_dir.empty()) {
-                        auto blobId = ov::ModelCache::compute_hash(
+                        auto blobId = ov::util::ModelCache::compute_hash(
                             m_context->m_model,
                             m_context->m_ov_core->create_compile_config(device, device_config));
                         std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
