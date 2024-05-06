@@ -241,6 +241,11 @@ For more details, see the :doc:`optimization guide <../optimize-inference>` and 
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
 
+ .. toctree::
+    :maxdepth: 1
+    :hidden:
+ 
+    cpu-device/performance-hint-and-threads-scheduling
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
