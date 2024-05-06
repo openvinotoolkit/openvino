@@ -48,12 +48,6 @@ public:
     RoPEFusionCosSinPreprocess();
 };
 
-class EliminateStridedSlice : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("EliminateStridedSlice", "0");
-    EliminateStridedSlice();
-};
-
 class RoPEShareCosSin : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEShareCosSin", "0");

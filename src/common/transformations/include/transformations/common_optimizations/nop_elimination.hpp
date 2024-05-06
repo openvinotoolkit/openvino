@@ -21,9 +21,10 @@ class TRANSFORMATIONS_API EliminateSplitConcat;
 class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateNopBroadcast;
-class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
-class TRANSFORMATIONS_API NopStridedSlice;
-class TRANSFORMATIONS_API NopStridedSliceByShape;
+class TRANSFORMATIONS_API EliminateSliceBeforeGatherElements;
+class TRANSFORMATIONS_API EliminateStridedSlice;
+class TRANSFORMATIONS_API EliminateSlice;
+class TRANSFORMATIONS_API EliminateStridedSliceByShape;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -148,36 +149,47 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief NopSliceBeforeGatherElements eliminates slice before GElements if slicing from 0
+ * @brief EliminateSliceBeforeGatherElements eliminates slice before GElements if slicing from 0
  * It is valid since GatherElements doesn't support negative indices and Slice won't affect
  * indexing of elements in the original tensor that GatherElements would like to take
  */
-class ov::pass::NopSliceBeforeGatherElements : public ov::pass::MatcherPass {
+class ov::pass::EliminateSliceBeforeGatherElements : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NopSliceBeforeGatherElements", "0");
-    NopSliceBeforeGatherElements();
+    OPENVINO_RTTI("EliminateSliceBeforeGatherElements", "0");
+    EliminateSliceBeforeGatherElements();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief NopStridedSlice eliminates Strided Slice in case
+ * @brief EliminateStridedSlice eliminates Strided Slice in case
  * tensors were not changed
  */
-class ov::pass::NopStridedSlice : public ov::pass::MatcherPass {
+class ov::pass::EliminateStridedSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NopStridedSlice", "0");
-    NopStridedSlice();
+    OPENVINO_RTTI("EliminateStridedSlice", "0");
+    EliminateStridedSlice();
 };
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief NopStridedSlice eliminates Strided Slice in case
+ * @brief EliminateSlice eliminates Slice in case
  * tensors were not changed
  */
-class ov::pass::NopStridedSliceByShape : public ov::pass::MatcherPass {
+class ov::pass::EliminateSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NopStridedSliceByShape", "0");
-    NopStridedSliceByShape();
+    OPENVINO_RTTI("EliminateSlice", "0");
+    EliminateSlice();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EliminateStridedSlice eliminates Strided Slice in case
+ * tensors were not changed
+ */
+class ov::pass::EliminateStridedSliceByShape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateStridedSliceByShape", "0");
+    EliminateStridedSliceByShape();
 };
 
 /**
