@@ -29,6 +29,7 @@ def test_simple_model_and_pattern():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a sample pattern
     pattern_mul = ops.matmul(AnyInput(), AnyInput(), False, False)
@@ -41,7 +42,7 @@ def test_simple_model_and_pattern():
     # Should perfectly match
     assert matcher.match(model_relu)
 
-def test_writing_docum():
+def test_simple_model_and_pattern_wrap_type():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -49,6 +50,7 @@ def test_writing_docum():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a sample pattern
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -61,7 +63,7 @@ def test_writing_docum():
     # Should perfectly match
     assert matcher.match(model_relu)
 
-def test_writing_doc():
+def test_wrap_type_list():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -69,7 +71,9 @@ def test_writing_doc():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
     model_sig = ops.sigmoid(model_abs) # Note that we've added a Sigmoid node after Abs
+    model_result1 = ops.result(model_sig)
 
     # Create a sample pattern
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -83,7 +87,7 @@ def test_writing_doc():
     assert matcher.match(model_relu)
     assert matcher.match(model_sig)
 
-def test_writing_doc_or():
+def test_pattern_or():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -91,6 +95,7 @@ def test_writing_doc_or():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a red branch
     red_pattern_add = WrapType("opset13.Add", [AnyInput(), AnyInput()])
@@ -111,7 +116,7 @@ def test_writing_doc_or():
     # The same pattern perfectly matches 2 different nodes
     assert matcher.match(model_relu)
 
-def test_writing_doc_optional1():
+def test_pattern_optional_middle():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -119,6 +124,7 @@ def test_writing_doc_optional1():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a sample pattern with an Optional node in the middle
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -132,7 +138,7 @@ def test_writing_doc_optional1():
     # Should perfectly match
     assert matcher.match(model_relu)
 
-def test_writing_doc_optional2():
+def test_pattern_optional_top():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -140,6 +146,7 @@ def test_writing_doc_optional2():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a sample pattern an optional top node
     pattern_sig_opt = Optional(["opset13.Sigmoid"], AnyInput())
@@ -152,7 +159,7 @@ def test_writing_doc_optional2():
     # Should perfectly match even though there's no Sigmoid going into MatMul
     assert matcher.match(model_relu)
 
-def test_writing_doc_optional3():
+def test_pattern_optional_root():
     model_param1 = ops.parameter(PartialShape([2, 2]))
     model_param2 = ops.parameter(PartialShape([2, 2]))
     model_add = ops.add(model_param1, model_param2)
@@ -160,6 +167,7 @@ def test_writing_doc_optional3():
     model_mul = ops.matmul(model_add, model_param3, False, False)
     model_abs = ops.abs(model_mul)
     model_relu = ops.relu(model_abs)
+    model_result = ops.result(model_relu)
 
     # Create a sample pattern with an optional root node
     pattern_mul = WrapType("opset13.MatMul", [AnyInput(), AnyInput()])
@@ -171,30 +179,6 @@ def test_writing_doc_optional3():
 
     # Should perfectly match even though there's no Sigmoid as root
     assert matcher.match(model_relu)
-#
-#def test_writing_doc2():
-#    # Create a sample model
-#    model_param1 = ops.parameter(PartialShape([2, 2]))
-#    model_param2 = ops.parameter(PartialShape([2, 2]))
-#    model_add = ops.add(model_param1, model_param2)
-#    model_abs = ops.abs(model_add)
-#    model_relu = ops.relu(model_abs)
-#    model_sig = ops.sigmoid(model_abs) # Note that there's an additional Sigmoid node 
-#
-#    # Create a sample pattern
-#    pattern_relu = WrapType("opset13.Relu", AnyInput())
-#    pattern_abs = WrapType("opset13.Abs", AnyInput())
-#    pattern_sig = WrapType("opset13.Sigmoid", AnyInput())
-#    pattern_or = Or([pattern_relu, pattern_abs, pattern_sig])
-#
-#    # Create a matcher and try to match the nodes
-#    matcher = Matcher(pattern_or, "FindPattern")
-#
-#    # Should perfectly match
-#    assert matcher.match(model_relu)
-#
-#    # Wouldn't match as the list doesn't contain Sigmoid
-#    assert not matcher.match(model_sig)
 
 def test_wrap_type_pattern_type():
     last_opset_number = 15
