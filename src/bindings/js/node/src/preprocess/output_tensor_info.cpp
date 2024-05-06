@@ -37,7 +37,7 @@ Napi::Value OutputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
 
         auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
 
-        OPENVINO_ASSERT(type != ov::element::string, "String tensors doesn\'t supported in JS API.");
+        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
         _tensor_info->set_element_type(type);
     } catch (std::exception& e) {
