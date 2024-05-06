@@ -282,6 +282,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
+    auto cache_dir = get_core()->get_property("", ov::cache_dir);
+    if (cache_dir.empty()) {
+        conf.cacheEncrypt = {};
+        conf.cacheDecrypt = {};
+    } else if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
+        conf.cacheEncrypt = ov::util::codec_xor;
+        conf.cacheDecrypt = ov::util::codec_xor;
+    }
+
     if (conf.streamExecutorConfig.get_sub_stream_mode() ==
         IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
         int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
