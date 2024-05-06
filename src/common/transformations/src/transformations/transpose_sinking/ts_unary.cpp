@@ -59,7 +59,7 @@ TSUnaryForward::TSUnaryForward() {
                    ov::op::v4::Swish,
                    ov::op::v0::HardSigmoid,
                    ov::op::v5::LogSoftmax,
-                   ov::op::v1::ConvertLike>(true, {0});
+                   ov::op::v1::ConvertLike>(true, {0}, false);
     auto ts_unary_sinking_function = [this](const std::shared_ptr<Node>& main_node,
                                             const utils::TransposeInputsInfo& transpose_info) -> bool {
         bool res = utils::sink_forward::UpdateInputTransposes(main_node, transpose_info, {0});

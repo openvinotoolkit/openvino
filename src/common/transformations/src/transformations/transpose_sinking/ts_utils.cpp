@@ -32,13 +32,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace {
-bool has_empty_axis_vector(const std::shared_ptr<ov::op::v0::Constant>& node) {
-    const auto axis_vector = node->get_axis_vector_val();
-    return axis_vector.empty();
-}
-}  // namespace
-
 namespace ov {
 namespace pass {
 namespace transpose_sinking {
@@ -77,7 +70,8 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
 
 TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
                                            bool const_transpose_order,
-                                           const std::vector<size_t>& indices) {
+                                           const std::vector<size_t>& indices,
+                                           bool static_transpose_input) {
     auto indices_to_check = indices;
     if (indices.empty()) {
         indices_to_check.resize(node->get_input_size());
@@ -89,8 +83,10 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
+        if (static_transpose_input && transpose_node->get_input_partial_shape(0).rank().is_dynamic())
+            continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (const_transpose_order && (!constant_node || has_empty_axis_vector(constant_node)))
+        if (const_transpose_order && !constant_node)
             continue;
         {
             TransposeInputsInfo input_info;

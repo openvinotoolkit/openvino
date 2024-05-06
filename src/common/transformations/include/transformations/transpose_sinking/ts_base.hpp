@@ -32,11 +32,13 @@ public:
     TSForwardBase() = default;
 
     template <class... Types>
-    void create_pattern(bool const_transpose_input, std::vector<size_t> transpose_indices = {}) {
+    void create_pattern(bool const_transpose_input, std::vector<size_t> transpose_indices = {},
+                        bool static_transpose_input = true) {
         m_const_transpose_input = const_transpose_input;
-        m_tranpose_indices = std::move(transpose_indices);
+        m_transpose_indices = std::move(transpose_indices);
+        m_static_transpose_input = static_transpose_input;
         m_pattern = ov::pass::pattern::wrap_type<Types...>([&](const Output<Node>& output) -> bool {
-            return if_node_has_transpose_inputs(output, m_const_transpose_input, m_tranpose_indices);
+            return if_node_has_transpose_inputs(output, m_const_transpose_input, m_transpose_indices, m_static_transpose_input);
         });
     }
 
@@ -55,9 +57,11 @@ protected:
 private:
     static bool if_node_has_transpose_inputs(const Output<Node>& output,
                                              bool const_transpose_input,
-                                             const std::vector<size_t>& transpose_indices);
+                                             const std::vector<size_t>& transpose_indices,
+                                             bool static_transpose_input);
 
     std::shared_ptr<Node> m_pattern;
     bool m_const_transpose_input = true;
-    std::vector<size_t> m_tranpose_indices;
+    std::vector<size_t> m_transpose_indices;
+    bool m_static_transpose_input;
 };

@@ -33,7 +33,8 @@ struct TransposeInputsInfo {
  */
 TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
                                            bool const_transpose_order,
-                                           const std::vector<size_t>& indices = {});
+                                           const std::vector<size_t>& indices = {},
+                                           bool static_transpose_input = true);
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
