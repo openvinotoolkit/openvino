@@ -41,7 +41,7 @@ public:
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DiscretePipeline::DiscretePipeline");
         for (const auto& desc : executor->inputs_desc_map()) {
-            _deviceInputs.appendArgument(desc.first, desc.second.info);
+            _deviceInputs.appendArgument(desc.first, zeroUtils::getSizeIOBytes(desc.second.info));
         }
         _deviceInputs.allocate(device_handle, context);
 
@@ -61,7 +61,7 @@ public:
         _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
         for (const auto& desc : executor->outputs_desc_map()) {
-            _deviceOutputs.appendArgument(desc.first, desc.second.info);
+            _deviceOutputs.appendArgument(desc.first, zeroUtils::getSizeIOBytes(desc.second.info));
         }
         _deviceOutputs.allocate(device_handle, context);
 
@@ -94,7 +94,7 @@ public:
     DiscretePipeline& operator=(const DiscretePipeline&) = delete;
     virtual ~DiscretePipeline() = default;
 
-    void push() override {
+    void push(size_t) override {
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PUSH,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::push",
@@ -107,7 +107,7 @@ public:
         _command_queues[stage::EXECUTE]->executeCommandList(_command_list[stage::EXECUTE], _fence[stage::EXECUTE]);
     };
 
-    void pull() override {
+    void pull(size_t) override {
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PULL,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::pull",
@@ -122,7 +122,7 @@ public:
         _fence[stage::READBACK].hostSynchronize();
     };
 
-    void reset() const override {
+    void reset(size_t) const override {
         // Reset the fence objects
         for (auto& fence : _fence) {
             fence.reset();
@@ -149,70 +149,87 @@ public:
                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                        CommandQueue& command_queue,
                        const uint32_t& group_ordinal,
-                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors)
+                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors,
+                       const size_t batch_size)
         : _config(config),
           _command_queue{command_queue},
-          _command_list{device_handle, context, graph_ddi_table_ext, _config, group_ordinal},
-          _fence{_command_queue, _config},
-          _event_pool{device_handle, context, 1, _config},
-          _event{_event_pool.handle(), 0, _config},
+          _event_pool{device_handle, context, batch_size ? static_cast<uint32_t>(batch_size) : 1, _config},
           _npu_profiling(npu_profiling) {
         const ZeroExecutor* executor = static_cast<const ZeroExecutor*>(executorPtr.get());
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend,
                            "Zero_infer_request::IntegratedPipeline::IntegratedPipeline");
 
-        for (const auto& desc : executor->inputs_desc_map()) {
-            const std::shared_ptr<ov::ITensor>& inputTensor = tensors.at(desc.first);
-            executor->setArgumentValue(desc.second.idx, inputTensor->data());
+        _command_lists.reserve(batch_size);
+        _events.reserve(batch_size);
+        _fences.reserve(batch_size);
+        for (size_t i = 0; i < batch_size; i++) {
+            _command_lists.emplace_back(
+                std::make_unique<CommandList>(device_handle, context, graph_ddi_table_ext, _config, group_ordinal));
+            _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
+            _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
         }
 
-        for (const auto& desc : executor->outputs_desc_map()) {
-            const std::shared_ptr<ov::ITensor>& outputTensor = tensors.at(desc.first);
-            executor->setArgumentValue(desc.second.idx, outputTensor->data());
-        }
+        for (size_t i = 0; i < batch_size; i++) {
+            for (const auto& desc : executor->inputs_desc_map()) {
+                const std::shared_ptr<ov::ITensor>& inputTensor = tensors.at(desc.first);
+                size_t inputTensorByteSize = inputTensor->get_byte_size();
+                executor->setArgumentValue(
+                    desc.second.idx,
+                    static_cast<unsigned char*>(inputTensor->data()) + (i * inputTensorByteSize) / batch_size);
+            }
 
-        /// append timestamp command if feature was activated
-        if (_npu_profiling != nullptr) {
-            _command_list.appendBarrier();
-            _command_list.appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
-        }
+            for (const auto& desc : executor->outputs_desc_map()) {
+                const std::shared_ptr<ov::ITensor>& outputTensor = tensors.at(desc.first);
+                size_t outputTensorByteSize = outputTensor->get_byte_size();
+                executor->setArgumentValue(
+                    desc.second.idx,
+                    static_cast<unsigned char*>(outputTensor->data()) + (i * outputTensorByteSize) / batch_size);
+            }
 
-        _command_list.appendGraphExecute(executor->graph(), profiling_handle);
+            /// append timestamp command if feature was activated
+            if (_npu_profiling != nullptr) {
+                _command_lists.at(i)->appendBarrier();
+                _command_lists.at(i)->appendNpuTimestamp(
+                    reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
+            }
 
-        /// append timestamp command if feature was activated
-        if (_npu_profiling != nullptr) {
-            _command_list.appendBarrier();
-            _command_list.appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
-        }
+            _command_lists.at(i)->appendGraphExecute(executor->graph(), profiling_handle);
 
-        // appendBarrier used in L0 as well
-        if (!sync_output_with_fences_) {
-            _command_list.appendBarrier();
-            _event.AppendSignalEvent(_command_list);
+            /// append timestamp command if feature was activated
+            if (_npu_profiling != nullptr) {
+                _command_lists.at(i)->appendBarrier();
+                _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
+            }
+
+            // appendBarrier used in L0 as well
+            if (!sync_output_with_fences_) {
+                _command_lists.at(i)->appendBarrier();
+                _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
+            }
+            _command_lists.at(i)->close();
         }
-        _command_list.close();
     }
 
     IntegratedPipeline(const IntegratedPipeline&) = delete;
     IntegratedPipeline& operator=(const IntegratedPipeline&) = delete;
     virtual ~IntegratedPipeline() = default;
 
-    void push() override {
+    void push(size_t batch_index) override {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "IntegratedPipeline", "push");
         if (sync_output_with_fences_) {
-            _command_queue.executeCommandList(_command_list, _fence);
+            _command_queue.executeCommandList(*_command_lists.at(batch_index), *_fences.at(batch_index));
         } else {
-            _command_queue.executeCommandList(_command_list);
+            _command_queue.executeCommandList(*_command_lists.at(batch_index));
         }
     };
 
-    void pull() override {
+    void pull(size_t batch_index) override {
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL, itt::domains::LevelZeroBackend, "IntegratedPipeline", "pull");
         if (sync_output_with_fences_) {
-            _fence.hostSynchronize();
+            _fences.at(batch_index)->hostSynchronize();
         } else {
-            _event.hostSynchronize();
+            _events.at(batch_index)->hostSynchronize();
         }
         /// sample npu timestamps if feature was activated
         if (_npu_profiling != nullptr) {
@@ -220,21 +237,21 @@ public:
         }
     };
 
-    void reset() const override {
+    void reset(size_t batch_index) const override {
         if (sync_output_with_fences_) {
-            _fence.reset();
+            _fences.at(batch_index)->reset();
         } else {
-            _event.reset();
+            _events.at(batch_index)->reset();
         }
     };
 
 private:
     const Config _config;
     CommandQueue& _command_queue;
-    CommandList _command_list;
-    Fence _fence;
+    std::vector<std::unique_ptr<CommandList>> _command_lists;
+    std::vector<std::unique_ptr<Fence>> _fences;
     EventPool _event_pool;
-    Event _event;
+    std::vector<std::unique_ptr<Event>> _events;
     bool sync_output_with_fences_ = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 };
@@ -244,7 +261,8 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors) {
+                                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors,
+                                       const size_t batch_size) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Infer_request::makePipeline");
     if (profiling_pool.create())
         profiling_query.create(profiling_pool._handle);
@@ -271,7 +289,8 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                                     npu_profiling,
                                                     *command_queues[stage::EXECUTE],
                                                     group_ordinal,
-                                                    tensors);
+                                                    tensors,
+                                                    batch_size);
     }
 
     return std::make_unique<DiscretePipeline>(config,

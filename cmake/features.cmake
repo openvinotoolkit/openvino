@@ -58,6 +58,8 @@ ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at run
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
+ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM Tensor Processing Primitives" OFF "ENABLE_INTEL_CPU AND X86_64" OFF)
+
 ov_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
 ov_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
@@ -151,8 +153,8 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-if(ANDROID)
-    # when protobuf from /usr/include is used, then Android toolchain ignores include paths
+if(CMAKE_CROSSCOMPILING AND (ANDROID OR RISCV64))
+    # when protobuf from /usr/include is used, then Android / Risc-V toolchain ignores include paths
     # but if we build for Android using vcpkg / conan / etc where flatbuffers is not located in
     # the /usr/include folders, we can still use 'system' flatbuffers
     set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT OFF)
