@@ -3,44 +3,43 @@
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng(2024)
 
-class TestTFGRUBlockCell(CommonTFLayerTest):
-    def _prepare_input(self, inputs_dict):
-        for input in inputs_dict.keys():
-            inputs_dict[input] = np.zeros(inputs_dict[input]).astype(np.float32)
-        return inputs_dict
 
-    def create_tf_gru_block_cell(self, batch_size, input_size, hidden_size):
-        import tensorflow as tf
+class TestGRUBlockCell(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
+        inputs_data = {}
+        inputs_data['x:0'] = rng.uniform(0, 1, x_shape).astype(np.float32)
+        return inputs_data
+
+    def create_gru_block_cell(self, batch_size, input_size, hidden_size):
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = [batch_size, input_size]
-            tf_h_prev_shape = [batch_size, hidden_size]
-            tf_w_ru_shape = [input_size + hidden_size, hidden_size * 2]
-            tr_w_c_shape = [input_size + hidden_size, hidden_size]
-            tf_b_ru_shape = [hidden_size * 2]
-            tf_b_c_shape = [hidden_size]
+            x_shape = [batch_size, input_size]
+            h_prev_shape = [batch_size, hidden_size]
+            w_ru_shape = [input_size + hidden_size, hidden_size * 2]
+            w_c_shape = [input_size + hidden_size, hidden_size]
+            b_ru_shape = [hidden_size * 2]
+            b_c_shape = [hidden_size]
 
-            random_generator = np.random.default_rng(2022)
+            x = tf.compat.v1.placeholder(np.float32, x_shape, 'x')
 
-            x = random_generator.uniform(0, 1, tf_x_shape).astype(np.float32)
-            h_prev = random_generator.uniform(0, 1, tf_h_prev_shape).astype(np.float32)
+            # generate weights
+            h_prev = rng.uniform(0, 1, h_prev_shape).astype(np.float32)
+            w_ru = rng.uniform(0, 1, w_ru_shape).astype(np.float32)
+            w_c = rng.uniform(0, 1, w_c_shape).astype(np.float32)
+            b_ru = rng.uniform(0, 1, b_ru_shape).astype(np.float32)
+            b_c = rng.uniform(0, 1, b_c_shape).astype(np.float32)
 
-            w_ru = random_generator.uniform(0, 1, tf_w_ru_shape).astype(np.float32)
-            w_c = random_generator.uniform(0, 1, tr_w_c_shape).astype(np.float32)
-
-            b_ru = random_generator.uniform(0, 1, tf_b_ru_shape).astype(np.float32)
-            b_c = random_generator.uniform(0, 1, tf_b_c_shape).astype(np.float32)
-
-            r, u, c, h = tf.raw_ops.GRUBlockCell(x=x, h_prev=h_prev, w_ru=w_ru, w_c=w_c, b_ru=b_ru, b_c=b_c, name="TFGRUBlockCell")
-
-            # Dummy Add layer to prevent from Const network, and compare only "h" output
-            input_zero = tf.compat.v1.placeholder(tf.as_dtype(np.float32), tf_h_prev_shape, 'Input')
-            add = tf.add(h, input_zero)
+            _, _, _, h = tf.raw_ops.GRUBlockCell(x=x, h_prev=h_prev, w_ru=w_ru, w_c=w_c, b_ru=b_ru, b_c=b_c)
+            tf.identity(h, name='gru_block_cell')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -48,22 +47,16 @@ class TestTFGRUBlockCell(CommonTFLayerTest):
         ref_net = None
         return tf_net, ref_net
 
-    test_data = [
-        dict(batch_size=1, input_size=6, hidden_size=6),
-        dict(batch_size=1, input_size=10, hidden_size=15),
-        dict(batch_size=1, input_size=15, hidden_size=10),
-        dict(batch_size=2, input_size=6, hidden_size=6),
-        dict(batch_size=2, input_size=12, hidden_size=6),
-        pytest.param(dict(batch_size=2, input_size=6, hidden_size=12), marks=pytest.mark.precommit_tf_fe),
-    ]
-
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize('batch_size', [1, 2])
+    @pytest.mark.parametrize('input_size', [1, 5, 6, 12])
+    @pytest.mark.parametrize('hidden_size', [1, 6, 10, 12])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_tf_gru_block_cell(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_gru_block_cell(self, batch_size, input_size, hidden_size,
+                            ie_device, precision, ir_version, temp_dir,
+                            use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("Skip TF GRUBlockCell test on GPU")
-        self._test(*self.create_tf_gru_block_cell(**params),
+        self._test(*self.create_gru_block_cell(batch_size, input_size, hidden_size),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3, **params)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3)

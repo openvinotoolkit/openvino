@@ -33,6 +33,14 @@ if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
+if(POLICY CMP0149)
+    # VS generator looks for most recent Windows SDK, ignoring
+    # CMAKE_SYSTEM_VERSION and allowing override by WindowsSDKVersion
+    # environment variable. New in 3.27. This is to allow override
+    # in the Windows CI builds.
+    cmake_policy(SET CMP0149 NEW)
+endif()
+
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -51,6 +59,7 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
+message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})

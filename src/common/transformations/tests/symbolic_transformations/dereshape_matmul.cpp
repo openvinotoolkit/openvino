@@ -7,12 +7,17 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -22,7 +27,7 @@ using namespace std;
 namespace {
 /* Helps to organize dimension representation in the following tests:
  * 1. Creates requested amount of dimensions
- * 2. Labels them automatically
+ * 2. Sets unique symbols for them automatically
  * 3. Creates value representation of the dimension via creating Parameter->Shape->Gather subgraph
  * 4. Gives access to dimension and its value representation via operator[]
  * 5. Gives access to utility Parameter via get_parameter -- only used for ov::Model creation in tests
@@ -35,10 +40,8 @@ public:
     };
 
     explicit DimensionTestHelper(const size_t& num_dims) {
-        auto te = make_shared<ov::TableOfEquivalence>();
-        auto dt = ov::DimensionTracker(te);
         auto dimensions = PartialShape::dynamic(Rank(num_dims));
-        dt.set_up_for_tracking(dimensions);
+        set_shape_symbols(dimensions);
         parameter = make_shared<v0::Parameter>(element::f32, dimensions);
         for (size_t i = 0; i < num_dims; ++i)
             m_map[i] = {dimensions[i], op::util::node_to_get_shape_value_of_indices_from_shape_source(parameter, {i})};

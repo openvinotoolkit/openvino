@@ -61,7 +61,7 @@ TEST(type_prop, random_uniform_dynamic_shape) {
 
 TEST(type_prop, random_uniform_dynamic_shape_with_labels) {
     auto shape = PartialShape{{0, 10}, 4, {3, 7}, -1};
-    set_shape_labels(shape, 10);
+    auto symbols = set_shape_symbols(shape);
     auto param = make_shared<opset8::Parameter>(element::i32, shape);
     auto out_shape = make_shared<opset8::ShapeOf>(param);
 
@@ -72,7 +72,7 @@ TEST(type_prop, random_uniform_dynamic_shape_with_labels) {
 
     EXPECT_EQ(r->get_output_element_type(0), element::i64);
     EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({{0, 10}, 4, {3, 7}, -1}));
-    EXPECT_THAT(get_shape_labels(r->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(r->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, random_uniform_dynamic_rank) {

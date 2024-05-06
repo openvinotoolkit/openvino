@@ -17,6 +17,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
@@ -56,7 +57,7 @@ IndirectKVCache::IndirectKVCache() {
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});
     auto matmul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_0, matmul_1});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -85,9 +86,9 @@ IndirectKVCache::IndirectKVCache() {
         auto matmul_kv_cache_index = kv_cache_users.begin()->get_index();
 
         auto gemm_node = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
-        auto order_in0 = gemm_node->get_input0_order();
-        auto order_in1 = gemm_node->get_input1_order();
-        auto order_out = gemm_node->get_output_order();
+        auto order_in0 = gemm_node->get_input0_transpose_order();
+        auto order_in1 = gemm_node->get_input1_transpose_order();
+        auto order_out = gemm_node->get_output_transpose_order();
 
         auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
                                                                                gemm_node->get_input_node_shared_ptr(1),

@@ -20,7 +20,7 @@ TYPED_TEST_SUITE_P(MaxPoolOperator);
 
 TEST(type_prop, max_pool_default_ctor) {
     PartialShape arg_shape{1, 3, 32};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const Strides strides{1};
     const Shape pads_begin{2};
     const Shape pads_end{2};
@@ -39,14 +39,14 @@ TEST(type_prop, max_pool_default_ctor) {
     mp->validate_and_infer_types();
 
     EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({1, 3, 31}));
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], nullptr));
     EXPECT_EQ(mp->get_pads_begin(), (Shape{0}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{0}));
 }
 
 TEST(type_prop, max_pool_valid_auto_padding) {
     PartialShape arg_shape{1, 3, {10, 32}};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const Strides strides{1};
     const Shape pads_begin{2};
     const Shape pads_end{2};
@@ -57,7 +57,7 @@ TEST(type_prop, max_pool_valid_auto_padding) {
     auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
     auto mp = make_shared<op::v1::MaxPool>(arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
     EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({1, 3, {9, 31}}));
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1], nullptr));
     EXPECT_EQ(mp->get_pads_begin(), (Shape{0}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{0}));
 }
@@ -132,7 +132,7 @@ TEST(type_prop, max_pool_auto_padding_2D_nc_dims_dynamic_same_lower) {
 
 TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic_same_upper) {
     PartialShape arg_shape{Dimension::dynamic(), Dimension::dynamic(), 32, 32};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const Strides strides{1, 1};
     const Shape pads_begin{0, 0};
     const Shape pads_end{0, 0};
@@ -144,14 +144,15 @@ TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic_same_upper) {
     auto mp = make_shared<op::v1::MaxPool>(arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
     EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
     EXPECT_EQ(mp->get_pads_begin(), (Shape{0, 0}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{1, 1}));
 }
 
 TEST(type_prop, max_pool_auto_padding_interval_dims_same_upper) {
     PartialShape arg_shape{{1, 2}, {2, 3}, {16, 32}, {11, 32}};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const Strides strides{1, 1};
     const Shape pads_begin{0, 0};
     const Shape pads_end{0, 0};
@@ -163,7 +164,8 @@ TEST(type_prop, max_pool_auto_padding_interval_dims_same_upper) {
     auto mp = make_shared<op::v1::MaxPool>(arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
     EXPECT_EQ(mp->get_output_partial_shape(0), PartialShape({{1, 2}, {2, 3}, -1, -1}));
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
     EXPECT_EQ(mp->get_pads_begin(), (Shape{0, 0}));
     EXPECT_EQ(mp->get_pads_end(), (Shape{0, 0}));
 }
@@ -351,7 +353,7 @@ TYPED_TEST_P(MaxPoolOperator, max_pool_4D_dynamic_dims_with_non_zero_low_range_c
 
 TYPED_TEST_P(MaxPoolOperator, max_pool_4D_interval_dims_with_dilations) {
     PartialShape arg_shape{{2, 3}, {1, 3}, {2, 13}, {6, 13}};
-    set_shape_labels(arg_shape, 10);
+    auto symbols = set_shape_symbols(arg_shape);
     const Strides strides{1, 1};
     const Strides dilations{2, 3};
     const Shape pads_begin{0, 0};
@@ -364,7 +366,8 @@ TYPED_TEST_P(MaxPoolOperator, max_pool_4D_interval_dims_with_dilations) {
     const auto expected_output_shape = PartialShape({{2, 3}, {1, 3}, {1, 11}, {3, 10}});
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
     EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
-    EXPECT_THAT(get_shape_labels(mp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(mp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TYPED_TEST_P(MaxPoolOperator, max_pool_4D_with_dilations_and_auto_pad_same_upper) {

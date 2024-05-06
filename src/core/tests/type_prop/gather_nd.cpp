@@ -5,7 +5,6 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace std;
@@ -88,12 +87,12 @@ TYPED_TEST_P(gather_nd_type_prop, static_shape_batch_dims_1_ind_tuple_dynamic) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_shape);
 }
 
-TYPED_TEST_P(gather_nd_type_prop, interval_both_labeled_batch_dims_1_ind_tuple_2) {
+TYPED_TEST_P(gather_nd_type_prop, interval_both_symboled_batch_dims_1_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    auto data_symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 2};
-    set_shape_labels(indices_shape, 20);
+    auto indices_symbols = set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{4, 6}, {6, 10}, {12, 14}};
 
@@ -106,12 +105,12 @@ TYPED_TEST_P(gather_nd_type_prop, interval_both_labeled_batch_dims_1_ind_tuple_2
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 13));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(data_symbols[0], indices_symbols[1], data_symbols[3]));
 }
 
-TYPED_TEST_P(gather_nd_type_prop, interval_data_labeled_batch_dims_1_ind_tuple_2) {
+TYPED_TEST_P(gather_nd_type_prop, interval_data_symboled_batch_dims_1_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 2};
     PartialShape expected_shape{{4, 6}, {6, 10}, {12, 14}};
@@ -125,13 +124,13 @@ TYPED_TEST_P(gather_nd_type_prop, interval_data_labeled_batch_dims_1_ind_tuple_2
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, ov::no_label, 13));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[0], nullptr, symbols[3]));
 }
 
-TYPED_TEST_P(gather_nd_type_prop, interval_indices_labeled_batch_dims_1_ind_tuple_2) {
+TYPED_TEST_P(gather_nd_type_prop, interval_indices_symboled_batch_dims_1_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
     PartialShape indices_shape{{4, 8}, {6, 10}, 2};
-    set_shape_labels(indices_shape, 20);
+    auto symbols = set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{4, 6}, {6, 10}, {12, 14}};
 
@@ -144,7 +143,7 @@ TYPED_TEST_P(gather_nd_type_prop, interval_indices_labeled_batch_dims_1_ind_tupl
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[0], symbols[1], nullptr));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(gather_nd_type_prop,
@@ -152,9 +151,9 @@ REGISTER_TYPED_TEST_SUITE_P(gather_nd_type_prop,
                             static_shape_batch_dims_1_ind_tuple_2,
                             static_shape_batch_dims_1_ind_tuple_3,
                             static_shape_batch_dims_1_ind_tuple_dynamic,
-                            interval_both_labeled_batch_dims_1_ind_tuple_2,
-                            interval_data_labeled_batch_dims_1_ind_tuple_2,
-                            interval_indices_labeled_batch_dims_1_ind_tuple_2);
+                            interval_both_symboled_batch_dims_1_ind_tuple_2,
+                            interval_data_symboled_batch_dims_1_ind_tuple_2,
+                            interval_indices_symboled_batch_dims_1_ind_tuple_2);
 
 typedef Types<v5::GatherND, v8::GatherND> GatherNDTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, gather_nd_type_prop, GatherNDTypes);
@@ -411,12 +410,12 @@ TEST(type_prop, gather_nd_v5_batch_2d_from_3d) {
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
 
-TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_2) {
+TEST(type_prop, gather_nd_v5_interval_both_symboled_batch_dims_2_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 2};
-    set_shape_labels(indices_shape, 20);
+    set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{24, 42}};
 
@@ -429,15 +428,15 @@ TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_2) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(nullptr));
 }
 
-TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_1) {
+TEST(type_prop, gather_nd_v5_interval_both_symboled_batch_dims_2_ind_tuple_1) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 1};
-    set_shape_labels(indices_shape, 20);
+    set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{24, 42}, {12, 14}};
 
@@ -450,7 +449,7 @@ TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_1) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(ov::no_label, 13));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(nullptr, symbols[3]));
 }
 
 TEST(type_prop, gather_nd_v5_fail_params_rank) {
@@ -585,12 +584,12 @@ TEST(type_prop, gather_nd_v8_batch_dim0_with_dyn_ind_dim) {
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_2) {
+TEST(type_prop, gather_nd_v8_interval_both_symboled_batch_dims_2_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 2};
-    set_shape_labels(indices_shape, 20);
+    set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{4, 6}, {6, 7}};
 
@@ -603,15 +602,15 @@ TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_2) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[0], symbols[1]));
 }
 
-TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_1) {
+TEST(type_prop, gather_nd_v8_interval_both_symboled_batch_dims_2_ind_tuple_1) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
-    set_shape_labels(data_shape, 10);
+    auto data_symbols = set_shape_symbols(data_shape);
 
     PartialShape indices_shape{{4, 8}, {6, 10}, 1};
-    set_shape_labels(indices_shape, 20);
+    auto indices_symbols = set_shape_symbols(indices_shape);
 
     PartialShape expected_shape{{4, 6}, {6, 7}, {12, 14}};
 
@@ -624,7 +623,7 @@ TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_1) {
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 13));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(data_symbols[0], data_symbols[1], data_symbols[3]));
 }
 
 TEST(type_prop, gather_nd_v8_fail_batch_dims_greater_indices_rank) {

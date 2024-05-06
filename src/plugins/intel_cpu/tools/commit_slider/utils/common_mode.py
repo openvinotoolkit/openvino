@@ -3,7 +3,7 @@
 
 from abc import ABC
 import utils.helpers as util
-import utils.map_builder as mapBuilder
+from utils.subscription import SubscriptionManager
 from utils.break_validator import validateBMOutput
 from utils.break_validator import BmValidationError
 import json
@@ -119,6 +119,14 @@ class Mode(ABC):
                         c1=newList[0], c2=newList[-1])
                 )
                 list = newList
+            elif self.traversal.isComparative():
+                raise util.PreliminaryAnalysisError(
+                    "No degradation for reduced interval: \
+                    {i1} and {i2} don't differ".format(
+                        i1=list[0], i2=list[-1]),
+                    util.PreliminaryAnalysisError.\
+                        PreliminaryErrType.NO_DEGRADATION
+                    )
         else:
             self.preliminaryCheck(list, cfg)
         return list
@@ -127,17 +135,12 @@ class Mode(ABC):
         # fetch paths for dlb job
         if cfg["dlbConfig"]["launchedAsJob"]:
             cfg["appPath"] = cfg["dlbConfig"]["appPath"]
-            if cfg["dlbConfig"]["appCmd"] != "" :
-                cfg["appCmd"] = cfg["dlbConfig"]["appCmd"]
         # switch off illegal check
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
-        cashCfg = cfg["cachedPathConfig"]
-        # build cash map
-        if (cashCfg["enabled"] and cashCfg["generateMap"]):
-            cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
-                cashCfg["commonPath"], cashCfg["subPath"]
-            )
+        # apply necessary subscriptions for cfg
+        subManager = SubscriptionManager(cfg)
+        subManager.apply()
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":

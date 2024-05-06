@@ -103,8 +103,7 @@ void Broadcast::getSupportedDescriptors() {
 void Broadcast::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    supportedPrimitiveDescriptors = getSupportedConfigs(this);
+    supportedPrimitiveDescriptors = getSupportedConfigs(this, outputShapes.size());
 }
 
 bool Broadcast::needPrepareParams() const {
@@ -159,7 +158,7 @@ bool Broadcast::needShapeInfer() const {
         if (targetShape.empty()) {
             return true;
         }
-        const int32_t* targetShapeData = getParentEdgeAt(TARGET_SHAPE_IDX)->getMemory().getDataAs<const int32_t>();
+        const int32_t* targetShapeData = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_IDX);
         for (size_t i = 0lu; i < targetShape.size(); i++) {
             if (targetShape[i] != targetShapeData[i]) {
                 return true;
@@ -170,7 +169,7 @@ bool Broadcast::needShapeInfer() const {
         if (axesMapping.empty()) {
             return true;
         }
-        const int32_t* axesMappingData = getParentEdgeAt(AXES_MAPPING_IDX)->getMemory().getDataAs<const int32_t>();
+        const int32_t* axesMappingData = getSrcDataAtPortAs<const int32_t>(AXES_MAPPING_IDX);
         for (size_t i = 0lu; i < axesMapping.size(); i++) {
             if (axesMapping[i] != axesMappingData[i]) {
                 return true;

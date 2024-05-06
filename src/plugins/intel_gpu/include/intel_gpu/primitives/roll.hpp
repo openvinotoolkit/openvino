@@ -26,12 +26,31 @@ struct roll : primitive_base<roll> {
         : primitive_base(id, {input}, {output_padding}),
           shift(shift) {}
 
+    /// @brief Constructs roll primitive for dynamic shape.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param raw_shift raw shift vector
+    /// @param raw_axes raw axes vector
+    roll(const primitive_id& id,
+         const input_info& input,
+         const std::vector<int32_t>& raw_shift,
+         const std::vector<int32_t>& raw_axes,
+         const padding& output_padding = {})
+        : primitive_base(id, {input}, {output_padding}),
+          raw_shift(raw_shift), raw_axes(raw_axes) {}
+
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
+
+    /// @brief Raw shift/axes vector to calculate normalized shift when input shape becomes static
+    std::vector<int32_t> raw_shift;
+    std::vector<int32_t> raw_axes;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, shift.hash());
+        seed = hash_range(seed, raw_shift.begin(), raw_shift.end());
+        seed = hash_range(seed, raw_axes.begin(), raw_axes.end());
         return seed;
     }
 
@@ -41,7 +60,9 @@ struct roll : primitive_base<roll> {
 
         auto rhs_casted = downcast<const roll>(rhs);
 
-        return shift == rhs_casted.shift;
+        return shift == rhs_casted.shift &&
+               raw_shift == rhs_casted.raw_shift &&
+               raw_axes == rhs_casted.raw_axes;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

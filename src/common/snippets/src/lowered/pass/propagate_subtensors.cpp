@@ -16,7 +16,7 @@ namespace lowered {
 namespace pass {
 namespace {
 void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
-                                              const LinearIR::LoopManager::LoopInfoPtr& loop_info,
+                                              const LoopInfoPtr& loop_info,
                                               LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
                                               bool most_outer_loop,
@@ -49,7 +49,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         }
     }
 
-    auto update_only_dim_idx_with_subtensor_value = [&](const LinearIR::LoopManager::LoopPort& port) {
+    auto update_only_dim_idx_with_subtensor_value = [&](const LoopPort& port) {
         const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
         if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
             const auto desc = port.expr_port->get_descriptor_ptr();

@@ -352,7 +352,7 @@ def test_pytorch_decoder_can_convert_int_list():
     ov_const = nc_decoder.as_constant()
     assert ov_const is not None
     assert len(ov_const) == 1
-    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_element_type() == Type.i64
     assert ov_const[0].get_partial_shape() == PartialShape([2])
 
 
@@ -421,7 +421,7 @@ def test_pytorch_decoder_can_convert_int_tuple():
     ov_const = nc_decoder.as_constant()
     assert ov_const is not None
     assert len(ov_const) == 1
-    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_element_type() == Type.i64
     assert ov_const[0].get_partial_shape() == PartialShape([2])
 
 
@@ -495,7 +495,7 @@ def test_pytorch_decoder_can_convert_empty_list():
     ov_const = nc_decoder.as_constant()
     assert ov_const is not None
     assert len(ov_const) == 1
-    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_element_type() == Type.i64
     assert ov_const[0].get_partial_shape() == PartialShape([0])
 
 
@@ -526,7 +526,7 @@ def test_pytorch_decoder_can_convert_int_scalar_tensor():
     ov_const = nc_decoder.as_constant()
     assert ov_const is not None
     assert len(ov_const) == 1
-    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_element_type() == Type.i64
     assert ov_const[0].get_partial_shape() == PartialShape([])
 
 

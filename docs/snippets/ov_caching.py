@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# ! [ov:caching:part0]
 from utils import get_path_to_model, get_temp_dir
 import openvino as ov
 
@@ -10,7 +11,7 @@ import openvino.properties as props
 device_name = 'CPU'
 model_path = get_path_to_model()
 path_to_cache_dir = get_temp_dir()
-# ! [ov:caching:part0]
+
 core = ov.Core()
 core.set_property({props.cache_dir: path_to_cache_dir})
 model = core.read_model(model=model_path)

@@ -43,9 +43,9 @@ OutputVector translate_max(const NodeContext& context) {
     auto keepdims = context.const_input<bool>(2);
     auto values = context.mark_node(std::make_shared<v1::ReduceMax>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk =
-        context.mark_node(std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MAX, v3::TopK::SortType::NONE));
-    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(
+        std::make_shared<v11::TopK>(x, k, axis_const, TopKMode::MAX, TopKSortType::NONE, element::i64));
+    auto indices = topk->output(1);
     if (!keepdims) {
         indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, axes_node));
     }
@@ -66,10 +66,11 @@ OutputVector translate_max_dim(const NodeContext& context) {
 
     auto values = context.mark_node(std::make_shared<v1::ReduceMax>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MAX, v3::TopK::SortType::NONE);
-    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(
+        std::make_shared<v11::TopK>(x, k, axis_const, TopKMode::MAX, TopKSortType::NONE, element::i64));
+    auto indices = topk->output(1);
     if (!keepdims) {
-        indices = std::make_shared<v0::Squeeze>(indices, axes_node);
+        indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, axes_node));
     }
     return {values, indices};
 };
@@ -101,9 +102,9 @@ OutputVector translate_min(const NodeContext& context) {
     auto keepdims = context.const_input<bool>(2);
     auto values = context.mark_node(std::make_shared<v1::ReduceMin>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk =
-        context.mark_node(std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MIN, v3::TopK::SortType::NONE));
-    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(
+        std::make_shared<v11::TopK>(x, k, axis_const, TopKMode::MIN, TopKSortType::NONE, element::i64));
+    auto indices = topk->output(1);
     if (!keepdims) {
         indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, axes_node));
     }
@@ -124,10 +125,11 @@ OutputVector translate_min_dim(const NodeContext& context) {
 
     auto values = context.mark_node(std::make_shared<v1::ReduceMin>(x, axes_node, keepdims));
     auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
-    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MIN, v3::TopK::SortType::NONE);
-    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(
+        std::make_shared<v11::TopK>(x, k, axis_const, TopKMode::MIN, TopKSortType::NONE, element::i64));
+    auto indices = topk->output(1);
     if (!keepdims) {
-        indices = std::make_shared<v0::Squeeze>(indices, axes_node);
+        indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, axes_node));
     }
     return {values, indices};
 };
@@ -203,6 +205,26 @@ OutputVector translate_amax(const NodeContext& context) {
         context.mutate_input(3, res);
     }
     return {res};
+}
+
+OutputVector translate_aminmax(const NodeContext& context) {
+    num_inputs_check(context, 1, 4);  // Expect between 1 and 4 inputs
+                                      // (input tensor, dim = none, keepdim = false, out = none)
+
+    auto input = context.get_input(0);
+
+    // check if dim is provided, if not, get the range of axes to compute min and max
+    auto dim = !context.input_is_none(1) ? context.get_input(1) : get_axes_range(context, 0);
+
+    // check if keepdim is provided, if not, set it to false like PyTorch
+    bool keep_dims = !context.input_is_none(2) ? context.const_input<bool>(2) : false;
+
+    auto amin = context.mark_node(std::make_shared<v1::ReduceMin>(input, dim, keep_dims));
+    auto amax = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, keep_dims));
+
+    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3), "out argument is not supported for aten::aminmax");
+
+    return {amin, amax};
 }
 
 }  // namespace op
