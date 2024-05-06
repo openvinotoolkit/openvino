@@ -271,15 +271,15 @@ public:
     }
 
     /**
-     * @brief Sort ALL input Loop Ports by `new_order`: `m_input_ports[new_order[i]] = m_input_ports[i]`
+     * @brief Reorder ALL input Loop Ports by `new_order`: `m_input_ports[new_order[i]] = m_input_ports[i]`
      * @param new_order vector of new indexes
      */
-    void sort_input_ports(const std::vector<size_t>& new_order);
+    void reorder_input_ports(const std::vector<size_t>& new_order);
     /**
-     * @brief Sort ALL output Loop Ports by `new_order`: `m_output_ports[new_order[i]] = m_output_ports[i]`
+     * @brief Reorder ALL output Loop Ports by `new_order`: `m_output_ports[new_order[i]] = m_output_ports[i]`
      * @param new_order vector of new indexes
      */
-    void sort_output_ports(const std::vector<size_t>& new_order);
+    void reorder_output_ports(const std::vector<size_t>& new_order);
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`

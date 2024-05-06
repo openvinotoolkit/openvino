@@ -418,60 +418,28 @@ void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearI
         update_order(loop_entries, expr);
         update_order(loop_exits, expr);
     }
-    loop_info->sort_input_ports(new_entry_order);
-    loop_info->sort_output_ports(new_exit_order);
+    loop_info->reorder_input_ports(new_entry_order);
+    loop_info->reorder_output_ports(new_exit_order);
 }
 
-bool LoopManager::reassign_identifiers(const std::map<size_t, size_t>& loop_id_map) {
-    // If all new IDs are the same as original - nothing to update
-    if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(), [](const std::pair<size_t, size_t>& p) { return p.first == p.second; })) {
+bool LoopManager::reorder_identifiers(const std::map<size_t, size_t>& loop_id_map) {
+    OPENVINO_ASSERT(loop_id_map.size() == m_map.size(),
+                    "Failed to sort reorder IDs: count of the current IDs in `loop_id_map` must be equal to count of existing loops");
+    // If all new IDs are the same as original and they're in the `m_map` - nothing to update
+    if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(),
+                   [this](const std::pair<size_t, size_t>& p) { return p.first == p.second && m_map.count(p.first) > 0; })) {
         return false;
     }
 
-    // There are may be collisions: `loop_id_map` = { "3" -> "0", "2" -> "1", "1" -> "3", "0" -> "2"}
-    // We have `saved_loops` to save loops that will be reassign too but at the moment we rewrite this record in the map
-    // For example, we want to reassign `3` loop to `0`. But Loop `0` exists and will be reassign as well (to "2").
-    // To not lost this Loop, we save it to `saved_loops`.
-    std::map<size_t, std::shared_ptr<LoopInfo>> saved_loops;
-    auto save_loop = [&](size_t id) {
-        OPENVINO_ASSERT(saved_loops.count(id) == 0, "Failed to reassign LoopIDs: we already saved this loop: ", id);
-        saved_loops[id] = get_loop_info(id);
-    };
-
-    std::set<size_t> updated_ids;
+    std::map<size_t, LoopInfoPtr> ordered_map;
     for (const auto& p : loop_id_map) {
         const auto& current_id = p.first;
         const auto& target_id = p.second;
-        // Already moved - > skip
-        if (updated_ids.count(current_id) > 0)
-            continue;
-
-        // If `target_id` is `current_id` in `loop_id_map` (will be updated too), we should save the loop for the next updates
-        if (loop_id_map.count(target_id)) {
-            // We should save the loop only if we haven't already update it.
-            if (updated_ids.count(target_id))
-                save_loop(target_id);
-        } else {
-            OPENVINO_ASSERT(m_map.count(target_id) == 0, "Failed to reassign LoopIDs: attempt to assign new IDs that already exists");
-        }
-
-        std::shared_ptr<LoopInfo> loop_info = nullptr;
-        // Check if the Loop is saved: there was collision and m_map[cuurent_id] contains another loop now
-        if (saved_loops.count(current_id)) {
-            const auto& it = saved_loops.find(current_id);
-            loop_info = it->second;
-            saved_loops.erase(it);
-        } else {
-            loop_info = get_loop_info(current_id);
-            m_map.erase(m_map.find(current_id)); // we can skip checking for correctness of iterator since we already validate in `get_loop_info`
-        }
-        m_map[target_id] = loop_info;
+        OPENVINO_ASSERT(m_map.count(current_id) > 0, "Failed to reorder loop IDs: the Loop with ID ", current_id, " doesn't exist in the map");
+        OPENVINO_ASSERT(ordered_map.count(target_id) == 0, "Failed to reorder loop IDs: there are several Loops with the target ID ", target_id);
+        ordered_map[target_id] = get_loop_info(current_id);
     }
-    OPENVINO_ASSERT(saved_loops.empty(), "Failed to reassign LoopIDs: not all Loops have been reassigned");
-
-    // Update the next ID
-    next_id = m_map.crbegin()->first + 1;
-
+    m_map = std::move(ordered_map);
     return true;
 }
 

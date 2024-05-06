@@ -267,12 +267,12 @@ public:
     LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
 
     /**
-     * @brief Reassign Loop IDs in `m_map` using `loop_id_map`
+     * @brief Reorder ALL Loop IDs in `m_map` using `loop_id_map`
      *        Note: the method don't update `loop_ids` of expressions!
      * @param loop_id_map [ current Loop ID -> new target Loop ID ].
-     * @return True if loops have been reassigned. Otherwise returns False
+     * @return True if loops have been reordered. Otherwise returns False
      */
-    bool reassign_identifiers(const std::map<size_t, size_t>& loop_id_map);
+    bool reorder_identifiers(const std::map<size_t, size_t>& loop_id_map);
 
 private:
     /**

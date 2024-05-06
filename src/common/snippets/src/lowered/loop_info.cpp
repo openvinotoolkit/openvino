@@ -229,10 +229,11 @@ std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_output_ports_inf
 namespace {
 template<typename T>
 void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
-    OPENVINO_ASSERT(new_order.size() == values.size(),
+    const auto order_set = std::set<size_t>(new_order.cbegin(), new_order.cend());
+    OPENVINO_ASSERT(new_order.size() == values.size() && order_set.size() == values.size(),
+                    "Failed to sort values: `new order` must contain unique indexes");
+    OPENVINO_ASSERT(*order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1),
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
-    OPENVINO_ASSERT(std::set<size_t>(new_order.cbegin(), new_order.cend()).size() == new_order.size(),
-                    "Failed to sort values: new order must contain unique indexes");
     std::vector<T> ordered_values(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
         ordered_values[new_order[i]] = values[i];
@@ -241,18 +242,16 @@ void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
 }
 }  // namespace
 
-void UnifiedLoopInfo::sort_input_ports(const std::vector<size_t>& new_order) {
+void UnifiedLoopInfo::reorder_input_ports(const std::vector<size_t>& new_order) {
+    validate();
     order(new_order, m_input_ports);
     order(new_order, m_input_port_descs);
-    // Verify that everything is valid after this change
-    validate();
 }
 
-void UnifiedLoopInfo::sort_output_ports(const std::vector<size_t>& new_order) {
+void UnifiedLoopInfo::reorder_output_ports(const std::vector<size_t>& new_order) {
+    validate();
     order(new_order, m_output_ports);
     order(new_order, m_output_port_descs);
-    // Verify that everything is valid after this change
-    validate();
 }
 
 void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input) {
