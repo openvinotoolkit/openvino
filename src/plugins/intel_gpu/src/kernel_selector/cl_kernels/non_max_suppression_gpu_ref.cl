@@ -895,19 +895,9 @@ KERNEL (non_max_suppression_ref_stage_3)(
         selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 #endif
-    unroll_for (int i = 0; i < outputIdx; i++) {
-        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].batchId);
-        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].classId);
-        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = TO_OUTPUT1_TYPE(sortedBoxList[i].score);
-    }
 
-    // Padding
-    unroll_for (int i = outputIdx; i < OUTPUT_NUM; i++) {
-        selected_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = -1;
-        selected_scores[OUTPUT1_GET_INDEX(i, 1, 0, 0)] = -1;
-        selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = -1;
-    }
-
+#ifdef OUTPUT2_TYPE
     valid_outputs[OUTPUT2_GET_INDEX(0, 0, 0, 0)] = TO_OUTPUT2_TYPE(outputIdx);
+#endif  // OUTPUT1_TYPE
 }
 #endif  /* NMS_STAGE_3 */

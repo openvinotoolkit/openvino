@@ -24,7 +24,7 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
         // Legacy multi-output
         if (instance.desc()->num_outputs == 1) {
-            args.outputs.push_back(instance.dep_memory_ptr(1));
+            args.outputs.push_back(instance.dep_memory_ptr(instance.desc()->input_size() - 1));
         }
 
         return args;
@@ -42,23 +42,18 @@ public:
         auto has_second_output = !primitive->second_output.empty();
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.merge_repeated = primitive->ctc_merge_repeated;
+        if (primitive->blank_index == UINT32_MAX) {
+            params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
+        } else {
+            params.blank_index = primitive->blank_index;
+        }
 
         if (primitive->num_outputs == 2) {
-            if (primitive->blank_index == UINT32_MAX) {
-                params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
-            } else {
-                params.blank_index = primitive->blank_index;
-            }
             params.outputs_num = 2;
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
 
         } else {
             // Legacy multi-output
-            if (primitive->blank_index == UINT32_MAX) {
-                params.blank_index = impl_param.get_input_layout(0).spatial(1) - 1;
-            } else {
-                params.blank_index = primitive->blank_index;
-            }
             params.outputs_num = has_second_output ? 2 : 1;
 
             if (params.outputs_num == 2) {

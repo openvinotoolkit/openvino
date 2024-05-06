@@ -164,7 +164,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params),
-                     2,
+                     orgParams.outputs_num,
                      orgParams.is_shape_agnostic);
 
     if (is_dynamic) {

@@ -224,9 +224,10 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        for (size_t i = 1; i < params.outputs.size(); i++) {
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, static_cast<uint32_t>(i) });
+        }
 
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 1 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 2 });
         break;
 
     default:

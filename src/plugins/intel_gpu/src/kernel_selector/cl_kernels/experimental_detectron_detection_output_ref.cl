@@ -336,8 +336,8 @@ KERNEL(eddo_ref_stage_3)
     size_t idx2 = OUTPUT_GET_INDEX(i, 2, 0, 0);
     size_t idx3 = OUTPUT_GET_INDEX(i, 3, 0, 0);
 
-    size_t idx_i4 = INPUT4_GET_INDEX(i, 0, 0, 0);
-    size_t idx_i5 = INPUT5_GET_INDEX(i, 0, 0, 0);
+    size_t idx_i4 = OUTPUT1_GET_INDEX(i, 0, 0, 0);
+    size_t idx_i5 = OUTPUT2_GET_INDEX(i, 0, 0, 0);
 #endif
     if (i < *detection_count) {
         OUTPUT_TYPE score = score_class_index_map[i].score;
