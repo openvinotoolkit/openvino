@@ -19,23 +19,23 @@ Overview of Transformations API
    transformation-api/patterns-python-api
 
 OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations supported by the plugin.
-This guide contains all the necessary information that you need to start implementing OpenVINO™ transformations.
+This guide contains all the necessary information to start implementing OpenVINO™ transformations.
 
 Working with Model
 ##################
 
-Before moving to the transformation part, we need to say a few words about functions which allow modifying ``ov::Model``.
-This chapter extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` and shows an API that allows us to manipulate with ``ov::Model``.
+Before moving to the transformation part, it is important to say a few words about the functions which allow modifying ``ov::Model``.
+This section extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` and introduces an API for ``ov::Model`` manipulation.
 
 Working with node input and output ports
 ++++++++++++++++++++++++++++++++++++++++
 
-First of all let's talk about ``ov::Node`` input/output ports. Each OpenVINO™ operation has input and output ports except for ``Parameter`` and ``Constant`` types.
-Throughout the tutorial, you will encounter words ``node`` and ``operation``. In fact, in OpenVINO™ we use ``node`` and ``operation`` interchangeably, but we will try to be consistent in this article.
+Each OpenVINO operation has ``ov::Node`` input and output ports, except for ``Parameter`` and ``Constant`` types.
+The terms ``node`` and ``operation`` are used interchangeably in OpenVINO, but this article will maintain consistency in their use.
 
-Every port belongs to a node, so using the port we may access the node it belongs to, get its shape, type, get all consumers in case of output port, and get a producer node in case of input port.
+Every port is associated with a node, allowing access to the node it belongs to, including its shape, type, all consumers for output ports and the producer node for input ports.
 
-Take a look at the code example.
+Take a look at the code example:
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -48,7 +48,7 @@ OpenVINO™ provides two ways for node replacement: via OpenVINO™ helper funct
 
 Let's start with OpenVINO™ helper functions. The most popular function is ``ov::replace_node(old_node, new_node)``.
 
-We will review a real replacement case where Negative operation is replaced with Multiply.
+Let's review a replacement case where a Negative operation is replaced with Multiply.
 
 .. image:: ../../assets/images/ov_replace_node.png
 
@@ -56,7 +56,7 @@ We will review a real replacement case where Negative operation is replaced with
    :language: cpp
    :fragment: [ov:replace_node]
 
-``ov::replace_node`` has a constraint that number of output ports for both Nodes must be the same. Otherwise, the attempt to replace would an exception.
+``ov::replace_node`` has a constraint that number of output ports for both nodes must be the same. Otherwise, the attempt to replace the nodes will result in an exception.
 
 The alternative way to do the same replacement is the following:
 
@@ -72,7 +72,7 @@ Another transformation example is insertion. Let's insert an additional Relu nod
    :language: cpp
    :fragment: [ov:insert_node]
 
-The alternative way of inserting a node is to make a node copy and use ``ov::replace_node()``:
+The alternative way of inserting a node is to make a copy of the node and use ``ov::replace_node()``:
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -83,7 +83,7 @@ Node elimination
 
 Another type of node replacement is elimination of a node.
 
-To eliminate a node, OpenVINO™ has a special method that considers all the limitations of OpenVINO™ Runtime.
+To eliminate a node, OpenVINO provides a method that considers all limitations of the OpenVINO Runtime.
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_model_snippets.cpp
    :language: cpp
