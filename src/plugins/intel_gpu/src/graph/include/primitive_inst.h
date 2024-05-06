@@ -190,7 +190,7 @@ public:
         _users = _network.get_primitives(users);
     }
 
-    const std::set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
+    const std::unordered_set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -267,7 +267,7 @@ public:
                                        memory_pool& pool,
                                        const program_node& _node,
                                        const kernel_impl_params& impl_params,
-                                       const std::set<size_t>& memory_dependencies,
+                                       const std::unordered_set<size_t>& memory_dependencies,
                                        uint32_t net_id,
                                        bool is_internal,
                                        size_t idx = 0,
@@ -334,7 +334,7 @@ protected:
     std::vector<primitive_inst*> _exec_deps;
 
     // List of primitive ids that this primitive can't share memory buffers with
-    std::set<size_t> _runtime_memory_dependencies;
+    std::unordered_set<size_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
