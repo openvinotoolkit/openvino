@@ -155,6 +155,14 @@ uint32_t NPUBackends::getDriverExtVersion() const {
     OPENVINO_THROW("No available backend");
 }
 
+bool NPUBackends::isBatchingSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isBatchingSupported();
+    }
+
+    return false;
+}
+
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends

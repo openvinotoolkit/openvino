@@ -1081,6 +1081,65 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     }
 }
 
+TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    // Test parameters
+    const int batch_num = 6528;
+    const int in_feature_num = 69;
+    const int out_feature_num = 136;
+
+    // Allocate memory
+    auto input_mem = engine.allocate_memory({ { batch_num, in_feature_num }, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ { out_feature_num, in_feature_num }, data_types::f16, format::bfyx });
+
+    // Generate random input data and set values
+    auto input_data = rg.generate_random_1d<ov::float16>(batch_num * in_feature_num, -1, 1);
+    auto weights_data = rg.generate_random_1d<ov::float16>(out_feature_num * in_feature_num, -1, 1);
+
+    std::vector<ov::float16> empty_bias(out_feature_num, 0);
+
+    set_values(input_mem, input_data);
+    set_values(weights_mem, weights_data);
+
+    // Calculate CPU reference
+    auto reference_output = dynamic_fully_connected_reference_calc<ov::float16>(batch_num,
+                                                                                in_feature_num,
+                                                                                out_feature_num,
+                                                                                input_data,
+                                                                                weights_data,
+                                                                                empty_bias);
+    // Create topology to test
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding())
+    );
+
+    // Set data optimization to allow weights reordering to optimal format
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_fb_io_block_fp16", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.at("fc_prim").get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_mem->count(), batch_num * out_feature_num);
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int ofm = 0; ofm < out_feature_num; ofm++) {
+            // fully_connected_gpu_fb_io_block_fp16 output format is yxfb while reference output format is bfyx
+            ASSERT_FLOAT_EQ(reference_output[b * out_feature_num + ofm], output_ptr[ofm * batch_num + b]);
+        }
+    }
+}
+
 class fully_connected_gpu_tests: public ::testing::Test {
 public:
     void test_compressed_scale_zp_bias(bool is_caching_test) {
@@ -2923,6 +2982,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_cached) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g32) {
     this->test_compressed_int4_scale(false, true, 1, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b48g32) {
+    this->test_compressed_int4_scale(false, true, 48, 32);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_b1g64) {

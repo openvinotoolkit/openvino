@@ -22,6 +22,7 @@ struct event {
 public:
     using ptr = std::shared_ptr<event>;
     event() = default;
+    virtual ~event() = default;
 
     void wait();
     void set();
