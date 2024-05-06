@@ -10,11 +10,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
-#if defined(OPENVINO_ARCH_ARM64)
-#include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
-#endif
 #include "function_helper.hpp"
 
 namespace ov {

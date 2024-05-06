@@ -27,9 +27,6 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
     auto eltwise_binary = custom_ops[0]->clone_with_new_inputs({conv->output(0), eltwise_sinh->output(0)});
     auto eltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({eltwise_binary->output(0)});
     auto eltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({eltwise_unary_1->output(0)});
-    eltwise_binary->set_arguments({conv->output(0), eltwise_sinh->output(0)});
-    eltwise_unary_1->set_arguments({eltwise_binary->output(0)});
-    eltwise_unary_2->set_arguments({eltwise_unary_1->output(0)});
 
     return std::make_shared<ov::Model>(NodeVector{eltwise_unary_2}, ParameterVector{conv_param, eltwise_param});
 }
@@ -75,8 +72,6 @@ std::shared_ptr<ov::Model> ConvBiasActivationFunction::initOriginal() const {
 
     auto add = std::make_shared<op::v1::Add>(conv->output(0), add_const->output(0));
     auto unary = custom_ops[1]->clone_with_new_inputs({add->output(0)});
-    add->set_arguments({conv->output(0), add_const->output(0)});
-    unary->set_arguments({add->output(0)});
 
     return std::make_shared<ov::Model>(NodeVector{unary}, ParameterVector{conv_param});
 }
@@ -98,9 +93,6 @@ std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initOriginal() const {
     auto add = std::make_shared<op::v1::Add>(conv->output(0), add_const->output(0));
     auto unary_1 = custom_ops[1]->clone_with_new_inputs({add->output(0)});
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({unary_1->output(0)});
-    add->set_arguments({conv->output(0), add_const->output(0)});
-    unary_1->set_arguments({add->output(0)});
-    unary_2->set_arguments({unary_1->output(0)});
 
     return std::make_shared<ov::Model>(NodeVector{unary_2}, ParameterVector{conv_param});
 }
@@ -145,9 +137,6 @@ std::shared_ptr<ov::Model> MatMulTwoActivationFunction::initOriginal() const {
     auto add = std::make_shared<op::v1::Add>(matmul, add_const);
     auto unary_1 = custom_ops[1]->clone_with_new_inputs({add->output(0)});
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({unary_1->output(0)});
-    add->set_arguments({matmul->output(0), add_const->output(0)});
-    unary_1->set_arguments({add->output(0)});
-    unary_2->set_arguments({unary_1->output(0)});
 
     return std::make_shared<ov::Model>(NodeVector{unary_2}, ParameterVector{matmul_param0, matmul_param1});
 }
@@ -167,10 +156,6 @@ std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initOriginal() co
 
     auto binary_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     auto binary = custom_ops[2]->clone_with_new_inputs({unary->output(0), binary_param});
-
-    add->set_arguments({matmul->output(0), add_const->output(0)});
-    unary->set_arguments({add->output(0)});
-    binary->set_arguments({unary->output(0), binary_param->output(0)});
 
     return std::make_shared<ov::Model>(NodeVector{binary}, ParameterVector{matmul_param0, matmul_param1, binary_param});
 }

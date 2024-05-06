@@ -24,8 +24,6 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
-      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/lowered
-      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/common
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
 endif()
