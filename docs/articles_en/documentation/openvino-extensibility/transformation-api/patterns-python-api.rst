@@ -15,6 +15,10 @@ Though, before proceeding any further, we need to add some imports. That would i
 Add the following lines to your file:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:imports]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:imports]
 
@@ -33,6 +37,10 @@ Suppose, we are having a very simple pattern consisting of 3 nodes and we want t
 Let's create the model and the pattern:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:create_simple_model_and_pattern]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:create_simple_model_and_pattern]
 
@@ -42,6 +50,10 @@ Our code already looks promissing, however in OpenVINO™ we usually don't creat
 For the given case we would probably use ``WrapType`` and the code would look as following:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:create_simple_model_and_pattern_wrap_type]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:create_simple_model_and_pattern_wrap_type]
 
@@ -52,6 +64,10 @@ For the given case we would probably use ``WrapType`` and the code would look as
 However, it is also possible to list all possible types for the given node. For example, you may do something like this:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:wrap_type_list]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:wrap_type_list]
 
@@ -63,6 +79,10 @@ If you want to have some additional checking for you node, you may create a pred
 matching performing the additional validation specified in the logic of the function. For example, you may want to check the consumers count of a given node:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:wrap_type_predicate]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:wrap_type_predicate]
 
@@ -71,12 +91,20 @@ matching performing the additional validation specified in the logic of the func
 You have already seen ``AnyInput`` in the above examples. We use it when we don't really care about a specific input for a given node.
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:any_input]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:any_input]
 
 You may also create ``AnyInput()`` with a predicate, if you want some additional checks for you input. It would look similar to ``WrapType`` with a lambda or a function. Let's say we want to make sure the inputs has a rank of 4.
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:any_input_predicate]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:any_input_predicate]
 
@@ -92,6 +120,10 @@ As you may see, the red branch will not match, however it will work perfectly fi
 That's what it would look in code:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:pattern_or]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_or]
 
@@ -108,6 +140,10 @@ unfolding into 2 branches:
 The code would look as following for our model:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:pattern_optional_middle]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_middle]
 
@@ -116,17 +152,29 @@ The ``Optional`` doesn't necessarily have to be in the middle of the pattern. It
 Top node:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:pattern_optional_top]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_top]
 
 Root node:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:pattern_optional_root]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:pattern_optional_root]
 
 ```Optional``` also supports adding a predicate the same way ``WrapType`` and ``AnyInput`` do:
 
 .. doxygensnippet:: docs/snippets/ov_patterns.py
+   :language: python
+   :fragment: [ov:optional_predicate]
+
+.. doxygensnippet:: docs/ov_patterns.cpp
    :language: cpp
    :fragment: [ov:optional_predicate]
