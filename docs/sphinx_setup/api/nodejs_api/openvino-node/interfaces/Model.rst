@@ -1,9 +1,6 @@
 Interface Model
 ===============
 
-.. rubric:: Interface Model
-
-
 .. code-block:: ts
 
    interface Model {
@@ -11,11 +8,12 @@ Interface Model
        outputs: Output[];
        getName(): string;
        input(nameOrId?): Output;
+       isDynamic(): boolean;
        output(nameOrId?): Output;
    }
 
-- Defined in
-  `addon.ts:44 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L44>`__
+* **Defined in:**
+  `addon.ts:68 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L68>`__
 
 
 Properties
@@ -24,25 +22,26 @@ Properties
 
 .. rubric:: inputs
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      inputs: Output[]
 
-   inputs: Output[]
-
--  Defined in
-   `addon.ts:46 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L46>`__
+   -  **Defined in:**
+      `addon.ts:70 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L70>`__
 
 .. rubric:: outputs
 
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   outputs: Output[]
+      outputs: Output[]
 
--  Defined in
-   `addon.ts:45 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L45>`__
+   -  **Defined in:**
+      `addon.ts:69 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L69>`__
 
 
 Methods
@@ -51,60 +50,73 @@ Methods
 
 .. rubric:: getName
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   getName(): string
+      getName(): string
 
 
-**Returns** string
+   * **Returns:** string
 
-- Defined in
-  `addon.ts:49 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L49>`__
+   * **Defined in:**
+     `addon.ts:73 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L73>`__
 
 
 .. rubric:: input
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   input(nameOrId?): Output
+      input(nameOrId?): Output
+
+   * **Parameters:**
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          nameOrId: string|number
+
+   * **Returns:**  :doc:`Output <Output>`
+
+   * **Defined in:**
+     `addon.ts:72 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L72>`__
 
 
-**Parameters**
+.. rubric:: isDynamic
 
+.. container:: m-4
 
-- ``Optional``
+   .. code-block:: ts
 
-  .. code-block:: ts
+      isDynamic(): boolean
 
-     nameOrId: string|number
+   * **Returns:**  boolean
 
-
-**Returns**  :doc:`Output <Output>`
-
-
-- Defined in
-  `addon.ts:48 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L48>`__
+   * **Defined in:**
+     `addon.ts:74 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L74>`__
 
 
 .. rubric:: output
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   output(nameOrId?): Output
+      output(nameOrId?): Output
 
+   * **Parameters:**
 
-**Parameters**
+     - ``Optional``
 
-- ``Optional``
+       .. code-block:: ts
 
-  .. code-block:: ts
+          nameOrId: string|number
 
-     nameOrId: string|number
+   * **Returns:**  :doc:`Output <Output>`
 
-**Returns**  :doc:`Output <Output>`
+   * **Defined in:**
+     `addon.ts:71 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L71>`__
 
-- Defined in
-  `addon.ts:47 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L47>`__
