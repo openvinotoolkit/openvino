@@ -142,7 +142,7 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
     return desc;
 }
 
-}  // namespace
+}  // namespace 
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -166,6 +166,11 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             errorMessage = "MaxPool and AvgPool from opset1 and MaxPool from opset8 are supported";
             std::cout << "\n\nMaxPool and AvgPool from opset1 and MaxPool from opset8 are supported\n\n";
             return false;
+        //} else if (!ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        //    if (!Pooling::isCeilTorchSupported(op)) {
+        //        errorMessage = "CEIL_TORCH rounding type is not supported in opsets lower than opset14";
+        //        return false;
+        //    }
         }
     } catch (...) {
         std::cout << "\n\nRandom error\n\n";

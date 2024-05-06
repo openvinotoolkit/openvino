@@ -21,14 +21,14 @@ const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 
 const std::vector<CPUSpecificParams> vecCpuConfigs = {sse42, avx, avx512};
 
-const std::vector<maxPoolSpecificParams> paramsMaxV84D_ref = {
-        maxPoolSpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
+        maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
-        maxPoolSpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
+        maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
-        maxPoolSpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
+        maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };

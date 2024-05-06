@@ -109,14 +109,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<maxPoolSpecificParams> paramsMaxV85D_ref = {
-        maxPoolSpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+const std::vector<maxPoolV8SpecificParams> paramsMaxV85D_ref = {
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
-        maxPoolSpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
-        maxPoolSpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+        maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };
@@ -153,22 +153,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_5D_ref, MaxPoolingV8LayerCPUTest,
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::Values(expectedCpuConfig())),
                          MaxPoolingV8LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D, MaxPoolingV14LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV85D()),
-                                 ::testing::ValuesIn(inputShapes5D()),
-                                 ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(vecCpuConfigs)),
-                         MaxPoolingV14LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D_ref, MaxPoolingV14LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV85D_ref),
-                                 ::testing::ValuesIn(inputShapes5D()),
-                                 ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(expectedCpuConfig())),
-                         MaxPoolingV14LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                          ::testing::Combine(

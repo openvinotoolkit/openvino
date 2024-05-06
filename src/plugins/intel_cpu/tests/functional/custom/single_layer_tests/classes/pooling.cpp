@@ -11,93 +11,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace util {
-static std::string getTestCaseNameUtil(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj) {
-    maxPoolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
 
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
-        basicParamsSet;
-
-    std::ostringstream results;
-    results << "IS=(";
-    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
-    results << "TS=";
-    for (const auto& shape : inputShapes.second) {
-        results << ov::test::utils::vec2str(shape) << "_";
-    }
-    results << "Prc=" << inPrc << "_";
-    results << "MaxPool_";
-    results << "K" << ov::test::utils::vec2str(kernel) << "_";
-    results << "S" << ov::test::utils::vec2str(stride) << "_";
-    results << "D" << ov::test::utils::vec2str(dilation) << "_";
-    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
-    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
-    results << "Rounding=" << roundingType << "_";
-    results << "AutoPad=" << padType << "_";
-
-    results << CPUTestsBase::getTestCaseName(cpuParams);
-    return results.str();
-}
-
-template <typename TOp, class TTest>
-void SetUpUtil(TTest* testInstance,
-                      std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& inFmts,
-                      std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& outFmts,
-                      std::vector<std::string, std::allocator<std::string>>& priority,
-                      std::string& selectedType,
-                      std::shared_ptr<ov::Model>& function,
-                      std::vector<ov::PartialShape>& inputDynamicShapes) {
-    maxPoolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = testInstance->GetParam();
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
-        basicParamsSet;
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    if (selectedType.empty()) {
-        auto selectedType = testInstance->getPrimitiveTypeUtil();
-    }
-    selectedType = testInstance->makeSelectedTypeStr(selectedType, inPrc);
-
-    testInstance->init_input_shapes_util({inputShapes});
-
-    ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
-    }
-    auto pooling = std::make_shared<TOp>(params[0],
-                                         stride,
-                                         dilation,
-                                         padBegin,
-                                         padEnd,
-                                         kernel,
-                                         roundingType,
-                                         padType,
-                                         indexElementType,
-                                         axis);
-    pooling->get_rt_info() = testInstance->getCPUInfo();
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling->output(0))};
-    function = std::make_shared<ov::Model>(results, params, "MaxPooling");
-}
-} // namespace util
 std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
     ov::test::poolSpecificParams basicParamsSet;
     InputShape inputShapes;
@@ -200,23 +114,85 @@ void PoolingLayerCPUTest::SetUp() {
 }
 
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
-    const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj) {
-    return util::getTestCaseNameUtil(obj);
+    const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
+    maxPoolV8SpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    CPUSpecificParams cpuParams;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
+
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    ov::element::Type indexElementType;
+    int64_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+        basicParamsSet;
+
+    std::ostringstream results;
+    results << "IS=(";
+    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
+    results << "TS=";
+    for (const auto& shape : inputShapes.second) {
+        results << ov::test::utils::vec2str(shape) << "_";
+    }
+    results << "Prc=" << inPrc << "_";
+    results << "MaxPool_";
+    results << "K" << ov::test::utils::vec2str(kernel) << "_";
+    results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "D" << ov::test::utils::vec2str(dilation) << "_";
+    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    results << "Rounding=" << roundingType << "_";
+    results << "AutoPad=" << padType << "_";
+
+    results << CPUTestsBase::getTestCaseName(cpuParams);
+    return results.str();
 }
 
 void MaxPoolingV8LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    util::SetUpUtil<ov::op::v8::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
-}
 
-std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
-    const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj) {
-    return util::getTestCaseNameUtil(obj);
-}
+    maxPoolV8SpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    CPUSpecificParams cpuParams;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = this->GetParam();
 
-void MaxPoolingV14LayerCPUTest::SetUp() {
-    targetDevice = ov::test::utils::DEVICE_CPU;
-    util::SetUpUtil<ov::op::v14::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
+    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    ov::element::Type indexElementType;
+    int64_t axis;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+        basicParamsSet;
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    if (selectedType.empty()) {
+        selectedType = getPrimitiveType();
+    }
+    selectedType = makeSelectedTypeStr(selectedType, inPrc);
+
+    init_input_shapes({inputShapes});
+
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+    }
+    auto pooling = std::make_shared<ov::op::v8::MaxPool>(params[0],
+                                                         stride,
+                                                         dilation,
+                                                         padBegin,
+                                                         padEnd,
+                                                         kernel,
+                                                         roundingType,
+                                                         padType,
+                                                         indexElementType,
+                                                         axis);
+    pooling->get_rt_info() = getCPUInfo();
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling->output(0))};
+    function = std::make_shared<ov::Model>(results, params, "MaxPooling");
 }
 
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
@@ -225,11 +201,6 @@ TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
 }
 
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Pooling");
-}
-
-TEST_P(MaxPoolingV14LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
@@ -304,9 +275,9 @@ const std::vector<poolSpecificParams>& paramsMax4D() {
     return paramsMax4D;
 }
 
-const std::vector<maxPoolSpecificParams>& paramsMaxV84D() {
-    static const std::vector<maxPoolSpecificParams> paramsMaxV84D = {
-            maxPoolSpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV84D = {
+            maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
             maxPoolSpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
@@ -419,9 +390,9 @@ const std::vector<InputShape>& inputShapes5D() {
     return inputShapes5D;
 }
 
-const std::vector<maxPoolSpecificParams>& paramsMaxV85D() {
-    static const std::vector<maxPoolSpecificParams> paramsMaxV85D = {
-            maxPoolSpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV85D = {
+            maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
             maxPoolSpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},

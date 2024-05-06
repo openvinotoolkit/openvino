@@ -13,6 +13,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
+
 using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
                                              ElementType, //inPrc
@@ -20,7 +21,7 @@ using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
-using maxPoolLayerCpuTestParamsSet = std::tuple<maxPoolSpecificParams,
+using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams,
         InputShape,
         ElementType,
         CPUSpecificParams>;
@@ -34,30 +35,18 @@ protected:
     void SetUp() override;
 };
 
-class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolLayerCpuTestParamsSet>,
+class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj);
-    std::string getPrimitiveTypeUtil() const {
-        return CPUTestsBase::getPrimitiveType();
-    }
-    void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
-        SubgraphBaseTest::init_input_shapes(shapes);
-    }
+    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
 protected:
     void SetUp() override;
 };
 
-class MaxPoolingV14LayerCPUTest : public testing::WithParamInterface<maxPoolLayerCpuTestParamsSet>,
-                                  virtual public SubgraphBaseTest, public CPUTestsBase {
+class MaxPoolingV14LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
+                                 virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj);
-    std::string getPrimitiveTypeUtil() const {
-        return CPUTestsBase::getPrimitiveType();
-    }
-    void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
-        SubgraphBaseTest::init_input_shapes(shapes);
-    }
+    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
 protected:
     void SetUp() override;
 };
@@ -70,9 +59,9 @@ const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsAvg3D();
 const std::vector<poolSpecificParams>& paramsMax4D();
 
-const std::vector<maxPoolSpecificParams>& paramsMaxV83D();
-const std::vector<maxPoolSpecificParams>& paramsMaxV84D();
-const std::vector<maxPoolSpecificParams>& paramsMaxV85D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes4D();

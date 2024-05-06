@@ -41,10 +41,10 @@ typedef std::tuple<
         int64_t,                        // Axis
         ov::op::RoundingType,           // Rounding type
         ov::op::PadType                 // Pad type
-> maxPoolSpecificParams;
+> maxPoolV8SpecificParams;
 
 typedef std::tuple<
-        maxPoolSpecificParams,
+        maxPoolV8SpecificParams,
         ov::element::Type,              // Model type
         std::vector<InputShape>,        // Input shape
         std::string                     // Device name
