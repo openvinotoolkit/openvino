@@ -12,11 +12,13 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
@@ -26,11 +28,17 @@
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -270,8 +278,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (squeeze->inputs().size() > 1 && ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -836,7 +844,7 @@ ov::pass::NopStridedSlice::NopStridedSlice() {
     auto input = pattern::any_input();
     auto begin_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto end_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto optional_stride_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
@@ -922,7 +930,7 @@ ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
     auto input = pattern::any_input();
     auto begin_const = pattern::any_input();
     auto end_const = pattern::any_input();
-    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto optional_stride_const = pattern::wrap_type<ov::op::v0::Constant>();
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {

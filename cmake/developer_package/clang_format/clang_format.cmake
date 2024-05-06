@@ -3,7 +3,7 @@
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_REQUIRED_VERSION 9 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_REQUIRED_VERSION 15 CACHE STRING "Clang-format version to use")
     set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
     if(CLANG_FORMAT)
@@ -14,7 +14,7 @@ if(ENABLE_CLANG_FORMAT)
         else()
             string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
             if(NOT CLANG_FORMAT_MAJOR_VERSION EQUAL CLANG_FORMAT_REQUIRED_VERSION)
-                message(WARNING "Supported clang-format version is 9! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
+                message(WARNING "Supported clang-format version is ${CLANG_FORMAT_REQUIRED_VERSION}! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
         endif()
