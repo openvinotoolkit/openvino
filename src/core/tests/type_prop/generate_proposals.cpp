@@ -282,12 +282,10 @@ TEST(type_prop, generate_proposals_dynamic) {
         if (s.scores_shape.rank().is_static())
             set_shape_symbols(s.scores_shape);
 
-        auto expected_batch_label =
-            s.scores_shape.rank().is_static()
-                ? s.scores_shape[0].get_symbol()
-                : s.deltas_shape.rank().is_static()
-                      ? s.deltas_shape[0].get_symbol()
-                      : s.im_info_shape.rank().is_static() ? s.im_info_shape[0].get_symbol() : nullptr;
+        auto expected_batch_label = s.scores_shape.rank().is_static()    ? s.scores_shape[0].get_symbol()
+                                    : s.deltas_shape.rank().is_static()  ? s.deltas_shape[0].get_symbol()
+                                    : s.im_info_shape.rank().is_static() ? s.im_info_shape[0].get_symbol()
+                                                                         : nullptr;
 
         auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, s.im_info_shape);
         auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, s.anchors_shape);

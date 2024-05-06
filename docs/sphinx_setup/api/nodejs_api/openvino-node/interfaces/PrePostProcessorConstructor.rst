@@ -1,30 +1,34 @@
 Interface PrePostProcessorConstructor
 =====================================
 
-
 .. code-block:: ts
 
    interface PrePostProcessorConstructor {
        new PrePostProcessor(model): PrePostProcessor;
    }
 
-- Defined in
-  `addon.ts:131 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L131>`__
+* **Defined in:**
+  `addon.ts:159 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L159>`__
+
+
+Constructors
+#####################
+
 
 .. rubric:: constructor
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   new PrePostProcessor(model): PrePostProcessor
+      new PrePostProcessor(model): PrePostProcessor
 
-**Parameters**
+   * **Parameters:**
 
-- model: :doc:`Model <Model>`
+     - model: :doc:`Model <Model>`
 
+   * **Returns:** :doc:`PrePostProcessor <PrePostProcessor>`
 
-**Returns** :doc:`PrePostProcessor <PrePostProcessor>`
-
-- Defined in
-  `addon.ts:132 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L132>`__
+   * **Defined in:**
+     `addon.ts:160 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L160>`__
 

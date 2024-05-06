@@ -14,26 +14,27 @@ flowchart LR
         tf[("TensorFlow (*.pb)")]
         classDef blue3 fill:#0068B5, stroke: #004A86, color: #E9E9E9
         class ir,onnx,paddle,tflite,tf blue3
-       
+
         click onnx "https://github.com/onnx/onnx"
     end
-    
-    mo{{Model Optimizer}}
+
+    mo{{Model Converter}}
     classDef mos fill:#B1D272, stroke: #8BAE46, color: #000022
     class mo mos
-    
+
     onnx--convert--->mo
     paddle--convert--->mo
     tflite--convert--->mo
     tf--convert--->mo
     mo--->ir
-    
+
     subgraph plugins [OV Plugins]
         auto(["AUTO"])
         cpu(["Intel_CPU"])
         gpu(["Intel_GPU"])
+        npu(["Intel_NPU"])
         classDef daisy3 fill:#EDB200, stroke: #C98F00, color: #262626
-        class auto,cpu,gpu daisy3
+        class auto,cpu,gpu,npu daisy3
     end
     subgraph frontends [OV Frontends]
         ir_fe["IR Frontend"]
@@ -52,9 +53,10 @@ flowchart LR
     onnx_fe--->openvino
     paddle_fe--->openvino
     tflite_fe--->openvino
-    
+
     openvino--infer--->cpu
     openvino--infer--->gpu
+    openvino--infer--->npu
     openvino--infer--->auto
     classDef blue1 fill:#76CEFF, stroke: #00A3F6, color: #000022
     class openvino blue1
@@ -67,7 +69,7 @@ flowchart LR
      * [Add new operation](../../src/core/docs/operation_enabling_flow.md)
      * [Add new conditional compilation](../../src/common/conditional_compilation/docs/develop_cc_for_new_component.md)
      * [Add new transformation](#todo)
-     * [Get code coverage report](./test_coverage.md) 
+     * [Get code coverage report](./test_coverage.md)
      * [Add component developer documentation](./dev_doc_guide.md)
      * [Work with OpenVINO Public CI](./public_ci.md)
  * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
@@ -75,7 +77,7 @@ flowchart LR
 
 ## OpenVINO Repository Structure
 
-The repository is organized in such a way that the components contain all dependencies (for example, third-party, tests, documentation, and others). 
+The repository is organized in such a way that the components contain all dependencies (for example, third-party, tests, documentation, and others).
 
 The OpenVINO Repository includes the following components. Click on the component name to get more information:
 <pre>
@@ -95,13 +97,32 @@ The OpenVINO Repository includes the following components. Click on the componen
  </code>
 </pre>
 
-### OpenVINO Component Structure
+src\core\README.md
+
+### OpenVINO Components
+
+OpenVINO Components include:
+
+  * [OpenVINO™ Runtime](https://docs.openvino.ai/2024/openvino-workflow/running-inference.html) - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
+    * [core](../../src/core) - provides the base API for model representation and modification.
+    * [inference](../../src/inference) - provides an API to infer models on the device.
+    * [transformations](../../src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
+    * [low precision transformations](../../src/common/low_precision_transformations) - contains the set of transformations that are used in low precision models
+    * [bindings](../../src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
+        * [c](../../src/bindings/c) - C API for OpenVINO™ Runtime
+        * [python](../../src/bindings/python) - Python API for OpenVINO™ Runtime
+* [Plugins](../../src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html).
+* [Frontends](../../src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
+* [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html) - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
+* [Samples](https://github.com/openvinotoolkit/openvino/tree/master/samples) - applications in C, C++ and Python languages that show basic OpenVINO use cases.
+
+#### OpenVINO Component Structure
 
 The OpenVINO component contains all dependencies (for example, third-party, tests, documentation, and others). An example component structure with comments and marks for optional folders is presented below.
 
 ```
 ov_component/           // Component folder
-    cmake/              // (optional) CMake scripts that are related only to this component 
+    cmake/              // (optional) CMake scripts that are related only to this component
     dev_api/            // (optional) Developer API is used when the component provides API for internal developers
     docs/               // (optional) Contains detailed component documentation
     include/            // (optional) Public component API
