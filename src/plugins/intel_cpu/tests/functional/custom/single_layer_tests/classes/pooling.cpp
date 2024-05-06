@@ -12,8 +12,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace util {
-template <class TParamInfo>
-static std::string getTestCaseNameUtil(const TParamInfo& obj) {
+static std::string getTestCaseNameUtil(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj) {
     maxPoolSpecificParams basicParamsSet;
     InputShape inputShapes;
     ElementType inPrc;
@@ -51,7 +50,7 @@ static std::string getTestCaseNameUtil(const TParamInfo& obj) {
 }
 
 template <typename TOp, class TTest>
-void MaxPoolSetUpUtil(TTest* testInstance,
+void SetUpUtil(TTest* testInstance,
                       std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& inFmts,
                       std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& outFmts,
                       std::vector<std::string, std::allocator<std::string>>& priority,
@@ -98,62 +97,7 @@ void MaxPoolSetUpUtil(TTest* testInstance,
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling->output(0))};
     function = std::make_shared<ov::Model>(results, params, "MaxPooling");
 }
-template <typename TOp, class TTest>
-void AvgPoolSetUpUtil(TTest* testInstance,
-                      std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& inFmts,
-                      std::vector<CPUTestUtils::cpu_memory_format_t, std::allocator<CPUTestUtils::cpu_memory_format_t>>& outFmts,
-                      std::vector<std::string, std::allocator<std::string>>& priority,
-                      std::string& selectedType,
-                      std::shared_ptr<ov::Model>& function,
-                      std::vector<ov::PartialShape>& inputDynamicShapes,
-                      std::shared_ptr<CPUTestUtils::postOpMgr> postOpMgrPtr,
-                      testing::internal::Strings fusedOps,
-                      double& abs_threshold) {
-    poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = testInstance->GetParam();
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
-    if (selectedType.empty()) {
-        auto selectedType = testInstance->getPrimitiveTypeUtil();
-    }
-    if (isInt8)
-        selectedType = selectedType + "_I8";
-    else
-        selectedType = CPUTestUtils::CPUTestsBase::makeSelectedTypeStr(selectedType, inPrc);
-
-    testInstance->init_input_shapes_util({inputShapes});
-
-    ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
-    }
-
-    std::shared_ptr<ov::Node> poolInput = params[0];
-    if (isInt8) {
-        abs_threshold = 2e-2;
-        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
-        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
-    }
-
-    auto pooling = std::make_shared<TOp>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
-    function = testInstance->makeNgraphFunctionUtil(inPrc, params, pooling, "PoolingCPU");
-}
-}  // namespace util
+} // namespace util
 std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
     ov::test::poolSpecificParams basicParamsSet;
     InputShape inputShapes;
@@ -203,16 +147,56 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
 
 void PoolingLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    util::AvgPoolSetUpUtil<ov::op::v14::AvgPool>(this,
-                                                 inFmts,
-                                                 outFmts,
-                                                 priority,
-                                                 selectedType,
-                                                 function,
-                                                 inputDynamicShapes,
-                                                 postOpMgrPtr,
-                                                 fusedOps,
-                                                 abs_threshold);
+
+    poolSpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    bool isInt8;
+    CPUSpecificParams cpuParams;
+    fusingSpecificParams fusingParams;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+
+    utils::PoolingTypes poolType;
+    std::vector<size_t> kernel, stride;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    bool excludePad;
+    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+    if (selectedType.empty()) {
+        selectedType = getPrimitiveType();
+    }
+    if (isInt8)
+        selectedType = selectedType + "_I8";
+    else
+        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+
+    init_input_shapes({inputShapes});
+
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+    }
+
+    std::shared_ptr<ov::Node> poolInput = params[0];
+    if (isInt8) {
+        abs_threshold = 2e-2;
+        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
+        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
+    }
+
+    std::shared_ptr<ov::Node> pooling;
+    if (ov::test::utils::PoolingTypes::MAX == poolType) {
+        pooling = std::make_shared<ov::op::v1::MaxPool>(poolInput, stride, padBegin, padEnd, kernel, roundingType, padType);
+    } else {
+        pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
+    }
+
+    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
 }
 
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
@@ -222,7 +206,7 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
 
 void MaxPoolingV8LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    util::MaxPoolSetUpUtil<ov::op::v8::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
+    util::SetUpUtil<ov::op::v8::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
 }
 
 std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
@@ -232,34 +216,10 @@ std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
 
 void MaxPoolingV14LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    util::MaxPoolSetUpUtil<ov::op::v14::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
-}
-
-std::string AvgPoolingV14LayerCPUTest::getTestCaseName(
-    const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    return PoolingLayerCPUTest::getTestCaseName(obj);
-}
-
-void AvgPoolingV14LayerCPUTest::SetUp() {
-    targetDevice = ov::test::utils::DEVICE_CPU;
-    util::AvgPoolSetUpUtil<ov::op::v14::AvgPool>(this,
-                                                 inFmts,
-                                                 outFmts,
-                                                 priority,
-                                                 selectedType,
-                                                 function,
-                                                 inputDynamicShapes,
-                                                 postOpMgrPtr,
-                                                 fusedOps,
-                                                 abs_threshold);
+    util::SetUpUtil<ov::op::v14::MaxPool>(this, inFmts, outFmts, priority, selectedType, function, inputDynamicShapes);
 }
 
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Pooling");
-}
-
-TEST_P(AvgPoolingV14LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
@@ -546,6 +506,7 @@ const std::vector<InputShape>& inputShapes4D_Large() {
     };
     return inputShapes4D_Large;
 }
+
 
 }  // namespace Pooling
 }  // namespace test

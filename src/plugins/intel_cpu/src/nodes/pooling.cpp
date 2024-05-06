@@ -208,16 +208,30 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         get_attributes(poolingAttrs.dilation, maxPoolOp_v8->get_dilations());
     } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
         poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-    } else if (auto avgPoolOp = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(op)) {
+    } else if (auto avgPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::AvgPool>(op)) {
         algorithm = Algorithm::PoolingAvg;
-        poolingAttrs.exclude_pad = avgPoolOp->get_exclude_pad();
-        poolingAttrs.rounding = avgPoolOp->get_rounding_type();
-        get_attributes(poolingAttrs.stride, avgPoolOp->get_strides());
-        get_attributes(poolingAttrs.kernel, avgPoolOp->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, avgPoolOp->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, avgPoolOp->get_pads_end());
+        poolingAttrs.exclude_pad = avgPoolOp_v1->get_exclude_pad();
+        poolingAttrs.rounding = avgPoolOp_v1->get_rounding_type();
+
+        get_attributes(poolingAttrs.stride, avgPoolOp_v1->get_strides());
+        get_attributes(poolingAttrs.kernel, avgPoolOp_v1->get_kernel());
+        get_attributes(poolingAttrs.data_pad_begin, avgPoolOp_v1->get_pads_begin());
+        get_attributes(poolingAttrs.data_pad_end, avgPoolOp_v1->get_pads_end());
         poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-        poolingAttrs.auto_pad = (avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+
+        poolingAttrs.auto_pad = (avgPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+    } else if (auto avgPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::AvgPool>(op)) {
+        algorithm = Algorithm::PoolingAvg;
+        poolingAttrs.exclude_pad = avgPoolOp_v14->get_exclude_pad();
+        poolingAttrs.rounding = avgPoolOp_v14->get_rounding_type();
+
+        get_attributes(poolingAttrs.stride, avgPoolOp_v14->get_strides());
+        get_attributes(poolingAttrs.kernel, avgPoolOp_v14->get_kernel());
+        get_attributes(poolingAttrs.data_pad_begin, avgPoolOp_v14->get_pads_begin());
+        get_attributes(poolingAttrs.data_pad_end, avgPoolOp_v14->get_pads_end());
+        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
+
+        poolingAttrs.auto_pad = (avgPoolOp_v14->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOp_v14->get_auto_pad() == ov::op::PadType::SAME_UPPER);
     }
 
     poolingAttrs.algorithm = algorithm;

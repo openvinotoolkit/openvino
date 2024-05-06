@@ -29,38 +29,7 @@ class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestP
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
-    std::string getPrimitiveTypeUtil() const {
-        return CpuTestWithFusing::getPrimitiveType();
-    }
-    void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
-        SubgraphBaseTest::init_input_shapes(shapes);
-    }
-    std::shared_ptr<ov::Model> makeNgraphFunctionUtil(const ov::element::Type &ngPrc,
-                                                      ov::ParameterVector &params,
-                                                      const std::shared_ptr<ov::Node> &lastNode,
-                                                      std::string name) {
-        return CPUTestUtils::CPUTestsBase::makeNgraphFunction(ngPrc, params, lastNode, name);
-    }
-protected:
-    void SetUp() override;
-};
 
-class AvgPoolingV14LayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
-                                  virtual public SubgraphBaseTest, public CpuTestWithFusing {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
-    std::string getPrimitiveTypeUtil() const {
-        return CpuTestWithFusing::getPrimitiveType();
-    }
-    void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
-        SubgraphBaseTest::init_input_shapes(shapes);
-    }
-    std::shared_ptr<ov::Model> makeNgraphFunctionUtil(const ov::element::Type &ngPrc,
-                                                      ov::ParameterVector &params,
-                                                      const std::shared_ptr<ov::Node> &lastNode,
-                                                      std::string name) {
-        return CPUTestUtils::CPUTestsBase::makeNgraphFunction(ngPrc, params, lastNode, name);
-    }
 protected:
     void SetUp() override;
 };
