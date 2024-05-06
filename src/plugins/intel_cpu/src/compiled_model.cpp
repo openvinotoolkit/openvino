@@ -80,7 +80,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
         m_callback_executor = m_task_executor;
     }
