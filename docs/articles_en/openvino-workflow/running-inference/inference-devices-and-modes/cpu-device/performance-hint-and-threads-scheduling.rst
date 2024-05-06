@@ -1,7 +1,7 @@
 .. {#openvino_docs_OV_UG_supported_plugins_CPU_Hints_Threading}
 
 Performance Hints and Threads Scheduling 
-=======================================
+========================================
 
 .. meta::
    :description: The Threads Scheduling of CPU plugin in OpenVINO™ Runtime
