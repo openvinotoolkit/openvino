@@ -728,6 +728,7 @@ struct MHAHelper {
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
@@ -737,7 +738,7 @@ struct MHAHelper {
             // 1 1 0 0 ...
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
-            for (size_t k_blk = 0; k_blk <= q_blk; k_blk++) {
+            for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
                 _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                  q_ptr,
@@ -749,7 +750,7 @@ struct MHAHelper {
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
-                auto ncausal = (cur_kv_len - q_len + m + 1);
+                auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
                 auto score = _weight.ptr<float>(ithr, h, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
@@ -791,7 +792,7 @@ struct MHAHelper {
             float* fp32_out_ptr = is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
 
             // for each weight block, loop through all value block
-            for (size_t v_blk = 0; v_blk <= q_blk; v_blk++) {
+            for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
                 DATA_TYPE* v_ptr;
                 if (is_bf16) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
@@ -1055,7 +1056,7 @@ struct MHAMultiple {
             auto q_len = cur_kv_len;
             _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
                 _helper._qk_scratch_b.slice(0, b, b), _helper._wv_scratch_b.slice(0, b, b),
-                block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, cur_kv_len);
+                block_tables.ptr<int32_t>(b), ithr, q_blk, hk, q_len, std::min(cur_kv_len, (q_blk + 1) * _helper._block_size));
         });
     }
 };
