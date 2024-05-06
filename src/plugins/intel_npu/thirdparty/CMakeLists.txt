@@ -22,8 +22,7 @@ if(ENABLE_ZEROAPI_BACKEND)
         # Close spectre for ze loader
         add_compile_options("/Qspectre-")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE "-Werror" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        ov_add_compiler_flags(-Wno-error)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wno-undef \
             -Wno-unused-but-set-variable \
