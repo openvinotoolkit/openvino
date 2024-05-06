@@ -56,7 +56,9 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                                  "ExtractImagePatches",
                                  "DepthwiseConv2dNative",
                                  "AvgPool",
-                                 "AvgPool3D"};
+                                 "AvgPool3D",
+                                 "CONV_2D",
+                                 "TRANSPOSE_CONV"};
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(
         node,
@@ -71,7 +73,7 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
     if (tf_padding == "VALID") {
         return PadType::VALID;
     }
-    if (op_type == "Conv2DBackpropInput" || op_type == "Conv3DBackpropInputV2") {
+    if (op_type == "Conv2DBackpropInput" || op_type == "Conv3DBackpropInputV2" || op_type == "TRANSPOSE_CONV") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // ConvBackpropData layer in the Operation specification,
@@ -80,7 +82,8 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
                op_type == "MaxPool3D" || op_type == "MaxPoolWithArgmax" || op_type == "ExtractImagePatches" ||
-               op_type == "DepthwiseConv2dNative" || op_type == "AvgPool" || op_type == "AvgPool3D") {
+               op_type == "DepthwiseConv2dNative" || op_type == "AvgPool" || op_type == "AvgPool3D" ||
+               op_type == "CONV_2D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
