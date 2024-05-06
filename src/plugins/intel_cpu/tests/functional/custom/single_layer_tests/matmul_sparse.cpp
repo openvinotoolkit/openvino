@@ -132,7 +132,7 @@ protected:
             ov::op::v0::MatMul(inputParamsFP32, matrixBFP32, transpose_a, transpose_b),
             element::f32);
 
-        auto matrixB = ov::test::utils::deprecated::make_constant<int8_t>(weiType, inShapeB.get_shape(), weiData);
+        auto matrixB = std::make_shared<ov::op::v0::Constant>(weiType, inShapeB.get_shape(), weiData);
 
         auto matMul = matMulRelaxed->copy_with_new_inputs({A, matrixB});
 

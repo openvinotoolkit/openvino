@@ -22,8 +22,7 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in,
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<Node>& in,
                                              const ov::element::Type& type,
                                              std::size_t levels,
-                                             std::vector<size_t> constShapes,
-                                             const int32_t seed = 1);
+                                             std::vector<size_t> constShapes);
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

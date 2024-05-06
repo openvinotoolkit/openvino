@@ -1031,12 +1031,13 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         constant = op::v0::Constant::create(constant_type, shape2, {1});
         break;
     case ConstantKind::RANDOM:
-        constant = ov::test::utils::deprecated::make_constant(constant_type,
-                                                              shape2,
-                                                              {},
-                                                              true,
-                                                              20 /* upTo */,
-                                                              2 /* startFrom */);
+        int32_t resolution = 1;
+        if (constant_type.is_real()) {
+            resolution = 1000;
+        }
+        constant = ov::test::utils::make_constant(constant_type,
+                                                  shape2,
+                                                  ov::test::utils::InputGenerateData(2, 18, resolution));
         break;
     }
 

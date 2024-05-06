@@ -72,8 +72,18 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
 
 std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
                                         const ov::Shape& shape,
-                                        const InputGenerateData& in_data = InputGenerateData(1, 9, 1, 1));
+                                        InputGenerateData in_data = InputGenerateData(1, 9, 1000, 1));
 
+template <class T = float>
+std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
+                                        const ov::Shape& shape,
+                                        const std::vector<T>& data) {
+    if (data.empty()) {
+        return make_constant(type, shape);
+    } else {
+        return std::make_shared<ov::op::v0::Constant>(type, shape, data);
+    }
+}
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
