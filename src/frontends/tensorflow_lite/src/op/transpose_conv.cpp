@@ -15,7 +15,6 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    using Opts = tflite::TransposeConvOptions;
     const auto& decoder = node.get_decoder();
     OutputVector inputs = {
         node.get_input(0),
