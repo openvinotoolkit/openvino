@@ -864,6 +864,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
     }
 }
@@ -917,7 +918,6 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     }
     return result;
 }
-
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
@@ -1439,7 +1439,11 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
-    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
+    if (!get_engine().get_device_info().has_separate_cache)
+        return;
+
+
+    if (node.is_shape_infer_dep())
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {

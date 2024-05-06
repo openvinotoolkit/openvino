@@ -111,6 +111,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     endif()
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    set(OV_COMPILER_IS_INTEL_LLVM ON)
+endif()
+
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 function(ov_get_compiler_definition definition var)
@@ -118,8 +122,19 @@ function(ov_get_compiler_definition definition var)
         message(FATAL_ERROR "Internal error: 'ov_get_definition' must be used only on Linux")
     endif()
 
+    get_directory_property(_user_defines COMPILE_DEFINITIONS)
+    foreach(_user_define IN LISTS _user_defines)
+        # older cmake versions keep -D at the beginning, trim it
+        string(REPLACE "-D" "" _user_define "${_user_define}")
+        list(APPEND _ov_user_flags "-D${_user_define}")
+    endforeach()
+    string(REPLACE " " ";" _user_cxx_flags "${CMAKE_CXX_FLAGS}")
+    foreach(_user_flag IN LISTS _user_cxx_flags)
+        list(APPEND _ov_user_flags ${_user_flag})
+    endforeach()
+
     execute_process(COMMAND echo "#include <string>"
-                    COMMAND "${CMAKE_CXX_COMPILER}" -x c++ - -E -dM
+                    COMMAND "${CMAKE_CXX_COMPILER}" ${_ov_user_flags} -x c++ - -E -dM
                     COMMAND grep -E "^#define ${definition} "
                     OUTPUT_VARIABLE output_value
                     ERROR_VARIABLE error_message
