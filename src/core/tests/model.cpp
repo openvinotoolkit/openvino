@@ -1147,6 +1147,8 @@ TEST(model, add_output_port_to_result) {
 }
 
 TEST(model, add_output_performance) {
+    // skip this test due to CVS-140440
+    GTEST_SKIP() << "CVS-140440";
     using namespace std::chrono;
     auto test = [](int cnt, bool& timeout) -> size_t {
         auto shape = ov::Shape{1, 1, 224, 224};
