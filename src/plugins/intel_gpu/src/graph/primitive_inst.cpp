@@ -151,7 +151,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 const layout& layout,
                                 allocation_type type,
                                 bool reusable_across_network,
-                                const std::set<size_t>& memory_dependencies,
+                                const std::unordered_set<size_t>& memory_dependencies,
                                 bool reset = true,
                                 memory* curr_memory = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
@@ -752,23 +752,24 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
         GPU_DEBUG_TRACE_DETAIL << "tensor is static. Skipping" << std::endl;
         return;
     }
-    auto pshape = runtime_layout.get_partial_shape();
+    const auto& pshape = runtime_layout.get_partial_shape();
+    auto shape_info_fmt = format::get_default_format(layout::max_rank());
     auto shape_with_max_rank = layout::transform(pshape,
                                                  format::get_default_format(pshape.size()),
-                                                 format::get_default_format(layout::max_rank())).to_shape();
+                                                 shape_info_fmt).to_shape();
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
         GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
         shape_info_ptr[offset++] = static_cast<int32_t>(shape_with_max_rank[j]);
     }
-    auto dynamic_pad = node_layout.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
-    auto data_padding = runtime_layout.data_padding;
+    auto dynamic_pad = node_layout.data_padding.get_dynamic_pad_dims().sizes(shape_info_fmt);
+    const auto& data_padding = runtime_layout.data_padding;
+    auto lower_pads = data_padding.lower_size().sizes(shape_info_fmt);
+    auto upper_pads = data_padding.upper_size().sizes(shape_info_fmt);
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
         if (dynamic_pad[j] == 1) {
-            auto lower_pads = data_padding.lower_size().sizes(format::get_default_format(layout::max_rank()));
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
                                    << "(pad_before for " << j << "-th dim)" << std::endl;
             shape_info_ptr[offset++] = lower_pads[j];  // pad_before
-            auto upper_pads = data_padding.upper_size().sizes(format::get_default_format(layout::max_rank()));
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
                                    << "(pad_after for " << j << "-th dim)" << std::endl;
             shape_info_ptr[offset++] = upper_pads[j];  // pad_after
@@ -1787,7 +1788,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& _node,
                                             const kernel_impl_params& impl_params,
-                                            const std::set<size_t>& memory_dependencies,
+                                            const std::unordered_set<size_t>& memory_dependencies,
                                             uint32_t net_id,
                                             bool is_internal,
                                             size_t idx,
