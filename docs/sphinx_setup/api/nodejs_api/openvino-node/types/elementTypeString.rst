@@ -5,5 +5,6 @@ Type alias elementTypeString
 
    elementTypeString: "u8" | "u32" | "u16" | "u64" | "i8" | "i64" | "i32" | "i16" | "f64" | "f32"
 
-- Defined in
+* **Defined in:**
   `addon.ts:11 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L11>`__
+
