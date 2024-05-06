@@ -142,7 +142,7 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
     return desc;
 }
 
-}  // namespace 
+}  // namespace
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
