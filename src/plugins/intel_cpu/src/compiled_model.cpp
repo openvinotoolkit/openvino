@@ -18,6 +18,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
@@ -56,24 +57,22 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
     ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
+    IStreamsExecutor::Config executor_confg;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
-        IStreamsExecutor::Config executor_confg;
         if (m_cfg.enableSubStreams) {
             executor_confg = IStreamsExecutor::Config{"CPUMainStreamExecutor",
                                                       1,
                                                       1,
-                                                      IStreamsExecutor::ThreadBindingType::NONE,
-                                                      1,
-                                                      0,
-                                                      1,
-                                                      IStreamsExecutor::Config::PreferredCoreType::ANY,
-                                                      {},
+                                                      ov::hint::SchedulingCoreType::ANY_CORE,
+                                                      false,
                                                       true};
         } else {
-            executor_confg = std::move(m_cfg.streamExecutorConfig);
+            executor_confg = m_cfg.subStreamExecConfig.get_name() != "StreamExecutor"
+                                 ? std::move(m_cfg.subStreamExecConfig)
+                                 : std::move(m_cfg.streamExecutorConfig);
         }
         stream_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
         m_task_executor = stream_executor;
@@ -90,12 +89,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
-    int streams = m_cfg.enableSubStreams ? 1 : std::max(1, m_cfg.streamExecutorConfig.get_sub_streams());
-    std::cout << "streams: " << streams << "\n";
+    int streams = std::max(1, executor_confg.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
-    if (m_cfg.streamExecutorConfig.get_sub_streams() != 0) {
+    if (executor_confg.get_streams() != 0) {
         auto all_graphs_ready = [&] {
             return std::all_of(m_graphs.begin(), m_graphs.end(), [&](Graph& graph) {
                 return graph.IsReady();
@@ -123,6 +121,18 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_cfg.enableSubStreams) {
         m_cfg.enableSubStreams = false;
         for (int i = 0; i < m_cfg.streamExecutorConfig.get_sub_streams(); i++) {
+            auto streams_info_table = m_cfg.streamExecutorConfig.get_streams_info_table();
+            std::vector<std::vector<int>> info_table;
+            info_table.push_back(streams_info_table[i + 1]);
+            info_table[0][NUMBER_OF_STREAMS] = 1;
+            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
+                                                                 1,
+                                                                 1,
+                                                                 ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                 false,
+                                                                 true,
+                                                                 info_table};
+            m_cfg.subStreamExecConfig = std::move(streamExecutorConfig);
             m_sub_compilemodels.push_back(std::make_shared<CompiledModel>(model, plugin, m_cfg, loaded_from_cache));
         }
     }

@@ -66,12 +66,12 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
             _numaNodeId =
-                _impl->_config.get_sub_streams()
-                    ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_sub_streams()) /
-                                               ((_impl->_config.get_sub_streams() + _impl->_usedNumaNodes.size() - 1) /
+                _impl->_config.get_streams()
+                    ? _impl->_usedNumaNodes.at((_streamId % _impl->_config.get_streams()) /
+                                               ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-            // std::cout << "[ Stream ] " << _impl->_config.get_name() << " : " << _streamId << ", " << _impl->_config.get_sub_streams() << "\n";
+            // std::cout << "[ Stream ] " << _impl->_config.get_name() << " : " << _streamId << ", " << _impl->_config.get_streams() << "\n";
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (is_cpu_map_available() && _impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
@@ -174,7 +174,7 @@ struct CPUStreamsExecutor::Impl {
             int max_threads_per_core;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
-            int streams_num = _impl->_config.get_sub_streams();
+            int streams_num = _impl->_config.get_streams();
             const auto stream_id =
                 streams_num == 0 ? 0 : (_sub_stream_id >= 0 ? streams_num + _sub_stream_id : _streamId % streams_num);
             get_cur_stream_info(stream_id,
@@ -324,7 +324,7 @@ struct CPUStreamsExecutor::Impl {
               this) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
-        int streams_num = _config.get_sub_streams();
+        int streams_num = _config.get_streams();
         int sub_streams_num = 0;//_config.get_sub_streams();
         // std::cout << "[ Impl ] " << _config.get_name() << " : " << streams_num << "\n";
         if (streams_num != 0) {
@@ -345,7 +345,7 @@ struct CPUStreamsExecutor::Impl {
                     {
                         std::unique_lock<std::mutex> lock(_mutex);
                         _queueCondVar.wait(lock, [&] {
-                            std::cout << _config.get_name() << " addr: " << this << " in : " << streamId << "\n";
+                            // std::cout << _config.get_name() << " addr: " << this << " in : " << streamId << "\n";
                             return !_taskQueue.empty() || (stopped = _isStopped);
                         });
                         if (!_taskQueue.empty()) {
@@ -488,7 +488,7 @@ struct CPUStreamsExecutor::Impl {
                             _readCondVar.notify_all();
                         } else if (msg_type == CALL_BACK)  {  // CALL_BACK
                             count++;
-                            std::cout << "server_wait CALL_BACK: " << count << "/" << streams_num << "\n";
+                            // std::cout << "server_wait CALL_BACK: " << count << "/" << streams_num << "\n";
                             if (count == streams_num) {
                                 _inferCondVar.notify_one();
                                 count = 0;
@@ -627,7 +627,7 @@ void CPUStreamsExecutor::execute(Task task) {
 }
 
 void CPUStreamsExecutor::run(Task task) {
-    if (0 == _impl->_config.get_sub_streams()) {
+    if (0 == _impl->_config.get_streams()) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));

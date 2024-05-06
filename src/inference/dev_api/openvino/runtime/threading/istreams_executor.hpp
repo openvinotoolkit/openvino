@@ -209,7 +209,7 @@ public:
             return _threadBindingOffset;
         }
         int get_sub_streams() const {
-            return _sub_streams > 0 ? _sub_streams : _streams;
+            return _sub_streams;
         }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();

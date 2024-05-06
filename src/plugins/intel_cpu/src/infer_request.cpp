@@ -665,7 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             auto streams_executor = m_graph->context->getCPUStreamExecutor();
 
             for (size_t i = 0; i < requests_num; i++) {
-                std::cout << "start_async : " << i << "\n";
+                // std::cout << "start_async : " << i << "\n";
                 requests[i]->start_async();
             }
         }
