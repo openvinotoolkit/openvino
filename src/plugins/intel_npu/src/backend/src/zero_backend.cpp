@@ -28,6 +28,10 @@ uint32_t ZeroEngineBackend::getDriverExtVersion() const {
     return _instance->getDriverExtVersion();
 }
 
+bool ZeroEngineBackend::isBatchingSupported() const {
+    return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
+}
+
 ZeroEngineBackend::~ZeroEngineBackend() = default;
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {

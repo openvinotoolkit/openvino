@@ -7,21 +7,29 @@
 #include "mul_add_to_fma.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/fused_mul_add.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/core/rt_info.hpp"
-
+#include "snippets/op/memory_access.hpp"
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);
+    auto is_not_memory_access = [](const Output<Node>& out) {
+        return !std::dynamic_pointer_cast<const snippets::modifier::MemoryAccess>(out.get_node_shared_ptr());
+    };
     auto mul_input_1 = ov::pass::pattern::any_input();
     auto mul_input_2 = ov::pass::pattern::any_input();
-    auto mul_m = ov::pass::pattern::wrap_type<opset1::Multiply>({ mul_input_1, mul_input_2 }, ov::pass::pattern::consumers_count(1));
+    auto mul_m = ov::pass::pattern::wrap_type<opset1::Multiply>({ mul_input_1, mul_input_2 },
+                                                                [=](const Output<Node>& out) {
+                                                                    return out.get_target_inputs().size() == 1 &&
+                                                                           is_not_memory_access(out);
+                                                                });
     auto add_input_2 = ov::pass::pattern::any_input();
-    auto add_m = ov::pass::pattern::wrap_type<opset1::Add>({ mul_m, add_input_2 });
+    auto add_m = ov::pass::pattern::wrap_type<opset1::Add>({ mul_m, add_input_2 }, is_not_memory_access);
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::MulAddToFMA_callback")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto multiply = pattern_map.at(mul_m).get_node_shared_ptr();

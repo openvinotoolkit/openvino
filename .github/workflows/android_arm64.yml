@@ -87,7 +87,6 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
       - name: Clone vcpkg
@@ -122,7 +121,7 @@ jobs:
           # vcpkg 'python3' port dependencies
           apt --assume-yes install autoconf libtool autoconf-archive
           # vcpkg tree of dependencies require extra packages
-          apt --assume-yes install pkg-config linux-libc-dev
+          apt --assume-yes install pkgconf linux-libc-dev
 
           # Install Android SDK, NDK and Tools
           apt -y --no-install-recommends install unzip wget default-jdk
