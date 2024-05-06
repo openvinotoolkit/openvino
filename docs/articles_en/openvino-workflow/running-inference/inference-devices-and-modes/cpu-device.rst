@@ -118,14 +118,14 @@ to query ``ov::device::capabilities`` property, which should contain ``FP16`` or
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part0]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference0.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference0.cpp
          :language: cpp
          :fragment: [part0]
 
@@ -141,7 +141,7 @@ the ``ov::CompiledModel::get_property`` call. The code below demonstrates how to
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part1]
 
@@ -160,7 +160,7 @@ To infer the model in ``f32`` precision instead of half-precision (``bf16`` or `
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/cpu/Bfloat16Inference.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/Bfloat16Inference.py
          :language: py
          :fragment: [part2]
 
@@ -415,7 +415,7 @@ User can use the following properties to limit available CPU resource for model 
 In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
 
 ==================================================== ================================
- Use Case                                             Default Setting of CPU Pinning 
+ Use Case                                             Default Setting of CPU Pinning
 ==================================================== ================================
  All use cases with Windows OS                        False
  Stream contains both Pcore and Ecore with Linux OS   False
