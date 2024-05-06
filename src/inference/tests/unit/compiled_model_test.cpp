@@ -231,6 +231,20 @@ TEST_F(CompiledModelZeroBatch, batchSizeReshapeToNonZeroWithLayoutThrows) {
     ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
 }
 
+TEST_F(CompiledModelZeroBatch, batchSizeSetBatchToZeroWithLayoutThrows) {
+    model->get_parameters()[0]->set_layout("NCWH");
+    ov::set_batch(model, 0);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(model, plugin),
+                                  std::runtime_error,
+                                  "Batch size for parameter Param");
+}
+
+TEST_F(CompiledModelZeroBatch, batchSizeSetBatchToNonZeroWithLayoutThrows) {
+    modelZero->get_parameters()[0]->set_layout("NCWH");
+    ov::set_batch(modelZero, 1);
+    ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
+}
+
 TEST_F(CompiledModelZeroBatch, batchSizeNonZeroWithLayoutNoThrow) {
     model->get_parameters()[0]->set_layout("NCWH");
     ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
