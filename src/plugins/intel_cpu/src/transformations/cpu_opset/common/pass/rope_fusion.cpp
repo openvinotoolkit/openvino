@@ -121,7 +121,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto gather_positions = makePattern("i32[?,?,?,?]");
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
-        auto slice1 = GenSlice(const_tab, {0}, node_batch_size, {1}, {0});
+        auto slice1 = GenSlice(const_tab, {0}, node_batch_size, {1}, 0);
         return makePattern<opset6::GatherElements>({slice1, gather_positions}, {{"axis", 2}});
     };
 
@@ -131,7 +131,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto head_dims = ov::gen_pattern::Symbol("head_dims");
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
         auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
-        auto slice_Slice = GenSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, {2});
+        auto slice_Slice = GenSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
         auto squeeze = makePattern<opset1::Reshape>({slice_Slice, {-1, head_dims}});
         auto index_Gather = makePattern<opset8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
@@ -553,7 +553,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto ScatterUpdate_463814 = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, Gather_377635 | neg_Multiply, {0}});
 
-    auto slice_Slice_446 = GenSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, {1}); //  tensor_array<f32[1,..4096,1,128]>
+    auto slice_Slice_446 = GenSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1); //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_552 =
         makePattern<opset1::Multiply>({slice_Slice_543, slice_Slice_446},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
