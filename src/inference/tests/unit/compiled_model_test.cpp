@@ -189,35 +189,66 @@ TEST_F(CompiledModelBaseTests, canReportErrorInExport) {
 class CompiledModelZeroBatch : public ::testing::Test {
 protected:
     std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Model> modelZero;
     std::shared_ptr<ov::IPlugin> plugin;
 
     void SetUp() override {
-        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{0, 3, 2, 2});
+        model = create_model(ov::PartialShape{1, 3, 2, 2});       
+        modelZero = create_model(ov::PartialShape{0, 3, 2, 2});       
+        plugin = std::make_shared<ov::MockIPlugin>();
+    }
+
+private:
+    std::shared_ptr<ov::Model> create_model(const ov::PartialShape &p_shape) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, p_shape);
         param->set_friendly_name("Param");
         param->output(0).set_names({"param"});
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("ReLU");
         relu->output(0).set_names({"relu"});
-        model = std::make_shared<ov::Model>(ov::OutputVector{relu->output(0)}, ov::ParameterVector{param});
-        plugin = std::make_shared<ov::MockIPlugin>();
+        return std::make_shared<ov::Model>(ov::OutputVector{relu->output(0)}, ov::ParameterVector{param});
     }
 };
 
-TEST_F(CompiledModelZeroBatch, BatchSizeZeroThrows) {
+TEST_F(CompiledModelZeroBatch, batchSizeZeroWithLayoutThrows) {
+    modelZero->get_parameters()[0]->set_layout("NCWH");
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(modelZero, plugin),
+                                  std::runtime_error,
+                                  "Batch size for parameter Param");
+}
+
+TEST_F(CompiledModelZeroBatch, batchSizeReshapeToZeroWithLayoutThrows) {
     model->get_parameters()[0]->set_layout("NCWH");
+    model->reshape(ov::PartialShape{0, 3, 2, 2});
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(model, plugin),
                                   std::runtime_error,
                                   "Batch size for parameter Param");
 }
 
-TEST_F(CompiledModelZeroBatch, BatchSizeDynamicNoThrow) {
+TEST_F(CompiledModelZeroBatch, batchSizeReshapeToNonZeroWithLayoutThrows) {
+    modelZero->get_parameters()[0]->set_layout("NCWH");
+    modelZero->reshape(ov::PartialShape{1, 3, 2, 2});
+    ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
+}
+
+TEST_F(CompiledModelZeroBatch, batchSizeNonZeroWithLayoutNoThrow) {
     model->get_parameters()[0]->set_layout("NCWH");
-    ov::set_batch(model, ov::Dimension::dynamic());
     ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
 }
 
-TEST_F(CompiledModelZeroBatch, BatchSizeZeroNoLayoutThrows) {
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::MockICompiledModel(model, plugin),
-                                  std::runtime_error,
-                                  "Batch size for parameter Param");
+TEST_F(CompiledModelZeroBatch, batchSizeDynamicWithLayoutNoThrow) {
+    model->get_parameters()[0]->set_layout("NCWH");
+    modelZero->get_parameters()[0]->set_layout("NCWH");
+    ov::set_batch(model, ov::Dimension::dynamic());
+    ov::set_batch(modelZero, ov::Dimension::dynamic());
+    ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
+    ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
+}
+
+TEST_F(CompiledModelZeroBatch, batchSizeZeroNoLayoutNoThrow) {
+    ASSERT_NO_THROW(ov::MockICompiledModel(modelZero, plugin));
+}
+
+TEST_F(CompiledModelZeroBatch, batchSizeNonZeroNoLayoutNoThrow) {
+    ASSERT_NO_THROW(ov::MockICompiledModel(model, plugin));
 }
