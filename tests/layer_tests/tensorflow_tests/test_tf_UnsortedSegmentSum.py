@@ -18,7 +18,8 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
         inputs_data = {}
         inputs_data['data:0'] = np.random.randint(-50, 50, data_shape).astype(self.data_type)
         # segment_ids can have negative values
-        inputs_data['segment_ids:0'] = np.random.randint(-self.num_segments_val, self.num_segments_val, segment_ids_shape)
+        inputs_data['segment_ids:0'] = np.random.randint(-self.num_segments_val, self.num_segments_val,
+                                                         segment_ids_shape)
         return inputs_data
 
     def create_unsorted_segment_sum_net(self, data_shape, segment_ids_shape, num_segments_val, data_type,
@@ -62,8 +63,10 @@ class TestUnsortedSegmentSum(CommonTFLayerTest):
     def test_unsorted_segment_sum_basic(self, params, data_type, segment_ids_type, num_segments_type, ie_device,
                                         precision, ir_version, temp_dir,
                                         use_legacy_frontend):
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("UnsortedSegmentSum operation is not supported via legacy frontend.")
+        if ie_device == 'GPU':
+            pytest.skip("GPU error: Can't choose implementation for embedding_segment_sum:UnsortedSegmentSum node")
         self._test(
             *self.create_unsorted_segment_sum_net(**params, data_type=data_type, segment_ids_type=segment_ids_type,
                                                   num_segments_type=num_segments_type),
