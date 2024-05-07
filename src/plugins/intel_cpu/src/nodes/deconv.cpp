@@ -217,6 +217,15 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
 
+    if (!withGroups) {
+        size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+        auto weightDimsReversItr = weightDims.crbegin();
+        bool is1x1 = true;
+        for (size_t i = 0; i < spatialRank; ++i)
+            is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
+        asynPaddingAnd1x1 = is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR;
+    }
+
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
     if (externOutShape && isDynamicNode()) {
@@ -311,17 +320,16 @@ bool Deconvolution::canBeExecutedInInt8() const {
 bool Deconvolution::canFuse(const NodePtr& node) const {
     if (canBeExecutedInInt8())
         return canFuseSimpleOperation(node);
-    // Upstream ONEDNN conv_backward_data primitive can't support any post-ops, fork onednn added depthwise support in conv_backward_data JIT implement.
-    // ONEDNN deconv primitive can support most of post-ops , but the post-ops implement detail is different.
-    // So current deconv implement list in onednn has 2 kinds of implements:
-    //    1. deconv implement with JIT post-ops supported in the kernel(such as brgdeconv)
-    //    2. forked conv_data_backwards implemen with JIT depthwise post-ops + reference implement other post ops.
-    // Considering some deconv would fallback on JIT implement. So limit the post ops fusing to avoid regression.
+    // Upstream ONEDNN conv_backward_data primitive can't support any post-ops, fork onednn added depthwise support in conv_backward_data JIT implementation.
+    // ONEDNN deconv primitive can support most of post-ops, but the post-ops implementation details are different.
+    // So current deconv implementation list in onednn has 2 kinds of implements:
+    //    1. deconv implementation with JIT post-ops supported in the kernel (such as brgdeconv)
+    //    2. forked conv_data_backwards implementation with JIT depthwise post-ops + reference implementation for other post ops.
+    // Considering that some deconv fallback on the JIT implementation, we limit the post ops fusing to avoid regressions.
     // Regression with stylegan2 int8 model pattern:
     // none-quantzied deconv(with none-const weight) + FQ pattern fall back on JIT because of onednn limitation. (fall back ticket MFDNN-11577).
-    // In once fused FQ, would run with ref post-ops implement.
-    // Current just keep this piece code as it was.
-    // @todo: if onednn can ensure all the deconv run with brgemm implement. we can unify the fuse criteria between int8 and fp32.
+    // If FQ is fused, it runs with the ref post-ops implementation.
+    // @todo: if onednn can ensure all the deconv run with the brgemm implementation, we can unify the fuse criteria between int8 and fp32 use cases.
     return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
 }
 
@@ -560,7 +568,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
         auto& node = fusedWith[i];
         bool isLastPostOp = (i == (fusedWith.size() - 1));
         // Abandon legacy post-ops invocation in deconv.
-        // @todo: Remove the legacy post-ops implement for conv_backward_data in fork onednn
+        // @todo: Remove the legacy post-ops implementations for conv_backward_data in the fork onednn
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
             fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
             continue;
@@ -756,7 +764,15 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
 
-    return priorities;
+    if (!asynPaddingAnd1x1)
+        return priorities;
+
+    static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
+        std::vector<impl_desc_type>result;
+        std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result),
+            [](impl_desc_type type) { return !(type & impl_desc_type::brgconv); });
+        return result;}();
+    return priorities_wo_brgemm;
 }
 
 void Deconvolution::prepareParams() {
@@ -842,7 +858,7 @@ void Deconvolution::prepareParams() {
         dnnl::primitive_desc desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
-        const auto weiDims = key.inp1->getShape().getStaticDims();
+        const auto& weiDims = key.inp1->getShape().getStaticDims();
         const auto srcDataType = key.inp0->getDataType();
         const auto weiDataType = (one_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ?
                                     memory::data_type::s8 : srcDataType;
@@ -926,7 +942,6 @@ void Deconvolution::prepareParams() {
         }
     } else {
         // non-const weight will be reordered by executor on every exec
-        // maybe only set this when execute?
         primArgs[DNNL_ARG_WEIGHTS] = dnnlCompatibleWeights->getPrimitive();
     }
 
@@ -938,12 +953,10 @@ void Deconvolution::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
-    }
+}
 
 void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                      const std::vector<MemoryDescPtr> &outputDesc) {

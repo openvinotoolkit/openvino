@@ -416,7 +416,7 @@ const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
                     {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}}}};
 
 const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
-                                                                          ::testing::ValuesIn({strides3d[0]}),
+                                                                          ::testing::ValuesIn(strides3d),
                                                                           ::testing::ValuesIn(padBegins3d),
                                                                           ::testing::ValuesIn(padEnds3d),
                                                                           ::testing::ValuesIn(dilations3d),

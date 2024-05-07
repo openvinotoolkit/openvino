@@ -104,6 +104,7 @@ private:
 
     void createDnnlCompatibleWeights();
     bool weightIsConst = false;
+    bool asynPaddingAnd1x1 = false;
 };
 
 }   // namespace node
