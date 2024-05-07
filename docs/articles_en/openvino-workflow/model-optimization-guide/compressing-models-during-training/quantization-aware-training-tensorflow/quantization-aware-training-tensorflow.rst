@@ -1,7 +1,5 @@
-.. {#qat_introduction}
-
 Quantization-aware Training (QAT) with tensorFlow 2
-=================================
+===================================================
 
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with
 PyTorch or TensorFlow 2:
