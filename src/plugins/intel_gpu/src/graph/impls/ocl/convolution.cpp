@@ -198,6 +198,16 @@ public:
             conv_params.dilation = {dilation_y, dilation_x, dilation_z};
         }
 
+        if (primitive->deformable_mode) {
+            auto interpolated_layout = impl_param.output_layouts[0];
+            auto in_shape = impl_param.input_layouts[0].get_partial_shape();
+            auto interpolated_shape = interpolated_layout.get_partial_shape();
+            interpolated_shape[0] = in_shape[0];
+            interpolated_shape[1] = in_shape[1] * conv_params.filterSize.x * conv_params.filterSize.y;
+            interpolated_layout.set_partial_shape(interpolated_shape);
+            conv_params.intermediate_tensor = convert_data_tensor(interpolated_layout);
+        }
+
         auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
