@@ -52,15 +52,6 @@
 
 using namespace cldnn;
 
-int get_env(std::string key, int &val);
-int get_env(std::string key, int &val) {
-        if (const auto env_var = std::getenv(key.c_str())) {
-            val = std::atoi(env_var);
-            return true;
-        }
-        return false;
-}
-
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
     remove_redundant_reshape(p);
@@ -735,15 +726,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
-            int val = 0;
-            get_env("TEST_CROP1", val);
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
                                  !activation_node.has_fused_primitives() &&
                                  (input.is_type<concatenation>() ||
                                   input.is_type<convolution>() ||
-                                  (input.is_type<crop>() && !val) ||
+                                  input.is_type<crop>() ||
                                   input.is_type<eltwise>() ||
                                   input.is_type<fully_connected>() ||
                                   input.is_type<normalize>() ||
