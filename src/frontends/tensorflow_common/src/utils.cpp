@@ -58,7 +58,8 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                                  "AvgPool",
                                  "AvgPool3D",
                                  "CONV_2D",
-                                 "TRANSPOSE_CONV"};
+                                 "TRANSPOSE_CONV",
+                                 "DEPTHWISE_CONV_2D"};
     auto op_type = node.get_op_type();
     TENSORFLOW_OP_VALIDATION(
         node,
