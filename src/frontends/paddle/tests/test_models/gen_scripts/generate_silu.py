@@ -28,7 +28,7 @@ def silu(name: str, x, data_type, use_static=True):
             feed={'input_x': x},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
