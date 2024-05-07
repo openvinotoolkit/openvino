@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -49,7 +49,7 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("interpolation", ['nearest', 'bilinear'])
     @pytest.mark.parametrize("input_type", [np.float16, np.float32, np.float64, np.int8, np.uint8,
                                             np.int16, np.uint16, np.int32, np.int64])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_keras_upsampling2d_nearest(self, params, input_type, data_format, interpolation,
                                         ie_device, precision, ir_version, temp_dir,

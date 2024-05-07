@@ -97,8 +97,12 @@ void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsync
         auto type = tensor->get_element_type();
         bool is_remote  = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) ||
             std::dynamic_pointer_cast<ov::IRemoteTensor>(req->get_tensor(it)._ptr);
-        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type))
+        if (is_remote || req->get_tensor(it)->data(type) != tensor->data(type)) {
+            // temp workaround for NMS-like operations been converted to static shape with upper bound in gpu plugin
+            if (it.get_partial_shape().is_dynamic() && req->get_tensor(it)->get_size() != 0)
+                tensor->set_shape(req->get_tensor(it)->get_shape());
             req->set_tensor(it, tensor);
+        }
     }
 }
 

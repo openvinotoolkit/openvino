@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 
+#include "openvino/op/add.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/constant.hpp"
@@ -297,7 +298,7 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
     // get body program from ov::Model
-    ProgramBuilder prog(ov_model, p.get_engine(), config, false, false, p.get_task_executor(), p.get_compilation_context(), true);
+    ProgramBuilder prog(ov_model, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;

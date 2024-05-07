@@ -38,8 +38,8 @@ FetchContent_MakeAvailable(node-api-headers)
 
 FetchContent_Declare(
     node-addon-api
-    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v7.0.0.tar.gz
-    URL_HASH SHA256=e0cf2ef9bed9965ac8f498b4a7007b9f0002fa022c1ff665f256ab54260d6305
+    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v8.0.0.tar.gz
+    URL_HASH SHA256=42424c5206b9d67b41af4fcff5d6e3cb22074168035a03b8467852938a281d47
 )
 FetchContent_MakeAvailable(node-addon-api)
 
@@ -70,7 +70,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_JS_SRC}
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     "${node-api-headers_SOURCE_DIR}/include"
     "${node-addon-api_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -102,6 +102,8 @@ ov_set_install_rpath(${PROJECT_NAME}
     ${OV_CPACK_RUNTIMEDIR} ${OV_CPACK_RUNTIMEDIR})
 
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
+
+ov_cpack_add_component(${OV_CPACK_COMP_NPM} HIDDEN)
 
 install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${PROJECT_NAME} ${OV_CPACK_COMP_NPM_EXCLUDE_ALL}

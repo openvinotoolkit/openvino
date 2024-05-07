@@ -92,6 +92,7 @@ endfunction()
 #
 
 include(cross_compile/find_commands)
+include(cross_compile/python_helpers)
 include(cross_compile/native_compile)
 
 #
@@ -222,6 +223,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 # CMake 3.24+ :prefers to set the timestamps of all extracted contents to the time of the extraction
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
+# CMake 3.27+ :Visual Studio Generators select latest Windows SDK by default.
+set(CMAKE_POLICY_DEFAULT_CMP0149 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
