@@ -66,10 +66,7 @@ public:
                                                       dilation,
                                                       ov::op::PadType::AUTO,
                                                       convOutChannels);
-        auto bias = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32,
-                                                         ov::Shape({1, convOutChannels, 1, 1}),
-                                                         {},
-                                                         true);
+        auto bias = ov::test::utils::make_constant(ov::element::Type_t::f32, ov::Shape({1, convOutChannels, 1, 1}));
         auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, bias);
 
         auto sum = std::make_shared<ov::op::v1::Add>(convBiasAdd, Relu1);
