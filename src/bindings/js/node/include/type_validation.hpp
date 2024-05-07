@@ -10,28 +10,28 @@
 namespace js {
 
 template <typename T>
-bool validate_value(const Napi::Env& env, Napi::Value arg) {
+bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
     throw std::runtime_error("Validation for this type is not implemented!");
 }
 
 template <>
-bool validate_value<std::string>(const Napi::Env& env, Napi::Value value);
+bool validate_value<std::string>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<int>(const Napi::Env& env, Napi::Value value);
+bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<ov::Model>(const Napi::Env& env, Napi::Value value);
+bool validate_value<ov::Model>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
-bool validate_value<ov::Tensor>(const Napi::Env& env, Napi::Value value);
+bool validate_value<ov::Tensor>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<Napi::Object>(const Napi::Env& env, Napi::Value value);
+bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<int>(const Napi::Env& env, Napi::Value value);
+bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
 
 template <typename Arg, typename Arg1, typename Arg2>
 bool validate_detail(const Napi::CallbackInfo& info) {
