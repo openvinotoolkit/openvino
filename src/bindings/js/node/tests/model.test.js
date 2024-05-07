@@ -96,22 +96,21 @@ describe('Node.js getFriendlyName() / setFriendlyName()', () => {
 });
 
 describe('Node.js Model.getOutputShape()', () => {
-  
-    it('should return the shape of the output tensor', () => {
-      const outputShape = model.getOutputShape(0);
-      assert.ok(Array.isArray(outputShape), 'getOutputShape() should return an array');
-      assert.strictEqual(outputShape.length, 2, 'Expected output shape to have 2 dimensions');
-    });
-  
-    it('should throw an error if the output index is out of range', () => {
-      assert.throws(() => {
-        model.getOutputShape(1);
-      }, /^Error: Invalid output index: 1$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
-    });
-  
-    it('should throw an error if the output index is not an integer', () => {
-      assert.throws(() => {
-        model.getOutputShape('unexpected argument');
-      }, /^Invalid argument. Expected a single number.$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
-    });
+  it('should return the shape of the output tensor', () => {
+    const outputShape = model.getOutputShape(0);
+    assert.ok(Array.isArray(outputShape), 'getOutputShape() should return an array');
+    assert.strictEqual(outputShape.length, 2, 'Expected output shape to have 2 dimensions');
+  });
+
+  it('should throw an error if the output index is out of range', () => {
+    assert.throws(() => {
+      model.getOutputShape(1);
+    }, /^Error: Invalid output index.$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
+  });
+
+  it('should throw an error if the output index is not an integer', () => {
+    assert.throws(() => {
+      model.getOutputShape('unexpected argument');
+    }, /^Error: Invalid argument. Expected a single number.$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
+  });
 });

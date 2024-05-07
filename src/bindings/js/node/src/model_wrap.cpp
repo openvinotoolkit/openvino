@@ -166,10 +166,15 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
     auto idx = info[0].As<Napi::Number>().Int32Value();
     auto cm_outputs = _model->outputs();  // Output<Node>
 
-    try {
-        return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs[idx].get_shape());
-    } catch (const std::exception& e) {
-        reportError(info.Env(), e.what());
+    if (idx >= 0 && idx < cm_outputs.size()) {
+        try {
+            return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs[idx].get_shape());
+        } catch (const std::exception& e) {
+            reportError(info.Env(),e.what());
+            return info.Env().Undefined();
+        }
+    } else {
+        reportError(info.Env(), "Invalid output index.");
         return info.Env().Undefined();
     }
 }
