@@ -28,7 +28,7 @@ def expand_v2(name:str, x, shape:list):
             feed={'x': x},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -56,7 +56,7 @@ def expand_v2_tensor(name:str, x, out_shape, use_tensor_in_list):
             feed={'x': x},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

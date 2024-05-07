@@ -163,6 +163,7 @@ private:
     void conv_eltwise_read_write_opt(program& p, program_node* node);
 };
 
+// TODO: Remove this pass once no unexpected reshapes/reorders are added during ov::Model -> cldnn::topology conversion
 class prepare_primitive_fusing_through : public base_pass {
 public:
     prepare_primitive_fusing_through() : base_pass("prepare_primitive_fusing_through") {}
