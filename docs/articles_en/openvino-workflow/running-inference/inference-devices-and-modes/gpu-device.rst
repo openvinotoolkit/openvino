@@ -66,7 +66,7 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_default_gpu
 
@@ -84,7 +84,7 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id
 
@@ -102,7 +102,7 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_gpu_with_id_and_tile
 
@@ -159,7 +159,7 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
          :language: cpp
          :fragment: compile_model_multi
 
@@ -190,7 +190,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_batch_plugin
 
@@ -208,7 +208,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
                :language: cpp
                :fragment: compile_model_auto_batch
 
