@@ -84,7 +84,7 @@ protected:
         const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
         const ov::frontend::InputModel& model) const;
 
-    TensorMetaInfo create_tensor_meta_info(const ov::frontend::tensorflow_lite::TensorInfo& tensor_info) const;
+    TensorMetaInfo extract_tensor_meta_info(const ov::frontend::tensorflow_lite::TensorInfo& tensor_info) const;
 
     const tflite::Operator* m_node_def;
     std::string m_type, m_name;

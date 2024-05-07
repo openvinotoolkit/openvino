@@ -311,7 +311,7 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
     return get_value_as_ov_any(m[name]);
 }
 
-TensorMetaInfo DecoderFlatBuffer::create_tensor_meta_info(
+TensorMetaInfo DecoderFlatBuffer::extract_tensor_meta_info(
     const ov::frontend::tensorflow_lite::TensorInfo& tensor_info) const {
     TensorMetaInfo tensor_meta_info;
     const auto tensor = tensor_info.tensor;
@@ -331,13 +331,13 @@ TensorMetaInfo DecoderFlatBuffer::create_tensor_meta_info(
 TensorMetaInfo DecoderFlatBuffer::get_input_tensor_info(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     const auto& tensor_info = m_input_info.at(idx);
-    return create_tensor_meta_info(tensor_info);
+    return extract_tensor_meta_info(tensor_info);
 }
 
 TensorMetaInfo DecoderFlatBuffer::get_output_tensor_info(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     const auto& tensor_info = m_output_info.at(idx);
-    return create_tensor_meta_info(tensor_info);
+    return extract_tensor_meta_info(tensor_info);
 }
 
 DecoderFlatBufferTensors::DecoderFlatBufferTensors(const TensorInfo& info, int64_t input_idx, int64_t output_idx)
