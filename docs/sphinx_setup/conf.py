@@ -34,9 +34,10 @@ extensions = [
     'breathe'
     ]
 
-suppress_warnings = [
-    'autodoc.import_object'
-]
+try:
+    import openvino
+except ImportError:
+    autodoc_mock_imports = ["openvino"]
 
 breathe_projects = {
     "openvino": "../xml/"
