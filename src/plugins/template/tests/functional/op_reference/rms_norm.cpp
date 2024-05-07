@@ -226,6 +226,37 @@ INSTANTIATE_TEST_SUITE_P(
                                                   -0.6445, 0.3418,  0.7969, 0.0000,  0.7930, -0.3242, 0.1367,  -0.2139,
                                                   -0.1875, 0.8203,  0.0674, 0.8594,  0.0835, -0.6445, -0.2051, 0.5391}},
                       reference_tests::Tensor{Shape{1}, ov::element::bf16, std::vector<ov::bfloat16>{0.5}}),
+        RMSNormParams(reference_tests::Tensor{Shape{2, 2, 2, 3},
+                                              ov::element::f16,
+                                              std::vector<ov::float16>{
+                                                  -0.644, -5.965, 2.809, -0.3386,   0.10474, -2.262, 5.87,   1.6,
+                                                  -6.754, 4.016,  9.29,  0.0001673, 7.79,    -3.168, 1.343,  -1.449,
+                                                  -1.265, 5.53,   0.712, 9.08,      0.8843,  -8.36,  -2.674, 7.016}},
+                      reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({-1})},
+                      1e-5,
+                      reference_tests::Tensor{
+                          Shape{2, 2, 2, 3},
+                          ov::element::f16,
+                          std::vector<ov::float16>{-0.1683, -1.559, 0.734,  -0.256,    0.0792, -1.711, 1.118,  0.3047,
+                                                   -1.286,  0.687,  1.59,   0.0000286, 1.584,  -0.644, 0.273,  -0.4287,
+                                                   -0.374,  1.636,  0.1348, 1.719,     0.1675, -1.288, -0.412, 1.081}}),
+        RMSNormParams(reference_tests::Tensor{Shape{2, 2, 2, 3},
+                                              ov::element::f16,
+                                              std::vector<ov::float16>{
+                                                  -0.644, -5.965, 2.809, -0.3386,   0.10474, -2.262, 5.87,   1.6,
+                                                  -6.754, 4.016,  9.29,  0.0001673, 7.79,    -3.168, 1.343,  -1.449,
+                                                  -1.265, 5.53,   0.712, 9.08,      0.8843,  -8.36,  -2.674, 7.016}},
+                      reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({-1})},
+                      1e-5,
+                      reference_tests::Tensor{
+                          Shape{2, 2, 2, 3},
+                          ov::element::f16,
+                          std::vector<ov::float16>{
+
+                              -0.08417, -0.7793, 0.367,  -0.128,    0.0396,  -0.8555, 0.559,  0.1523,
+                              -0.643,   0.3435,  0.795,  0.0000143, 0.792,   -0.322,  0.1365, -0.2144,
+                              -0.187,   0.818,   0.0674, 0.8594,    0.08374, -0.644,  -0.206, 0.5405}},
+                      reference_tests::Tensor{Shape{1}, ov::element::f16, std::vector<ov::float16>{0.5}}),
         RMSNormParams(
             reference_tests::Tensor{
                 Shape{2, 2, 2, 3},
