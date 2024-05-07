@@ -17,11 +17,24 @@ namespace lowered {
 class LinearIRBuilder {
 public:
     struct Config {
-        Config(bool deep_copy_of_shapes_ = true) : deep_copy_of_shapes(deep_copy_of_shapes_) {}
+        Config(bool deep_copy_of_shapes_ = true, bool copy_missed_consumers_ = true)
+            : deep_copy_of_shapes(deep_copy_of_shapes_), copy_missed_consumers(copy_missed_consumers_) {}
 
         // If True, copy of stored pointer in `PortDescriptor::m_tensor_shape`.
         // If False, copy shapes as shared pointers.
         const bool deep_copy_of_shapes = true;
+        // At the moment, input port of expression must have only one source.
+        // However, for example, after LinearIR range insertion to the LinearIR (InsertSpecificIteration pass)
+        // several operations can write to the same consumer: several `Store` ops from different loop bodies store to the same Buffer/Result.
+        // Since `clone` algorithm is linear and during expression cloning creates only input port connectors from sources,
+        // algorithm can miss some consumers. For example:
+        //      The consumers of Store0 : Buffer0
+        //      The consumers of Store1 : Buffer0
+        // The result: Buffer0 has only one source in input connector - Store1
+        // Algorithm automatically doesn't add Buffer to consumers of Store0. Thus,
+        // If True, `clone` algorithm add missed consumers.
+        // If False, cloned LinearIR will be built by default (without extra consumers).
+        const bool copy_missed_consumers = true;
     };
 
     LinearIRBuilder(Config config = {}) : m_config(std::move(config)) {}

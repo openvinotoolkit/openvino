@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
@@ -19,22 +19,22 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
 }
 } // namespace
 
-bool operator==(const IdentifyBuffers::ShiftPtrParams& lhs, const IdentifyBuffers::ShiftPtrParams& rhs) {
+bool operator==(const SetBufferRegGroup::ShiftPtrParams& lhs, const SetBufferRegGroup::ShiftPtrParams& rhs) {
     if (&lhs == &rhs)
         return true;
     return lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset && lhs.data_size == rhs.data_size;
 }
-bool operator!=(const IdentifyBuffers::ShiftPtrParams& lhs, const IdentifyBuffers::ShiftPtrParams& rhs) {
+bool operator!=(const SetBufferRegGroup::ShiftPtrParams& lhs, const SetBufferRegGroup::ShiftPtrParams& rhs) {
     return !(rhs == lhs);
 }
 
-size_t IdentifyBuffers::get_buffer_idx(const ExpressionPtr& target, const BufferPool& pool) {
+size_t SetBufferRegGroup::get_buffer_idx(const ExpressionPtr& target, const BufferPool& pool) {
     const auto iter = std::find(pool.cbegin(), pool.cend(), target);
     OPENVINO_ASSERT(iter != pool.cend(), "Buffer wasn't find in Buffer system of Subgraph");
     return std::distance(pool.cbegin(), iter);
 }
 
-bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
+bool SetBufferRegGroup::can_be_in_one_group(const ShiftPtrParams& lhs, const ShiftPtrParams& rhs) {
     // If data pointer shift parameters are unknown on model compilation stage (dynamic),
     // we cannot be sure that these data pointers will be proportionally shifted.
     // Then we force `false` value here to set unique registers for these buffers
@@ -44,13 +44,13 @@ bool IdentifyBuffers::can_reuse_id(const ShiftPtrParams& lhs, const ShiftPtrPara
     return are_static && equal_ptr_params_shifting && (equal_element_type_sizes || (lhs.ptr_increment == 0 && lhs.finalization_offset == 0));
 }
 
-bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
+bool SetBufferRegGroup::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                                    const std::pair<ExpressionPtr, ShiftPtrParams>& rhs) {
     const auto& lhs_ids = lhs.first->get_loop_ids();
     const auto& rhs_ids = rhs.first->get_loop_ids();
     const auto equal_loop_ids = lhs_ids == rhs_ids;
     if (equal_loop_ids) {  // Buffers are connected to the same Loop and have the same outer Loops
-        return !can_reuse_id(lhs.second, rhs.second);
+        return !can_be_in_one_group(lhs.second, rhs.second);
     } else {  // Buffers are connected to the same Loop, but one of Buffers - inside this Loop, another - outside
         // Buffers are adjacent if outer Buffer has not zero data shift params
         if (lhs_ids.size() == rhs_ids.size()) // If the count of outer Loops are equal, it means that outer loops are already different
@@ -64,7 +64,7 @@ bool IdentifyBuffers::are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams
     }
 }
 
-void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
+void SetBufferRegGroup::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                                         const std::pair<ExpressionPtr, ShiftPtrParams>& rhs,
                                         const BufferPool& buffers,
                                         std::vector<bool>& adj) {
@@ -80,7 +80,7 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
     }
 }
 
-std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt begin, LinearIR::constExprIt end, const BufferPool& pool) {
+std::vector<bool> SetBufferRegGroup::create_adjacency_matrix(LinearIR::constExprIt begin, LinearIR::constExprIt end, const BufferPool& pool) {
     // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
     // they are called as adjacent
@@ -113,7 +113,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt
     return adj;
 }
 
-IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
+SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
     const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
@@ -157,7 +157,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
     return buffer_neighbours;
 }
 
-IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
+SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
     const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
     const auto loop_begin = loop_end->get_loop_begin();
     BufferMap inner_buffers;
@@ -172,7 +172,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearI
     return inner_buffers;
 }
 
-auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferPool> {
+auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) -> std::map<size_t, BufferPool> {
     size_t color = 0;
     std::map<size_t, BufferPool> color_groups;
     const auto size = buffers.size();
@@ -217,8 +217,8 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
     return color_groups;
 }
 
-bool IdentifyBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
+bool SetBufferRegGroup::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetBufferRegGroup")
     // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
@@ -239,7 +239,7 @@ bool IdentifyBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt be
         const auto color = pair.first;
         const auto& united_buffers = pair.second;
         for (const auto& buffer_expr : united_buffers) {
-            ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->set_id(color);
+            ov::as_type_ptr<op::Buffer>(buffer_expr->get_node())->set_reg_group(color);
         }
     }
 

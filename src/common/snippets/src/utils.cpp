@@ -102,14 +102,15 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     }
 }
 
-void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
+bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
     if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
         dst = d2;
+        return true;
     } else if (d2 == 1 || is_dynamic_value(d1)) {
         dst = d1;
-    } else {
-        OPENVINO_THROW("Failed to broadcast dims: ", d1, " and ", d2);
+        return true;
     }
+    return false;
 }
 
 VectorDims pshape_to_vdims(const PartialShape& pshape) {

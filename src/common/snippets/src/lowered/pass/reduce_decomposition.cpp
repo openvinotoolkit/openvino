@@ -7,9 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/op/reduce.hpp"
-#include "snippets/op/horizon_max.hpp"
-#include "snippets/op/horizon_sum.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -100,6 +98,12 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         // Transfer original ExpressionPorts
         replace_input_port_connectors({fill.first->get()->get_input_port(0)}, reduce_expr->get_input_port_connector(0));
         replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(), horizon.first->get()->get_output_port_connector(0));
+
+        // Update input shapes of consumers
+        const auto reduce_consumers = horizon.first->get()->get_output_port_connector(0)->get_consumers();
+        for (const auto& consumer : reduce_consumers) {
+            consumer.get_expr()->updateShapes();
+        }
 
         // Update Loop info for outer loops
         const std::vector<ExpressionPort> input_ports{(*fill.first)->get_input_port(0)};

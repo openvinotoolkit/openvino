@@ -65,12 +65,13 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
         (work_amount_upper == work_amount_lower) && increment_upper == increment_lower;
     const bool bcastable_upper = work_amount_upper == 1 && increment_upper == 1;
     const bool bcastable_lower = work_amount_lower == 1 && increment_lower == 1;
+    const auto is_const_wa_equal = loop_upper->is_work_amount_const() == loop_lower->is_work_amount_const();
     // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
     // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
     // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
     const bool first_iter_handlers_match = loop_upper->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty() ==
                                            loop_lower->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty();
-    return first_iter_handlers_match && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    return first_iter_handlers_match && is_const_wa_equal && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
