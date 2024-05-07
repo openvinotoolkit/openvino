@@ -25,12 +25,13 @@
 
 namespace ov {
 namespace util {
-
+namespace {
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
+}  // namespace
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
     uint64_t seed = 0;
