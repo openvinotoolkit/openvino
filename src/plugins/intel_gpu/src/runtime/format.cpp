@@ -165,8 +165,9 @@ static const std::map<format::type, format_traits> format_traits_map {
 };
 
 const format_traits& format::traits(type fmt) {
-    OPENVINO_ASSERT(format_traits_map.find(fmt) != format_traits_map.end(), "[GPU] Format description is missing in fmt traits");
-    return format_traits_map.at(fmt);
+    auto it = format_traits_map.find(fmt);
+    OPENVINO_ASSERT(it != format_traits_map.end(), "[GPU] Format description is missing in fmt traits");
+    return it->second;
 }
 
 const format_traits& format::traits() const {

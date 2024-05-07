@@ -38,6 +38,7 @@ CPU
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
+      * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 18 ARM64
 
 GPU
