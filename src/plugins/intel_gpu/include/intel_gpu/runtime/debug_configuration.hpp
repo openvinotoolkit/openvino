@@ -120,6 +120,8 @@ public:
     int dump_layers_raw;                                        // Dump raw data.
     int dump_layers_binary;                                     // Dump binary data.
     int dump_runtime_memory_pool;                               // Dump memory pool status at each iteration
+    std::set<int64_t> dump_runtime_memory_pool_iters;           // List of iteration's memory pool status
+    std::string dump_runtime_memory_pool_path;                  // Enable dumping memory pool status to csv file and set the dest path
     int base_batch_for_memory_estimation;                       // Base batch size to be used in memory estimation
     std::vector<std::string> after_proc;                        // Start inference after the listed processes
     int serialize_compile;                                      // Serialize creating primitives and compiling kernels

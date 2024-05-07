@@ -52,7 +52,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             if (it->second._network_id == network_id &&
                 it->second._type == type &&
                 it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
-                auto user_it = it->second._users.find({ unique_id, network_id, prim_id });
+                auto user_it = it->second._users.find({ unique_id, network_id, prim_id, _layout.bytes_count()});
 
                 // normally there should be only one entry
                 if (user_it != it->second._users.end()) {
@@ -81,7 +81,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                 if (list_itr->_memory.get() == mem &&
                     list_itr->_network_id == network_id &&
                     list_itr->_type == type) {
-                    auto user_it = list_itr->_users.find({ unique_id, network_id, prim_id });
+                    auto user_it = list_itr->_users.find({ unique_id, network_id, prim_id, _layout.bytes_count()});
 
                     // normally there should be only one entry
                     if (user_it != list_itr->_users.end()) {
@@ -124,7 +124,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
             !has_conflict(it->second._users, restrictions, network_id))) {
-            it->second._users.insert(memory_user(unique_id, network_id, prim_id));
+            it->second._users.insert(memory_user(unique_id, network_id, prim_id, layout.bytes_count()));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
             GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
             return ret_mem;
@@ -137,7 +137,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     auto mem = alloc_memory(layout, type, reset);
     {
         _non_padded_pool.emplace(layout.bytes_count(),
-                                 memory_record({{unique_id, network_id, prim_id}}, mem, network_id, type));
+                                 memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
     }
     return mem;
 }
@@ -161,7 +161,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions, network_id)) {
-                rec_list._users.insert({unique_id, network_id, prim_id});
+                rec_list._users.insert({unique_id, network_id, prim_id, layout.bytes_count()});
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
@@ -169,12 +169,12 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
         }
         auto mem = alloc_memory(layout, type);
         first_level_cache->second.emplace_back(
-            memory_record({{unique_id, network_id, prim_id}}, mem, network_id, type));
+            memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
         return mem;
     }
     GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << ")" << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
-    std::list<memory_record> list = {memory_record({{unique_id, network_id, prim_id}}, mem, network_id, type)};
+    std::list<memory_record> list = {memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
     return mem;
 }
@@ -194,7 +194,7 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
         if (it->second._network_id != network_id &&
             it->second._type == type) {  // don't use non reusable resources within the same network
             if (!has_conflict(it->second._users, {}, network_id)) {
-                it->second._users.insert(memory_user(unique_id, network_id, prim_id));
+                it->second._users.insert(memory_user(unique_id, network_id, prim_id, layout.bytes_count()));
                 auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
@@ -205,7 +205,7 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
     auto mem = alloc_memory(layout, type);
     {
         _no_reusable_pool.emplace(layout.bytes_count(),
-                                  memory_record({{unique_id, network_id, prim_id}}, mem, network_id, type));
+                                  memory_record({{unique_id, network_id, prim_id, layout.bytes_count()}}, mem, network_id, type));
     }
     return mem;
 }
@@ -303,25 +303,100 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 memory_pool::memory_pool(engine& engine) : _engine(&engine) { }
 
-void memory_pool::dump(uint32_t net_id) {
-    GPU_DEBUG_COUT << "Dump memory pool of network " << net_id << std::endl;
-    GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
-    for (auto mem : _non_padded_pool) {
-        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << mem.first << ", type: " << mem.second._type
-                  << ")'s users: " << std::endl;
-        for (auto user : mem.second._users) {
-            GPU_DEBUG_COUT << "   --- " << user._prim_id << " (" << user._unique_id << ") " << std::endl;
-        }
-    }
-    GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
-    for (auto mem : _padded_pool) {
-        GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << std::endl;
-        for (auto record : mem.second) {
-            GPU_DEBUG_COUT << "    " << record._memory->buffer_ptr() << ", type: " << record._type << ", users : " << std::endl;
-            for (auto user : record._users) {
-                GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << std::endl;
+inline float get_mb_size(size_t size) {
+    return (static_cast<float>(size) / (1024 * 1024));
+}
+
+inline float get_percentage(size_t size, size_t total_size) {
+    return (static_cast<float>(size) * 100.0f / total_size);
+}
+
+void memory_pool::dump(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
+    dump_to_screen(net_id, iter);
+    if (!dump_dir_path.empty())
+        dump_to_file(net_id, iter, dump_dir_path);
+}
+
+void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_dir_path) {
+    const std::string dump_file_name = "dump_runtime_memory_pool_net_" + std::to_string(net_id) + "_iter_" + std::to_string(iter) + ".csv";
+    const std::string desc = "pool_type,layout,mem_ptr,mem_type,mem_pool_szie,prim_id,unique_id,mem_size";
+    const std::string dump_path = dump_dir_path + dump_file_name;
+    std::ofstream of(dump_path);
+    if (of.is_open()) {
+        of << desc << std::endl;
+        for (auto mem : _non_padded_pool) {
+            for (auto user : mem.second._users) {
+                of << "non_padded_pool,," << mem.second._memory->buffer_ptr() << "," << mem.second._type << ","
+                    << mem.first << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
             }
         }
+
+        for (auto mem : _padded_pool) {
+            for (auto record : mem.second) {
+                const size_t mem_pool_szie = record._memory->size();
+                for (auto user : record._users) {
+                    of << "padded_pool," << mem.first.to_short_string() << "," << record._memory->buffer_ptr() << "," << record._type << ","
+                        << mem_pool_szie << "," << user._prim_id << "," << user._unique_id << "," << user._mem_size << std::endl;
+                }
+            }
+        }
+        std::cout << "Dump file to " << dump_path << std::endl;
     }
+}
+
+void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
+    GPU_DEBUG_COUT << "Dump memory pool of network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
+    GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
+    float total_mem_request = 0.f;
+    float total_mem_pool_size = 0.f;
+    for (auto mem : _non_padded_pool) {
+        GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
+            << "MB, type: " << mem.second._type << ")'s users: " << std::endl;
+        total_mem_pool_size += mem.first;
+        float min_percentage = 100.0f;
+        float max_percentage = 0.f;
+        for (auto user : mem.second._users) {
+            float percentage = get_percentage(user._mem_size, mem.first);
+            min_percentage = std::min(percentage, min_percentage);
+            max_percentage = std::max(percentage, max_percentage);
+            total_mem_request += static_cast<float>(user._mem_size);
+            GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                << get_mb_size(user._mem_size) << "MB, " << percentage << "%" << std::endl;
+        }
+        GPU_DEBUG_COUT <<  "   - min of the memory pool entry: " << min_percentage << std::endl;
+        GPU_DEBUG_COUT <<  "   - max of the memory pool entry: " << max_percentage << std::endl;
+    }
+    GPU_DEBUG_COUT << "========== non-padded pool efficiency: "
+                    << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
+                    << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
+                    << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
+    GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
+    total_mem_request = 0.f;
+    total_mem_pool_size = 0.f;
+    for (auto mem : _padded_pool) {
+        GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << ", records(" << mem.second.size() << ")" << std::endl;
+        for (auto record : mem.second) {
+            size_t mem_size = record._memory->size();
+            GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
+                            << "MB, type: " << record._type << ")'s usrs : " << std::endl;
+            float min_percentage = 100.0f;
+            float max_percentage = 0.f;
+            total_mem_pool_size += mem_size;
+            for (auto user : record._users) {
+                float percentage = get_percentage(user._mem_size, mem_size);
+                min_percentage = std::min(percentage, min_percentage);
+                max_percentage = std::max(percentage, max_percentage);
+                total_mem_request += static_cast<float>(user._mem_size);
+                GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                    << get_mb_size(user._mem_size) << "MB, " << percentage << "%" << std::endl;
+            }
+            GPU_DEBUG_COUT << "   - min of the memory pool entry: " << min_percentage << std::endl;
+            GPU_DEBUG_COUT << "   - max of the memory pool entry: " << max_percentage << std::endl;
+        }
+    }
+    GPU_DEBUG_COUT << "========== padded pool efficiency: "
+                    << std::to_string(static_cast<float>(total_mem_request / total_mem_pool_size))
+                    << " (Total memory request : " << get_mb_size(total_mem_request) << "MB"
+                    << " / Total meomry pool size : " << get_mb_size(total_mem_pool_size) << "MB) ==========" << std::endl;
 }
 }  // namespace cldnn
