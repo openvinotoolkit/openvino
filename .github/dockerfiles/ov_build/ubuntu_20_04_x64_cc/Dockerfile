@@ -31,9 +31,8 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # Compiler
-        gcc-10 \
-        g++-10 \
+        # Compiler \
+        clang \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -44,8 +43,8 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
