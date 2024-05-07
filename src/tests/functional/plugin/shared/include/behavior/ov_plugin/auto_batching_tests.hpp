@@ -77,7 +77,8 @@ protected:
             config.insert(ov::auto_batch_timeout(1));
 
             // set batch size
-            config.insert(ov::device::properties(target_device, ov::hint::num_requests(num_batch)));
+            config.insert(
+                ov::device::properties(target_device, ov::hint::num_requests(static_cast<uint32_t>(num_batch))));
             auto compiled_model =
                 core->compile_model(model, std::string(ov::test::utils::DEVICE_BATCH) + ":" + target_device, config);
 
