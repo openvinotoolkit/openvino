@@ -229,7 +229,7 @@ void CompiledModel::initialize_properties() {
         {ov::execution_devices.name(),
          {true,
           ov::PropertyMutability::RO,
-          [&](const Config& config) {
+          [&](const Config&) {
               return std::string("NPU");
           }}},
         {ov::loaded_from_cache.name(),
