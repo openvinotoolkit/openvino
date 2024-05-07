@@ -12,8 +12,16 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-std::shared_ptr<Node> handle_minus_index(const OutputVector& node, const Output<Node>& dim) {
-    const auto new_node = std::make_shared<default_opset::Concat>(node, 0);
+std::shared_ptr<Node> get_tensor_list(const OutputVector& node) {
+    auto tensor_list = node;
+    for (size_t i = 0; i < node.size(); i++) {
+        if (node[i].get_shape().size() == 0) {
+            tensor_list[i] =
+                std::make_shared<default_opset::Unsqueeze>(node[i],
+                                                           default_opset::Constant::create(element::i64, {1}, {0}));
+        }
+    }
+    const auto new_node = std::make_shared<default_opset::Concat>(tensor_list, 0);
     return new_node;
 }
 
@@ -95,7 +103,7 @@ NamedOutputs set_value(const NodeContext& node) {
 
     // get positive starts ends and steps
     if (node.has_input("StartsTensorList")) {
-        starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
+        starts = get_tensor_list(node.get_ng_inputs("StartsTensorList"));
     } else if (node.has_attribute("starts")) {
         auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
         if (is_contain_minus(start_vec)) {
@@ -106,7 +114,7 @@ NamedOutputs set_value(const NodeContext& node) {
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     if (node.has_input("EndsTensorList")) {
-        ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
+        ends = get_tensor_list(node.get_ng_inputs("EndsTensorList"));
     } else if (node.has_attribute("ends")) {
         auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
         if (is_contain_minus(ends_vec)) {
@@ -117,7 +125,7 @@ NamedOutputs set_value(const NodeContext& node) {
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     if (node.has_input("StepsTensorList")) {
-        steps = handle_minus_index(node.get_ng_inputs("StepsTensorList"), spec_dim_node);
+        steps = get_tensor_list(node.get_ng_inputs("StepsTensorList"));
     } else if (node.has_attribute("steps")) {
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
         if (is_contain_minus(step_vec)) {
