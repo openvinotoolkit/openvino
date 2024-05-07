@@ -14,7 +14,7 @@ namespace op {
 
 OutputVector concatenation(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = node.get_decoder();
-    int64_t axis = static_cast<int64_t>(node.get_attribute<int32_t>("axis"));
+    int64_t axis = node.get_attribute<int64_t>("axis");
     auto concat = make_shared<opset10::Concat>(node.get_inputs(), axis);
     concat->set_friendly_name(decoder->get_op_name());
     return concat->outputs();
