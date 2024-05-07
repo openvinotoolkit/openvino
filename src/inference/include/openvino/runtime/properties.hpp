@@ -734,19 +734,19 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
 
 /**
- * @brief Write-only property to set encryption function for saving model cache.
+ * @brief Read-write property to set encryption function for saving model cache.
  * If cache_dir and cache_encryption are set, the model cache will be encrypted and saved.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::WO> cache_encryption{
+static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::RW> cache_encryption{
     "CACHE_ENCRYPTION"};
 
 /**
- * @brief Write-only property to set decryption function for loading model cache.
+ * @brief Read-write property to set decryption function for loading model cache.
  * If cache_dir and cache_decryption are set, the model cache will be decrypted and loaded.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::WO> cache_decryption{
+static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::RW> cache_decryption{
     "CACHE_DECRYPTION"};
 
 /**

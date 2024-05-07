@@ -221,7 +221,17 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        if (property.first == "CACHE_ENCRYPTION" || property.first == "CACHE_DECRYPTION") {
+            auto property_value = property.second;
+            std::function<std::string(const std::string&)> func =
+                [property_value](const std::string& in_str) -> std::string {
+                py::gil_scoped_acquire acquire;
+                return property_value(in_str).cast<std::string>();
+            };
+            properties_to_cpp[property.first] = func;
+        } else {
+            properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
+        }
     }
     return properties_to_cpp;
 }
