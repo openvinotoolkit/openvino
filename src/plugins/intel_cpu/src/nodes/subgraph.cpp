@@ -151,6 +151,7 @@ protected:
 
     inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(loop_args);
+        std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.memory_access_offsets);
 
         if (m_buffer_scratchpad_size > 0)
             call_args.buffer_scratchpad_ptr =
@@ -191,10 +192,12 @@ protected:
 
     void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) override {
         SubgraphExecutor::init_runtime_params(snippet_config);
+        buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
     }
 
+    std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
 };
@@ -846,6 +849,7 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
 
     init_parallel_domain(snippet_config, m_parallel_exec_domain);

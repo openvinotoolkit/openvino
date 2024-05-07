@@ -46,6 +46,7 @@ struct jit_snippets_call_args {
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
     loop_args_t* loop_args = nullptr;
     amx_tile_config_t amx_tile_config;
+    size_t memory_access_offsets[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
 };
 
 struct jit_snippets_call_args::loop_args_t {

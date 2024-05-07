@@ -85,22 +85,22 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     for (const auto& expr : exprs) {
         auto op = expr->get_node();
         if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            const auto buffer_id = buffer->get_id();
+            const auto reg_group = buffer->get_reg_group();
             // All buffers have one common data pointer
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                        static_cast<Reg>(num_results + num_parameters + reg_group);
                 // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
                 // child shape info ops share the same memory as IntermediateMemoryBuffer.
                 const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
                 for (const auto& child_shape_infer_expr : shape_infer_consumers) {
                     manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
                         manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                        static_cast<Reg>(num_results + num_parameters + reg_group);
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
-                    static_cast<Reg>(num_results + num_parameters + buffer_id);
+                    static_cast<Reg>(num_results + num_parameters + reg_group);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator

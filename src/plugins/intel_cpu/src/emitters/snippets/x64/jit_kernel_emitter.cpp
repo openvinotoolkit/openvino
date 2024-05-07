@@ -44,10 +44,10 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     std::set<size_t> unique_buffers;
     for (const auto& expr : *body) {
         if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_id = buffer->get_id();
-            if (unique_buffers.count(buffer_id) == 0) {
+            const auto buffer_reg_group = buffer->get_reg_group();
+            if (unique_buffers.count(buffer_reg_group) == 0) {
                 mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_id);
+                unique_buffers.insert(buffer_reg_group);
             }
         } else {
             if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&

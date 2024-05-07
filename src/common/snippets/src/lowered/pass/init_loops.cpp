@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/op/memory_access.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -120,8 +120,9 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
             const auto& shape = desc->get_shape();
             const auto& layout = desc->get_layout();
             const auto is_input = loop_port.expr_port->get_type() == ExpressionPort::Input;
-            const auto dim_idx = is_input ? utils::get_input_dim_idx(layout, loop_port.dim_idx) : utils::get_input_dim_idx(layout, loop_port.dim_idx);
-            utils::broadcast_merge_dim(work_amount, work_amount, shape[dim_idx]);
+            const auto dim_idx = is_input ? utils::get_input_dim_idx(layout, loop_port.dim_idx) : utils::get_output_dim_idx(layout, loop_port.dim_idx);
+            OPENVINO_ASSERT(utils::broadcast_merge_dim(work_amount, work_amount, shape[dim_idx]),
+                            "Failed to broadcast work_amount");
         }
     });
     loop_info->set_work_amount(work_amount);
@@ -130,7 +131,7 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
 
 void InitLoops::init_loop_info(const UnifiedLoopInfoPtr& loop_info, const size_t loop_id, bool only_runtime_args) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to initialize");
-    if (utils::is_dynamic_value(loop_info->get_work_amount()))
+    if (!loop_info->is_work_amount_const())
         init_work_amount(loop_info);
 
     const auto work_amount = loop_info->get_work_amount();

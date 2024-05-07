@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -17,15 +18,6 @@ namespace pass {
     OPENVINO_ASSERT((cond), "Failed to validate ExpandedLoops: ", __VA_ARGS__)
 
 namespace {
-template<class T>
-void dynamic_safe_add(T& lhs, const T& rhs) {
-    if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
-        lhs = utils::get_dynamic_value<T>();
-        return;
-    }
-    lhs += rhs;
-}
-
 bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr& loop_manager) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_expr->get_node());
     INFORMATIVE_ASSERT(loop_end, "expects LoopEnd");
@@ -81,7 +73,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
             total_finalization_offsets.resize(num_ports, 0);
         }
 
-        dynamic_safe_add(current_work_amount, expanded_loop_info->get_work_amount());
+        utils::dynamic_safe_add(current_work_amount, expanded_loop_info->get_work_amount());
         INFORMATIVE_ASSERT(current_unified_loop_info->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
                            "incompatible pointer increments with UnifiedLoopInfo");
 
@@ -89,7 +81,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         INFORMATIVE_ASSERT(finalization_offsets.size() == total_finalization_offsets.size(),
                            "incompatible finalization offset count");
         for (size_t i = 0; i < num_ports; ++i)
-            dynamic_safe_add(total_finalization_offsets[i], finalization_offsets[i]);
+            utils::dynamic_safe_add(total_finalization_offsets[i], finalization_offsets[i]);
     }
 }
 

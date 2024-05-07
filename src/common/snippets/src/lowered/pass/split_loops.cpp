@@ -72,6 +72,9 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
                 loop_was_split = true;
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
+                // Since the loop has work amount equal to increment of outer loop, not broadcasted dimension,
+                // we should set `work_amount_const = true` to avoid rewriting in common loop intiialization passes (for example, `InitLoops`)
+                loop_to_split->set_work_amount_const(true);
 
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,

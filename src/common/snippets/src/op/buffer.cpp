@@ -13,75 +13,68 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-Buffer::Buffer(const OutputVector& arguments, const ov::Shape& shape, size_t id, ov::element::Type element_type)
-    : Op(arguments), m_shape(shape), m_id(id), m_element_type(std::move(element_type)), m_offset(0) {
+Buffer::Buffer(const OutputVector& arguments, size_t allocation_size, size_t reg_group, size_t cluster_id)
+    : Op(arguments), m_allocation_size(allocation_size), m_reg_group(reg_group), m_cluster_id(cluster_id), m_offset(0) {
     constructor_validate_and_infer_types();
 }
 
 bool Buffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(Buffer_visit_attributes);
-    visitor.on_attribute("allocation_shape", m_shape);
-    visitor.on_attribute("offset", m_offset);
-    visitor.on_attribute("id", m_id);
-    visitor.on_attribute("element_type", m_element_type);
+    auto element_type = get_element_type();
+    auto allocation_size = utils::value2str(m_allocation_size);
+    auto offset = utils::value2str(m_offset);
+    visitor.on_attribute("allocation_size", allocation_size);
+    visitor.on_attribute("offset", offset);
+    visitor.on_attribute("reg_group", m_reg_group);
+    visitor.on_attribute("cluster_id", m_cluster_id);
+    visitor.on_attribute("element_type", element_type);
     return true;
 }
 
+bool Buffer::is_defined() const {
+    return !utils::is_dynamic_value(m_allocation_size);
+}
+
 size_t Buffer::get_byte_size() const {
-    const auto shape = get_allocation_shape();
-    return ov::shape_size(shape) * m_element_type.size();
+    if (is_defined())
+        return m_allocation_size * get_element_type().size();
+    return utils::get_dynamic_value<size_t>();
 }
 
-IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape, size_t id)
-    : Buffer({arg}, shape, id) {
+IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, size_t allocation_size, size_t reg_group, size_t cluster_id)
+    : Buffer({arg}, allocation_size, reg_group, cluster_id) {
     constructor_validate_and_infer_types();
-}
-
-IntermediateMemoryBuffer::IntermediateMemoryBuffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank, size_t id)
-    : Buffer({arg}, compute_shape_from_allocation_rank(arg, allocation_rank), id) {
-    constructor_validate_and_infer_types();
-}
-
-ov::Shape IntermediateMemoryBuffer::compute_shape_from_allocation_rank(const ov::Output<ov::Node>& arg, int32_t allocation_rank) {
-    const auto& pshape = arg.get_partial_shape();
-    OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
-    const auto shape = pshape.get_shape();
-    const auto normalize_rank = utils::normalize_rank(static_cast<int32_t>(allocation_rank), shape.size());
-    const auto offset = static_cast<int32_t>(shape.size()) - normalize_rank;
-    return ov::Shape{shape.begin() + offset, shape.end()};
 }
 
 void IntermediateMemoryBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
     ov::PartialShape output_shape;
-    m_element_type = get_input_element_type(0);
-    output_shape = get_input_partial_shape(0);
-    set_output_type(0, m_element_type, output_shape);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<Node> IntermediateMemoryBuffer::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_buffer = std::make_shared<IntermediateMemoryBuffer>(new_args.at(0), m_shape, m_id);
+    auto new_buffer = std::make_shared<IntermediateMemoryBuffer>(new_args.at(0), m_allocation_size, m_reg_group, m_cluster_id);
     new_buffer->set_offset(m_offset);
     return new_buffer;
 }
 
-NewMemoryBuffer::NewMemoryBuffer(const ov::Shape& shape, size_t id, ov::element::Type element_type)
-    : Buffer({}, shape, id, element_type) {
+NewMemoryBuffer::NewMemoryBuffer(const ov::Shape& shape, size_t reg_group, size_t cluster_id, ov::element::Type element_type)
+    : Buffer({}, ov::shape_size(shape), reg_group, cluster_id), m_output_shape(shape), m_element_type(element_type) {
     constructor_validate_and_infer_types();
 }
 
 void NewMemoryBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
     OPENVINO_ASSERT(get_input_size() == 0, "Buffer with new allocated memory mustn't have arguments!");
-    set_output_type(0, m_element_type, m_shape);
+    set_output_type(0, m_element_type, m_output_shape);
 }
 
 std::shared_ptr<Node> NewMemoryBuffer::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_buffer = std::make_shared<NewMemoryBuffer>(m_shape, m_id, m_element_type);
+    auto new_buffer = std::make_shared<NewMemoryBuffer>(m_output_shape, m_reg_group, m_cluster_id, m_element_type);
     new_buffer->set_offset(m_offset);
     return new_buffer;
 }

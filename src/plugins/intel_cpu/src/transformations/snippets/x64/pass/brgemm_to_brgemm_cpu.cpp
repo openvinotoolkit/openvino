@@ -8,6 +8,7 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/x64/op/modifiers.hpp"

@@ -4,7 +4,7 @@
 
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 
-#include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
@@ -14,11 +14,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-using ShiftPtrParams = IdentifyBuffers::ShiftPtrParams;
+using ShiftPtrParams = SetBufferRegGroup::ShiftPtrParams;
 
-AllocateBuffers::BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(const ExpressionPtr& target) {
+DefineBufferClusters::BufferClusters::iterator DefineBufferClusters::find_cluster_by_expr(const ExpressionPtr& target) {
     return std::find_if(m_clusters.begin(), m_clusters.end(),
-                        [&target](const AllocateBuffers::BufferCluster& cluster) { return cluster.count(target) > 0; });
+                        [&target](const BufferCluster& cluster) { return cluster.count(target) > 0; });
 }
 
 bool DefineBufferClusters::is_direct_buffer(const ExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const {
@@ -30,15 +30,15 @@ void DefineBufferClusters::create_new_cluster(const ExpressionPtr& buffer_expr) 
     const auto cluster_it = find_cluster_by_expr(buffer_expr);
     // If Buffer is missed in clusters, create new cluster with the single Buffer node inside
     if (cluster_it == m_clusters.cend()) {
-        m_clusters.push_back(AllocateBuffers::BufferCluster{buffer_expr});
+        m_clusters.push_back(BufferCluster{buffer_expr});
     }
 }
 
-size_t DefineBufferClusters::get_cluster_buffer_id(const AllocateBuffers::BufferCluster& cluster) const {
+size_t DefineBufferClusters::get_cluster_buffer_id(const BufferCluster& cluster) const {
     OPENVINO_ASSERT(!cluster.empty(), "Buffer cluster is empty!");
-    const auto id = (ov::as_type_ptr<op::Buffer>(cluster.cbegin()->get()->get_node()))->get_id();
+    const auto id = (ov::as_type_ptr<op::Buffer>(cluster.cbegin()->get()->get_node()))->get_reg_group();
     if (std::all_of(cluster.cbegin(), cluster.cend(),
-                    [&id](const ExpressionPtr& expr) { return (ov::as_type_ptr<op::Buffer>(expr->get_node()))->get_id() == id; })) {
+                    [&id](const ExpressionPtr& expr) { return (ov::as_type_ptr<op::Buffer>(expr->get_node()))->get_reg_group() == id; })) {
         return id;
     }
     return SIZE_MAX;
@@ -148,7 +148,7 @@ void DefineBufferClusters::parse_loop(const LinearIR::constExprIt& expr_it) {
             if (has_been_added) break;
         }
         if (!has_been_added) {
-            m_clusters.push_back(AllocateBuffers::BufferCluster{output_buffer_expr});
+            m_clusters.push_back(BufferCluster{output_buffer_expr});
         }
     }
 
@@ -248,8 +248,8 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
     return final_offset;
 }
 
-bool DefineBufferClusters::unite_nested_clusters(const AllocateBuffers::BufferClusters::iterator& inner_cluster_it,
-                                                 AllocateBuffers::BufferCluster& outer_cluster,
+bool DefineBufferClusters::unite_nested_clusters(const BufferClusters::iterator& inner_cluster_it,
+                                                 BufferCluster& outer_cluster,
                                                  const ExpressionPtr& outer_buffer, bool is_outer_up) {
     for (const auto& inner_buffer : *inner_cluster_it) {
         ExpressionPtr common_loop_end_expr = nullptr;
@@ -263,11 +263,11 @@ bool DefineBufferClusters::unite_nested_clusters(const AllocateBuffers::BufferCl
             const auto& inner_ptr_increments = common_loop_end->get_ptr_increments();
             const auto& inner_final_offsets = common_loop_end->get_finalization_offsets();
             const auto& inner_data_sizes = common_loop_end->get_element_type_sizes();
-            if (IdentifyBuffers::can_reuse_id({ inner_data_sizes[up_idx], inner_ptr_increments[up_idx], inner_final_offsets[up_idx] },
-                                              { inner_data_sizes[down_idx], inner_ptr_increments[down_idx], inner_final_offsets[down_idx] })) {
-                const auto buffer_id = ov::as_type_ptr<op::Buffer>(outer_buffer->get_node())->get_id();
+            if (SetBufferRegGroup::can_be_in_one_group({ inner_data_sizes[up_idx], inner_ptr_increments[up_idx], inner_final_offsets[up_idx] },
+                                                       { inner_data_sizes[down_idx], inner_ptr_increments[down_idx], inner_final_offsets[down_idx] })) {
+                const auto buffer_reg_group = ov::as_type_ptr<op::Buffer>(outer_buffer->get_node())->get_reg_group();
                 for (const auto& inner_buffer : *inner_cluster_it)
-                    ov::as_type_ptr<op::Buffer>(inner_buffer->get_node())->set_id(buffer_id);
+                    ov::as_type_ptr<op::Buffer>(inner_buffer->get_node())->set_reg_group(buffer_reg_group);
 
                 outer_cluster.insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
                 m_clusters.erase(inner_cluster_it);
@@ -339,6 +339,8 @@ void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
 bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::DefineBufferClusters");
 
+    m_clusters.clear();
+
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
@@ -351,6 +353,15 @@ bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::
             parse_memory_access_op(expr);
             continue;
         }
+    }
+
+    for (size_t cluster_id = 0; cluster_id < m_clusters.size(); ++cluster_id) {
+        const auto& cluster = m_clusters[cluster_id];
+        std::for_each(cluster.cbegin(), cluster.cend(), [&cluster_id](const ExpressionPtr& buffer_expr) {
+            const auto& buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
+            OPENVINO_ASSERT(buffer, "Buffer clusters expects Buffer nodes");
+            buffer->set_cluster_id(cluster_id);
+        });
     }
 
     return true;

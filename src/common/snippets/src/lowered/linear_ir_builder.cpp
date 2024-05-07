@@ -111,11 +111,31 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
                         result_expr->get_input_count() == original_expr->get_input_count() &&
                         result_expr->get_output_count() == original_expr->get_output_count(),
                         "Expressions after copying aren't matched!");
+        // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
             for (size_t i = 0; i < original_expr->get_input_count(); ++i)
                 result_expr->get_input_port_descriptor(i)->m_tensor_shape = original_expr->get_input_port_descriptor(i)->m_tensor_shape;
             for (size_t i = 0; i < original_expr->get_output_count(); ++i)
                 result_expr->get_output_port_descriptor(i)->m_tensor_shape = original_expr->get_output_port_descriptor(i)->m_tensor_shape;
+        }
+
+        // Copy missed consumers if needed
+        if (m_config.copy_missed_consumers) {
+            for (size_t i = 0; i < original_expr->get_output_count(); i++) {
+                const auto& original_consumers = original_expr->get_output_port_connector(i)->get_consumers();
+                for (const auto& original_consumer : original_consumers) {
+                    const auto result_consumers = result_expr->get_output_port_connector(i)->get_consumers();
+                    // Check if consumer is from the cloned body
+                    const auto original_expr_ptr = original_consumer.get_expr().get();
+                    if (expression_map.count(original_expr_ptr)) {
+                        const auto target_consumer = expression_map[original_expr_ptr]->get_input_port(original_consumer.get_index());
+                        // If missed, add to existing consumers
+                        if (std::find(result_consumers.cbegin(), result_consumers.cend(), target_consumer) == result_consumers.cend()) {
+                            result_expr->get_output_port_connector(i)->add_consumer(target_consumer);
+                        }
+                    }
+                }
+            }
         }
     }
 

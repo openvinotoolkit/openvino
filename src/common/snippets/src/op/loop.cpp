@@ -84,11 +84,14 @@ void LoopEnd::validate_and_infer_types() {
 
 bool LoopEnd::visit_attributes(AttributeVisitor &visitor) {
     std::vector<int> int_incremented(m_is_incremented.cbegin(), m_is_incremented.cend());
+    auto work_amount = utils::value2str(m_work_amount);
+    auto ptr_increments = utils::vector2str(m_ptr_increments);
+    auto final_offsets = utils::vector2str(m_finalization_offsets);
     visitor.on_attribute("is_incremented", int_incremented);
-    visitor.on_attribute("ptr_incr", m_ptr_increments);
-    visitor.on_attribute("fin_offset", m_finalization_offsets);
+    visitor.on_attribute("ptr_incr", ptr_increments);
+    visitor.on_attribute("fin_offset", final_offsets);
     visitor.on_attribute("data_sizes", m_element_type_sizes);
-    visitor.on_attribute("work_amount", m_work_amount);
+    visitor.on_attribute("work_amount", work_amount);
     visitor.on_attribute("increment", m_work_amount_increment);
     visitor.on_attribute("input_num", m_input_num);
     visitor.on_attribute("output_num", m_output_num);
