@@ -60,7 +60,7 @@ def batch_norm_inference(
     :param name: The optional name of the output node.
     :return: The new node which performs BatchNormInference.
     """
-    inputs = as_nodes(data, gamma, beta, mean, variance, name=name)
+    inputs = as_nodes(data, gamma, beta, mean, variance)
     return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
 
 
@@ -78,7 +78,7 @@ def gather_nd(
     :param batch_dims: Scalar value of batch dimensions
     :return: The new node which performs GatherND
     """
-    inputs = as_nodes(data, indices, name=name)
+    inputs = as_nodes(data, indices)
 
     attributes = {
         "batch_dims": batch_dims,
@@ -95,7 +95,7 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param axis: An axis along which LogSoftmax should be calculated
     :return: The new node with LogSoftmax operation applied on each element.
     """
-    return _get_node_factory_opset5().create("LogSoftmax", [as_node(data, name=name)], {"axis": axis})
+    return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
 
 @nameable_op
@@ -139,7 +139,6 @@ def non_max_suppression(
             max_output_boxes_per_class,
             iou_threshold,
             score_threshold,
-            name=name,
         )
     else:
         inputs = as_nodes(
@@ -149,7 +148,6 @@ def non_max_suppression(
             iou_threshold,
             score_threshold,
             soft_nms_sigma,
-            name=name,
         )
 
     attributes = {
@@ -172,7 +170,7 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     :param name: An optional name of the output node.
     :return: The new node with Round operation applied on each element.
     """
-    return _get_node_factory_opset5().create("Round", as_nodes(data, name=name), {"mode": mode.upper()})
+    return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
 
 
 @nameable_op
@@ -226,7 +224,7 @@ def lstm_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, name=name)
+    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
@@ -245,7 +243,7 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: Tensor with input data floating point type.
     :return: The new node which performs HSigmoid
     """
-    return _get_node_factory_opset5().create("HSigmoid", as_nodes(data, name=name), {})
+    return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
 
 
 @nameable_op
@@ -298,7 +296,7 @@ def gru_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B, name=name)
+    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
@@ -358,7 +356,7 @@ def rnn_sequence(
     if activations_beta is None:
         activations_beta = []
 
-    inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B, name=name)
+    inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,

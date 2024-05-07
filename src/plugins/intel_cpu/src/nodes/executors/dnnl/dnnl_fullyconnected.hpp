@@ -8,11 +8,12 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/executor.hpp"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 
 namespace ov {

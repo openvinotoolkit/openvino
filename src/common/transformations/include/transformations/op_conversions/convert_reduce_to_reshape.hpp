@@ -9,8 +9,7 @@
 #include <vector>
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
@@ -110,9 +109,9 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
         // convert redundant reduce to reshape if the input shape is supported by reshape
         if (is_redundant(input_shape, reduce_shape) && input_shape.size() < 6) {
             const auto reshape_shape = reduce->output(0).get_shape();
-            auto reshape = std::make_shared<ov::op::v1::Reshape>(
+            auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());

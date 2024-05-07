@@ -112,6 +112,7 @@ size_t getVmRSSInKB() {
 }
 
 #endif
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

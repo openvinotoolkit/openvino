@@ -1,9 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <chrono>
 #include <mutex>
-#include <thread>
 
 #include "ov_test.hpp"
 
@@ -340,10 +338,13 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
 
     if (!HasFatalFailure()) {
         ov_status_e ret = ov_status_e::OK;
-        // Set enough timeout duration to avoid timeout due to CPU is busying sometimes
-        EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 3000));
+        EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        size_t max_times = 10;
+        // Random timeout in some platform, increase wait() times if timeout occurr.
+        while (ret != ov_status_e::OK && max_times-- > 0) {
+            EXPECT_NO_THROW(ret = ov_infer_request_wait_for(infer_request, 10));
+        }
         EXPECT_EQ(ret, ov_status_e::OK);
-
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);
     }
@@ -351,12 +352,6 @@ TEST_P(ov_infer_request_test, infer_async_wait_for) {
 
 TEST_P(ov_infer_request_test, infer_async_wait_for_return_busy) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
-
-    ov_callback_t callback;
-    callback.callback_func = [](void* args) {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-    };
-    OV_EXPECT_OK(ov_infer_request_set_callback(infer_request, &callback));
 
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
 

@@ -98,15 +98,8 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
     for (size_t i = 0; i < typeConfig.size(); i++) {
         const auto& type = typeConfig[i];
         const auto& desc = currentDescriptors.at(notation[i]);
-
-        if (desc->empty())
-            continue;
-
-        if (desc->getPrecision() != type)
-            return false; // type mismatch
-
-        if (!desc->hasLayoutType(layoutConfig[i]))
-            return false; // layout mismatch
+        if ((!one_of(desc->getPrecision(), type, ov::element::undefined)) || !desc->hasLayoutType(layoutConfig[i]))
+            return false;
     }
 
     return true;
@@ -125,10 +118,7 @@ static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDesc
         const auto& type = typeConfig[i];
         const auto& layout = layoutConfig[i];
 
-        if (desc->empty())
-            continue;
-
-        if (descType == type && desc->hasLayoutType(layout)) {
+        if (one_of(descType, ov::element::undefined, type)) {
             continue;
         }
 

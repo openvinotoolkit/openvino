@@ -3,120 +3,117 @@ Enumeration element
 
 .. rubric:: f32
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      f32: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:182 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L182>`__
+   f32: number
+
+-  Defined in
+   `addon.ts:154 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L154>`__
 
 
 .. rubric:: f64
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      f64: number
+   f64: number
 
-   * **Defined in:**
-     `addon.ts:183 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L183>`__
+-  Defined in
+   `addon.ts:155 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L155>`__
 
 
 .. rubric:: i16
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      i16: number
+   i16: number
 
-   * **Defined in:**
-     `addon.ts:179 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L179>`__
+-  Defined in
+   `addon.ts:151 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L151>`__
 
 
 .. rubric:: i32
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      i32: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:180 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L180>`__
+   i32: number
+
+-  Defined in
+   `addon.ts:152 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L152>`__
 
 
 .. rubric:: i64
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      i64: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:181 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L181>`__
+   i64: number
+
+-  Defined in
+   `addon.ts:153 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L153>`__
 
 
 .. rubric:: i8
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      i8: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:178 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L178>`__
+   i8: number
+
+-  Defined in
+   `addon.ts:150 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L150>`__
 
 
 .. rubric:: u16
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      u16: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:176 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L176>`__
+   u16: number
+
+-  Defined in
+   `addon.ts:148 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L148>`__
 
 
 .. rubric:: u32
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      u32: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:175 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L175>`__
+   u32: number
+
+-  Defined in
+   `addon.ts:147 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L147>`__
 
 
 .. rubric:: u64
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      u64: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:177 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L177>`__
+   u64: number
+
+-  Defined in
+   `addon.ts:149 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L149>`__
 
 
 .. rubric:: u8
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      u8: number
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:174 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L174>`__
+   u8: number
 
+-  Defined in
+   `addon.ts:146 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L146>`__

@@ -4,22 +4,15 @@ Interface Core
 .. code-block:: ts
 
    interface Core {
-       compileModel(model, deviceName, config?): Promise<CompiledModel>;
-       compileModelSync(model, deviceName, config?): CompiledModel;
-       getAvailableDevices(): string[];
-       getProperty(propertyName): string | number | boolean;
-       getProperty(deviceName, propertyName): string | number | boolean;
-       importModelSync(modelStream, device): CompiledModel;
-       readModel(modelPath, weightsPath?): Promise<Model>;
-       readModel(modelBuffer, weightsBuffer?): Promise<Model>;
-       readModelSync(modelPath, weightsPath?): Model;
-       readModelSync(modelBuffer, weightsBuffer?): Model;
-       setProperty(props): void;
-       setProperty(deviceName, props): void;
-   }
+       compileModel(model, device, config?): Promise<CompiledModel>;
+       compileModelSync(model, device, config?): CompiledModel;
+       readModel(modelPath, weightsPath?): Promise<Model>;
+       readModel(modelBuffer, weightsBuffer?): Promise<Model>;
+       readModelSync(modelPath, weightsPath?): Model;
+       readModelSync(modelBuffer, weightsBuffer?): Model;
+   }}
 
-
-* **Defined in:**
+- Defined in
   `addon.ts:23 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L23>`__
 
 
@@ -29,284 +22,145 @@ Methods
 
 .. rubric:: compileModel
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      compileModel(model, device, config?): Promise<CompiledModel>
+   compileModel(model, device, config?): Promise<CompiledModel>
 
-   * **Parameters:**
 
-     -  model: :doc:`Model <Model>`
-     -  device: string
-     - ``Optional``
+**Parameters**
 
-       .. code-block:: ts
 
-          config: {
-              [option: string]: string;
-          }
+-  model: :doc:`Model <Model>`
+-  device: string
+- ``Optional``
 
-     - [option: string]:string
+  .. code-block:: ts
 
-   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>` \>
+     config: {
+         [option: string]: string;
+     }
 
-   * **Defined in:**
-     `addon.ts:24 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L24>`__
+
+- [option: string]:string
+
+
+**Returns** Promise<\ :doc:`CompiledModel <CompiledModel>` \>
+
+- Defined in
+  `addon.ts:24 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L24>`__
 
 
 .. rubric:: compileModelSync
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      compileModelSync(model, device, config?): CompiledModel
-
-   * **Parameters:**
-
-     - model: :doc:`Model <Model>`
-     - device: string
-     - ``Optional``
-
-       .. code-block:: ts
-
-          config: {
-                    [option: string]: string;
-           }
-
-     - [option: string]:string
-
-   * **Returns:** :doc:`CompiledModel <CompiledModel>`
-
-   * **Defined in:**
-     `addon.ts:29 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L29>`__
+   compileModelSync(model, device, config?): CompiledModel
 
 
-.. rubric:: getAvailableDevices
+**Parameters**
 
-.. container:: m-4
+- model: :doc:`Model <Model>`
+- device: string
+- ``Optional``
 
-   .. code-block:: ts
+  .. code-block:: ts
 
-      getAvailableDevices(): string[]
+     config: {
+               [option: string]: string;
+      }
 
-   * **Returns:** string[]
-
-   * **Defined in:**
-     `addon.ts:45 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L45>`__
-
-
-.. rubric:: getProperty
-
-.. container:: m-4
-
-   .. code-block:: ts
-
-      getProperty(propertyName): string | number | boolean
-
-   * **Parameters:**
-
-     - propertyName: string
-
-   * **Returns:**  string | number | boolean
-
-   * **Defined in:**
-     `addon.ts:57 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L57>`__
-
-.. container:: m-4
-
-   .. code-block:: ts
-
-      getProperty(deviceName, propertyName): string | number | boolean
-
-   * **Parameters:**
-
-     - deviceName: string
-     - propertyName: string
-
-   * **Returns:**  string | number | boolean
-
-   * **Defined in:**
-     `addon.ts:58 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L58>`__
+- [option: string]:string
 
 
-.. rubric:: importModelSync
+**Returns** :doc:`CompiledModel <CompiledModel>`
 
-.. container:: m-4
 
-   .. code-block:: ts
-
-      importModelSync(modelStream, device): CompiledModel
-
-   * **Parameters:**
-
-     - modelStream: Buffer
-     - device: string
-
-   * **Returns:** CompiledModel
-
-   * **Defined in:**
-     `addon.ts:39 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L39>`__
-
-.. container:: m-4
-
-   .. code-block:: ts
-
-      importModelSync(modelStream: Buffer, device: string, props: { [key: string]: string | number | boolean }): CompiledModel
-
-   .. container:: m-4
-
-      **Parameters:**
-
-      - modelStream: Buffer
-      - device: string
-      -
-
-        .. code-block:: ts
-
-           props: {
-                    [key: string]: string | number | boolean;
-           }
-
-      **Returns:** CompiledModel
-
-   * **Defined in:**
-     `addon.ts:40 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L40>`__
+- Defined in
+  `addon.ts:29 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L29>`__
 
 
 .. rubric:: readModel
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      readModel(modelPath, weightsPath?): Promise<Model>
+   readModel(modelPath, weightsPath?): Promise<Model>
 
-   * **Parameters:**
 
-     - modelPath: string
-     - ``Optional``
+**Parameters**
 
-       .. code-block:: ts
+ - modelPath: string
+ - ``Optional``
 
-          weightsPath: string
+  .. code-block:: ts
 
-   * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
+     weightsPath: string
 
-   * **Defined in:**
-     `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L34>`__
 
-.. container:: m-4
+**Returns**  Promise<\ :doc:`Model <Model>`\ >
 
-   .. code-block:: ts
+- Defined in
+  `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L34>`__
 
-      readModel(modelBuffer, weightsBuffer?): Promise<Model>
+.. code-block:: ts
 
-   * **Parameters:**
+   readModel(modelBuffer, weightsBuffer?): Promise<Model>
 
-     - modelBuffer: Uint8Array
-     - ``Optional``
+**Parameters**
 
-       .. code-block:: ts
+- modelBuffer: Uint8Array
+- ``Optional``
 
-          weightsBuffer: Uint8Array
+  .. code-block:: ts
 
-   * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
+     weightsBuffer: Uint8Array
 
-   * **Defined in:**
-     `addon.ts:35 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L35>`__
 
+**Returns**  Promise<\ :doc:`Model <Model>`\ >
+
+
+- Defined in
+  `addon.ts:35 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L35>`__
 
 .. rubric:: readModelSync
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      readModelSync(modelPath, weightsPath?): Model
-
-   * **Parameters:**
-
-     - modelPath: string
-     - ``Optional``
-
-       .. code-block:: ts
-
-          weightsPath: string
-
-   * **Returns:**  :doc:`Model <Model>`
-
-   * **Defined in:**
-     `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L37>`__
-
-.. container:: m-4
-
-   .. code-block:: ts
-
-      readModelSync(modelBuffer, weightsBuffer?): Model
-
-   * **Parameters:**
-
-     - modelBuffer: Uint8Array
-     - ``Optional``
-
-       .. code-block:: ts
-
-          weightsBuffer: Uint8Array
-
-   * **Returns:**  :doc:`Model <Model>`
-
-   * **Defined in:**
-     `addon.ts:38 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L38>`__
+   readModelSync(modelPath, weightsPath?): Model
 
 
-.. rubric:: setProperty
+**Parameters**
 
-.. container:: m-4
+- modelPath: string
+- ``Optional``
 
-   .. code-block:: ts
+  .. code-block:: ts
 
-      setProperty(props): void
+     weightsPath: string
 
-   * **Parameters:**
+**Returns**  :doc:`Model <Model>`
 
-     -
+- Defined in
+  `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L37>`__
 
-       .. code-block:: ts
+.. code-block:: ts
 
-          props: {
-                   [key: string]: string | number | boolean;
-          }
+   readModelSync(modelBuffer, weightsBuffer?): Model
 
-       - [key: string]: string | number | boolean
 
-   * **Returns:**  void
+**Parameters**
 
-   * **Defined in:**
-     `addon.ts:52 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L52>`__
+- modelBuffer: Uint8Array
+- ``Optional``
 
-.. container:: m-4
+  .. code-block:: ts
 
-   .. code-block:: ts
+     weightsBuffer: Uint8Array
 
-      setProperty(deviceName, props): void
+**Returns**  :doc:`Model <Model>`
 
-   * **Parameters:**
-
-     - deviceName: string
-     -
-
-       .. code-block:: ts
-
-          props: {
-                   [key: string]: string | number | boolean;
-          }
-
-       - [key: string]: string | number | boolean
-
-   * **Returns:**  string | number | boolean
-
-   * **Defined in:**
-     `addon.ts:53 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L53>`__
-
+- Defined in
+  `addon.ts:38 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L38>`__

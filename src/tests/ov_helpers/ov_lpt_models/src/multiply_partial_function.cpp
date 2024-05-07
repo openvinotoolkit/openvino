@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/op/constant.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "low_precision/network_helper.hpp"
 
@@ -116,8 +115,8 @@ std::shared_ptr<ov::Model> MultiplyPartialFunction::get(
 
     const std::shared_ptr<ov::Node> input2 =
         secondInputIsConstant
-            ? static_cast<std::shared_ptr<ov::Node>>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{0.5f}))
-            : static_cast<std::shared_ptr<ov::Node>>(std::make_shared<ov::opset1::Parameter>(precision, inputShape2));
+            ? ov::test::utils::deprecated::make_constant(ov::element::f32, Shape{}, std::vector<float>{0.5f}, false)
+            : std::make_shared<ov::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :
         ov::test::utils::make_fake_quantize(

@@ -18,17 +18,20 @@ struct PriorBoxParams {
     PriorBoxParams(const std::vector<float>& min_size,
                    const std::vector<float>& aspect_ratio,
                    const bool scale_all_size,
+                   const ov::Shape& layerShapeShape,
+                   const ov::Shape& imageShapeShape,
                    const ov::element::Type& iType,
                    const std::vector<IT>& layerShapeValues,
                    const std::vector<IT>& imageShapeValues,
-                   const Shape& output_shape,
                    const std::vector<float>& oValues,
                    const std::string& testcaseName = "")
-        : inType(iType),
+        : layerShapeShape(layerShapeShape),
+          imageShapeShape(imageShapeShape),
+          inType(iType),
           outType(ov::element::Type_t::f32),
-          layerShapeData(CreateTensor(Shape{2}, iType, layerShapeValues)),
-          imageShapeData(CreateTensor(Shape{2}, iType, imageShapeValues)),
-          refData(CreateTensor(output_shape, outType, oValues)),
+          layerShapeData(CreateTensor(iType, layerShapeValues)),
+          imageShapeData(CreateTensor(iType, imageShapeValues)),
+          refData(CreateTensor(outType, oValues)),
           testcaseName(testcaseName) {
         attrs.min_size = min_size;
         attrs.aspect_ratio = aspect_ratio;
@@ -36,6 +39,8 @@ struct PriorBoxParams {
     }
 
     ov::op::v0::PriorBox::Attributes attrs;
+    ov::Shape layerShapeShape;
+    ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor layerShapeData;
@@ -51,17 +56,20 @@ struct PriorBoxV8Params {
                      const std::vector<float>& aspect_ratio,
                      const bool scale_all_size,
                      const bool min_max_aspect_ratios_order,
+                     const ov::Shape& layerShapeShape,
+                     const ov::Shape& imageShapeShape,
                      const ov::element::Type& iType,
                      const std::vector<IT>& layerShapeValues,
                      const std::vector<IT>& imageShapeValues,
-                     const Shape& output_shape,
                      const std::vector<float>& oValues,
                      const std::string& testcaseName = "")
-        : inType(iType),
+        : layerShapeShape(layerShapeShape),
+          imageShapeShape(imageShapeShape),
+          inType(iType),
           outType(ov::element::Type_t::f32),
-          layerShapeData(CreateTensor(Shape{2}, iType, layerShapeValues)),
-          imageShapeData(CreateTensor(Shape{2}, iType, imageShapeValues)),
-          refData(CreateTensor(output_shape, outType, oValues)),
+          layerShapeData(CreateTensor(iType, layerShapeValues)),
+          imageShapeData(CreateTensor(iType, imageShapeValues)),
+          refData(CreateTensor(outType, oValues)),
           testcaseName(testcaseName) {
         attrs.min_size = min_size;
         attrs.max_size = max_size;
@@ -71,6 +79,8 @@ struct PriorBoxV8Params {
     }
 
     ov::op::v8::PriorBox::Attributes attrs;
+    ov::Shape layerShapeShape;
+    ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor layerShapeData;
@@ -82,25 +92,30 @@ struct PriorBoxV8Params {
 class ReferencePriorBoxLayerTest : public testing::TestWithParam<PriorBoxParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params);
         inputData = {};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
+        result << "layerShapeShape=" << param.layerShapeShape << "_";
+        result << "imageShapeShape=" << param.imageShapeShape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
-        if (!param.testcaseName.empty())
+        if (param.testcaseName != "")
             result << "_" << param.testcaseName;
         return result.str();
     }
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PriorBoxParams& params) {
-        const auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
-        const auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
+        auto LS =
+            std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
+        auto IS =
+            std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBox = std::make_shared<op::v0::PriorBox>(LS, IS, params.attrs);
         return std::make_shared<ov::Model>(NodeVector{PriorBox}, ParameterVector{});
     }
@@ -109,25 +124,30 @@ private:
 class ReferencePriorBoxV8LayerTest : public testing::TestWithParam<PriorBoxV8Params>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params);
         inputData = {};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxV8Params>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
+        result << "layerShapeShape=" << param.layerShapeShape << "_";
+        result << "imageShapeShape=" << param.imageShapeShape << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
-        if (!param.testcaseName.empty())
+        if (param.testcaseName != "")
             result << "_" << param.testcaseName;
         return result.str();
     }
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PriorBoxV8Params& params) {
-        const auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
-        const auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
+        auto LS =
+            std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
+        auto IS =
+            std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
         const auto PriorBoxV8 = std::make_shared<op::v8::PriorBox>(LS, IS, params.attrs);
         return std::make_shared<ov::Model>(NodeVector{PriorBoxV8}, ParameterVector{});
     }
@@ -149,10 +169,11 @@ std::vector<PriorBoxParams> generatePriorBoxFloatParams() {
         PriorBoxParams({2.0f},
                        {1.5f},
                        false,
+                       {2},
+                       {2},
                        IN_ET,
                        std::vector<T>{2, 2},
                        std::vector<T>{10, 10},
-                       Shape{2, 32},
                        std::vector<float>{-0.75, -0.75, 1.25, 1.25, -0.974745, -0.566497,  1.47474, 1.0665,
                                           -0.25, -0.75, 1.75, 1.25, -0.474745, -0.566497,  1.97474, 1.0665,
                                           -0.75, -0.25, 1.25, 1.75, -0.974745, -0.0664966, 1.47474, 1.5665,
@@ -176,10 +197,11 @@ std::vector<PriorBoxV8Params> generatePriorBoxV8FloatParams() {
             {1.5f},
             true,
             false,
+            {2},
+            {2},
             IN_ET,
             std::vector<T>{2, 2},
             std::vector<T>{10, 10},
-            Shape{2, 48},
             std::vector<float>{
                 0.15, 0.15, 0.35, 0.35, 0.127526, 0.16835, 0.372474, 0.33165, 0.0918861, 0.0918861, 0.408114, 0.408114,
                 0.65, 0.15, 0.85, 0.35, 0.627526, 0.16835, 0.872474, 0.33165, 0.591886,  0.0918861, 0.908114, 0.408114,

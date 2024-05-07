@@ -48,7 +48,7 @@ def pool2d(name: str, x, attrs: dict):
         saveModel(
             name,
             exe,
-            feed_vars=[node_x],
+            feedkeys=["x"],
             fetchlist=[out],
             inputs=[x],
             outputs=[outs[0]],
@@ -86,7 +86,7 @@ def adaptive_pool2d(name: str, x, attrs: dict):
         saveModel(
             name,
             exe,
-            feed_vars=[node_x],
+            feedkeys=["x"],
             fetchlist=[out],
             inputs=[x],
             outputs=[outs[0]],

@@ -44,12 +44,14 @@ public:
 ///        ov::intel_gpu::buffers_preallocation_ratio property, it increases buffer size by
 ///        `_buffers_preallocation_ratio` value unconditionally.
 /// \param id Primitive id.
-/// \param layout Primitive's layout on current iteration.
+/// \param current_shape Primitive's shape on current iteration.
+/// \param dt_size Primitive's data_type size.
 /// \param can_reuse_buffer Specifies if current memory buffer is enough to store data.
 /// \return The result of shape size prediction as std::pair<bool, ov::Shape>, where the first element
 ///         says if shape is successfully predicted and can be preallocated, and the second element is ov::Shape itself.
     std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
-                                                           const cldnn::layout& layout,
+                                                           const ov::Shape& current_shape,
+                                                           size_t dt_bitwidth,
                                                            bool can_reuse_buffer,
                                                            int32_t next_iters_prealloc_count = -1);
 

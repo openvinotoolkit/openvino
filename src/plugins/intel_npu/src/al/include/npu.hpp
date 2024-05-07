@@ -33,8 +33,6 @@ public:
     virtual uint32_t getDriverExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Backend has support for concurrency batching */
-    virtual bool isBatchingSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
 
@@ -66,7 +64,6 @@ public:
     virtual uint32_t getMaxNumSlices() const;
     virtual uint64_t getAllocMemSize() const;
     virtual uint64_t getTotalMemSize() const;
-    virtual ov::device::PCIInfo getPciInfo() const;
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,

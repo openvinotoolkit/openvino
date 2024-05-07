@@ -5,7 +5,7 @@
 """Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
-from typing import List, Union, Optional
+from typing import List, Union
 
 import numpy as np
 
@@ -145,7 +145,7 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
@@ -153,23 +153,18 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
     else:
         element_type = get_element_type(ndarray.dtype)
 
-    const = Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
-
-    if name:
-        const.friendly_name = name + "/" + const.friendly_name
-
-    return const
+    return Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
 
 
-def as_node(input_value: NodeInput, name: Optional[str] = None) -> Node:
+def as_node(input_value: NodeInput) -> Node:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
         return input_value
     if issubclass(type(input_value), Output):
         return input_value
-    return make_constant_node(input_value, name=name)
+    return make_constant_node(input_value)
 
 
-def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Node]:
+def as_nodes(*input_values: NodeInput) -> List[Node]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
-    return [as_node(input_value, name=name) for input_value in input_values]
+    return [as_node(input_value) for input_value in input_values]

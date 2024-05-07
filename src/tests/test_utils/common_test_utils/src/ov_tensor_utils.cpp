@@ -5,7 +5,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "precomp.hpp"
@@ -22,31 +21,16 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const InputGenerateData& inGenData) {
     auto tensor = ov::Tensor(element_type, shape);
-    auto size = shape_size(shape);
 
 #define CASE(X)                                                  \
     case X:                                                      \
         fill_data_random(tensor.data<fundamental_type_for<X>>(), \
-                         size,                                   \
+                         shape_size(shape),                      \
                          inGenData.range,                        \
                          inGenData.start_from,                   \
                          inGenData.resolution,                   \
                          inGenData.seed);                        \
         break;
-
-#define CASE_CONVERT(X)                                          \
-    case X: {                                                    \
-        auto input = std::vector<fundamental_type_for<X>>(size); \
-        fill_data_random(input.data(),                           \
-                         size,                                   \
-                         inGenData.range,                        \
-                         inGenData.start_from,                   \
-                         inGenData.resolution,                   \
-                         inGenData.seed);                        \
-        auto iter = element::iterator<X>(tensor.data());         \
-        std::copy(input.begin(), input.end(), iter);             \
-        break;                                                   \
-    }
 
     switch (element_type) {
         CASE(ov::element::i8)
@@ -61,23 +45,25 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE(ov::element::f16)
         CASE(ov::element::f32)
         CASE(ov::element::f64)
-        CASE_CONVERT(ov::element::u6)
-        CASE_CONVERT(ov::element::u4)
-        CASE_CONVERT(ov::element::u3)
-        CASE_CONVERT(ov::element::u2)
-        CASE_CONVERT(ov::element::u1)
-        CASE_CONVERT(ov::element::i4)
-        CASE_CONVERT(ov::element::nf4)
-        CASE_CONVERT(ov::element::f8e4m3)
-        CASE_CONVERT(ov::element::f8e5m2)
     case ov::element::boolean:
         fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
-                          size,
+                          tensor.get_size(),
                           inGenData.seed);
+        break;
+    case ov::element::Type_t::u1:
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
+        fill_data_random(static_cast<uint8_t*>(tensor.data()),
+                         tensor.get_byte_size(),
+                         inGenData.range,
+                         inGenData.start_from,
+                         inGenData.resolution,
+                         inGenData.seed);
         break;
     case ov::element::Type_t::string:
         fill_random_string(static_cast<std::string*>(tensor.data()),
-                           size,
+                           tensor.get_size(),
                            inGenData.range,
                            inGenData.start_from,
                            inGenData.seed);
@@ -273,7 +259,6 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
-    case ov::element::Type_t::nf4:
         fill_data_ptr_real_random_float(static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size(), min, max, seed);
         break;
     default:

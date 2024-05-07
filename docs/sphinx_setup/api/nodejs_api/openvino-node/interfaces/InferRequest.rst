@@ -1,6 +1,9 @@
 InferRequest
 ============
 
+.. rubric:: Interface InferRequest
+
+
 .. code-block:: ts
 
    interface InferRequest {
@@ -19,9 +22,8 @@ InferRequest
        setTensor(name, tensor): void;
    }
 
-* **Defined in:**
-  `addon.ts:101 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L101>`__
-
+- Defined in
+  `addon.ts:72 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L72>`__
 
 Methods
 #####################
@@ -29,213 +31,197 @@ Methods
 
 .. rubric:: getCompiledModel
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
+   getCompiledModel(): CompiledModel
 
-      getCompiledModel(): CompiledModel
+**Returns** :doc:`CompiledModel <CompiledModel>`
 
-   * **Returns:** :doc:`CompiledModel <CompiledModel>`
-
-   * **Defined in:**
-     `addon.ts:112 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L112>`__
+- Defined in
+  `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L83>`__
 
 
 .. rubric:: getInputTensor
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
-
-      getInputTensor(idx?): Tensor
+   getInputTensor(idx?): Tensor
 
 
-   * **Parameters:**
+**Parameters**
 
-     - ``Optional``
+- ``Optional``
 
-       .. code-block:: ts
+  .. code-block:: ts
 
-          idx: number
+     idx: number
 
 
-   * **Returns:**  :doc:`Tensor <Tensor>`
+**Returns**  :doc:`Tensor <Tensor>`
 
-   * **Defined in:**
-     `addon.ts:106 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L106>`__
-
+- Defined in
+  `addon.ts:77 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L77>`__
 
 .. rubric:: getOutputTensor
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
-
-      getOutputTensor(idx?): Tensor
+   getOutputTensor(idx?): Tensor
 
 
-   * **Parameters:**
+**Parameters**
 
-     - ``Optional``
+- ``Optional``
 
-       .. code-block:: ts
+  .. code-block:: ts
 
-          idx: number
+     idx: number
 
-   * **Returns:**  :doc:`Tensor <Tensor>`
+**Returns**  :doc:`Tensor <Tensor>`
 
 
-   * **Defined in:**
-     `addon.ts:107 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L107>`__
+- Defined in
+  `addon.ts:78 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L78>`__
 
 .. rubric:: getTensor
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
+   getTensor(nameOrOutput): Tensor
 
-      getTensor(nameOrOutput): Tensor
+**Parameters**
 
-   * **Parameters:**
+- nameOrOutput: string| :doc:`Output <Output>`
 
-     - nameOrOutput: string| :doc:`Output <Output>`
+**Returns**  :doc:`Tensor <Tensor>`
 
-   * **Returns:**  :doc:`Tensor <Tensor>`
-
-   * **Defined in:**
-     `addon.ts:105 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L105>`__
-
+- Defined in
+  `addon.ts:76 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L76>`__
 
 .. rubric:: infer
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      infer(inputData?): {
-          [outputName: string]: Tensor;
-      }
+   infer(inputData?): {
+       [outputName: string]: Tensor;
+   }
 
-   * **Parameters:**
 
-     - ``Optional``
+**Parameters**
 
-       .. code-block:: ts
+- ``Optional``
 
-          inputData: {
-                     [inputName: string]: Tensor | SupportedTypedArray;
-                     } | Tensor[] | SupportedTypedArray[]
+  .. code-block:: ts
 
-   * **Returns:**
+     inputData: {
+                [inputName: string]: Tensor | SupportedTypedArray;
+                } | Tensor[] | SupportedTypedArray[]
 
-     .. code-block:: ts
+**Returns**
 
-        {
-        [outputName: string]: Tensor;
-        }
+.. code-block:: ts
 
-     - [outputName: string]: Tensor
+   {
+   [outputName: string]: Tensor;
+   }
 
-   * **Defined in:**
-     `addon.ts:108 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L108>`__
+- [outputName: string]: Tensor
 
+
+- Defined in
+  `addon.ts:79 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L79>`__
 
 .. rubric:: inferAsync
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      inferAsync(inputData): Promise<{
-          [outputName: string]: Tensor;
-      }>
+   inferAsync(inputData): Promise<{
+       [outputName: string]: Tensor;
+   }>
 
-   * **Parameters:**
+**Parameters**
 
-     -
+-
 
-       .. code-block:: ts
+  .. code-block:: ts
 
-          inputData: Tensor[] | {
-              [inputName: string]: Tensor;
-          }
+     inputData: Tensor[] | {
+         [inputName: string]: Tensor;
+     }
 
-   * **Returns:**
+**Returns**
 
-     .. code-block:: ts
+.. code-block:: ts
 
-        Promise<{
-         [outputName: string]: Tensor;
-        }>
+   Promise<{
+    [outputName: string]: Tensor;
+   }>
 
 
-   * **Defined in:**
-     `addon.ts:110 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L110>`__
+- Defined in
+  `addon.ts:81 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L81>`__
 
 .. rubric:: setInputTensor
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
-
-      setInputTensor(idxOrTensor, tensor?): void
+   setInputTensor(idxOrTensor, tensor?): void
 
 
-   * **Parameters:**
+**Parameters**
 
-     - idxOrTensor: number| :doc:`Tensor <Tensor>`
+- idxOrTensor: number| :doc:`Tensor <Tensor>`
 
-     - ``Optional``
+- ``Optional``
 
-       .. code-block:: ts
+  .. code-block:: ts
 
-          tensor: Tensor
+     tensor: Tensor
 
 
-   * **Returns:**  void
+**Returns**  void
 
-   * **Defined in:**
-     `addon.ts:103 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L103>`__
+- Defined in
+  `addon.ts:74 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L74>`__
 
 .. rubric:: setOutputTensor
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      setOutputTensor(idxOrTensor, tensor?): void
-
-
-   * **Parameters:**
-
-     - idxOrTensor: number| :doc:`Tensor <Tensor>`
-     - ``Optional``
-
-       .. code-block:: ts
-
-          tensor: Tensor
+   setOutputTensor(idxOrTensor, tensor?): void
 
 
-   * **Returns:**  void
+**Parameters**
 
-   * **Defined in:**
-     `addon.ts:104 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L104>`__
+- idxOrTensor: number| :doc:`Tensor <Tensor>`
+- ``Optional``
+
+  .. code-block:: ts
+
+     tensor: Tensor
+
+
+**Returns**  void
+
+- Defined in
+  `addon.ts:75 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L75>`__
 
 .. rubric:: setTensor
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      setTensor(name, tensor): void
+   setTensor(name, tensor): void
 
-   * **Parameters:**
+**Parameters**
 
-     - name: string
-     - tensor: :doc:`Tensor <Tensor>`
+- name: string
+- tensor: :doc:`Tensor <Tensor>`
 
-   * **Returns:**  void
+**Returns**  void
 
-   * **Defined in:**
-     `addon.ts:102 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L102>`__
-
+- Defined in
+  `addon.ts:73 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L73>`__

@@ -19,7 +19,6 @@ typedef std::tuple<
         ov::element::Type,     // Input precision
         ov::element::Type,     // Output precision
         InputShape,            // Input shape
-        bool,                  // ReduceSum replacement test
         std::string            // Device name
 > convLayerTestParamsSet;
 
@@ -31,9 +30,8 @@ public:
         ov::element::Type netType;
         ov::element::Type inType, outType;
         InputShape inputShape;
-        bool is_ReduceSum_test;
         std::string targetDevice;
-        std::tie(convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice) = obj.param;
+        std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = obj.param;
 
         ov::op::PadType padType;
         std::vector<size_t> kernel, stride, dilation;
@@ -49,10 +47,7 @@ public:
             result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")_";
-        if (is_ReduceSum_test)
-            result << "K" << ov::test::utils::vec2str(std::vector<size_t>{inputShape.second[0].at(-2), inputShape.second[0].at(-1)}) << "_";
-        else
-            result << "K" << ov::test::utils::vec2str(kernel) << "_";
+        result << "K" << ov::test::utils::vec2str(kernel) << "_";
         result << "S" << ov::test::utils::vec2str(stride) << "_";
         result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
         result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
@@ -62,7 +57,6 @@ public:
         result << "netPRC=" << netType << "_";
         result << "inPRC=" << inType << "_";
         result << "outPRC=" << outType << "_";
-        result << "is_ReduceSum_test=" << is_ReduceSum_test << "_";
         result << "trgDev=" << targetDevice;
 
         return result.str();
@@ -73,8 +67,7 @@ protected:
         convSpecificParams convParams;
         InputShape inputShape;
         auto netType = ov::element::undefined;
-        bool is_ReduceSum_test;
-        std::tie(convParams, netType, inType, outType, inputShape, is_ReduceSum_test, targetDevice) = this->GetParam();
+        std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = this->GetParam();
 
         init_input_shapes({inputShape});
 
@@ -88,12 +81,6 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
 
-        if (is_ReduceSum_test) {
-            auto input_static_shape = inputDynamicShapes[0].to_shape();
-            kernel.clear();
-            kernel.push_back(input_static_shape.at(-2));
-            kernel.push_back(input_static_shape.at(-1));
-        }
         auto convolutionNode = ov::test::utils::make_convolution(inputParams.front(), netType, kernel, stride, padBegin,
                                                                  padEnd, dilation, padType, convOutChannels);
 
@@ -124,30 +111,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic, Convolut
                 ::testing::Values(ov::element::f16),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
-                ::testing::Values(false),
-                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
-                ConvolutionLayerGPUTest::getTestCaseName);
-
-// Customer model input/filter shape
-std::vector<InputShape> input_shape_reducesum_test = {
-    {{}, {{1, 1, 36, 64}}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_4D_tensor_ReduceSum, ConvolutionLayerGPUTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::Values(std::vector<size_t>{36, 64}),
-                        ::testing::Values(std::vector<size_t>{1, 1}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<size_t>{1, 1}),
-                        ::testing::Values(1),
-                        ::testing::Values(ov::op::PadType::EXPLICIT)),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::f16),
-                ::testing::Values(ov::element::undefined),
-                ::testing::ValuesIn(input_shape_reducesum_test),
-                ::testing::Values(true),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTest::getTestCaseName);
 }  // namespace

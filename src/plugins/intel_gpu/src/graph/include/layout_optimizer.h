@@ -90,6 +90,7 @@ class layout_optimizer {
 public:
     enum class optimization_attributes_type {
         group_convolution,
+        deformable_convolution,
         bfyx_only_layer,
         fs_b_yx_fsv32_network,
         b_fs_zyx_fsv32_network,
@@ -101,6 +102,7 @@ public:
 
     struct optimization_attributes {
         int32_t group_convolution = 0;
+        int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
         int32_t fs_b_yx_fsv32_network = 0;
         int32_t b_fs_zyx_fsv32_network = 0;

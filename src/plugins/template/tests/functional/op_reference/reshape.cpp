@@ -28,8 +28,10 @@ struct ReshapeParams {
         m_input_type = input_type;
         m_expected_type = expected_type;
         m_zero_flag = zero_flag;
-        m_input_value = CreateTensor(input_shape, input_type, input_value);
-        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
+        m_input_value = input_shape.size() > 0 ? CreateTensor(input_shape, input_type, input_value)
+                                               : CreateTensor(input_type, input_value);
+        m_expected_value = expected_shape.size() > 0 ? CreateTensor(expected_shape, expected_type, expected_value)
+                                                     : CreateTensor(expected_type, expected_value);
     }
 
     template <class T>
@@ -103,7 +105,8 @@ struct ReshapeShuffleParams {
 class ReferenceReshapeLayerTest : public testing::TestWithParam<ReshapeParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        const auto params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,
                                   params.m_input_shape,
@@ -114,7 +117,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeParams>& obj) {
-        const auto& param = obj.param;
+        const auto param = obj.param;
         std::ostringstream result;
 
         result << "input_shape=" << param.m_input_shape << "; ";
@@ -144,7 +147,8 @@ class ReferenceReshapeShuffleLayerTest : public testing::TestWithParam<ReshapeSh
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        const auto params = GetParam();
         function = CreateFunction(params.m_input_type,
                                   params.m_expected_type,
                                   params.m_input_shape1,
@@ -157,7 +161,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeShuffleParams>& obj) {
-        const auto& param = obj.param;
+        const auto param = obj.param;
         std::ostringstream result;
 
         result << "input_shape=" << param.m_input_shape1 << "; ";

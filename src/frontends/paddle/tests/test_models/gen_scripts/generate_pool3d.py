@@ -47,7 +47,7 @@ def pool3d(name: str, x, attrs: dict):
             saveModel(
                 name,
                 exe,
-                feed_vars=[node_x],
+                feedkeys=["x"],
                 fetchlist=[out[0], out[1]],
                 inputs=[x],
                 outputs=[outs[0], outs[1]],
@@ -58,7 +58,7 @@ def pool3d(name: str, x, attrs: dict):
             saveModel(
                 name,
                 exe,
-                feed_vars=[node_x],
+                feedkeys=["x"],
                 fetchlist=[out],
                 inputs=[x],
                 outputs=[outs[0]],
@@ -95,7 +95,7 @@ def adaptive_pool3d(name: str, x, attrs: dict):
             saveModel(
                 name,
                 exe,
-                feed_vars=[node_x],
+                feedkeys=["x"],
                 fetchlist=[out[0], out[1]],
                 inputs=[x],
                 outputs=[outs[0], outs[1]],
@@ -107,7 +107,7 @@ def adaptive_pool3d(name: str, x, attrs: dict):
             saveModel(
                 name,
                 exe,
-                feed_vars=[node_x],
+                feedkeys=["x"],
                 fetchlist=[out],
                 inputs=[x],
                 outputs=[outs[0]],

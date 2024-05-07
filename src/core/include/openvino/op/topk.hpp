@@ -161,7 +161,7 @@ public:
     }
 
 private:
-    bool m_stable = false;
+    bool m_stable;
 };
 }  // namespace v11
 }  // namespace op

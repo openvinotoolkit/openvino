@@ -19,9 +19,9 @@ namespace op {
  *        and memory offset for loading is determined by "offset" (Default value is "0" - to load starting from the first element)
  * @ingroup snippets
  */
-class Load : public modifier::MemoryAccess, public ov::op::Op {
+class Load : public MemoryAccess {
 public:
-    OPENVINO_OP("Load", "SnippetsOpset");
+    OPENVINO_OP("Load", "SnippetsOpset", MemoryAccess);
 
     Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Load() = default;
@@ -34,7 +34,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     void validate_memory_access_params() const;

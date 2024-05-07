@@ -68,7 +68,7 @@ void FakeQuantizeLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> fq;
     if (fq_direct_arg.empty()) {
-        fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape);
+        fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape, 1);
     } else {
         fq = ov::test::utils::make_fake_quantize(
             param,

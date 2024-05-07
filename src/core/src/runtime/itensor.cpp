@@ -23,7 +23,19 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return element::get_memory_size(get_element_type(), get_size());
+    const auto& et = get_element_type();
+    auto byte_size = get_size() * et.bitwidth();
+    if (element::is_split_bit_type(et)) {
+        constexpr size_t storage_unit_size = 24;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+        byte_size *= 3;
+    } else {
+        constexpr size_t storage_unit_size = 8;
+        byte_size += storage_unit_size - 1;
+        byte_size /= storage_unit_size;
+    }
+    return byte_size;
 }
 
 bool ITensor::is_continuous() const {

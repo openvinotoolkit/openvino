@@ -80,7 +80,8 @@ struct PerfCounter {
 
 class ProgramBuilder final {
 public:
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, bool partialBuild = false,
+    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
+            bool createTopologyOnly = false, bool partialBuild = false,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
             std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
             bool innerProgram = false);
@@ -173,9 +174,10 @@ private:
     void cleanup_build();
 
     // TODO(eunsoo): remove createTopolpgyOnly argument and add another method to create topology from ngraph function
-    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partialBuild = false, bool innerProgram = false);
+    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops,
+                                          bool createTopologyOnly = false, bool partialBuild = false, bool innerProgram = false);
 
-    void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);
+    void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ov::Node>& op);
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, CustomLayerPtr customLayer);
@@ -186,6 +188,8 @@ void CreateElementwiseOp(ProgramBuilder& p,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients = {},
                          bool pythondiv = true);
+
+bool IsNodeOnConstPath(const std::shared_ptr<ov::Node>& node);
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> possible_inputs_count);
 

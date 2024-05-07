@@ -71,7 +71,8 @@ void QuantGroupConvLayerTest::SetUp() {
     weightsShapes.insert(weightsShapes.begin(), numGroups);
     weightsShapes.insert(weightsShapes.end(), kernel.begin(), kernel.end());
 
-    auto weightsNode = ov::test::utils::make_constant(element_type, weightsShapes);
+    std::vector<float> weightsData;
+    auto weightsNode = ov::test::utils::deprecated::make_constant(element_type, weightsShapes, weightsData, weightsData.empty());
 
     std::vector<size_t> weightsFqConstShapes(weightsShapes.size(), 1);
     if (quantGranularity == ov::test::utils::QuantizationGranularity::Perchannel)

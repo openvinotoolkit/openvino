@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "primitive_base.hpp"
 
 #include "multiclass_nms_inst.h"
@@ -61,11 +60,8 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
-        // Legacy multi-output
-        if (instance.desc()->num_outputs == 1) {
-            args.outputs.push_back(instance.output_indices_memory());
-            args.outputs.push_back(instance.output_num_memory());
-        }
+        args.inputs.push_back(instance.output_indices_memory());
+        args.inputs.push_back(instance.output_num_memory());
         return args;
     }
 
@@ -88,21 +84,10 @@ public:
         params.nms_eta = attrs.nms_eta;
         params.has_roisnum = primitive->has_roisnum;
 
-        size_t inputs_num = primitive->has_roisnum ? 3 : 2;
+        size_t extra_inputs_num = primitive->has_roisnum ? 4 : 3;
 
-        params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        if (inputs_num == 3) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
-            params.has_roisnum = true;
-        }
-
-        if (primitive->num_outputs == 3) {
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-        } else {
-            // Legacy multi-output
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 0]));
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 1]));
+        for (size_t i = 0; i < extra_inputs_num; i++) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1 + i)));
         }
 
         return params;

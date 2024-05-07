@@ -9,67 +9,65 @@ Interface PrePostProcessor
        output(idxOrTensorName?): OutputInfo;
    }
 
-* **Defined in:**
-  `addon.ts:154 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L154>`__
-
+- Defined in
+  `addon.ts:126 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L126>`__
 
 Methods
 #####################
 
-
 .. rubric:: build
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      build(): PrePostProcessor
+   build(): PrePostProcessor
 
-   * **Returns:** :doc:`PrePostProcessor <PrePostProcessor>`
+**Returns** :doc: `PrePostProcessor <PrePostProcessor>`
 
-   * **Defined in:**
-     `addon.ts:155 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L155>`__
-
+- Defined in
+  `addon.ts:127 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L127>`__
 
 .. rubric:: input
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      input(idxOrTensorName?): InputInfo
+.. code-block:: ts
 
-   * * **Parameters:**
+   input(idxOrTensorName?): InputInfo
 
-     - ``Optional``
+**Parameters**
 
-     .. code-block:: ts
 
-        idxOrTensorName: string|number
+- ``Optional``
 
-   * **Returns:**  :doc:`InputInfo <InputInfo>`
+.. code-block:: ts
 
-   * **Defined in:**
-     `addon.ts:156 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L156>`__
+   idxOrTensorName: string|number
+
+
+**Returns**  :doc:`InputInfo <InputInfo>`
+
+- Defined in
+  `addon.ts:128 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L128>`__
 
 .. rubric:: output
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      output(idxOrTensorName?): OutputInfo
+   output(idxOrTensorName?): OutputInfo
 
-   * **Parameters:**
 
-   - ``Optional``
+**Parameters**
 
-     .. code-block:: ts
+- ``Optional``
 
-        idxOrTensorName: string|number
+  .. code-block:: ts
 
-   * **Returns:**  :doc:`OutputInfo <OutputInfo>`
+     idxOrTensorName: string|number
 
-   * **Defined in:**
-     `addon.ts:157 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L157>`__
 
+**Returns**  :doc:`OutputInfo <OutputInfo>`
+
+- Defined in
+  `addon.ts:129 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L129>`__

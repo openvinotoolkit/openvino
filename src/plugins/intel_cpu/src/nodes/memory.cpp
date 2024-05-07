@@ -8,9 +8,10 @@
 #include "memory.hpp"
 #include "scaled_attn.h"
 #include "common/cpu_convert.h"
+#include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "utils/ngraph_utils.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 
@@ -762,7 +763,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
-    VectorDims order = {2, 0, 1, 3};
+    VectorDims order = {0, 1, 2, 3};
     if (!node->getKVCacheOrder().empty())
         order = node->getKVCacheOrder();
 

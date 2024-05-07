@@ -60,7 +60,7 @@ def batch_to_space(
     """
     return _get_node_factory_opset2().create(
         "BatchToSpace",
-        as_nodes(data, block_shape, crops_begin, crops_end, name=name),
+        as_nodes(data, block_shape, crops_begin, crops_end),
     )
 
 
@@ -172,7 +172,7 @@ def roi_pooling(
     roi_shape = _deprecated_output_size_arg(output_roi, output_size)
     node = _get_node_factory_opset2().create(
         "ROIPooling",
-        as_nodes(input, coords, name=name),
+        as_nodes(input, coords),
         {
             "output_size": Shape(roi_shape),
             "output_roi": Shape(roi_shape),
@@ -212,5 +212,5 @@ def space_to_batch(
     """
     return _get_node_factory_opset2().create(
         "SpaceToBatch",
-        as_nodes(data, block_shape, pads_begin, pads_end, name=name),
+        as_nodes(data, block_shape, pads_begin, pads_end),
     )

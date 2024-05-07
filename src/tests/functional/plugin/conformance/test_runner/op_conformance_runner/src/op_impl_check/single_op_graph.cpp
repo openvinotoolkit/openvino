@@ -1426,8 +1426,6 @@ std::shared_ptr<ov::Model> generateScatterNDBase(const std::shared_ptr<ov::op::O
     std::shared_ptr<ov::Node> scatterNode;
     if (ov::is_type<ov::op::v3::ScatterNDUpdate>(node)) {
         scatterNode = std::make_shared<ov::op::v3::ScatterNDUpdate>(data, indices, updates);
-    } else if (ov::is_type<ov::op::v15::ScatterNDUpdate>(node)) {
-        scatterNode = std::make_shared<ov::op::v15::ScatterNDUpdate>(data, indices, updates, ov::op::v15::ScatterNDUpdate::Reduction::SUM);
     } else {
         return nullptr;
     }
@@ -2116,7 +2114,6 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
-#include "openvino/opsets/opset15_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

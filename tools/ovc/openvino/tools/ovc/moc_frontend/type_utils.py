@@ -3,8 +3,6 @@
 
 import sys
 
-import numpy as np
-
 import openvino as ov
 from openvino.runtime import Type
 
@@ -30,13 +28,12 @@ def is_type(val):
 def to_ov_type(val):
     if isinstance(val, Type):
         return val
-    if isinstance(val, (type, str, np.dtype)):
+    if isinstance(val, type):
         return Type(val)
     if 'tensorflow' in sys.modules:
         import tensorflow as tf # pylint: disable=import-error
         if isinstance(val, tf.dtypes.DType):
-            from openvino.frontend.tensorflow.utils import tf_type_to_ov_type  # pylint: disable=no-name-in-module,import-error
-            return tf_type_to_ov_type(val)
+            return Type(val.as_numpy_dtype())
     if 'torch' in sys.modules:
         import torch
 

@@ -5,7 +5,6 @@
 #include "sync_infer_request.hpp"
 
 #include "intel_npu/al/prefix.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "transformations/utils/utils.hpp"
@@ -17,17 +16,23 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
       _metadata(compiledModel->get_network_metadata()) {
     OPENVINO_ASSERT(_compiledModel);
 
+    const std::vector<ov::Output<const ov::Node>>& inputs = get_inputs();
     const std::vector<ov::Output<const ov::Node>>& outputs = get_outputs();
 
+    if (inputs.empty()) {
+        OPENVINO_THROW("Inference request creation: no input found for network " + _metadata.name);
+    }
     if (outputs.empty()) {
         OPENVINO_THROW("Inference request creation: no output found for network " + _metadata.name);
     }
 
     // Map the node names to the legacy ones used by the I/O tensors in order to allow an easier access to the tensors'
     // contents
-    for (const auto& [name, resultDescriptor] : _metadata.results) {
-        _nodeNameToLegacyName[name] = resultDescriptor.legacyName;
-        _legacyNameToNodeName[resultDescriptor.legacyName] = name;
+    for (const auto& [legacyName, parameterDescriptor] : _metadata.parameters) {
+        _nodeNameToLegacyName[parameterDescriptor.currentNodeName] = legacyName;
+    }
+    for (const auto& [legacyName, resultDescriptor] : _metadata.results) {
+        _nodeNameToLegacyName[resultDescriptor.currentNodeName] = legacyName;
     }
 
     _inputAndStateInputNames = _metadata.inputNames;
@@ -47,12 +52,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
         if (contains(_inputAndStateInputNames, shapeName)) {
             _inputAndStateInputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
         }
-
-        const auto& shapeNameMatch = _legacyNameToNodeName.find(shapeName);
-        if (shapeNameMatch != _legacyNameToNodeName.end()) {
-            if (contains(_outputAndStateOutputNames, shapeNameMatch->second)) {
-                _outputAndStateOutputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
-            }
+        if (contains(_outputAndStateOutputNames, shapeName)) {
+            _outputAndStateOutputNames.push_back(SHAPE_TENSOR_PREFIX + shapeName);
         }
     }
 }
@@ -86,7 +87,10 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
 }
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    return _allTensors.at(port.get_node()->get_friendly_name());
+    const auto& nodeNameMatch = _nodeNameToLegacyName.find(port.get_node()->get_friendly_name());
+    OPENVINO_ASSERT(nodeNameMatch != _nodeNameToLegacyName.end(), "Cannot find tensor for port ", port);
+
+    return _allTensors.at(nodeNameMatch->second);
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -97,7 +101,8 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
 
-    _allTensors[port.get_node()->get_friendly_name()] = tensor._ptr;
+    const std::string& legacyName = _nodeNameToLegacyName.at(port.get_node()->get_friendly_name());
+    _allTensors[legacyName] = tensor._ptr;
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
@@ -150,12 +155,14 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], _allTensors.at(inputs[i].get_node()->get_friendly_name()));
+        const std::string& legacyName = _nodeNameToLegacyName.at(inputs[i].get_node()->get_friendly_name());
+        check_tensor(inputs[i], _allTensors.at(legacyName));
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], _allTensors.at(outputs[i].get_node()->get_friendly_name()));
+        const std::string& legacyName = _nodeNameToLegacyName.at(outputs[i].get_node()->get_friendly_name());
+        check_tensor(outputs[i], _allTensors.at(legacyName));
     }
 }
 
@@ -177,7 +184,6 @@ void SyncInferRequest::allocate_tensor(std::string tensorName,
         _shapesTensors[tensorName] = tensor;
         tensorName = SHAPE_TENSOR_PREFIX + tensorName;
     }
-
     if (tensorType == TensorType::State) {
         _variableStates[tensorName] = std::make_shared<VariableState>(tensorName, tensor);
 

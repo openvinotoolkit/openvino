@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/common_utils.hpp"
 #include "preprocessing/yuv_to_grey_tests.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 

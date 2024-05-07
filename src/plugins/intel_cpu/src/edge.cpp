@@ -5,7 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include "openvino/util/pp.hpp"
 
 using namespace dnnl;
 namespace ov {
@@ -265,7 +264,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };
@@ -278,7 +277,7 @@ void Edge::allocate(MemoryMngrPtr memMngr) {
         OPENVINO_THROW("Unexpected: Memory manager ptr is NULL");
     }
 
-    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memMngr);
     };

@@ -5,7 +5,6 @@
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 
 #include "itt.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 

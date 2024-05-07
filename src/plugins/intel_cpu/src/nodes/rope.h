@@ -35,7 +35,6 @@ private:
                              const RoPENode::Config& config,
                              const std::vector<MemoryPtr>& inputs,
                              const std::vector<MemoryPtr>& outputs) = 0;
-        virtual ~Executor() = default;
     };
     template <typename T>
     struct RoPEExecutorRotateHalf;

@@ -6,7 +6,7 @@
 
 #include <list>
 
-#include "snippets/lowered/expression.hpp"
+#include "expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -48,9 +48,6 @@ public:
     // False if all Buffers will have uniqie ID and offsets in the Linear IR
     bool m_are_buffers_optimized = true;
 };
-
-class LoopManager;
-using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
@@ -127,6 +124,9 @@ public:
     iterator find_after(iterator it, const ExpressionPtr& target) const;
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
+
+    class LoopManager;
+    using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 

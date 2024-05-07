@@ -15,7 +15,9 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
+using LoopPort = LinearIR::LoopManager::LoopPort;
+
+void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info(loop_id);
     auto loop_entries = loop_info->get_entry_points();
     auto loop_exits = loop_info->get_exit_points();
@@ -79,8 +81,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
 }
 
-bool InsertLoops::is_loop_dynamic(const LoopInfoPtr& loop_info) {
-    auto is_loop_port_dynamic = [](const LoopPort& port) {
+bool InsertLoops::is_loop_dynamic(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    auto is_loop_port_dynamic = [](const LinearIR::LoopManager::LoopPort& port) {
         return port.is_dynamic();
     };
     const auto& entry_points = loop_info->get_entry_points();

@@ -201,7 +201,6 @@ protected:
     std::vector<std::string> _outputAndStateOutputNames;
 
     std::unordered_map<std::string, std::string> _nodeNameToLegacyName;
-    std::unordered_map<std::string, std::string> _legacyNameToNodeName;
 };
 
 }  // namespace intel_npu

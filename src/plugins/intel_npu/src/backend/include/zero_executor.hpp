@@ -27,7 +27,7 @@ public:
     ~ZeroExecutor() override;
 
     struct ArgumentDescriptor {
-        ze_graph_argument_properties_3_t info;
+        ze_graph_argument_properties_t info;
         uint32_t idx;
     };
 
@@ -67,7 +67,6 @@ private:
 
     ze_graph_handle_t _graph = nullptr;
     ze_graph_properties_t _props{};
-
     std::unordered_map<std::string, ArgumentDescriptor> _inputs_desc_map;
     std::unordered_map<std::string, ArgumentDescriptor> _outputs_desc_map;
 

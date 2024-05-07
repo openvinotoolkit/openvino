@@ -45,7 +45,7 @@ def strided_slice(name: str, input_data, attrs: dict):
         saveModel(
             name,
             exe,
-            feed_vars=[Input],
+            feedkeys=["x"],
             fetchlist=[out],
             inputs=[input_data],
             outputs=[outs[0]],

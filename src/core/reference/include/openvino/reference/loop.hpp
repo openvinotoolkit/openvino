@@ -16,7 +16,6 @@ void loop(const std::shared_ptr<Model>& body,
           const op::util::InputDescriptionVector& input_descs,
           const op::v5::Loop::SpecialBodyPorts& special_ports,
           ov::TensorVector& out,
-          const ov::TensorVector& args,
-          const EvaluationContext& evaluation_context);
+          const ov::TensorVector& args);
 }
 }  // namespace ov

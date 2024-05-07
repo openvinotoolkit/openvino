@@ -60,9 +60,7 @@ struct roll : primitive_base<roll> {
 
         auto rhs_casted = downcast<const roll>(rhs);
 
-        return shift == rhs_casted.shift &&
-               raw_shift == rhs_casted.raw_shift &&
-               raw_axes == rhs_casted.raw_axes;
+        return shift == rhs_casted.shift;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

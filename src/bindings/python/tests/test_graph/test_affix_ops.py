@@ -10,13 +10,15 @@ import openvino.runtime.opset13 as ov
 from openvino import Type
 
 
-@pytest.mark.parametrize("op_name", [
+@pytest.mark.parametrize("prefix_string", [
     "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
+    "custom_prefix_",
 ])
-def test_affix_not_applied_on_nodes(op_name):
+@pytest.mark.parametrize("suffix_string", [
+    "XYZ",
+    "_custom_suffix",
+])
+def test_affix_not_applied_on_nodes(prefix_string, suffix_string):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
     bound_shape = []
@@ -43,12 +45,12 @@ def test_affix_not_applied_on_nodes(op_name):
         parameter_output_low,
         parameter_output_high,
         levels,
-        name=op_name,
+        prefix=prefix_string,
+        suffix=suffix_string,
     )
 
     # Check if node was created correctly
     assert model.get_type_name() == "FakeQuantize"
-    assert model.get_friendly_name() == op_name
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
 
@@ -59,13 +61,15 @@ def test_affix_not_applied_on_nodes(op_name):
     assert output_high_name == parameter_output_high.friendly_name
 
 
-@pytest.mark.parametrize("op_name", [
+@pytest.mark.parametrize("prefix_string", [
     "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
+    "custom_prefix_",
 ])
-def test_affix_not_applied_on_output(op_name):
+@pytest.mark.parametrize("suffix_string", [
+    "XYZ",
+    "_custom_suffix",
+])
+def test_affix_not_applied_on_output(prefix_string, suffix_string):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
     bound_shape = []
@@ -96,12 +100,12 @@ def test_affix_not_applied_on_output(op_name):
         parameter_output_low,
         parameter_output_high,
         levels,
-        name=op_name,
+        prefix=prefix_string,
+        suffix=suffix_string,
     )
 
     # Check if node was created correctly
     assert model.get_type_name() == "FakeQuantize"
-    assert model.get_friendly_name() == op_name
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
 
@@ -112,13 +116,17 @@ def test_affix_not_applied_on_output(op_name):
     assert output_high_name == parameter_output_high.friendly_name
 
 
-@pytest.mark.parametrize("op_name", [
+@pytest.mark.parametrize("prefix_string", [
+    "",
     "ABC",
-    "Fakeee",
-    "123456",
-    "FakeQuantize",
+    "custom_prefix_",
 ])
-def test_fake_quantize_prefix(op_name):
+@pytest.mark.parametrize("suffix_string", [
+    "",
+    "XYZ",
+    "_custom_suffix",
+])
+def test_fake_quantize_affix(prefix_string, suffix_string):
     levels = np.int32(4)
     data_shape = [1, 2, 3, 4]
     bound_shape = [1]
@@ -136,15 +144,21 @@ def test_fake_quantize_prefix(op_name):
         d_arr,
         e_arr,
         levels,
-        name=op_name,
+        prefix=prefix_string,
+        suffix=suffix_string,
     )
 
     # Check if node was created correctly
     assert model.get_type_name() == "FakeQuantize"
-    assert model.get_friendly_name() == op_name
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
+    # Check that data parameter and node itself do not change:
+    if prefix_string != "":
+        assert prefix_string not in model.friendly_name
+    if suffix_string != "":
+        assert suffix_string not in model.friendly_name
     # Check that other parameters change:
     for node_input in model.inputs():
         generated_node = node_input.get_source_output().get_node()
-        assert op_name + "/" in generated_node.friendly_name
+        assert prefix_string in generated_node.friendly_name
+        assert suffix_string in generated_node.friendly_name

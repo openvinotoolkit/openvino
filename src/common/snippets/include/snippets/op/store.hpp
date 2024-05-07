@@ -18,9 +18,9 @@ namespace op {
  *        and memory offset for storing is determined by "offset" (Default value is "0" - to store starting at start memory ptr)
  * @ingroup snippets
  */
-class Store : public modifier::MemoryAccess, public ov::op::Op {
+class Store : public MemoryAccess {
 public:
-    OPENVINO_OP("Store", "SnippetsOpset");
+    OPENVINO_OP("Store", "SnippetsOpset", MemoryAccess);
 
     Store(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Store() = default;
@@ -33,7 +33,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 } // namespace op

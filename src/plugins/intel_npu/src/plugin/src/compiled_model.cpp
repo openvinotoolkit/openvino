@@ -42,40 +42,6 @@ using intel_npu::envVarStrToBool;
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const std::shared_ptr<IDevice>& device,
-                             const ov::SoPtr<ICompiler>& compiler,
-                             const bool profiling,
-                             const Config& config)
-    : ICompiledModel(model, plugin),
-      _model(model),
-      _config(config),
-      _logger("CompiledModel", config.get<LOG_LEVEL>()),
-      _device(device),
-      _compiler(profiling ? std::optional(compiler) : std::nullopt) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(compiler != nullptr, "NPU CompiledModel: the pointer towards the compiler object is null");
-
-    try {
-        _networkPtr = std::make_shared<const NetworkDescription>(compiler->compile(model, config));
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        _logger.error("Unexpected exception");
-        OPENVINO_THROW("NPU CompiledModel: got an unexpected exception from compiler");
-    }
-
-    OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    initialize_properties();
-    configure_stream_executors();
-
-    OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    create_executor();
-
-    OV_ITT_TASK_SKIP(COMPILED_MODEL);
-}
-
-CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<const NetworkDescription>& networkDescription,
                              const std::shared_ptr<IDevice>& device,
                              const std::optional<ov::SoPtr<ICompiler>>& compiler,
@@ -88,15 +54,32 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _device(device),
       _compiler(compiler) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-    OPENVINO_ASSERT(_networkPtr != nullptr,
-                    "NPU CompiledModel: the pointer towards the NetworkDescription object is null");
+
+    if (_networkPtr == nullptr) {
+        OPENVINO_THROW("Network is null!");
+    }
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     initialize_properties();
     configure_stream_executors();
 
     OV_ITT_TASK_NEXT(COMPILED_MODEL, "create_executor");
-    create_executor();
+    const bool configCreateExecutor = _config.get<CREATE_EXECUTOR>();
+    static const auto envVar = std::getenv("IE_NPU_CREATE_EXECUTOR");
+    const bool IE_NPU_CREATE_EXECUTOR =
+        envVar ? envVarStrToBool("IE_NPU_CREATE_EXECUTOR", envVar) : configCreateExecutor;
+
+    if (IE_NPU_CREATE_EXECUTOR) {
+        _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
+
+        // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
+        // only export operations will be allowed
+        if (_device != nullptr) {
+            _executorPtr = _device->createExecutor(_networkPtr, _config);
+        }
+    } else {
+        _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
+    }
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
@@ -175,11 +158,21 @@ void CompiledModel::configure_stream_executors() {
     } else if (get_property(ov::hint::enable_cpu_pinning.name()).as<bool>()) {
         auto executor_config = ov::threading::IStreamsExecutor::Config{
             "Intel NPU plugin executor",
-            get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
+            0,
+            0,
+            ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
             1,
-            ov::hint::SchedulingCoreType::PCORE_ONLY,
+            0,
+            0,
+            ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
+            {{get_plugin()->get_property(ov::num_streams.name(), {}).as<ov::streams::Num>(),
+              ov::MAIN_CORE_PROC,
+              1,
+              0,
+              0}},
             true};
-        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(executor_config);
+        auto post_config = ov::threading::IStreamsExecutor::Config::reserve_cpu_threads(executor_config);
+        task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(post_config);
     } else {
         task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
@@ -270,16 +263,10 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<ENABLE_CPU_PINNING>();
           }}},
-        {ov::hint::model_priority.name(),
-         {true,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.get<MODEL_PRIORITY>();
-          }}},
         // OV Internals
         // =========
         {ov::internal::supported_properties.name(),
-         {false,
+         {true,
           ov::PropertyMutability::RO,
           [&](const Config&) {
               static const std::vector<ov::PropertyName> supportedProperty{
@@ -289,6 +276,12 @@ void CompiledModel::initialize_properties() {
           }}},
         // NPU Private
         // =========
+        {ov::hint::model_priority.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<MODEL_PRIORITY>();
+          }}},
         {ov::intel_npu::tiles.name(),
          {false,
           ov::PropertyMutability::RO,
@@ -325,32 +318,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}},
     };
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(property.first, std::get<1>(property.second));
         }
-    }
-}
-
-void CompiledModel::create_executor() {
-    if (_config.get<CREATE_EXECUTOR>()) {
-        _logger.info("Creating the executor inside the \"CompiledModel\" constructor");
-
-        // If no device has been defined, the executor shall keep the default value of "nullptr". In this scenario,
-        // only export operations will be allowed
-        if (_device != nullptr) {
-            _executorPtr = _device->createExecutor(_networkPtr, _config);
-        }
-    } else {
-        _logger.info("Executor will not be created inside the \"CompiledModel\" constructor");
     }
 }
 

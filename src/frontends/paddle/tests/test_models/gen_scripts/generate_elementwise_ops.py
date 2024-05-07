@@ -9,10 +9,6 @@ import sys
 from save_model import saveModel
 import paddle
 
-if paddle.__version__ >= '2.6.0':
-    import paddle.base as fluid
-else:
-    import paddle.fluid as fluid
 
 def elementwise_add(name: str, x, y, in_dtype, axis=-1):
     import paddle
@@ -24,7 +20,7 @@ def elementwise_add(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.add(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_add(
+            out = paddle.fluid.layers.elementwise_add(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -35,7 +31,7 @@ def elementwise_add(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -51,7 +47,7 @@ def elementwise_sub(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.subtract(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_sub(
+            out = paddle.fluid.layers.elementwise_sub(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -62,7 +58,7 @@ def elementwise_sub(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -78,7 +74,7 @@ def elementwise_div(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.divide(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_div(
+            out = paddle.fluid.layers.elementwise_div(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -89,7 +85,7 @@ def elementwise_div(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -108,7 +104,7 @@ def elementwise_mod(name: str, x, y, in_dtype, is_api=False, axis=-1):
             if is_api:
                 out = paddle.floor_mod(node_x, node_y)
             else:
-                out = fluid.layers.elementwise_mod(
+                out = paddle.fluid.layers.elementwise_mod(
                     node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -119,7 +115,7 @@ def elementwise_mod(name: str, x, y, in_dtype, is_api=False, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -135,7 +131,7 @@ def elementwise_mul(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.multiply(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_mul(
+            out = paddle.fluid.layers.elementwise_mul(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -146,7 +142,7 @@ def elementwise_mul(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -170,7 +166,7 @@ def elementwise_mul_bool(name: str, x, y, in_dtype='bool'):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -186,7 +182,7 @@ def elementwise_min(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.minimum(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_min(
+            out = paddle.fluid.layers.elementwise_min(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -197,7 +193,7 @@ def elementwise_min(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -213,7 +209,7 @@ def elementwise_max(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.maximum(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_max(
+            out = paddle.fluid.layers.elementwise_max(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -224,7 +220,7 @@ def elementwise_max(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -240,7 +236,7 @@ def elementwise_pow(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.pow(node_x, node_y)
         else:
-            out = fluid.layers.elementwise_pow(
+            out = paddle.fluid.layers.elementwise_pow(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -251,7 +247,7 @@ def elementwise_pow(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -267,7 +263,7 @@ def elementwise_floordiv(name: str, x, y, in_dtype, axis=-1):
         if paddle.__version__ >= '2.0.0':
             out = paddle.floor_divide(node_x, node_y)
         else:
-            out = fluid.layers.nn.elementwise_floordiv(
+            out = paddle.fluid.layers.nn.elementwise_floordiv(
                 node_x, node_y, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -278,7 +274,7 @@ def elementwise_floordiv(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
+        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

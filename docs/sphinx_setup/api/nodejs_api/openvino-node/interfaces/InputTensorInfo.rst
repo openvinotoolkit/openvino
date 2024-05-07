@@ -1,6 +1,7 @@
 Interface InputTensorInfo
 =========================
 
+
 .. code-block:: ts
 
    interface InputTensorInfo {
@@ -9,64 +10,65 @@ Interface InputTensorInfo
        setShape(shape): InputTensorInfo;
    }
 
-* **Defined in:**
-  `addon.ts:126 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L126>`__
-
+- Defined in
+  `addon.ts:98 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L98>`__
 
 Methods
 #####################
 
-
 .. rubric:: setElementType
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      setElementType(elementType): InputTensorInfo
+.. code-block:: ts
 
-   * **Parameters:**
+   setElementType(elementType): InputTensorInfo
 
-     - elementType: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
+**Parameters**
 
-   * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
 
-   * **Defined in:**
-     `addon.ts:127 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L127>`__
+- elementType: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
+
+**Returns** :doc:`InputTensorInfo <InputTensorInfo>`
+
+
+
+- Defined in
+  `addon.ts:99 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L99>`__
+
 
 
 .. rubric:: setLayout
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      setLayout(layout): InputTensorInfo
+.. code-block:: ts
 
-   * **Parameters:**
+   setLayout(layout): InputTensorInfo
 
-     - layout: string
+**Parameters**
 
-   * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
+- layout: string
 
-   * **Defined in:**
-     `addon.ts:128 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L128>`__
 
+**Returns** :doc:`InputTensorInfo <InputTensorInfo>`
+
+- Defined in
+  `addon.ts:100 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L100>`__
 
 .. rubric:: setShape
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      setShape(shape): InputTensorInfo
+   setShape(shape): InputTensorInfo
 
-   * **Parameters:**
 
-     - shape: number[]
+**Parameters**
 
-   * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
+- shape: number[]
 
-   * **Defined in:**
-     `addon.ts:129 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L129>`__
+**Returns** :doc:`InputTensorInfo <InputTensorInfo>`
 
+- Defined in
+  `addon.ts:101 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L101>`__

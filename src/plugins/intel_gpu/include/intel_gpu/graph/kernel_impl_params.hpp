@@ -25,13 +25,14 @@ struct program;
 struct network;
 
 
-struct kernel_impl_params final {
+struct kernel_impl_params {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
             return k.hash();
         }
     };
 
+    bool has_runtime_layouts = false;
     const program *prog;
     cldnn::device_type dev_type;
     stream::ptr strm;
@@ -78,7 +79,8 @@ struct kernel_impl_params final {
                        const std::vector<layout>& _in_layouts,
                        const std::vector<layout>& _out_layouts,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
-                       : prog(&_prog)
+                       : has_runtime_layouts(true)
+                       , prog(&_prog)
                        , dev_type(_dev_type)
                        , strm(std::move(_strm))
                        , desc(std::move(_desc))
@@ -89,9 +91,7 @@ struct kernel_impl_params final {
                        , primary_input_idx(0) {
     }
 
-    virtual ~kernel_impl_params() = default;
-
-    const layout& get_input_layout(size_t idx = 0) const {
+    layout get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
                         "The size of input layouts must be greater than the requested index: ",
                         "Requested index is ", idx, ", ",
@@ -105,7 +105,7 @@ struct kernel_impl_params final {
         return result;
     }
 
-    const layout& get_output_layout(size_t idx = 0) const {
+    layout get_output_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
                         "Requested index is ", idx, ",",
@@ -115,10 +115,10 @@ struct kernel_impl_params final {
 
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
-    ov::element::Type_t get_output_element_type() const {
+    layout get_fused_output_layout() const {
         if (fused_desc.empty())
-            return output_layouts[0].data_type;
-        return fused_desc.back().output_layout.data_type;
+            return layout(data_types::f32, format::bfyx, tensor());
+        return fused_desc.back().output_layout;
     }
 
     bool is_dynamic() const {
@@ -142,6 +142,8 @@ struct kernel_impl_params final {
     bool is_type() const {
         return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
     }
+
+    virtual primitive_type_id type() const { return desc->type; }
 
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");

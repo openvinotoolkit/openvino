@@ -34,16 +34,14 @@ struct ExperimentalDOParams {
           deltasData(CreateTensor(iType, deltasValues)),
           scoresData(CreateTensor(iType, scoresValues)),
           imageSizeInfoData(CreateTensor(iType, imageSizeInfoValues)),
+          refBoxesData(CreateTensor(iType, refBoxesValues)),
+          refClassesData(CreateTensor(ov::element::i32, refClassesValues)),
+          refScoresData(CreateTensor(iType, refScoresValues)),
           testcaseName(testcaseName) {
         roisShape = Shape{num_rois, 4};
         deltasShape = Shape{num_rois, static_cast<size_t>(attrs.num_classes * 4)};
         scoresShape = Shape{num_rois, static_cast<size_t>(attrs.num_classes)};
         imageSizeInfoShape = Shape{1, 3};
-
-        const auto max_d = attrs.max_detections_per_image;
-        refBoxesData = CreateTensor(Shape{max_d, 4}, iType, refBoxesValues);
-        refClassesData = CreateTensor(Shape{max_d}, ov::element::i32, refClassesValues);
-        refScoresData = CreateTensor(Shape{max_d}, iType, refScoresValues);
     }
 
     Attrs attrs;
@@ -67,13 +65,14 @@ class ReferenceExperimentalDOLayerTest : public testing::TestWithParam<Experimen
                                          public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.roisData, params.deltasData, params.scoresData, params.imageSizeInfoData};
         refOutData = {params.refBoxesData, params.refClassesData, params.refScoresData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<ExperimentalDOParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "roisShape=" << param.roisShape << "_";
         result << "deltasShape=" << param.deltasShape << "_";

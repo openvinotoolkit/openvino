@@ -49,7 +49,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     """
     return _get_node_factory_opset3().create(
         "Assign",
-        [as_node(new_value, name=name)],
+        [as_node(new_value)],
         {"variable_id": variable_id},
     )
 
@@ -73,9 +73,9 @@ def broadcast(
     :param name: Optional new name for output node.
     :return: New node with broadcast shape.
     """
-    inputs = as_nodes(data, target_shape, name=name)
+    inputs = as_nodes(data, target_shape)
     if broadcast_spec.upper() == "EXPLICIT":
-        inputs.append(as_node(axes_mapping, name=name))
+        inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset3().create(
         "Broadcast",
         inputs,
@@ -103,7 +103,7 @@ def bucketize(
     """
     return _get_node_factory_opset3().create(
         "Bucketize",
-        [data, as_node(buckets, name=name)],
+        [data, as_node(buckets)],
         {"output_type": output_type, "with_right_bound": with_right_bound},
     )
 
@@ -126,7 +126,7 @@ def cum_sum(
     """
     return _get_node_factory_opset3().create(
         "CumSum",
-        as_nodes(arg, axis, name=name),
+        as_nodes(arg, axis),
         {"exclusive": exclusive, "reverse": reverse},
     )
 
@@ -150,7 +150,7 @@ def embedding_bag_offsets_sum(
     :param name: Optional name for output node.
     :return: The new node which performs EmbeddingBagOffsetsSum
     """
-    inputs = [emb_table, as_node(indices, name=name), as_node(offsets, name=name)]
+    inputs = [emb_table, as_node(indices), as_node(offsets)]
     if per_sample_weights is not None:
         inputs.append(default_index)
         inputs.append(per_sample_weights)
@@ -178,9 +178,9 @@ def embedding_bag_packed_sum(
     :param name: Optional name for output node.
     :return: EmbeddingBagPackedSum node
     """
-    inputs = [as_node(emb_table, name=name), as_node(indices, name=name)]
+    inputs = [as_node(emb_table), as_node(indices)]
     if per_sample_weights is not None:
-        inputs.append(as_node(per_sample_weights, name=name))
+        inputs.append(as_node(per_sample_weights))
 
     return _get_node_factory_opset3().create("EmbeddingBagPackedSum", inputs, {})
 
@@ -209,16 +209,16 @@ def embedding_segments_sum(
     :param name: Optional name for output node.
     :return: EmbeddingSegmentsSum node
     """
-    inputs = [as_node(emb_table, name=name), as_node(indices, name=name), as_node(segment_ids, name=name)]
+    inputs = [as_node(emb_table), as_node(indices), as_node(segment_ids)]
     if per_sample_weights is not None:
-        inputs.append(as_node(num_segments, name=name))
-        inputs.append(as_node(default_index, name=name))
-        inputs.append(as_node(per_sample_weights, name=name))
+        inputs.append(as_node(num_segments))
+        inputs.append(as_node(default_index))
+        inputs.append(as_node(per_sample_weights))
     elif default_index is not None:
-        inputs.append(as_node(num_segments, name=name))
-        inputs.append(as_node(default_index, name=name))
+        inputs.append(as_node(num_segments))
+        inputs.append(as_node(default_index))
     elif num_segments is not None:
-        inputs.append(as_node(num_segments, name=name))
+        inputs.append(as_node(num_segments))
 
     return _get_node_factory_opset3().create("EmbeddingSegmentsSum", inputs, {})
 
@@ -244,7 +244,7 @@ def extract_image_patches(
     """
     return _get_node_factory_opset3().create(
         "ExtractImagePatches",
-        [as_node(image, name=name)],
+        [as_node(image)],
         {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
     )
 
@@ -302,7 +302,7 @@ def gru_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(X, initial_hidden_state, W, R, B, name=name)
+    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -347,7 +347,7 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -368,7 +368,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     """
     return _get_node_factory_opset3().create(
         "NonZero",
-        [as_node(data, name=name)],
+        [as_node(data)],
         {"output_type": output_type},
     )
 
@@ -384,7 +384,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     """
     return _get_node_factory_opset3().create(
         "ReadValue",
-        [as_node(init_value, name=name)],
+        [as_node(init_value)],
         {"variable_id": variable_id},
     )
 
@@ -436,7 +436,7 @@ def rnn_cell(
     if activations_beta is None:
         activations_beta = []
 
-    input_nodes = as_nodes(X, initial_hidden_state, W, R, B, name=name)
+    input_nodes = as_nodes(X, initial_hidden_state, W, R, B)
     attributes = {
         "hidden_size": hidden_size,
         "activations": activations,
@@ -474,7 +474,7 @@ def roi_align(
 
     :return: The new node which performs ROIAlign
     """
-    inputs = as_nodes(data, rois, batch_indices, name=name)
+    inputs = as_nodes(data, rois, batch_indices)
     attributes = {
         "pooled_h": pooled_h,
         "pooled_w": pooled_w,
@@ -513,7 +513,7 @@ def scatter_elements_update(
     """
     return _get_node_factory_opset3().create(
         "ScatterElementsUpdate",
-        as_nodes(data, indices, updates, axis, name=name),
+        as_nodes(data, indices, updates, axis),
     )
 
 
@@ -537,7 +537,7 @@ def scatter_update(
     """
     return _get_node_factory_opset3().create(
         "ScatterUpdate",
-        as_nodes(data, indices, updates, axis, name=name),
+        as_nodes(data, indices, updates, axis),
     )
 
 
@@ -551,7 +551,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     """
     return _get_node_factory_opset3().create(
         "ShapeOf",
-        [as_node(data, name=name)],
+        [as_node(data)],
         {"output_type": output_type},
     )
 
@@ -606,7 +606,7 @@ def shuffle_channels(data: Node, axis: int, group: int, name: Optional[str] = No
     """
     return _get_node_factory_opset3().create(
         "ShuffleChannels",
-        [as_node(data, name=name)],
+        [as_node(data)],
         {"axis": axis, "group": group},
     )
 
@@ -633,6 +633,6 @@ def topk(
     """
     return _get_node_factory_opset3().create(
         "TopK",
-        as_nodes(data, k, name=name),
+        as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},
     )

@@ -21,7 +21,7 @@ struct ExecutorConfigTestCase {
     std::vector<std::vector<int>> _cpu_mapping_table;
     int _num_streams;
     int _threads_per_stream;
-    ov::hint::SchedulingCoreType _core_type;
+    ov::threading::IStreamsExecutor::Config::PreferredCoreType _core_type;
     bool _cpu_pinning;
     std::vector<std::vector<int>> _streams_info_table_in;
     std::vector<std::vector<int>> _streams_info_table;
@@ -44,12 +44,15 @@ public:
         ov::threading::IStreamsExecutor::Config config{"config test",
                                                        test_data._num_streams,
                                                        test_data._threads_per_stream,
+                                                       ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+                                                       1,
+                                                       0,
+                                                       0,
                                                        test_data._core_type,
-                                                       false,
-                                                       test_data._cpu_pinning,
-                                                       test_data._streams_info_table_in};
+                                                       test_data._streams_info_table_in,
+                                                       test_data._cpu_pinning};
 
-        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
+        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_reservation());
         ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
         ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
     }
@@ -76,11 +79,11 @@ ExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
         {10, 0, 0, 5, MAIN_CORE_PROC, 10, -1},
         {11, 0, 0, 5, HYPER_THREADING_PROC, 11, -1},
     },
-    4,                                       // param[in]: the number of streams
-    1,                                       // param[in]: the number of threads per stream
-    ov::hint::SchedulingCoreType::ANY_CORE,  // param[in]: specified cpu core type
-    false,                                   // param[in]: specified cpu pinning
-    {},                                      // param[in]: streams info table
+    4,                                             // param[in]: the number of streams
+    1,                                             // param[in]: the number of threads per stream
+    ov::threading::IStreamsExecutor::Config::ANY,  // param[in]: specified cpu core type
+    false,                                         // param[in]: specified cpu pinning
+    {},                                            // param[in]: streams info table
     // param[out]: streams_info_table, {NUMBER_OF_STREAMS, PROC_TYPE, THREADS_PER_STREAM, STREAM_NUMA_NODE_ID,
     // STREAM_SOCKET_ID}
     {
@@ -110,7 +113,7 @@ ExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     },
     4,
     0,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {},
@@ -137,7 +140,7 @@ ExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
     },
     1,
     12,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -168,7 +171,7 @@ ExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
     },
     1,
     10,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -199,7 +202,7 @@ ExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
     },
     12,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -229,7 +232,7 @@ ExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
     },
     13,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -259,7 +262,7 @@ ExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
     },
     7,
     1,
-    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
     {},
     {
@@ -289,7 +292,7 @@ ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
     },
     5,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     true,
     {},
     {
@@ -344,7 +347,7 @@ ExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     },
     36,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -400,7 +403,7 @@ ExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
     },
     4,
     5,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -456,7 +459,7 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
     },
     1,
     36,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -513,7 +516,7 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
     },
     1,
     30,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -544,7 +547,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_2 = {
     },
     5,
     2,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -574,7 +577,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_5 = {
     },
     5,
     5,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -605,7 +608,7 @@ ExecutorConfigTestCase _pecore_streams_4_threads_5 = {
     },
     4,
     5,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -636,7 +639,7 @@ ExecutorConfigTestCase _pecore_streams_4_threads_1 = {
     },
     4,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -665,7 +668,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_10 = {
     },
     5,
     10,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -696,7 +699,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1 = {
     },
     26,
     1,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {
@@ -727,7 +730,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
     },
     26,
     1,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {},
     {
@@ -757,7 +760,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
     },
     26,
     1,
-    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
     {},
     {
@@ -786,7 +789,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     },
     1,
     0,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     false,
     {},
     {},
@@ -813,7 +816,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
     },
     1,
     1,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {},
     {
@@ -842,7 +845,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
     },
     1,
     1,
-    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
     {},
     {
@@ -871,7 +874,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
     },
     1,
     16,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {},
     {
@@ -902,7 +905,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
     },
     1,
     18,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {},
     {
@@ -933,7 +936,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
     },
     1,
     10,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {},
     {
@@ -964,7 +967,7 @@ ExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
     },
     10,
     1,
-    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::LITTLE,
     false,
     {},
     {
@@ -993,7 +996,7 @@ ExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
     },
     10,
     2,
-    ov::hint::SchedulingCoreType::ANY_CORE,
+    ov::threading::IStreamsExecutor::Config::ANY,
     true,
     {},
     {
@@ -1024,7 +1027,7 @@ ExecutorConfigTestCase _pecore_streams_info_table_1 = {
     },
     1,
     8,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {
         {2, MAIN_CORE_PROC, 2, 0, 0},
@@ -1057,7 +1060,7 @@ ExecutorConfigTestCase _pecore_streams_info_table_2 = {
     },
     1,
     8,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     false,
     {
         {5, MAIN_CORE_PROC, 2, 0, 0},
@@ -1089,7 +1092,7 @@ ExecutorConfigTestCase _pecore_streams_info_table_3 = {
     },
     1,
     8,
-    ov::hint::SchedulingCoreType::PCORE_ONLY,
+    ov::threading::IStreamsExecutor::Config::BIG,
     true,
     {
         {2, MAIN_CORE_PROC, 2, 0, 0},

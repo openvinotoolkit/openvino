@@ -50,11 +50,8 @@ void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                         const ov::intel_cpu::PlainTensor& v_input,
                         const ov::intel_cpu::PlainTensor& past_k_output,
                         const ov::intel_cpu::PlainTensor& past_v_output) {
-    // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    // Internal LBHS layout has strides[L] > strides[B]
-    assert(k_input.m_strides[2] > k_input.m_strides[0]);
-    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
         attn_copy(past_k_output.ptr<T2>(b, h, m, 0),
                   k_input.ptr<T>(b, h, m, 0),
                   S);
@@ -68,11 +65,8 @@ static void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                const ov::intel_cpu::PlainTensor& v_input,
                                const ov::intel_cpu::PlainTensor& past_k_output,
                                const ov::intel_cpu::PlainTensor& past_v_output) {
-    // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    // Internal LBHS layout has strides[L] > strides[B]
-    assert(k_input.m_strides[2] > k_input.m_strides[0]);
-    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
         std::memcpy(past_k_output.ptr_v(b, h, m, 0),
                     k_input.ptr_v(b, h, m, 0),
                     S * k_input.m_element_size);

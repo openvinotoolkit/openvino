@@ -13,9 +13,5 @@
 namespace ov {
 namespace reference {
 void function(const std::shared_ptr<Model>& function, const ov::TensorVector& inputs, ov::TensorVector& outputs);
-void function(const std::shared_ptr<Model>& function,
-              const ov::TensorVector& inputs,
-              ov::TensorVector& outputs,
-              const EvaluationContext& evaluation_context);
-}  // namespace reference
+}
 }  // namespace ov

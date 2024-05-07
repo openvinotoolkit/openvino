@@ -5,6 +5,5 @@ Type alias Dimension
 
    Dimension: number|[number,number]
 
-* **Defined in:**
-  `addon.ts:115 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L115>`__
-
+- Defined in
+  `addon.ts:87 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L87>`__

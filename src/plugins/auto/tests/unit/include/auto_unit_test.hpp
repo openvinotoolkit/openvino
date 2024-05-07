@@ -63,10 +63,6 @@ namespace ov {
 namespace mock_auto_plugin {
 namespace tests {
 
-enum MODELTYPE {
-    STATIC = 0,
-    DYNAMIC = 1,
-};
 class BaseTest {
 public:
     std::shared_ptr<const ov::Model> model;
@@ -88,17 +84,16 @@ public:
 
     ov::Any optimalNum;
     virtual ~BaseTest();
-    BaseTest(const MODELTYPE modelType = MODELTYPE::STATIC);
+    BaseTest();
 
 protected:
     std::shared_ptr<ov::Model> create_model();
-    std::shared_ptr<ov::Model> create_dynamic_output_model();
 };
 // for auto unit tests which can covered by mock core, or need to test with gmock icore
 class AutoTest : public BaseTest {
 public:
     std::shared_ptr<NiceMock<ov::MockICore>> core;
-    AutoTest(const MODELTYPE modelType = MODELTYPE::STATIC);
+    AutoTest();
     ~AutoTest();
 };
 }  // namespace tests

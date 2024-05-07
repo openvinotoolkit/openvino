@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include <memory>
 
 namespace ov {

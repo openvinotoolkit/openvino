@@ -14,7 +14,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>

@@ -44,12 +44,12 @@ protected:
     void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
 };
 
-class MatMulQuantized : public MatMul {
+class MatMulsQuantized : public MatMul {
 protected:
     void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
 };
 
-class MatMulQuantizedSoftmax : public MatMul {
+class MatMulsQuantizedSoftmax : public MatMul {
 protected:
     void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
 };

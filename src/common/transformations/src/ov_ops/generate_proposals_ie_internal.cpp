@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov;

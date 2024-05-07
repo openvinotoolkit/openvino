@@ -27,11 +27,8 @@ struct NonZeroParams {
           inType(inType),
           refType(refType),
           inputData(CreateTensor(inType, inputData)),
-          testcaseName(test_name) {
-        const auto input_rank = inputShape.get_shape().size();
-        const auto non_zero_num = refData.size() / input_rank;
-        this->refData = CreateTensor(Shape{input_rank, non_zero_num}, refType, refData);
-    }
+          refData(CreateTensor(refType, refData)),
+          testcaseName(test_name) {}
 
     PartialShape dynamicShape;
     PartialShape inputShape;
@@ -45,14 +42,15 @@ struct NonZeroParams {
 class ReferenceNonZeroLayerTest : public testing::TestWithParam<NonZeroParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params.dynamicShape, params.inType, params.refType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<NonZeroParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "dShape=" << param.dynamicShape << "_";
         result << "iShape=" << param.inputShape << "_";

@@ -19,7 +19,7 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
     pixel_offset = attr["pixel_offset"]
 
     import paddle
-    from ops import generate_proposals
+    from ops import generate_proposals as generate_proposals
 
     paddle.enable_static()
 
@@ -60,11 +60,12 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
                 'anchors': anchors_np,
                 'var': variances_np
             },
-            fetch_list=[rois, roi_probs, rois_num])
+            fetch_list=[rois, roi_probs, rois_num],
+            return_numpy=False)
 
         # Save inputs in order of OpenVINO model, to facilitate Fuzzy test, 
         # which accepts inputs and outputs in this order as well. 
-        saveModel(name, exe, feed_vars=[scores, bbox_deltas, im_shape, anchors, variances],
+        saveModel(name, exe, feedkeys=['scores', 'bbox_deltas', 'im_shape', 'anchors', 'var'],
                   fetchlist=[rois, roi_probs, rois_num],
                   inputs=[scores_np, bbox_deltas_np, im_shape_np, anchors_np, variances_np],
                   outputs=outs, target_dir=sys.argv[1])

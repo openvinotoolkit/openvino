@@ -10,14 +10,9 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;

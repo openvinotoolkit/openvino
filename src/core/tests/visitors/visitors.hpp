@@ -18,11 +18,6 @@
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-#ifdef __GNUC__
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Woverloaded-virtual"
-#endif
-
 namespace ov {
 namespace test {
 class ValueHolder {
@@ -32,7 +27,7 @@ class ValueHolder {
     }
 
 public:
-    virtual ~ValueHolder() = default;
+    virtual ~ValueHolder() {}
     virtual operator bool&() {
         OPENVINO_THROW("Invalid type access");
     }
@@ -488,8 +483,3 @@ protected:
 };  // namespace test
 }  // namespace test
 }  // namespace ov
-
-
-#ifdef __GNUC__
-#    pragma GCC diagnostic pop
-#endif

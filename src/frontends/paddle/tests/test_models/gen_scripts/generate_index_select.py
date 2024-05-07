@@ -36,7 +36,7 @@ def index_select(name: str, x, index, axis):
         saveModel(
             name,
             exe,
-            feed_vars=[data, tensor_index],
+            feedkeys=["x", "index"],
             fetchlist=[out],
             inputs=[x, index],
             outputs=[outs[0]],

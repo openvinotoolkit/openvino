@@ -63,9 +63,9 @@ def ctc_loss(
     :return: The new node which performs CTCLoss
     """
     if blank_index is not None:
-        inputs = as_nodes(logits, logit_length, labels, label_length, blank_index, name=name)
+        inputs = as_nodes(logits, logit_length, labels, label_length, blank_index)
     else:
-        inputs = as_nodes(logits, logit_length, labels, label_length, name=name)
+        inputs = as_nodes(logits, logit_length, labels, label_length)
 
     attributes = {
         "preprocess_collapse_repeated": preprocess_collapse_repeated,
@@ -109,7 +109,7 @@ def non_max_suppression(
     if score_threshold is None:
         score_threshold = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
@@ -126,7 +126,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: The tensor providing input data.
     :return: The new node with SoftPlus operation applied on each element.
     """
-    return _get_node_factory_opset4().create("SoftPlus", as_nodes(data, name=name), {})
+    return _get_node_factory_opset4().create("SoftPlus", as_nodes(data), {})
 
 
 @nameable_op
@@ -136,7 +136,7 @@ def mish(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: Tensor with input data floating point type.
     :return: The new node which performs Mish
     """
-    return _get_node_factory_opset4().create("Mish", as_nodes(data, name=name), {})
+    return _get_node_factory_opset4().create("Mish", as_nodes(data), {})
 
 
 @nameable_op
@@ -146,7 +146,7 @@ def hswish(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: Tensor with input data floating point type.
     :return: The new node which performs HSwish
     """
-    return _get_node_factory_opset4().create("HSwish", as_nodes(data, name=name), {})
+    return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
 
 
 @nameable_op
@@ -162,7 +162,7 @@ def swish(
     """
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
-    return _get_node_factory_opset4().create("Swish", as_nodes(data, beta, name=name), {})
+    return _get_node_factory_opset4().create("Swish", as_nodes(data, beta), {})
 
 
 @nameable_op
@@ -173,7 +173,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arccosh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Acosh", as_nodes(node, name=name))
+    return _get_node_factory_opset4().create("Acosh", as_nodes(node))
 
 
 @nameable_op
@@ -184,7 +184,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arcsinh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Asinh", as_nodes(node, name=name))
+    return _get_node_factory_opset4().create("Asinh", as_nodes(node))
 
 
 @nameable_op
@@ -195,7 +195,7 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arctanh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Atanh", as_nodes(node, name=name))
+    return _get_node_factory_opset4().create("Atanh", as_nodes(node))
 
 
 @nameable_op
@@ -318,7 +318,7 @@ def proposal(
 
     return _get_node_factory_opset4().create(
         "Proposal",
-        [class_probs, bbox_deltas, as_node(image_shape, name=name)],
+        [class_probs, bbox_deltas, as_node(image_shape)],
         attrs,
     )
 
@@ -340,7 +340,7 @@ def reduce_l1(
     """
     return _get_node_factory_opset4().create(
         "ReduceL1",
-        as_nodes(node, reduction_axes, name=name),
+        as_nodes(node, reduction_axes),
         {"keep_dims": keep_dims},
     )
 
@@ -362,7 +362,7 @@ def reduce_l2(
     """
     return _get_node_factory_opset4().create(
         "ReduceL2",
-        as_nodes(node, reduction_axes, name=name),
+        as_nodes(node, reduction_axes),
         {"keep_dims": keep_dims},
     )
 
@@ -406,7 +406,7 @@ def lstm_cell(
     if activations_beta is None:
         activations_beta = []
 
-    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B, name=name)
+    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, W, R, B)
 
     attributes = {
         "hidden_size": hidden_size,
@@ -437,7 +437,7 @@ def range(
     """
     return _get_node_factory_opset4().create(
         "Range",
-        as_nodes(start, stop, step, name=name),
+        as_nodes(start, stop, step),
         {
             "output_type": output_type,
         },
@@ -459,6 +459,6 @@ def scatter_nd_update(
     :param name: Optional name for the output node.
     :return: New node performing the ScatterNDUpdate.
     """
-    inputs = as_nodes(data, indices, updates, name=name)
+    inputs = as_nodes(data, indices, updates)
 
     return _get_node_factory_opset4().create("ScatterNDUpdate", inputs, {})

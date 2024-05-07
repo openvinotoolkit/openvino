@@ -4,7 +4,6 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include "atomic_guard.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -14,7 +13,8 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
                                const std::unordered_set<std::string>& names)
     : m_element_type(element_type),
-      m_partial_shape(pshape) {
+      m_partial_shape(pshape),
+      m_shape_changed(true) {
     set_names(names);
 }
 
@@ -23,7 +23,8 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                ov::Node* node,
                                size_t node_output_number)
     : m_element_type(element_type),
-      m_partial_shape(pshape) {
+      m_partial_shape(pshape),
+      m_shape_changed(true) {
     m_name_it = m_names.cend();
 }
 
@@ -61,12 +62,19 @@ void ov::descriptor::Tensor::set_value_symbol(const TensorSymbol& value_symbol) 
 }
 
 const ov::Shape& ov::descriptor::Tensor::get_shape() const {
-    AtomicGuard lock(m_shape_changing);
-    if (m_shape_changed) {
-        m_shape = m_partial_shape.to_shape();
-        m_shape_changed = false;
+    if (m_partial_shape.is_static()) {
+        if (m_shape_changed.load(std::memory_order_relaxed)) {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (m_shape_changed)  // double check after mutex lock
+            {
+                m_shape = m_partial_shape.to_shape();
+                m_shape_changed = false;
+            }
+        }
+        return m_shape;
+    } else {
+        throw std::invalid_argument("get_shape was called on a descriptor::Tensor with dynamic shape");
     }
-    return m_shape;
 }
 
 size_t ov::descriptor::Tensor::size() const {
@@ -106,18 +114,17 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
 }
 
 void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
-    {
-        AtomicGuard lock(m_shape_changing);
-        m_partial_shape = old.get_partial_shape();
-        m_shape_changed = true;
-    }
+    std::lock_guard<std::mutex> guard(m_mutex);
     set_names(old.get_names());
     m_element_type = old.get_element_type();
+    m_shape = old.m_shape;
+    m_partial_shape = old.get_partial_shape();
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
     m_value_symbol = old.get_value_symbol();
     m_legacy_name = old.m_legacy_name;
     m_rt_info = old.get_rt_info();
+    m_shape_changed = true;
 }
 
 std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tensor& tensor) {
@@ -132,7 +139,6 @@ void ov::descriptor::set_tensor_type(ov::descriptor::Tensor& tensor,
                                      const element::Type& element_type,
                                      const PartialShape& pshape) {
     tensor.m_element_type = element_type;
-    AtomicGuard lock(tensor.m_shape_changing);
     tensor.m_partial_shape = pshape;
     tensor.m_shape_changed = true;
 }

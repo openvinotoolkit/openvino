@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    bool m_causal = false;
+    bool m_causal;
 };
 
 }  // namespace v13

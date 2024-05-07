@@ -90,7 +90,6 @@
 #include "reshape_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
-#include "rms_norm_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"
 #include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
@@ -400,7 +399,6 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset14
-    _OV_OP_SHAPE_INFER_MASK_REG(op::v14::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     // opset13
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),

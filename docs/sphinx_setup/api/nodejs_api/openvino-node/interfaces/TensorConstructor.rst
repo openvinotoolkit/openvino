@@ -1,40 +1,38 @@
 Interface TensorConstructor
 ===========================
 
+.. rubric:: Interface TensorConstructor
+
+
 .. code-block:: ts
 
    interface TensorConstructor {
        new Tensor(type, shape, tensorData?): Tensor;
    }
 
-* **Defined in:**
-  `addon.ts:94 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L94>`__
-
-
-Constructors
-#####################
-
+- Defined in
+  `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L66>`__
 
 .. rubric:: constructor
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      new Tensor(type, shape, tensorData?): Tensor
+.. code-block:: ts
 
-   * **Parameters:**
+   new Tensor(type, shape, tensorData?): Tensor
 
-     - type: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
-     - shape: number[]
-     - ``Optional``
+**Parameters**
 
-       .. code-block:: ts
+- type: :doc:`elementTypeString <../types/elementTypeString>` | :doc:`element <../enums/element>`
+- shape: number[]
+- ``Optional``
 
-          tensorData: number[]|SupportedTypedArray
+  .. code-block:: ts
 
-   * **Returns:**  :doc:`Tensor <Tensor>`
+     tensorData: number[]|SupportedTypedArray
 
-   * **Defined in:**
-     `addon.ts:95 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L95>`__
 
+**Returns**  :doc:`Tensor <Tensor>`
+
+- Defined in
+  `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__

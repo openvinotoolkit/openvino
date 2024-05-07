@@ -6,10 +6,9 @@
 
 std::shared_ptr<ov::Symbol> ov::symbol::ancestor_of(const std::shared_ptr<Symbol>& symbol) {
     auto x = symbol;
-    while (x->m_parent) {
-        if (x->m_parent->m_parent)
-            x->m_parent = x->m_parent->m_parent;
-        x = x->m_parent;
+    while (x->parent().get() != x.get()) {
+        x->m_parent = x->parent()->parent();
+        x = x->parent();
     }
     return x;
 }
@@ -27,4 +26,10 @@ void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared
     if (lhs_root.get() == rhs_root.get())
         return;  // already are equal
     lhs_root->m_parent = rhs_root;
+}
+
+std::shared_ptr<ov::Symbol> ov::Symbol::parent() {
+    if (!m_parent)
+        m_parent = shared_from_this();
+    return m_parent;
 }

@@ -27,13 +27,15 @@ struct ConvertParams {
                   const ov::element::Type& iType,
                   const ov::element::Type& oType,
                   const std::vector<IT>& iValues,
-                  const std::vector<OT>& oValues)
+                  const std::vector<OT>& oValues,
+                  size_t iSize = 0,
+                  size_t oSize = 0)
         : conversionType(convType),
           pshape(shape),
           inType(iType),
           outType(oType),
-          inputData(CreateTensor(shape.get_shape(), iType, iValues)),
-          refData(CreateTensor(shape.get_shape(), oType, oValues)) {}
+          inputData(CreateTensor(iType, iValues, iSize)),
+          refData(CreateTensor(oType, oValues, oSize)) {}
     ConversionTypes conversionType;
     ov::PartialShape pshape;
     ov::element::Type inType;

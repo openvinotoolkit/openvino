@@ -21,13 +21,18 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
-# compile and linker options
+# compile options
 
 if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-elseif(CMAKE_COMPILER_IS_GNUCXX)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
-    ov_add_compiler_flags(-Wno-error=attributes)
+    add_compile_options(-Wno-error=attributes)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
+    add_compile_options(-Wno-deprecated-declarations -Wno-undef)
 endif()
 
 if(ENABLE_TESTS)

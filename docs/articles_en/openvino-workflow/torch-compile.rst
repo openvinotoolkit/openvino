@@ -22,24 +22,52 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 How to Use
 ####################
 
-To use ``torch.compile``, you need to add an import statement and define the ``openvino`` backend.
-This way Torch FX subgraphs will be directly converted to OpenVINO representation without
-any additional PyTorch-based tracing/scripting.
+To use ``torch.compile``, you need to add an import statement and define one of the two available backends:
+
+| ``openvino``
+|   With this backend, Torch FX subgraphs are directly converted to OpenVINO representation without any additional PyTorch based tracing/scripting.
+
+| ``openvino_ts``
+|   With this backend, Torch FX subgraphs are first traced/scripted with PyTorch Torchscript, and then converted to OpenVINO representation.
 
 
-.. code-block:: sh
+.. tab-set::
 
-   import openvino.torch
-   ...
-   model = torch.compile(model, backend='openvino')
+   .. tab-item:: openvino
+      :sync: backend-openvino
 
-Execution diagram:
+      .. code-block:: console
 
-.. image:: ../_static/images/torch_compile_backend_openvino.svg
-   :width: 992px
-   :height: 720px
-   :scale: 60%
-   :align: center
+         import openvino.torch
+         ...
+         model = torch.compile(model, backend='openvino')
+
+      Execution diagram:
+
+      .. image:: ../_static/images/torch_compile_backend_openvino.svg
+         :width: 992px
+         :height: 720px
+         :scale: 60%
+         :align: center
+
+   .. tab-item:: openvino_ts
+      :sync: backend-openvino-ts
+
+      .. code-block:: console
+
+         import openvino.torch
+         ...
+         model = torch.compile(model, backend='openvino_ts')
+
+      Execution diagram:
+
+      .. image:: ../_static/images/torch_compile_backend_openvino_ts.svg
+         :width: 1088px
+         :height: 720px
+         :scale: 60%
+         :align: center
+
+
 
 Options
 ++++++++++++++++++++
@@ -75,6 +103,22 @@ You can also set OpenVINO specific configuration options by adding them as a dic
    opts = {"device" : "CPU", "config" : {"PERFORMANCE_HINT" : "LATENCY"}}
    model = torch.compile(model, backend="openvino", options=opts)
 
+
+.. important::
+
+   The environment variables used in the previous release are still available but are not
+   recommended. They will be removed fully in future releases.
+
+   .. dropdown:: Click to view the deprecated options.
+
+      * ``OPENVINO_TORCH_BACKEND_DEVICE`` - enables selecting a specific hardware device to run the application.
+        By default, the OpenVINO backend for ``torch.compile`` runs PyTorch applications using the CPU. Setting
+        this variable to ``GPU.0``, for example, will make the application use the integrated graphics processor instead.
+      * ``OPENVINO_TORCH_MODEL_CACHING``- enables saving the optimized model files to a hard drive, after the first application run.
+        This makes them available for the following application executions, reducing the first-inference latency.
+        By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
+      * ``OPENVINO_TORCH_CACHE_DIR``- enables defining a custom directory for the model files (if ``model_caching`` is set to ``True``).
+        By default, the OpenVINO IR is saved in the ``cache`` sub-directory, created in the application's root directory.
 
 Windows support
 +++++++++++++++++++++

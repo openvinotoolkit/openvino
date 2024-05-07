@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "openvino/core/node.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/function.hpp"
@@ -20,8 +19,7 @@ void loop(const std::shared_ptr<Model>& func,
           const op::util::InputDescriptionVector& input_descs,
           const op::v5::Loop::SpecialBodyPorts& special_ports,
           ov::TensorVector& out,
-          const ov::TensorVector& args,
-          const EvaluationContext& evaluation_context) {
+          const ov::TensorVector& args) {
     const auto& cur_iter_idx = special_ports.current_iteration_input_idx;
     auto val = std::find_if(input_descs.begin(),
                             input_descs.end(),
@@ -139,7 +137,7 @@ void loop(const std::shared_ptr<Model>& func,
 
             // Evaluate body
             body_outputs.clear();
-            reference::function(func, inputs_to_body, body_outputs, evaluation_context);
+            reference::function(func, inputs_to_body, body_outputs);
 
             // Store values for later concatenation
             for (size_t i = 0; i < values_to_concat.size(); ++i) {

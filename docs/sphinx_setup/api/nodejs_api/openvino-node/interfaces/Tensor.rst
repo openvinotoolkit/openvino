@@ -1,6 +1,9 @@
 Interface Tensor
 =====================
 
+.. rubric:: Interface Tensor
+
+
 .. code-block:: ts
 
    interface Tensor {
@@ -8,84 +11,65 @@ Interface Tensor
        getData(): number[];
        getElementType(): element;
        getShape(): number[];
-       getSize(): number;
    }
 
-* **Defined in:**
-  `addon.ts:88 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L88>`__
-
+- Defined in
+  `addon.ts:60 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L60>`__
 
 Properties
 #####################
 
-
 .. rubric:: data
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      data: SupportedTypedArray
+.. code-block:: ts
 
-   -  **Defined in:**
-      `addon.ts:89 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L89>`__
+   data: number[]
+
+-  Defined in
+   `addon.ts:61 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L61>`__
+
 
 
 Methods
 #####################
 
-
 .. rubric:: getData
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      getData(): number[]
+   getData(): number[]
 
-   * **Returns:** number[]
 
-   * **Defined in:**
-     `addon.ts:92 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L92>`__
+**Returns** number[]
+
+
+- Defined in
+  `addon.ts:64 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L64>`__
 
 .. rubric:: getElementType
 
-.. container:: m-4
 
-   .. code-block:: ts
+.. code-block:: ts
 
-      getElementType(): element
+   getElementType(): element
 
-   * **Returns:** :doc:`element <../enums/element>`
 
-   * **Defined in:**
-     `addon.ts:90 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L90>`__
+**Returns** :doc:`element <../enums/element>`
 
+- Defined in
+  `addon.ts:62 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L62>`__
 
 .. rubric:: getShape
 
-.. container:: m-4
+.. code-block:: ts
 
-   .. code-block:: ts
-
-      getShape(): number[]
-
-   * **Returns:** number[]
-
-   * **Defined in:**
-     `addon.ts:91 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L91>`__
+   getShape(): number[]
 
 
-.. rubric:: getSize
+**Returns** number[]
 
-.. container:: m-4
-
-   .. code-block:: ts
-
-      getSize(): number[]
-
-   * **Returns:** number[]
-
-   * **Defined in:**
-     `addon.ts:93 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L93>`__
-
+- Defined in
+  `addon.ts:63 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L63>`__

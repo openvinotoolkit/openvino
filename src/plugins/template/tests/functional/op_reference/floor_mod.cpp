@@ -17,7 +17,6 @@ struct FloorModParams {
     template <class IT>
     FloorModParams(const PartialShape& iShape1,
                    const PartialShape& iShape2,
-                   const Shape& oShape,
                    const element::Type& iType,
                    const std::vector<IT>& iValues1,
                    const std::vector<IT>& iValues2,
@@ -28,7 +27,7 @@ struct FloorModParams {
           outType(iType),
           inputData1(CreateTensor(iType, iValues1)),
           inputData2(CreateTensor(iType, iValues2)),
-          refData(CreateTensor(oShape, iType, oValues)) {}
+          refData(CreateTensor(iType, oValues)) {}
 
     PartialShape pshape1;
     PartialShape pshape2;
@@ -42,14 +41,15 @@ struct FloorModParams {
 class ReferenceFloorModLayerTest : public testing::TestWithParam<FloorModParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        const auto& params = GetParam();
+        legacy_compare = true;
+        auto params = GetParam();
         function = CreateFunction(params.pshape1, params.pshape2, params.inType, params.outType);
         inputData = {params.inputData1, params.inputData2};
         refOutData = {params.refData};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<FloorModParams>& obj) {
-        const auto& param = obj.param;
+        auto param = obj.param;
         std::ostringstream result;
         result << "iShape1=" << param.pshape1 << "_";
         result << "iShape2=" << param.pshape2 << "_";
@@ -81,7 +81,6 @@ std::vector<FloorModParams> generateParamsForFloorMod() {
 
     std::vector<FloorModParams> params{FloorModParams(ov::PartialShape{4},
                                                       ov::PartialShape{4},
-                                                      ov::Shape{4},
                                                       IN_ET,
                                                       std::vector<T>{7, -7, 7, -7},
                                                       std::vector<T>{3, 3, -3, -3},
@@ -96,7 +95,6 @@ std::vector<FloorModParams> generateParamsForFloorModBroadcast() {
     std::vector<FloorModParams> params{
         FloorModParams(ov::PartialShape{2, 1, 2},
                        ov::PartialShape{2, 1},
-                       ov::Shape{2, 2, 2},
                        IN_ET,
                        std::vector<T>{1, 2, 3, 4},
                        std::vector<T>{2, 3},
@@ -112,7 +110,6 @@ std::vector<FloorModParams> generateParamsForFloorModScalar() {
     std::vector<FloorModParams> params{
         FloorModParams(ov::PartialShape{1},
                        ov::PartialShape{1},
-                       ov::Shape{1},
                        IN_ET,
                        std::vector<T>{2},
                        std::vector<T>{4},
@@ -125,7 +122,7 @@ template <element::Type_t IN_ET>
 std::vector<FloorModParams> generateParamsForFloorModNonIntegerDivisor() {
     using T = typename element_type_traits<IN_ET>::value_type;
     // clang-format off
-    return {FloorModParams(ov::PartialShape{8}, ov::PartialShape{8}, ov::Shape{8}, IN_ET,
+    return {FloorModParams(ov::PartialShape{8}, ov::PartialShape{8}, IN_ET,
                 std::vector<T>{-3.2, -3.1, -3.0,  5.0,  5.1,  5.2, -1.6, 1.6},
                 std::vector<T>{-3.1, -3.1, -3.1, -5.1, -5.1, -5.1,  1.7, 1.7},
                 std::vector<T>{-0.1, -0.0, -3.0, -0.1, -0.0, -5.0,  0.1, 1.6})};

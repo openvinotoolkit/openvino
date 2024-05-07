@@ -7,6 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -15,10 +16,9 @@ namespace lowered {
 namespace pass {
 
 bool InsertBroadcastMove::is_broadcasting_supported(const std::shared_ptr<ov::Node>& n) {
-    return !std::dynamic_pointer_cast<modifier::MemoryAccess>(n) &&
-           (ov::op::util::supports_auto_broadcast(n) ||
+    return ov::op::util::supports_auto_broadcast(n) ||
            n->get_autob().m_type == ov::op::AutoBroadcastType::NUMPY ||
-           is_type<ov::op::v0::PRelu>(n));
+           is_type<ov::op::v0::PRelu>(n);
 }
 
 bool InsertBroadcastMove::is_broadcasting_needed(const std::shared_ptr<ov::Node>& n) {

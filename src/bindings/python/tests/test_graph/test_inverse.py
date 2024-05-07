@@ -18,14 +18,12 @@ from openvino import PartialShape, Type
         ([10, -1, -1], True, PartialShape([10, -1, -1])),
     ],
 )
-@pytest.mark.parametrize("op_name", ["inverse", "inverseOpset14"])
-def test_inverse_param_inputs(input_shape, adjoint, expected_output_shape, op_name):
+def test_inverse_param_inputs(input_shape, adjoint, expected_output_shape):
     data = ops.parameter(input_shape, dtype=np.float32)
 
-    op = ops.inverse(data, adjoint=adjoint, name=op_name)
+    op = ops.inverse(data, adjoint=adjoint)
     assert op.get_output_size() == 1
     assert op.get_type_name() == "Inverse"
-    assert op.get_friendly_name() == op_name
     assert op.get_output_element_type(0) == Type.f32
     assert op.get_output_partial_shape(0) == expected_output_shape
 
@@ -37,15 +35,13 @@ def test_inverse_param_inputs(input_shape, adjoint, expected_output_shape, op_na
         (np.array([[0.7, 0.3, 0.6], [1, 2, 3], [0.7, 0.1, 0.4]]), False, PartialShape([3, 3])),
     ],
 )
-@pytest.mark.parametrize("op_name", ["inverse", "inverseOpset14"])
-def test_inverse_const_inputs(input_array, adjoint, expected_output_shape, op_name):
+def test_inverse_const_inputs(input_array, adjoint, expected_output_shape):
     data = ops.constant(input_array, dtype=np.float64)
 
-    op = ops.inverse(data, adjoint=adjoint, name=op_name)
+    op = ops.inverse(data, adjoint=adjoint)
 
     assert op.get_output_size() == 1
     assert op.get_type_name() == "Inverse"
-    assert op.get_friendly_name() == op_name
     assert op.get_output_element_type(0) == Type.f64
     assert op.get_output_partial_shape(0) == expected_output_shape
 

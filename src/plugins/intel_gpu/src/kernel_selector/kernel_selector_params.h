@@ -441,7 +441,6 @@ struct base_activation_params {
                                                                                        m(m),
                                                                                        n(n) {}
 
-    virtual ~base_activation_params() = default;
     virtual std::string to_string() const;
 };
 

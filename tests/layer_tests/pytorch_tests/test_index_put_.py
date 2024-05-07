@@ -237,3 +237,4 @@ class TestMaskKosmos_IndexPut(PytorchLayerTest):
     def test_nonzero_kosmos_index_put_(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
+

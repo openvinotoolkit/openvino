@@ -1,32 +1,32 @@
 Interface InputModelInfo
 ========================
 
+
 .. code-block:: ts
 
    interface InputModelInfo {
        setLayout(layout): InputModelInfo;
    }
 
-* **Defined in:**
-  `addon.ts:140 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L140>`__
+- Defined in
+  `addon.ts:112 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L112>`__
 
 Methods
 #####################
 
 .. rubric:: setLayout
 
-.. container:: m-4
 
-   .. code-block:: ts
 
-      setLayout(layout): InputModelInfo
+.. code-block:: ts
 
-   * **Parameters:**
+   setLayout(layout): InputModelInfo
 
-     - layout: string
+**Parameters**
 
-   * **Returns:** :doc:`InputModelInfo <InputModelInfo>`
+- layout: string
 
-   * **Defined in:**
-     `addon.ts:141 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L141>`__
+**Returns** :doc:`InputModelInfo <InputModelInfo>`
 
+- Defined in
+  `addon.ts:113 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L113>`__

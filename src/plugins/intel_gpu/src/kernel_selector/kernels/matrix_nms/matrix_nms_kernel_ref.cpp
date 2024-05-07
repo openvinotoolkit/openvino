@@ -125,6 +125,11 @@ bool MatrixNmsKernelRef::Validate(const Params& p) const {
         return false;
     }
 
+    const matrix_nms_params& params = static_cast<const matrix_nms_params&>(p);
+    // inputs: boxes, scores, second output, third output
+    if (params.inputs.size() != 4)
+        return false;
+
     return true;
 }
 
@@ -170,7 +175,7 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
         break;
 
     case 1:
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         break;
@@ -178,8 +183,8 @@ void MatrixNmsKernelRef::SetKernelArguments(const matrix_nms_params& params, clK
     case 2:
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         break;
 

@@ -576,17 +576,8 @@ void Node::updateDynamicParams() {
         }
     }
 }
-
-void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
-    execute(strm);
-}
-
-void Node::executeDynamic(dnnl::stream strm, int numaId) {
+void Node::executeDynamic(dnnl::stream strm) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
@@ -916,6 +907,9 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 }
 
 void Node::toNumaNode(int numaNodeID) {
+    if (!isExecutable())
+        return;
+
     return toNumaNodeImpl(numaNodeID);
 }
 
@@ -1713,7 +1707,7 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
              DQScales[i] *= scaleData[i];
          }
      }
-     if (std::all_of(DQScales.begin(), DQScales.end(), [OV_CAPTURE_CPY_AND_THIS](float val){ return (val == DQScales[0]);}))
+     if (std::all_of(DQScales.begin(), DQScales.end(), [=](float val){ return (val == DQScales[0]);}))
         DQScales.resize(1);
 }
 

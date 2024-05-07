@@ -51,7 +51,8 @@ std::shared_ptr<ov::Node> get_horizon_node(const ov::Output<ov::Node>& input, co
 }
 }  // namespace
 
-using HandlerType = SpecificIterationHandlers::HandlerType;
+using LoopInfo = LinearIR::LoopManager::LoopInfo;
+using HandlerType = LoopInfo::SpecificIterationHandlers::HandlerType;
 
 ReduceDecomposition::ReduceDecomposition(size_t vector_size) : RangedPass(), m_vector_size{vector_size} {}
 
@@ -62,7 +63,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& reduce_expr = *expr_it;
         const auto& reduce = ov::as_type_ptr<ov::snippets::op::ReduceBase>(reduce_expr->get_node());
-        if (!reduce || std::dynamic_pointer_cast<modifier::MemoryAccess>(reduce_expr->get_node()))
+        if (!reduce)
             continue;
 
         const auto& reduce_type_info = reduce->get_type_info();
