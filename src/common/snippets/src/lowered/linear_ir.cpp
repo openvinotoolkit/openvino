@@ -493,9 +493,9 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     const auto output_ports = new_expr_it->get()->get_output_ports();
     for (const auto& old_expr : old_exprs) {
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports, true);
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_input_port(i), input_ports);
         for (size_t i = 0; i < old_expr->get_input_count(); ++i)
-            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports, false);
+            m_loop_manager->update_loops_port(loop_ids, old_expr->get_output_port(i), output_ports);
         erase(find(old_expr));
     }
     return new_expr_it;

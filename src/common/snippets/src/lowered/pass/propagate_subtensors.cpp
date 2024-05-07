@@ -24,9 +24,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != SIZE_MAX),
                     "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be equal to default value");
     std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
-    // First step: set new dim value to the corresponding entry_points' dimensions
+    // First step: set new dim value to the corresponding input_ports' dimensions
     if (most_outer_loop) {
-        for (const auto& port : loop_info->get_entry_points()) {
+        for (const auto& port : loop_info->get_input_ports()) {
             const auto& reg_type = port.expr_port->get_descriptor_ptr()->get_reg().type;
             if ((port.is_incremented && reg_type == RegType::gpr) || (reg_type == RegType::vec)) {
                 const auto& expr = port.expr_port->get_expr();
@@ -99,9 +99,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             const auto inner_begin = std::next(expr_it);
             const auto inner_end = linear_ir.find_after(inner_begin, linear_ir.get_expr_by_node(loop_end));
 
-            // The corresponding shapes of inner loops entry points must be updated using existing subtensor values
+            // The corresponding shapes of inner loops input ports must be updated using existing subtensor values
             if (!most_outer_loop) {
-                for (const auto& port : loop_info->get_entry_points())
+                for (const auto& port : loop_info->get_input_ports())
                     update_only_dim_idx_with_subtensor_value(port);
             }
             propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);

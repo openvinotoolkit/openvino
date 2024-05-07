@@ -55,7 +55,7 @@ ov::Shape compute_allocation_shape(const LoopManagerPtr& loop_manager,
     // 1. Buffer is outside the parent loop: the corresponding subtensor value is ignored, parent loop work amount is set instead
     // 2. Buffer is inside the parent loop: the corresponding subtensor value is used in allocation shape.
     // Since we can defenitely know which subtensor value corresponds to the loop only for 1st case
-    // (we can extract this info from loop exit port), we copy subtensor, and then replace subtensor values with parent loop work amount if needed.
+    // (we can extract this info from loop output port), we copy subtensor, and then replace subtensor values with parent loop work amount if needed.
     // Example:
     // Parent subtensor: [M_blk, N_blk]
     // Buffer loop idces: [M_loop_idx], parent loop idces: [M_loop_idx, N_loop_idx]
@@ -74,13 +74,13 @@ ov::Shape compute_allocation_shape(const LoopManagerPtr& loop_manager,
         for (const auto& parent_loop : parent_loop_ids) {
             if (std::find(buffer_loop_ids.begin(), buffer_loop_ids.end(), parent_loop) == buffer_loop_ids.end()) {
                 const auto loop_info = loop_manager->get_loop_info(parent_loop);
-                const auto& exit_points = loop_info->get_exit_points();
-                auto it = std::find_if(exit_points.begin(),
-                                       exit_points.end(),
+                const auto& output_ports = loop_info->get_output_ports();
+                auto it = std::find_if(output_ports.begin(),
+                                       output_ports.end(),
                                        [&parent_expr_output](const LoopPort& port) {
                                            return *port.expr_port == parent_expr_output;
                                        });
-                OPENVINO_ASSERT(it != exit_points.end(), "compute_allocation_shape: exit point of parent loop can not be found");
+                OPENVINO_ASSERT(it != output_ports.end(), "compute_allocation_shape: output port of parent loop can not be found");
                 const auto& loop_port = *it;
                 if (loop_port.is_incremented && loop_port.dim_idx < allocation_shape.size()) {
                     *(allocation_shape.rbegin() + loop_port.dim_idx) = loop_info->get_work_amount();
@@ -148,8 +148,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LoopManagerPtr& loop_manager,
                               const std::vector<LoopPort>& loop_entries,
                               const std::vector<LoopPort>& loop_exits) const {
-    for (const auto& entry_point : loop_entries) {
-        const auto& entry_port = entry_point.expr_port;
+    for (const auto& input_port : loop_entries) {
+        const auto& entry_port = input_port.expr_port;
         const auto& expr = entry_port->get_expr();
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
@@ -199,8 +199,8 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         }
     }
 
-    for (const auto& exit_point : loop_exits) {
-        const auto& exit_port = exit_point.expr_port;
+    for (const auto& output_port : loop_exits) {
+        const auto& exit_port = output_port.expr_port;
         const auto& expr = exit_port->get_expr();
         const auto port_idx = exit_port->get_index();
         const auto node = expr->get_node();
@@ -300,8 +300,8 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
     const auto loop_data_map = loop_manager->get_map();
     for (const auto& loop_data : loop_data_map) {
         const auto loop_info = loop_data.second;
-        const auto loop_entries = loop_info->get_entry_points();
-        const auto loop_exits = loop_info->get_exit_points();
+        const auto loop_entries = loop_info->get_input_ports();
+        const auto loop_exits = loop_info->get_output_ports();
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
         insertion(linear_ir, begin, end, loop_manager, loop_entries, loop_exits);
     }

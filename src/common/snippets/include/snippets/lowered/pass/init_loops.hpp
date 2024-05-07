@@ -15,7 +15,7 @@ namespace pass {
 
 /**
  * @interface InitLoops
- * @brief The pass initializes scheduling information in LoopInfo
+ * @brief The pass initializes scheduling information in UnifiedLoopInfo
  * @ingroup snippets
  */
 class InitLoops : public Pass {
@@ -24,7 +24,7 @@ public:
     InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
-    static void init_loop_info(const LoopInfoPtr& loop_info, size_t loop_id, bool only_runtime_args = false);
+    static void init_loop_info(const UnifiedLoopInfoPtr& loop_info, size_t loop_id, bool only_runtime_args = false);
 };
 
 } // namespace pass

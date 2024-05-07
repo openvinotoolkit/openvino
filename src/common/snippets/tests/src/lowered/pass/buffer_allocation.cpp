@@ -10,7 +10,6 @@
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
-#include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
