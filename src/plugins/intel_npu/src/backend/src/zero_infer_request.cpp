@@ -59,16 +59,27 @@ std::optional<size_t> getBatchSizeForNode(const IONodeDescriptor& nodeDescriptor
                                           const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
     Logger logger("GetBatchSizeForNode", Logger::global().level());
 
+    if (nodeDescriptor.originalShape.rank().get_length() == 0) {
+        logger.info("Networks with empty shapes are not supported when batching is handled by the plugin");
+        return std::nullopt;
+    }
+
+    if (nodeDescriptor.originalShape.is_dynamic()) {
+        logger.info("Dynamic networks are not supported when batching is handled by the plugin");
+        return std::nullopt;
+    }
+
     const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
 
-    if ((ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS]) &&
-        (ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE)) {
+    if (ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS] &&
+        ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE) {
         logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    if (zeDescriptor.info.dims[BATCH_AXIS] == DEFAULT_BATCH_SIZE)
+    if (zeDescriptor.info.dims[BATCH_AXIS] == DEFAULT_BATCH_SIZE) {
         return ovDimensions[BATCH_AXIS];
+    }
 
     return DEFAULT_BATCH_SIZE;
 }
