@@ -19,7 +19,7 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, /*2,*/ 1};
+    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
     auto is_divided = [input_size](size_t i) {
         return input_size % i == 0;
     };
