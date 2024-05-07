@@ -176,7 +176,7 @@ def cli_parser():
                         type=str,
                         help="Change output model precision")
     parser.add_argument("-hint",
-                        default="warm",
+                        default="cold", # TODO: revert after custom CI runs
                         choices=["warm", "cold"],
                         dest="hint",
                         type=str,

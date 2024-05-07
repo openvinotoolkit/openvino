@@ -66,7 +66,7 @@ def pytest_addoption(parser):
     )
     test_args_parser.addoption(
         "--hint",
-        default="warm",
+        default="cold", # TODO: revert after custom CI runs
         choices=["warm", "cold"],
         type=str,
         help="Configure environment to perform measurements",
