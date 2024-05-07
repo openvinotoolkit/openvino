@@ -10,7 +10,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/rms_norm.hpp"
 #include "openvino/op/util/axes_util.hpp"
-#include "openvino/reference/mvn.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils.hpp"
 
