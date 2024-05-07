@@ -1,5 +1,3 @@
-.. {#qat_introduction}
-
 Quantization-aware Training (QAT) with PyTorch
 ===============================================
 
