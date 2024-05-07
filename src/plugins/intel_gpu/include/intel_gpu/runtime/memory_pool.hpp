@@ -6,9 +6,11 @@
 
 #include "layout.hpp"
 #include "memory_caps.hpp"
+#include "utils.hpp"
 
 #include <vector>
 #include <set>
+#include <unordered_set>
 #include <map>
 #include <list>
 #include <string>
@@ -19,17 +21,18 @@ namespace cldnn {
 struct memory;
 struct shared_mem_params;
 class engine;
-struct memory_user;
-struct memory_user_comparer;
-using memory_set = std::set<memory_user, memory_user_comparer>;
-using primitive_id = std::string;
 
+using primitive_id = std::string;
 using memory_ptr = std::shared_ptr<memory>;
 
 struct memory_user {
     size_t _unique_id;
     uint32_t _network_id;
     primitive_id _prim_id;
+
+    bool operator==(const struct memory_user& rhs) const {
+        return _unique_id == rhs._unique_id && _network_id == rhs._network_id;
+    }
 
     memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id)
         : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id) {}
@@ -39,6 +42,13 @@ struct memory_user {
         return os;
     }
 };
+struct memory_set_hasher {
+    size_t operator()(const memory_user& mem_user) const {
+        return hash_combine(0, mem_user._unique_id);
+    }
+};
+
+using memory_set = std::unordered_set<memory_user, memory_set_hasher>;
 
 struct memory_user_comparer {
     bool operator()(const memory_user& l_mu, const memory_user& r_mu) const {
@@ -92,7 +102,7 @@ class memory_pool {
     memory_pool();
 
     memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
-    static bool has_conflict(const memory_set&, const std::set<size_t>&, uint32_t network_id);
+    static bool has_conflict(const memory_set&, const std::unordered_set<size_t>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
@@ -106,23 +116,25 @@ public:
                           const primitive_id& id,
                           size_t unique_id,
                           uint32_t network_id,
-                          const std::set<size_t>& restrictions,
+                          const std::unordered_set<size_t>& restrictions,
                           allocation_type type,
                           bool reusable = true,
-                          bool reset = true);  // get from pool or create memory allocation
+                          bool reset = true,
+                          bool is_dynamic = false);  // get from pool or create memory allocation
     memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& prim_id,
                                         size_t unique_id,
                                         uint32_t network_id,
-                                        const std::set<size_t>&,
+                                        const std::unordered_set<size_t>&,
                                         allocation_type type,
-                                        bool reset = true);
+                                        bool reset = true,
+                                        bool is_dynamic = false);
     memory_ptr get_from_padded_pool(const layout& layout,
                                     const primitive_id& prim_id,
                                     size_t unique_id,
                                     uint32_t network_id,
-                                    const std::set<size_t>& restrictions,
+                                    const std::unordered_set<size_t>& restrictions,
                                     allocation_type type);
     memory_ptr get_from_across_networks_pool(const layout& layout,
                                              const primitive_id& id,
