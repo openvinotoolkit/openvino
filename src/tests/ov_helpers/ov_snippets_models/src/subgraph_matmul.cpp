@@ -59,7 +59,7 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     if (pos == 0) {
         in0 = std::make_shared<op::v1::Transpose>(in0, const_order);
     }
-    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i8, const_shape.get_shape(), std::vector<int8_t>{}, true);
+    auto constant = ov::test::utils::make_constant(ov::element::i8, const_shape.get_shape());
     auto convert = std::make_shared<op::v0::Convert>(constant, ov::element::f32);
     auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);

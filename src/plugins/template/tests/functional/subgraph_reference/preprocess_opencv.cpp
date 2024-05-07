@@ -11,6 +11,7 @@
 #    include <random>
 
 #    include "base_reference_test.hpp"
+#    include "functional_test_utils/common_utils.hpp"
 #    include "functional_test_utils/skip_tests_config.hpp"
 #    include "openvino/core/preprocess/pre_post_process.hpp"
 #    include "openvino/op/add.hpp"

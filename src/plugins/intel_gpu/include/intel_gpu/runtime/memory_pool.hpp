@@ -119,7 +119,8 @@ public:
                           const std::unordered_set<size_t>& restrictions,
                           allocation_type type,
                           bool reusable = true,
-                          bool reset = true);  // get from pool or create memory allocation
+                          bool reset = true,
+                          bool is_dynamic = false);  // get from pool or create memory allocation
     memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& prim_id,
@@ -127,7 +128,8 @@ public:
                                         uint32_t network_id,
                                         const std::unordered_set<size_t>&,
                                         allocation_type type,
-                                        bool reset = true);
+                                        bool reset = true,
+                                        bool is_dynamic = false);
     memory_ptr get_from_padded_pool(const layout& layout,
                                     const primitive_id& prim_id,
                                     size_t unique_id,
