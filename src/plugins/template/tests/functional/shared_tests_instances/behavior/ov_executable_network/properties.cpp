@@ -14,23 +14,10 @@ const std::vector<ov::AnyMap> inproperties = {
     {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
-    {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE,
-                                                              ov::test::utils::DEVICE_HETERO,
-                                                              ov::test::utils::DEVICE_MULTI,
-                                                              ov::test::utils::DEVICE_AUTO),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(inproperties)),
-                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_inproperties)),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
@@ -55,46 +42,10 @@ const std::vector<ov::AnyMap> properties = {
     {ov::device::id("0")},
 };
 
-const std::vector<ov::AnyMap> hetero_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id("0")},
-};
-
-const std::vector<ov::AnyMap> multi_properties = {
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id("0")},
-};
-
-const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"}},
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
-     {ov::auto_batch_timeout(1)}},
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
-     {ov::auto_batch_timeout(10)}},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(properties)),
-                         OVClassCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
-                         OVClassCompiledModelPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                            ::testing::ValuesIn(hetero_properties)),
-                         OVClassCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVClassCompiledModelPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multi_properties)),
-                         OVClassCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVClassCompiledModelPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelEmptyPropertiesTests,

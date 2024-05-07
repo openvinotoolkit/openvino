@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,6 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> configs = {{}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::ValuesIn(configs)),
-                         OVInferRequestIOTensorTest::getTestCaseName);
 
 std::vector<ov::element::Type> prcs = {
     ov::element::boolean,
@@ -36,12 +29,12 @@ std::vector<ov::element::Type> prcs = {
     ov::element::u64,
 };
 
-const std::vector<ov::AnyMap> emptyConfigs = {{}};
+const std::vector<ov::AnyMap> HeteroConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::ValuesIn(emptyConfigs)),
+                                            ::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(HeteroConfigs)),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
 }  // namespace

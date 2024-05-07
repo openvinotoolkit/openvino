@@ -12,16 +12,15 @@ const std::vector<ov::AnyMap> configs = {
 };
 const std::vector<ov::AnyMap> swPluginConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVCompiledModelBaseTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::ValuesIn(configs)),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVCompiledModelBaseTestOptional,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::ValuesIn(configs)),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(swPluginConfigs)),
                          OVCompiledModelBaseTestOptional::getTestCaseName);
-
 }  // namespace
