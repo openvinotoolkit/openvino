@@ -110,7 +110,6 @@ For inputs ``output_size`` = [16, 16] and ``kernel_size`` = [2, 2]
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="16,16" kernel_size="2,2"/>
         <input>
             <port id="0" precision="I32">
                 <dim>3</dim>     <!-- batch_axis -->
