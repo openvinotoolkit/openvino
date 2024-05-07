@@ -17,6 +17,7 @@ import argparse
 import sys
 import os
 import yaml
+import urllib.request
 
 from pathlib import Path
 from pprint import pprint
@@ -37,7 +38,10 @@ from platform_utils import os_type_is_windows
 def page_cache_cleanup():
     retcode = 0
     if os_type_is_windows():
-        raise Exception("Page cache clean is not implemented on Win")
+        # Download to a temporary file
+        EmptyStandbyList_exe_path = urllib.request.urlretrieve(
+            "https://github.com/vurusovs/EmptyStandbyList/raw/master/EmptyStandbyList.exe")[0]
+        retcode, _ = cmd_exec([EmptyStandbyList_exe_path])
     else:
         cmd = ["sudo", "sh", "-c", "echo 1 > /proc/sys/vm/drop_caches"]
         retcode, _ = cmd_exec(cmd)
