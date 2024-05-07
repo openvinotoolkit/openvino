@@ -50,4 +50,8 @@ uint64_t IDevice::getTotalMemSize() const {
     OPENVINO_THROW("Get TotalMemSize is not supported");
 }
 
+ov::device::PCIInfo IDevice::getPciInfo() const {
+    OPENVINO_THROW("Get PCIInfo is not supported");
+}
+
 }  // namespace intel_npu

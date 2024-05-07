@@ -23,6 +23,7 @@ public:
     }
 
 private:
+    void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     void init_brgemm_copy(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
@@ -36,17 +37,23 @@ private:
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
+    ov::element::Type m_brg_weight_etype;
 
-    ov::element::Type m_brgemm_prc_in0, m_brgemm_prc_in1;
-    size_t m_N, m_N_blk, m_N_tail;
-    size_t m_K, m_K_blk, m_K_tail;
-    size_t m_LDB;
-    size_t m_brgemmVNNIFactor;
-    bool m_with_comp = false;
+    // Block size which is set by snippets: it is usually shared between brgemm and brgemm_copy_b nodes
+    size_t m_N_blk = 0lu;
+    // Block size which is used by the internal OneDNN implementation.
+    // It is used in snippets emitter to iterate through input/output data and call OneDNN kernel
+    size_t m_inner_N_block = 0lu;
+    size_t m_inner_N_tail = 0lu;
+
+    size_t m_K_blk = 0lu;
+    size_t m_brgemmVNNIFactor = 0lu;
 
     size_t m_in_offset = 0lu;
     size_t m_out_offset = 0lu;
     size_t m_comp_offset = 0lu;
+
+    bool m_with_comp = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter *emitter);

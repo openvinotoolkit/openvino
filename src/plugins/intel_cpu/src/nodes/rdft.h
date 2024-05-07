@@ -14,6 +14,7 @@ namespace node {
 struct RDFTExecutor {
     public:
         RDFTExecutor(bool inverse) : isInverse(inverse) {}
+        virtual ~RDFTExecutor() = default;
         void execute(float* inputPtr, float* outputPtr,
                      const std::vector<std::vector<float>>& twiddles,
                      size_t rank, const std::vector<int>& axes,
