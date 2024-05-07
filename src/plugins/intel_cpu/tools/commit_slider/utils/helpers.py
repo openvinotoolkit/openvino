@@ -290,10 +290,7 @@ def fetchAppOutput(cfg, commit):
         for item in [
                 {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
                 {"src": cfg["appPath"], "dst": "appPath"},
-                {"src": sys.executable, "dst": "py"},
-                # for AC case
-                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
-                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
+                {"src": sys.executable, "dst": "py"}
                 ]:
             appCmd = multistepStrFormat(
                 appCmd,
@@ -646,7 +643,8 @@ def formatJSON(content, formatLambda):
     return content
 
 def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
-    # if commit is None, the rule is considered as static,
+    # if commit is None or rule['type'] == 'static',
+    # the rule is considered as static,
     # substitution proceeds as simple string replacing
 
     serviceCfg = cfg["serviceConfig"]
@@ -682,6 +680,7 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             srcPos = srcPos[item]
         for item in pathToDst:
             dstPos = dstPos[item]
+        ruleIsStatic = True if rule["type"] == "static" else False
         dstPos = formatJSON(
             dstPos,
             lambda content:
@@ -689,7 +688,7 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
                 content,
                 rule["placeholder"],
                 getMapValueByShortHash(srcPos, commit)\
-                    if commit is not None\
+                    if commit is not None and not ruleIsStatic\
                     else srcPos
             )
         )
