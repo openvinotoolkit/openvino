@@ -114,7 +114,7 @@ public:
     /// \brief Returns iterator for a subgraph created on demand
     /// If there is no query for specific sub-graph iterator shouldn't be created
     /// idx should be in range 0..get_subgraph_size()-1
-    std::shared_ptr<GraphIterator> get_subgraph(const size_t& idx) const override;
+    std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const override;
 };
 
 }  // namespace tensorflow_lite

@@ -38,7 +38,7 @@ public:
     /// \brief Returns iterator for a subgraph created on demand
     /// If there is no query for specific sub-graph iterator shouldn't be created
     /// idx should be in range 0..get_subgraph_size()-1
-    virtual std::shared_ptr<GraphIterator> get_subgraph(const size_t& idx) const = 0;
+    virtual std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const = 0;
 
     /// \brief Destructor
     virtual ~GraphIterator();
