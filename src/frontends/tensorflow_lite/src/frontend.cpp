@@ -225,7 +225,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
 
     // operations
     for (const auto& op_place : model_lite->get_op_places()) {
-        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderBase>(op_place->get_decoder());
+        const auto& decoder = std::dynamic_pointer_cast<tensorflow_lite::DecoderBaseOperation>(op_place->get_decoder());
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be tensorflow_lite::DecoderBase or its child");
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {

@@ -28,7 +28,7 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     tensor_meta_info.m_sparsity_info = ov::frontend::tensorflow_lite::get_sparsity(tensor->shape(), tensor->sparsity());
     tensor_meta_info.m_tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
-    tensor_meta_info.m_tensor_names = {tensor->name()->str()};
+    tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
 }
@@ -72,6 +72,11 @@ size_t DecoderFlatBuffer::get_output_size() const {
 std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
     return m_input_info.at(idx).tensor->name()->str();
+}
+
+ov::element::Type DecoderFlatBuffer::get_input_tensor_type(size_t idx) const {
+    FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
+    return get_ov_type(m_input_info.at(idx).tensor->type());
 }
 
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {

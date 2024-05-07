@@ -62,6 +62,7 @@ public:
     std::string get_output_tensor_name(size_t idx) const override;
     element::Type get_output_tensor_type(size_t idx) const override;
     std::string get_input_tensor_name(size_t idx) const override;
+    ov::element::Type get_input_tensor_type(size_t idx) const override;
 
     TensorMetaInfo get_input_tensor_info(size_t idx) const override;
     TensorMetaInfo get_output_tensor_info(size_t idx) const override;
@@ -106,50 +107,26 @@ public:
     }
 
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_THROW("incorrect usage");
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_attribute");
     }
 
     size_t get_input_size() const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    size_t get_output_size() const override {
-        FRONT_END_THROW("incorrect usage");
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_size");
     }
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        FRONT_END_THROW("incorrect usage");
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_node");
     }
 
     const std::string& get_op_type() const override {
-        FRONT_END_THROW("incorrect usage");
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_type");
     }
 
     const std::string& get_op_name() const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    std::string get_output_tensor_name(size_t idx) const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    ov::element::Type get_output_tensor_type(size_t idx) const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    std::string get_input_tensor_name(size_t idx) const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    TensorMetaInfo get_input_tensor_info(size_t idx) const override {
-        FRONT_END_THROW("incorrect usage");
-    }
-
-    TensorMetaInfo get_output_tensor_info(size_t idx) const override {
-        FRONT_END_THROW("incorrect usage");
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_name");
     }
 
 private:

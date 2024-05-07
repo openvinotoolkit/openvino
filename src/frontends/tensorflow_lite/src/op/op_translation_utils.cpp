@@ -18,7 +18,8 @@ namespace tensorflow_lite {
 namespace op {
 
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs) {
-    const auto& decoder_with_name = node.get_decoder();
+    const auto& decoder_with_name =
+        std::dynamic_pointer_cast<tensorflow_lite::DecoderBaseOperation>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(decoder_with_name != nullptr, "Unexpected decoder during operation translation.");
     FRONT_END_GENERAL_CHECK(outputs.size() == decoder_with_name->get_output_size(),
                             "Unexpected decoder during operation translation.");

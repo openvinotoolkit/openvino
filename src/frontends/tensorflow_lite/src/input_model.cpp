@@ -16,32 +16,34 @@
 using namespace ov::frontend::tensorflow;
 
 namespace {
-std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
+std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor_place(
     const ov::frontend::tensorflow_lite::TensorMetaInfo& tensor_meta_info,
     const ov::frontend::InputModel& model) {
-    return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(model,
-                                                                            tensor_meta_info.m_partial_shape,
-                                                                            tensor_meta_info.m_element_type,
-                                                                            tensor_meta_info.m_tensor_names,
-                                                                            tensor_meta_info.m_quantization_info,
-                                                                            tensor_meta_info.m_sparsity_info,
-                                                                            tensor_meta_info.m_tensor_data);
+    auto tensor_place = std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
+        model,
+        tensor_meta_info.m_partial_shape,
+        tensor_meta_info.m_element_type,
+        std::vector<std::string>{tensor_meta_info.m_tensor_name},
+        tensor_meta_info.m_quantization_info,
+        tensor_meta_info.m_sparsity_info,
+        tensor_meta_info.m_tensor_data);
+    return tensor_place;
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(
-    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
+    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBaseOperation>& decoder,
     size_t idx,
     const ov::frontend::InputModel& model) {
     const auto& tensor_meta_info = decoder->get_input_tensor_info(idx);
-    return decode_tensor(tensor_meta_info, model);
+    return decode_tensor_place(tensor_meta_info, model);
 }
 
 std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(
-    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
+    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBaseOperation>& decoder,
     size_t idx,
     const ov::frontend::InputModel& model) {
     const auto& tensor_meta_info = decoder->get_output_tensor_info(idx);
-    return decode_tensor(tensor_meta_info, model);
+    return decode_tensor_place(tensor_meta_info, model);
 }
 }  // namespace
 
@@ -115,7 +117,7 @@ void InputModel::InputModelTFLiteImpl::load_model() {
         const auto& decoder = m_graph_iterator->get_decoder();
 
         if (auto tensor_decoder = std::dynamic_pointer_cast<DecoderBaseTensor>(decoder)) {
-            auto tensor_place = decode_tensor(tensor_decoder->get_tensor_info(), m_input_model);
+            auto tensor_place = decode_tensor_place(tensor_decoder->get_tensor_info(), m_input_model);
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(tensor_decoder->get_output_idx());
             FRONT_END_GENERAL_CHECK(tensor_place->is_input() || tensor_place->is_output());
@@ -135,8 +137,10 @@ void InputModel::InputModelTFLiteImpl::load_model() {
             op_statistics[decoder->get_op_type()]++;
         }
 
-        for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            auto place = decode_input_tensor(decoder, i, m_input_model);
+        auto operation_decoder = std::dynamic_pointer_cast<DecoderBaseOperation>(decoder);
+        FRONT_END_GENERAL_CHECK(operation_decoder, "Operation decoder is expected");
+        for (size_t i = 0; i < operation_decoder->get_input_size(); ++i) {
+            auto place = decode_input_tensor(operation_decoder, i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = place;
@@ -158,15 +162,15 @@ void InputModel::InputModelTFLiteImpl::load_model() {
                                             "should be already produced by previous operators: ",
                                             name,
                                             ". Error is encountered while working with operation of type ",
-                                            decoder->get_op_type(),
+                                            operation_decoder->get_op_type(),
                                             " and name ",
-                                            decoder->get_op_name(),
+                                            operation_decoder->get_op_name(),
                                             ".");
                 }
             }
         }
-        for (size_t i = 0; i < decoder->get_output_size(); ++i) {
-            auto place = decode_output_tensor(decoder, i, m_input_model);
+        for (size_t i = 0; i < operation_decoder->get_output_size(); ++i) {
+            auto place = decode_output_tensor(operation_decoder, i, m_input_model);
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0)
                 m_tensor_places[name] = place;

@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow_lite {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class TENSORFLOW_LITE_API GraphIterator : ::ov::RuntimeAttribute {
+class GraphIterator : ::ov::RuntimeAttribute {
 public:
     using Ptr = std::shared_ptr<GraphIterator>;
 
