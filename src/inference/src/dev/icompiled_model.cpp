@@ -64,7 +64,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                                     ". Batch size must be a positive value.");
                 }
             }
-            
+
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
             new_param->set_friendly_name(param_name);

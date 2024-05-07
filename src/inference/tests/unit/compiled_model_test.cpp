@@ -193,13 +193,13 @@ protected:
     std::shared_ptr<ov::IPlugin> plugin;
 
     void SetUp() override {
-        model = create_model(ov::PartialShape{1, 3, 2, 2});       
-        modelZero = create_model(ov::PartialShape{0, 3, 2, 2});       
+        model = create_model(ov::PartialShape{1, 3, 2, 2});
+        modelZero = create_model(ov::PartialShape{0, 3, 2, 2});
         plugin = std::make_shared<ov::MockIPlugin>();
     }
 
 private:
-    std::shared_ptr<ov::Model> create_model(const ov::PartialShape &p_shape) {
+    std::shared_ptr<ov::Model> create_model(const ov::PartialShape& p_shape) {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, p_shape);
         param->set_friendly_name("Param");
         param->output(0).set_names({"param"});
