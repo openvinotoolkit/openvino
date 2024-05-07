@@ -45,6 +45,7 @@ public:
             inputData = {params.input.data, params.reductionAxes.data, params.scale.data};
         }
         refOutData = {params.expected.data};
+        threshold = 1e-3f;  // Set more precise threshold to detect eps changes
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RMSNormParams>& obj) {
         auto param = obj.param;
@@ -155,6 +156,28 @@ INSTANTIATE_TEST_SUITE_P(
                                                                  -0.68924063,
                                                                  1.78933442,
                                                                  0.48752034}}),
+        RMSNormParams(reference_tests::Tensor{Shape{8},
+                                              ov::element::f32,
+                                              std::vector<float>({-6.44250308,
+                                                                  -59.65135475,
+                                                                  28.08134504,
+                                                                  -3.38603289,
+                                                                  1.047344,
+                                                                  -22.62146978,
+                                                                  58.72749089,
+                                                                  16.00083578})},
+                      reference_tests::Tensor{Shape{1}, ov::element::i32, std::vector<int32_t>({-1})},
+                      5.55,
+                      reference_tests::Tensor{Shape{8},
+                                              ov::element::f32,
+                                              std::vector<float>{-0.19579013,
+                                                                 -1.81282747,
+                                                                 0.85340279,
+                                                                 -0.10290283,
+                                                                 0.03182918,
+                                                                 -0.68747509,
+                                                                 1.78475082,
+                                                                 0.48627150}}),
         RMSNormParams(
             reference_tests::Tensor{
                 Shape{2, 3},
@@ -199,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
             1e-5,
             reference_tests::Tensor{Shape{2, 3, 1},
                                     ov::element::f32,
-                                    std::vector<float>{-1.2518, -1.4140, 1.1013, -0.6579, 0.0248, -0.8872}}),
+                                    std::vector<float>{-1.2518, -1.4140, 1.1013, -0.6579, 0.024826, -0.8872}}),
 
         RMSNormParams(reference_tests::Tensor{Shape{2, 2, 2, 3},
                                               ov::element::f32,
