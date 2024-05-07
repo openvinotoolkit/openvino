@@ -930,12 +930,28 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         }
     }
 
-    return {arg.name,
+    std::string nameFromCompiler = arg.name;
+    bool isStateInput = false;
+    bool isStateOutput = false;
+    bool isShapeTensor = false;
+    if (isStateInputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
+        isStateInput = true;
+    } else if (isStateOutputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
+        isStateOutput = true;
+    } else if (isShapeTensorName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
+        isShapeTensor = true;
+    }
+
+    return {nameFromCompiler,
             precision,
             std::move(shapeFromCompiler),
-            isStateInputName(arg.name),
-            isStateOutputName(arg.name),
-            isShapeTensorName(arg.name),
+            isStateInput,
+            isStateOutput,
+            isShapeTensor,
+            std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
             std::move(shapeFromIRModel)};
@@ -1043,6 +1059,8 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
     }
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
+    meta.bindRelatedDescriptors();
+
     return meta;
 }
 

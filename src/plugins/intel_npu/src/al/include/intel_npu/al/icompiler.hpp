@@ -10,6 +10,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -37,6 +38,7 @@ struct IODescriptor {
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;
+    std::optional<size_t> relatedDescriptorIndex;
 
     std::string nodeFriendlyName;
     std::unordered_set<std::string> outputTensorNames;
@@ -51,7 +53,66 @@ struct NetworkMetadata final {
     std::vector<IODescriptor> profilingOutputs;
 
     int numStreams = 1;
-};
+
+    std::optional<size_t> findByName(const std::vector<IODescriptor>& descriptors, const std::string_view targetName) {
+        for (size_t descriptorIndex = 0; descriptorIndex < descriptors.size(); ++descriptorIndex) {
+            if (descriptors.at(descriptorIndex).nameFromCompiler == targetName) {
+                return std::optional(descriptorIndex);
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    void bindRelatedDescriptors() {
+        size_t ioIndex = 0;
+
+        for (IODescriptor& input : inputs) {
+            if (input.relatedDescriptorIndex.has_value()) {
+                ++ioIndex;
+                continue;
+            }
+
+            if (input.isStateInput) {
+                const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, input.nameFromCompiler);
+
+                if (relatedDescriptorIndex.has_value()) {
+                    input.relatedDescriptorIndex = *relatedDescriptorIndex;
+                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                }
+            } else if (input.isShapeTensor) {
+                const std::optional<size_t> relatedDescriptorIndex = findByName(inputs, input.nameFromCompiler);
+
+                if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
+                    input.relatedDescriptorIndex = *relatedDescriptorIndex;
+                    inputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                }
+            }
+
+            ++ioIndex;
+        }
+
+        ioIndex = 0;
+
+        for (IODescriptor& output : outputs) {
+            if (output.relatedDescriptorIndex.has_value()) {
+                ++ioIndex;
+                continue;
+            }
+
+            if (output.isShapeTensor) {
+                const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, output.nameFromCompiler);
+
+                if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
+                    output.relatedDescriptorIndex = *relatedDescriptorIndex;
+                    outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
+                }
+            }
+
+            ++ioIndex;
+        }
+    }
+};  // namespace intel_npu
 
 /**
  * @struct NetworkDescription

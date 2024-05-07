@@ -217,17 +217,17 @@ void ZeroInferRequest::infer_async() {
     for (const std::shared_ptr<ov::ITensor>& inputTensor : _inputTensors) {
         const std::shared_ptr<ov::ITensor>& wrapperInputTensor = _copyInputTensors.at(inputIndex);
 
-        // TODO
-        // if (isShapeTensorName(name)) {
-        //     const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
-        //     const auto& inputDims = _allTensors.at(actualTensorName)->get_shape();
+        const IODescriptor inputDescriptor = _metadata.outputs.at(inputIndex);
+        if (inputDescriptor.isShapeTensor) {
+            OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value());
+            const auto& inputDims = _inputTensors.at(*inputDescriptor.relatedDescriptorIndex)->get_shape();
 
-        //     // TODO optimize this
-        //     for (size_t i = 0; i < inputTensor->get_size(); ++i) {
-        //         const auto reverseIdx = inputDims.size() - 1 - i;
-        //         inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
-        //     }
-        // }
+            // TODO optimize this
+            for (size_t i = 0; i < inputTensor->get_size(); ++i) {
+                const auto reverseIdx = inputDims.size() - 1 - i;
+                inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);
+            }
+        }
 
         const uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(inputTensor->data());
         uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperInputTensor->data());
@@ -259,22 +259,20 @@ void ZeroInferRequest::get_result() {
     for (const std::shared_ptr<ov::ITensor>& outputTensor : _outputTensors) {
         const std::shared_ptr<ov::ITensor>& wrapperOutputTensor = _copyOutputTensors.at(outputIndex);
 
-        // TODO
-        // if (isShapeTensorName(name)) {
-        //     const auto actualTensorName = name.substr(SHAPE_TENSOR_PREFIX.size());
-        //     const auto& shapeNameMatch = _nameFromCompilerToNodeFriendlyName.find(actualTensorName);
-        //     if (shapeNameMatch != _nameFromCompilerToNodeFriendlyName.end()) {
-        //         ov::Shape actualDims;
-        //         actualDims.reserve(outputTensor->get_size());
+        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
+        if (outputDescriptor.isShapeTensor) {
+            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value());
 
-        //         for (size_t i = 0; i < outputTensor->get_size(); ++i) {
-        //             const auto reverseIdx = outputTensor->get_size() - 1 - i;
-        //             actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
-        //         }
-        //         auto& tensorToBeReshaped = _allTensors.at(shapeNameMatch->second);
-        //         tensorToBeReshaped->set_shape(actualDims);
-        //     }
-        // }
+            ov::Shape actualDims;
+            actualDims.reserve(outputTensor->get_size());
+
+            for (size_t i = 0; i < outputTensor->get_size(); ++i) {
+                const auto reverseIdx = outputTensor->get_size() - 1 - i;
+                actualDims.push_back(outputTensor->data<uint32_t>()[reverseIdx]);
+            }
+            auto& tensorToBeReshaped = _outputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+            tensorToBeReshaped->set_shape(actualDims);
+        }
 
         uint8_t* tensorBuffer = reinterpret_cast<uint8_t*>(outputTensor->data());
         const uint8_t* copyTensorBuffer = reinterpret_cast<uint8_t*>(wrapperOutputTensor->data());

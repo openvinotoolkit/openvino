@@ -215,31 +215,17 @@ void SyncInferRequest::check_tensors() const {
     }
 }
 
-// void SyncInferRequest::attach_state_input_to_state_outputs_buffers(const std::vector<IODescriptor>& inputDescriptors)
-// {
-//     std::unordered_map<std::string, ov::SoPtr<ov::IVariableState>> stateNameToTensor;
-//     for (const ov::SoPtr<ov::IVariableState>& variableState : _variableStates) {
-//         stateNameToTensor.emplace(variableState->get_name(), variableState->get_state());
-//     }
-
-//     for (const auto& inputDescriptor : inputDescriptors) {
-//         if (inputDescriptor.isStateInput) {
-//         }
-//     }
-// }
-
 void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
                                        const bool isInput,
                                        const ov::Allocator& allocator) {
-    if (descriptor.isStateInput) {
-        return;
-    }
-
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);
 
-    if (allocator) {
+    if (descriptor.isStateOutput) {
+        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value());
+        tensor = _inputTensors.at(*descriptor.relatedDescriptorIndex);
+    } else if (allocator) {
         tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape(), allocator);
     } else {
         tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape());
@@ -249,16 +235,16 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
         _inputTensors.push_back(tensor);
         _copyInputTensors.push_back(tensor);
 
-        if (descriptor.isShapeTensor) {
+        if (descriptor.isStateInput) {
+            _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
+        } else if (descriptor.isShapeTensor) {
             _shapesInputTensors.push_back(tensor);
         }
     } else {
         _outputTensors.push_back(tensor);
         _copyOutputTensors.push_back(tensor);
 
-        if (descriptor.isStateOutput) {
-            _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
-        } else if (descriptor.isShapeTensor) {
+        if (descriptor.isShapeTensor) {
             _shapesOutputTensors.push_back(tensor);
         }
     }

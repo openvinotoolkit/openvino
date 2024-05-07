@@ -145,8 +145,6 @@ protected:
      */
     void allocate_tensor(const IODescriptor& descriptor, const bool isInput, const ov::Allocator& allocator = {});
 
-    void attach_state_input_to_state_outputs_buffers(const std::vector<IODescriptor>& inputDescriptors);
-
     std::vector<std::shared_ptr<ov::ITensor>> _inputTensors;
     std::vector<std::shared_ptr<ov::ITensor>> _outputTensors;
     std::vector<std::shared_ptr<ov::ITensor>> _shapesInputTensors;
