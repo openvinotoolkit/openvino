@@ -93,8 +93,8 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
                             "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
-    const auto el_type = pytorch_place->m_type;
-    const auto p_shape = pytorch_place->m_pshape;
+    const auto& el_type = pytorch_place->m_type;
+    const auto& p_shape = pytorch_place->m_pshape;
     FRONT_END_GENERAL_CHECK(el_type.is_static() && p_shape.is_static(),
                             "Shape and type must be statically defined before calling set_tensor_value");
     auto const_node = ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);

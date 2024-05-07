@@ -10,7 +10,7 @@
 #include "itt.h"
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/memory.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -419,7 +419,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
-        if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
+        if (!shape.compatible(ov::PartialShape(tensor->get_shape())) && tensor->get_size() != 0) {
             OPENVINO_THROW("Can't set the output tensor with index: ",
                            output_index,
                            ", because the model output tensor (shape=",

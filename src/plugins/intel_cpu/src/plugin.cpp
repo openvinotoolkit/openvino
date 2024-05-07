@@ -15,6 +15,7 @@
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
+#include "utils/precision_support.h"
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
@@ -125,7 +126,7 @@ public:
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
-    get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
+    get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
     auto& ov_version = ov::get_openvino_version();
@@ -441,7 +442,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
-            RW_property(ov::affinity.name()),
             RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),
             RW_property(ov::hint::inference_precision.name()),
@@ -459,6 +459,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
         };
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        rwProperties.insert(rwProperties.end(), RW_property(ov::affinity.name()));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<ov::PropertyName> supportedProperties;
         supportedProperties.reserve(roProperties.size() + rwProperties.size());
@@ -480,12 +484,14 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             capabilities.push_back(ov::device::capability::BF16);
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             capabilities.push_back(ov::device::capability::WINOGRAD);
         capabilities.push_back(ov::device::capability::FP32);
-        capabilities.push_back(ov::device::capability::FP16);
+        if (hasHardwareSupport(ov::element::f16))
+            capabilities.push_back(ov::device::capability::FP16);
         capabilities.push_back(ov::device::capability::INT8);
         capabilities.push_back(ov::device::capability::BIN);
         capabilities.push_back(ov::device::capability::EXPORT_IMPORT);

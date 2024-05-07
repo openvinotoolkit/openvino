@@ -1076,6 +1076,54 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_11) {
+    auto model = convert_model("reduce_l2_11.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{3, 3, 3, 3}, {3, 3, 3, 3}, {3, 3, 3, 3}, {3, 3, 3, 3}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{12}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_13) {
+    auto model = convert_model("reduce_l2_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{4, 4, 4, 4}, {4, 4, 4, 4}, {4, 4, 4, 4}, {4, 4, 4, 4}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2_18) {
+    auto model = convert_model("reduce_l2_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{5, 5, 5, 5}, {5, 5, 5, 5}, {5, 5, 5, 5}, {5, 5, 5, 5}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{20}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_max) {
     auto model = convert_model("reduce_max.onnx");
 
@@ -6534,6 +6582,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_none) {
+    auto model = convert_model("gelu_float_none.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-16.13f, 24.33f});
+    test_case.add_expected_output<float>(Shape{2}, {0.0f, 24.33f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float_tanh) {
     auto model = convert_model("gelu_float_tanh.onnx");
 
@@ -6556,4 +6614,52 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
                                           0.208001f,  2.986535f,  7.691896f,  0.453058f,  -0.000074f, 0.0f});
 
     test_case.run_with_tolerance_as_fp(0.000001f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
+    // Credit: This function is a modified version of PR 23475's test function.
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_min_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({1, 2, 3, 4}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
+    // Credit: This function is a modified version of PR 23475's test function.
+    // TEMPLATE plugin has an issue with evaluation for u8 type
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_min_20.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<bool>> inputs{ov::test::NDArray<bool, 4>({{{{true, true, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, true, false, false}}}})
+                                              .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({1, 0, 0, 0}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
 }

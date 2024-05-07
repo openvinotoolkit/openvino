@@ -33,6 +33,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -116,7 +117,6 @@
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
-#include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
@@ -405,9 +405,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Common ConvertPrecision pass handles only a limited set of opevino operations to match the list of precisions supported by the plugin.
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
+    constexpr bool convert_input_output_precision = false;
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
+    // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
+    // This may result in the loss of the original Element type of the Output .
     // element type convert is disabled.
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, false);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
@@ -741,9 +744,11 @@ void Transformations::PostLpt() {
             return node->get_rt_info().count("UNROLL_TI") == 0;
         },
         ov::pass::UnrollTensorIterator);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, MoveEltwiseUpThroughDataMov);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_SET_CALLBACK_COMMON(postLPTPassManager,
         [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) && node->get_output_element_type(0) != node->get_input_element_type(0))
+                return true;
             if (node->get_input_size() >= 2) {
                 return node->get_input_element_type(1) == ov::element::i8 ||
                        node->get_input_element_type(1) == ov::element::u8 ||
@@ -751,7 +756,7 @@ void Transformations::PostLpt() {
             }
             return false;
         },
-        MoveEltwiseUpThroughDataMov);
+        ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);

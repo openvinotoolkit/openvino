@@ -41,8 +41,11 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -60,13 +63,14 @@
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
-#include "plugin/transformations/broadcast_reshape_matmul_fusion.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -279,14 +283,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        if (device_info.supports_immad) {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, false);
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u4, ov::element::i4}, true);
-        } else {
-            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
-        }
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4},
+                                                                    !device_info.supports_immad);
 
-        // Need to check if transfomrations work correctly for mixed models with both compression and quantization at the same time.
+        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
         if (!is_model_quantized)
             pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
@@ -709,22 +709,41 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+
+        // Other ops support eltwise fusions
+        const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+            ov::op::v1::Reshape::get_type_info_static(),
+            ov::op::v0::Squeeze::get_type_info_static(),
+            ov::op::v0::Unsqueeze::get_type_info_static(),
+            ov::op::v0::ShuffleChannels::get_type_info_static(),
+            ov::op::v7::Roll::get_type_info_static(),
+            ov::op::v0::ReverseSequence::get_type_info_static(),
+            ov::op::v1::Broadcast::get_type_info_static(),
+            ov::op::v3::Broadcast::get_type_info_static(),
+        };
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        if (device_info.supports_immad) {
+            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
+            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
+            manager.register_pass<ov::pass::ConstantFolding>();
+        }
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
-        if (!device_info.supports_immad)
+        if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
+            manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
+        }
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
-
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
-        if (!device_info.supports_immad)
-            manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);

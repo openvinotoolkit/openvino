@@ -19,7 +19,7 @@ class InferencePrecisionValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         auto precision = v.as<ov::element::Type>();
-        return precision == ov::element::f16 || precision == ov::element::f32;
+        return precision == ov::element::f16 || precision == ov::element::f32 || precision == ov::element::undefined;
     }
 };
 
@@ -73,7 +73,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
-        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f));
+        std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
+        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
@@ -129,7 +130,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
         const auto mode = get_property(ov::hint::execution_mode);
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                set_property(ov::hint::inference_precision(ov::element::f32));
+                set_property(ov::hint::inference_precision(ov::element::undefined));
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
                     set_property(ov::hint::inference_precision(ov::element::f16));
