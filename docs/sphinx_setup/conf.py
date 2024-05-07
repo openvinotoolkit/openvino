@@ -75,8 +75,8 @@ ov_sitemap_meta = [
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
-autosummary_generate = True
-autosummary_imported_members = True
+autosummary_generate = False
+autosummary_imported_members = False
 
 html_logo = '_static/logo.svg'
 html_copy_source = False
