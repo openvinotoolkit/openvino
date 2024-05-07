@@ -16,11 +16,11 @@ def rsqrt(name: str, x):
         # Initialize the variables with the provided inputs
         exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x}, fetch_list=[out])
-        
+
         saveModel(
             name,
             exe,
-            feedkeys=["x"],
+            feed_vars=[node_x],
             fetchlist=[out],
             inputs=[x],
             outputs=[outs[0]],
