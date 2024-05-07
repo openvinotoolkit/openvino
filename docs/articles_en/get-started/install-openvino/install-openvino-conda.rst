@@ -97,11 +97,15 @@ variables are properly set and proceed with linking the OpenVINO libraries.
 Enabling GPU device for inference
 +++++++++++++++++++++++++++++++++
 
-To use a GPU device for OpenVINO inference, you must install OpenCL ICD:
+To use a GPU device for OpenVINO inference on Linux, you must install OpenCL ICD:
 
 .. code-block:: sh
 
    conda install ocl-icd-system
+
+This step is not required on Windows, as Intel® Graphics Compute Runtime for
+OpenCL™ Driver is included with the Intel® Graphics Driver package.
+
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
