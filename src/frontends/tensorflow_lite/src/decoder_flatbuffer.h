@@ -84,8 +84,6 @@ protected:
         const ov::frontend::tensorflow_lite::TensorInfo& tensor_info,
         const ov::frontend::InputModel& model) const;
 
-    TensorMetaInfo extract_tensor_meta_info(const ov::frontend::tensorflow_lite::TensorInfo& tensor_info) const;
-
     const tflite::Operator* m_node_def;
     std::string m_type, m_name;
     std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> m_input_info, m_output_info;
@@ -93,7 +91,7 @@ protected:
 
 class DecoderFlatBufferTensors : public DecoderBaseTensor {
 public:
-    DecoderFlatBufferTensors(const TensorInfo& info, int64_t input_idx, int64_t output_idx);
+    DecoderFlatBufferTensors(const TensorInfo& tensor_info, int64_t input_idx, int64_t output_idx);
 
     TensorMetaInfo get_tensor_info() const override {
         return m_tensor_meta_info;
