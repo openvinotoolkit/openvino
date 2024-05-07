@@ -23,7 +23,6 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -1337,6 +1336,11 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
 /// -------- Hash calculation pass -------------
 
 namespace {
+template <typename T>
+static uint64_t hash_combine(uint64_t seed, const T& a) {
+    // Hash combine formula from boost
+    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
 
 class OstreamHashWrapper final : public std::streambuf {
     uint64_t m_res = 0;
@@ -1375,8 +1379,8 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, true);
 
     uint64_t seed = 0;
-    seed = ov::util::hash_combine(seed, xmlHash.getResult());
-    seed = ov::util::hash_combine(seed, binHash.getResult());
+    seed = hash_combine(seed, xmlHash.getResult());
+    seed = hash_combine(seed, binHash.getResult());
 
     m_hash = seed;
     // Return false because we didn't change OpenVINO Model
