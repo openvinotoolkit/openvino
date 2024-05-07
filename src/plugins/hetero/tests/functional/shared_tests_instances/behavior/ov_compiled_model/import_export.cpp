@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "behavior/compiled_model/import_export.hpp"
+
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::behavior;
@@ -18,15 +19,17 @@ const std::vector<ov::element::Type_t> netPrecisions = {
     ov::element::f16,
     ov::element::f32,
 };
-const std::vector<ov::AnyMap> configs = {
-    {},
-};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+const std::vector<ov::AnyMap> heteroConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
-                                            ::testing::ValuesIn(configs)),
+                                            ::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::ValuesIn(heteroConfigs)),
                          OVCompiledGraphImportExportTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP,
+                         OVClassCompiledModelImportExportTestP,
+                         ::testing::Values("HETERO:TEMPLATE"));
 }  // namespace
