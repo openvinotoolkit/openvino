@@ -154,8 +154,6 @@ struct CPUStreamsExecutor::Impl {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 _cpu_ids =
                     stream_id < static_cast<int>(stream_processors.size()) ? stream_processors[stream_id] : _cpu_ids;
-                std::cout << "stream_id: " << stream_id << " size: " << stream_processors.size()
-                          << " cpu size: " << _cpu_ids.size() << " addr: " << _impl << " , " << _cpu_ids[0] << "\n";
                 if (_cpu_ids.size() > 0) {
                     CpuSet processMask;
                     int ncpus = 0;
@@ -177,6 +175,7 @@ struct CPUStreamsExecutor::Impl {
             int streams_num = _impl->_config.get_streams();
             const auto stream_id =
                 streams_num == 0 ? 0 : (_sub_stream_id >= 0 ? streams_num + _sub_stream_id : _streamId % streams_num);
+            _rank = _impl->_config.get_rank();
             get_cur_stream_info(stream_id,
                                 _impl->_config.get_cpu_pinning(),
                                 org_proc_type_table,
@@ -204,6 +203,7 @@ struct CPUStreamsExecutor::Impl {
         int _socketId = 0;
         bool _execute = false;
         int _sub_stream_id = -1;
+        std::vector<int> _rank;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
@@ -469,7 +469,7 @@ struct CPUStreamsExecutor::Impl {
                             _msgCondVar.wait(lock);
                         }
                         std::swap(_messageQueue, msgQueue);
-                        // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " data:" << msgQueue[0].data
+                        // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" << msgQueue[0].rank[0]
                         //           << " / " << msgQueue.size() << "\n";
                     }
 
@@ -480,7 +480,7 @@ struct CPUStreamsExecutor::Impl {
                             task();
                         } else if (msg_type == TP) {
                             for (int i = 0; i < streams_num; i++) {
-                                if (rec_info.data != i) {
+                                if (rec_info.rank[0] != i) {
                                     std::lock_guard<std::mutex> lock(_readMutex);
                                     _readQueue[i].push_back(rec_info);
                                 }
@@ -572,6 +572,11 @@ int CPUStreamsExecutor::get_numa_node_id() {
 int CPUStreamsExecutor::get_socket_id() {
     auto stream = _impl->_streams.local();
     return stream->_socketId;
+}
+
+std::vector<int> CPUStreamsExecutor::get_rank() {
+    auto stream = _impl->_streams.local();
+    return stream->_rank;
 }
 
 void CPUStreamsExecutor::send_message(MessageInfo msg_info) {

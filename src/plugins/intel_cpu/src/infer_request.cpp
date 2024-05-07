@@ -629,9 +629,6 @@ void SyncInferRequest::sub_streams_infer() {
     auto requests = m_asyncRequest->getSubInferRequest();
     auto inputs = m_asyncRequest->get_inputs();
     auto outputs = m_asyncRequest->get_outputs();
-    // auto sub_models = m_compiled_model->get_sub_compilemodles();
-    // auto graphLock = sub_models[0]->get_graph();
-    // m_graph = &(graphLock._graph);
     auto streams_executor = m_graph->context->getCPUStreamExecutor();
     size_t requests_num = requests.size();
     size_t requests_count = 0;

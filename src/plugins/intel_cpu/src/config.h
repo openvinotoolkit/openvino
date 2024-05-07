@@ -65,6 +65,7 @@ struct Config {
     int threadsPerStream = 0;
     ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;

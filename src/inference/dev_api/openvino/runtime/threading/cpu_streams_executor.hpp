@@ -53,6 +53,8 @@ public:
 
     int get_socket_id() override;
 
+    std::vector<int> get_rank() override;
+
     void run_sub_stream(Task task, int id) override;
 
     void send_message(MessageInfo msg_info);

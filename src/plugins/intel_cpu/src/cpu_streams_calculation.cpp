@@ -655,7 +655,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     // streams_info_table = {{1, 1, 32, -1, -1}, {-1, 1, 16, 0, 0}, {-1, 1, 16, 1, 1}};
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {
-        auto streams_rank_table =
+        config.streamsRankTable =
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
         config.enableSubStreams = true;
     }
