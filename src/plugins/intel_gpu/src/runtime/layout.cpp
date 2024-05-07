@@ -511,8 +511,11 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
     // shortcut for transform to max rank default fmt which is used in fill_shape_info_data to improve perf
     if (format::is_default_format(old_fmt) && new_fmt == format::bfvuwzyx) {
         ov::PartialShape res = pshape;
-        size_t num_to_insert = layout::max_rank() - pshape.size();
-        size_t pos_to_insert = std::min<size_t>(pshape.size(), 2);
+        // This part is necessary because we treat 3D layouts as "bfy", not as "bfx".
+        if (res.size() == 3)
+            res.push_back(1);
+        size_t num_to_insert = layout::max_rank() - res.size();
+        size_t pos_to_insert = std::min<size_t>(res.size(), 2);
         res.insert(res.begin() + pos_to_insert, num_to_insert, 1);
 
         return res;
