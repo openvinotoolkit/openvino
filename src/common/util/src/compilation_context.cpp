@@ -27,7 +27,7 @@ namespace ov {
 namespace util {
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
-    size_t seed = 0;
+    uint64_t seed = 0;
     auto absPath = filePath;
     if (filePath.size() > 0) {
         try {
@@ -51,7 +51,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
     OPENVINO_ASSERT(model);
 
-    size_t seed = 0;
+    uint64_t seed = 0;
     // 1. Calculate hash on function
     ov::pass::Manager m;
     m.register_pass<ov::pass::Hash>(seed);
@@ -77,7 +77,7 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
 }
 
 std::string ModelCache::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    size_t seed = 0;
+    uint64_t seed = 0;
     try {
         seed = ov::util::hash_combine(seed, ov::util::get_absolute_file_path(modelName));
     } catch (...) {
@@ -93,7 +93,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
 std::string ModelCache::compute_hash(const std::string& modelStr,
                                      const ov::Tensor& tensor,
                                      const ov::AnyMap& compileOptions) {
-    size_t seed = 0;
+    uint64_t seed = 0;
     // model string
     seed = ov::util::hash_combine(seed, modelStr);
 
