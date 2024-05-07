@@ -37,7 +37,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 * *strides*
 
   * **Description**: stride in the sliding blocks in the input spatial dimensions.
-  * **Range of values**: 1D tensor of non-negative integer numbers
+  * **Range of values**: 1D tensor of positive integer numbers
   * **Type**: *T_IND*
   * **Default value**: [1, 1]
   * **Required**: *no*
@@ -77,7 +77,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 * **2**: *output_size*
 
   * **Description**: controls the shape of the spatial dimensions of the output image. **Required.**
-  * **Range of values**: batched 3D or unbatched 2D tensor of non-negative integer numbers
+  * **Range of values**: 1D tensor of two positive integer numbers (height and width)
   * **Type**: *T_IND*
 
 * **3**: *kernel_size*
@@ -104,6 +104,8 @@ All examples assume ``C = 3``.
 
 *Example 1: default optional Parameters*
 
+For inputs ``output_size`` = [16, 16] and ``kernel_size`` = [2, 2]
+
 .. code-block:: xml
    :force:
 
@@ -114,6 +116,12 @@ All examples assume ``C = 3``.
                 <dim>3</dim>     <!-- batch_axis -->
                 <dim>12</dim>    <!-- C * Product(kernel_size) -->
                 <dim>225</dim>   <!-- L -->
+            </port>
+            <port id="1" precision="I32">
+                <dim>2</dim>     <!-- output_size -->
+            </port>
+            <port id="2" precision="I32">
+                <dim>2</dim>     <!-- kernel_size -->
             </port>
         </input>
         <output>
@@ -129,16 +137,24 @@ All examples assume ``C = 3``.
 
 *Example 2: non-default dilations, padding and strides*
 
+For inputs ``output_size`` = [16, 16] and ``kernel_size`` = [3, 3]
+
 .. code-block:: xml
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="16,16" kernel_size="3,3" dilations="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+        <data dilations="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
         <input>
             <port id="0" precision="I32">
                 <dim>1</dim>     <!-- batch_axis -->
                 <dim>27/dim>     <!-- C * Product(kernel_size) -->
                 <dim>25</dim>    <!-- L -->
+            </port>
+            <port id="1" precision="I32">
+                <dim>2</dim>     <!-- output_size -->
+            </port>
+            <port id="2" precision="I32">
+                <dim>2</dim>     <!-- kernel_size -->
             </port>
         </input>
         <output>
@@ -153,16 +169,18 @@ All examples assume ``C = 3``.
 
 *Example 3: non-default dilations and padding*
 
+For inputs ``output_size`` = [32, 32] and ``kernel_size`` = [2, 2]
+
 .. code-block:: xml
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="32,32" kernel_size="2,2" dilations="2,2" pads_begin="3,3" pads_end="3,3"/>
+        <data dilations="2,2" pads_begin="3,3" pads_end="3,3"/>
         <input>
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- batch_axis -->
                 <dim>12/dim>     <!-- C * Product(kernel_size) -->
-                <dim>324</dim>  <!-- L -->
+                <dim>324</dim>   <!-- L -->
             </port>
         </input>
         <output>
@@ -177,11 +195,12 @@ All examples assume ``C = 3``.
 
 *Example 4: default optional Parameters, unbatched*
 
+For inputs ``output_size`` = [16, 16] and ``kernel_size`` = [2, 2]
+
 .. code-block:: xml
    :force:
 
     <layer ... type="Col2Im" ... >
-        <data output_size="16,16" kernel_size="2,2"/>
         <input>
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- C * Product(kernel_size) -->
