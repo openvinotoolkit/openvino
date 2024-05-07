@@ -31,34 +31,34 @@ Additionally, you can also upload a video file.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#preparation>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `The Model <#the-model>`__
+-  `The Model <#The-Model>`__
 
-   -  `Download the Model <#download-the-model>`__
+   -  `Download the Model <#Download-the-Model>`__
    -  `Convert ONNX Model to OpenVINO IR
-      Format <#convert-onnx-model-to-openvino-ir-format>`__
-   -  `Load the Model <#load-the-model>`__
-   -  `Preprocess the image <#preprocess-the-image>`__
+      Format <#Convert-ONNX-Model-to-OpenVINO-IR-Format>`__
+   -  `Load the Model <#Load-the-Model>`__
+   -  `Preprocess the image <#Preprocess-the-image>`__
    -  `Helper function to postprocess the stylized
-      image <#helper-function-to-postprocess-the-stylized-image>`__
-   -  `Main Processing Function <#main-processing-function>`__
-   -  `Run Style Transfer <#run-style-transfer>`__
+      image <#Helper-function-to-postprocess-the-stylized-image>`__
+   -  `Main Processing Function <#Main-Processing-Function>`__
+   -  `Run Style Transfer <#Run-Style-Transfer>`__
 
--  `References <#references>`__
+-  `References <#References>`__
 
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -74,10 +74,27 @@ Install requirements
     
     open("notebook_utils.py", "w").write(r.text)
 
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+
+
+
+
+.. parsed-literal::
+
+    21503
+
+
+
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -87,8 +104,8 @@ Imports
     import cv2
     import numpy as np
     from pathlib import Path
-    from IPython import display
-    from ipywidgets import interactive, ToggleButtons
+    import ipywidgets as widgets
+    from IPython.display import display, clear_output, Image
     import openvino as ov
     
     import notebook_utils as utils
@@ -98,25 +115,44 @@ Pointilism to do the style transfer.
 
 .. code:: ipython3
 
-    # Option to select different styles
-    styleButtons = ToggleButtons(
+    # Option to select different styles using a dropdown
+    style_dropdown = widgets.Dropdown(
         options=["MOSAIC", "RAIN-PRINCESS", "CANDY", "UDNIE", "POINTILISM"],
-        description="Click one of the styles you want to use for the style transfer",
+        value="MOSAIC",  # Set the default value
+        description="Select Style:",
         disabled=False,
-        style={"description_width": "300px"},
+        style={"description_width": "initial"},  # Adjust the width as needed
     )
     
-    interactive(lambda option: print(option), option=styleButtons)
+    
+    # Function to handle changes in dropdown and print the selected style
+    def print_style(change):
+        if change["type"] == "change" and change["name"] == "value":
+            print(f"Selected style {change['new']}")
+    
+    
+    # Observe changes in the dropdown value
+    style_dropdown.observe(print_style, names="value")
+    
+    # Display the dropdown
+    display(style_dropdown)
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Select Style:', options=('MOSAIC', 'RAIN-PRINCESS', 'CANDY', 'UDNIE', 'POINTILISM'), sty…
+
 
 The Model
 ---------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Download the Model
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The style transfer model, selected in the previous step, will be
 downloaded to ``model_path`` if you have not already downloaded it. The
@@ -132,15 +168,30 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     base_url = "https://github.com/onnx/models/raw/69d69010b7ed6ba9438c392943d2715026792d40/archive/vision/style_transfer/fast_neural_style/model"
     
     # Selected ONNX model will be downloaded in the path
-    model_path = Path(f"{styleButtons.value.lower()}-9.onnx")
+    model_path = Path(f"{style_dropdown.value.lower()}-9.onnx")
     
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
 
+
+
+.. parsed-literal::
+
+    model/mosaic-9.onnx:   0%|          | 0.00/6.42M [00:00<?, ?B/s]
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+
+
+
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the next step, you will convert the ONNX model to OpenVINO IR format
 with ``FP16`` precision. While ONNX models are directly supported by
@@ -157,19 +208,19 @@ this step.
 
     # Construct the command for model conversion API.
     
-    ov_model = ov.convert_model(f"model/{styleButtons.value.lower()}-9.onnx")
-    ov.save_model(ov_model, f"model/{styleButtons.value.lower()}-9.xml")
+    ov_model = ov.convert_model(f"model/{style_dropdown.value.lower()}-9.onnx")
+    ov.save_model(ov_model, f"model/{style_dropdown.value.lower()}-9.xml")
 
 .. code:: ipython3
 
     # Converted IR model path
-    ir_path = Path(f"model/{styleButtons.value.lower()}-9.xml")
+    ir_path = Path(f"model/{style_dropdown.value.lower()}-9.xml")
     onnx_path = Path(f"model/{model_path}")
 
 Load the Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Both the ONNX model(s) and converted IR model(s) are stored in the
 ``model`` directory.
@@ -218,6 +269,15 @@ results.
     # or let OpenVINO select the best available device with AUTO.
     device
 
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
 .. code:: ipython3
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
@@ -239,10 +299,18 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
 
+
+.. parsed-literal::
+
+    input1 output1
+    [1,3,224,224]
+    [1,3,224,224]
+
+
 Preprocess the image
 ~~~~~~~~~~~~~~~~~~~~
 
- Preprocess the input image
+`back to top ⬆️ <#Table-of-contents:>`__ Preprocess the input image
 before running the model. Prepare the dimensions and channel order for
 the image to match the original image with the input tensor
 
@@ -272,7 +340,7 @@ the image to match the original image with the input tensor
 Helper function to postprocess the stylized image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The converted IR model outputs a NumPy ``float32`` array of the `(1, 3,
 224,
@@ -301,7 +369,7 @@ shape .
 Main Processing Function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The style transfer function can be run in different operating modes,
 either using a webcam or a video file.
@@ -392,10 +460,10 @@ either using a webcam or a video file.
                     # Encode numpy array to jpg.
                     _, encoded_img = cv2.imencode(".jpg", result_image, params=[cv2.IMWRITE_JPEG_QUALITY, 90])
                     # Create an IPython image.
-                    i = display.Image(data=encoded_img)
+                    i = Image(data=encoded_img)
                     # Display the image in this notebook.
-                    display.clear_output(wait=True)
-                    display.display(i)
+                    clear_output(wait=True)
+                    display(i)
         # ctrl-c
         except KeyboardInterrupt:
             print("Interrupted")
@@ -412,7 +480,7 @@ either using a webcam or a video file.
 Run Style Transfer
 ~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, try to apply the style transfer model using video from your webcam
 or video file. By default, the primary webcam is set with ``source=0``.
@@ -441,10 +509,20 @@ OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
     
     run_style_transfer(source=source, flip=isinstance(source, int), use_popup=False)
 
+
+
+.. image:: style-transfer-with-output_files/style-transfer-with-output_25_0.png
+
+
+.. parsed-literal::
+
+    Source ended
+
+
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 1. `ONNX Model Zoo <https://github.com/onnx/models>`__
 2. `Fast Neural Style

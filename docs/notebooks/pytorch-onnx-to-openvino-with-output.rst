@@ -36,35 +36,35 @@ documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#preparation>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Imports <#imports>`__
-   -  `Settings <#settings>`__
-   -  `Load Model <#load-model>`__
+   -  `Imports <#Imports>`__
+   -  `Settings <#Settings>`__
+   -  `Load Model <#Load-Model>`__
 
--  `ONNX Model Conversion <#onnx-model-conversion>`__
+-  `ONNX Model Conversion <#ONNX-Model-Conversion>`__
 
-   -  `Convert PyTorch model to ONNX <#convert-pytorch-model-to-onnx>`__
+   -  `Convert PyTorch model to ONNX <#Convert-PyTorch-model-to-ONNX>`__
    -  `Convert ONNX Model to OpenVINO IR
-      Format <#convert-onnx-model-to-openvino-ir-format>`__
+      Format <#Convert-ONNX-Model-to-OpenVINO-IR-Format>`__
 
--  `Show Results <#show-results>`__
+-  `Show Results <#Show-Results>`__
 
    -  `Load and Preprocess an Input
-      Image <#load-and-preprocess-an-input-image>`__
+      Image <#Load-and-Preprocess-an-Input-Image>`__
    -  `Load the OpenVINO IR Network and Run Inference on the ONNX
-      model <#load-the-openvino-ir-network-and-run-inference-on-the-onnx-model>`__
+      model <#Load-the-OpenVINO-IR-Network-and-Run-Inference-on-the-ONNX-model>`__
 
       -  `1. ONNX Model in OpenVINO
-         Runtime <#1--onnx-model-in-openvino-runtime>`__
-      -  `Select inference device <#select-inference-device>`__
+         Runtime <#1.-ONNX-Model-in-OpenVINO-Runtime>`__
+      -  `Select inference device <#Select-inference-device>`__
       -  `2. OpenVINO IR Model in OpenVINO
-         Runtime <#2--openvino-ir-model-in-openvino-runtime>`__
-      -  `Select inference device <#select-inference-device>`__
+         Runtime <#2.-OpenVINO-IR-Model-in-OpenVINO-Runtime>`__
+      -  `Select inference device <#Select-inference-device>`__
 
--  `PyTorch Comparison <#pytorch-comparison>`__
--  `Performance Comparison <#performance-comparison>`__
--  `References <#references>`__
+-  `PyTorch Comparison <#PyTorch-Comparison>`__
+-  `Performance Comparison <#Performance-Comparison>`__
+-  `References <#References>`__
 
 .. code:: ipython3
 
@@ -75,32 +75,24 @@ Table of contents:
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 5.26.1 which is incompatible.
     pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 5.26.1 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
     tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 5.26.1 which is incompatible.
     tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 5.26.1 which is incompatible.
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -137,7 +129,7 @@ Imports
 Settings
 ~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Set a name for the model, then define width and height of the image that
 will be used by the network during inference. According to the input
@@ -161,7 +153,7 @@ transforms function, the model is pre-trained on images with a height of
 Load Model
 ~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Generally, PyTorch models represent an instance of ``torch.nn.Module``
 class, initialized by a state dictionary with model weights. Typical
@@ -218,12 +210,12 @@ have not downloaded the model before.
 ONNX Model Conversion
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert PyTorch model to ONNX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models that are exported in ONNX format. We
 will use the ``torch.onnx.export`` function to obtain the ONNX model,
@@ -265,7 +257,7 @@ line of the output will read:
 Convert ONNX Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert the ONNX model to OpenVINO IR with ``FP16`` precision, use
 model conversion API. The models are saved inside the current directory.
@@ -290,7 +282,7 @@ For more information on how to convert models, see this
 Show Results
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Confirm that the segmentation results look as expected by comparing
 model predictions on the ONNX, OpenVINO IR and PyTorch models.
@@ -298,7 +290,7 @@ model predictions on the ONNX, OpenVINO IR and PyTorch models.
 Load and Preprocess an Input Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Images need to be normalized before propagating through the network.
 
@@ -344,7 +336,7 @@ Images need to be normalized before propagating through the network.
 Load the OpenVINO IR Network and Run Inference on the ONNX model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Runtime can load ONNX models directly. First, load the ONNX
 model, do inference and show the results. Then, load the model that was
@@ -355,7 +347,7 @@ on an image.
 1. ONNX Model in OpenVINO Runtime
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -368,7 +360,7 @@ on an image.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -452,12 +444,12 @@ be applied to each label for more convenient visualization.
 2. OpenVINO IR Model in OpenVINO Runtime
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -506,7 +498,7 @@ select device from dropdown list for running inference using OpenVINO
 PyTorch Comparison
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Do inference on the PyTorch model to verify that the output visually
 looks the same as the output on the ONNX/OpenVINO IR models.
@@ -534,7 +526,7 @@ looks the same as the output on the ONNX/OpenVINO IR models.
 Performance Comparison
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
@@ -574,17 +566,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.040 seconds per image, FPS: 25.21
-
-
-.. parsed-literal::
-
-    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.74
-
-
-.. parsed-literal::
-
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.55
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.93
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.11
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.028 seconds per image, FPS: 35.60
 
 
 **Show Device Information**
@@ -605,7 +589,7 @@ performance.
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 -  `Torchvision <https://pytorch.org/vision/stable/index.html>`__
 -  `Pytorch ONNX

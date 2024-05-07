@@ -40,22 +40,22 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Prepare pipeline <#prepare-pipeline>`__
--  `Load test audio file <#load-test-audio-file>`__
--  `Run inference pipeline <#run-inference-pipeline>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Prepare pipeline <#Prepare-pipeline>`__
+-  `Load test audio file <#Load-test-audio-file>`__
+-  `Run inference pipeline <#Run-inference-pipeline>`__
 -  `Convert model to OpenVINO Intermediate Representation
-   format <#convert-model-to-openvino-intermediate-representation-format>`__
--  `Select inference device <#select-inference-device>`__
+   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Select inference device <#Select-inference-device>`__
 -  `Replace segmentation model with
-   OpenVINO <#replace-segmentation-model-with-openvino>`__
+   OpenVINO <#Replace-segmentation-model-with-OpenVINO>`__
 -  `Run speaker diarization with
-   OpenVINO <#run-speaker-diarization-with-openvino>`__
+   OpenVINO <#Run-speaker-diarization-with-OpenVINO>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -65,32 +65,20 @@ Prerequisites
 .. parsed-literal::
 
     WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     googleapis-common-protos 1.63.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
     onnx 1.16.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.6.1 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
     tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
 Prepare pipeline
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Traditional Speaker Diarization systems can be generalized into a
 five-step process:
@@ -139,7 +127,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
    license before downloading or using its weights, visit the
    `pyannote/speaker-diarization <https://huggingface.co/pyannote/speaker-diarization>`__
    to read accept the license before you proceed. To use this model, you
-   must be a registered user in Hugging Face Hub. You will need to use
+   must be a registered user in 🤗 Hugging Face Hub. You will need to use
    an access token for the code below to run. For more information on
    access tokens, please refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -168,26 +156,18 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
 .. parsed-literal::
 
-    2024-04-18 00:26:15.129545: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:26:15.165135: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-07 00:55:33.958421: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-07 00:55:33.992823: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 00:26:15.736692: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pyannote/audio/core/io.py:42: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
+    2024-05-07 00:55:34.728268: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/pyannote/audio/core/io.py:42: UserWarning: torchaudio._backend.set_audio_backend has been deprecated. With dispatcher enabled, this function is no-op. You can remove the function call.
       torchaudio.set_audio_backend("soundfile")
 
 
 Load test audio file
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -250,7 +230,7 @@ Load test audio file
 Run inference pipeline
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -271,7 +251,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 16.70 s
+    Diarization pipeline took 17.11 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -313,7 +293,7 @@ We can also print each time frame and corresponding speaker:
 Convert model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -361,7 +341,7 @@ with ``ov.save_model``.
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -390,7 +370,7 @@ select device from dropdown list for running inference using OpenVINO
 Replace segmentation model with OpenVINO
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -422,7 +402,7 @@ Replace segmentation model with OpenVINO
 Run speaker diarization with OpenVINO
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -434,10 +414,6 @@ Run speaker diarization with OpenVINO
 .. parsed-literal::
 
     Model is not converging.  Current: 16444.281598619917 is not greater than 16444.330820454463. Delta is -0.04922183454618789
-
-
-.. parsed-literal::
-
     Model is not converging.  Current: 16444.281598619917 is not greater than 16444.330820454463. Delta is -0.04922183454618789
 
 
@@ -448,7 +424,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 16.17 s
+    Diarization pipeline took 16.62 s
 
 
 .. code:: ipython3

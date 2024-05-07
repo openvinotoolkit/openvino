@@ -41,25 +41,25 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#convert-model-using-optimum-cli-tool>`__
--  `Compress model weights <#compress-model-weights>`__
+   tool <#Convert-model-using-Optimum-CLI-tool>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#weights-compression-using-optimum-cli>`__
+      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 -  `Instantiate Model using Optimum
-   Intel <#instantiate-model-using-optimum-intel>`__
--  `Run Chatbot <#run-chatbot>`__
+   Intel <#Instantiate-Model-using-Optimum-Intel>`__
+-  `Run Chatbot <#Run-Chatbot>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
@@ -78,7 +78,7 @@ Install required dependencies
 
 .. code:: ipython3
 
-    import shutil
+    import os
     from pathlib import Path
     import requests
     
@@ -89,7 +89,7 @@ Install required dependencies
     
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            shutil.copy(config_shared_path, config_dst_path)
+            os.symlink(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
             with open("llm_config.py", "w") as f:
@@ -98,7 +98,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -135,7 +135,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -156,6 +156,14 @@ The available options are:
        except OSError:
            notebook_login()
 
+-  **phi3-mini-instruct<|end|>** - The Phi-3-Mini is a 3.8B parameters,
+   lightweight, state-of-the-art open model trained with the Phi-3
+   datasets that includes both synthetic data and the filtered publicly
+   available websites data with a focus on high-quality and reasoning
+   dense properties. More details about model can be found in `model
+   card <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__,
+   `Microsoft blog <https://aka.ms/phi3blog-april>`__ and `technical
+   report <https://aka.ms/phi3-tech-report>`__.
 -  **red-pajama-3b-chat** - A 2.8B parameter pre-trained language model
    based on GPT-NEOX architecture. It was developed by Together Computer
    and leaders from the open-source AI community. The model is
@@ -173,7 +181,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -205,9 +213,43 @@ The available options are:
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
+   carefully read terms of usage and click accept button. You will need
+   to use an access token for the code below to run. For more
+   information on access tokens, refer to `this section of the
+   documentation <https://huggingface.co/docs/hub/security-tokens>`__.
+   >You can login on Hugging Face Hub in notebook environment, using
+   following code:
+
+.. code:: python
+
+       ## login to huggingfacehub to get access to pretrained model 
+
+       from huggingface_hub import notebook_login, whoami
+
+       try:
+           whoami()
+           print('Authorization token already provided')
+       except OSError:
+           notebook_login()
+
+-  **llama-3-8b-instruct** - Llama 3 is an auto-regressive language
+   model that uses an optimized transformer architecture. The tuned
+   versions use supervised fine-tuning (SFT) and reinforcement learning
+   with human feedback (RLHF) to align with human preferences for
+   helpfulness and safety. The Llama 3 instruction tuned models are
+   optimized for dialogue use cases and outperform many of the available
+   open source chat models on common industry benchmarks. More details
+   about model can be found in `Meta blog
+   post <https://ai.meta.com/blog/meta-llama-3/>`__, `model
+   website <https://llama.meta.com/llama3>`__ and `model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
+   >\ **Note**: run model with demo, you will need to accept license
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   Please visit `HuggingFace model
+   card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
    to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
@@ -361,7 +403,7 @@ The available options are:
     
     model_id = widgets.Dropdown(
         options=model_ids,
-        value=model_ids[0],
+        value=model_ids[2],
         description="Model:",
         disabled=False,
     )
@@ -373,7 +415,7 @@ The available options are:
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'gemma-7b-i…
+    Dropdown(description='Model:', index=2, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'phi-3-mini-instruct', '…
 
 
 
@@ -385,16 +427,16 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model tiny-llama-1b-chat
+    Selected model phi-3-mini-instruct
 
 
 Convert model using Optimum-CLI tool
 ------------------------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -418,8 +460,7 @@ that exported model should solve. For LLMs it will be
 ``text-generation-with-past``. If model initialization requires to use
 remote code, ``--trust-remote-code`` flag additionally should be passed.
 
-Compress model weights
-----------------------
+<|end|>## Compress model weights
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -433,7 +474,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -579,6 +620,11 @@ We can now save floating point and compressed model variants
                 "group_size": 128,
                 "ratio": 0.8,
             },
+            "llama-3-8b-instruct": {
+                "sym": True,
+                "group_size": 128,
+                "ratio": 0.8,
+            },
             "gemma-7b-it": {
                 "sym": True,
                 "group_size": 128,
@@ -626,58 +672,6 @@ We can now save floating point and compressed model variants
     if prepare_int4_model.value:
         convert_to_int4()
 
-
-
-**Export command:**
-
-
-
-``optimum-cli export openvino --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --task text-generation-with-past --weight-format int4 --group-size 128 --ratio 0.8 tiny-llama-1b-chat/INT4_compressed_weights``
-
-
-.. parsed-literal::
-
-    2024-04-11 11:48:29.180963: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-11 11:48:29.182830: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-11 11:48:29.219152: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-11 11:48:29.219549: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-11 11:48:29.930190: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-      warn("The installed version of bitsandbytes was compiled without GPU support. "
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
-    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
-        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
-        Python  3.8.18 (you have 3.8.10)
-      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
-      Memory-efficient attention, SwiGLU, sparse and more won't be available.
-      Set XFORMERS_MORE_DETAILS=1 for more details
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    Framework not specified. Using pt to export the model.
-    Using the export variant default. Available variants are:
-        - default: The default ONNX variant.
-    Using framework PyTorch: 2.1.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    The cos_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
-    The sin_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/optimum/exporters/openvino/model_patcher.py:311: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 154/154 • 0:00:11 • 0:00:00;0;104;181m0:00:01181m0:00:01
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 30% (42 / 156)              │ 20% (40 / 154)                         │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 70% (114 / 156)             │ 80% (114 / 154)                        │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 156/156 • 0:00:26 • 0:00:00;0;104;181m0:00:01181m0:00:02
-    
-
 Let’s compare model size for different compression types
 
 .. code:: ipython3
@@ -697,13 +691,13 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 696.19 MB
+    Size of model with INT4 compressed weights is 2339.74 MB
 
 
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -766,7 +760,7 @@ variant of model weights and inference device
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -830,6 +824,52 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
         trust_remote_code=True,
     )
 
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+.. parsed-literal::
+
+    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    2024-04-23 22:13:04.208987: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-04-23 22:13:04.210866: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-04-23 22:13:04.245998: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-04-23 22:13:04.246894: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-04-23 22:13:04.941663: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+
+
+.. parsed-literal::
+
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+
+
+.. parsed-literal::
+
+    Loading model from phi-3-mini-instruct/INT4_compressed_weights
+
+
+.. parsed-literal::
+
+    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
+    Compiling the model to CPU ...
+
+
 .. code:: ipython3
 
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
@@ -841,18 +881,13 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 
 .. parsed-literal::
 
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-
-
-.. parsed-literal::
-
     2 + 2 = 4
 
 
 Run Chatbot
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how
@@ -1283,6 +1318,28 @@ answers.https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch()
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+    
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+.. raw:: html
+
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+
+
+.. parsed-literal::
+
+    
+
+
 
 .. code:: ipython3
 
