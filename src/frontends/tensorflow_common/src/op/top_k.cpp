@@ -38,7 +38,7 @@ NamedOutputVector translate_top_k_op(const NodeContext& node) {
 }
 
 NamedOutputVector translate_top_k_v2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TopKV2"});
+    default_op_checks(node, 2, {"TopKV2", "TOPK_V2"});
     auto k_input = node.get_input(1);
     return translate_top_k_base_op(node, k_input, 1);
 }

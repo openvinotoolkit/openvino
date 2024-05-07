@@ -215,91 +215,92 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return this->get_attribute(&tflite::WhileOptions::cond_subgraph_index);
     } else if (name == "body_subgraph_index" && m_type == "WHILE") {
         return this->get_attribute(&tflite::WhileOptions::body_subgraph_index);
-    } else if (name == "CONV_2D" && m_type == "strides") {
+    } else if (name == "strides" && m_type == "CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Conv2DOptions::stride_h),
                                     this->get_attribute(&tflite::Conv2DOptions::stride_w),
                                     1};
-    } else if (name == "CONV_2D" && m_type == "padding") {
+    } else if (name == "padding" && m_type == "CONV_2D") {
         return std::string(EnumNamePadding(this->get_attribute(&tflite::Conv2DOptions::padding)));
-    } else if (name == "CONV_2D" && m_type == "dilations") {
+    } else if (name == "dilations" && m_type == "CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Conv2DOptions::dilation_h_factor),
                                     this->get_attribute(&tflite::Conv2DOptions::dilation_w_factor),
                                     1};
-    } else if (name == "CONV_2D" && m_type == "data_format") {
+    } else if (name == "data_format" && m_type == "CONV_2D") {
         return "NHWC";
-    } else if (name == "CONV_2D" && m_type == "activation") {
+    } else if (name == "activation" && m_type == "CONV_2D") {
         return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv2DOptions::fused_activation_function));
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "strides") {
+    } else if (name == "strides" && m_type == "DEPTHWISE_CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::stride_h),
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::stride_w),
                                     1};
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "padding") {
+    } else if (name == "padding" && m_type == "DEPTHWISE_CONV_2D") {
         return std::string(EnumNamePadding(this->get_attribute(&tflite::DepthwiseConv2DOptions::padding)));
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "dilations") {
+    } else if (name == "dilations" && m_type == "DEPTHWISE_CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::dilation_h_factor),
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::dilation_w_factor),
                                     1};
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "data_format") {
+    } else if (name == "data_format" && m_type == "DEPTHWISE_CONV_2D") {
         return "NHWC";
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "activation") {
-        return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv2DOptions::fused_activation_function));
-    } else if (name == "DEPTHWISE_CONV_2D" && m_type == "group") {
+    } else if (name == "activation" && m_type == "DEPTHWISE_CONV_2D") {
+        return EnumNameActivationFunctionType(
+            this->get_attribute(&tflite::DepthwiseConv2DOptions::fused_activation_function));
+    } else if (name == "group" && m_type == "DEPTHWISE_CONV_2D") {
         return this->get_attribute(&tflite::DepthwiseConv2DOptions::depth_multiplier);
-    } else if ((name == "MAX_POOL_2D" || name == "AVERAGE_POOL_2D") && m_type == "strides") {
+    } else if (name == "strides" && (m_type == "MAX_POOL_2D" || m_type == "AVERAGE_POOL_2D")) {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Pool2DOptions::stride_h),
                                     this->get_attribute(&tflite::Pool2DOptions::stride_w),
                                     1};
-    } else if ((name == "MAX_POOL_2D" || name == "AVERAGE_POOL_2D") && m_type == "padding") {
+    } else if (name == "padding" && (m_type == "MAX_POOL_2D" || m_type == "AVERAGE_POOL_2D")) {
         return std::string(EnumNamePadding(this->get_attribute(&tflite::Pool2DOptions::padding)));
-    } else if ((name == "MAX_POOL_2D" || name == "AVERAGE_POOL_2D") && m_type == "ksize") {
+    } else if (name == "ksize" && (m_type == "MAX_POOL_2D" || m_type == "AVERAGE_POOL_2D")) {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::Pool2DOptions::filter_height),
                                     this->get_attribute(&tflite::Pool2DOptions::filter_width),
                                     1};
-    } else if ((name == "MAX_POOL_2D" || name == "AVERAGE_POOL_2D") && m_type == "data_format") {
+    } else if (name == "data_format" && (m_type == "MAX_POOL_2D" || m_type == "AVERAGE_POOL_2D")) {
         return "NHWC";
-    } else if ((name == "MAX_POOL_2D" || name == "AVERAGE_POOL_2D") && m_type == "activation") {
+    } else if (name == "activation" && (m_type == "MAX_POOL_2D" || m_type == "AVERAGE_POOL_2D")) {
         return EnumNameActivationFunctionType(this->get_attribute(&tflite::Pool2DOptions::fused_activation_function));
-    } else if (name == "FULLY_CONNECTED" && m_type == "weights_format") {
+    } else if (name == "weights_format" && m_type == "FULLY_CONNECTED") {
         return static_cast<int8_t>(this->get_attribute(&tflite::FullyConnectedOptions::weights_format));
-    } else if (name == "FULLY_CONNECTED" && m_type == "keep_num_dims") {
+    } else if (name == "keep_num_dims" && m_type == "FULLY_CONNECTED") {
         return this->get_attribute(&tflite::FullyConnectedOptions::keep_num_dims);
-    } else if (name == "FULLY_CONNECTED" && m_type == "fused_activation_function") {
+    } else if (name == "fused_activation_function" && m_type == "FULLY_CONNECTED") {
         return std::string(EnumNameActivationFunctionType(
             this->get_attribute(&tflite::FullyConnectedOptions::fused_activation_function)));
-    } else if (name == "ADD" && m_type == "fused_activation_function") {
+    } else if (name == "fused_activation_function" && m_type == "ADD") {
         return std::string(
             EnumNameActivationFunctionType(this->get_attribute(&tflite::AddOptions::fused_activation_function)));
-    } else if (name == "DIV" && m_type == "fused_activation_function") {
+    } else if (name == "fused_activation_function" && m_type == "DIV") {
         return std::string(
             EnumNameActivationFunctionType(this->get_attribute(&tflite::DivOptions::fused_activation_function)));
-    } else if (name == "MUL" && m_type == "fused_activation_function") {
+    } else if (name == "fused_activation_function" && m_type == "MUL") {
         return std::string(
             EnumNameActivationFunctionType(this->get_attribute(&tflite::MulOptions::fused_activation_function)));
-    } else if (name == "SUB" && m_type == "fused_activation_function") {
+    } else if (name == "fused_activation_function" && m_type == "SUB") {
         return std::string(
             EnumNameActivationFunctionType(this->get_attribute(&tflite::SubOptions::fused_activation_function)));
-    } else if (name == "TRANSPOSE_CONV" && m_type == "strides") {
+    } else if (name == "strides" && m_type == "TRANSPOSE_CONV") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::TransposeConvOptions::stride_h),
                                     this->get_attribute(&tflite::TransposeConvOptions::stride_w),
                                     1};
-    } else if (name == "TRANSPOSE_CONV" && m_type == "padding") {
+    } else if (name == "padding" && m_type == "TRANSPOSE_CONV") {
         return std::string(EnumNamePadding(this->get_attribute(&tflite::TransposeConvOptions::padding)));
-    } else if (name == "TRANSPOSE_CONV" && m_type == "data_format") {
+    } else if (name == "data_format" && m_type == "TRANSPOSE_CONV") {
         return "NHWC";
-    } else if (name == "TRANSPOSE_CONV" && m_type == "dilations") {
+    } else if (name == "dilations" && m_type == "TRANSPOSE_CONV") {
         return std::vector<int64_t>{1, 1, 1, 1};
-    } else if ((name == "MEAN" || name == "REDUCE_ALL" || name == "REDUCE_ANY" || name == "REDUCE_MAX" ||
-                name == "REDUCE_MIN" || name == "REDUCE_PROD" || name == "SUM") &&
-               m_type == "keep_dims") {
+    } else if (name == "keep_dims" &&
+               (m_type == "MEAN" || m_type == "REDUCE_ALL" || m_type == "REDUCE_ANY" || m_type == "REDUCE_MAX" ||
+                m_type == "REDUCE_MIN" || m_type == "REDUCE_PROD" || m_type == "SUM")) {
         return this->get_attribute(&tflite::ReducerOptions::keep_dims);
-    } else if (name == "GELU" && m_type == "approximate") {
+    } else if (name == "approximate" && m_type == "GELU") {
         return this->get_attribute(&tflite::GeluOptions::approximate);
     }
 
