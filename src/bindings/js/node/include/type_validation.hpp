@@ -7,55 +7,47 @@
 #include "node/include/addon.hpp"
 #include "openvino/openvino.hpp"
 
-/** @brief Checks if Napi::Value is a TensorWrap.*/
-bool is_tensor(const Napi::Env& env, const Napi::Value& value);
-
 namespace js {
 
 template <typename T>
-bool validate_impl(Napi::Value arg) {
-    return false;
-    // throw std::runtime_error("Validation for this type is not implemented!");
+bool validate_value(const Napi::Env& env, Napi::Value arg) {
+    throw std::runtime_error("Validation for this type is not implemented!");
 }
 
 template <>
-bool validate_impl<std::string>(Napi::Value value);
+bool validate_value<std::string>(const Napi::Env& env, Napi::Value value);
 
 template <>
-bool validate_impl<int>(Napi::Value value);
-template <>
-bool validate_impl<ov::Model>(Napi::Value value);
+bool validate_value<int>(const Napi::Env& env, Napi::Value value);
 
 template <>
-bool validate_impl<Napi::Object>(Napi::Value value);
+bool validate_value<ov::Model>(const Napi::Env& env, Napi::Value value);
 
-// Forward declaration of the recursive case
-template <typename T, typename... Args>
-int validate_detail(const Napi::CallbackInfo& info, int index);
+/** @brief Checks if Napi::Value is a Tensor.*/
+template <>
+bool validate_value<ov::Tensor>(const Napi::Env& env, Napi::Value value);
 
-// Base case for a single type and a single argument
-template <typename T>
-bool validate_single(const Napi::CallbackInfo& info, int index) {
-    validate_impl<T>(info[index]);
-    return 0;
-}
+template <>
+bool validate_value<Napi::Object>(const Napi::Env& env, Napi::Value value);
 
-// Recursive case for multiple types and arguments
-template <typename T, typename... Args>
-int validate_detail(const Napi::CallbackInfo& info, int index) {
-    validate_impl<T>(info[index]);
-    // Call the next function in the chain
-    return validate_single<Args...>(info, index + 1);
+template <typename Arg, typename Arg1, typename Arg2>
+bool validate_detail(const Napi::CallbackInfo& info) {
+    return info.Length() == 3 && validate_value<Arg>(info.Env(), info[0]) &&
+           validate_value<Arg1>(info.Env(), info[1]) && validate_value<Arg2>(info.Env(), info[2]);
 };
 
-template <typename T>
-int validate_detail(const Napi::CallbackInfo& info, int index) {
-    // Call the base case function
-    return validate_single<T>(info, index);
+template <typename Arg, typename Arg1>
+bool validate_detail(const Napi::CallbackInfo& info) {
+    return info.Length() == 2 && validate_value<Arg>(info.Env(), info[0]) && validate_value<Arg1>(info.Env(), info[1]);
+};
+
+template <typename Arg>
+bool validate_detail(const Napi::CallbackInfo& info) {
+    return info.Length() == 1 && validate_value<Arg>(info.Env(), info[0]);
 };
 
 template <typename T, typename... Ts>
-int validate(const Napi::CallbackInfo& info) {
-    return validate_detail<T, Ts...>(info, 0);
+bool validate(const Napi::CallbackInfo& info) {
+    return validate_detail<T, Ts...>(info);
 };
 }  // namespace js

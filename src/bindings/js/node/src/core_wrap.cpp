@@ -130,12 +130,12 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
     try {
         if (js::validate<std::string, std::string>(info)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
+        } else if (js::validate<ov::Model, std::string>(info)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
+        } else if (js::validate<std::string, std::string, Napi::Object>(info)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
+        } else if (js::validate<ov::Model, std::string, Napi::Object>(info)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         } else if (info.Length() < 2 || info.Length() > 3) {

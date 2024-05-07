@@ -77,7 +77,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model, device, config) throws when config is a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', 'string'),
-      /Cannot convert Napi::Value to std::map<std::string, ov::Any>/
+      /Error while compiling model./
     );
   });
 
