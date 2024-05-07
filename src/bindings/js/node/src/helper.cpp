@@ -541,7 +541,7 @@ ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
     } else if (value.IsNumber()) {
         Napi::Number num = value.ToNumber();
 
-        if (is_napi_value_int(env, value)) {
+        if (js::validate_value<int>(env, value)) {
             return ov::Any(num.Int32Value());
         } else {
             return ov::Any(num.DoubleValue());
@@ -551,10 +551,6 @@ ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
     } else {
         OPENVINO_THROW("Cannot convert to ov::Any");
     }
-}
-
-bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
-    return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
 }
 
 ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {

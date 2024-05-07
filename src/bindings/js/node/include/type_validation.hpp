@@ -30,6 +30,9 @@ bool validate_value<ov::Tensor>(const Napi::Env& env, Napi::Value value);
 template <>
 bool validate_value<Napi::Object>(const Napi::Env& env, Napi::Value value);
 
+template <>
+bool validate_value<int>(const Napi::Env& env, Napi::Value value);
+
 template <typename Arg, typename Arg1, typename Arg2>
 bool validate_detail(const Napi::CallbackInfo& info) {
     return info.Length() == 3 && validate_value<Arg>(info.Env(), info[0]) &&

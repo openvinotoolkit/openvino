@@ -12,7 +12,7 @@ bool validate_value<std::string>(const Napi::Env& env, Napi::Value value) {
 
 template <>
 bool validate_value<int>(const Napi::Env& env, Napi::Value value) {
-    return napi_number == value.Type();
+    return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
 }
 
 template <>
