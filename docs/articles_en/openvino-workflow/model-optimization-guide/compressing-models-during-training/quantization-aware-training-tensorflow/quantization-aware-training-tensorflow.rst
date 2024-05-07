@@ -12,7 +12,7 @@ PyTorch or TensorFlow 2:
    `Functional API <https://www.tensorflow.org/guide/keras/functional>`__.
 
 1. Import NNCF API
-++++++++++++++++++++
+########################
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
@@ -23,7 +23,7 @@ In this step, you add NNCF-related imports in the beginning of the training scri
       :fragment: [imports]
 
 2. Create NNCF configuration
-++++++++++++++++++++++++++++
+####################################
 
 Here, you should define NNCF configuration which consists of model-related parameters (``"input_info"`` section) and parameters
 of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object
@@ -37,7 +37,7 @@ specific to the DL framework. It will be used at the model creation step to init
 
 
 3. Apply optimization methods
-+++++++++++++++++++++++++++++
+####################################
 
 In the next step, you need to wrap the original model object with the ``create_compressed_model()`` API using the configuration
 defined in the previous step. This method returns a so-called compression controller and a wrapped model that can be used the
@@ -54,7 +54,7 @@ will be shown below.
 
 
 4. Fine-tune the model
-++++++++++++++++++++++
+####################################
 
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle,
@@ -68,8 +68,7 @@ you can skip this step which means that the post-training optimization will be a
 
 
 5. Multi-GPU distributed training
-+++++++++++++++++++++++++++++++++
-
+####################################
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before
 the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
 
@@ -81,7 +80,7 @@ the fine-tuning that will inform optimization methods to do some adjustments to 
 
 
 6. Export quantized model
-+++++++++++++++++++++++++
+####################################
 
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in
 the case of PyTorch and frozen graph - for TensorFlow 2.
@@ -102,7 +101,7 @@ These were the basic steps to applying the QAT method from the NNCF. However, it
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
 7. (Optional) Save checkpoint
-+++++++++++++++++++++++++++++
+####################################
 
 To save model checkpoint use the following API:
 
@@ -114,7 +113,7 @@ To save model checkpoint use the following API:
 
 
 8. (Optional) Restore from checkpoint
-+++++++++++++++++++++++++++++++++++++
+################################################
 
 To restore the model from checkpoint you should use the following API:
 

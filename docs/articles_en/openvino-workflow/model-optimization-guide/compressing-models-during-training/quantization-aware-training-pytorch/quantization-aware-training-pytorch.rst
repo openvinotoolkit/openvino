@@ -1,13 +1,13 @@
 .. {#qat_introduction}
 
 Quantization-aware Training (QAT) with PyTorch
-=================================
+===============================================
 
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with
 PyTorch:
 
 1. Import NNCF API
-++++++++++++++++++++
+########################
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
@@ -19,7 +19,7 @@ In this step, you add NNCF-related imports in the beginning of the training scri
 
 
 2. Create the data transformation function
-++++++++++++++++++++++++++++
+################################################
 
 In the next step, you need to create a quantization data loader and wrap it by the nncf.Dataset, specifying a transformation
 function which prepares input data to fit into model during quantization.
@@ -32,7 +32,7 @@ function which prepares input data to fit into model during quantization.
 
 
 3. Apply optimization methods
-+++++++++++++++++++++++++++++
+####################################
 
 nncf.quantize function accepts model and prepared quantization dataset for performing basic quantization. Optionally,
 additional parameters like subset_size, preset, ignored_scope can be provided to improve quantization result if applicable.
@@ -46,13 +46,13 @@ More details about supported parameters can be found on this `page <https://docs
 
 
 4. Fine-tune the model
-++++++++++++++++++++++
+########################
 
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle,
 you can skip this step which means that the post-training optimization will be applied to the model.
 
-.. tab-set:: PyTorch
+.. tab:: PyTorch
 
    .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
       :language: python
@@ -61,7 +61,7 @@ you can skip this step which means that the post-training optimization will be a
 
 
 5. Export quantized model
-+++++++++++++++++++++++++
+####################################
 
 When fine-tuning finishes, the quantized model can be exported to the ONNX format for further inference.
 
@@ -81,7 +81,7 @@ These were the basic steps to applying the QAT method from the NNCF. However, it
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
 7. (Optional) Save checkpoint
-+++++++++++++++++++++++++++++
+####################################
 
 To save model checkpoint use the following API:
 
@@ -93,7 +93,7 @@ To save model checkpoint use the following API:
 
 
 8. (Optional) Restore from checkpoint
-+++++++++++++++++++++++++++++++++++++
+################################################
 
 To restore the model from checkpoint you should use the following API:
 
