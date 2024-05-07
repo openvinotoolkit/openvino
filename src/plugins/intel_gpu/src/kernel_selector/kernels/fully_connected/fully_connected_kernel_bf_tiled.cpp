@@ -444,10 +444,26 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("FILTER_LOAD_BLOCK_SIZE", block_read_size));
         jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_LOAD", weights_elements_per_load));
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
+    } else {
+        jit.AddConstant(MakeJitConstant("USE_SLM", 0));
+    }
+
+    // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
+    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    if ((scale_group_size % simd == 0) &&
+        params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
+        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
+        params.inputs[0].Y().v > 16 && dispatchData.tile_m > 1 && dispatchData.tile_n == 2 &&
+        params.decompression_zero_point.Feature().v == 1) {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
+        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }
 
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
+    jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
     jit.AddConstant(MakeJitConstant("TILE_IFM", dispatchData.tile_mk));
     jit.AddConstant(MakeJitConstant("TILE_K", dispatchData.tile_nk));
