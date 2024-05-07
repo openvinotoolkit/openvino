@@ -4,7 +4,6 @@
 
 #include "op_table.hpp"
 
-#include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"

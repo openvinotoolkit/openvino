@@ -9,7 +9,6 @@
 #include <string>
 
 #include "common_op_table.hpp"
-#include "decoder_map.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
