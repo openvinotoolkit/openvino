@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/unit_type.cl"
 
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -80,17 +81,16 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const uint g = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM)) / FEATURES_THREADS_PER_BATCH;
     const uint feature_num = g * FILTER_OFM_NUM + feature_idx; // feature index for fused operations
 #else
-    uint batch_idx = fm / FEATURES_THREADS_PER_BATCH;
-    uint feature_idx = fm % FEATURES_THREADS_PER_BATCH;
-    uint fmg = feature_idx / SUB_GROUP_SIZE;
-    const uint g = 0;
-    const uint feature_num = feature_idx; // feature index for fused operations
+    const size_t batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
+    const size_t fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
+    const size_t feature_idx = fmg * OSV_SIZE + lid;
+    const size_t g = 0;
 #endif
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
-    UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
-    UNIT_TYPE w[PREFETCH];
+    UNIT_TYPE2 out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
+    // UNIT_TYPE2 w[PREFETCH];
     uint in_addr;
-    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE + lid;
+    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE;
 
 #if GROUPED
     weight_addr += g * FILTER_GROUPS_PITCH;
@@ -157,18 +157,18 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         //move to next filter
         in_addr += INPUT0_FEATURE_PITCH;
 
-        for(int pf=0; pf<PREFETCH; pf++) {
-            w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
-        }
+        // for(int pf=0; pf<PREFETCH; pf++) {
+        //     w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
+        // }
 
-        uint wi = 0;
+        // uint wi = 0;
         uint kr = 0; // kr = Kernel Row
         LOOP(FILTER_SIZE_Y, kr,  // LOOP is a macro that unrolls the loop.
         {
             uint kc = 0; // kc = Kernel Column
             LOOP(FILTER_SIZE_X, kc,
             {
-                //w = weights[weight_addr];
+                UNIT_TYPE2 w = UNIT_BLOCK_READ2(weights, weight_addr);
                 for(uint br=0; br<OUTPUT_BLOCK_HEIGHT; br++) {
                     for(uint bc=0; bc<OUTPUT_BLOCK_WIDTH; bc++) {
 
@@ -180,23 +180,23 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
                         UNIT_TYPE val = _sub_group_shuffle( in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
 #endif
 
-                        out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w[wi % PREFETCH], val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
+                        out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w, val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
                     }
                 }
-                w[wi % PREFETCH] = weights[weight_addr];
+                // w[wi % PREFETCH] = weights[weight_addr];
                 weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
-                wi++;
+                // wi++;
             });
         });
         // addr went beyond due to prefetch so move it back to correct location.
-        weight_addr -= PREFETCH * OSV_SIZE;
+        // weight_addr -= PREFETCH * OSV_SIZE;
     }
 
-    uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-    uint out_addr = OUTPUT_OFFSET;
-    out_addr += batch_idx * OUTPUT_BATCH_PITCH;
-    out_addr += out_split_offset + feature_idx * OUTPUT_FEATURE_PITCH; // out_addr indices into start of 16 feature maps.
-    out_addr += or * OUTPUT_Y_PITCH + oc;  // offset for the 4x3 block that this workitem is working on;
+    // uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+    // uint out_addr = OUTPUT_OFFSET;
+    // out_addr += batch_idx * OUTPUT_BATCH_PITCH;
+    // out_addr += out_split_offset + feature_idx * OUTPUT_FEATURE_PITCH; // out_addr indices into start of 16 feature maps.
+    // out_addr += or * OUTPUT_Y_PITCH + oc;  // offset for the 4x3 block that this workitem is working on;
 
 #if BIAS_TERM
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
@@ -209,7 +209,8 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 #if GROUPED
             bias_index += g * FILTER_OFM_NUM;
 #endif
-            out[r * OUTPUT_BLOCK_WIDTH + c] += bias[bias_index];
+            UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(bias, bias_index);
+            out[r * OUTPUT_BLOCK_WIDTH + c] += bias_read;
         }
     }
 #endif
@@ -218,9 +219,18 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
 #if HAS_FUSED_OPS
-            UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c];
-            FUSED_OPS;
-            out[r * OUTPUT_BLOCK_WIDTH + c] = FUSED_OPS_RESULT;
+            size_t feature_num = feature_idx;
+            {
+                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c].s0;
+                FUSED_OPS;
+                out[r * OUTPUT_BLOCK_WIDTH + c].s0 = FUSED_OPS_RESULT;
+            }
+            {
+                feature_num += SUB_GROUP_SIZE;
+                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c].s1;
+                FUSED_OPS;
+                out[r * OUTPUT_BLOCK_WIDTH + c].s1 = FUSED_OPS_RESULT;
+            }
 #else
             out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS);
 #endif
@@ -232,53 +242,24 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 // output phase
 //--------------------------------------------------------------------
 
-#ifdef LEFTOVERS
-    if (feature_idx < FILTER_OFM_NUM)
-#endif
-    for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
-        if(!(or + r >= OUTPUT_SIZE_Y))
-        {
+    unroll_for (size_t fid = 0; fid < 2; ++fid) {
+        if ((feature_idx + SUB_GROUP_SIZE * fid) < FILTER_OFM_NUM) {
+            uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+            uint out_addr = OUTPUT_OFFSET;
+            out_addr += batch_idx * OUTPUT_BATCH_PITCH;
+            out_addr += out_split_offset + (feature_idx + SUB_GROUP_SIZE * fid) * OUTPUT_FEATURE_PITCH;
+            out_addr += or * OUTPUT_Y_PITCH + oc;
 
-#if !IS_DYNAMIC
-#if (OUTPUT_SIZE_X % OUTPUT_BLOCK_WIDTH) == 0
-    #define CAN_SKIP_CHECK
-#endif
-#endif
-
-#ifdef CAN_SKIP_CHECK // in this case we don't need to check if we're outside of X boundaries
-            uint out_vstore_offset = 0;
-            #if (OUT_BLOCK_WIDTH % 8) > 3
-            MAKE_VECTOR_TYPE(UNIT_TYPE, 4) tmp = MAKE_VECTOR_TYPE(UNIT_TYPE, 4)(
-                out[out_vstore_offset + 0 + r * OUTPUT_BLOCK_WIDTH],
-                out[out_vstore_offset + 1 + r * OUTPUT_BLOCK_WIDTH],
-                out[out_vstore_offset + 2 + r * OUTPUT_BLOCK_WIDTH],
-                out[out_vstore_offset + 3 + r * OUTPUT_BLOCK_WIDTH]
-            );
-
-            vstore4(tmp, 0, output + out_addr + r * OUTPUT_Y_PITCH + out_vstore_offset * OUTPUT_X_PITCH);
-            out_vstore_offset += 4;
-            #endif
-
-            #if (OUT_BLOCK_WIDTH % 4) > 1
-            MAKE_VECTOR_TYPE(UNIT_TYPE, 2) tmp2 = MAKE_VECTOR_TYPE(UNIT_TYPE, 2)(
-                out[out_vstore_offset + 0 + r * OUTPUT_BLOCK_WIDTH],
-                out[out_vstore_offset + 1 + r * OUTPUT_BLOCK_WIDTH]
-            );
-
-            vstore2(tmp2, 0, output + out_addr + r * OUTPUT_Y_PITCH + out_vstore_offset * OUTPUT_X_PITCH);
-            out_vstore_offset += 2;
-            #endif
-            for(uint c = out_vstore_offset; c < OUTPUT_BLOCK_WIDTH; c++) {
-                // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
-                output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c];
+            for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
+                if(!(or + r >= OUTPUT_SIZE_Y))
+                {
+                    for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
+                        // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
+                        if(!(oc + c >= OUTPUT_SIZE_X))
+                            output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c][fid];
+                    }
+                }
             }
-#else
-            for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
-                // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
-                if(!(oc + c >= OUTPUT_SIZE_X))
-                    output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c];
-            }
-#endif
         }
     }
 }

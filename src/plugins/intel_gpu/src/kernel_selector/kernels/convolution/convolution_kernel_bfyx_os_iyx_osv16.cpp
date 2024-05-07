@@ -166,7 +166,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = cp.outputs[0].Feature().v;
-    const auto of_maps_per_group = of_maps / cp.groups;
+    const auto of_maps_per_group = of_maps / cp.groups / 2;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
@@ -234,7 +234,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
-    jit.AddConstant(MakeJitConstant("OSV_SIZE", 16));
+    jit.AddConstant(MakeJitConstant("OSV_SIZE", 32));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
@@ -251,7 +251,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
 WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
         const convolution_params &params) const {
-    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
+    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv32 : WeightsLayout::os_iyx_osv32;
 }
 
 KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params) const {
