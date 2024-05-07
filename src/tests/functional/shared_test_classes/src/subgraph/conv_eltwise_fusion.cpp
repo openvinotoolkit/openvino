@@ -58,12 +58,8 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                            weights_shape,
-                                                            std::vector<float>(shape_size(weights_shape), 2));
-        auto eltwise_const = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                                  const_shape,
-                                                                  std::vector<float>(shape_size(const_shape), 3));
+        auto weights = ov::op::v0::Constant::create(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 2));
+        auto eltwise_const = ov::op::v0::Constant::create(precision, const_shape, std::vector<float>(shape_size(const_shape), 3));
         std::shared_ptr<Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
@@ -143,9 +139,7 @@ void ConvEltwiseFusion::SetUp() {
 
         Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ov::test::utils::deprecated::make_constant<float>(precision,
-                                                            weights_shape,
-                                                            std::vector<float>(shape_size(weights_shape), 6));
+        auto weights = ov::op::v0::Constant::create(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 6));
         std::shared_ptr<Node> conv;
         if (conv_type == ov::op::v1::Convolution::get_type_info_static()) {
             conv = std::make_shared<ov::op::v1::Convolution>(param, weights, strides, pad_begin, pad_end, strides);

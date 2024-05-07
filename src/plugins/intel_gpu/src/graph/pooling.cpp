@@ -37,7 +37,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -157,7 +157,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         }
     }
     if (impl_param.has_fused_primitives()) {
-        output_dtype = impl_param.get_fused_output_layout().data_type;
+        output_dtype = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
