@@ -41,8 +41,11 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -67,6 +70,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -705,6 +709,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+
+        // Other ops support eltwise fusions
+        const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+            ov::op::v1::Reshape::get_type_info_static(),
+            ov::op::v0::Squeeze::get_type_info_static(),
+            ov::op::v0::Unsqueeze::get_type_info_static(),
+            ov::op::v0::ShuffleChannels::get_type_info_static(),
+            ov::op::v7::Roll::get_type_info_static(),
+            ov::op::v0::ReverseSequence::get_type_info_static(),
+            ov::op::v1::Broadcast::get_type_info_static(),
+            ov::op::v3::Broadcast::get_type_info_static(),
+        };
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
