@@ -532,7 +532,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            _logger.error("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
         }
     }
 
