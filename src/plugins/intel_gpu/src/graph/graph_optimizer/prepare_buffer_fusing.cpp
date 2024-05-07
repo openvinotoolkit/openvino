@@ -592,8 +592,7 @@ void prepare_buffer_fusing::run(program& p) {
                         upper_sizes.push_back(input_layout.spatial(i) - crop_prim->offsets.spatial[i] - crop_size.spatial[i]);
                     }
 
-                    padding new_padding;
-                    new_padding = padding(lower_sizes, upper_sizes);
+                    node.set_output_padding(padding(lower_sizes, upper_sizes));
                 } else {
                     return;
                 }
