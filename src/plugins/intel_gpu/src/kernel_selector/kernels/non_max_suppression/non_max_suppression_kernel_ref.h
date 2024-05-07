@@ -18,9 +18,7 @@ struct non_max_suppression_params : public base_params {
     num_select_per_class_type(base_params::ArgType::Constant), num_select_per_class(0),
     iou_threshold_type(base_params::ArgType::Constant), iou_threshold(0.0f),
     score_threshold_type(base_params::ArgType::Constant), score_threshold(0.0f),
-    soft_nms_sigma_type(base_params::ArgType::Constant), soft_nms_sigma(0.0f),
-    has_second_output(false), has_third_output(false),
-    use_multiple_outputs(false) {}
+    soft_nms_sigma_type(base_params::ArgType::Constant), soft_nms_sigma(0.0f) {}
 
     BoxEncodingType box_encoding;
     bool sort_result_descending;
@@ -32,9 +30,6 @@ struct non_max_suppression_params : public base_params {
     float score_threshold;
     base_params::ArgType soft_nms_sigma_type;
     float soft_nms_sigma;
-    bool has_second_output;
-    bool has_third_output;
-    bool use_multiple_outputs;
     bool reuse_internal_buffer = false;
     NMSRotationType rotation = NMSRotationType::NONE;
 
@@ -58,18 +53,6 @@ struct non_max_suppression_params : public base_params {
     uint32_t GetIndexSoftNmsSigma() const {
         uint32_t input_idx = GetIndexScoreThreshold();
         if (score_threshold_type == base_params::ArgType::Input) input_idx++;
-        return input_idx;
-    }
-
-    uint32_t GetIndexSecondOutput() const {
-        uint32_t input_idx = GetIndexSoftNmsSigma();
-        if (soft_nms_sigma_type == base_params::ArgType::Input) input_idx++;
-        return input_idx;
-    }
-
-    uint32_t GetIndexThirdOutput() const {
-        uint32_t input_idx = GetIndexSecondOutput();
-        if (has_second_output) input_idx++;
         return input_idx;
     }
 };

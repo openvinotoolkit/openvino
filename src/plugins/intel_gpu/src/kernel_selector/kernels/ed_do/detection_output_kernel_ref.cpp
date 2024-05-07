@@ -45,8 +45,8 @@ constexpr int kBoxesInputIdx = 0;
 constexpr int kDeltasInputIdx = 1;
 constexpr int kScoresInputIdx = 2;
 constexpr int kImInfoInputIdx = 3;
-constexpr int kOutputClassesInputIdx = 4;
-constexpr int kOutputScoresInputIdx = 5;
+constexpr int kOutputClassesInputIdx = 1;
+constexpr int kOutputScoresInputIdx = 2;
 
 constexpr int kRefinedBoxesBufferIdx = 0;
 constexpr int kRefinedBoxAreasBufferIdx = 1;
@@ -75,8 +75,6 @@ JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
         MakeJitConstant("DELTA_WEIGHT_LOG_H", params.deltas_weights[3]),
 
         MakeJitConstant("ROI_COUNT", params.inputs[kScoresInputIdx].Batch().v),
-
-        MakeJitConstant("OUTPUT_INDICES_TYPE", "INPUT4_TYPE"),
     });
 
     if (params.class_agnostic_box_regression) {
@@ -162,8 +160,8 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputClassesInputIdx});
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputScoresInputIdx});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputClassesInputIdx});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, kOutputScoresInputIdx});
 }
 
 KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const Params& params) const {

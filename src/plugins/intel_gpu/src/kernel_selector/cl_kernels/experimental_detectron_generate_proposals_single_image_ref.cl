@@ -264,13 +264,13 @@ KERNEL(edgpsi_ref_stage_3)
         rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = boxes[box_offset + 1];
         rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = boxes[box_offset + 2];
         rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = boxes[box_offset + 3];
-        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 4];
+        roi_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 4];
     } else {
         rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = 0.0f;
         rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = 0.0f;
         rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = 0.0f;
         rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = 0.0f;
-        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = 0.0f;
+        roi_scores[OUTPUT1_GET_INDEX(i, 0, 0, 0)] = 0.0f;
     }
 }
 #endif /* EDGPSI_STAGE_3 */

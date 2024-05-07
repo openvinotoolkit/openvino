@@ -26,8 +26,9 @@ struct generate_proposals_impl
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance) const override {
         auto args = parent::get_arguments(instance);
-        args.inputs.push_back(instance.output_rois_scores_memory());
-        args.inputs.push_back(instance.output_rois_nums_memory());
+        // Legacy multi-output
+        args.outputs.push_back(instance.output_rois_scores_memory());
+        args.outputs.push_back(instance.output_rois_nums_memory());
         return args;
     }
 
@@ -44,8 +45,14 @@ public:
         params.nms_eta = primitive->nms_eta;
         params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
 
-        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
+        const size_t num_deps = primitive->input_size();
+        OPENVINO_ASSERT(num_deps == 6, "Unexpected deps num: ", num_deps);
+        const size_t num_inputs = num_deps - 2;
+        for (size_t i = 1; i < num_inputs; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+        for (size_t i = num_inputs; i < num_deps; i++) {
+            params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
         return params;

@@ -58,10 +58,9 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 
+        // Legacy multi-output
         if (instance.get_typed_desc<arg_max_min>()->has_second_output()) {
-            if (args.inputs.size() > 1) {
-                args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
-            }
+            args.outputs.push_back(instance.dep_memory_ptr(instance.dependencies().size() - 1));
         }
 
         return args;
@@ -105,12 +104,11 @@ public:
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
 
         if (outputs_num == 2) {  // for backward compatibility
-            argm_params.has_second_output = true;
             if (primitive->input_size() != 3) {
-                argm_params.use_multiple_outputs = true;
                 argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
             } else {
-                argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+                // Legacy multi-output
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
         }
 
