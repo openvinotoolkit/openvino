@@ -166,12 +166,12 @@ protected:
             params[1]->set_friendly_name("param_3");
             maxOutBoxesPerClassNode = params.back();
         } else {
-            maxOutBoxesPerClassNode = ov::test::utils::deprecated::make_constant(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+            maxOutBoxesPerClassNode = std::make_shared<ov::op::v0::Constant>(maxBoxPrec, ov::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
         }
 
-        auto iouThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
-        auto scoreThrNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
-        auto softNmsSigmaNode = ov::test::utils::deprecated::make_constant(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
+        auto iouThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{iouThr})->output(0);
+        auto scoreThrNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{scoreThr})->output(0);
+        auto softNmsSigmaNode = std::make_shared<ov::op::v0::Constant>(thrPrec, ov::Shape{}, std::vector<float>{softNmsSigma})->output(0);
         auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 

@@ -30,6 +30,8 @@ class TestSquareTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_square_types(self, ie_device, precision, ir_version, type, shape):
+        if ie_device == "GPU" and type != torch.float32:
+            pytest.xfail(reason="square is not supported on GPU for integer types")
         self.type = type
         self.shape = shape
         self._test(*self.create_model(type),

@@ -9,48 +9,50 @@ Interface InputInfo
        tensor(): InputTensorInfo;
    }
 
-- Defined in
-  `addon.ts:116 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L116>`__
+* **Defined in:**
+  `addon.ts:144 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L144>`__
 
 Methods
 #####################
 
 .. rubric:: model
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      model(): InputModelInfo
 
-   model(): InputModelInfo
+   * **Returns:** :doc:`InputModelInfo <InputModelInfo>`
 
-**Returns** :doc:`InputModelInfo <InputModelInfo>`
-
-- Defined in
-  `addon.ts:119 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L119>`__
+   * **Defined in:**
+     `addon.ts:147 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L147>`__
 
 
 .. rubric:: preprocess
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   preprocess(): PreProcessSteps
+      preprocess(): PreProcessSteps
 
-**Returns** :doc:`PreProcessSteps <PreProcessSteps>`
+   * **Returns:** :doc:`PreProcessSteps <PreProcessSteps>`
 
-- Defined in
-  `addon.ts:118 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L118>`__
+   * **Defined in:**
+     `addon.ts:146 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L146>`__
 
 
 .. rubric:: tensor
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   tensor(): InputTensorInfo
+      tensor(): InputTensorInfo
 
+   * **Returns:** :doc:`InputTensorInfo <InputTensorInfo>`
 
-**Returns** :doc:`InputTensorInfo <InputTensorInfo>`
+   * **Defined in:**
+     `addon.ts:145 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L145>`__
 
-- Defined in
-  `addon.ts:117 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L117>`__
