@@ -129,10 +129,12 @@ protected:
 };
 
 TEST_P(RMSNormDecomposition, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 
 TEST_P(RMSNormDecomposition, Inference_cached) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::stringstream ss;
     ss << "gpu_model_cache_" << std::hash<std::string>{}(
           std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
