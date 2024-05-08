@@ -446,21 +446,21 @@ bool ov::interval_bound_evaluator(const Node* node,
 
         auto concated_shape = all_variants_for_ith_output[0].get_shape();
         concated_shape[0] = all_variants_for_ith_output.size();
-        auto concat = Tensor(all_variants_for_ith_output[0].get_element_type(), concated_shape);
-        auto concat_out = TensorVector{concat};
+        auto concat = TensorVector{Tensor(all_variants_for_ith_output[0].get_element_type(), concated_shape)};
         auto c = op::v0::Concat();
         c.set_axis(0);
-        c.evaluate(concat_out, all_variants_for_ith_output);
+        c.evaluate(concat, all_variants_for_ith_output);
 
         auto fake_param =
             std::make_shared<op::v0::Parameter>(all_variants_for_ith_output[0].get_element_type(), concated_shape);
         auto reduce_min_op = op::v1::ReduceMin(fake_param, zero, false);
         auto lower_out = ov::TensorVector{lower_output_values[i]};
-        reduce_min_op.evaluate(lower_out, {concat, zero_t});
+        concat.push_back(zero_t);
+        reduce_min_op.evaluate(lower_out, concat);
 
         auto reduce_max_op = op::v1::ReduceMax(fake_param, zero, false);
         auto upper_out = ov::TensorVector{upper_output_values[i]};
-        reduce_max_op.evaluate(upper_out, {concat, zero_t});
+        reduce_max_op.evaluate(upper_out, concat);
 
         if (!upper_output_values[i]) {
             fully_defined = false;
