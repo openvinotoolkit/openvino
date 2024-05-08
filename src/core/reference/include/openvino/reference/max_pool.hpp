@@ -73,93 +73,6 @@ inline Coord<size_t> calculate_kernel_position(const Coord<size_t>& out_elem_coo
 
 namespace kernel {
 template <typename Values_t, typename Indices_t>
-void max_pool_1d(const Values_t* data,
-                 Values_t* values,
-                 Indices_t* indices,
-                 const size_t data_elems,
-                 const size_t out_elems,
-                 const size_t kernel_size,
-                 const size_t kernel_stride,
-                 const size_t kernel_dilation,
-                 const size_t pads_begin,
-                 const size_t pads_end,
-                 const size_t indices_offset) {
-    int kernel_position = 0 - static_cast<int>(pads_begin);
-    // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
-    for (size_t out_idx = 0; out_idx < out_elems; ++out_idx) {
-        Values_t max_elem = std::numeric_limits<Values_t>::lowest();
-        Indices_t max_elem_idx = Indices_t{0};
-        for (size_t kernel_elem = 0; kernel_elem < kernel_size; ++kernel_elem) {
-            const size_t kernel_elem_offset = kernel_elem * kernel_dilation;
-            // don't process the padding elements
-            if (kernel_position + kernel_elem_offset >= 0 && kernel_position + kernel_elem_offset < data_elems &&
-                data[kernel_position + kernel_elem_offset] > max_elem) {
-                max_elem = data[kernel_position + kernel_elem_offset];
-                max_elem_idx = static_cast<Indices_t>(kernel_position + kernel_elem_offset);
-            }
-        }
-        values[out_idx] = max_elem;
-        indices[out_idx] = static_cast<Indices_t>(max_elem_idx + indices_offset);
-        kernel_position += static_cast<int>(kernel_stride);
-    }
-}
-
-template <typename Values_t, typename Indices_t>
-void max_pool_2d(const Values_t* data,
-                 Values_t* values,
-                 Indices_t* indices,
-                 const Shape& data_shape,
-                 const Shape& out_shape,
-                 const Shape& kernel,
-                 const Strides& kernel_strides,
-                 const Strides& kernel_dilations,
-                 const Shape& pads_begin,
-                 const Shape& pads_end,
-                 const size_t indices_offset) {
-    validate_max_pool_kernel_params(2, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
-
-    // helper constants(axes) denoting dimensions in the input data shape and kernel shape
-    constexpr size_t data_H = 2, data_W = 3;
-    constexpr size_t kernel_H = 0, kernel_W = 1;
-
-    // select max elem and its index for each "placeholder" in the out buffer (pointed to by out_idx)
-    size_t out_idx = 0u;
-    for (size_t out_row = 0u; out_row < out_shape[data_H]; ++out_row) {
-        for (size_t out_col = 0u; out_col < out_shape[data_W]; ++out_col) {
-            Values_t max_elem = std::numeric_limits<Values_t>::lowest();
-            Indices_t max_elem_idx = Indices_t{0};
-
-            const auto kernel_position = calculate_kernel_position({out_row, out_col}, kernel_strides, pads_begin);
-            // find the max element in the area covered by a current position of the kernel
-            for (size_t kernel_row = 0; kernel_row < kernel[kernel_H]; ++kernel_row) {
-                for (size_t kernel_col = 0; kernel_col < kernel[kernel_W]; ++kernel_col) {
-                    // offset from the top-left corner of the kernel for a given row and col
-                    const Coord<size_t> kernel_offset{kernel_row * kernel_dilations[kernel_H],
-                                                      kernel_col * kernel_dilations[kernel_W]};
-
-                    // ignore the elements in the padding area
-                    if (!elem_in_padding_area(kernel_position, kernel_offset, data_shape)) {
-                        // index of the flattened tensor element under the current row & column of the kernel
-                        const size_t data_elem_index =
-                            data_shape[data_W] * (kernel_offset[kernel_H] + kernel_position[kernel_H]) +
-                            kernel_offset[kernel_W] + kernel_position[kernel_W];
-
-                        if (data[data_elem_index] > max_elem) {
-                            max_elem = data[data_elem_index];
-                            max_elem_idx = static_cast<Indices_t>(data_elem_index);
-                        }
-                    }
-                }
-            }
-
-            values[out_idx] = max_elem;
-            indices[out_idx] = static_cast<Indices_t>(max_elem_idx + indices_offset);
-            ++out_idx;
-        }
-    }
-}
-
-template <typename Values_t, typename Indices_t>
 void max_pool_3d(const Values_t* data,
                  Values_t* values,
                  Indices_t* indices,
@@ -235,6 +148,25 @@ void max_pool(const Values_t* data,
               const Shape& pads_begin,
               const Shape& pads_end,
               const int64_t axis = 0) {
+    Shape data_shape_5D{data_shape};
+    Shape out_shape_5D{out_shape};
+    Shape kernel_3D{kernel};
+    Strides strides_3D{strides};
+    Strides dilations_3D{dilations};
+    Shape pads_begin_3D{pads_begin};
+    Shape pads_end_3D{pads_end};
+
+    if (kernel.size() < 3) {
+        const size_t dim_diff = 3 - kernel.size();
+        data_shape_5D.insert(std::next(data_shape_5D.begin(), 2), dim_diff, 1);
+        out_shape_5D.insert(std::next(out_shape_5D.begin(), 2), dim_diff, 1);
+        kernel_3D.insert(kernel_3D.begin(), dim_diff, 1);
+        strides_3D.insert(strides_3D.begin(), dim_diff, 1);
+        dilations_3D.insert(dilations_3D.begin(), dim_diff, 1);
+        pads_begin_3D.insert(pads_begin_3D.begin(), dim_diff, 0);
+        pads_end_3D.insert(pads_end_3D.begin(), dim_diff, 0);
+    }
+
     const auto data_batch_elems = shape_size(std::begin(data_shape) + 1, std::end(data_shape));
     const auto data_channel_elems = shape_size(std::begin(data_shape) + 2, std::end(data_shape));
 
@@ -254,47 +186,17 @@ void max_pool(const Values_t* data,
             // total offset of the flattened tensor indices for currently processed batch and channel
             const Indices_t indices_offset = batch_indices_offset + channel_indices_offset;
 
-            if (data_shape.size() == 3) {
-                kernel::max_pool_1d<Values_t, Indices_t>(data_channel_first_elem,
-                                                         out_channel_first_elem,
-                                                         indices_channel_first_elem,
-                                                         data_shape[2],
-                                                         out_shape[2],
-                                                         kernel[0],
-                                                         strides[0],
-                                                         dilations[0],
-                                                         pads_begin[0],
-                                                         pads_end[0],
-                                                         indices_offset);
-            } else if (data_shape.size() == 4) {
-                kernel::max_pool_2d<Values_t, Indices_t>(data_channel_first_elem,
-                                                         out_channel_first_elem,
-                                                         indices_channel_first_elem,
-                                                         data_shape,
-                                                         out_shape,
-                                                         kernel,
-                                                         strides,
-                                                         dilations,
-                                                         pads_begin,
-                                                         pads_end,
-                                                         indices_offset);
-            } else if (data_shape.size() == 5) {
-                kernel::max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
-                                                         out_channel_first_elem,
-                                                         indices_channel_first_elem,
-                                                         data_shape,
-                                                         out_shape,
-                                                         kernel,
-                                                         strides,
-                                                         dilations,
-                                                         pads_begin,
-                                                         pads_end,
-                                                         indices_offset);
-            } else {
-                OPENVINO_THROW("Unsupported input shape ",
-                               data_shape,
-                               " passed to the MaxPool reference implementation. Supported shapes: 3D, 4D and 5D.");
-            }
+            kernel::max_pool_3d<Values_t, Indices_t>(data_channel_first_elem,
+                                                     out_channel_first_elem,
+                                                     indices_channel_first_elem,
+                                                     data_shape_5D,
+                                                     out_shape_5D,
+                                                     kernel_3D,
+                                                     strides_3D,
+                                                     dilations_3D,
+                                                     pads_begin_3D,
+                                                     pads_end_3D,
+                                                     indices_offset);
         }
     }
 
