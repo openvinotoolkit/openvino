@@ -54,8 +54,7 @@ public:
         result << "_iType=" << param.input.type;
         result << "_axesType=" << param.reductionAxes.type;
         result << "_reductionAxes="
-               << ov::test::utils::vec2str(
-                      std::make_shared<op::v0::Constant>(param.reductionAxes.data)->cast_vector<int64_t>());
+               << ov::test::utils::vec2str(op::v0::Constant(param.reductionAxes.data).cast_vector<int64_t>());
         if (param.scale.data) {
             result << "_Scaled="
                    << "True";
