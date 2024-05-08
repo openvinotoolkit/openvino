@@ -17,6 +17,7 @@ namespace test {
 
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
+using ov::op::v3::ShapeOf;
 using testing::HasSubstr;
 
 class TypePropCol2ImTest : public TypePropOpTest<op::v15::Col2Im> {};
@@ -119,6 +120,25 @@ TEST_F(TypePropCol2ImTest, unbatched_const_values) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 32, 32}));
 }
 
+TEST_F(TypePropCol2ImTest, kernel_size_and_output_size_from_shapeof) {
+    const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 324});
+    const auto output_size = std::make_shared<ShapeOf>(std::make_shared<Parameter>(element::i64, Shape{32, 32}));
+    const auto kernel_size = std::make_shared<ShapeOf>(std::make_shared<Parameter>(element::i64, Shape{2, 2}));
+    const auto strides = Strides{2, 2};
+    const auto dilations = Strides{2, 2};
+    const auto pads_begin = Shape{3, 3};
+    const auto pads_end = Shape{3, 3};
+
+    const auto op =
+        std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_input_size(), 3);
+    EXPECT_EQ(op->get_output_element_type(0), element::i64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 32, 32}));
+}
+
 TEST_F(TypePropCol2ImTest, incorrect_L) {
     const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 325});
     const auto output_size =
@@ -166,12 +186,14 @@ TEST_F(TypePropCol2ImTest, dynamic_input_shapes) {
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+              (PartialShape::dynamic()));
 }
 
 TEST_F(TypePropCol2ImTest, static_batch) {
+    PartialShape data_shape{5, Dimension::dynamic(), Dimension::dynamic()};
+    auto symbols = set_shape_symbols(data_shape);
     const auto data =
-        std::make_shared<Parameter>(element::i64, PartialShape{5, Dimension::dynamic(), Dimension::dynamic()});
+        std::make_shared<Parameter>(element::i64, data_shape);
     const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto strides = Strides{2, 2};
@@ -188,6 +210,8 @@ TEST_F(TypePropCol2ImTest, static_batch) {
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{5, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                testing::ElementsAre(nullptr, nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropCol2ImTest, 2D_dynamic_input) {

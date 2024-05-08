@@ -37,10 +37,10 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    Strides get_strides() const;
-    Strides get_dilations() const;
-    Shape get_pads_begin() const;
-    Shape get_pads_end() const;
+    const Strides& get_strides() const;
+    const Strides& get_dilations() const;
+    const Shape& get_pads_begin() const;
+    const Shape& get_pads_end() const;
 
 private:
     Strides m_strides;
