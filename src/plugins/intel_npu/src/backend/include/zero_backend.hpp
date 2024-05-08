@@ -10,7 +10,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "zero_init.hpp"
-using intel_npu::Logger;
 
 namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
