@@ -20,6 +20,7 @@
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 class PyNode : public ov::Node {
 public:
@@ -216,6 +217,58 @@ void regclass_graph_Node(py::module m) {
                 :return: Number of inputs.
                 :rtype: int
              )");
+    node.def("get_input_element_type",
+             &ov::Node::get_input_element_type,
+             py::arg("index"), 
+             R"(
+                Returns the element type for input i
+
+                :param index: Index of the input.
+                :type index: int
+                :return: Type of the input i
+                :rtype: openvino.runtime.Type
+             )");
+    node.def("get_input_partial_shape",
+             &ov::Node::get_input_partial_shape,
+             py::arg("index"),
+             R"(
+                Returns the partial shape for input i
+
+                :param index: Index of the input.
+                :type index: int
+                :return: PartialShape of the input i
+                :rtype: openvino.runtime.PartialShape
+             )");
+    node.def("get_input_shape",
+             &ov::Node::get_input_shape,
+             py::arg("index"),
+             R"(
+                Returns the shape for input i
+
+                :param index: Index of the output.
+                :return: Shape of the output i
+                :rtype: openvino.runtime.Shape
+             )");
+    node.def("set_output_type",
+             &ov::Node::set_output_type,
+             py::arg("index"),
+             py::arg("element_type"),
+             py::arg("shape"),
+            R"(
+                Sets the number of outputs
+
+                :param index: Index of the output.
+                :param element_type: Element type of the output.
+                :param shape: Shape of the output.
+             )");
+    node.def("set_output_size",
+             &ov::Node::set_output_size,
+             py::arg("size"),
+            R"(
+                Sets the number of outputs
+
+                :param size: number of outputs.
+             )");
     node.def("get_output_size",
              &ov::Node::get_output_size,
              R"(
@@ -382,10 +435,20 @@ void regclass_graph_Node(py::module m) {
         util::DictAttributeDeserializer dict_deserializer(attr_dict, variables);
         self->visit_attributes(dict_deserializer);
     });
-    node.def("set_arguments", [](const std::shared_ptr<ov::Node>& self, const ov::OutputVector& arguments) {
-        return self->set_arguments(arguments);
-    });
     node.def("validate", [](const std::shared_ptr<ov::Node>& self) {
+        Common::utils::deprecation_warning("validate", "2024.4", "Please use 'constructor_validate_and_infer_types' method instead.");
         return self->constructor_validate_and_infer_types();
     });
+    node.def("constructor_validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
+        return self->constructor_validate_and_infer_types();
+    });
+    node.def("validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
+        return self->validate_and_infer_types();
+    },
+     R"(
+        Verifies that attributes and inputs are consistent and computes output shapes and element types.
+        Must be implemented by concrete child classes so that it can be run any number of times.
+        
+        Throws if the node is invalid.
+    )");
 }
