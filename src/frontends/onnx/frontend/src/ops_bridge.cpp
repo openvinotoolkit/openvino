@@ -194,7 +194,6 @@
 #include "op/where.hpp"
 #include "op/xor.hpp"
 #include "openvino/util/log.hpp"
-#include "op/mmdeploy_roi_align_rotated.hpp"
 
 using namespace ov::frontend::onnx;
 
