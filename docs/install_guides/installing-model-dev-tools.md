@@ -160,7 +160,7 @@ Note that the commands are different for a Python installation and a C++ install
 @endsphinxdirective
 
 
-For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/2022.3.1/.
+For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/2022.3.2/.
 
 ### Step 5. Test the Installation
 

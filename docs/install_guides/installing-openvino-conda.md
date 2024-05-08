@@ -42,7 +42,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2022.3.1
+      conda install -c conda-forge openvino=2022.3.2
 
    Congratulations! You have finished installing OpenVINO Runtime.
 
@@ -50,21 +50,21 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 Uninstalling OpenVINO™ Runtime
 ###########################################################
 
-Once OpenVINO Runtime is installed via Conda, you can remove it using the following command, 
+Once OpenVINO Runtime is installed via Conda, you can remove it using the following command,
 with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2022.3.1
+   conda remove openvino=2022.3.2
 
 
 What's Next?
 ############################################################
 
-Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications! 
+Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications!
 To learn more about how to integrate a model in OpenVINO applications, try out some tutorials and sample applications.
 
-Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions 
+Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions
 on building and running a basic image classification C++ application.
 
 .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg

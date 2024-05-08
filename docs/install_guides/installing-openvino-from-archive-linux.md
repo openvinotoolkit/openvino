@@ -4,7 +4,7 @@ With the OpenVINO™ 2022.3 release, you can download and use archive files to i
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.1/) only.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.2/) only.
 
 See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
@@ -84,45 +84,45 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       cd <user_home>/Downloads
 
-4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/linux/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab:: Ubuntu 20.04
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_ubuntu20_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv l_openvino_toolkit_ubuntu20_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/linux/l_openvino_toolkit_ubuntu20_2022.3.2.9279.e2c7e4d7b4d_x86_64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv l_openvino_toolkit_ubuntu20_2022.3.2.9279.e2c7e4d7b4d_x86_64 /opt/intel/openvino_2022.3.2
 
    .. tab:: Ubuntu 18.04
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_ubuntu18_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv l_openvino_toolkit_ubuntu18_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/linux/l_openvino_toolkit_ubuntu18_2022.3.2.9279.e2c7e4d7b4d_x86_64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv l_openvino_toolkit_ubuntu18_2022.3.2.9279.e2c7e4d7b4d_x86_64 /opt/intel/openvino_2022.3.2
 
    .. tab:: RHEL 8
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_rhel8_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv l_openvino_toolkit_rhel8_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/linux/l_openvino_toolkit_rhel8_2022.3.2.9279.e2c7e4d7b4d_x86_64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv l_openvino_toolkit_rhel8_2022.3.2.9279.e2c7e4d7b4d_x86_64 /opt/intel/openvino_2022.3.2
 
    .. tab:: CentOS 7
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/linux/l_openvino_toolkit_centos7_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv l_openvino_toolkit_centos7_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/linux/l_openvino_toolkit_centos7_2022.3.2.9279.e2c7e4d7b4d_x86_64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv l_openvino_toolkit_centos7_2022.3.2.9279.e2c7e4d7b4d_x86_64 /opt/intel/openvino_2022.3.2
 
 5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2022.3.1
+      cd /opt/intel/openvino_2022.3.2
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
 
 6. (Optional) Install *numpy* Python Library:
@@ -131,11 +131,11 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2022.3.2/python/python.<x>`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2022.3.1
+      cd /opt/intel/openvino_2022.3.2
       python3 -m pip install -r ./python/python3.<x>/requirements.txt
 
 7. For simplicity, it is useful to create a symbolic link as below:
@@ -143,7 +143,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
    .. code-block:: sh
 
       cd /opt/intel
-      sudo ln -s openvino_2022.3.1 openvino_2022
+      sudo ln -s openvino_2022.3.2 openvino_2022
 
    .. note::
       If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2022``, and then re-run the command above.
@@ -158,7 +158,7 @@ You must update several environment variables before you can compile and run Ope
 
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
-```  
+```
 
 If you have more than one OpenVINO version on your machine, you can easily switch its version by sourcing the `setupvars.sh` of your choice.
 
