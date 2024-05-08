@@ -437,13 +437,15 @@ void jit_hswish_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     h->ld1r(aux1.s, table_val2("six"));
     h->fminnm(aux0.s, aux0.s, aux1.s);
     h->fmul(aux0.s, aux0.s, src.s);
-    h->fdiv(dst.s, aux0.s, aux1.s);
+    h->ld1r(aux1.s, table_val2("one_sixth"));
+    h->fmul(dst.s, aux0.s, aux1.s);
 }
 
 void jit_hswish_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
     push_arg_entry_of("three", 0x40400000, true);
     push_arg_entry_of("six", 0x40c00000, true);
+    push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.f/6.f), true);
 }
 
 std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
