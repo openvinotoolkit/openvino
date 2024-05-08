@@ -17,7 +17,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_broadcast_args_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"BroadcastArgs"});
+    default_op_checks(node, 2, {"BroadcastArgs", "BROADCAST_ARGS"});
     auto s0 = node.get_input(0);
     auto s1 = node.get_input(1);
 

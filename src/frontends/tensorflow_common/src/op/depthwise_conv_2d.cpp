@@ -17,7 +17,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"DepthwiseConv2dNative"});
+    default_op_checks(node, 2, {"DepthwiseConv2dNative", "DEPTHWISE_CONV_2D"});
     auto input = node.get_input(0);
     auto filter = node.get_input(1);
 
