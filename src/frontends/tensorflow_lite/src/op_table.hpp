@@ -9,7 +9,6 @@
 #include <string>
 
 #include "common_op_table.hpp"
-#include "decoder_map.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -64,7 +63,7 @@ TFL_OP_CONVERTER(unique);
 TFL_OP_CONVERTER(unpack);
 TFL_OP_CONVERTER(while_op);
 
-template <typename OV_TYPE, typename TF_TYPE>
+template <typename OV_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);
 
 template <typename OV_TYPE>
