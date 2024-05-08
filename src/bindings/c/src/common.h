@@ -10,6 +10,7 @@
 #include <streambuf>
 #include <string>
 
+#include "openvino/c/ov_common.h"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -30,7 +31,6 @@
         return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
-typedef char* (*crypto_func)(const char*, const size_t, size_t*);
 #define GET_PROPERTY_FROM_ARGS_LIST                                                                   \
     std::string property_key = va_arg(args_ptr, char*);                                               \
     if (property_key == ov::cache_encryption.name() || property_key == ov::cache_decryption.name()) { \
