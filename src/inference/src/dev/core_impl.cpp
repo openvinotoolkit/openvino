@@ -734,8 +734,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager};
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::ModelCache::compute_hash - Model");
-            cacheContent.blobId =
-                ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -771,8 +770,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager};
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ov::ModelCache::compute_hash - Model");
-            cacheContent.blobId =
-                ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
