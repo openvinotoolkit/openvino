@@ -373,18 +373,18 @@ void Input::cloneBlobIfRequired() {
                 + "_" + ptr;
     };
 
-    auto weightCache = context->getWeightsCache();
+    const auto weightCache = context->getWeightsCache();
+    const bool clone_is_not_needed = prec != element::string && !isWA() &&
+                                     // IRs already have all subnormals flushed to zero, but in
+                                     // read_model scenario with directly loaded original model still can have subnormals
+                                     isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
+                                     // In case of weights caching enabled it is needed to clone blob only in case of multisocket
+                                     // TODO: detect somehow if nGraph weights are stored in other socket node - and repack only in this case
+                                     (!weightCache || context->getNumNumaNodes() == 1);
 
-    if (weightCache) {
-        MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
-    // IRs already have all subnormals flushed to zero, but in
-    // read_model scenario with directly loaded original model still can have subnormals
-    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
-    } else {
-        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
-    }
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
+                                    : std::const_pointer_cast<const IMemory>(
+                                          weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape,
