@@ -8,8 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "common_op_table.hpp"
-#include "decoder_map.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
