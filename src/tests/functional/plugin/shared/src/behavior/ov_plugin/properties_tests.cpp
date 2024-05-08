@@ -77,6 +77,16 @@ std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::Tes
 
 void OVPropertiesTestsWithCompileModelProps::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    std::string temp_device;
+    std::tie(temp_device, properties) = this->GetParam();
+
+    std::string::size_type pos = temp_device.find(":", 0);
+    if (pos != std::string::npos) {
+        target_device = temp_device.substr(0, pos);
+        compileModelProperties = {ov::device::priorities(target_device)};
+    } else {
+        target_device = temp_device;
+    }
 
     model = ov::test::utils::make_split_concat();
 
