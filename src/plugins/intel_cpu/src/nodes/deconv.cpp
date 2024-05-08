@@ -223,7 +223,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         bool is1x1 = true;
         for (size_t i = 0; i < spatialRank; ++i)
             is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
-        asynPaddingAnd1x1 = is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR;
+        asymmetricPaddingAnd1x1 = is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR;
     }
 
     externOutShape = inputShapes.size() == 3;
@@ -764,7 +764,7 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
 
-    if (!asynPaddingAnd1x1)
+    if (!asymmetricPaddingAnd1x1)
         return priorities;
 
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
