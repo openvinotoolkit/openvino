@@ -58,6 +58,7 @@ HETERO:
     - HETERO
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 AUTO_BATCH:
@@ -66,6 +67,7 @@ AUTO_BATCH:
     - AUTO_BATCH
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 TEMPLATE:
@@ -75,7 +77,6 @@ TEMPLATE:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
-    - AUTO
     - Python_API
     - NVIDIA
   build:
@@ -86,6 +87,7 @@ AUTO:
     - AUTO
     - Python_API
   build:
+    - TEMPLATE
     - IR_FE
 
 PROXY:
