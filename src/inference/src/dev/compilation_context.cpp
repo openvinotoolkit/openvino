@@ -11,8 +11,8 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
@@ -24,14 +24,11 @@
 #endif
 
 namespace ov {
-namespace util {
-namespace {
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
     // Hash combine formula from boost
     return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
-}  // namespace
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
     uint64_t seed = 0;
@@ -194,5 +191,4 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     return stream;
 }
 
-}  // namespace util
 }  // namespace ov

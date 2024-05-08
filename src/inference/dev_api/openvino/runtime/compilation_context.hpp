@@ -11,14 +11,13 @@
 #include <string>
 
 #include "openvino/core/any.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
-class Tensor;
-class Model;
-namespace util {
-
-struct ModelCache final {
+class OPENVINO_RUNTIME_API ModelCache {
+public:
     static std::string calculate_file_info(const std::string& filePath);
 
     static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
@@ -55,5 +54,4 @@ public:
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);
 };
 
-}  // namespace util
 }  // namespace ov

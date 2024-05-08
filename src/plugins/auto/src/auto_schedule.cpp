@@ -3,10 +3,11 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "openvino/util/compilation_context.hpp"
-#include "openvino/util/file_util.hpp"
 #include "auto_schedule.hpp"
+
 #include "async_infer_request.hpp"
+#include "openvino/runtime/compilation_context.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -170,9 +171,10 @@ void AutoSchedule::init() {
                                                 : m_context->m_ov_core->get_property("", ov::cache_dir);
 
                     if (!m_context->m_is_set_startup_fallback && !cache_dir.empty()) {
-                        auto blobId = ov::util::ModelCache::compute_hash(
-                            m_context->m_model,
-                            m_context->m_ov_core->create_compile_config(device, device_config));
+                        const auto properties = m_context->m_ov_core->create_compile_config(device, device_config);
+                        auto blobId =
+                            ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(m_context->m_model),
+                                                         properties);
                         std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
                         m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
                         LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
