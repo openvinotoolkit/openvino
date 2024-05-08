@@ -11,7 +11,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include <ov_ops/type_relaxed.hpp>
+#include "ov_ops/type_relaxed.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -78,7 +79,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             gru_seq_m
         });
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto rnn = m.get_match_root();
 
         if (!rnn || transformation_callback(rnn))

@@ -1354,11 +1354,10 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                 ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
                     auto& n = parallelNodes[i];
 
-                    n->toNumaNode(subStreamID);
                     if (n->isDynamicNode()) {
-                        n->executeDynamic(stream);
+                        n->executeDynamic(stream, subStreamID);
                     } else {
-                        n->execute(stream);
+                        n->executeStatic(stream, subStreamID);
                     }
                 });
             } else {
@@ -1367,7 +1366,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                     if (node->isDynamicNode()) {
                         node->executeDynamic(stream);
                     } else {
-                        node->execute(stream);
+                        node->executeStatic(stream);
                     }
                 }
             }
@@ -1377,15 +1376,16 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
         DEBUG_LOG(*node);
         // TODO: 132954 workaround for latency
+        int subStreamID = -1;
 #if defined(__x86_64__) && defined(__linux__)
         if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-            node->toNumaNode(getGraphContext()->getCPUStreamExecutor()->get_numa_node_id());
+            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
         }
 #endif
         if (node->isDynamicNode()) {
-            node->executeDynamic(stream);
+            node->executeDynamic(stream, subStreamID);
         } else {
-            node->execute(stream);
+            node->executeStatic(stream, subStreamID);
         }
     }
 }
