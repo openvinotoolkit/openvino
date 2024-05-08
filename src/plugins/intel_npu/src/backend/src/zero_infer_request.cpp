@@ -155,10 +155,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_executor->getInitStructs()->getDevice(), &properties));
 
-    const auto contains = [](const auto& container, const auto& value) {
-        return std::find(container.begin(), container.end(), value) != container.end();
-    };
-
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
@@ -219,12 +215,11 @@ void ZeroInferRequest::infer_async() {
     for (const std::shared_ptr<ov::ITensor>& inputTensor : _inputTensors) {
         const std::shared_ptr<ov::ITensor>& wrapperInputTensor = _copyInputTensors.at(inputIndex);
 
-        const IODescriptor inputDescriptor = _metadata.outputs.at(inputIndex);
+        const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value());
             const auto& inputDims = _inputTensors.at(*inputDescriptor.relatedDescriptorIndex)->get_shape();
 
-            // TODO optimize this
             for (size_t i = 0; i < inputTensor->get_size(); ++i) {
                 const auto reverseIdx = inputDims.size() - 1 - i;
                 inputTensor->data<uint32_t>()[i] = static_cast<uint32_t>(inputDims[reverseIdx]);

@@ -173,62 +173,6 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
-size_t zeLayoutToRank(const ze_graph_argument_layout_t layout) {
-    switch (layout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
-        return 1;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
-        return 3;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-        return 5;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        return 5;
-    default:
-        // TODO #-30200 Extend to support all cases
-        return 0;
-    }
-}
-
-/**
- * @brief Transposes the original shape value according to given layout.
- */
-std::vector<size_t> reshapeByLayout(const std::vector<size_t>& originalDimensions,
-                                    const ze_graph_argument_layout_t layout) {
-    std::vector<size_t> order;
-    std::vector<size_t> reshapedDimensions;
-
-    switch (layout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        order = NC_TO_CN_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        order = NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        order = NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER;
-        break;
-    default:
-        // TODO #-30200 Extend to support all cases
-        return originalDimensions;
-    }
-
-    for (const size_t& orderElement : order) {
-        reshapedDimensions.push_back(originalDimensions[orderElement]);
-    }
-
-    return reshapedDimensions;
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -957,40 +901,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             std::move(shapeFromIRModel)};
 }
 
-// TODO try to collapse the two getMetadata functions
 template <typename TableExtension>
-template <typename T, std::enable_if_t<NotSupportOriginalShape(T), bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
-                                                            ze_graph_handle_t graphHandle,
-                                                            uint32_t index,
-                                                            std::vector<IODescriptor>& inputs,
-                                                            std::vector<IODescriptor>& outputs) const {
-    ze_graph_argument_properties_3_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-
-    switch (arg.type) {
-    case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-        inputs.push_back(getIODescriptor(arg, std::nullopt));
-    } break;
-    case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-        outputs.push_back(getIODescriptor(arg, std::nullopt));
-    } break;
-    default: {
-        OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ", arg.type);
-    }
-    }
-}
-
-template <typename TableExtension>
-template <typename T, std::enable_if_t<!NotSupportOriginalShape(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
