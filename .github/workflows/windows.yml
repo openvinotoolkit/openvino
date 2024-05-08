@@ -384,6 +384,9 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
 
+      - name: Create package dir
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        run: mkdir project-uses-openvino-node
       - name: Test installation of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}/project-uses-openvino-node
         run: |
