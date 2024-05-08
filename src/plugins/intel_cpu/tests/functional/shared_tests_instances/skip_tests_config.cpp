@@ -281,8 +281,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\?.192.36.64\]_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)",
         R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)",
         R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
-        //Issue: 140606
-        R"(.*nightly_Deconv_2D_Async_Padding_1x1/DeconvolutionLayerCPUTes.*)",
         // Issue: 134470
         R"(.*smoke.*StatefulModelStateInLoopBody.*)",
         // Issue: 138520
@@ -417,6 +415,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
+    //Issue: 140606
+    retVector.emplace_back(R"(.*nightly_Deconv_2D_Async_Padding_1x1/DeconvolutionLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*smoke_ConvolutionBackpropData2D_OutputShapeDefined/ConvolutionBackpropDataLayerTest.*TS=\{\(1.3.9.12\)\}_OS.*K\(1.1\)_S\(1.1\)_PB\(0.0\)_PE\(0.0\).*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision
