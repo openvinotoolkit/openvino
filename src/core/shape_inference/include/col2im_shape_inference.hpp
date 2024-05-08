@@ -16,6 +16,12 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_shapes.size() == 3,
+                           "Number of inputs has to be equal to 3. Got: ",
+                           input_shapes.size());
+
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
     const auto& kernel_shape = input_shapes[2];
@@ -54,8 +60,8 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         N = data_shape[0];
     }
 
-    if (kernel_val) {
-        const size_t C_idx = is_batched ? 1 : 0;
+    const size_t C_idx = is_batched ? 1 : 0;
+    if (kernel_val && data_shape.rank().is_static() && data_shape[C_idx].is_static()) {
         const auto dividend = data_shape[C_idx].get_length();
         const auto divisor = ((*kernel_val)[0] * (*kernel_val)[1]).get_length();
         NODE_SHAPE_INFER_CHECK(op,
@@ -68,11 +74,12 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         C = Dimension::dynamic();
     }
 
-    TRShape output_shape;
-    if (output_size_val && kernel_val) {
-        const size_t L_idx = is_batched ? 2 : 1;
+    const size_t L_idx = is_batched ? 2 : 1;
+    if (data_shape.rank().is_dynamic()) {
+        return {PartialShape::dynamic()};
+    } else if (output_size_val && kernel_val && data_shape.rank().is_static() && data_shape[L_idx].is_static()) {
         const auto L = data_shape[L_idx].get_length();
-        const size_t spatial_dims = 2;
+        constexpr size_t spatial_dims = 2;
 
         const auto& pads_begin = op->get_pads_begin();
         const auto& pads_end = op->get_pads_end();
@@ -100,7 +107,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         W = Dimension::dynamic();
     }
 
-    output_shape = is_batched ? TRShape{N, C, H, W} : TRShape{C, H, W};
+    const auto output_shape = is_batched ? TRShape{N, C, H, W} : TRShape{C, H, W};
     return {output_shape};
 }
 }  // namespace v15

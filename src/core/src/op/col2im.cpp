@@ -73,19 +73,19 @@ std::shared_ptr<Node> Col2Im::clone_with_new_inputs(const ov::OutputVector& new_
                                     m_pads_end);
 }
 
-Strides Col2Im::get_strides() const {
+const Strides& Col2Im::get_strides() const {
     return m_strides;
 }
 
-Strides Col2Im::get_dilations() const {
+const Strides& Col2Im::get_dilations() const {
     return m_dilations;
 }
 
-Shape Col2Im::get_pads_begin() const {
+const Shape& Col2Im::get_pads_begin() const {
     return m_pads_begin;
 }
 
-Shape Col2Im::get_pads_end() const {
+const Shape& Col2Im::get_pads_end() const {
     return m_pads_end;
 }
 
