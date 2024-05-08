@@ -326,8 +326,8 @@ KERNEL(eddo_ref_stage_3)
  const __global uint* detection_count,
  const __global INPUT_TYPE* refined_boxes,
  __global OUTPUT_TYPE* output_boxes,
- __global OUTPUT_INDICES_TYPE* output_classes,
- __global OUTPUT_TYPE* output_scores) {
+ __global OUTPUT1_TYPE* output_classes,
+ __global OUTPUT2_TYPE* output_scores) {
     size_t i = get_global_id(0);
 
 #ifdef USE_BLOCKED_FORMAT
@@ -336,13 +336,13 @@ KERNEL(eddo_ref_stage_3)
     size_t idx2 = OUTPUT_GET_INDEX(i, 2, 0, 0);
     size_t idx3 = OUTPUT_GET_INDEX(i, 3, 0, 0);
 
-    size_t idx_i4 = INPUT4_GET_INDEX(i, 0, 0, 0);
-    size_t idx_i5 = INPUT5_GET_INDEX(i, 0, 0, 0);
+    size_t idx_i4 = OUTPUT1_GET_INDEX(i, 0, 0, 0);
+    size_t idx_i5 = OUTPUT2_GET_INDEX(i, 0, 0, 0);
 #endif
     if (i < *detection_count) {
         OUTPUT_TYPE score = score_class_index_map[i].score;
-        OUTPUT_INDICES_TYPE cls = score_class_index_map[i].class_idx;
-        OUTPUT_INDICES_TYPE idx = score_class_index_map[i].box_idx;
+        OUTPUT1_TYPE cls = score_class_index_map[i].class_idx;
+        OUTPUT1_TYPE idx = score_class_index_map[i].box_idx;
 
 #ifdef USE_BLOCKED_FORMAT
         INPUT_TYPE4 res = vload4(ROI_COUNT * cls + idx, refined_boxes);

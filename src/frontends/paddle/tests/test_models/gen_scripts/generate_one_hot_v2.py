@@ -21,9 +21,9 @@ def one_hot_v2(name: str, x, num_classes, is_tensor):
         exe = paddle.static.Executor(place)
         feed_list = {"x": x, "depth_tensor": num_classes} if is_tensor else {"x": x}
         outs = exe.run(feed=feed_list, fetch_list=[out])
-        feedkey_list = ["x", "depth_tensor"] if is_tensor else ['x']
+        feed_vars = [x_node, depth_node] if is_tensor else [x_node]
         input_list = [x, num_classes] if is_tensor else [x]
-        saveModel(name, exe, feedkeys=feedkey_list, fetchlist=[out], inputs=input_list, outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=input_list, outputs=[outs[0]], target_dir=sys.argv[1])
     
     return outs[0]
 

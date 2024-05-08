@@ -162,22 +162,6 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", 0.0f));
     }
 
-    if (params.has_second_output) {
-        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexSecondOutput())));
-        jit.AddConstant(MakeJitConstant("TO_SECOND_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexSecondOutput())));
-        jit.AddConstant(MakeJitConstant("SECOND_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexSecondOutput())));
-    }
-
-    if (params.has_third_output) {
-        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_TYPE", GetInputTypeStr(params.GetIndexThirdOutput())));
-        jit.AddConstant(MakeJitConstant("TO_THIRD_OUTPUT_TYPE", GetToInputTypeStr(params.GetIndexThirdOutput())));
-        jit.AddConstant(MakeJitConstant("THIRD_OUTPUT_GET_INDEX", GetToInputIndexStr(params.GetIndexThirdOutput())));
-    }
-
-    if (params.use_multiple_outputs) {
-        jit.AddConstant(MakeJitConstant("MULTIPLE_OUTPUTS", 1));
-    }
-
     return jit;
 }
 
@@ -240,15 +224,10 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-
-        if (params.has_second_output)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSecondOutput() });
-        if (params.has_third_output)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexThirdOutput() });
-        if (params.use_multiple_outputs) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 1 });
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 2 });
+        for (size_t i = 1; i < params.outputs.size(); i++) {
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, static_cast<uint32_t>(i) });
         }
+
         break;
 
     default:

@@ -33,7 +33,7 @@ protected:
 
         args.outputs.push_back(instance.output_memory_ptr());
         //TODO: Future improvement: To add second output parameter only when it's needed
-        args.inputs.push_back(instance.output_roi_scores_memory());
+        args.outputs.push_back(instance.output_roi_scores_memory());
 
         return args;
     }
@@ -48,8 +48,14 @@ public:
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
 
-        for (size_t i = 1; i < impl_param.input_layouts.size(); i++) {
+        const size_t num_deps = primitive->input_size();
+        OPENVINO_ASSERT(num_deps == 5, "Unexpected deps num: ", num_deps);
+        const size_t num_inputs = num_deps - 1;
+        for (size_t i = 1; i < num_inputs; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+        for (size_t i = num_inputs; i < num_deps; i++) {
+            params.outputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
         return params;
