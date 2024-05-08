@@ -34,6 +34,7 @@
 namespace ov {
 namespace gen_pattern {
 
+#define CPU_DEBUG_CAPS
 #ifdef CPU_DEBUG_CAPS
 
 template <typename... Args>
@@ -1094,16 +1095,20 @@ inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const s
         OutputVector{lhs->get_default_output(), rhs->get_default_output()});
 }
 
-inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
-                                      detail::PatternNode start,
-                                      detail::PatternNode stop,
-                                      detail::PatternNode step,
-                                      size_t axis) {
+inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}});
 
     std::vector<Symbol> vbegin(axis + 1, Symbol(0));
     std::vector<Symbol> vend(axis + 1, Symbol(0));
     std::vector<Symbol> vstride(axis + 1, Symbol(1));
+
+    vbegin[axis] = start;
+    vend[axis] = stop;
+    vstride[axis] = step;
+
+    detail::PatternNode begin(vbegin);
+    detail::PatternNode end(vend);
+    detail::PatternNode stride(vstride);
 
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
@@ -1114,7 +1119,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
-    auto opt2 = makePattern<opset1::StridedSlice>({data, start, stop, step},
+    auto opt2 = makePattern<opset1::StridedSlice>({data, begin, end, stride},
                                                   {{"begin_mask", begin_mask},
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
