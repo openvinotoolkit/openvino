@@ -65,7 +65,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/windows/w_openvino_toolkit_windows_2022.3.2.9279.e2c7e4d7b4d_x86_64.zip--output openvino_2022.3.2.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/windows/w_openvino_toolkit_windows_2022.3.2.9279.e2c7e4d7b4d_x86_64.zip --output openvino_2022.3.2.zip
 
 
    .. note::
