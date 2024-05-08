@@ -295,7 +295,9 @@ void SubgraphBaseTest::compile_model() {
     auto start_time = std::chrono::system_clock::now();
 
     configure_model();
-    core_configuration(this);
+    if (do_core_config) {
+        core_configuration(this);
+    }
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();

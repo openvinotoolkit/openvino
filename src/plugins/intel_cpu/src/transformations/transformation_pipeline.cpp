@@ -373,7 +373,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                  false);
     }
 #else
-    static const auto precisions = get_convert_precisions();
+    const auto precisions = get_convert_precisions();
 #endif
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_SET_CALLBACK_COMMON(manager,

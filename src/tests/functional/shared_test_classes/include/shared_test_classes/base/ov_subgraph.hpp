@@ -90,6 +90,8 @@ protected:
     bool is_reported = false;
     double rel_influence_coef = 1.f;
 
+    bool do_core_config = true;
+
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
 
