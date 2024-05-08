@@ -6,7 +6,6 @@ import os
 import sys
 from functools import wraps
 from typing import Callable, Any
-import warnings
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -37,12 +36,6 @@ def _add_openvino_libs_to_search_path() -> None:
             if os.path.isdir(lib_path):
                 # On Windows, with Python >= 3.8, DLLs are no longer imported from the PATH.
                 os.add_dll_directory(os.path.abspath(lib_path))
-
-
-def add_openvino_libs_to_path() -> None:
-    warnings.warn("add_openvino_libs_to_path function was implemented for internal usage only "
-                  "and will be removed in the 2023.2 release.", DeprecationWarning, stacklevel=2)
-    _add_openvino_libs_to_search_path()
 
 
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
