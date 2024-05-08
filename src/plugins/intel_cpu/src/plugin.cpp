@@ -282,8 +282,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    auto cache_dir = get_core()->get_property("", ov::cache_dir);
-    if (cache_dir.empty()) {
+    if (!conf.saveToCache) {
         conf.cacheEncrypt = {};
         conf.cacheDecrypt = {};
     } else if (!conf.cacheEncrypt || !conf.cacheDecrypt) {

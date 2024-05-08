@@ -107,6 +107,24 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_cache_mode;
 
 /**
+ * @brief Read-write property<std::function> to set encryption function for model cache.
+ * If cache_encryption and cache_dir are set, model cache will be encrypted and saved.
+ * cache_encryption is enabled in compile_model only
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_cache_encryption;
+
+/**
+ * @brief Read-write property<std::function> to set decryption function for model cache.
+ * If cache_decryption and cache_dir are set, model cache will be decrypted and saved.
+ * cache_decryption is enabled in compile_model only
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_cache_decryption;
+
+/**
  * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
  * @ingroup ov_property_c_api
  */

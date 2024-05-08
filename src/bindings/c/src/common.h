@@ -30,11 +30,24 @@
         return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
-#define GET_PROPERTY_FROM_ARGS_LIST                     \
-    std::string property_key = va_arg(args_ptr, char*); \
-    std::string _value = va_arg(args_ptr, char*);       \
-    ov::Any value = _value;                             \
-    property[property_key] = value;
+typedef char* (*crypto_func)(const char*, const size_t, size_t*);
+#define GET_PROPERTY_FROM_ARGS_LIST                                                                   \
+    std::string property_key = va_arg(args_ptr, char*);                                               \
+    if (property_key == ov::cache_encryption.name() || property_key == ov::cache_decryption.name()) { \
+        crypto_func _value = va_arg(args_ptr, crypto_func);                                           \
+        std::function<std::string(const std::string&)> value = [_value](const std::string& in) {      \
+            size_t out_size = 0;                                                                      \
+            char* out = _value(in.c_str(), in.length(), &out_size);                                   \
+            std::string out_str;                                                                      \
+            out_str.assign(out, out_size);                                                            \
+            return out_str;                                                                           \
+        };                                                                                            \
+        property[property_key] = value;                                                               \
+    } else {                                                                                          \
+        std::string _value = va_arg(args_ptr, char*);                                                 \
+        ov::Any value = _value;                                                                       \
+        property[property_key] = value;                                                               \
+    }
 
 /**
  * @struct ov_core

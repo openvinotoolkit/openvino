@@ -1362,8 +1362,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const CacheContent& cacheContent) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CoreImpl::compile_model_and_cache");
+    auto update_config = parsedConfig;
+    update_config[ov::internal::save_to_cache.name()] = true;
     ov::SoPtr<ov::ICompiledModel> compiled_model =
-        context ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
+        context ? plugin.compile_model(model, context, update_config) : plugin.compile_model(model, update_config);
     if (cacheContent.cacheManager && device_supports_model_caching(plugin)) {
         try {
             // need to export network for further import from "cache"

@@ -76,5 +76,11 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
  */
 static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
 
+/**
+ * @brief Read-write property to mark whether cache_dir is set
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> save_to_cache{"SAVE_TO_CACHE"};
+
 }  // namespace internal
 }  // namespace ov

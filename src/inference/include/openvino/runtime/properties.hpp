@@ -736,6 +736,7 @@ static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_M
 /**
  * @brief Read-write property to set encryption function for saving model cache.
  * If cache_dir and cache_encryption are set, the model cache will be encrypted and saved.
+ * cache_encryption is enabled in compile_model only
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::RW> cache_encryption{
@@ -744,6 +745,7 @@ static constexpr Property<std::function<std::string(const std::string&)>, Proper
 /**
  * @brief Read-write property to set decryption function for loading model cache.
  * If cache_dir and cache_decryption are set, the model cache will be decrypted and loaded.
+ * cache_decryption is enabled in compile_model only
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::function<std::string(const std::string&)>, PropertyMutability::RW> cache_decryption{
