@@ -101,7 +101,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const IONodeDescriptorMap& paramet
     return std::make_shared<ov::Model>(results, parameters);
 }
 
-<<<<<<< Updated upstream
 /**
  * @brief Setting batching mode
  * @details  In the case of older drivers or discrete platforms, we force batching to compiler mode since it is not
@@ -127,7 +126,8 @@ void set_batch_config(bool isBatchingSupported, Config& config) {
         strStream << ov::intel_npu::BatchMode::AUTO;
         config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     }
-=======
+}
+
 inline std::shared_ptr<ov::Model> get_validation_model(ov::element::Type type) {
     ov::ResultVector results;
     ov::ParameterVector params;
@@ -139,7 +139,6 @@ inline std::shared_ptr<ov::Model> get_validation_model(ov::element::Type type) {
     res->get_output_tensor(0).set_names({"tensor_output"});
     results.push_back(res);
     return std::make_shared<ov::Model>(results, params);
->>>>>>> Stashed changes
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -518,15 +517,15 @@ Plugin::Plugin()
         _globalConfig.update(options);
 
     } catch (const std::exception& ex) {
-        _logger.warning("Current MLIR compiler version is incompatible with the current driver version due to: ",
-                        ex.what(),
-                        " Driver compiler will be used as default compiler type.");
+        _logger.warning(ex.what());
+        _logger.warning("Current MLIR compiler version is incompatible with the current driver version. "
+                        "Driver compiler will be used as default compiler type.");
         Config::ConfigMap options;
         options[ov::intel_npu::compiler_type.name()] = stringifyEnum(ov::intel_npu::CompilerType::DRIVER);
         _globalConfig.update(options);
     } catch (...) {
         _logger.warning("Current MLIR compiler version is incompatible with the current driver version. "
-                        " Driver compiler will be used as default compiler type.");
+                        "Driver compiler will be used as default compiler type.");
         Config::ConfigMap options;
         options[ov::intel_npu::compiler_type.name()] = stringifyEnum(ov::intel_npu::CompilerType::DRIVER);
         _globalConfig.update(options);
