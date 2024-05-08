@@ -147,8 +147,8 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
     // Allowed signatures list
     static auto path_and_device = NapiArg::Validator().add_string_arg().add_string_arg();
     static auto path_device_and_config = NapiArg::Validator().add_string_arg().add_string_arg().add_object_arg();
-    static auto model_and_device = NapiArg::Validator().add_object_arg().add_string_arg();
-    static auto model_device_and_config = NapiArg::Validator().add_object_arg().add_string_arg().add_object_arg();
+    static auto model_and_device = NapiArg::Validator().add_arg(ModelWrap::check_type).add_string_arg();
+    static auto model_device_and_config = NapiArg::Validator().add_arg(ModelWrap::check_type).add_string_arg().add_object_arg();
 
     try {
         if (path_and_device.validate(info, errors_messages)) {

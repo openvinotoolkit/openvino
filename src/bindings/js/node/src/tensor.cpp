@@ -6,6 +6,8 @@
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/napi_arg.hpp"
+#include "node/include/type_validation.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -152,4 +154,10 @@ Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
     }
     const auto size = static_cast<double>(_tensor.get_size());
     return Napi::Number::New(env, size);
+}
+
+std::function<void(const std::string& key, const Napi::Value&)> TensorWrap::check_type(const Napi::Env& env) {
+    return [env](const std::string& key, const Napi::Value& value) {
+        OPENVINO_ASSERT(is_tensor(env, value), NapiArg::create_error_message(key, "ov.Tensor", value.Type()));
+    };
 }

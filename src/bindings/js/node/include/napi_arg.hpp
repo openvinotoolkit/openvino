@@ -10,12 +10,14 @@
 namespace NapiArg {
 const char* get_type_name(napi_valuetype type);
 
+std::string create_error_message(const std::string& key, const char* expected, const napi_valuetype& real_type);
+
 class Validator {
 public:
     typedef std::function<void(const std::string& key, const Napi::Value&)> ValidatorType;
 
-    bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages) const;
-    bool validate(const Napi::CallbackInfo& info) const;
+    const bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& error_messages);
+    const bool validate(const Napi::CallbackInfo& info);
 
     Validator& add_arg(ValidatorType validator);
 

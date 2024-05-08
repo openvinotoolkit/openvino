@@ -101,6 +101,8 @@ public:
      */
     Napi::Value get_friendly_name(const Napi::CallbackInfo& info);
 
+    static void check_type(const std::string& key, const Napi::Value& value);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

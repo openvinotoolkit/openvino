@@ -5,6 +5,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
+#include "node/include/napi_arg.hpp"
 #include "node/include/node_output.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
@@ -153,4 +154,13 @@ Napi::Value ModelWrap::get_friendly_name(const Napi::CallbackInfo& info) {
     }
     const auto friendly_name = _model->get_friendly_name();
     return Napi::String::New(env, friendly_name);
+}
+
+void ModelWrap::check_type(const std::string& key, const Napi::Value& value) {
+    OPENVINO_ASSERT(value.IsObject(), NapiArg::create_error_message(key, "ov.Model", value.Type()));
+    const auto& mw = Napi::ObjectWrap<ModelWrap>::Unwrap(value.ToObject());
+    const auto& original_model = mw->get_model();
+
+    if (original_model.get() == nullptr)
+        OPENVINO_THROW("Incorrect model format");
 }

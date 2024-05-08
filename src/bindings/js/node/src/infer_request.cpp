@@ -13,6 +13,7 @@
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/util/common_util.hpp"
+#include "node/include/napi_arg.hpp"
 
 namespace {
 std::mutex infer_mutex;
@@ -68,15 +69,24 @@ void InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
+    std::vector<std::string> errors_messages;
+    auto tensor_arg = TensorWrap::check_type(info.Env());
+
+    // Allowed signatures list
+    static auto default_tensor = NapiArg::Validator().add_arg(tensor_arg);
+    static auto index_and_tensor = NapiArg::Validator().add_number_arg().add_arg(tensor_arg);
+
     try {
-        if (info.Length() == 1 && info[0].IsObject()) {
+        if (default_tensor.validate(info, errors_messages)) {
             _infer_request.set_input_tensor(cast_to_tensor(info, 0));
-        } else if (info.Length() == 2 && info[0].IsNumber() && info[1].IsObject()) {
+        } else if (index_and_tensor.validate(info, errors_messages)) {
             const auto idx = info[0].ToNumber().Int32Value();
             _infer_request.set_input_tensor(idx, cast_to_tensor(info, 1));
-        } else {
-            OPENVINO_THROW(std::string("InferRequest.setInputTensor() invalid argument."));
         }
+
+        std::string arguments_error_message = ov::util::join(errors_messages, "\nor\n ");
+
+        OPENVINO_THROW(arguments_error_message.empty() ? "Invalid number of arguments" : arguments_error_message);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }
