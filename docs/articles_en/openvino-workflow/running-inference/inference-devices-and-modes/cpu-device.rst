@@ -487,7 +487,7 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.cpp
          :language: cpp
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 
