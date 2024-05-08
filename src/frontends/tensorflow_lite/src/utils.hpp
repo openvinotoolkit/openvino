@@ -5,10 +5,10 @@
 #pragma once
 
 #include "decoder_flatbuffer.h"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/sparsity_info.hpp"
 #include "place.hpp"
-#include "quantization_info.hpp"
 #include "schema_generated.h"
-#include "sparsity_info.hpp"
 
 namespace ov {
 namespace frontend {

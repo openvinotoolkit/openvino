@@ -70,7 +70,7 @@ static OutputVector translate_pad_base_op(const NodeContext& node,
 }
 
 OutputVector translate_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Pad"}, true);
+    default_op_checks(node, 2, {"Pad", "PAD"}, true);
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 
@@ -83,7 +83,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
 }
 
 OutputVector translate_padv2_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"PadV2"}, true);
+    default_op_checks(node, 3, {"PadV2", "PADV2"}, true);
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
     auto constant_value = node.get_input(2);
@@ -119,7 +119,7 @@ OutputVector translate_padv2_op(const NodeContext& node) {
 }
 
 OutputVector translate_mirror_pad_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"MirrorPad"});
+    default_op_checks(node, 2, {"MirrorPad", "MIRROR_PAD"});
     auto input = node.get_input(0);
     auto paddings = node.get_input(1);
 

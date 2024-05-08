@@ -16,9 +16,8 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector while_op(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    int32_t cond_idx = decoder->get_attribute(&tflite::WhileOptions::cond_subgraph_index);
-    int32_t body_idx = decoder->get_attribute(&tflite::WhileOptions::body_subgraph_index);
+    int32_t cond_idx = node.get_attribute<int32_t>("cond_subgraph_index");
+    int32_t body_idx = node.get_attribute<int32_t>("body_subgraph_index");
 
     auto condition = node.get_subgraph(cond_idx);
     auto body = node.get_subgraph(body_idx);

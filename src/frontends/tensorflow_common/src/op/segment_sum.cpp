@@ -22,7 +22,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_segment_sum_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"SegmentSum"}, true);
+    default_op_checks(node, 2, {"SegmentSum", "SEGMENT_SUM"}, true);
     auto data = node.get_input(0);
     auto segment_ids = node.get_input(1);
 

@@ -14,7 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector conv2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    auto decoder = get_conv_decoder_map<tflite::Conv2DOptions>("Conv2D", node);
+    const auto& decoder = node.get_decoder();
     FRONT_END_GENERAL_CHECK(node.get_input_size() >= 2,
                             "Unexpected number of input in node of type=",
                             node.get_op_type(),

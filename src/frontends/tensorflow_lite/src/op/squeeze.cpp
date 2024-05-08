@@ -3,8 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "op_translation_utils.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow_lite/node_context.hpp"
 
 using namespace std;
 
@@ -14,10 +13,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector squeeze(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    auto squeeze_dims = decoder->get_attribute(&tflite::SqueezeOptions::squeeze_dims);
-    std::vector<int64_t> axes{squeeze_dims->begin(), squeeze_dims->end()};
-    return attribute_helper(node, {{"axis", axes}}, ov::frontend::tensorflow::op::translate_squeeze_op);
+    return ov::frontend::tensorflow::op::translate_squeeze_op(node);
 }
 
 }  // namespace op

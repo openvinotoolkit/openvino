@@ -18,7 +18,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"Conv2DBackpropInput"});
+    default_op_checks(node, 3, {"Conv2DBackpropInput", "TRANSPOSE_CONV"});
     auto input_sizes = node.get_input(0);
     auto filter = node.get_input(1);
     auto out_backprop = node.get_input(2);
