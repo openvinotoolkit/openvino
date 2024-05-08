@@ -34,7 +34,6 @@
 namespace ov {
 namespace gen_pattern {
 
-#define CPU_DEBUG_CAPS
 #ifdef CPU_DEBUG_CAPS
 
 template <typename... Args>
