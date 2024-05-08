@@ -6,7 +6,7 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.1/) only.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.2/) only.
 
 @sphinxdirective
 
@@ -47,23 +47,23 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       cd <user_home>/Downloads
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab:: x86, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/macos/m_openvino_toolkit_macos_10_15_2022.3.1.9227.cf2c7da5689_x86_64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv m_openvino_toolkit_macos_10_15_2022.3.1.9227.cf2c7da5689_x86_64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/macos/m_openvino_toolkit_macos_10_15_2022.3.2.9279.e2c7e4d7b4d_x86_64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv m_openvino_toolkit_macos_10_15_2022.3.2.9279.e2c7e4d7b4d_x86_64 /opt/intel/openvino_2022.3.2
 
    .. tab:: ARM, 64-bit
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/macos/m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64.tgz --output openvino_2022.3.1.tgz
-         tar -xf openvino_2022.3.1.tgz
-         sudo mv m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64 /opt/intel/openvino_2022.3.1
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/macos/m_openvino_toolkit_macos_11_0_2022.3.2.9279.e2c7e4d7b4d_arm64.tgz --output openvino_2022.3.2.tgz
+         tar -xf openvino_2022.3.2.tgz
+         sudo mv m_openvino_toolkit_macos_11_0_2022.3.2.9279.e2c7e4d7b4d_arm64 /opt/intel/openvino_2022.3.2
 
 5. (Optional) Install *numpy* Python Library:
 
@@ -71,18 +71,18 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2022.3.2/python/python.<x>`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2022.3.1
+      cd /opt/intel/openvino_2022.3.2
       python3 -m pip install -r ./python/python3.<x>/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
-      sudo ln -s openvino_2022.3.1 openvino_2022
+      sudo ln -s openvino_2022.3.2 openvino_2022
 
    .. note::
 
@@ -98,7 +98,7 @@ You must update several environment variables before you can compile and run Ope
 
 ```sh
 source /opt/intel/openvino_2022/setupvars.sh
-```  
+```
 
 If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing the `setupvars.sh` of your choice.
 
@@ -169,13 +169,13 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
 
 <!---
-   To learn more about converting models from specific frameworks, go to:  
+   To learn more about converting models from specific frameworks, go to:
    * :ref:`Convert Your Caffe Model <convert model caffe>`
    * :ref:`Convert Your TensorFlow Model <convert model tf>`
    * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
    * :ref:`Convert Your Kaldi Model <convert model kaldi>`
    * :ref:`Convert Your ONNX Model <convert model onnx>`
---->   
+--->
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective

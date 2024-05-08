@@ -7,14 +7,14 @@ You can install both OpenVINO™ Runtime and OpenVINO Development Tools through 
 .. note:
 
    * If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install it separately.
-   * The PyPI distribution does not include support for VPU, VAD, and HDDL. For information on how to use these devices, 
+   * The PyPI distribution does not include support for VPU, VAD, and HDDL. For information on how to use these devices,
      see :doc:`Additional Configurations For Hardware <openvino_docs_install_guides_configurations_header>`
 
 
 Installing OpenVINO Runtime
 ###########################
 
-For system requirements and troubleshooting, see https://pypi.org/project/openvino/2022.3.1/
+For system requirements and troubleshooting, see https://pypi.org/project/openvino/2022.3.2/
 
 Step 1. Set Up Python Virtual Environment
 +++++++++++++++++++++++++++++++++++++++++
