@@ -81,14 +81,13 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const uint g = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM)) / FEATURES_THREADS_PER_BATCH;
     const uint feature_num = g * FILTER_OFM_NUM + feature_idx; // feature index for fused operations
 #else
-    const size_t batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
-    const size_t fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
-    const size_t feature_idx = fmg * OSV_SIZE + lid;
-    const size_t g = 0;
+    const uint batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
+    const uint fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
+    const uint feature_idx = fmg * OSV_SIZE + lid;
+    const uint g = 0;
 #endif
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     UNIT_TYPE2 out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
-    // UNIT_TYPE2 w[PREFETCH];
     uint in_addr;
     uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE;
 
@@ -96,7 +95,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     weight_addr += g * FILTER_GROUPS_PITCH;
 #endif
 
-    for(int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); i++) {
+    unroll_for (int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); ++i) {
         out[i] = UNIT_VAL_ZERO;
     }
 
@@ -104,7 +103,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     in_addr = batch_idx * INPUT0_BATCH_PITCH;
     in_addr += in_split_offset + INPUT0_OFFSET_WITH_PADDING + (or * STRIDE_SIZE_Y * INPUT0_Y_PITCH) + (oc * STRIDE_SIZE_X + lid) * INPUT0_X_PITCH;
 
-    for(int kd = 0; kd < FILTER_IFM_NUM; kd++)  // _ID = 3, RGB
+    for (uint kd = 0; kd < FILTER_IFM_NUM; ++kd)
     {
         uint tmp_in_addr = in_addr;
 
@@ -157,92 +156,50 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         //move to next filter
         in_addr += INPUT0_FEATURE_PITCH;
 
-        // for(int pf=0; pf<PREFETCH; pf++) {
-        //     w[pf] = weights[weight_addr]; weight_addr += OSV_SIZE;
-        // }
-
-        // uint wi = 0;
-        uint kr = 0; // kr = Kernel Row
-        LOOP(FILTER_SIZE_Y, kr,  // LOOP is a macro that unrolls the loop.
-        {
-            uint kc = 0; // kc = Kernel Column
-            LOOP(FILTER_SIZE_X, kc,
-            {
+        unroll_for (uint kr = 0; kr < FILTER_SIZE_Y; ++kr) {
+            unroll_for (uint kc = 0; kc < FILTER_SIZE_X; ++kc) {
                 UNIT_TYPE2 w = UNIT_BLOCK_READ2(weights, weight_addr);
-                for(uint br=0; br<OUTPUT_BLOCK_HEIGHT; br++) {
-                    for(uint bc=0; bc<OUTPUT_BLOCK_WIDTH; bc++) {
-
-#if IN_BLOCK_WIDTH != SUB_GROUP_SIZE
-                        //if we fix the programming model, then we could use a nice simple 2d array: val = in[br * STRIDE_SIZE_Y + kr][bc * STRIDE_SIZE_X + kc];
-                        UNIT_TYPE val = _sub_group_shuffle( in[(((br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y) * IN_BLOCK_WIDTH) + (bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X)) / SUB_GROUP_SIZE],
-                                                                    (((br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y) * IN_BLOCK_WIDTH) + (bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X)) % SUB_GROUP_SIZE);
-#else
-                        UNIT_TYPE val = _sub_group_shuffle( in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
-#endif
+                unroll_for (uint br=0; br<OUTPUT_BLOCK_HEIGHT; ++br) {
+                    uint y_pos = br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y;
+                    unroll_for (uint bc=0; bc<OUTPUT_BLOCK_WIDTH; ++bc) {
+                        uint x_pos = bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X;
+                        #if IN_BLOCK_WIDTH != SUB_GROUP_SIZE
+                            UNIT_TYPE val = sub_group_broadcast(in[((y_pos * IN_BLOCK_WIDTH) + x_pos) / SUB_GROUP_SIZE],
+                                                                ((y_pos * IN_BLOCK_WIDTH) + x_pos) % SUB_GROUP_SIZE);
+                        #else
+                            UNIT_TYPE val = sub_group_broadcast(in[y_pos], x_pos);
+                        #endif
 
                         out[br * OUTPUT_BLOCK_WIDTH + bc] = mad(w, val, out[br * OUTPUT_BLOCK_WIDTH + bc]);
                     }
                 }
-                // w[wi % PREFETCH] = weights[weight_addr];
                 weight_addr += OSV_SIZE; // weights must be stored in just the right SIMD swizzled format for this to work, see host code for details.
-                // wi++;
-            });
-        });
-        // addr went beyond due to prefetch so move it back to correct location.
-        // weight_addr -= PREFETCH * OSV_SIZE;
+            }
+        }
     }
-
-    // uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-    // uint out_addr = OUTPUT_OFFSET;
-    // out_addr += batch_idx * OUTPUT_BATCH_PITCH;
-    // out_addr += out_split_offset + feature_idx * OUTPUT_FEATURE_PITCH; // out_addr indices into start of 16 feature maps.
-    // out_addr += or * OUTPUT_Y_PITCH + oc;  // offset for the 4x3 block that this workitem is working on;
 
 #if BIAS_TERM
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
-#if BIAS_PER_OUTPUT
-            unsigned bias_index = feature_idx*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + or*OUTPUT_SIZE_X + oc;
-#else
-            unsigned bias_index = feature_idx;
-#endif
-#if GROUPED
-            bias_index += g * FILTER_OFM_NUM;
-#endif
+            #if BIAS_PER_OUTPUT
+                unsigned bias_index = feature_idx*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + or*OUTPUT_SIZE_X + oc;
+            #else
+                unsigned bias_index = feature_idx;
+            #endif
+            #if GROUPED
+                bias_index += g * FILTER_OFM_NUM;
+            #endif
             UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(bias, bias_index);
             out[r * OUTPUT_BLOCK_WIDTH + c] += bias_read;
         }
     }
 #endif
 
-
-    for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
-        for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
-#if HAS_FUSED_OPS
-            size_t feature_num = feature_idx;
-            {
-                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c].s0;
-                FUSED_OPS;
-                out[r * OUTPUT_BLOCK_WIDTH + c].s0 = FUSED_OPS_RESULT;
-            }
-            {
-                feature_num += SUB_GROUP_SIZE;
-                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c].s1;
-                FUSED_OPS;
-                out[r * OUTPUT_BLOCK_WIDTH + c].s1 = FUSED_OPS_RESULT;
-            }
-#else
-            out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS);
-#endif
-        }
-    }
-
-
 //--------------------------------------------------------------------
 // output phase
 //--------------------------------------------------------------------
 
-    unroll_for (size_t fid = 0; fid < 2; ++fid) {
+    for (uint fid = 0; fid < 2; ++fid) {
         if ((feature_idx + SUB_GROUP_SIZE * fid) < FILTER_OFM_NUM) {
             uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
             uint out_addr = OUTPUT_OFFSET;
@@ -250,13 +207,22 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
             out_addr += out_split_offset + (feature_idx + SUB_GROUP_SIZE * fid) * OUTPUT_FEATURE_PITCH;
             out_addr += or * OUTPUT_Y_PITCH + oc;
 
-            for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
-                if(!(or + r >= OUTPUT_SIZE_Y))
+            for (uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
+                if (or + r < OUTPUT_SIZE_Y)
                 {
-                    for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
-                        // this does a scattered write to 16 different feature maps, so that data within one map is contiguous, thus ready for input to next layer.
-                        if(!(oc + c >= OUTPUT_SIZE_X))
-                            output[out_addr + r * OUTPUT_Y_PITCH + c] = out[r * OUTPUT_BLOCK_WIDTH + c][fid];
+                    for (uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
+                        if (oc + c < OUTPUT_SIZE_X) {
+                            UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c][fid];
+                            #if HAS_FUSED_OPS
+                                uint feature_num = feature_idx + SUB_GROUP_SIZE * fid;
+                                FUSED_OPS;
+                                dst = FUSED_OPS_RESULT;
+                            #else
+                                dst = ACTIVATION(dst, ACTIVATION_PARAMS);
+                            #endif
+
+                            output[out_addr + r * OUTPUT_Y_PITCH + c] = dst;
+                        }
                     }
                 }
             }

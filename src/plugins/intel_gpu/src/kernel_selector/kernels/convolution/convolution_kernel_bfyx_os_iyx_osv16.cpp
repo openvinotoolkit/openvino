@@ -134,7 +134,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
             option.blockHeight = 1;
             option.prefetch = 4;
         } else if (cp.filterSize.x < 5 && cp.filterSize.y < 5) {
-            option.blockWidth = sub_group_size - cp.filterSize.x + 1;
+            option.blockWidth = std::min(static_cast<size_t>(sub_group_size - cp.filterSize.x + 1), static_cast<size_t>(8));
             option.blockHeight = 2;
             option.prefetch = 4;
         } else {
@@ -154,7 +154,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1)) {
+    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v > 2)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;
