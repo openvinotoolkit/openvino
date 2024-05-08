@@ -50,7 +50,7 @@
 // Data stored in memory : f0k0k1|f16k0k1|f0k2k3|f16k2k3
 // => unpack as f0k0k1|f0k2k3|f16k0k1|f16k2k3 so that the weight access order is preserved 
 #define UNPACK_INT4 UNPACK_INT4x2_OSV32_ISV2
-#define UNPACK_MIXED_INT4 UNPACK_MIXED_INT4x2_OSV32_ISV2
+#define UNPACK_MIXED_INT4 UNPACK_INT4x2_OSV32_ISV2
 #else
 #define UNPACK_INT4 UNPACK_INT4x2
 #define UNPACK_MIXED_INT4 UNPACK_MIXED_INT4x2
@@ -737,6 +737,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint gid = (uint)get_group_id(0);
 #endif
 
+    uint bgid = (uint)get_group_id(2);
     uint sglid = (uint)get_sub_group_local_id();
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
@@ -751,7 +752,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
 #if USE_SLM
     uint out_f = gid * (TILE_OFM * SIMD);
-    uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
+    uint out_b = LWS_BATCHES * TILE_B * bgid + local_id * TILE_B;
 #else
     FILTER_VEC_TYPE wei = 0;
     uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
@@ -889,6 +890,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                     max[bi] = fmax(fmax(fabs(tiled_input_0[bi][0]), fabs(tiled_input_0[bi][1])), fmax(fabs(tiled_input_0[bi][2]), fabs(tiled_input_0[bi][3])));
                     dq_max_input[bi] = sub_group_reduce_max(max[bi]);
                 }
+
                 de_quantize_scale = dq_max_input / quan;
                 // Packing 4 of converted inputs to integer type
                 unroll_for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
@@ -916,12 +918,11 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         DQ_SLM_FILTER_UNPACKED_VEC dzp;
                         unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                             unroll_for(uint kii = 0; kii < FILTER_LOAD_BLOCK_SIZE; ++kii) {
-                                const uint w_idx = fi * FILTER_LOAD_BLOCK_SIZE + kii;
                                 const uint offset_ofm = out_f + fi*SIMD + sglid;
                                 const uint offset_ifm = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE + load_iter * FILTER_LOAD_BLOCK_SIZE + kii;
                                 const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
                                                        (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                                dzp[w_idx] = decompression_zp[zp_offset];
+                                dzp[W_IDX] = decompression_zp[zp_offset];
                             }
                         }
                     #else
@@ -980,7 +981,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        const uint w_idx = kii * TILE_OFM + fi;
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
                         // Valid only if DECOMPRESSION_SCALE_POST_OP is enabled
                         ACCUMULATOR_TYPE ds = ACCUMULATOR_VAL_ONE;
@@ -998,7 +998,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        w[w_idx] = (w[w_idx] - dzp) * ds;
+                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
             #endif
@@ -1034,7 +1034,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         const uint total_k = ki * TILE_K + kii;
                         INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                         unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                            ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
+                            ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                         }
                     }
                 }
@@ -1121,7 +1121,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
                 unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                        const uint w_idx = kii * TILE_OFM + fi;
                         uint offset_ofm = out_f + fi*SIMD + get_sub_group_local_id();
                         #if DECOMPRESSION_SCALE_GROUPS_NUM > 1
                             const uint scale_offset = (offset_ofm % DECOMPRESSION_SCALE_BATCH_NUM) * DECOMPRESSION_SCALE_BATCH_PITCH +
@@ -1144,7 +1143,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #else
                             ACCUMULATOR_TYPE dzp = ACCUMULATOR_VAL_ZERO;
                         #endif
-                        w[w_idx] = (w[w_idx] - dzp) * ds;
+                        w[W_IDX] = (w[W_IDX] - dzp) * ds;
                     }
                 }
             #endif
