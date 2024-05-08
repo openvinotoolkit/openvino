@@ -6,6 +6,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include "matchers/subgraph/fused_names.hpp"
@@ -56,6 +57,7 @@ inline std::string get_original_layer_name(const std::shared_ptr<ov::Node>& node
     return original_layer_name;
 }
 
+// shape of
 inline bool is_node_transformed(const std::shared_ptr<ov::Node>& node) {
     const auto compiled_node_name = node->get_friendly_name();
     if (get_original_layer_name(node) != compiled_node_name) {
@@ -85,6 +87,16 @@ FusedNamesExtractor::extract_not_trasformed_node_names(const std::shared_ptr<ov:
     for (const auto& compiled_op : compiled_model.get_runtime_model()->get_ordered_ops()) {
         if (!is_node_transformed(compiled_op)) {
             not_transformed_nodes.insert(compiled_op->get_friendly_name());
+        }
+    }
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto op_name = op->get_friendly_name();
+        if (!not_transformed_nodes.count(op_name)) {
+            continue;
+        }
+        if (op->get_type_info().is_castable(ov::op::v0::ShapeOf::get_type_info_static()) ||
+            op->get_type_info().is_castable(ov::op::v3::ShapeOf::get_type_info_static())) {
+            not_transformed_nodes.erase(op_name);
         }
     }
     return not_transformed_nodes;
@@ -195,7 +207,7 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
         }
         if (not_transformed_nodes.count(op_name)) {
             try {
-                auto extracted_pattern = ov::util::generate_model(nodes, is_save_const);
+                auto extracted_pattern = ov::util::generate_model(nodes, true);
                 matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
             } catch(std::exception& e) {
                 if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {

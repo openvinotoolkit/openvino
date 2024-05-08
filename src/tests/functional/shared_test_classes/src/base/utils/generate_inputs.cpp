@@ -459,6 +459,22 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v1::ReduceLogicalOr>& node,
     return LogicalOp::generate(elemType, targetShape);
 }
 
+// todo
+// ov::Tensor generate(const std::shared_ptr<ov::op::v1::Reshape>& node,
+//                              size_t port,
+//                              const ov::element::Type& elemType,
+//                              const ov::Shape& targetShape) {
+//     if (port == 0) {
+//         auto new_node = std::dynamic_pointer_cast<ov::Node>(node);
+//         return generate(new_node, port, elemType, targetShape);
+//     }
+//     auto data_partial_shape = node->get_input_partial_shape(0);
+//     if (data_partial_shape.is_static()) {
+//         // todo
+//     }
+//     return LogicalOp::generate(elemType, targetShape);
+// }
+
 ov::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,

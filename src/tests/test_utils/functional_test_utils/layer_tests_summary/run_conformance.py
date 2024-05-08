@@ -22,7 +22,7 @@ from utils.conformance_utils import get_logger
 logger = get_logger('conformance_runner')
 has_python_api = True
 try:
-    from rename_conformance_ir import create_hash, save_rel_weights
+    from utils.rename_conformance_ir import create_hash, save_rel_weights
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
     has_python_api = False

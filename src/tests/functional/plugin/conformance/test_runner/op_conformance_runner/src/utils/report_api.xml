@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<report timestamp="06-05-2024 14:38:15">
+	<results>
+		<CPU />
+	</results>
+	<api_list>
+		<ov_plugin />
+		<ov_compiled_model />
+		<ov_infer_request />
+		<undefined />
+	</api_list>
+</report>

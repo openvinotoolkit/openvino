@@ -183,7 +183,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConstantFolding)
 
     // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<LinOpSequenceFusion>();
+    // manager.register_pass<LinOpSequenceFusion>();
     REGISTER_PASS(manager, UnrollIf)
 
     auto multiply_fusions = manager.register_pass<GraphRewrite>();
@@ -240,7 +240,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    REGISTER_PASS(manager, StridesOptimization)
+    // REGISTER_PASS(manager, StridesOptimization)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);

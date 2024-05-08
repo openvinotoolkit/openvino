@@ -163,6 +163,9 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             }
             m_pass->clear_new_nodes();
         }
+        // if (status) {
+        //     std::cout << m_pass->get_name() << std::endl;
+        // }
         return status;
     };
 
@@ -234,6 +237,9 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                 }
             }
         }
+    }
+    if (rewritten) {
+        std::cout << get_name() << std::endl;
     }
     return rewritten;
 }
