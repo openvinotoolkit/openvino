@@ -428,78 +428,6 @@ struct CPUStreamsExecutor::Impl {
         }
     }
 
-    void send_message(MessageInfo msg_info) {
-        {
-            std::lock_guard<std::mutex> lock(_msgMutex);
-            _messageQueue.push_back(msg_info);
-            // std::cout << "send_" << _streamId << " : " << msg_info.msg_type << "\n";
-        }
-        _msgCondVar.notify_all();
-    }
-
-    void wait_message() {
-        std::unique_lock<std::mutex> lock(_readMutex);
-        _readCondVar.wait(lock, [&] {
-            std::cout << "wait_" << _streamId << " : " << _readQueue[_streamId].size() << " / "
-                      << _config.get_sub_streams() - 1 << "\n";
-            return _readQueue[_streamId].size() >= _config.get_sub_streams() - 1;
-        });
-        std::cout << "wait_" << _streamId << " end\n";
-    }
-
-    void infer_wait() {
-        std::unique_lock<std::mutex> lock(_inferMutex);
-        // std::cout << "infer_wait ......\n";
-        _inferCondVar.wait(lock);
-    }
-
-    void server_wait(int streams_num) {
-        if (!_serverThread.joinable()) {
-            _messageQueue.clear();
-            _readQueue.assign(streams_num, std::vector<MessageInfo>());
-            MsgType msg_type;
-            _serverThread = std::thread([&, streams_num]() {
-                int count = 0;
-                while (!_isServerStopped) {
-                    std::vector<MessageInfo> msgQueue;
-                    {
-                        // std::cout << "server_wait ........\n";
-                        std::unique_lock<std::mutex> lock(_msgMutex);
-                        while (_messageQueue.empty()) {
-                            _msgCondVar.wait(lock);
-                        }
-                        std::swap(_messageQueue, msgQueue);
-                        // std::cout << "server_wait receive: " << msgQueue[0].msg_type << " rank:" << msgQueue[0].rank[0]
-                        //           << " / " << msgQueue.size() << "\n";
-                    }
-
-                    for (auto rec_info : msgQueue) {
-                        msg_type = rec_info.msg_type;
-                        if (msg_type == START_INFER) {
-                            Task task = std::move(rec_info.task);
-                            task();
-                        } else if (msg_type == TP) {
-                            for (int i = 0; i < streams_num; i++) {
-                                if (rec_info.rank[0] != i) {
-                                    std::lock_guard<std::mutex> lock(_readMutex);
-                                    _readQueue[i].push_back(rec_info);
-                                }
-                            }
-                            _readCondVar.notify_all();
-                        } else if (msg_type == CALL_BACK)  {  // CALL_BACK
-                            count++;
-                            // std::cout << "server_wait CALL_BACK: " << count << "/" << streams_num << "\n";
-                            if (count == streams_num) {
-                                _inferCondVar.notify_one();
-                                count = 0;
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    }
-
     struct SubQueue {
         std::mutex _subMutex;
         std::condition_variable _subQueueCondVar;
@@ -538,24 +466,14 @@ struct CPUStreamsExecutor::Impl {
     int _subStreamsNum = 0;
     std::vector<std::thread> _threads;
     std::vector<std::thread> _subThreads;
-    std::thread _serverThread;
     std::mutex _mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
-    bool _isServerStopped = false;
     std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
-    std::vector<MessageInfo> _messageQueue;
-    std::vector<std::vector<MessageInfo>> _readQueue;
-    std::mutex _msgMutex;
-    std::mutex _readMutex;
-    std::mutex _inferMutex;
-    std::condition_variable _msgCondVar;
-    std::condition_variable _readCondVar;
-    std::condition_variable _inferCondVar;
     bool _isExit = false;
 };
 
@@ -577,22 +495,6 @@ int CPUStreamsExecutor::get_socket_id() {
 std::vector<int> CPUStreamsExecutor::get_rank() {
     auto stream = _impl->_streams.local();
     return stream->_rank;
-}
-
-void CPUStreamsExecutor::send_message(MessageInfo msg_info) {
-    _impl->send_message(msg_info);
-}
-
-void CPUStreamsExecutor::wait_message() {
-    _impl->wait_message();
-}
-
-void CPUStreamsExecutor::infer_wait() {
-    _impl->infer_wait();
-}
-
-void CPUStreamsExecutor::server_wait(int streams_num) {
-    _impl->server_wait(streams_num);
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
@@ -619,11 +521,6 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
         if (thread.joinable()) {
             thread.join();
         }
-    }
-    _impl->_isServerStopped = true;
-    _impl->_msgCondVar.notify_one();
-    if (_impl->_serverThread.joinable()) {
-        _impl->_serverThread.join();
     }
 }
 

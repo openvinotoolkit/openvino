@@ -125,7 +125,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             std::vector<std::vector<int>> info_table;
             info_table.push_back(streams_info_table[i + 1]);
             info_table[0][NUMBER_OF_STREAMS] = 1;
-            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
+            auto streamExecutorConfig = IStreamsExecutor::Config{"CPUSubStreamsExecutor" + std::to_string(i),
                                                                  1,
                                                                  1,
                                                                  ov::hint::SchedulingCoreType::ANY_CORE,

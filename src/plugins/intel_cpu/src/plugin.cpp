@@ -136,6 +136,9 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
 Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
+    executor_manager()->clear("CPUSubStreamsExecutor0");
+    executor_manager()->clear("CPUSubStreamsExecutor1");
+    executor_manager()->clear("CPUMainStreamExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
