@@ -30,17 +30,19 @@ namespace reference {
  */
 template <class T>
 void rms_norm(const T* in, const AxisSet& axes, T* out, const Shape& in_shape, double eps) {
-    const auto in_elem_count = shape_size(in_shape);
-    std::vector<T> deg_value(in_elem_count, 2);
-    power(in, deg_value.data(), out, in_elem_count);
+    {
+        const auto in_elem_count = shape_size(in_shape);
+        const std::vector<T> deg_value(in_elem_count, 2);
+        power(in, deg_value.data(), out, in_elem_count);
+    }
     const auto reduced_shape = util::reduce_keep_dims(in_shape, axes);
     const auto reduced_elements_count = shape_size(reduced_shape);
     std::vector<T> root_mean_square(reduced_elements_count);
     reduce_mean(out, root_mean_square.data(), in_shape, axes);
-    add(root_mean_square.data(),
-        std::vector<T>(reduced_elements_count, static_cast<T>(eps)).data(),
-        root_mean_square.data(),
-        reduced_shape.size());
+    {
+        const std::vector<T> eps_broadcasted(reduced_elements_count, static_cast<T>(eps));
+        add(root_mean_square.data(), eps_broadcasted.data(), root_mean_square.data(), reduced_shape.size());
+    }
     sqrt(root_mean_square.data(), root_mean_square.data(), root_mean_square.size());
     divide(in, root_mean_square.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, false);
 }
