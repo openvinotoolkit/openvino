@@ -593,7 +593,8 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    int nthr = std::min(parallel_get_max_threads(), static_cast<int>(harnessWorkAmount));
+    parallel_nt(nthr, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         update_ptrs(call_args, inMemPtrs, outMemPtrs);
 
