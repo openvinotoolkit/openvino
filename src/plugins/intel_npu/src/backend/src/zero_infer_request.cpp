@@ -286,14 +286,14 @@ void ZeroInferRequest::get_result() {
 
             std::memcpy(tensorBuffer, copyTensorBuffer, outputTensor->get_byte_size());
         }
+
+        ++outputIndex;
     }
 
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->reset(i);
     }
     _logger.debug("InferRequest::get_result finished");
-
-    ++outputIndex;
 }
 
 void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) {
