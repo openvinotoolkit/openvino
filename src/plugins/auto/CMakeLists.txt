@@ -36,7 +36,7 @@ elseif(ENABLE_MULTI)
 endif()
 
 find_package(Threads REQUIRED)
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::util)
+target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
