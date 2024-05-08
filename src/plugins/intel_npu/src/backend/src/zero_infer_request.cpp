@@ -23,38 +23,43 @@ constexpr bool IS_OUTPUT = false;
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
  * structure.
- * @param nodeDescriptor The OpenVINO API specific I/O descriptor which shall be compared.
+ * @param ioDescriptor The OpenVINO API specific I/O descriptor which shall be compared.
  * @param zeDescriptor The Level Zero specific structure used for comparison.
- * @param name Tensor identifier used for error logging.
  */
-void checkLevelZeroAttributesMatch(const IODescriptor& nodeDescriptor,
-                                   const ZeroExecutor::ArgumentDescriptor& zeDescriptor,
-                                   const std::string& name) {
-    const ov::element::Type_t ovPrecision = nodeDescriptor.precision;
-    const ze_graph_argument_precision_t zePrecision = zeDescriptor.info.devicePrecision;
+void checkLevelZeroAttributesMatch(const IODescriptor& ioDescriptor,
+                                   const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
+    std::string zeDescriptorName = zeDescriptor.info.name;
 
-    if (zeroUtils::getZePrecision(ovPrecision) != zePrecision) {
-        OPENVINO_THROW("Precision mismatch for parameter " + name);
+    if (isStateInputName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(READVALUE_PREFIX.length());
+    } else if (isStateOutputName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(ASSIGN_PREFIX.length());
+    } else if (isShapeTensorName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(SHAPE_TENSOR_PREFIX.length());
     }
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.shapeFromCompiler.get_max_shape();
+    OPENVINO_ASSERT(ioDescriptor.nameFromCompiler == zeDescriptorName,
+                    "Name mismatch between the I/O structure used internally and its Level Zero correspondent: ",
+                    ioDescriptor.nameFromCompiler,
+                    " vs. ",
+                    zeDescriptorName,
+                    ". The I/O order may have been altered, which could lead to an erroneous behavior.");
+    OPENVINO_ASSERT(zeroUtils::getZePrecision(ioDescriptor.precision) == zeDescriptor.info.devicePrecision,
+                    "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
 
-    if (ovDimensions.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
-        OPENVINO_THROW(
-            "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) + '\n' +
-            "Given: " + std::to_string(ovDimensions.size()));
-    }
+    const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
+    OPENVINO_ASSERT(ovDimensions.size() <= ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                    "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
+                        '\n' + "Given: " + std::to_string(ovDimensions.size()));
 
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        if (!nodeDescriptor.shapeFromCompiler.is_dynamic() && ovDimensions[index] != zeDescriptor.info.dims[index]) {
-            OPENVINO_THROW("Shape mismatch for parameter " + name);
-        }
+        OPENVINO_ASSERT(
+            ioDescriptor.shapeFromCompiler.is_dynamic() || ovDimensions[index] == zeDescriptor.info.dims[index],
+            "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
     }
-
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
-        if (zeDescriptor.info.dims[index] != 0 && zeDescriptor.info.dims[index] != 1) {
-            OPENVINO_THROW("Shape mismatch for parameter " + name);
-        }
+        OPENVINO_ASSERT(zeDescriptor.info.dims[index] == 0 || zeDescriptor.info.dims[index] == 1,
+                        "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
     }
 }
 
@@ -156,17 +161,11 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
-    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
-        _batchSize = getBatchSize(_metadata);
-    }
-
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t inputIndex = 0;
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
-        checkLevelZeroAttributesMatch(inputDescriptor,
-                                      executorInputDescriptors.at(inputIndex),
-                                      inputDescriptor.nameFromCompiler);  // TODO move earlier
+        checkLevelZeroAttributesMatch(inputDescriptor, executorInputDescriptors.at(inputIndex));
 
         ov::Allocator inputAllocator;
         if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
@@ -183,15 +182,18 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     size_t outputIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
-        checkLevelZeroAttributesMatch(outputDescriptor,
-                                      executorOutputDescriptors.at(outputIndex),
-                                      outputDescriptor.nameFromCompiler);
+        checkLevelZeroAttributesMatch(outputDescriptor, executorOutputDescriptors.at(outputIndex));
         allocate_tensor(outputDescriptor, IS_OUTPUT, allocator);
 
         ++outputIndex;
     }
 
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batchSize = getBatchSize(_metadata);
+    }
+
     _logger.debug("ZeroInferRequest::ZeroInferRequest - constructing pipeline");
+
     /// Construct pipepline
     _pipeline = makePipeline(_executorPtr,
                              _config,
