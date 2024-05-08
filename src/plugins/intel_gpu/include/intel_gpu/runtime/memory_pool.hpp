@@ -32,16 +32,16 @@ struct memory_user {
 #ifdef GPU_DEBUG_CONFIG
     size_t _mem_size;
 
-    bool operator==(const struct memory_user& rhs) const {
-        return _unique_id == rhs._unique_id && _network_id == rhs._network_id;
-    }
-
     memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id, size_t mem_size)
         : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id), _mem_size(mem_size) {}
 #endif
 
     memory_user(size_t unique_id, uint32_t network_id, primitive_id prim_id)
         : _unique_id(unique_id), _network_id(network_id), _prim_id(prim_id) {}
+
+    bool operator==(const struct memory_user& rhs) const {
+        return _unique_id == rhs._unique_id && _network_id == rhs._network_id;
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user) {
         os << memory_user._prim_id << " (unique_id:" << memory_user._unique_id;

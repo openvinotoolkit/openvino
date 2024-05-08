@@ -129,7 +129,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
     }
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_IF(debug_config->dump_memory_pool) {
-        auto iter = std::find_if(_no_reusable_mems.begin(), _no_reusable_mems.end(), [&](cldnn::memory_record& r) {
+        auto iter = std::find_if(_no_reusable_mems.begin(), _no_reusable_mems.end(), [&](const cldnn::memory_record& r) {
             return (network_id == r._network_id
                 && type == r._type
                 && mem->get_internal_params().mem == r._memory->get_internal_params().mem);
