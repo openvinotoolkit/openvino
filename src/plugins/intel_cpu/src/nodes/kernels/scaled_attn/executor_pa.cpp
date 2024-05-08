@@ -730,6 +730,8 @@ struct MHAHelper {
         constexpr bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
+            //PROFILE(_attn, "tn_qk");
+
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             float* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
             // for each query block, loop through all key block
@@ -747,6 +749,8 @@ struct MHAHelper {
                                                  _wsp.data() + ithr * _wsp_size_per_thread,
                                                  _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
             }
+
+            //_attn = ov::intel_cpu::profilerManagerInstance.startProfile("tn_softmax");
 
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
@@ -786,6 +790,8 @@ struct MHAHelper {
                                         precision_of<DATA_TYPE>::value);
                 }
             }
+
+            //_attn = ov::intel_cpu::profilerManagerInstance.startProfile("tn_kv");
 
             // reuse float buffer, need to use float to compute offset
             auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
@@ -837,11 +843,7 @@ struct MHAHelper {
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
         const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len) {
-        if (ithr % 8 != 0)
-            ov::intel_cpu::profilerManagerInstance.enabled = false;
-        char name_buf[256];
-        snprintf(name_buf, sizeof(name_buf), "t1_qk_%ld", ithr);
-        PROFILE(_attn, name_buf);
+        //PROFILE(_attn,  "t1_qk");
         if (_fastpath_valid) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -866,8 +868,7 @@ struct MHAHelper {
             }
         }
 
-        snprintf(name_buf, sizeof(name_buf), "t1_softmax_%ld", ithr);
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
+        //_attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_softmax");
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
                 // apply attention mask & sofmax
@@ -885,8 +886,7 @@ struct MHAHelper {
             }
         }
 
-        snprintf(name_buf, sizeof(name_buf), "t1_kv_%ld", ithr);
-        _attn = ov::intel_cpu::profilerManagerInstance.startProfile(name_buf);
+        //_attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
         memset(_output.ptr<float>(ithr), 0, q_len * _H * _S * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
@@ -925,6 +925,7 @@ struct MHAHelper {
         auto q_len = query.size(2);
         auto kv_len_in_blocks = block_tables.m_dims[1];
 
+        PROFILE(_attn, "t1_qk");
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
 
@@ -954,7 +955,7 @@ struct MHAHelper {
             }
         });
 
-        PROFILE(_attn, "t1_softmax");
+        _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_softmax");
         parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto ncausal = cur_kv_len;
@@ -1052,6 +1053,11 @@ struct MHAMultiple {
             if (block_tables.ptr<int32_t>(b)[q_blk] < 0)
                 return;
             size_t ithr = parallel_get_thread_num();
+            if (ithr % 32 != 0)
+                ov::intel_cpu::profilerManagerInstance.enabled = false;
+            char name_buf[256];
+            snprintf(name_buf, sizeof(name_buf), "m_b%ld_q%ld_hk%ld", b, q_blk, hk);
+            PROFILE(_attn, name_buf);
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = cur_kv_len;
             _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
@@ -1080,6 +1086,11 @@ struct MHASingle {
         auto Hk = present_value.m_dims[1];
         parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
             size_t ithr = parallel_get_thread_num();
+            if (ithr % 32 != 0)
+                ov::intel_cpu::profilerManagerInstance.enabled = false;
+            char name_buf[256];
+            snprintf(name_buf, sizeof(name_buf), "one_b%ld_hk%ld", b, hk);
+            PROFILE(_attn, name_buf);
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = 1ul;
             _helper.exec_kernel_one_bh(query.slice(0, b, b), present_key, present_value,
@@ -1153,6 +1164,7 @@ struct MHAMixed {
         std::vector<ReorderWorkItem> reorder_items;
         int32_t max_kv_len_in_reorder;              // max kv len between first tokens
         int32_t max_batch_in_reorder;
+        int32_t total_kv_len;
 
     public:
         void reset(const PlainTensor& query, const PlainTensor& context_lens, const PlainTensor& subsequence_lens, size_t block_size) {
@@ -1160,26 +1172,29 @@ struct MHAMixed {
             reorder_items.clear();
             max_kv_len_in_reorder = 0;
             max_batch_in_reorder = 0;
+            total_kv_len = 0;
 
             int32_t start_batch_in_query = 0;
             auto seq_cout = static_cast<int32_t>(subsequence_lens.m_dims[0]);
             for (int32_t i = 0; i < seq_cout; i++) {
                 auto q_len = subsequence_lens.ptr<int32_t>()[i];
+                // workitems for transpose, repack
+                // last token corresponding batch index
+                auto batch_in_query_last = start_batch_in_query + q_len - 1;
+                auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
+                auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
                 if (q_len == 1) {
                     attn_items.emplace_back(AttnWorkItem{
                         0,                          // batch_in_reorder
                         start_batch_in_query,       // batch_in_query
                         1ull,                       // q_len
-                        0                           // q_block_id
+                        // kv_len in blocks, used in the sort function
+                        kv_len_in_block - 1
                     });
                     start_batch_in_query++;
                 } else {
-                    // workitems for transpose, repack
-                    // last token corresponding batch index
-                    auto batch_in_query_last = start_batch_in_query + q_len - 1;
-                    auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
+                    auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
-                    auto reorder_sub_work_count = static_cast<int32_t>(div_up(kv_len, block_size));
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
                         reorder_items.emplace_back(ReorderWorkItem{
                             batch_in_query_last,     // batch_in_query_last
@@ -1201,7 +1216,14 @@ struct MHAMixed {
                     start_batch_in_query += q_len;
                     max_batch_in_reorder++;
                 }
+                total_kv_len += kv_len;
             }
+            // std::sort(attn_items.begin(), attn_items.end(), [] (const AttnWorkItem& left, const AttnWorkItem& right) {
+            //     // kv block number which will be acessed later
+            //     auto left_kv_blocks = left.q_block_id;
+            //     auto right_kv_blocks = right.q_block_id;
+            //     return left_kv_blocks > right_kv_blocks;
+            // });
         }
         const AttnWorkItem& get_attn_work_item(size_t idx) const {
             return attn_items[idx];
@@ -1220,6 +1242,9 @@ struct MHAMixed {
         }
         size_t get_reorder_max_kv_len() const {
             return static_cast<size_t>(max_kv_len_in_reorder);
+        }
+        size_t get_total_kv_len() const {
+            return static_cast<size_t>(total_kv_len);
         }
     };
 
@@ -1268,8 +1293,14 @@ struct MHAMixed {
             const auto batch_in_query = item.batch_in_query;
             const auto q_len = static_cast<size_t>(item.q_len);
             size_t ithr = parallel_get_thread_num();
+            if (ithr % 32 != 0)
+                ov::intel_cpu::profilerManagerInstance.enabled = false;
+            char name_buf[256];
+
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[batch_in_query]);
+                snprintf(name_buf, sizeof(name_buf), "1_w%ld_hk%ld_kv%ld", w, hk, cur_kv_len);
+                PROFILE(_attn, name_buf);
                 // second token
                 _helper.exec_kernel_one_bh(query.slice(0, batch_in_query, batch_in_query), present_key, present_value,
                     output_emb.slice(0, batch_in_query, batch_in_query), block_tables.ptr<int32_t>(batch_in_query), ithr, hk, 1ul, cur_kv_len);
@@ -1279,6 +1310,10 @@ struct MHAMixed {
                 const auto q_start = static_cast<size_t>(batch_in_query) + q_blk * _helper._block_size;
                 const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
                 const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[q_start + q_cnt - 1]);
+
+                snprintf(name_buf, sizeof(name_buf), "n_w%ld_hk%ld_kv%ld", w, hk, cur_kv_len);
+                PROFILE(_attn, name_buf);
+
                 PlainTensor sub_query;
                 sub_query.resize({q_len, _helper._H, _helper._S}, query.ptr<DATA_TYPE>(batch_in_query));
                 sub_query = sub_query.permute({1, 0, 2});
@@ -1306,6 +1341,8 @@ struct MHAMixed {
                     size_t max_context_len,
                     const PlainTensor& context_lens,
                     const PlainTensor& subsequence_lens) {
+        _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
+
         auto B_in_query = query.size(0);
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
@@ -1313,26 +1350,23 @@ struct MHAMixed {
         auto S = query.size(3);
         auto Hk = present_value.size(1);
         char buf[256];
-        size_t real_len = 0;
-        size_t aligned_len = 0;
-        for (size_t b = 0; b < B_in_query; b++) {
-            auto s = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-            real_len += s;
-            aligned_len += (s + 15) / 16 * 16;
-        }
+        size_t kv_len = _workitems.get_total_kv_len();
         size_t access_size;
         if (present_value.m_dt != ov::element::u8)
-            access_size = Hk * real_len * S * (32 * present_value.m_element_size);
+            access_size = Hk * kv_len * S * present_value.m_element_size;
         else
-            access_size = Hk * real_len * (S + 8) * 32;
-        access_size += B_in_query * H * S * 2 * 32;    // query
-        access_size += aligned_len * H * 4 * 32; // m_attn_w
+            access_size = Hk * kv_len * (S + 8);
+        access_size += B_in_query * H * S * query.m_element_size;    // query
         // only consider k or v theoretical cost
-        snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B_in_query, real_len, access_size / 260000000.0f,
-            H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
+        snprintf(buf, sizeof(buf), "t%ld,f%ld,s%ld,kv%ld,MC%.2f",
+            B_in_query,                                 // total tokens number
+            _workitems.get_reorder_max_batch_size(),    // first token number
+            // second token number
+            subsequence_lens.m_dims[0] - _workitems.get_reorder_max_batch_size(),
+            kv_len,                                     // kv_len
+            access_size / 260000000.0f);
         PROFILE(_attn, buf);
 
-        _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
         if (subsequence_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
             exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);
         } else {
@@ -1364,7 +1398,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         size_t sliding_window = 0;
         size_t max_context_len = 0;
 
-        PROFILE(_attn, "attn_execute");
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
         v_input.reset(inputs[2]);
@@ -1414,7 +1447,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (is_prompt) {
             char buf[256];
             snprintf(buf, sizeof(buf), "first_BL%ld,%ld", B, L1);
-            _attn = ov::intel_cpu::profilerManagerInstance.startProfile(buf);
+            PROFILE(_attn, buf);
 
             sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
             // always construct block_tables, max_context_len, context_lens from slot_mapping
