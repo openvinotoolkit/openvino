@@ -31,10 +31,10 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_BF16(std::vector<CPUSpecif
 
 const std::vector<fusingSpecificParams> fusingParamsSetWithoutEmpty{
         // eltwise
-        fusingRelu,
         fusingPRelu1DScaleShift,
         // depthwise
         fusingReluScaleShift,
+        fusingPReluPerChannel,
         // fake quantize
         fusingFakeQuantizePerTensorRelu,
         fusingFakeQuantizePerChannelRelu,
