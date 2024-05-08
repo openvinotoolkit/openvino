@@ -54,24 +54,16 @@ NPU:
 
 HETERO:
   revalidate:
-    - CPU
     - GPU
     - HETERO
-    - AUTO_BATCH
-    - TEMPLATE
-    - C_API
     - Python_API
   build:
     - IR_FE
 
 AUTO_BATCH:
   revalidate:
-    - CPU
     - GPU
-    - HETERO
     - AUTO_BATCH
-    - TEMPLATE
-    - C_API
     - Python_API
   build:
     - IR_FE
@@ -84,7 +76,6 @@ TEMPLATE:
     - AUTO_BATCH
     - TEMPLATE
     - AUTO
-    - C_API
     - Python_API
     - NVIDIA
   build:
@@ -92,9 +83,7 @@ TEMPLATE:
 
 AUTO:
   revalidate:
-    - TEMPLATE
     - AUTO
-    - C_API
     - Python_API
   build:
     - IR_FE
