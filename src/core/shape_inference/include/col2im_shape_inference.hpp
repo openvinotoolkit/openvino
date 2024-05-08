@@ -12,6 +12,21 @@
 namespace ov {
 namespace op {
 namespace v15 {
+namespace util {
+template <class TShape>
+//typename std::enable_if<std::is_same<TShape, PartialShape>::value>::type
+typename std::enable_if<std::is_same<TShape, PartialShape>::value, std::vector<PartialShape>>::type
+get_output_shape_container(TShape) {
+    return std::vector<PartialShape>(1);
+}
+
+template <class TShape>
+typename std::enable_if<!std::is_same<TShape, PartialShape>::value, std::vector<TShape>>::type
+get_output_shape_container(TShape) {
+    return std::vector<TShape>(1);
+}
+}  // namespace util
+
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const Col2Im* op,
                                  const std::vector<TShape>& input_shapes,
@@ -25,7 +40,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
     const auto& data_shape = input_shapes[0];
     const auto& output_size_shape = input_shapes[1];
     const auto& kernel_shape = input_shapes[2];
-    const bool is_batched = data_shape.rank() == 3 || data_shape.rank().is_dynamic();
+    const bool is_batched = data_shape.rank() == 3;
     const auto output_size_val = ov::op::get_input_const_data_as_shape<TRShape>(op, 1, tensor_accessor);
     const auto kernel_val = ov::op::get_input_const_data_as_shape<TRShape>(op, 2, tensor_accessor);
 
@@ -50,17 +65,25 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                                "kernel_size must be a 1D input of shape [2]. Got: ",
                                kernel_shape);
     }
-
-    Dimension N, C, H, W;
+    auto output_shapes = util::get_output_shape_container(input_shapes);
+    auto& output_shape = output_shapes[0];
+    is_batched ? output_shape.resize(4) : output_shape.resize(3);
     if (data_shape.rank().is_dynamic()) {
-        N = Dimension::dynamic();
-    } else if (data_shape[0].is_dynamic()) {
-        N = Dimension::dynamic();
-    } else if (is_batched) {
-        N = data_shape[0];
+        return {PartialShape::dynamic()};
+    } else if (std::is_same<TShape, PartialShape>::value) {
+        std::fill(output_shape[0].begin(), output_shape[0].end(), Dimension::dynamic());
+    } else {
+        std::fill(output_shape[0].begin(), output_shape[0].end(), 0);
+    }
+    
+    const size_t L_idx = is_batched ? 2 : 1;
+    const size_t C_idx = is_batched ? 1 : 0;
+    const size_t H_idx = is_batched ? 2 : 1;
+    const size_t W_idx = is_batched ? 3 : 2;
+    if (is_batched) {
+        output_shape[0][0] = data_shape[0];
     }
 
-    const size_t C_idx = is_batched ? 1 : 0;
     if (kernel_val && data_shape.rank().is_static() && data_shape[C_idx].is_static()) {
         const auto dividend = data_shape[C_idx].get_length();
         const auto divisor = ((*kernel_val)[0] * (*kernel_val)[1]).get_length();
@@ -69,15 +92,12 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                                dividend % divisor == 0,
                                "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
                                data_shape[C_idx].get_length());
-        C = dividend / divisor;
+        output_shape[0][C_idx] = dividend / divisor;
     } else {
-        C = Dimension::dynamic();
+        output_shape[0][C_idx] = Dimension::dynamic();
     }
 
-    const size_t L_idx = is_batched ? 2 : 1;
-    if (data_shape.rank().is_dynamic()) {
-        return {PartialShape::dynamic()};
-    } else if (output_size_val && kernel_val && data_shape.rank().is_static() && data_shape[L_idx].is_static()) {
+    if (output_size_val && kernel_val && data_shape.rank().is_static() && data_shape[L_idx].is_static()) {
         const auto L = data_shape[L_idx].get_length();
         constexpr size_t spatial_dims = 2;
 
@@ -100,14 +120,13 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                                "For given inputs and parameters the total number of data blocks must be equal to " +
                                    std::to_string(static_cast<size_t>(L_calculated)) + ". Got: ",
                                L);
-        H = (*output_size_val)[0];
-        W = (*output_size_val)[1];
+        output_shape[0][H_idx] = (*output_size_val)[0];
+        output_shape[0][W_idx] = (*output_size_val)[1];
     } else {
-        H = Dimension::dynamic();
-        W = Dimension::dynamic();
+        output_shape[0][H_idx] = Dimension::dynamic();
+        output_shape[0][W_idx] = Dimension::dynamic();
     }
 
-    const auto output_shape = is_batched ? TRShape{N, C, H, W} : TRShape{C, H, W};
     return {output_shape};
 }
 }  // namespace v15
