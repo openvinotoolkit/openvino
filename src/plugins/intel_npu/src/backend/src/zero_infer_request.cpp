@@ -59,24 +59,26 @@ std::optional<size_t> getBatchSizeForNode(const IONodeDescriptor& nodeDescriptor
                                           const ZeroExecutor::ArgumentDescriptor& zeDescriptor) {
     Logger logger("GetBatchSizeForNode", Logger::global().level());
 
-    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
-    switch (zeDescriptor.info.deviceLayout) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        if ((ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS]) &&
-            (ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE)) {
-            logger.info("Batching on the plugin is not used, batching is handled by the compiler");
-            return std::nullopt;
-        } else {
-            return ovDimensions[BATCH_AXIS];
-        }
-        break;
-    default:
-        logger.info("Batching on the plugin is working only when batching is found on 0th dimension");
+    if (nodeDescriptor.originalShape.rank().get_length() == 0) {
+        logger.info("Networks with empty shapes are not supported when batching is handled by the plugin");
         return std::nullopt;
+    }
+
+    if (nodeDescriptor.originalShape.is_dynamic()) {
+        logger.info("Dynamic networks are not supported when batching is handled by the plugin");
+        return std::nullopt;
+    }
+
+    const std::vector<size_t>& ovDimensions = nodeDescriptor.originalShape.get_shape();
+
+    if (ovDimensions[BATCH_AXIS] == zeDescriptor.info.dims[BATCH_AXIS] &&
+        ovDimensions[BATCH_AXIS] != DEFAULT_BATCH_SIZE) {
+        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    if (zeDescriptor.info.dims[BATCH_AXIS] == DEFAULT_BATCH_SIZE) {
+        return ovDimensions[BATCH_AXIS];
     }
 
     return DEFAULT_BATCH_SIZE;
