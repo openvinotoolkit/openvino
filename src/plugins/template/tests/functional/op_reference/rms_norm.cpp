@@ -45,7 +45,9 @@ public:
             inputData = {params.input.data, params.reductionAxes.data, params.scale.data};
         }
         refOutData = {params.expected.data};
-        threshold = 1e-3f;  // Set more precise threshold to detect eps changes
+        if (params.input.type == ov::element::f32) {
+            threshold = 1e-5f;  // Set more precise threshold to detect eps changes
+        }
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RMSNormParams>& obj) {
         auto param = obj.param;
@@ -219,9 +221,21 @@ INSTANTIATE_TEST_SUITE_P(
                 std::vector<float>({-0.64425033, -5.9651356, 2.8081346, -0.3386033, 0.1047344, -2.262147})},
             reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({0})},
             1e-5,
-            reference_tests::Tensor{Shape{2, 3, 1},
-                                    ov::element::f32,
-                                    std::vector<float>{-1.2518, -1.4140, 1.1013, -0.6579, 0.024826, -0.8872}}),
+            reference_tests::Tensor{
+                Shape{2, 3, 1},
+                ov::element::f32,
+                std::vector<float>{-1.25182056, -1.41399515, 1.10131621, -0.65792835, 0.02482658, -0.88718647}}),
+        RMSNormParams(
+            reference_tests::Tensor{
+                Shape{2, 3, 1},
+                ov::element::f32,
+                std::vector<float>({-0.64425033, -5.9651356, 2.8081346, -0.3386033, 0.1047344, -2.262147})},
+            reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({0})},
+            1e-1,
+            reference_tests::Tensor{
+                Shape{2, 3, 1},
+                ov::element::f32,
+                std::vector<float>{-1.06658208, -1.41003966, 1.09294367, -0.56057125, 0.02475713, -0.88044184}}),
 
         RMSNormParams(reference_tests::Tensor{Shape{2, 2, 2, 3},
                                               ov::element::f32,
