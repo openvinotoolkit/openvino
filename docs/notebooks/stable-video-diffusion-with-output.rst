@@ -31,7 +31,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -50,7 +50,7 @@ Prerequisites
 Download PyTorch Model
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The code below load Stable Video Diffusion XT model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
@@ -164,7 +164,7 @@ apply Consistency Distilled AnimateLCM weights.
 Convert Model to OpenVINO Intermediate Representation
 -----------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO supports PyTorch models via conversion into Intermediate
 Representation (IR) format. We need to provide a model object, input
@@ -184,7 +184,7 @@ Let’s convert each part.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -217,7 +217,7 @@ Image Encoder
 U-net
 ~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -243,7 +243,7 @@ U-net
 VAE Encoder and Decoder
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As discussed above VAE model used for encoding initial image and
 decoding generated video. Encoding and Decoding happen on different
@@ -296,7 +296,7 @@ Encoder and Decoder.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The code bellow implements ``OVStableVideoDiffusionPipeline`` class for
 running video generation using OpenVINO. The pipeline accepts input
@@ -892,12 +892,12 @@ frames.
 Run Video Generation
 --------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select Inference Device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -1009,7 +1009,7 @@ parameters into pipeline.
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -57,12 +57,12 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -83,7 +83,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -117,7 +117,7 @@ Imports
 FastSAM in Ultralytics
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To work with `Fast Segment Anything
 Model <https://github.com/CASIA-IVA-Lab/FastSAM>`__ by
@@ -178,7 +178,7 @@ Observe the results below.
 Convert the model to OpenVINO Intermediate representation (IR) format
 ---------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Ultralytics Model export API enables conversion of PyTorch models to
 OpenVINO IR format. Under the hood it utilizes the
@@ -213,7 +213,7 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 Embedding the converted models into the original pipeline
 ---------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
@@ -229,7 +229,7 @@ used to compile the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -257,7 +257,7 @@ from the dropdown list:
 Adapt OpenVINO models to the original pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Here we create wrapper classes for the OpenVINO model that we want to
 embed in the original inference pipeline. Here are some of the things to
@@ -334,7 +334,7 @@ the same as of the original model.
 Optimize the model using NNCF Post-training Quantization API
 ------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -590,7 +590,7 @@ repo <../yolov8-optimization/>`__.
 Compare the performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Finally, we iterate both the OV model and the quantized model over the
 calibration dataset to measure the performance.
@@ -659,7 +659,7 @@ calibration dataset to measure the performance.
 Try out the converted pipeline
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The demo app below is created using `Gradio
 package <https://www.gradio.app/docs/interface>`__.

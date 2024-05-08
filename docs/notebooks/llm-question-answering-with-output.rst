@@ -62,7 +62,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -72,7 +72,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -215,7 +215,7 @@ The available options are:
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -264,7 +264,7 @@ previous step and cached key values to get the next token prediction.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__ The Weights Compression
+ The Weights Compression
 algorithm is aimed at compressing the weights of the models and can be
 used to optimize the model footprint and performance of large models
 where the size of weights is relatively larger than the size of
@@ -275,7 +275,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
@@ -288,7 +288,7 @@ notebook <../llm-chatbot>`__
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts the OpenVINO model
@@ -521,7 +521,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -613,7 +613,7 @@ Select device for inference and model variant
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -719,7 +719,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -733,7 +733,7 @@ Setup imports
 Prepare template for user prompt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -797,7 +797,7 @@ into model with providing additional context.
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -867,7 +867,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -925,7 +925,7 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text

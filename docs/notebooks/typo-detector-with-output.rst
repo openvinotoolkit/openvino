@@ -77,7 +77,7 @@ Table of contents:
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -105,7 +105,7 @@ Imports
 Methods
 ~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The notebook provides two methods to run the inference of typo detector
 with OpenVINO runtime, so that you can experience both calling the API
@@ -116,7 +116,7 @@ with OpenVINO Runtime.
 1. Using the `Hugging Face Optimum <https://huggingface.co/docs/optimum/index>`__ library
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Hugging Face Optimum API is a high-level API that allows us to
 convert models from the Hugging Face Transformers library to the
@@ -127,7 +127,7 @@ hardware.
 2. Converting the model to OpenVINO IR
 ''''''''''''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Pytorch model is converted to `OpenVINO IR
 format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__.
@@ -159,7 +159,7 @@ methods
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -191,7 +191,7 @@ select device from dropdown list for running inference using OpenVINO
 1. Hugging Face Optimum Intel library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For this method, we need to install the
 ``Hugging Face Optimum Intel library`` accelerated by OpenVINO
@@ -226,7 +226,7 @@ Import required model class
 Load the model
 ''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 From the ``OVModelForTokenCLassification`` class we will import the
 relevant pre-trained model. To load a Transformers model and convert it
@@ -274,7 +274,7 @@ your model.
 Load the tokenizer
 ''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model. Tokenization splits paragraphs and sentences into
@@ -390,12 +390,12 @@ Let’s run a demo using the Hugging Face Optimum API.
 2. Converting the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load the Pytorch model
 ''''''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Use the ``AutoModelForTokenClassification`` class to load the pretrained
 pytorch model.
@@ -418,7 +418,7 @@ pytorch model.
 Converting to OpenVINO IR
 '''''''''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -431,7 +431,7 @@ Converting to OpenVINO IR
 Inference
 '''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The Core class from the ``openvino`` module is imported first.
@@ -448,7 +448,7 @@ the compiled model as it is needed for inference.
 Helper Functions
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -80,7 +80,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -111,7 +111,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -126,7 +126,7 @@ Settings
 Download model
 --------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load model using `tf.keras.applications
 api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -172,12 +172,12 @@ and save it to the disk.
 Convert a Model to OpenVINO IR Format
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Convert a TensorFlow Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Use the model conversion Python API to convert the TensorFlow model to
 OpenVINO IR. The ``ov.convert_model`` function accept path to saved
@@ -208,12 +208,12 @@ models.
 Test Inference on the Converted Model
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load the Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -223,7 +223,7 @@ Load the Model
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -256,7 +256,7 @@ select device from dropdown list for running inference using OpenVINO
 Get Model Information
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -267,7 +267,7 @@ Get Model Information
 Load an Image
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -305,7 +305,7 @@ network.
 Do Inference
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -344,7 +344,7 @@ Do Inference
 Timing
 ------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the

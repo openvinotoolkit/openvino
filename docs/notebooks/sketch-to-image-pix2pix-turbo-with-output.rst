@@ -35,7 +35,7 @@ OpenVINO. #### Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Clone `model repository <https://github.com/GaParmar/img2img-turbo>`__
 and install required packages.
@@ -100,7 +100,7 @@ and install required packages.
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Pix2Pix-turbo architecture illustrated on the diagram below. Model
 combines three separate modules in the original latent diffusion models
@@ -399,7 +399,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 Convert PyTorch model to Openvino Intermediate Representation format
 --------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to `OpenVINO Intermediate Representation (IR)
@@ -467,7 +467,7 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -495,7 +495,7 @@ Select inference device
 Compile model
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -504,7 +504,7 @@ Compile model
 Run model inference
 -------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, let’s try model in action and turn simple cat sketch into
 professional artwork.
@@ -562,7 +562,7 @@ professional artwork.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In this section, you can try model on own paintings.
 

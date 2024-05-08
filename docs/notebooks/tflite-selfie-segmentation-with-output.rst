@@ -62,12 +62,12 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -111,7 +111,7 @@ Install required dependencies
 Download pretrained model and test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -141,7 +141,7 @@ Download pretrained model and test image
 Convert Tensorflow Lite model to OpenVINO IR format
 ---------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Starting from the 2023.0.0 release, OpenVINO supports TFLite model
 conversion. However TFLite model format can be directly passed in
@@ -218,7 +218,7 @@ operation to get the label with the highest probability for each pixel.
 Run OpenVINO model inference on image
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Let’s see the model in action. For running the inference model with
 OpenVINO we should load the model on the device first. Please use the
@@ -227,7 +227,7 @@ next dropdown list for the selection inference device.
 Load model
 ~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -258,7 +258,7 @@ Load model
 Prepare input image
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The model accepts an image with size 256x256, we need to resize our
 input image to fit it in the model input tensor. Usually, segmentation
@@ -317,7 +317,7 @@ Additionally, the input image is represented as an RGB image in UINT8
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -326,7 +326,7 @@ Run model inference
 Postprocess and visualize inference results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The model predicts segmentation probabilities mask with the size 256 x
 256, we need to apply postprocessing to get labels with the highest
@@ -436,7 +436,7 @@ Visualize obtained result
 Interactive background blurring demo on video
 ---------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The following code runs model inference on a video:
 
@@ -561,7 +561,7 @@ The following code runs model inference on a video:
 Run Live Background Blurring
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

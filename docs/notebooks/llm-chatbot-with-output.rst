@@ -59,7 +59,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required dependencies
 
@@ -98,7 +98,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -433,7 +433,7 @@ The available options are:
 Convert model using Optimum-CLI tool
 ------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
 the interface between the 
@@ -474,7 +474,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -697,7 +697,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -760,7 +760,7 @@ variant of model weights and inference device
 Instantiate Model using Optimum Intel
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -887,7 +887,7 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__
 Run Chatbot
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how

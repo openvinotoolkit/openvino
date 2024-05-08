@@ -58,7 +58,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -83,7 +83,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Set up all constants and folders used in this notebook
 
@@ -117,7 +117,7 @@ To group files, you have to define the collection. In this case, use
 Select a Language
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Depending on your choice you will need to change a line of code in the
 cell below.
@@ -137,7 +137,7 @@ If you want to perform OCR on a text in Japanese, set
 Download the Model
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In addition to images and charlists, you need to download the model
 file. In the sections below, there are cells for downloading either the
@@ -177,7 +177,7 @@ model file.
 Load the Model and Execute
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 When all files are downloaded and language is selected, read and compile
 the network to run inference. The path to the model is defined based on
@@ -191,7 +191,7 @@ the selected language.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -224,7 +224,7 @@ select device from dropdown list for running inference using OpenVINO
 Fetch Information About Input and Output Layers
 -----------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now that the model is loaded, fetch information about the input and
 output layers (shape).
@@ -237,7 +237,7 @@ output layers (shape).
 Load an Image
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Next, load an image. The model expects a single-channel image as input,
 so the image is read in grayscale.
@@ -289,7 +289,7 @@ keep letters proportional and meet input shape.
 Visualize Input Image
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 After preprocessing, you can display the image.
 
@@ -307,7 +307,7 @@ After preprocessing, you can display the image.
 Prepare Charlist
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The model is loaded and the image is ready. The only element left is the
 charlist, which is downloaded. You must add a blank symbol at the
@@ -343,7 +343,7 @@ Chinese and Japanese models.
 Run Inference
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, run inference. The ``compiled_model()`` function takes a list with
 input(s) in the same order as model input(s). Then, fetch the output
@@ -357,7 +357,7 @@ from output tensors.
 Process the Output Data
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The output of a model is in the ``W x B x L`` format, where:
 
@@ -399,7 +399,7 @@ Finally, get the symbols from corresponding indexes in the charlist.
 Print the Output
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, having a list of letters predicted by the model, you can display
 the image with predicted text printed below.

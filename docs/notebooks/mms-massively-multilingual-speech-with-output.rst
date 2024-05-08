@@ -68,7 +68,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +87,7 @@ Prerequisites
 Prepare an example audio
 ------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Read an audio file and process the audio data. Make sure that the audio
 data is sampled to 16000 kHz. For this example we will use `a streamable
@@ -175,12 +175,12 @@ transcription.
 Language Identification (LID)
 -----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download pretrained model and processor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Different LID models are available based on the number of languages they
 can recognize - 126, 256, 512, 1024, 2048, 4017. We will use 126.
@@ -197,7 +197,7 @@ can recognize - 126, 256, 512, 1024, 2048, 4017. We will use 126.
 Use the original model to run an inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -219,7 +219,7 @@ Use the original model to run an inference
 Convert to OpenVINO IR model and run an inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -370,12 +370,12 @@ Let’s check another language.
 Automatic Speech Recognition (ASR)
 ----------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download pretrained model and processor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download pretrained model and processor. By default, MMS loads adapter
 weights for English. If you want to load adapter weights of another
@@ -433,7 +433,7 @@ detected in the previous step.
 Use the original model for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -455,7 +455,7 @@ Use the original model for inference
 Convert to OpenVINO IR model and run inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Convert to OpenVINO IR model format with ``ov.convert_model`` function
 directly. Use ``ov.save_model`` function to serialize the result of
@@ -525,7 +525,7 @@ Run inference.
 Quantization
 ------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -586,7 +586,7 @@ not selected
 Preparing calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select the language to quantize the model for:
 
@@ -625,7 +625,7 @@ Create calibration dataset for quantization.
 Language identification model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Run LID model quantization.
 
@@ -690,7 +690,7 @@ Detect language with the quantized model.
 Speech recognition model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Run ASR model quantization.
 
@@ -766,7 +766,7 @@ produced by original model.
 Compare model size, performance and accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 First we compare model size.
 
@@ -879,7 +879,7 @@ speech recognition models.
 Interactive demo with Gradio
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In this demo you can try your own examples. Make sure that the audio
 data is sampled to 16000 kHz.

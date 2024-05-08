@@ -36,7 +36,7 @@ Table of contents:
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -70,7 +70,7 @@ notebook_utils Python module from GitHub.
 Get PyTorch model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Generally, PyTorch models represent an instance of the
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -89,7 +89,7 @@ also applicable to other YOLOv8 models.
 Prepare dataset and dataloader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 YOLOv8-obb is pre-trained on the DOTA dataset. Also, Ultralytics
 provides DOTA8 dataset. It is a small, but versatile oriented object
@@ -175,7 +175,7 @@ instance.
 Run inference
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -201,7 +201,7 @@ Run inference
 Convert PyTorch model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -243,7 +243,7 @@ preserve dynamic shapes in the model.
 Select inference device
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -275,7 +275,7 @@ Select device from dropdown list for running inference using OpenVINO
 Compile model
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -292,7 +292,7 @@ Compile model
 Prepare the model for inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We can reuse the base model pipeline for pre- and postprocessing just
 replacing the inference method where we will use the IR model for
@@ -313,7 +313,7 @@ inference.
 Run inference
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -337,7 +337,7 @@ Run inference
 Quantization
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -528,7 +528,7 @@ large car was also identified, unlike the original model.
 Compare inference time and model sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

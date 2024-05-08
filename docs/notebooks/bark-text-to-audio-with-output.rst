@@ -74,7 +74,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -99,7 +99,7 @@ Prerequisites
 Download and Convert models
 ---------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -112,7 +112,7 @@ Download and Convert models
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Text encoder is responsible for embedding initial text prompt into
 high-level semantic tokens. it uses tokenizer for conversion input text
@@ -182,7 +182,7 @@ models for that.
 Coarse encoder
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Coarse encoder is a causal autoregressive transformer, that takes as
 input the results of the text encoder model. It aims at predicting the
@@ -345,7 +345,7 @@ provide empty tensor on the first step.
 Fine encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Fine encoder is time a non-causal autoencoder transformer, which
 iteratively predicts the last codebooks based on the sum of the previous
@@ -374,7 +374,7 @@ codebooks embeddings obtained using Coarse encoder.
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For better usability, classes for working with models provided below.
 
@@ -896,7 +896,7 @@ consists from several steps, illustrated on the diagram below:
 Run model inference
 -------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now is time to see model in action. We need only wrap our models to
 classes and run ``generate_audio`` function.
@@ -904,7 +904,7 @@ classes and run ``generate_audio`` function.
 Select Inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -993,7 +993,7 @@ select device from dropdown list for running inference using OpenVINO
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -65,7 +65,7 @@ Table of contents:
 Get PyTorch model
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Generally, PyTorch models represent an instance of the
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -86,7 +86,7 @@ do these steps manually.
 Prerequisites
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install necessary packages.
 
@@ -140,7 +140,7 @@ Import required utility functions. The lower cell will download the
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For loading the model, required to specify a path to the model
 checkpoint. It can be some local path or name available on models hub
@@ -198,7 +198,7 @@ Let us consider the examples:
 Convert model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -232,7 +232,7 @@ preserve dynamic shapes in the model.
 Verify model inference
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We can reuse the base model pipeline for pre- and postprocessing just
 replacing the inference method where we will use the IR model for
@@ -241,7 +241,7 @@ inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -273,7 +273,7 @@ Select device from dropdown list for running inference using OpenVINO
 Test on single image
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, once we have defined preprocessing and postprocessing steps, we are
 ready to check model prediction.
@@ -323,7 +323,7 @@ Great! The result is the same, as produced by original models.
 Check model accuracy on the dataset
 -----------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For comparing the optimized model result with the original, it is good
 to know some measurable results in terms of model accuracy on the
@@ -332,7 +332,7 @@ validation dataset.
 Download the validation dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 YOLOv8 is pre-trained on the COCO dataset, so to evaluate the model
 accuracy we need to download it. According to the instructions provided
@@ -382,7 +382,7 @@ evaluation function.
 Define validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -483,7 +483,7 @@ Define validation function
 Configure Validator helper and create DataLoader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -587,7 +587,7 @@ subset difference. *To validate the models on the full dataset set
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -875,7 +875,7 @@ point precision, using the ``ignored_scope`` parameter.
 Validate Quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 ``nncf.quantize`` returns the OpenVINO Model class instance, which is
 suitable for loading on a device for making predictions. ``INT8`` model
@@ -925,12 +925,12 @@ on the image.
 Compare the Original and Quantized Models
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Compare performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__ Finally, use the OpenVINO
+ Finally, use the OpenVINO
 `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
@@ -1131,7 +1131,7 @@ models.
 Compare accuracy of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As we can see, there is no significant difference between ``INT8`` and
 float model result in a single image test. To understand how
@@ -1182,7 +1182,7 @@ meets passing criteria.
 Other ways to optimize model
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The performance could be also improved by another OpenVINO method such
 as async inference pipeline or preprocessing API.
@@ -1211,7 +1211,7 @@ OpenVINO tutorial <./yolov8-object-detection.ipynb>`__
 Live demo
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The following code runs model inference on a video:
 
@@ -1331,7 +1331,7 @@ The following code runs model inference on a video:
 Run Keypoint Detection on video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -63,7 +63,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required dependencies
 
@@ -74,7 +74,7 @@ Install required dependencies
 Create PyTorch Models pipeline
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -126,7 +126,7 @@ First, load the pre-trained weights of all components of the model.
 Convert models to OpenVINO Intermediate representation format
 -------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -157,7 +157,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -235,7 +235,7 @@ hidden states.
 U-net
 ~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 U-net model has three inputs:
 
@@ -311,7 +311,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -430,7 +430,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -840,7 +840,7 @@ of the variational auto encoder.
 Configure Inference Pipeline
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -879,7 +879,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Calibrate UNet for GPU inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 On a GPU device a model is executed in FP16 precision. For Tiny-SD UNet
 model there known to be accuracy issues caused by this. Therefore, a
@@ -954,7 +954,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, let’s see model in action
 
@@ -1025,7 +1025,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 One of the most amazing features of Stable Diffusion model is the
 ability to condition image generation from an existing image or sketch.
@@ -1137,7 +1137,7 @@ found in this
 Interactive Demo
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

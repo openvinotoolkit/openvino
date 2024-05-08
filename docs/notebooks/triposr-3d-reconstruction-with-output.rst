@@ -29,7 +29,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -217,7 +217,7 @@ Get the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -355,7 +355,7 @@ models one by one.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -507,7 +507,7 @@ Replace all models in the original model by wrappers instances:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

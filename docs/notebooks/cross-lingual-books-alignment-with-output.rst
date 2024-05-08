@@ -70,7 +70,7 @@ Table of contents:
 Get Books
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The first step is to get the books that we will be working with. For
 this notebook, we will use English and German versions of Anna Karenina
@@ -217,7 +217,7 @@ which in a raw format looks like this:
 Clean Text
 ----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The downloaded books may contain service information before and after
 the main text. The text might have different formatting styles and
@@ -345,7 +345,7 @@ needed.
 Split Text
 ----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Dividing text into sentences is a challenging task in text processing.
 The problem is called `sentence boundary
@@ -387,7 +387,7 @@ languages.
 Get Sentence Embeddings
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The next step is to transform sentences into vector representations.
 Transformer encoder models, like BERT, provide high-quality embeddings
@@ -469,7 +469,7 @@ best fit.
 Optimize the Model with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model Conversion
@@ -547,7 +547,7 @@ model predictions remain within an acceptable tolerance:
 Calculate Sentence Alignment
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 With the embedding matrices from the previous step, we can calculate the
 alignment: 1. Calculate sentence similarity between each pair of
@@ -668,7 +668,7 @@ will be lists of German sentence numbers.
 Postprocess Sentence Alignment
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 There are several gaps in the resulting alignment, such as English
 sentence #14 not mapping to any German sentence. Here are some possible
@@ -695,7 +695,7 @@ suitable alignment.
 Visualize Sentence Alignment
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To evaluate the final alignment and choose the best way to improve the
 results of the pipeline, we will create an interactive table with HTML
@@ -852,7 +852,7 @@ To read the model from disk, use the ``read_model`` method of the
 Speed up Embeddings Computation
 -------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using

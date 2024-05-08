@@ -43,7 +43,7 @@ Table of contents:
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -152,7 +152,7 @@ tokenizer.
 Use the original model to run an inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We use `this
 example <https://huggingface.co/tasks/table-question-answering>`__ to
@@ -177,7 +177,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/tapas>`__.
 Convert the original model to OpenVINO Intermediate Representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The original model is a PyTorch module, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -273,7 +273,7 @@ function to serialize the result of conversion.
 Run the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
@@ -393,7 +393,7 @@ attributes of original model class to be integrated into the pipeline.
 Interactive inference
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

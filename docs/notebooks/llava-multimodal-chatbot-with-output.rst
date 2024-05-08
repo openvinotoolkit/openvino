@@ -76,7 +76,7 @@ Table of contents:
 About model
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 LLaVA connects pre-trained `CLIP
 ViT-L/14 <https://openai.com/research/clip>`__ visual encoder and large
@@ -108,7 +108,7 @@ web-page <https://llava-vl.github.io/>`__,
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required dependencies
 
@@ -143,7 +143,7 @@ Install required dependencies
 Build model tokenizer and image processor
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For starting work with model, we need understand how to prepare input
 data first. As it is already discussed before, LLaVA is multimodal model
@@ -197,7 +197,7 @@ instruction.
 Build model and convert it to OpenVINO IR format
 ------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 LLaVA is autoregressive transformer generative model, it means that each
 next model step depends from model output from previous step. The
@@ -239,7 +239,7 @@ this
 Prepare helpers for model conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The code below prepares function for converting LLaVA model to OpenVINO
 Intermediate Representation format. It splits model on parts described
@@ -497,7 +497,7 @@ on disk using ``ov.save_model``.
 Convert and Optimize Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Download original PyTorch model. 2. Compress model weights using NNCF 3.
@@ -508,7 +508,7 @@ Let’s consider each step more deeply.
 Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``LlavaMPTForCausalLM`` model class. Model weights will be downloaded
@@ -519,7 +519,7 @@ disk.
 Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -562,7 +562,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Convert model to OpenVINO format using conversion helper function
 defined above.
@@ -793,7 +793,7 @@ compression instead of INT8 weight compression.
 Prepare OpenVINO based inference pipeline
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 ``OVLlavaMPTForCausalLM`` class provides ease-to-use interface for using
 model in generation scenario. It is based on
@@ -1038,7 +1038,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run model inference
 -------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, when we have model and defined generation pipeline, we can run
 model inference.
@@ -1046,7 +1046,7 @@ model inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -1079,7 +1079,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Load OpenVINO model
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -1088,7 +1088,7 @@ Load OpenVINO model
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For preparing input data, we will use tokenizer and image processor
 defined in the begging of our tutorial. For alignment with original
@@ -1134,7 +1134,7 @@ PyTorch implementation we will use PyTorch tensors as input.
 Test model inference
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Generation process for long response maybe time consuming, for accessing
 partial result as soon as it is generated without waiting when whole
@@ -1201,7 +1201,7 @@ accumulating history of provided messages and images.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

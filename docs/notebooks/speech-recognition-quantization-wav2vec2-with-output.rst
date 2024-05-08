@@ -98,7 +98,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -112,7 +112,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -125,7 +125,7 @@ Settings
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Perform the following: - Download and unpack a pre-trained Wav2Vec2
 model. - Run model conversion API to convert the model from the PyTorch
@@ -172,7 +172,7 @@ IR).
 Prepare LibriSpeech Dataset
 ---------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -217,7 +217,7 @@ dataset.
 Run Quantization
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -393,7 +393,7 @@ steps:
 Model Usage Example with Inference Pipeline
 -------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Both initial (``FP16``) and quantized (``INT8``) models are exactly the
 same in use.
@@ -471,7 +471,7 @@ Next, make a prediction.
 Validate model accuracy on dataset
 ----------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For model accuracy evaluation, `Word Error
 Rate <https://en.wikipedia.org/wiki/Word_error_rate>`__ metric can be
@@ -572,7 +572,7 @@ quantized model.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Finally, use `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__

@@ -48,7 +48,7 @@ Table of contents:
 Install required libraries
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -70,7 +70,7 @@ Install required libraries
 Prepare the environment
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Import all required packages and set paths for models and constant
 variables.
@@ -111,7 +111,7 @@ variables.
 Load OneFormer fine-tuned on COCO for universal segmentation
 ------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Here we use the ``from_pretrained`` method of
 ``OneFormerForUniversalSegmentation`` to load the `HuggingFace OneFormer
@@ -153,7 +153,7 @@ images and post-process model outputs for visualization.
 Convert the model to OpenVINO IR format
 ---------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Convert the PyTorch model to IR format to take advantage of OpenVINO
 optimization tools and features. The ``openvino.convert_model`` python
@@ -191,7 +191,7 @@ should provide PyTorch model instance and example input to
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -392,7 +392,7 @@ the inference results.
 Choose a segmentation task
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -413,7 +413,7 @@ Choose a segmentation task
 Inference
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -445,7 +445,7 @@ Inference
 Quantization
 ------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -502,7 +502,7 @@ not selected
 Preparing calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We use images from
 `COCO128 <https://www.kaggle.com/datasets/ultralytics/coco128>`__
@@ -570,7 +570,7 @@ dataset as calibration samples.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Below we call ``nncf.quantize()`` in order to apply quantization to
 OneFormer model.
@@ -652,7 +652,7 @@ Let’s see quantized model prediction next to original model prediction.
 Compare model size and performance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Below we compare original and quantized model footprint and inference
 speed.
@@ -721,7 +721,7 @@ speed.
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

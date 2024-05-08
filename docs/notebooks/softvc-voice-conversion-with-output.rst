@@ -31,7 +31,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -99,7 +99,7 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
 Use the original model to run an inference
 ------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Change directory to ``so-vits-svc`` in purpose not to brake internal
 relative paths.
@@ -149,7 +149,7 @@ And let compare the original audio with the result.
 Convert to OpenVINO IR model
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Model components are PyTorch modules, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -200,7 +200,7 @@ without need to look inside.
 Run the OpenVINO model
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
@@ -255,7 +255,7 @@ Check result. Is it identical to that created by the original model.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

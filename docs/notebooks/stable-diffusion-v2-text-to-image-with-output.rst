@@ -107,7 +107,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 install required packages
 
@@ -125,7 +125,7 @@ install required packages
 Stable Diffusion v2 for Text-to-Image Generation
 ------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To start, let’s look on Text-to-Image process for Stable Diffusion v2.
 We will use `Stable Diffusion
@@ -142,7 +142,7 @@ and original model
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__ To work with Stable Diffusion
+ To work with Stable Diffusion
 v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
@@ -180,7 +180,7 @@ using ``stable-diffusion-2-1``:
 Convert models to OpenVINO Intermediate representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -200,7 +200,7 @@ Let us convert each part:
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -286,7 +286,7 @@ hidden states.
 U-Net
 ~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -369,7 +369,7 @@ such use cases required to modify number of input channels.
 VAE
 ~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -491,7 +491,7 @@ RAM (recommended at least 32GB).
 Prepare Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -902,7 +902,7 @@ but there is some small difference in details:
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -960,7 +960,7 @@ Let us define them and put all components together.
 Quantization
 ------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1030,7 +1030,7 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
@@ -1092,7 +1092,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run Hybrid Model Quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -1219,7 +1219,7 @@ Compare UNet file size
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -1274,7 +1274,7 @@ pipelines, we use median inference time on calibration subset.
 Run Text-to-Image generation
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator

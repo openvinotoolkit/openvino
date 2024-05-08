@@ -36,12 +36,12 @@ Table of contents:
 Preparation
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -120,7 +120,7 @@ Imports
 Settings
 ~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
 ``MODEL_NAME`` to the PaddlePaddle model to download from PaddleHub.
@@ -179,7 +179,7 @@ PaddleHub. This may take a while.
 Show Inference on PaddlePaddle Model
 ------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In the next cell, we load the model, load and display an image, do
 inference on that image, and then show the top three prediction results.
@@ -303,7 +303,7 @@ OpenVINO model.
 Convert the Model to OpenVINO IR Format
 ---------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Call the OpenVINO Model Conversion API to convert the PaddlePaddle model
 to OpenVINO IR, with FP32 precision. ``ov.convert_model`` function
@@ -326,7 +326,7 @@ for more information about the Model Conversion API.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -356,7 +356,7 @@ select device from dropdown list for running inference using OpenVINO
 Show Inference on OpenVINO Model
 --------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load the IR model, get model information, load the image, do inference,
 convert the inference to a meaningful result, and show the output. See
@@ -405,7 +405,7 @@ Notebook <openvino-api-with-output.html>`__ for more information.
 Timing and Comparison
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
@@ -472,7 +472,7 @@ Note that many optimizations are possible to improve the performance.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -533,7 +533,7 @@ select device from dropdown list for running inference using OpenVINO
 References
 ----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle

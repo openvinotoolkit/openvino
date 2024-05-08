@@ -42,7 +42,7 @@ Table of contents:
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required packages
 
@@ -69,7 +69,7 @@ Install required packages
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -105,7 +105,7 @@ this
 Using full precision model in CPU with ``LatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Standard pipeline for the Latent Consistency Model(LCM) from Diffusers
 library is used here. For more information please refer to
@@ -189,7 +189,7 @@ Select inference device for text-to-image generation
 Running inference using Optimum Intel ``OVLatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Accelerating inference of LCM using Intel Optimum with OpenVINO backend.
 For more information please refer to

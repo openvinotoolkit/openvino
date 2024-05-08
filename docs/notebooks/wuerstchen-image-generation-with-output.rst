@@ -56,7 +56,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -109,7 +109,7 @@ Prerequisites
 Load the original model
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We use ``from_pretrained`` method of
 ``diffusers.AutoPipelineForText2Image`` to load the pipeline.
@@ -124,7 +124,7 @@ parts: prior and decoder.
 Infer the original model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -158,7 +158,7 @@ Infer the original model
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Main model components: - Prior stage: create low-dimensional latent
 space representation of the image using text-conditional LDM - Decoder
@@ -205,7 +205,7 @@ file.
 Prior pipeline
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 This pipeline consists of text encoder and prior diffusion model. From
 here, we always use fixed shapes in conversion by using an ``input``
@@ -272,7 +272,7 @@ timestep and encoder hidden states.
 Decoder pipeline
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
@@ -375,7 +375,7 @@ decoder takes as input 4x256x256 latent image.
 Compiling models
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -428,7 +428,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original ``WuerstchenCombinedPipeline`` class. Note
@@ -500,7 +500,7 @@ And insert wrappers instances in the pipeline:
 Inference
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -535,7 +535,7 @@ Inference
 Quantization
 ------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -592,7 +592,7 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
@@ -674,7 +674,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 ``BiasCorrection`` algorithm is disabled due to minimal accuracy
@@ -822,7 +822,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -865,7 +865,7 @@ Compare model file sizes
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use mean inference time on 3 samples.
@@ -921,7 +921,7 @@ pipelines, we use mean inference time on 3 samples.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Please select below whether you would like to use the quantized model to
 launch the interactive demo.

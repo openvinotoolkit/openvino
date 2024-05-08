@@ -70,7 +70,7 @@ Table of contents:
 Download the Model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
 model is already downloaded) and then unzip it. Downloaded model stored
@@ -109,7 +109,7 @@ be obtained from original model checkpoint can be found in this
 Convert Tensorflow model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format with model conversion API. For more
@@ -138,7 +138,7 @@ This step is also skipped if the model is already converted.
 Load the model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, load the OpenVINO IR model and perform as follows:
 
@@ -190,7 +190,7 @@ Only a few lines of code are required to run the model:
 Determine the input shapes of the model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Note that both input shapes are the same. However, the second input has
 1 channel (monotone).
@@ -202,7 +202,7 @@ Note that both input shapes are the same. However, the second input has
 Create a square mask
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Next, create a single channeled mask that will be laid on top of the
 original image.
@@ -249,7 +249,7 @@ original image.
 Load and Resize the Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 This image will be altered by using the mask. You can process any image
 you like. Just change the URL below.
@@ -285,7 +285,7 @@ you like. Just change the URL below.
 Generating the Masked Image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 This multiplication of the image and the mask gives the result of the
 masked image layered on top of the original image. The ``masked_image``
@@ -306,7 +306,7 @@ will be the first input to the GMCNN model.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The model expects the input dimensions to be ``NHWC``.
 
@@ -321,7 +321,7 @@ The model expects the input dimensions to be ``NHWC``.
 Inference
 ~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Do inference with the given masked image and the mask. Then, show the
 restored image.
@@ -341,7 +341,7 @@ restored image.
 Save the Restored Image
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Save the restored image to the data directory to download it.
 

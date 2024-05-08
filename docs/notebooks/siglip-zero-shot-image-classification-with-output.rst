@@ -50,7 +50,7 @@ Table of contents:
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The SigLIP model was proposed in `Sigmoid Loss for Language Image
 Pre-Training <https://arxiv.org/abs/2303.15343>`__. SigLIP proposes to
@@ -130,7 +130,7 @@ tokenizer and preparing the images.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -234,7 +234,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -271,7 +271,7 @@ object ready to load on the device and start making predictions.
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The steps for making predictions with the OpenVINO SigLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -335,7 +335,7 @@ Great! Looks like we got the same result.
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -353,7 +353,7 @@ The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -490,7 +490,7 @@ model.
 Quantize model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -612,7 +612,7 @@ in the NNCF repository for more information.
 Run quantized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The steps for making predictions with the quantized OpenVINO SigLIP
 model are similar to the PyTorch model.
@@ -657,7 +657,7 @@ model are similar to the PyTorch model.
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -686,7 +686,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -728,7 +728,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification. Feel free to upload an

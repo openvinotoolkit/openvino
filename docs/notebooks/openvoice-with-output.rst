@@ -47,7 +47,7 @@ Table of contents:
 Clone repository and install requirements
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -90,7 +90,7 @@ Clone repository and install requirements
 Download checkpoints and load PyTorch model
 -------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -223,7 +223,7 @@ True
 Convert models to OpenVINO IR
 -----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 There are 2 models in OpenVoice: first one is responsible for speech
 generation ``BaseSpeakerTTS`` and the second one ``ToneColorConverter``
@@ -383,12 +383,12 @@ If IRs already exist skip conversion and read them directly
 Inference
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -414,7 +414,7 @@ Select inference device
 Select reference tone
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 First of all, select the reference tone of voice to which the generated
 text will be converted: your can select from existing ones, record your
@@ -570,7 +570,7 @@ most computationally expensive part is done in OpenVINO.
 Run inference
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -709,7 +709,7 @@ And finally, run voice tone conversion with OpenVINO optimized model
 Run OpenVoice Gradio interactive demo
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We can also use `Gradio <https://www.gradio.app/>`__ app to run TTS and
 voice tone conversion online.
@@ -1040,7 +1040,7 @@ voice tone conversion online.
 Cleanup
 -------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -55,7 +55,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For starting work, we should install required packages first
 
@@ -83,7 +83,7 @@ For starting work, we should install required packages first
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF
 --------------------------------------------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 llm_bench provides conversion script for converting LLMS into OpenVINO
 IR format compatible with Optimum-Intel. It also allows to compress
@@ -100,7 +100,7 @@ performance even more but introduces a minor drop in prediction quality.
 Apply stateful transformation for automatic handling model state
 ----------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Stable Zephyr is a decoder-only transformer model and generates text
 token by token in an autoregressive fashion. Since the output side is
@@ -189,7 +189,7 @@ that
 Select device for inference
 ---------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -219,7 +219,7 @@ Select device for inference
 Estimate model performance
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 openvino.genai / llm_bench / python / benchmark.py script allow to
 estimate text generation pipeline inference on specific input prompt
@@ -284,7 +284,7 @@ with given number of maximum generated tokens.
 Compare with model without state
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -409,7 +409,7 @@ Compare with model without state
 Using model with Optimum Intel
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Running model with Optimum-Intel API required following steps: 1.
 register normalized config for model 2. create instance of
@@ -434,7 +434,7 @@ sequence of generated token ids that should be decoded using a tokenizer
 Interactive chatbot demo
 ------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 | Now, our model ready to use. Let’s see it in action. We will use
   Gradio interface for interaction with model. Put text message into

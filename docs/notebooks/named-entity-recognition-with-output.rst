@@ -44,7 +44,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -61,7 +61,7 @@ Prerequisites
 Download the NER model
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We load the
 `distilbert-base-cased-finetuned-conll03-english <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
@@ -130,7 +130,7 @@ pre-converted model for next usage, and speedup deployment process.
 Quantize the model, using Hugging Face Optimum API
 --------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Post-training static quantization introduces an additional calibration
 step where data is fed through the network in order to compute the
@@ -324,7 +324,7 @@ corresponding ``OVModelForXxx`` class. So we use
 Compare the Original and Quantized Models
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Compare the original
 `distilbert-base-cased-finetuned-conll03-english <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
@@ -334,7 +334,7 @@ the difference.
 Compare performance
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As the Optimum Inference models are API compatible with Hugging Face
 Transformers models, we can just use ``pipleine()`` from `Hugging Face
@@ -382,7 +382,7 @@ inference.
 Compare size of the models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -402,7 +402,7 @@ Compare size of the models
 Prepare demo for Named Entity Recognition OpenVINO Runtime
 ----------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, you can try NER model on own text. Put your sentence to input text
 box, click Submit button, the model label the recognized entities in the

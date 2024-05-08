@@ -54,7 +54,7 @@ Table of contents:
 Install requirements
 --------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -76,7 +76,7 @@ Install requirements
 Original model inference
 ------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Let’s take the `original
 example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
@@ -285,7 +285,7 @@ draw their bounding bboxes on the image:
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The original model includes 3 models: vision model
 ``Kosmos2VisionModel``, ``Kosmos2ImageToTextProjection`` that is the
@@ -343,7 +343,7 @@ file.
 Convert the vision model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Vision model accept ``pixel_values`` and returns ``image_embeds``.
 
@@ -371,7 +371,7 @@ Vision model accept ``pixel_values`` and returns ``image_embeds``.
 Convert Image To Text Projection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -399,7 +399,7 @@ Convert Image To Text Projection model
 Convert Text model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Text Model performs in generation pipeline and we can separate it
 into two stage. In the first stage the model transforms ``image_embeds``
@@ -540,7 +540,7 @@ generated text by ``AutoProcessor``.
 Compiling models and prepare pipeline
 -------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Select device that will be used to do models inference using OpenVINO
 from the dropdown list:
@@ -829,7 +829,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 Inference
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -879,7 +879,7 @@ Inference
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -34,7 +34,7 @@ Table of contents:
 Tokenization Basics
 -------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 One does not simply put text into a neural network, only numbers. The
 process of transforming text into a sequence of numbers is called
@@ -86,7 +86,7 @@ required.
 Acquiring OpenVINO Tokenizers
 -----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO Tokenizers Python library allows you to convert HuggingFace
 tokenizers into OpenVINO models. To install all required dependencies
@@ -139,7 +139,7 @@ use ``pip install openvino-tokenizers[transformers]``.
 Convert Tokenizer from HuggingFace Hub with CLI Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The first way is to use the CLI utility, bundled with OpenVINO
 Tokenizers. Use ``--with-detokenizer`` flag to add the detokenizer model
@@ -175,7 +175,7 @@ other OpenVINO model.
 Convert Tokenizer from HuggingFace Hub with Python API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The other method is to pass HuggingFace ``hf_tokenizer`` object to
 ``convert_tokenizer`` function:
@@ -296,7 +296,7 @@ one:
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Let’s build a text generation pipeline with OpenVINO Tokenizers and
 minimal dependencies. To obtain an OpenVINO model we will use the
@@ -435,7 +435,7 @@ distinct and separate state..
 Merge Tokenizer into a Model
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Packages like ``tensorflow-text`` offer the convenience of integrating
 text processing directly into the model, streamlining both distribution
@@ -557,7 +557,7 @@ models and tokenizers simplifies memory management.
 Conclusion
 ----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The OpenVINO Tokenizers integrate text processing operations into the
 OpenVINO ecosystem. Enabling the conversion of HuggingFace tokenizers
@@ -569,7 +569,7 @@ helps to streamline model usage and deployment.
 Links
 -----
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 -  `Installation instructions for different
    environments <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation>`__

@@ -65,7 +65,7 @@ run to compare NPU performance with CPU in different configurations.
 Introduction
 ------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Neural Processing Unit (NPU) is a low power hardware solution which
 enables you to offload certain neural network computation tasks from
@@ -87,7 +87,7 @@ To learn more about the NPU Device, see the
 Install required packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -102,7 +102,7 @@ Install required packages
 Checking NPU with Query Device
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In this section, we will see how to list the available NPU and check its
 properties. Some of the key properties will be defined.
@@ -110,7 +110,7 @@ properties. Some of the key properties will be defined.
 List the NPU with core.available_devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO Runtime provides the ``available_devices`` method for checking
 which devices are available for inference. The following code will
@@ -136,7 +136,7 @@ appear (ensure that the driver is installed successfully).
 Check Properties with core.get_property
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To get information about the NPU, we can use device properties. In
 OpenVINO, devices have properties that describe their characteristics
@@ -185,7 +185,7 @@ for that property.
 Brief Descriptions of Key Properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Each device has several properties as seen in the last command. Some of
 the key properties are: - ``FULL_DEVICE_NAME`` - The product name of the
@@ -203,7 +203,7 @@ page.
 Compiling a Model on NPU
 ------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, we know the NPU present in the system and we have checked its
 properties. We can easily use it for compiling and running models with
@@ -212,7 +212,7 @@ OpenVINO NPU plugin.
 Download and Convert a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 This tutorial uses the ``resnet50`` model. The ``resnet50`` model is
 used for image classification tasks. The model was trained on
@@ -224,7 +224,7 @@ more about resnet50, see the
 Download the Model
 ^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Fetch `ResNet50
 CV <https://pytorch.org/vision/stable/models/generated/torchvision.models.resnet50.html#torchvision.models.ResNet50_Weights>`__
@@ -253,7 +253,7 @@ Classification model from torchvision.
 Convert the Model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To convert this Pytorch model to OpenVINO IR with ``FP16`` precision,
 use model conversion API. The models are saved to the
@@ -287,7 +287,7 @@ see this
 Compile with Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 When the model is ready, first we need to read it, using the
 ``read_model`` method. Then, we can use the ``compile_model`` method and
@@ -301,7 +301,7 @@ case, “NPU”.
 Reduce Compile Time through Model Caching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Depending on the model used, device-specific optimizations and network
 compilations can cause the compile step to be time-consuming, especially
@@ -341,7 +341,7 @@ compilation.
 UMD Model Caching
 ^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To see how UMD caching see the following example:
 
@@ -383,7 +383,7 @@ To see how UMD caching see the following example:
 OpenVINO Model Caching
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To get an idea of OpenVINO model caching, we can use the OpenVINO cache
 as follow
@@ -448,7 +448,7 @@ docs <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize
 Throughput and Latency Performance Hints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To simplify device and pipeline configuration, OpenVINO provides
 high-level performance hints that automatically set the batch size and
@@ -479,7 +479,7 @@ available memory.
 Performance Comparison with benchmark_app
 -----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Given all the different options available when compiling a model, it may
 be difficult to know which settings work best for a certain application.
@@ -515,7 +515,7 @@ with latency focus:
 NPU vs CPU with Latency Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -663,7 +663,7 @@ NPU vs CPU with Latency Hint
 Effects of UMD Model Caching
 ''''''''''''''''''''''''''''
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To see the effects of UMD Model caching, we are going to run the
 benchmark_app and see the difference in model read time and compilation
@@ -743,7 +743,7 @@ to read and compile the model after the initial load.
 NPU vs CPU with Throughput Hint
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -891,7 +891,7 @@ NPU vs CPU with Throughput Hint
 Limitations
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 1. Currently, only the models with static shapes are supported on NPU.
 2. If the path to the model file includes non-Unicode symbols, such as
@@ -901,7 +901,7 @@ Limitations
 Conclusion
 ----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 This tutorial demonstrates how easy it is to use NPU in OpenVINO, check
 its properties, and even tailor the model performance through the

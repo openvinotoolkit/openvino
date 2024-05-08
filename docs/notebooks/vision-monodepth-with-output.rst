@@ -58,12 +58,12 @@ Table of contents:
 Preparation
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -108,7 +108,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -135,7 +135,7 @@ Imports
 Download the model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The model is in the `OpenVINO Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -170,7 +170,7 @@ format.
 Functions
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -205,7 +205,7 @@ Functions
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -235,7 +235,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
 it for the specified device with ``core.compile_model``. Get input and
@@ -261,12 +261,12 @@ output keys and the expected input shape for the model.
 Monodepth on Image
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load, resize and reshape input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -286,7 +286,7 @@ H=height, W=width).
 Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -313,7 +313,7 @@ original image shape.
 Display monodepth image
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -329,7 +329,7 @@ Display monodepth image
 Monodepth on Video
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 By default, only the first 4 seconds are processed in order to quickly
 check that everything works. Change ``NUM_SECONDS`` in the cell below to
@@ -338,7 +338,7 @@ modify this. Set ``NUM_SECONDS`` to 0 to process the whole video.
 Video Settings
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -369,7 +369,7 @@ Video Settings
 Load the Video
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -406,7 +406,7 @@ compute values for these properties for the monodepth video.
 Do Inference on a Video and Create Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -512,7 +512,7 @@ Do Inference on a Video and Create Monodepth Video
 Display Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -46,7 +46,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required packages for running model
 
@@ -67,7 +67,7 @@ Install required packages for running model
 Define helpers for PyTorch model initialization and conversion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Detectron2 provides universal and configurable API for working with
 models, it means that all steps required for model creation, conversion
@@ -160,7 +160,7 @@ simplify model’s structure making it more export-friendly.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For running model conversion and inference we need to provide example
 input. The cells below download sample image and apply preprocessing
@@ -225,12 +225,12 @@ can consider how to use them on specific examples.
 Object Detection
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download PyTorch Detection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Download faster_rcnn_R_50_FPN_1x from Detectron Model Zoo.
 
@@ -243,7 +243,7 @@ Download faster_rcnn_R_50_FPN_1x from Detectron Model Zoo.
 Convert Detection Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Convert model using ``convert_detectron2_model`` function and
 ``sample_input`` prepared above. After conversion, model saved on disk
@@ -262,7 +262,7 @@ directory.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -293,7 +293,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Detection model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load our converted model on selected device and run inference on sample
 input.
@@ -397,7 +397,7 @@ provide helpers for wrapping output in original Detectron2 format.
 Instance Segmentation
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As it was discussed above, Detectron2 provides generic approach for
 working with models for different use cases. The steps that required to
@@ -407,7 +407,7 @@ will be very similar to Object Detection.
 Download Instance Segmentation PyTorch model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -418,7 +418,7 @@ Download Instance Segmentation PyTorch model
 Convert Instance Segmentation Model to OpenVINO Intermediate Representation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -433,7 +433,7 @@ Convert Instance Segmentation Model to OpenVINO Intermediate Representation
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -453,7 +453,7 @@ select device from dropdown list for running inference using OpenVINO
 Run Instance Segmentation model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 In comparison with Object Detection, Instance Segmentation models have
 additional output that represents instance masks for each object. Our

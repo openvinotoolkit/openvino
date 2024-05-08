@@ -63,7 +63,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -111,7 +111,7 @@ solutions based on Stable Diffusion.
 Create PyTorch Models pipeline
 ------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 ``StableDiffusionPipeline`` is an end-to-end inference pipeline that you
 can use to generate images from text with just a few lines of code.
@@ -269,7 +269,7 @@ First, load the pre-trained weights of all components of the model.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Staring from 2023.0 release, OpenVINO supports direct conversion PyTorch
 models to OpenVINO IR format. You need to provide a model object and
@@ -293,7 +293,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -399,7 +399,7 @@ hidden states.
 U-net
 ~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Unet model has three inputs:
 
@@ -489,7 +489,7 @@ Model predicts the ``sample`` state for the next step.
 VAE
 ~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -625,7 +625,7 @@ of the pipeline, it will be better to convert them to separate models.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -1036,7 +1036,7 @@ of the variational auto encoder.
 Configure Inference Pipeline
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -1106,7 +1106,7 @@ Let us define them and put all components together
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -1220,7 +1220,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -1348,7 +1348,7 @@ semantically consistent with the input.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

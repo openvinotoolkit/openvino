@@ -39,7 +39,7 @@ OpenVINO. #### Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 install required dependencies
 
@@ -85,7 +85,7 @@ Download model code from HuggingFace hub
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For loading model using PyTorch, we should use
 ``AutoModelForImageSegmentation.from_pretrained`` method. Model weights
@@ -108,7 +108,7 @@ it may take some time.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 ``preprocess_image`` function is responsible for preparing input data in
 model-specific format. ``postprocess_image`` function is responsible for
@@ -198,7 +198,7 @@ mask can be inserted into original image as alpha-channel.
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -229,7 +229,7 @@ function or directly loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 After finishing conversion, we can compile converted model and run it
 using OpenVINO on specified device. For selection inference device,
@@ -289,7 +289,7 @@ original pre- and postprocessing steps, it means that we can reuse them.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -69,7 +69,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -187,7 +187,7 @@ Note that we clone a fork of original repo with tweaked forward methods.
 Prepare base model
 ------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -215,7 +215,7 @@ Prepare base model
 Prepare image encoder
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -249,7 +249,7 @@ Prepare image encoder
 Download weights
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -349,7 +349,7 @@ Download weights
 Initialize models
 -----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -378,7 +378,7 @@ Initialize models
 Load pretrained weights
 -----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -397,7 +397,7 @@ Load pretrained weights
 Convert model to OpenVINO IR
 ----------------------------
 
-`back to top ⬆️ <#table-of-contents>`__ The pose sequence is initially
+ The pose sequence is initially
 encoded using Pose Guider and fused with multi-frame noise, followed by
 the Denoising UNet conducting the denoising process for video
 generation. The computational block of the Denoising UNet consists of
@@ -464,7 +464,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 VAE
 ~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -588,7 +588,7 @@ of the pipeline, it will be better to convert them to separate models.
 Reference UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Pipeline extracts reference attention features from all transformer
 blocks inside Reference UNet model. We call the original forward pass to
@@ -662,7 +662,7 @@ step.
 Denoising UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Denoising UNet is the main part of all diffusion pipelines. This model
 consumes the majority of memory, so we need to reduce its size as much
@@ -763,7 +763,7 @@ step.
 Pose Guider
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 To ensure pose controllability, a lightweight pose guider is devised to
 efficiently integrate pose control signals into the denoising process.
@@ -817,7 +817,7 @@ efficiently integrate pose control signals into the denoising process.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Pipeline uses CLIP image encoder to generate encoder hidden states
 required for both reference and denoising UNets.
@@ -877,7 +877,7 @@ required for both reference and denoising UNets.
 Inference
 ---------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 We inherit from the original pipeline modifying the calls to our models
 to match OpenVINO format.
@@ -889,7 +889,7 @@ to match OpenVINO format.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 For starting work, please select inference device from dropdown list.
 
@@ -1168,7 +1168,7 @@ For starting work, please select inference device from dropdown list.
 Video post-processing
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -1219,7 +1219,7 @@ Video post-processing
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 

@@ -75,7 +75,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Install required dependencies
 
@@ -139,7 +139,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -186,7 +186,7 @@ You can also find available LLM model options in
 Convert model and compress model weights
 ----------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -285,7 +285,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 LLM conversion and Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -505,7 +505,7 @@ Let’s compare model size for different compression types
 Convert embedding model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Since some embedding models can only support limited languages, we can
 filter them out according the LLM you selected.
@@ -557,7 +557,7 @@ OpenVINO embedding model and tokenizer can be exported by
 Convert rerank model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -607,7 +607,7 @@ task with ``optimum-cli``.
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -615,7 +615,7 @@ Select device for inference and model variant
 Select device for embedding model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -651,7 +651,7 @@ Select device for embedding model inference
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -686,7 +686,7 @@ Select device for rerank model inference
 Select device for LLM model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -721,12 +721,12 @@ Select device for LLM model inference
 Load models
 -----------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Load embedding model
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
 `OpenVINOEmbeddings <https://python.langchain.com/docs/integrations/text_embedding/openvino>`__
@@ -785,7 +785,7 @@ of LangChain.
 Load rerank model
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
 `OpenVINOReranker <https://python.langchain.com/docs/integrations/document_transformers/openvino_rerank>`__
@@ -816,7 +816,7 @@ class of LangChain.
 Load LLM model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 OpenVINO models can be run locally through the ``HuggingFacePipeline``
 class. To deploy a model with OpenVINO, you can specify the
@@ -919,7 +919,7 @@ inference framework.
 Run QA over Document
 --------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.

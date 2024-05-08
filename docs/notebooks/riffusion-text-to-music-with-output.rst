@@ -91,7 +91,7 @@ Table of contents:
 Prerequisites
 -------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
@@ -101,7 +101,7 @@ Prerequisites
 Stable Diffusion pipeline in Optimum Intel
 ------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -140,7 +140,7 @@ running.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -202,7 +202,7 @@ select device from dropdown list for running inference using OpenVINO
 Prepare postprocessing for reconstruction audio from spectrogram image
 ----------------------------------------------------------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -366,7 +366,7 @@ from a spectrogram image using Griffin-Lim Algorithm.
 Run Inference pipeline
 ----------------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -497,7 +497,7 @@ without the other. More explanation of how it works can be found in this
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#table-of-contents>`__
+
 
 .. code:: ipython3
 
