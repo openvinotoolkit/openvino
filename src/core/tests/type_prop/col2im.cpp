@@ -39,7 +39,9 @@ TEST_F(TypePropCol2ImTest, default_ctor) {
 }
 
 TEST_F(TypePropCol2ImTest, non_default_args) {
-    const auto data = std::make_shared<Parameter>(element::i64, Shape{3, 12, 81});
+    PartialShape data_shape{3, 12, 81};
+    auto data_symbols = set_shape_symbols(data_shape);
+    const auto data = std::make_shared<Parameter>(element::i64, data_shape);
     const auto output_size = std::make_shared<Parameter>(element::i64, Shape{2});
     const auto kernel_size = std::make_shared<Parameter>(element::i64, Shape{2});
     const auto strides = Strides{2, 2};
@@ -60,6 +62,8 @@ TEST_F(TypePropCol2ImTest, non_default_args) {
     EXPECT_EQ(op->get_dilations(), (Strides{2, 2}));
     EXPECT_EQ(op->get_pads_begin(), (Shape{2, 2}));
     EXPECT_EQ(op->get_pads_end(), (Shape{2, 2}));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                testing::ElementsAre(data_symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropCol2ImTest, incorrect_types) {
@@ -81,7 +85,9 @@ TEST_F(TypePropCol2ImTest, incorrect_types) {
 }
 
 TEST_F(TypePropCol2ImTest, batched_const_values) {
-    const auto data = std::make_shared<Parameter>(element::i64, Shape{3, 12, 81});
+    PartialShape data_shape{3, 12, 81};
+    auto data_symbols = set_shape_symbols(data_shape);
+    const auto data = std::make_shared<Parameter>(element::i64, data_shape);
     const auto output_size =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, std::vector<int32_t>{16, 16});
     const auto kernel_size = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, std::vector<int32_t>{2, 2});
@@ -98,6 +104,8 @@ TEST_F(TypePropCol2ImTest, batched_const_values) {
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 3, 16, 16}));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                testing::ElementsAre(data_symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropCol2ImTest, unbatched_const_values) {
@@ -185,15 +193,13 @@ TEST_F(TypePropCol2ImTest, dynamic_input_shapes) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 3);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_output_partial_shape(0),
-              (PartialShape::dynamic()));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
 TEST_F(TypePropCol2ImTest, static_batch) {
     PartialShape data_shape{5, Dimension::dynamic(), Dimension::dynamic()};
-    auto symbols = set_shape_symbols(data_shape);
-    const auto data =
-        std::make_shared<Parameter>(element::i64, data_shape);
+    auto data_symbols = set_shape_symbols(data_shape);
+    const auto data = std::make_shared<Parameter>(element::i64, data_shape);
     const auto output_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto kernel_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto strides = Strides{2, 2};
@@ -211,7 +217,7 @@ TEST_F(TypePropCol2ImTest, static_batch) {
     EXPECT_EQ(op->get_output_partial_shape(0),
               (PartialShape{5, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
-                testing::ElementsAre(nullptr, nullptr, nullptr, nullptr));
+                testing::ElementsAre(data_symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropCol2ImTest, 2D_dynamic_input) {
