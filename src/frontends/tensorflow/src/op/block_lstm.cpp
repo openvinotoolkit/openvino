@@ -53,7 +53,7 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     // hs - [time_len, batch_size, hidden_size] shape
     // cs - [time_len, batch_size, hidden_size] shape
 
-    auto hidden_size_value = static_cast<size_t>(hidden_size.get_length());
+    auto hidden_size_value = hidden_size.get_length();
 
     // create a body graph with LSTMCell
     auto xi_param =
@@ -71,8 +71,13 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto squeeze_axis = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
     auto xi = std::make_shared<v0::Squeeze>(xi_param, squeeze_axis);
 
-    auto lstm_cell =
-        std::make_shared<v0::LSTMCell>(xi, h_prev_param, c_prev_param, w_param, r_param, b_param, hidden_size_value);
+    auto lstm_cell = std::make_shared<v0::LSTMCell>(xi,
+                                                    h_prev_param,
+                                                    c_prev_param,
+                                                    w_param,
+                                                    r_param,
+                                                    b_param,
+                                                    static_cast<size_t>(hidden_size_value));
     auto h = lstm_cell->output(0);
     auto c = lstm_cell->output(1);
 
