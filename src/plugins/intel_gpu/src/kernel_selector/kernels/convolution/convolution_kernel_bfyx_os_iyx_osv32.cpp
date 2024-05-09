@@ -2,37 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convolution_kernel_bfyx_os_iyx_osv16.h"
+#include "convolution_kernel_bfyx_os_iyx_osv32.h"
 #include <vector>
 #include <utility>
 #include <algorithm>
 
 namespace kernel_selector {
-// Sub-group size used by "kernel_name_bfyx_os_iyx_osv16" kernel.
 
-ConvolutionKernel_bfyx_os_iyx_osv16::ConvolutionKernel_bfyx_os_iyx_osv16()
-    : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv16") {
+ConvolutionKernel_bfyx_os_iyx_osv32::ConvolutionKernel_bfyx_os_iyx_osv32()
+    : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv32") {
     // Generate the dispatch options to the auto-tuner.
     std::vector<size_t> blockWidthSizes = {1, 2, 4, 5, 6, 8, 10, 12, 14, 16};
     std::vector<size_t> blockHeightSizes = {1, 2, 3, 4, 5};
-    std::vector<size_t> prefetchSizes = {1, 2, 3, 4, 5, 6, 8, 10};
     std::vector<std::string> executionModes = ConvolutionKernelBase::autoTuneOptions;
     const size_t maxBlockSize = 60;
 
     for (auto executionMode : executionModes) {
         for (auto blockWidth : blockWidthSizes) {
             for (auto blockHeight : blockHeightSizes) {
-                for (auto prefetch : prefetchSizes) {
-                    if (blockWidth * blockHeight <= maxBlockSize) {
-                        autoTuneOptions.emplace_back(AutoTuneOption{blockWidth, blockHeight, prefetch, executionMode});
-                    }
+                if (blockWidth * blockHeight <= maxBlockSize) {
+                    autoTuneOptions.emplace_back(AutoTuneOption{blockWidth, blockHeight, executionMode});
                 }
             }
         }
     }
 }
 
-ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_bfyx_os_iyx_osv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -54,7 +50,7 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv32::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_shuffle();
@@ -108,14 +104,14 @@ static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_
     }
 }
 
-ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv16::GetAutoTuneOptions(
+ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv32::GetAutoTuneOptions(
     const Params& p,
     int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
+    AutoTuneOption option = {0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -125,54 +121,47 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
             option.blockWidth = sub_group_size;
             option.blockHeight = 1;
-            option.prefetch = 4;
         // if less than 16 values is required to compute one single row of output
         // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
         // performance results)
         } else if (!p.is_shape_agnostic && cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
             option.blockWidth = cp.outputs[0].X().v;
             option.blockHeight = 1;
-            option.prefetch = 4;
         } else if (cp.filterSize.x < 5 && cp.filterSize.y < 5) {
-            option.blockWidth = sub_group_size - cp.filterSize.x + 1;
+            option.blockWidth = std::min(static_cast<size_t>(sub_group_size - cp.filterSize.x + 1), static_cast<size_t>(8));
             option.blockHeight = 2;
-            option.prefetch = 4;
         } else {
             option.blockWidth = 4;
             option.blockHeight = 3;
-            option.prefetch = 4;
         }
     } else if (cp.stride.x == 2 && cp.stride.y == 2) {
         option.blockWidth = 5;
         option.blockHeight = 4;
-        option.prefetch = 4;
     } else {
         option.blockWidth = 4;
         option.blockHeight = 3;
-        option.prefetch = 5;
     }
 
-    // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
+    // if this is not 1x1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1)) {
+    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefault(const convolution_params& cp,
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefault(const convolution_params& cp,
                                                                                     int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
     const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = cp.outputs[0].Feature().v;
-    const auto of_maps_per_group = of_maps / cp.groups;
+    const auto of_maps_per_group = of_maps / cp.groups / 2;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
     auto input_block_dims = get_bfyx_req_input_block_dims(dispatchData.cldnnStyle.blockWidth,
                                                           dispatchData.cldnnStyle.blockHeight,
@@ -196,11 +185,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_4;
+KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv32::GetKernelsPriority(const Params& /*params*/) const {
+    return FORCE_PRIORITY_3;
 }
 
-bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
+bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
@@ -216,7 +205,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_bfyx_os_iyx_osv32::GetJitConstants(const convolution_params& params,
                                                                   const DispatchData& dispatchData) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     const auto& sub_group_size = GetSubGroupSize(cp);
@@ -234,7 +223,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
-    jit.AddConstant(MakeJitConstant("OSV_SIZE", 16));
+    jit.AddConstant(MakeJitConstant("OSV_SIZE", 32));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
@@ -249,16 +238,16 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     return jit;
 }
 
-WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
+WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv32::GetPreferredWeightsLayout(
         const convolution_params &params) const {
-    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
+    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv32 : WeightsLayout::os_iyx_osv32;
 }
 
-KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params) const {
+KernelsData ConvolutionKernel_bfyx_os_iyx_osv32::GetKernelsData(const Params& params) const {
     return GetTunedKernelsDataByIndex(params);
 }
 
-KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsDataForAutoTune(const Params& params) const {
+KernelsData ConvolutionKernel_bfyx_os_iyx_osv32::GetKernelsDataForAutoTune(const Params& params) const {
     if (!Validate(params)) {
         return {};
     }
