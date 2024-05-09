@@ -20,6 +20,32 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     zeroUtils::throwOnFail("zeDeviceGetProperties",
                            zeDeviceGetProperties(_initStructs->getDevice(), &device_properties));
 
+    // Query PCI information
+    // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
+    // zero values. If this is detected, we populate only device with ID from device_properties for backwards
+    // compatibility
+    pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
+    ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties);
+    if (ZE_RESULT_SUCCESS == retpci) {
+        // win backwards compatibility
+        if (pci_properties.address.device == 0) {
+            log.warning("PCI information not available in driver. Falling back to deviceId");
+            pci_properties.address.device = device_properties.deviceId;
+        }
+    } else if (ZE_RESULT_ERROR_UNSUPPORTED_FEATURE == retpci) {
+        log.warning("PCI information not available in driver. Falling back to deviceId");
+        // linux backwards compatibilty
+        pci_properties.address.device = device_properties.deviceId;
+    } else {
+        OPENVINO_THROW("L0 zeDevicePciGetPropertiesExt result: ",
+                       ze_result_to_string(retpci),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(retpci),
+                       " - ",
+                       ze_result_to_description(retpci));
+    }
+
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
     // Discover all command queue groups
@@ -108,6 +134,13 @@ uint64_t ZeroDevice::getTotalMemSize() const {
         "pfnQueryContextMemory",
         _graph_ddi_table_ext->pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query));
     return query.total;
+}
+
+ov::device::PCIInfo ZeroDevice::getPciInfo() const {
+    return ov::device::PCIInfo{pci_properties.address.domain,
+                               pci_properties.address.bus,
+                               pci_properties.address.device,
+                               pci_properties.address.function};
 }
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
