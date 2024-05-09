@@ -162,8 +162,7 @@ ov::optional<TRes> get_axes(const Node* const op, size_t port, bool has_axes, si
             validate::axes_values(op, *axes, rank);
         }
     } else {
-        axes.reset();
-        axes = TRes(rank);
+        axes.emplace(rank);
         std::iota(axes->begin(), axes->end(), 0);
     }
     return axes;

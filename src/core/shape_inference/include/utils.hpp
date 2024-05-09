@@ -209,7 +209,7 @@ ov::optional<TRes> get_input_const_data_as(const ov::Node* op,
                                            const ITensorAccessor& tensor_accessor,
                                            UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (auto t = tensor_accessor(idx)) {
-        return ov::optional<TRes>(get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func)));
+        return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
