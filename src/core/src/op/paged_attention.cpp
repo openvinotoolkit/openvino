@@ -18,17 +18,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     // m_num_kv_heads = value_cache_shape[1];
     // m_head_size = value_cache_shape[2];
     // m_block_size = value_cache_shape[3];
-    NODE_VALIDATION_CHECK(this, value_cache_shape.size() == 4, "Value cache shape must be 4 dims");
-
-    // key_cache: shape [num_blocks, num_kv_heads, head_size/x, block_size, x]
-    auto key_cache_shape = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          value_cache_shape.size() == 4,
-                          // value_cache_shape[0] == key_cache_shape[0] && // num_blocks
-                          // key_cache_shape[1] == m_num_kv_heads &&
-                          // key_cache_shape[2] * key_cache_shape[4] == m_head_size &&
-                          // m_block_size == key_cache_shape[3], // block_size,
-                          "Key cache shape must be 4 dims");
+    // Do not check shapes for cache K and cache V inputs, because they are hardware dependent
 
     // query: shape [batch_size, seq_len, num_heads * head_size]
     auto query_type = get_input_element_type(0);
