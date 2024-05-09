@@ -220,12 +220,15 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         `# OpenCL for GPU` \
         ocl-icd-devel \
         OpenCL-Headers \
+        OpenCL-CLHPP \
         rapidjson \
         `# GPU plugin dependency` \
         libva-devel \
         `# For TF FE saved models` \
         snappy-devel \
         `# For Python API` \
+        python3-pip \
+        python3-wheel \
         python3-setuptools \
         python3-devel \
         python3-pybind11 \
@@ -240,7 +243,7 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         `# for python3-enchant` \
         enchant2-devel \
         `# samples` \
-        json-c++        
+        json-c++
 else
     echo "Unknown OS, please install build dependencies manually"
 fi

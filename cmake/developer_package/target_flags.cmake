@@ -120,23 +120,22 @@ get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG
 function(ov_detect_libc_type)
     include(CheckCXXSourceCompiles)
     check_cxx_source_compiles("
-#ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
-  #include <features.h>
-  #ifndef __USE_GNU
-    #define OPENVINO_MUSL_LIBC
-  #endif
-  #undef _GNU_SOURCE /* don't contaminate other includes unnecessarily */
-#else
-  #include <features.h>
-  #ifndef __USE_GNU
-    #define OPENVINO_MUSL_LIBC
-  #endif
-#endif
-
-#ifndef OPENVINO_MUSL_LIBC
-  #error \"OpenVINO MUSL LIBC\"
-#endif
+# ifndef _GNU_SOURCE
+#   define _GNU_SOURCE
+#   include <features.h>
+#   ifndef __USE_GNU
+#     define CMAKE_OPENVINO_MUSL_LIBC
+#   endif
+#   undef _GNU_SOURCE /* don't contaminate other includes unnecessarily */
+# else
+#   include <features.h>
+#   ifndef __USE_GNU
+#     define CMAKE_OPENVINO_MUSL_LIBC
+#   endif
+# endif
+# ifndef CMAKE_OPENVINO_MUSL_LIBC
+#   error \"OpenVINO GNU LIBC\"
+# endif
 
 int main() {
   return 0;
