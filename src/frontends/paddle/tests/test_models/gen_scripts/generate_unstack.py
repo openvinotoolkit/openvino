@@ -20,7 +20,7 @@ def unstack(name: str, x, axis):
         exe = paddle.static.Executor(place)
         exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x}, fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[x_node], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs
 

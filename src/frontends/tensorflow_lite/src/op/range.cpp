@@ -14,10 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector range(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    std::map<std::string, ov::Any> attrs{
-        {"Tidx", node.get_input(0).get_element_type()},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_range_op);
+    return ov::frontend::tensorflow::op::translate_range_op(node);
 }
 
 }  // namespace op
