@@ -65,7 +65,6 @@ const std::vector<get_property_params> get_property_params_test = {
     get_property_params{ov::cache_dir.name(), true},
     get_property_params{ov::hint::performance_mode.name(), true},
     get_property_params{ov::enable_profiling.name(), false},
-
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
