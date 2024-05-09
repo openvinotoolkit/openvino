@@ -1,5 +1,5 @@
 name: 'Dependency Review'
-on: [pull_request]
+on: [pull_request, merge_group]
 
 permissions:
   contents: read
@@ -12,7 +12,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v4.3.2
         with:
           config-file: './.github/dependency_review.yml'
-          allow-dependencies-licenses: 'pkg:pypi/PyGithub@2.2.0,pkg:pypi/psycopg2-binary'
+          base-ref: ${{ github.pull_request.base.sha || github.event.merge_group.base_ref }}
+          head-ref: ${{ github.pull_request.head.sha || github.ref }}

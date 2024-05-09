@@ -3,8 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "op_translation_utils.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow_lite/node_context.hpp"
 
 using namespace std;
 
@@ -14,11 +13,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector cast(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    std::map<std::string, ov::Any> attrs{
-        {"DstT", decoder->get_output_tensor_type(0)},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_cast_op);
+    return ov::frontend::tensorflow::op::translate_cast_op(node);
 }
 
 }  // namespace op

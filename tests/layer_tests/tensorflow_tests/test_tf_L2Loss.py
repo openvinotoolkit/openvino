@@ -31,7 +31,7 @@ class TestL2Loss(CommonTFLayerTest):
                            use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104863')
-        if not use_legacy_frontend:
+        if use_legacy_frontend:
             pytest.skip("L2Loss is not supported by legacy FE.")
         self._test(*self.create_l2_loss_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

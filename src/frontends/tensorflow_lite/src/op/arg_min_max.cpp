@@ -3,8 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "op_translation_utils.hpp"
-#include "utils.hpp"
+#include "openvino/frontend/tensorflow_lite/node_context.hpp"
 
 using namespace std;
 
@@ -14,19 +13,11 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector arg_min(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    std::map<std::string, ov::Any> attrs{
-        {"output_type", get_ov_type(decoder->get_attribute(&tflite::ArgMinOptions::output_type))},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_arg_min_op);
+    return ov::frontend::tensorflow::op::translate_arg_min_op(node);
 }
 
 OutputVector arg_max(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    std::map<std::string, ov::Any> attrs{
-        {"output_type", get_ov_type(decoder->get_attribute(&tflite::ArgMaxOptions::output_type))},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_arg_max_op);
+    return ov::frontend::tensorflow::op::translate_arg_max_op(node);
 }
 
 }  // namespace op

@@ -55,7 +55,7 @@ protected:
         OPENVINO_ASSERT(shape_size(constShape) == 1);
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(prc, ov::Shape(nonConstShape));
-        const auto constNode = ov::test::utils::deprecated::make_constant(prc, constShape, std::vector<float>{}, true);
+        const auto constNode = ov::test::utils::make_constant(prc, constShape);
         OutputVector inputs(2);
         inputs[port] = constNode;
         inputs[1 - port] = param;

@@ -248,7 +248,7 @@ KERNEL(matrix_nms_ref_stage_0)
 
 #ifdef MATRIX_NMS_STAGE_1
 KERNEL(matrix_nms_ref_stage_1)
-(__global INPUT3_TYPE* valid_outputs, __global uchar* buffer0, __global int* selected_boxes_num) {
+(__global OUTPUT2_TYPE* valid_outputs, __global uchar* buffer0, __global int* selected_boxes_num) {
     const int batchId = get_global_id(0);
 
     __global BOX_INFO* box_info = (__global BOX_INFO*)buffer0;
@@ -263,7 +263,7 @@ KERNEL(matrix_nms_ref_stage_1)
         if (i == BACKGROUND_CLASS)
             continue;
 
-        valid_outputs[INPUT3_GET_INDEX(batchId, 0, 0, 0)] += selected_boxes_num[batchId * NUM_CLASSES + i];
+        valid_outputs[OUTPUT2_GET_INDEX(batchId, 0, 0, 0)] += selected_boxes_num[batchId * NUM_CLASSES + i];
     }
 }
 #endif /* MATRIX_NMS_STAGE_1 */
@@ -272,8 +272,8 @@ KERNEL(matrix_nms_ref_stage_1)
 KERNEL(matrix_nms_ref_stage_2)
 (const __global INPUT0_TYPE* input_boxes,
  __global OUTPUT_TYPE* output,
- __global INPUT2_TYPE* selected_indices,
- __global INPUT3_TYPE* valid_outputs,
+ __global OUTPUT1_TYPE* selected_indices,
+ __global OUTPUT2_TYPE* valid_outputs,
  __global uchar* buffer0) {
     __global BOX_INFO* box_info = (__global BOX_INFO*)buffer0;
 
@@ -286,14 +286,14 @@ KERNEL(matrix_nms_ref_stage_2)
     int output_idx = 0;
     int box_info_idx = 0;
     for (int i = 0; i < NUM_BATCHES; ++i) {
-        if (KEEP_TOP_K != -1 && KEEP_TOP_K < valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)])
-            valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)] = KEEP_TOP_K;
+        if (KEEP_TOP_K != -1 && KEEP_TOP_K < valid_outputs[OUTPUT2_GET_INDEX(i, 0, 0, 0)])
+            valid_outputs[OUTPUT2_GET_INDEX(i, 0, 0, 0)] = KEEP_TOP_K;
 
 #if SORT_RESULT_ACROSS_BATCH == 0
         box_info_idx = i * NUM_CLASSES * MAX_BOXES_PER_CLASS;
 #endif
 
-        unroll_for(int j = 0; j < valid_outputs[INPUT3_GET_INDEX(i, 0, 0, 0)]; ++j) {
+        unroll_for(int j = 0; j < valid_outputs[OUTPUT2_GET_INDEX(i, 0, 0, 0)]; ++j) {
             output[OUTPUT_GET_INDEX(output_idx, 0, 0, 0)] = box_info[box_info_idx].class_idx;
             output[OUTPUT_GET_INDEX(output_idx, 1, 0, 0)] = box_info[box_info_idx].score;
             output[OUTPUT_GET_INDEX(output_idx, 2, 0, 0)] =
@@ -305,7 +305,7 @@ KERNEL(matrix_nms_ref_stage_2)
             output[OUTPUT_GET_INDEX(output_idx, 5, 0, 0)] =
                 input_boxes[INPUT0_GET_INDEX(box_info[box_info_idx].batch_idx, box_info[box_info_idx].box_idx, 0, 3)];
 
-            selected_indices[INPUT2_GET_INDEX(output_idx, 0, 0, 0)] =
+            selected_indices[OUTPUT1_GET_INDEX(output_idx, 0, 0, 0)] =
                 box_info[box_info_idx].batch_idx * NUM_BOXES + box_info[box_info_idx].box_idx;
 
             ++output_idx;
@@ -317,7 +317,7 @@ KERNEL(matrix_nms_ref_stage_2)
             unroll_for(int j = 0; j < 6; ++j) {
                 output[OUTPUT_GET_INDEX(output_idx, j, 0, 0)] = -OUTPUT_VAL_ONE;
             }
-            selected_indices[INPUT2_GET_INDEX(output_idx, 0, 0, 0)] = -INPUT2_VAL_ONE;
+            selected_indices[OUTPUT1_GET_INDEX(output_idx, 0, 0, 0)] = -OUTPUT1_VAL_ONE;
             ++output_idx;
         }
     }

@@ -18,7 +18,7 @@ NamedOutputVector translate_unique_op(const NodeContext& node) {
     // This operation returns a tensor y containing all of the unique elements of x sorted in the same order that they
     // occur in x. This operation also returns a tensor idx the same size as x that contains the index of each value of
     // x in the unique output y.
-    default_op_checks(node, 1, {"Unique"});
+    default_op_checks(node, 1, {"Unique", "UNIQUE"});
     auto node_name = node.get_name();
     auto input_values = node.get_input(0);
     auto output_indices_type = node.get_attribute<ov::element::Type>("out_idx", ov::element::i32);
