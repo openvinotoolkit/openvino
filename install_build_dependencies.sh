@@ -177,7 +177,7 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         scons \
         `# to find dependencies` \
         pkg-config \
-        `# to deternime product version via git` \
+        `# to determine product version via git` \
         git \
         `# to build and check pip packages` \
         patchelf \
@@ -192,6 +192,55 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         python3-venv \
         python3-setuptools \
         libpython3-dev
+elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
+    #Void Linux
+    xbps-install -Syu
+    xbps-install -y \
+        `# for python3-pip` \
+        `# ca-certificates (already included)` \
+        file \
+        `# build tools` \
+        base-devel \
+        ninja \
+        scons \
+        ccache \
+        cmake \
+        `# to find dependencies` \
+        pkgconf \
+        `# to determine product version via git` \
+        git \
+        `# to check bash scripts for correctness` \
+        shellcheck \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        OpenCL-Headers \
+        rapidjson \
+        `# GPU plugin dependency` \
+        libva-devel \
+        `# For TF FE saved models` \
+        snappy-devel \
+        `# For Python API` \
+        python3-setuptools \
+        python3-devel \
+        python3-pybind11 \
+        libffi-devel \
+        `# Spell checking for MO sources` \
+        python3-enchant \
+        `# tools` \
+        wget \
+        git-lfs \
+        `# TF Lite Frontend` \
+        flatbuffers-devel \
+        `# for python3-enchant` \
+        enchant2-devel \
+        `# samples` \
+        json-c++        
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
