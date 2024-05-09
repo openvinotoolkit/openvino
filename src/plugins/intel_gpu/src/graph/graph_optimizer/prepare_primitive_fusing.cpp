@@ -563,7 +563,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
-            auto has_reorder_hehind_mvn = [&]() -> bool {
+            auto has_reorder_behind_mvn = [&]() -> bool {
                 // MVN with rank size 3 always requires Reorder and Reshape. This pattern always run simple formats(bfyx..).
                 if (node.get_dependencies().size() > 0 && node.get_dependency(0).is_type<reshape>()) {
                     auto& reshape_node = node.get_dependency(0);
@@ -581,7 +581,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                  !_lo.get_optimization_attributes().use_onednn_impls && !has_reorder_hehind_mvn()) ||
+                  !_lo.get_optimization_attributes().use_onednn_impls && !has_reorder_behind_mvn()) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
