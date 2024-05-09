@@ -38,7 +38,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 
   * **Description**: stride in the sliding blocks in the input spatial dimensions.
   * **Range of values**: 1D tensor of positive integer numbers
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
   * **Default value**: [1, 1]
   * **Required**: *no*
 
@@ -46,7 +46,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 
   * **Description**: controls local stride of the elements.
   * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
   * **Default value**: [1, 1]
   * **Required**: *no*
 
@@ -54,7 +54,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 
   * **Description**: *pads_begin* is a number of zero-value pixels to add to the beginning along each axis. For example, *pads_begin* equal "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
   * **Default value**: [0, 0]
   * **Required**: *no*
 
@@ -62,7 +62,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 
   * **Description**: *pads_end* is a number of zero-value pixels to add to the ending along each axis. For example, *pads_end* equal "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
   * **Default value**: [0, 0]
   * **Required**: *no*
 
@@ -78,13 +78,13 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 
   * **Description**: controls the shape of the spatial dimensions of the output image. **Required.**
   * **Range of values**: 1D tensor of two positive integer numbers (height and width)
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
 
 * **3**: *kernel_size*
 
   * **Description**: size of the sliding blocks. **Required.**
   * **Range of values**: 1D tensor of non-negative integer numbers
-  * **Type**: *T_IND*
+  * **Type**: *T_IDX*
 
 **Outputs**
 
@@ -96,7 +96,7 @@ Non-batched inputs are also supported, in which case the ``input`` has shape ``(
 **Types**
 
 * *T*: any supported data type.
-* *T_IND*: ``int64`` or ``int32``.
+* *T_IDX*: ``int64`` or ``int32``.
 
 **Examples**
 
