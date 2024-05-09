@@ -169,7 +169,7 @@ protected:
             secondaryInput = param;
             inputs.push_back(param);
         } else {
-            secondaryInput = ov::test::utils::deprecated::make_constant(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
+            secondaryInput = ov::op::v0::Constant::create(secondInPrc, {inpDesc.data[0].size()}, inpDesc.data[0]);
         }
 
         std::shared_ptr<ov::Node> shapeOps;

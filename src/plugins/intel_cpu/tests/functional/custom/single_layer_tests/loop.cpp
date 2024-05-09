@@ -288,7 +288,7 @@ protected:
         auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, std::vector<int64_t>{1});
         auto s = std::make_shared<ov::op::v8::Slice>(body_params[0], beginNode, endNode, strideNode, axesNode);
 
-        auto constant = ov::test::utils::deprecated::make_constant(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
+        auto constant = std::make_shared<ov::op::v0::Constant>(inType, std::vector<size_t>{1}, std::vector<float>{0.5});
         auto eltwise = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
 
         auto body = std::make_shared<ov::Model>(ov::OutputVector{body_condition_const, s, eltwise}, body_params);
@@ -357,7 +357,7 @@ protected:
         }
 
         // Body
-        auto constant = ov::test::utils::deprecated::make_constant(inType, std::vector<size_t>{1}, std::vector<float>{10});
+        auto constant = std::make_shared<ov::op::v0::Constant>(inType, std::vector<size_t>{1}, std::vector<float>{10});
         auto add = std::make_shared<ov::op::v1::Add>(body_params[0], constant);
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{body_params[1], add}, 0);
 
