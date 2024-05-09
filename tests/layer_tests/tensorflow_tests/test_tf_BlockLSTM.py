@@ -30,12 +30,13 @@ class TestBlockLSTM(CommonTFLayerTest):
             wcf = rng.uniform(0, 1, [hidden_size]).astype(np.float32)
             wco = rng.uniform(0, 1, [hidden_size]).astype(np.float32)
             b = rng.uniform(0, 1, [4 * hidden_size]).astype(np.float32)
-            _, _, _, _, _, _, h_output = tf.raw_ops.BlockLSTM(x=x, seq_len_max=seq_len_max, cs_prev=cs_prev,
-                                                              h_prev=h_prev, w=w, wci=wci,
-                                                              wcf=wcf, wco=wco, b=b, forget_bias=forget_bias,
-                                                              cell_clip=cell_clip,
-                                                              use_peephole=use_peephole)
-            tf.identity(h_output, name='block_lstm')
+            _, cs_output, _, _, _, _, h_output = tf.raw_ops.BlockLSTM(x=x, seq_len_max=seq_len_max, cs_prev=cs_prev,
+                                                                      h_prev=h_prev, w=w, wci=wci,
+                                                                      wcf=wcf, wco=wco, b=b, forget_bias=forget_bias,
+                                                                      cell_clip=cell_clip,
+                                                                      use_peephole=use_peephole)
+            tf.identity(cs_output, name='cs_output')
+            tf.identity(h_output, name='h_output')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
