@@ -820,7 +820,7 @@ struct PatternNode {
         return node->get_default_output();
     }
 
-    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(out.get_index()) {}
+    PatternNode(const Output<Node>& out) : node(out.get_node_shared_ptr()), output_port(static_cast<int>(out.get_index())) {}
 
     PatternNode() {
         node = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
