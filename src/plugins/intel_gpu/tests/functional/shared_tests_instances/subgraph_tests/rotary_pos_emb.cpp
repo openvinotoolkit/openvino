@@ -1,26 +1,18 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-// #include <debug.h>
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ov_models/builders.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <string>
-#include <tuple>
 
-#include "gen_pattern.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-// #include "test_utils/gpu_test_utils.hpp"
-// #include "test_utils/fusing_test_utils.hpp"
-// #include "utils/gen_pattern.hpp"
+#include "transformations/utils/gen_pattern.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
-// using namespace GPUTestUtils;
+#include <string>
+
 using namespace ov::gen_pattern;
 using namespace ov;
 
@@ -51,7 +43,6 @@ static ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_
     //   y1 = cos(m*xita_i) * x1 - sin(m*xita_i) * x2
     //   y2 = cos(m*xita_i) * x2 + sin(m*xita_i) * x1
     //
-
     for (int i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
         auto xita_i = 1.0 / std::pow(10000.0, static_cast<double>(i) / rotary_ndims);
         float* psin = lut_sin.data();
@@ -120,7 +111,6 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const int batch,
                                          1,
                                      }),
                                      {-1.000000f});
-
     auto neg_Multiply = makeOP<ov::op::v1::Multiply>({slice_Slice_459, Constant_182988}, {{"auto_broadcast", "numpy"}});
     auto ScatterUpdate_152368 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
     auto slice_Slice2 =
@@ -483,6 +473,150 @@ TEST_F(RoPEGPUTestQwen7b, smoke_CompareWithRefs) {
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 }
+
+class RoPEGPUTestGPTJ : public SubgraphBaseTest, public testing::WithParamInterface<bool> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        bool hasShapeOf;
+        hasShapeOf = obj.param;
+        std::ostringstream result;
+        result << "hasShapeOf=" << hasShapeOf << std::endl;
+        return result.str();
+    }
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& funcInputs = function->inputs();
+
+        auto& input_shape = targetInputStaticShapes[0];
+        auto& sincos_shape = targetInputStaticShapes[1];
+        ov::Tensor t_input =
+            utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, 2, -1.0f, 32768);
+        ov::Tensor t_cos_sin_cache =
+            utils::create_and_fill_tensor(funcInputs[1].get_element_type(), sincos_shape, 2, -1.0f, 32768);
+
+        inputs.clear();
+        inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos_sin_cache});
+    }
+
+protected:
+    std::shared_ptr<ov::Model> buildROPE_GPTJ(const int num_head,
+                                              const int hidden_dims,
+                                              const int rotary_dims,
+                                              bool hasShapeOf) {
+        auto int32_max = std::numeric_limits<std::int32_t>::max();
+        auto input =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, num_head, hidden_dims});
+        auto sincos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, rotary_dims});
+
+        auto slice_Slice_965 =
+            makeOP<ov::op::v1::StridedSlice>({input, {0, 0, 0, 0}, {0, 0, 0, rotary_dims}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        slice_Slice_965->set_friendly_name("slice_Slice_965");
+
+        auto varsplit = makeOP<ov::op::v1::VariadicSplit>({sincos, -1, {rotary_dims / 2, -1}});
+        varsplit->set_output_size(2);
+        varsplit->set_friendly_name("varsplit");
+        auto unsqueeze_sin = makeOP<opset1::Unsqueeze>({varsplit->output(0), 2});
+        auto unsqueeze_cos = makeOP<opset1::Unsqueeze>({varsplit->output(1), 2});
+        std::vector<int32_t> gather_idx(rotary_dims, 1);
+        int32_t v = 0;
+        for (size_t i = 0; i < gather_idx.size(); i += 2, v++) {
+            gather_idx[i] = v;
+            gather_idx[i + 1] = v;
+        }
+
+        auto const_idx = makeConst(ov::element::i32, ov::Shape({static_cast<size_t>(rotary_dims)}), gather_idx);
+        auto constant_155588 = makeConst(element::f32,
+                                         ov::Shape({
+                                             1,
+                                             1,
+                                             1,
+                                             1,
+                                         }),
+                                         {-1.000000f});
+        auto repeat_interleave_sin = makeOP<opset8::Gather>({unsqueeze_sin, const_idx, 3}, {{"batch_dims", 0}});
+        auto repeat_interleave_cos = makeOP<opset8::Gather>({unsqueeze_cos, const_idx, 3}, {{"batch_dims", 0}});
+        repeat_interleave_sin->set_friendly_name("repeat_interleave_sin");
+        repeat_interleave_cos->set_friendly_name("repeat_interleave_cos");
+        // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
+        auto slice_Slice_1174 =
+            makeOP<ov::op::v1::StridedSlice>({slice_Slice_965, {0, 0, 0, 1}, {0, 0, 0, int32_max}, {1, 1, 1, 2}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto neg_Multiply_1177 =
+            makeOP<opset1::Multiply>({slice_Slice_1174, constant_155588}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_65524 = makeOP<opset1::Unsqueeze>({neg_Multiply_1177, -1});
+
+        auto slice_Slice_1168 =
+            makeOP<ov::op::v1::StridedSlice>({slice_Slice_965, {0, 0, 0, 0}, {0, 0, 0, int32_max}, {1, 1, 1, 2}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto Unsqueeze_65525 = makeOP<opset1::Unsqueeze>({slice_Slice_1168, -1});
+        auto stack_1182 = makeOP<opset1::Concat>({Unsqueeze_65524, Unsqueeze_65525}, {{"axis", -1}});
+        auto flatten_Reshape_1198 =
+            makeOP<opset1::Reshape>({stack_1182, {0, 0, num_head, rotary_dims}}, {{"special_zero", true}});
+        // x*cos [B,L,H,ndims]
+        auto mul_cos =
+            makeOP<opset1::Multiply>({slice_Slice_965, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
+        mul_cos->set_friendly_name("mul_cos");
+        auto mul_sin =
+            makeOP<opset1::Multiply>({flatten_Reshape_1198, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+        // *cos + *sin
+        auto rotary_emb = makeOP<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto slice_Slice_971 =
+            makeOP<ov::op::v1::StridedSlice>({input, {0, 0, 0, rotary_dims}, {0, 0, 0, int32_max}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto cat_Concat_1211 = makeOP<opset1::Concat>({rotary_emb, slice_Slice_971}, {{"axis", -1}});
+        auto permute_Transpose_1213 = makeOP<opset1::Transpose>({cat_Concat_1211, {0, 2, 1, 3}});
+        ov::NodeVector model_output = {permute_Transpose_1213};
+        if (hasShapeOf) {
+            auto shapeOf = makeOP<opset1::ShapeOf>({rotary_emb}, {{"output_type", "i32"}});
+            auto gather = makeOP<opset8::Gather>({shapeOf, {1}, 0}, {{"batch_dims", 0}});
+            model_output.push_back(gather);
+        }
+        return std::make_shared<ov::Model>(model_output, ov::ParameterVector{input, sincos});
+    }
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        bool hasShapeOf = this->GetParam();
+        const int batch = 2;
+        const int seq_length = 7;
+        const int num_head = 16;
+        const int hidden_dims = 256;
+        const int rotary_dims = 64;
+
+        InputShape input = {{batch, seq_length, num_head, hidden_dims}, {{batch, seq_length, num_head, hidden_dims}}};
+        InputShape sincos = {{batch, seq_length, rotary_dims}, {{batch, seq_length, rotary_dims}}};
+        init_input_shapes({input, sincos});
+        function = buildROPE_GPTJ(num_head, hidden_dims, rotary_dims, hasShapeOf);
+    }
+};
+
+TEST_P(RoPEGPUTestGPTJ, smoke_CompareWithRefs) {
+    run();
+    std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPEGPUTestGPTJ,
+                         RoPEGPUTestGPTJ,
+                         ::testing::Values(true, false),
+                         RoPEGPUTestGPTJ::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

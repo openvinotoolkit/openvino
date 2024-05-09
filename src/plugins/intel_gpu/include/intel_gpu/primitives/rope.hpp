@@ -4,10 +4,10 @@
 
 #pragma once
 #include "primitive.hpp"
-#include "intel_gpu/op/rope.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 namespace cldnn {
-using RoPE = ov::intel_gpu::op::RoPE;
+using RoPE = ov::op::internal::RoPE;
 
 /// @brief Rotary Position Embedding primitive
 struct rope : public primitive_base<rope> {

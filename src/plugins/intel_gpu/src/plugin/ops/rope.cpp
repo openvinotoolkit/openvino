@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/rope.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/rope.hpp"
 #include "intel_gpu/primitives/permute.hpp"
-#include "intel_gpu/primitives/slice.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/primitives/strided_slice.hpp"
 
 namespace ov {
 namespace op {
 namespace internal {
-using RoPE = ov::intel_gpu::op::RoPE;
+using RoPE = ov::op::internal::RoPE;
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
@@ -22,7 +19,7 @@ using RoPE = ov::intel_gpu::op::RoPE;
 namespace ov {
 namespace intel_gpu {
 
-static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::RoPE>& op) {
+static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::RoPE>& op) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();

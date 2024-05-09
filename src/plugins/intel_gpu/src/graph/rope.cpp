@@ -25,7 +25,7 @@ std::vector<layout> rope_inst::calc_output_layouts(rope_node const& node, kernel
 
     auto output_type = desc->output_data_types[0].value_or(input0_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ShapeType output_shape = input_pshape;

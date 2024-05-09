@@ -6,13 +6,13 @@
 #include "rope_inst.h"
 #include "implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "intel_gpu/op/rope.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace cldnn {
 namespace cpu {
 
-using RoPE = ov::intel_gpu::op::RoPE;
+using RoPE = ov::op::internal::RoPE;
 
 class RoPEExecutor {
 public:
