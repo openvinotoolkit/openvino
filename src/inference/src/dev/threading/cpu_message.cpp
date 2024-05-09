@@ -18,7 +18,7 @@ void MessageManage::send_message(MessageInfo msg_info) {
     {
         std::lock_guard<std::mutex> lock(_msgMutex);
         _messageQueue.push_back(msg_info);
-        // std::cout << "send : " << msg_info.msg_type << ", " << msg_info.rank.size() << "\n";
+        // std::cout << "send : " << msg_info.msg_type << ", " << (msg_info.rank.size() > 0 ? msg_info.rank[0] : -1) << "\n";
     }
     _msgCondVar.notify_all();
 }
@@ -65,6 +65,19 @@ void MessageManage::server_wait(int streams_num) {
                         Task task = std::move(rec_info.task);
                         task();
                     } else if (msg_type == TP) {
+                        // Resend _readQueue that failed last time
+                        bool stop = false;
+                        while (!stop) {
+                            stop = true;
+                            for (int i = 0; i < streams_num; i++) {
+                                if (_readQueue[i].size() == streams_num) {
+                                    stop = false;
+                                }
+                            }
+                            if (!stop) {
+                                _readCondVar.notify_all();
+                            }
+                        }
                         for (int i = 0; i < streams_num; i++) {
                             std::lock_guard<std::mutex> lock(_readMutex);
                             _readQueue[i].push_back(rec_info);
