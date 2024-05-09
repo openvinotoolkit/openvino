@@ -4,7 +4,6 @@
 
 #include "op_table.hpp"
 
-#include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
@@ -22,13 +21,13 @@ using namespace ov::frontend::tensorflow::op;
         return func(context);                                                       \
     }
 
-#define OP_CONVERT_TYPE_RENAME(func, name)                                                                         \
-    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {                                   \
-        auto decoder = make_shared<DecoderMap>(node.get_decoder(), std::map<std::string, ov::Any>{}, name, false); \
-        auto inputs = node.get_inputs();                                                                           \
-        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                                                  \
-        auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);                                    \
-        return get_indexed_outputs(func(context));                                                                 \
+#define OP_CONVERT_TYPE_RENAME(func, name)                                       \
+    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector { \
+        auto decoder = node.get_decoder();                                       \
+        auto inputs = node.get_inputs();                                         \
+        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                \
+        auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);  \
+        return get_indexed_outputs(func(context));                               \
     }
 
 namespace ov {
@@ -38,7 +37,7 @@ namespace op {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"ABS", translate_unary<opset8::Abs>},
-        {"ADD", translate_binary_op_with_activation<opset10::Add, tflite::AddOptions>},
+        {"ADD", translate_binary_op_with_activation<opset10::Add>},
         {"ADD_N", DEQUANTIZE_INPUTS(translate_add_n_op)},
         {"ARG_MAX", DEQUANTIZE_INPUTS(arg_max)},
         {"ARG_MIN", DEQUANTIZE_INPUTS(arg_min)},
@@ -70,7 +69,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(depth_to_space)},
         {"DEPTHWISE_CONV_2D", DEQUANTIZE_INPUTS(depthwise_conv2d)},
         {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)},
-        {"DIV", translate_binary_op_with_activation<opset10::Divide, tflite::DivOptions>},
+        {"DIV", translate_binary_op_with_activation<opset10::Divide>},
         // DYNAMIC_UPDATE_SLICE
         {"ELU", DEQUANTIZE_INPUTS(translate_elu_op)},
         // EMBEDDING_LOOKUP
@@ -118,7 +117,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MEAN", translate_reduce_op<opset8::ReduceMean>},
         {"MINIMUM", translate_binary<opset8::Minimum>},
         {"MIRROR_PAD", DEQUANTIZE_INPUTS(mirror_pad)},
-        {"MUL", translate_binary_op_with_activation<opset10::Multiply, tflite::MulOptions>},
+        {"MUL", translate_binary_op_with_activation<opset10::Multiply>},
         // MULTINOMIAL
         {"NEG", translate_unary<opset8::Negative>},
         // NON_MAX_SUPPRESSION_V4
@@ -175,7 +174,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SQUARED_DIFFERENCE", translate_binary<opset8::SquaredDifference>},
         {"SQUEEZE", DEQUANTIZE_INPUTS(squeeze)},
         {"STRIDED_SLICE", DEQUANTIZE_INPUTS(strided_slice)},
-        {"SUB", translate_binary_op_with_activation<opset10::Subtract, tflite::SubOptions>},
+        {"SUB", translate_binary_op_with_activation<opset10::Subtract>},
         {"SUM", translate_reduce_op<opset8::ReduceSum>},
         // SVDF
         {"TANH", translate_unary<opset8::Tanh>},
