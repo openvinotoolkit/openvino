@@ -133,7 +133,7 @@ void ProgramBuilder::prepare_build() {
 
 void ProgramBuilder::cleanup_build() {
     m_topology.reset();
-#ifdef OPENVINO_GNU_LIBC
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.

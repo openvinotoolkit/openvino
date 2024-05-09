@@ -454,7 +454,7 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#ifdef OPENVINO_GNU_LIBC
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
@@ -617,7 +617,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
 
     t_kernels_code.clear();
-#ifdef OPENVINO_GNU_LIBC
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
