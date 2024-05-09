@@ -53,8 +53,9 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
 
     for (const auto& variable : ov_model->get_variables()) {
         if (!variable_context.get_variable_value(variable)) {
-            auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
-                                                                      : variable->get_info().data_shape.to_shape();
+            const auto& shape = variable->get_info().data_shape.is_dynamic()
+                                    ? ov::Shape{0}
+                                    : variable->get_info().data_shape.to_shape();
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
             auto state =
@@ -83,7 +84,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
         openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_WaitPipline"),
     };
-
+    m_durations = {};
     m_executable = get_template_model()->get_template_plugin()->m_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
@@ -252,11 +253,11 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
-        auto host_tensor = m_backend_output_tensors[i];
+        const auto& host_tensor = m_backend_output_tensors[i];
         auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
-            allocate_tensor(output, [host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
+            allocate_tensor(output, [&host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(ov::make_tensor(tensor));
             });
