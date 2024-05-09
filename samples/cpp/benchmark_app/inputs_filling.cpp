@@ -264,14 +264,12 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
 ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
                                      uint8_t rand_min = std::numeric_limits<uint8_t>::min(),
                                      uint8_t rand_max = std::numeric_limits<uint8_t>::max()) {
-    size_t tensor_size =
-        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
     auto data = reinterpret_cast<uint8_t*>(tensor.data());
 
     std::mt19937 gen(0);
     uniformDistribution<int32_t> distribution(rand_min, rand_max);
-    for (size_t i = 0; i < tensor_size; i++) {
+    for (size_t i = 0; i < tensor.get_size(); i++) {
         uint8_t val = static_cast<uint8_t>(distribution(gen));
         size_t dst_idx = i / 2;
         if (i % 2) {

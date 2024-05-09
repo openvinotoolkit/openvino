@@ -618,7 +618,7 @@ struct ConvertFrom4BitPrecision {
         auto src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<DT*>(ctx.dstPtr);
         for (size_t i = 0; i < ctx.size; i++) {
-            dst[i] = static_cast<DT>(get4Bit(src[i], i % 2));
+            dst[i] = static_cast<DT>(get4Bit(src[i / 2], i % 2));
         }
         ctx.converted = true;
     }
