@@ -261,6 +261,29 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     return tensor;
 }
 
+ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
+                                     uint8_t rand_min = std::numeric_limits<uint8_t>::min(),
+                                     uint8_t rand_max = std::numeric_limits<uint8_t>::max()) {
+    size_t tensor_size =
+        std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = reinterpret_cast<uint8_t*>(tensor.data());
+
+    std::mt19937 gen(0);
+    uniformDistribution<int32_t> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor_size; i++) {
+        uint8_t val = static_cast<uint8_t>(distribution(gen));
+        size_t dst_idx = i / 2;
+        if (i % 2) {
+            data[dst_idx] = (val & 0x0f);
+        } else {
+            data[dst_idx] = data[dst_idx] | ((val & 0x0f) << 4);
+        }
+    }
+
+    return tensor;
+}
+
 ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                             size_t inputId,
                             size_t batchSize,
@@ -584,6 +607,10 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<int16_t, int16_t>(inputInfo.second);
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+    } else if (type == ov::element::u4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::i4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::string) {
         const auto& in_info = inputInfo.second;
         const auto tensor_size = ov::shape_size(in_info.dataShape);
