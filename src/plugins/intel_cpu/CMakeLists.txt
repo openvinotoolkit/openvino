@@ -186,6 +186,9 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
+# Temporal solution to use template reference implementations in cases where optimizied implementation
+# is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
