@@ -46,7 +46,7 @@ std::shared_ptr<Node> SpaceToDepth::clone_with_new_inputs(const OutputVector& ne
 void SpaceToDepth::validate_and_infer_types() {
     OV_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
 
-    const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 

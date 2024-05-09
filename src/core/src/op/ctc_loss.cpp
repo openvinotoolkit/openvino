@@ -59,7 +59,7 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               input_et);
     }
 
-    const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, logits_type, output_shapes[0]);
 }
 

@@ -44,7 +44,7 @@ void util::ScatterElementsUpdateBase::validate_and_infer_types() {
                           data_et,
                           " and: ",
                           updates_et);
-    const auto& output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     auto out_et = get_input_element_type(0);
     std::ignore = element::Type::merge(out_et, get_input_element_type(0), get_input_element_type(2));
     set_output_type(0, out_et, output_shapes[0]);
