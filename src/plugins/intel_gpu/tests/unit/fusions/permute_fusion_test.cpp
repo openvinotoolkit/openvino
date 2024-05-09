@@ -173,6 +173,7 @@ public:
 // permute_f_y_axes
 #define CASE_PERMUTE_TILE_BFYX_TO_BYFX_0 { 1, 8, 4, 2 }, { 1, 2, 4, 8 }, { 0, 2, 1, 3 }, tensor{ 0 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_TILE_BFYX_TO_BYFX_1 { 1, 32, 256, 512 }, { 1, 512, 256, 32 }, { 0, 2, 1, 3 }, tensor{ 0 }, data_types::f32, format::b_fs_yx_fsv32, data_types::f32, format::b_fs_yx_fsv32
+#define CASE_PERMUTE_TILE_BFYX_TO_BYFX_2 {1, 4, 1, 8 }, { 1, 8, 1, 4 }, { 0, 2, 1, 3 }, tensor{ 0 }, data_types::f32, format::bfyx, data_types::f32, format::b_fs_yx_fsv32
 
 class permute_activation_scale_eltwise: public PermuteFusingTest {};
 TEST_P(permute_activation_scale_eltwise, basic) {
@@ -272,7 +273,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_activation_scale_eltwise, ::testin
 
     // Fusing tests for permute_f_y_axes
     permute_params{ CASE_PERMUTE_TILE_BFYX_TO_BYFX_0, 2, 5 },
-    permute_params{ CASE_PERMUTE_TILE_BFYX_TO_BYFX_1, 2, 5 }
+    permute_params{ CASE_PERMUTE_TILE_BFYX_TO_BYFX_1, 2, 5 },
+    permute_params{ CASE_PERMUTE_TILE_BFYX_TO_BYFX_2, 2, 5 },
 }));
 
 class permute_quant_u8: public PermuteFusingTest {};

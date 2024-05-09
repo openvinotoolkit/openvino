@@ -135,25 +135,32 @@ KERNEL (permute_f_y_axes)(
 
     const int bf = get_global_id(2);
     const int b_idx = bf / INPUT0_FEATURE_NUM;
-    const int f_idx = bf % INPUT0_FEATURE_NUM;
+    int f_idx = bf % INPUT0_FEATURE_NUM;
     const int bf_local = get_local_id(2);
     const int x_idx = get_global_id(0);
     const int y_begin = get_global_id(1) * TILE_SIZE;
     const int f_begin = get_local_size(2) * get_group_id(2);
-
 #if INPUT0_SIMPLE == 1
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
-        const int y_idx = y_begin + j_vec;
-        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
+        int y_idx = y_begin + j_vec;
 #if HAS_FUSED_OPS
-        FUSED_OPS_VEC;
-        OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
+        
         for (int k = 0; k < VEC_SIZE; ++k) {
-            transpose_buf[j_vec + k][bf_local] = result[k];
+            y_idx = y_begin + j_vec + k;
+            f_idx = bf % INPUT0_FEATURE_NUM;
+            OUTPUT_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)];
+            f_idx = y_begin + j_vec + k;
+            y_idx = bf % INPUT0_FEATURE_NUM;
+            FUSED_OPS;
+            OUTPUT_TYPE result = FUSED_OPS_RESULT;
+            transpose_buf[j_vec + k][bf_local] = result;
         }
+        f_idx = bf % INPUT0_FEATURE_NUM;
+        y_idx = y_begin + j_vec;
 #else
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         for (int k = 0; k < VEC_SIZE; ++k) {
             transpose_buf[j_vec + k][bf_local] = ACTIVATION(res[k], ACTIVATION_PARAMS);
         }
