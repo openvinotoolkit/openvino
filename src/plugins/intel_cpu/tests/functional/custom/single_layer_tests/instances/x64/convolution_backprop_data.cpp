@@ -116,34 +116,34 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16,
         DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* =============  CVS-140606============= */
-const std::vector<std::vector<size_t>> kernels_Async_Padding_1x1 = {{{1, 1}}};
-const std::vector<std::vector<size_t>> strides_Async_Padding_1x1 = {{{1, 1}}};
-const std::vector<std::vector<ptrdiff_t>> padBegins_Async_Padding_1x1 = {{0, 0}};
-const std::vector<std::vector<ptrdiff_t>> padEnds_Async_Padding_1x1 = {{1, 1}};
-const std::vector<std::vector<size_t>> dilations_Async_Padding_1x1 = {{1, 1}};
-const std::vector<size_t> numOutChannels_Async_Padding_1x1 = {16};
+const std::vector<std::vector<size_t>> kernels_Asymmetric_Padding_1x1 = {{{1, 1}}};
+const std::vector<std::vector<size_t>> strides_Asymmetric_Padding_1x1 = {{{1, 1}}};
+const std::vector<std::vector<ptrdiff_t>> padBegins_Asymmetric_Padding_1x1 = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> padEnds_Asymmetric_Padding_1x1 = {{1, 1}};
+const std::vector<std::vector<size_t>> dilations_Asymmetric_Padding_1x1 = {{1, 1}};
+const std::vector<size_t> numOutChannels_Asymmetric_Padding_1x1 = {16};
 
-const auto conv2DParams_Async_Padding_1x1 = ::testing::Combine(
-        ::testing::ValuesIn(kernels_Async_Padding_1x1),
-        ::testing::ValuesIn(strides_Async_Padding_1x1),
-        ::testing::ValuesIn(padBegins_Async_Padding_1x1),
-        ::testing::ValuesIn(padEnds_Async_Padding_1x1),
-        ::testing::ValuesIn(dilations_Async_Padding_1x1),
-        ::testing::ValuesIn(numOutChannels_Async_Padding_1x1),
+const auto conv2DParams_Asymmetric_Padding_1x1 = ::testing::Combine(
+        ::testing::ValuesIn(kernels_Asymmetric_Padding_1x1),
+        ::testing::ValuesIn(strides_Asymmetric_Padding_1x1),
+        ::testing::ValuesIn(padBegins_Asymmetric_Padding_1x1),
+        ::testing::ValuesIn(padEnds_Asymmetric_Padding_1x1),
+        ::testing::ValuesIn(dilations_Asymmetric_Padding_1x1),
+        ::testing::ValuesIn(numOutChannels_Asymmetric_Padding_1x1),
         ::testing::Values(ov::op::PadType::EXPLICIT),
         ::testing::ValuesIn(emptyOutputPadding)
 );
 
-const std::vector<DeconvInputData> inputs_numOutChannels_Async_Padding_1x1 = {
+const std::vector<DeconvInputData> inputs_numOutChannels_Asymmetric_Padding_1x1 = {
                         DeconvInputData{InputShape{{1, 3, 30, 30}, {{1, 3, 30, 30}}},
                         ov::test::utils::InputLayerType::CONSTANT,
                         {}}
 };
 
-INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Async_Padding_1x1, DeconvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Asymmetric_Padding_1x1, DeconvolutionLayerCPUTest,
                         ::testing::Combine(
-                                conv2DParams_Async_Padding_1x1,
-                                ::testing::ValuesIn(inputs_numOutChannels_Async_Padding_1x1),
+                                conv2DParams_Asymmetric_Padding_1x1,
+                                ::testing::ValuesIn(inputs_numOutChannels_Asymmetric_Padding_1x1),
                                 ::testing::Values(ElementType::f32),
                                 ::testing::ValuesIn({emptyFusingSpec}),
                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1_nspc_brgconv})),

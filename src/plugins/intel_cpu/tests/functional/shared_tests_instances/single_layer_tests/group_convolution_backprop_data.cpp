@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_1d_AutoPadValid, GroupConvB
 /* ============= _2d GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> input_shapes_2d = {{{1, 16, 10, 10}},
                                                              {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t >> kernels_2d = {{3, 3}, {2, 2}};
+const std::vector<std::vector<size_t >> kernels_2d = {{1, 1}, {3, 3}};
 const std::vector<std::vector<size_t >> strides_2d = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_2d = {{0, 0}};
