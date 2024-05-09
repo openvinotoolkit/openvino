@@ -173,6 +173,9 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
+    // GPTQ transformations need to be executed before other passes
+    // Once the GPTQ patterns are modified by other transformations,
+    // they cannot be captured anymore
     manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
 
