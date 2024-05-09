@@ -41,17 +41,6 @@ TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptab
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 
-template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types);
-
-/** @brief  A template specialization for TargetType int32_t */
-template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types);
-
 /** @brief  A template specialization for TargetType std::vector<size_t> */
 template <>
 std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,

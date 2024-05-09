@@ -43,19 +43,6 @@ bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& accep
 }
 
 template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types) {
-    const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument" + std::to_string(idx)));
-    if (!elem.IsNumber()) {
-        OPENVINO_THROW(std::string("Passed argument must be a number."));
-    }
-    return elem.ToNumber().Int32Value();
-}
-
-template <>
 std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
                                    const size_t idx,
                                    const std::vector<napi_types>& acceptable_types) {
