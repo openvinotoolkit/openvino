@@ -135,7 +135,7 @@ protected:
             // Request to execute the handleer. Pass what we know about the inputs to the
             // handler and associate the results with the outputs
             std::vector<V> inputs;
-            for (auto v : node->input_values()) {
+            for (const auto& v : node->input_values()) {
                 inputs.push_back(evaluator.get_value_map().at(v));
             }
             std::vector<V> outputs = m_handler(node, inputs);

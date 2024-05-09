@@ -35,8 +35,8 @@ bool Identity::visit_attributes(ov::AttributeVisitor& visitor) {
 
 //! [op:evaluate]
 bool Identity::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    auto in = inputs[0];
-    auto out = outputs[0];
+    const auto& in = inputs[0];
+    auto& out = outputs[0];
     if (out.data() == in.data())  // Nothing to do
         return true;
     out.set_shape(in.get_shape());

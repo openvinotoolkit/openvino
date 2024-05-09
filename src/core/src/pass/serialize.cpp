@@ -1033,7 +1033,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
 
-                auto rt_info = o.get_tensor().get_rt_info();
+                const auto& rt_info = o.get_tensor().get_rt_info();
                 auto port_element_type =
                     is_fp16_compression_postponed(rt_info) ? ov::element::f16 : o.get_element_type();
 
@@ -1054,7 +1054,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                     port.append_attribute("names").set_value(names.c_str());
                 }
 
-                for (auto d : o.get_partial_shape()) {
+                for (const auto& d : o.get_partial_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     if (d.is_dynamic()) {
                         dim.append_child(pugi::xml_node_type::node_pcdata).set_value("-1");

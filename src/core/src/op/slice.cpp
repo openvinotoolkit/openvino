@@ -125,7 +125,7 @@ bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const auto starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
     const auto steps = ov::get_tensor_data_as<int64_t>(inputs[3]);
-    const auto axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
+    const auto& axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
 
     reference::slice(static_cast<const char*>(inputs[0].data()),
                      inputs[0].get_shape(),

@@ -152,7 +152,7 @@ void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
         auto index = input_description->m_input_index;
 
         auto body_parameter = params.at(input_description->m_body_parameter_index);
-        auto input_partial_shape = input_value(index).get_partial_shape();
+        const auto& input_partial_shape = input_value(index).get_partial_shape();
         auto dtype = input_value(index).get_element_type();
         body_parameter->set_partial_shape(input_partial_shape);
         body_parameter->set_element_type(dtype);
