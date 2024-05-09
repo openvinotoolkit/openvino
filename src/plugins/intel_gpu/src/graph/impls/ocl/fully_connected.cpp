@@ -29,7 +29,9 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             auto crop_to_2d = [](const ov::PartialShape& shape) {
                 return ov::PartialShape({shape[0], shape[1]});
             };
-
+            std::cout << "in fc ocl get weight reorder" << std::endl;
+            std::cout << from_weights_tensor(params.src).to_short_string() << std::endl;
+            std::cout << from_weights_tensor(params.dest).to_short_string() << std::endl;
             auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
                                                                                  from_weights_tensor(params.dest),
                                                                                  params.rotate);

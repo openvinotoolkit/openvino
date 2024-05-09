@@ -4,6 +4,8 @@
 
 #pragma once
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/graph/ccl_messenger.hpp"
+#include "openvino/core/parallel.hpp"
 #include "primitive_inst.h"
 #include "data_inst.h"
 
@@ -17,7 +19,13 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog) {}
+        : parent(prim, prog) {
+            if (getenv("ENABLE_CCL")) {
+                w_rank = Messenger::getInstance().getRank();
+                w_size = Messenger::getInstance().getSize();
+                GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
+            }
+        }
 
     program_node& input() const { return get_dependency(0); }
     program_node& weights() const { return get_dependency(1); }
@@ -28,12 +36,32 @@ public:
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
-        auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_engine().get_device_info().dev_type,
+                                                                                 get_program().get_stream_ptr(), get_primitive(),
+                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
+        params->memory_deps = get_const_memory_deps();
+        params->_can_be_optimized = this->optimized;
+        params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
+        params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
+        auto deps = get_dependencies();
+        for (size_t i = 0; i < deps.size(); i++) {
+            if (!deps[i].first->is_constant()) {
+                params->primary_input_idx = i;
+                break;
+            }
+        }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        params->fused_desc_onednn = get_fused_primitives_onednn();
+#endif // ENABLE_ONEDNN_FOR_GPU
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
+        params->w_rank = w_rank;
+        params->w_size = w_size;
         return params;
     }
+    int w_rank = 0;
+    int w_size = 2;
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;

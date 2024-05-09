@@ -93,6 +93,15 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                impl_param.is_type<broadcast>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
+        if (impl_param.is_type<fully_connected>()) {
+            // weights is static, we need update here, because weight layout has not been updated yet
+            auto weights_layout = impl_param.get_input_layout(1);
+            auto weights_pshape = weights_layout.get_partial_shape().to_shape();
+            auto dims = weights_layout.get_dims();
+            auto dim = weights_pshape.size() - 1; // to be finalized
+            std::cout << weights_pshape[dim] << std::endl;
+            weights_pshape[dim] /= impl_param.w_size;
+        }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
         kernel_params.is_shape_agnostic = impl_param.is_dynamic();
         kernel_params.set_dynamic_shape_offsets();
