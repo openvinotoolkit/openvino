@@ -1517,14 +1517,14 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
     _mem_allocated = allocate_memory;
     if (!_mem_allocated && (node.is_dynamic() && _outputs_memory_count > 1)) {
-        auto avaiable_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
+        auto available_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
             for (auto& l : layouts) {
                 if (l.is_static())
                     return true;
             }
             return false;
         };
-        allocate_memory = _mem_allocated = avaiable_allocate_memory(_impl_params->output_layouts);
+        allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
 
     if (allocate_memory) {
