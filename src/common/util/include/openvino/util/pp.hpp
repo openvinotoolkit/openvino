@@ -63,3 +63,23 @@ __cplusplus value compatibility issues.*/
 #else
 #    define OV_CAPTURE_CPY_AND_THIS =
 #endif /* C++20 */
+
+#ifdef __linux__
+#    ifndef _GNU_SOURCE
+#        define _GNU_SOURCE
+#        include <features.h>
+#        ifndef __USE_GNU
+#            define OPENVINO_MUSL_LIBC
+#        endif
+#        undef _GNU_SOURCE /* don't contaminate other includes unnecessarily */
+#    else
+#        include <features.h>
+#        ifndef __USE_GNU
+#            define OPENVINO_MUSL_LIBC
+#        endif
+#    endif
+
+#    ifndef OPENVINO_MUSL_LIBC
+#        define OPENVINO_GNU_LIBC
+#    endif
+#endif

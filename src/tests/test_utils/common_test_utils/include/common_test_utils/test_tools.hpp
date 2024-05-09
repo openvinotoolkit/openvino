@@ -37,7 +37,7 @@ std::vector<T> read_binary_file(const std::string& path) {
     return file_content;
 }
 
-template <typename T = int32_t>
+template <typename T = int>
 std::vector<T> gen_range(const size_t elements, const T start = T{0}) {
     std::vector<T> range;
     range.resize(elements);
