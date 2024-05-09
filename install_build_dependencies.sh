@@ -294,7 +294,7 @@ elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
 		`# for python3-enchant` \
 		enchant2
 		`# samples` \
-        nlohmann-json
+        	nlohmann-json
 else
     echo "Unknown OS, please install build dependencies manually"
 fi
