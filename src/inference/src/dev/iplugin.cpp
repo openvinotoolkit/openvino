@@ -442,10 +442,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 cancel_split = true;
             }
         } while (!cancel_split);
-        if (temp_supported_1.size() > 0) {
-            copy_set(temp_supported_1, supported);
-            copy_set(temp_unsupported_1, unsupported);
-        }
+        copy_set(temp_supported_1, supported);
+        copy_set(temp_unsupported_1, unsupported);
     }
     // Finally get intersection of all supported operation names
     // and operation names from original model
