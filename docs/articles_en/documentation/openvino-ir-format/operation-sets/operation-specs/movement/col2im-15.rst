@@ -181,6 +181,12 @@ For inputs ``output_size`` = [32, 32] and ``kernel_size`` = [2, 2]
                 <dim>12/dim>     <!-- C * Product(kernel_size) -->
                 <dim>324</dim>   <!-- L -->
             </port>
+            <port id="1" precision="I32">
+                <dim>2</dim>     <!-- output_size -->
+            </port>
+            <port id="2" precision="I32">
+                <dim>2</dim>     <!-- kernel_size -->
+            </port>
         </input>
         <output>
             <port id="1" precision="I32">
@@ -204,6 +210,12 @@ For inputs ``output_size`` = [16, 16] and ``kernel_size`` = [2, 2]
             <port id="0" precision="I32">
                 <dim>12</dim>    <!-- C * Product(kernel_size) -->
                 <dim>225</dim>   <!-- L -->
+            </port>
+            <port id="1" precision="I32">
+                <dim>2</dim>     <!-- output_size -->
+            </port>
+            <port id="2" precision="I32">
+                <dim>2</dim>     <!-- kernel_size -->
             </port>
         </input>
         <output>
