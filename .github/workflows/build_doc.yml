@@ -50,7 +50,7 @@ jobs:
       - name: Build docs
         run: |
           rm -rf build && mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON -DENABLE_CPP_API=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_DOCS=ON
           cmake --build . --target sphinx_docs
 
       - name: Cache documentation
