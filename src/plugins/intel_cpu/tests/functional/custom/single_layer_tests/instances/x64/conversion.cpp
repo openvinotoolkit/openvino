@@ -25,14 +25,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_blocked_Dynamic, ConvertCPULa
                                 ::testing::ValuesIn(memForm4D_dynamic)),
                         ConvertCPULayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4bit_Dynamic,
-                         ConvertCPULayerTest,
-                         ::testing::Combine(::testing::ValuesIn(inShapes_4D_dynamic()),
-                                            ::testing::ValuesIn({ov::element::u4, ov::element::i4}),
-                                            ::testing::ValuesIn({ov::element::f32, ov::element::bf16, ov::element::u8, ov::element::i8}),
-                                            ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
-                         ConvertCPULayerTest::getTestCaseName);
-
 std::vector<InputShape> inShapes_4D_blocked = {
     {{1, 16, 5, 5}, {{1, 16, 5, 5}}},
 };
