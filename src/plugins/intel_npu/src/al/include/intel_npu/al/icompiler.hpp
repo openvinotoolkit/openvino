@@ -23,25 +23,83 @@
 namespace intel_npu {
 
 /**
- * @brief A helper structure used for storing the metadata found within the I/O nodes.
- * @details The "legacyName" attribute holds the name most commonly used as map key for multiple structures.
- * This value also corresponds to the identifier used by the OpenVINO 1.0 API.
- *
- * "originalShape" corresponds to the shape registered in the graph, while "transposedShape" holds the shape obtained
- * upon applying a transposition corresponding to the legacy layout value. Use the "transposedShape" one if not sure
- * which one you need.
+ * @brief A helper structure used for storing metadata corresponding to one input/output entry.
  */
 struct IODescriptor {
+    /**
+     * @brief The name of the input/output seen/attributed by the compiler.
+     * @details This may be different from other name attributes:
+     *  - The compiler could have added additional I/O (e.g. for states). These are not found in the original IR model,
+     * and thus the other name attributes will not use the same value.
+     *  - The compiler may append indices to names in the case where duplicate names are found.
+     * @note The prefixes introduced by the compiler in order to differentiate the special cases (e.g. states and shape
+     * tensors) were removed prior to initializing this field.
+     */
     std::string nameFromCompiler;
+
     ov::element::Type_t precision;
+
     ov::PartialShape shapeFromCompiler;
+
+    /**
+     * @brief If set to "true", the current object describes a buffer which may be used for altering a state tensor.
+     * @details This flag is set if the compiler prefixed the name using a "read value" prefix. The state input and
+     * state output descriptors are also tied using the "relatedDescriptorIndex" attribute.
+     */
     bool isStateInput = false;
+
+    /**
+     * @brief If set to "true", the current object describes a buffer which reflects the value of a state tensor.
+     * @details This flag is set if the compiler prefixed the name using an "assign" prefix. The state input and
+     * state output descriptors are also tied using the "relatedDescriptorIndex" attribute.
+     */
     bool isStateOutput = false;
+
+    /**
+     * @brief If set to "true", the buffer of the tensor described here contains as value the shape of the referenced
+     * tensor.
+     * @details This flag is set if the compiler prefixed the name using a "shape" prefix.
+     *
+     * The referenced tensor bears the same name ("nameFromCompiler"), but its "isShapeTensor" value is set to
+     * "false". The two descriptors are also tied using the "relatedDescriptorIndex" attribute.
+     */
     bool isShapeTensor = false;
+
+    /**
+     * @brief Points towards a related descriptor.
+     * @details The related descriptors are defined by (state input, state output) or (dynamic tensor, shape tensor)
+     * pairs.
+     */
     std::optional<size_t> relatedDescriptorIndex;
 
+    /**
+     * @brief The friendly name of the node extracted from the IR model.
+     * @details In some cases, this field is required for constructing a dummy model which uses the same input/output
+     * metadata as the original IR model.
+     *
+     * This field may be empty if the I/O entry is not found in the original IR model (i.e. the entry was added by the
+     * compiler).
+     */
     std::string nodeFriendlyName;
+
+    /**
+     * @brief The names of the output tensors extracted from the IR model.
+     * @details In some cases, this field is required for constructing a dummy model which uses the same input/output
+     * metadata as the original IR model.
+     *
+     * This field may be empty if the I/O entry is not found in the original IR model (i.e. the entry was added by the
+     * compiler).
+     */
     std::unordered_set<std::string> outputTensorNames;
+
+    /**
+     * @brief The shape extracted from the IR model.
+     * @details The values may differ from the ones found in "shapeFromCompiler" if batching is to be applied inside the
+     * plugin.
+     *
+     * This field may be empty if the I/O entry is not found in the original IR model (i.e. the entry was added
+     * by the compiler).
+     */
     ov::PartialShape shapeFromIRModel;
 };
 

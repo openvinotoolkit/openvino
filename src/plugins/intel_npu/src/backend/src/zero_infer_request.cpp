@@ -65,30 +65,38 @@ void checkLevelZeroAttributesMatch(const IODescriptor& ioDescriptor,
 
 /**
  * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by the
- * model will also be deduced and stored within the network metadata.
+ * model will also be deduced and returned.
  * @details Batching can be handled by the plugin only if:
  *  - The batch axis is the first axis.
- *  - The batch size viewed by the compiler takes the default value of 1.
- *  - The batch size found in the IR model corresponds for all inputs/outputs and takes a value different than the
- * default one. If any of the previous conditions is not fulfilled, the functon will not update the
- * "canUsePluginBatching" and "batchSize" attributes found inside the network metadata object and thus no custom
+ *  - The batch size the compiler received takes the default value of 1.
+ *  - The batch size found in the IR model matches for all inputs/outputs and takes a value different than the
+ * default one.
+ *
+ * If any of the previous conditions is not fulfilled, the functon will return the default batch size, thus no custom
  * algorithm will be applied inside the plugin in order to address batching.
  *
- * @param metadata The metadata used by the compiled model. The parameter will be used for extracting the shape used
- * inside the compiler. If the function determines batching can be handled by the plugin, the flag as well as the batch
- * size attributes found inside this object will be updated.
+ * @param metadata Metadata containing the shape values as seen by both the compiler and IR model. These will ultimately
+ * be used for determining the batch size.
+ * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside the
+ * plugin.
  */
 size_t getBatchSize(const NetworkMetadata& metadata) {
     Logger logger("getBatchSize", Logger::global().level());
 
     const ov::PartialShape& firstOutputShape = metadata.outputs.at(0).shapeFromIRModel;
-    if (firstOutputShape.is_dynamic() || firstOutputShape.rank().get_length() == 0) {
-        logger.warning("");  // TODO
+    if (firstOutputShape.is_dynamic()) {
+        logger.info("Networks using dynamic shapes are not supported when batching is handled by the plugin");
+        return DEFAULT_BATCH_SIZE;
+    }
+    if (firstOutputShape.rank().get_length() == 0) {
+        logger.info(
+            "Networks using rank 0 shapes for inputs/outputs are not supported when batching is handled by the plugin");
         return DEFAULT_BATCH_SIZE;
     }
 
     const size_t candidateBatchSize = firstOutputShape[0].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
+        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return DEFAULT_BATCH_SIZE;
     }
 
@@ -115,6 +123,7 @@ size_t getBatchSize(const NetworkMetadata& metadata) {
 
     if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
         !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
+        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return DEFAULT_BATCH_SIZE;
     }
 
