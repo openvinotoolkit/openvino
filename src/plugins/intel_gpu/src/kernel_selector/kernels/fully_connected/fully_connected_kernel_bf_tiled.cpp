@@ -453,10 +453,9 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     if ((scale_group_size % simd == 0) &&
         params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
         (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) &&
-        params.inputs[0].Y().v > 16 && dispatchData.tile_m > 1 && dispatchData.tile_n == 2 &&
+        params.inputs[0].Y().v > 16 && dispatchData.tile_n == 2 &&
         params.decompression_zero_point.Feature().v == 1) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
     } else {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }

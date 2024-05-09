@@ -737,7 +737,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint gid = (uint)get_group_id(0);
 #endif
 
-    uint bgid = (uint)get_group_id(2);
     uint sglid = (uint)get_sub_group_local_id();
 
     // Dispatch as bs_fs_bsv_fsv, where bsv = DISPATCH_BSV and fsv = DISPATCH_FSV.
@@ -752,7 +751,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
 #if USE_SLM
     uint out_f = gid * (TILE_OFM * SIMD);
-    uint out_b = LWS_BATCHES * TILE_B * bgid + local_id * TILE_B;
+    uint out_b = LWS_BATCHES * TILE_B * (uint)get_group_id(2) + local_id * TILE_B;
 #else
     FILTER_VEC_TYPE wei = 0;
     uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
@@ -779,7 +778,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         // Dyn Quan
         MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE)  tiled_input_0[HALF_TILE_B] = { };   // Load 4 linear inputs for packing
         PACKED_DQ_TYPE                                  packed_in_0[HALF_TILE_B] = { };     // Packing char4 inputs to 1 integer
-        INPUT0_TYPE                                     max[HALF_TILE_B] = { };
     #else
         INPUT_VEC_TYPE       in_0[TILE_B] = { };
     #endif
@@ -842,7 +840,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
-        // Load input.
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             // Packing : Get 4(B)x4(K) integer vector (packing to 4x1 vector)
             uint in_offset = input_offset + (idx_sglid + batch_sglid * TILE_IN_B_PITCH);
@@ -883,18 +880,23 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             #if DYNAMIC_QUANTIZE
                 // Quantizing for loaded input using max value
-                MAKE_VECTOR_TYPE(INPUT0_TYPE, HALF_TILE_B) de_quantize_scale = 1;
-                MAKE_VECTOR_TYPE(INPUT0_TYPE, HALF_TILE_B) dq_max_input;
+                INPUT0_TYPE                                max[2][HALF_TILE_B] = { 0 };
+                MAKE_VECTOR_TYPE(INPUT0_TYPE, HALF_TILE_B) de_quantize_scale[2] = { };
+                MAKE_VECTOR_TYPE(INPUT0_TYPE, HALF_TILE_B) dq_max_input[2] = { };
                 MAKE_VECTOR_TYPE(INPUT0_TYPE, HALF_TILE_B) quan = 128;
                 unroll_for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
-                    max[bi] = fmax(fmax(fabs(tiled_input_0[bi][0]), fabs(tiled_input_0[bi][1])), fmax(fabs(tiled_input_0[bi][2]), fabs(tiled_input_0[bi][3])));
-                    dq_max_input[bi] = sub_group_reduce_max(max[bi]);
+                    max[batch_sglid][bi] = fmax(fmax(fabs(tiled_input_0[bi][0]), fabs(tiled_input_0[bi][1])), fmax(fabs(tiled_input_0[bi][2]), fabs(tiled_input_0[bi][3])));
                 }
+                unroll_for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
+                    dq_max_input[0][bi] = sub_group_reduce_max(max[0][bi]);
+                    dq_max_input[1][bi] = sub_group_reduce_max(max[1][bi]);
+                }
+                de_quantize_scale[0] = dq_max_input[0] / quan;
+                de_quantize_scale[1] = dq_max_input[1] / quan;
 
-                de_quantize_scale = dq_max_input / quan;
                 // Packing 4 of converted inputs to integer type
                 unroll_for (uint bi = 0; bi < HALF_TILE_B; ++bi) {
-                    packed_in_0[bi] = as_int(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE))(tiled_input_0[bi] / de_quantize_scale[bi]));
+                    packed_in_0[bi] = as_int(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE))(tiled_input_0[bi] / de_quantize_scale[batch_sglid][bi]));
                 }
             #endif
 
@@ -1043,7 +1045,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
             weights_offset += TILE_K_OFM_PACKED * SIMD;
 
-            #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
+            #if (TILE_IFM * SIMD > DECOMPRESSION_SCALE_GROUP_SIZE)
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
                         const uint offset_ofm = out_f + fi*SIMD + sglid;
@@ -1057,7 +1059,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         #endif
 
                         #if USE_SLM && DYNAMIC_QUANTIZE
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi / 2];
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi % 2][bi / 2];
                             acc_tmp[bi][fi] = 0;
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
@@ -1068,7 +1070,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        #if DECOMPRESSION_SCALE_POST_OP && (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
+        #if (TILE_IFM * SIMD <= DECOMPRESSION_SCALE_GROUP_SIZE)
             const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;
             unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                 unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
@@ -1082,7 +1084,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                     #endif
 
                     #if USE_SLM && DYNAMIC_QUANTIZE
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi / 2];
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[bi]))[fi]) * ds * de_quantize_scale[bi % 2][bi / 2];
                     #else
                         ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
                     #endif
@@ -1155,7 +1157,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                         }
                     }
                 }
@@ -1407,6 +1409,12 @@ KERNEL(fc)(
         );
     } else {
         if ((INPUT0_FEATURE_NUM*INPUT0_BATCH_NUM > 256) && USE_SLM && DYNAMIC_QUANTIZE/* && !FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2*/) {
+            // if (get_sub_group_local_id() == 0 && get_group_id(0) == 0 && get_group_id(2) == 0 &&
+            //     get_local_id(0) == 0 && get_local_id(2) == 0) {
+            //         printf(">>>> DYNAMIC : ELEMENTS_COUNT(%d) batch(%d) TILE_B(%d) OSV32_ISV2(%d) TILE_OFM(%d) => group0(%d) local0(%d) / group2(%d) local2(%d)\n",
+            //                 (int)MAIN_LOOP_ELEMENTS_COUNT, (int)INPUT0_FEATURE_NUM*INPUT0_BATCH_NUM, (int)TILE_B, (int)FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2, (int)TILE_OFM,
+            //                 (int)get_global_size(0), (int)get_local_size(0), (int)get_global_size(2), (int)get_local_size(2));
+            // }
             FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
                 OPTIONAL_SHAPE_INFO_TENSOR
                 input,
@@ -1454,6 +1462,12 @@ KERNEL(fc)(
     }
 #else
     if ((INPUT0_FEATURE_NUM*INPUT0_BATCH_NUM > 256) && USE_SLM && DYNAMIC_QUANTIZE/* && !FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2*/) {
+        // if (get_sub_group_local_id() == 0 && get_group_id(0) == 0 && get_group_id(2) == 0 &&
+        //     get_local_id(0) == 0 && get_local_id(2) == 0) {
+        //         printf(">>>> STATIC : MAIN_LOOP_ELEMENTS_COUNT(%d) batch(%d) => group0(%d) local0(%d) / group2(%d) local2(%d)\n",
+        //                 (int)MAIN_LOOP_ELEMENTS_COUNT, (int)INPUT0_FEATURE_NUM*INPUT0_BATCH_NUM,
+        //                 (int)get_global_size(0), (int)get_local_size(0), (int)get_global_size(2), (int)get_local_size(2));
+        // }
         FUNC_CALL(fc_bf_tiled_kernel_dyn_quan)(
             OPTIONAL_SHAPE_INFO_TENSOR
             input,
