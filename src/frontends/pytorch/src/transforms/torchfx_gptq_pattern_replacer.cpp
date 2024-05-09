@@ -206,7 +206,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
                                                                reshape3_in0_const->get_data_ptr<uint8_t>());
         auto new_mult_node = std::make_shared<v1::Multiply>(new_sub_node, mult_scale_const);
         replace_node(mult, new_mult_node);
-        return false;
+        return true;
     };
 
     auto m = std::make_shared<Matcher>(mult, "ov::frontend::pytorch::pass::GPTQMultPatternReplacer");
