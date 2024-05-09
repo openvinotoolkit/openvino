@@ -180,12 +180,15 @@ KERNEL (permute_f_y_axes)(
 #else
     __attribute__((opencl_unroll_hint(TILE_SIZE)))
     for (int j = 0; j < TILE_SIZE; ++j) {
-        const int y_idx = y_begin + j;
+        int y_idx = y_begin + j;
         const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
         INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
 #if HAS_FUSED_OPS
+        y_idx = bf % INPUT0_FEATURE_NUM;
+        f_idx = y_begin + j;
         FUSED_OPS;
         transpose_buf[bf_local][j]  = FUSED_OPS_RESULT;
+        f_idx = bf % INPUT0_FEATURE_NUM;
 #else
         transpose_buf[bf_local][j] = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
