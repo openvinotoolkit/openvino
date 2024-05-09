@@ -86,7 +86,12 @@ public:
     // TODO: upstream to base class
     OutputVector inputs() const {
         OutputVector res;
-        for (auto input : m_decoder_inputs) {
+        for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
+            auto input = m_decoder_inputs.at(i);
+            // Inlined inputs shouldn't be added (Only possible for fx)
+            if (input == 0 && m_decoder->is_input_inlined(i)) {
+                continue;
+            }
             FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding index: ", input, " exist.");
             res.push_back(m_tensor_map->at(input));
         }
