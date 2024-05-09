@@ -109,7 +109,7 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
         }
     }
 #if AVG_POOL
-    pooled_value /= sampling_ratio_x * sampling_ratio_x;
+    pooled_value /= sampling_ratio_x * sampling_ratio_y;
 #endif
 
     dst_data[OUTPUT_GET_INDEX(r, c, y, x)] = ACTIVATION((OUTPUT_TYPE)pooled_value, ACTIVATION_PARAMS);
