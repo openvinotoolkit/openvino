@@ -123,8 +123,8 @@ bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
         shape_infer(this, ov::util::get_tensors_partial_shapes(inputs), make_tensor_accessor(inputs));
     outputs[0].set_shape(output_shapes.front().to_shape());
 
-    const auto& starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
-    const auto& steps = ov::get_tensor_data_as<int64_t>(inputs[3]);
+    const auto starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
+    const auto steps = ov::get_tensor_data_as<int64_t>(inputs[3]);
     const auto& axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
 
     reference::slice(static_cast<const char*>(inputs[0].data()),
