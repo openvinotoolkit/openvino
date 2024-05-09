@@ -425,7 +425,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
-    auto start_out_node_names = node.get_tensor().get_names();
+    const auto& start_out_node_names = node.get_tensor().get_names();
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);
