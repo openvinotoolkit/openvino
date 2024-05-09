@@ -11,16 +11,135 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "utils.hpp"
 
 using namespace std;
+using namespace ov;
 using namespace ov::op;
+using namespace ov::frontend::tensorflow;
+
+namespace {
+void create_decomposed_block_lstm(const Output<Node>& x,
+                                  const Output<Node>& h_init,
+                                  const Output<Node>& c_init,
+                                  const Output<Node>& w,
+                                  const Output<Node>& r,
+                                  const Output<Node>& b,
+                                  const Output<Node>& seq_len_max,
+                                  const element::Type& x_type,
+                                  const Dimension& hidden_size,
+                                  Output<Node>& hs,
+                                  Output<Node>& cs) {
+    // inputs:
+    // x - [time_len, batch_size, input_size] shape
+    // h_init - [batch_size, hidden_size] shape
+    // c_init - [batch_size, hidden_size] shape
+    // w - [4 * hidden_size, input_size] shape
+    // r - [4 * hidden_size, input_size] shape
+    // b - [4 * hidden_size] shape
+    //
+    // outputs:
+    // hs - [time_len, batch_size, hidden_size] shape
+    // cs - [time_len, batch_size, hidden_size] shape
+
+    auto hidden_size_value = static_cast<size_t>(hidden_size.get_length());
+
+    // create a body graph with LSTMCell
+    auto xi_param =
+        std::make_shared<v0::Parameter>(x_type, PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()});
+    auto h_prev_param =
+        std::make_shared<v0::Parameter>(x_type, ov::PartialShape{ov::Dimension::dynamic(), hidden_size_value});
+    auto c_prev_param =
+        std::make_shared<v0::Parameter>(x_type, ov::PartialShape{ov::Dimension::dynamic(), hidden_size_value});
+    auto w_param =
+        std::make_shared<v0::Parameter>(x_type, ov::PartialShape{4 * hidden_size_value, ov::Dimension::dynamic()});
+    auto r_param = std::make_shared<v0::Parameter>(x_type, ov::PartialShape{4 * hidden_size_value, hidden_size_value});
+    auto b_param = std::make_shared<v0::Parameter>(x_type, ov::PartialShape{4 * hidden_size_value});
+
+    // adjust xi since it comes after slicing and slicing axis needs to be squeezed
+    auto squeeze_axis = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto xi = std::make_shared<v0::Squeeze>(xi_param, squeeze_axis);
+
+    auto lstm_cell =
+        std::make_shared<v0::LSTMCell>(xi, h_prev_param, c_prev_param, w_param, r_param, b_param, hidden_size_value);
+    auto h = lstm_cell->output(0);
+    auto c = lstm_cell->output(1);
+
+    // unsqueeze current cell and hidden states
+    // for concatenation along time dimension
+    auto axis = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
+    auto h_concat = std::make_shared<v0::Unsqueeze>(h, axis)->output(0);
+    auto c_concat = std::make_shared<v0::Unsqueeze>(c, axis)->output(0);
+
+    ov::ParameterVector body_params({xi_param, h_prev_param, c_prev_param, w_param, r_param, b_param});
+    ov::OutputVector body_results({h, c, h_concat, c_concat});
+    auto lstm_body = std::make_shared<ov::Model>(body_results, body_params);
+
+    // create Loop node and put lstm body graph inside
+    // it will represent BlockLSTM operation
+    auto execution_cond = std::make_shared<v0::Constant>(ov::element::boolean, ov::Shape{}, true);
+    auto seq_len_max_shape = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
+    auto new_seq_len_max = std::make_shared<v1::Reshape>(seq_len_max, seq_len_max_shape, false);
+    auto loop_node = std::make_shared<v5::Loop>(seq_len_max, execution_cond);
+
+    loop_node->set_function(lstm_body);
+    //loop_node->set_arguments(ov::OutputVector{x, h_init, c_init, w, r, b});
+
+    // set inputs for Loop
+    // x input will be sliced for each time step
+    loop_node->set_sliced_input(xi_param, x, 0, 1, 1, -1, 1);
+    // set back edges for cell and hidden states
+    // since they are changing through timeline
+    loop_node->set_merged_input(h_prev_param, h_init, h);
+    loop_node->set_merged_input(c_prev_param, c_init, c);
+    // TODO need to set concatenation
+    loop_node->set_invariant_input(w_param, w);
+    loop_node->set_invariant_input(r_param, r);
+    loop_node->set_invariant_input(b_param, b);
+
+    // set external outputs for Loop node
+    // concatenated cell and hidden states from all time steps
+    hs = loop_node->get_concatenated_slices(h_concat, 0, 1, 1, -1, 0);
+    cs = loop_node->get_concatenated_slices(c_concat, 0, 1, 1, -1, 0);
+
+    // clarify shapes inside body graphs and on loop outputs
+    loop_node->validate_and_infer_types();
+
+    // compute time_len it is needed for further padding
+    // of concatenated cell and hidden states
+    auto x_shape = std::make_shared<v3::ShapeOf>(x, element::i64);
+    auto ss_start = std::make_shared<v0::Constant>(element::i64, Shape{1}, 0);
+    auto ss_stop = std::make_shared<v0::Constant>(element::i64, Shape{1}, 1);
+    auto ss_step = std::make_shared<v0::Constant>(element::i64, Shape{1}, 1);
+    auto time_len = std::make_shared<v1::StridedSlice>(x_shape,
+                                                       ss_start,
+                                                       ss_stop,
+                                                       ss_step,
+                                                       std::vector<int64_t>{0},
+                                                       std::vector<int64_t>{0});
+
+    // since seq_len_max can be less that time length
+    // output tensors needs to be padded
+    auto h_init_shape = std::make_shared<v3::ShapeOf>(h_init, element::i64);
+    auto dummy_size = std::make_shared<v1::Subtract>(time_len, new_seq_len_max);
+    auto dummy_tensor_shape = make_shared<v0::Concat>(OutputVector{dummy_size, h_init_shape}, 0);
+    auto zero_element = create_same_type_const_scalar<int32_t>(x, 0);
+    auto dummy_tensor = make_shared<v3::Broadcast>(zero_element, dummy_tensor_shape);
+    hs = make_shared<v0::Concat>(OutputVector{hs, dummy_tensor}, 0);
+    cs = make_shared<v0::Concat>(OutputVector{cs, dummy_tensor}, 0);
+}
+}  // namespace
 
 namespace ov {
 namespace frontend {
@@ -136,40 +255,14 @@ OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext
     auto R = std::make_shared<v0::Unsqueeze>(WR_split->output(1), num_direct_axis);
     auto B = std::make_shared<v0::Unsqueeze>(bias_normalized, num_direct_axis);
 
-    // normalize initial hidden and cell states
-    auto unsqueeze_axis = std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-    auto init_hidden_state = std::make_shared<v0::Unsqueeze>(h_prev, unsqueeze_axis);
-    auto init_cell_state = std::make_shared<v0::Unsqueeze>(cs_prev, unsqueeze_axis);
-
-    // prepare sequence length input for LSTMSequence
-    auto seq_len_max_adjusted = std::make_shared<v3::Broadcast>(seq_len_max, batch_size);
-
-    // prepare input data since LSTMSequence accept it in a format [batch_size, time_len, input_size]
-    auto x_order = std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
-    auto x_adjusted = std::make_shared<v1::Transpose>(x, x_order);
-
-    // create LSTMSequence node and reconnect inputs and normalized weights and bias
-    auto lstm_sequence = std::make_shared<v5::LSTMSequence>(x_adjusted,
-                                                            init_hidden_state,
-                                                            init_cell_state,
-                                                            seq_len_max_adjusted,
-                                                            W,
-                                                            R,
-                                                            B,
-                                                            hidden_size.get_length(),
-                                                            v5::LSTMSequence::direction::FORWARD);
-
-    // adjust output of concatenated of hidden states from LSTMSequence
-    // to have it in a format [time_len, batch_size, hidden_size]
-    // 1. squeeze extra dimension - num_directions
-    auto squeeze_axis = std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
-    auto squeeze_output_hidden_states = std::make_shared<v0::Squeeze>(lstm_sequence->output(0), squeeze_axis);
-    // 2. transpose the output to rotate batch and time dimensions
-    auto output_hidden_states_order =
-        std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 0, 2});
-    auto output_hidden_states =
-        std::make_shared<v1::Transpose>(squeeze_output_hidden_states, output_hidden_states_order)->output(0);
-    output_hidden_states.set_names({node_name + ":6"});
+    ov::Output<ov::Node> hs, cs;
+    auto x_type = x.get_element_type();
+    TENSORFLOW_OP_VALIDATION(node,
+                             x_type.is_static(),
+                             "[TensorFlow Frontend] internal error: BlockLSTM is supported only for x of static type");
+    create_decomposed_block_lstm(x, h_prev, cs_prev, W, R, B, seq_len_max, x_type, hidden_size, hs, cs);
+    cs.set_names({node_name + ":1"});
+    hs.set_names({node_name + ":6"});
 
     // for other outputs, it uses internal operation BlockLSTM
     auto block_lstm = make_shared<ov::frontend::tensorflow::BlockLSTM>(seq_len_max,
@@ -186,7 +279,8 @@ OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext
                                                                        use_peephole,
                                                                        node.get_decoder());
     ov::OutputVector results = block_lstm->outputs();
-    results[6] = output_hidden_states;
+    results[1] = cs;
+    results[6] = hs;
 
     return results;
 }
