@@ -480,7 +480,7 @@ To enable denormals optimization in the application, the ``denormals_optimizatio
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_denormals.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_denormals.py
          :language: python
          :fragment: [ov:intel_cpu:denormals_optimization:part0]
 

@@ -40,7 +40,7 @@ to set a new batch size with the ``reshape`` method:
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: picture_snippet
 
@@ -69,7 +69,7 @@ When using the ``reshape`` method, you may take one of the approaches:
       .. tab-item:: C++
          :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
             :language: cpp
             :fragment: spatial_reshape
 
@@ -101,7 +101,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [obj_to_shape]
 
@@ -124,7 +124,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<size_t, ov::PartialShape>`` specifies input by its index:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [idx_to_shape]
 
@@ -147,7 +147,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
                ``map<string, ov::PartialShape>`` specifies input by its name:
 
-               .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
                   :language: cpp
                   :fragment: [name_to_shape]
 
@@ -179,7 +179,7 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: set_batch
 

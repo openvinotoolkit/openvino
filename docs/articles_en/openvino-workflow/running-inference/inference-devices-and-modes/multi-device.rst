@@ -58,7 +58,7 @@ The following commands are accepted by the API:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_multi.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_0]
 
@@ -83,7 +83,7 @@ As mentioned previously, executing inference with MULTI may be set up by configu
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_multi.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_multi.py
          :language: python
          :fragment: [MULTI_4]
 

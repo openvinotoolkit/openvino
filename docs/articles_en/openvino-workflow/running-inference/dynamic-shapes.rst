@@ -80,14 +80,14 @@ The examples below show how to set dynamic dimensions with a model that has a st
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
           :language: cpp
           :fragment: [ov_dynamic_shapes:reshape_undefined]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
           :language: cpp
           :fragment: [ov_dynamic_shapes:reshape_undefined]
 
@@ -108,7 +108,7 @@ The examples above assume that the model has a single input layer. To change mod
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:reshape_multiple_inputs
 
@@ -134,7 +134,7 @@ To check if a model already has dynamic dimensions, first load it with the ``rea
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:check_inputs
 
@@ -170,7 +170,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
 
         The dimension bounds can be coded as arguments for ``ov::Dimension``, as shown in these examples:
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:reshape_bounds
 
@@ -179,7 +179,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
 
         The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2024/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp
            :fragment: ov_dynamic_shapes:reshape_bounds
 
@@ -215,14 +215,14 @@ The sample below shows how a model can accept different input shapes. In the fir
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:set_input_tensor
 
     .. tab-item:: C
         :sync: c
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp
            :fragment: ov_dynamic_shapes:set_input_tensor
 
@@ -250,14 +250,14 @@ To determine if the output has dynamic dimensions, the ``partial_shape`` propert
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:print_dynamic
 
     .. tab-item:: C
         :sync: c
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp
            :fragment: ov_dynamic_shapes:print_dynamic
 
@@ -279,14 +279,14 @@ Output layers can also be checked for dynamic dimensions using the ``partial_sha
     .. tab-item:: C++
         :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.cpp
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.cpp
             :language: cpp
             :fragment: ov_dynamic_shapes:detect_dynamic
 
     .. tab-item:: C
         :sync: c
 
-        .. doxygensnippet:: docs/snippets/ov_dynamic_shapes.c
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp
            :fragment: ov_dynamic_shapes:detect_dynamic
 
