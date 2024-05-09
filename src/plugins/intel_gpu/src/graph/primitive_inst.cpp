@@ -96,11 +96,6 @@ bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
 }
 
 bool is_user_cpu(const program_node* user) {
-    // If the user is dynamic and runtime skippable node, we still need to its parents' completion event
-    // If the user is not runtime skippable in dynamic, we need to check it is cpu impl
-    if (user->is_dynamic() && user->is_runtime_skippable())
-        return true;
-
     if (user->can_be_optimized()) {
         auto users = user->get_users();
         for (const auto& u : users) {
@@ -954,41 +949,43 @@ void primitive_inst::do_runtime_skip_reorder() {
     // set successive reorder can_be_optimized if layouts are same
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
-            if (is_input() && u->is_output())
-                continue;
-            // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
-            if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
-                continue;
-            auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
-            // If current node's output_node is not dynamic, the memory is already allocated at build time
-            auto alloc_type = allocation_type::unknown;
-            if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
-                alloc_type = _outputs[out_port_idx]->get_allocation_type();
-            }
-            if (alloc_type == allocation_type::usm_device && u->is_output())
-                continue;
-            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
-            u->update_shape();
-            u->update_shape_done_by_other = true;
+            if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
+                if (is_input() && u->is_output())
+                    continue;
+                // TODO: Skipped reorder + in_place concat is not supported yet. To support later.
+                if (u->get_users().size() == 1 && u->get_users().front()->is_type<concatenation>() && u->get_users().front()->can_be_optimized())
+                    continue;
+                auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
+                // If current node's output_node is not dynamic, the memory is already allocated at build time
+                auto alloc_type = allocation_type::unknown;
+                if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
+                    alloc_type = _outputs[out_port_idx]->get_allocation_type();
+                }
+                if (alloc_type == allocation_type::usm_device && u->is_output())
+                    continue;
+                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
+                u->update_shape();
+                u->update_shape_done_by_other = true;
 
-            if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
-                std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
-                update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
-                    for (auto& user : users) {
-                        GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                        user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
-                        if (user->can_be_optimized())
-                            update_memory_dependencies(user->get_user_insts());
-                    }
-                };
+                if (u->_impl_params->get_input_layout() == u->_impl_params->get_output_layout()) {
+                    std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
+                    update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
+                        for (auto& user : users) {
+                            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
+                            user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
+                            if (user->can_be_optimized())
+                                update_memory_dependencies(user->get_user_insts());
+                        }
+                    };
 
-                update_memory_dependencies(u->get_user_insts());
+                    update_memory_dependencies(u->get_user_insts());
 
-                u->set_can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
-            } else {
-                u->set_can_be_optimized(false);
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
+                    u->set_can_be_optimized(true);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
+                } else {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
+                }
             }
         }
     }
