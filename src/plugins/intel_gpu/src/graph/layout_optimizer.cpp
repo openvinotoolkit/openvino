@@ -2054,15 +2054,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                     }
                     auto input_lay = pnode.get_dependency(0).get_output_layout();
                     auto output_lay = pnode.get_output_layout();
-                    // onednn gemm allows only bf/bfx/bfyx format in transpose_format() when primitive->transpose_input(0/1) is true.
-                    // skip optimize out for input of transpose_input = true.
-                    bool gemm_transpose = false;
-                    if (idx == 0)
-                        gemm_transpose = node.as<gemm>().get_primitive()->transpose_input0;
-                    else if (idx == 1)
-                        gemm_transpose = node.as<gemm>().get_primitive()->transpose_input1;
-
-                    if (input_lay.compatible(output_lay) && !gemm_transpose) {
+                    if (input_lay.compatible(output_lay)) {
                         for (auto candidate : gemm_in_foramt_white_list) {
                             auto impl_param = pnode.get_kernel_impl_params();
                             auto desc = impl_param->typed_desc<permute>();
