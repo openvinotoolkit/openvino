@@ -23,8 +23,8 @@ const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 const std::vector<std::vector<ov::Shape>> inputShapes2D_static = {{{1, 3, 30, 30}},
                                                                   {{1, 16, 10, 10}},
                                                                   {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t>> kernels2D = {{{1, 1}, {3, 3}, {3, 5}}};
-const std::vector<std::vector<size_t>> strides2D = {{{1, 1}, {1, 3}}};
+const std::vector<std::vector<size_t>> kernels2D = {{1, 1}, {3, 3}, {3, 5}};
+const std::vector<std::vector<size_t>> strides2D = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
 const std::vector<std::vector<size_t>> dilations2D = {{1, 1}, {2, 2}};

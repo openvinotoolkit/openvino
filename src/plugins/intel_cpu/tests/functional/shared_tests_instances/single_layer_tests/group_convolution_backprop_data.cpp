@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData_2d_AutoPadding_output_paddi
 /* ============= _3d GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> input_shapes_3d = {{{1, 16, 5, 5, 5}},
                                                              {{1, 32, 5, 5, 5}}};
-const std::vector<std::vector<size_t >> kernels_3d = {{2, 2, 2}, {3, 3, 3}};
+const std::vector<std::vector<size_t >> kernels_3d = {{1, 1, 1}, {3, 3, 3}};
 const std::vector<std::vector<size_t >> strides_3d = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begins_3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_ends_3d = {{0, 0, 0}};
