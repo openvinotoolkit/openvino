@@ -57,14 +57,14 @@ class Partitioner:
         return False
 
     def capture_gptq_patterns(self, graph_module: GraphModule) -> bool:
-        include_nodes = []
         for node in graph_module.graph.nodes:
             if str(node.op) == "call_function" and str(node.target) == "aten.bitwise_and.Scalar":
                 bitwise_and_in_nodes = node.all_input_nodes
                 if len(bitwise_and_in_nodes) != 1:
                     continue
                 to_copy_node = bitwise_and_in_nodes[0]
-                if str(to_copy_node.op) != "call_function" or str(to_copy_node.target) != "aten._to_copy.default":                    continue
+                if str(to_copy_node.op) != "call_function" or str(to_copy_node.target) != "aten._to_copy.default":
+                    continue
                 to_copy_in_nodes = to_copy_node.all_input_nodes
                 if len(to_copy_in_nodes) != 1:
                     continue
@@ -98,7 +98,7 @@ class Partitioner:
                 const_1_node = unsqueeze_1_in_nodes[0]
                 if str(const_1_node.op) != "get_attr":
                     continue
-    
+
                 self.supported_ops.enable_by_name(node)
                 self.supported_ops.enable_by_name(to_copy_node)
                 self.supported_ops.enable_by_name(bitwise_right_shift_node)
