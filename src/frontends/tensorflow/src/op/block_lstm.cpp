@@ -94,7 +94,6 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto loop_node = std::make_shared<v5::Loop>(seq_len_max, execution_cond);
 
     loop_node->set_function(lstm_body);
-    //loop_node->set_arguments(ov::OutputVector{x, h_init, c_init, w, r, b});
 
     // set inputs for Loop
     // x input will be sliced for each time step
