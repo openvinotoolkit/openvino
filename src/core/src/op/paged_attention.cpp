@@ -14,7 +14,7 @@ PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) :
 }
 
 void PagedAttentionExtension::validate_and_infer_types() {
-    const auto& value_cache_shape = get_input_partial_shape(4);
+    // const auto& value_cache_shape = get_input_partial_shape(4);
     // m_num_kv_heads = value_cache_shape[1];
     // m_head_size = value_cache_shape[2];
     // m_block_size = value_cache_shape[3];
