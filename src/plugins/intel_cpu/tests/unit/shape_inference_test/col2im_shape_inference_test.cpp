@@ -24,14 +24,14 @@ class Col2ImStaticTestSuite : public ::testing::TestWithParam<std::tuple<Shape, 
 
 TEST_P(Col2ImStaticTestSuite, Col2ImStaticShapeInference) {
     const auto& param = GetParam();
-    const auto data_shape = std::get<0>(param);
-    const auto output_size_val = std::get<1>(param);
-    const auto kernel_size_val = std::get<2>(param);
-    const auto strides = std::get<3>(param);
-    const auto dilations = std::get<4>(param);
-    const auto pads_begin = std::get<5>(param);
-    const auto pads_end = std::get<6>(param);
-    const auto expected_output_shape = std::get<7>(param);
+    const auto& data_shape = std::get<0>(param);
+    const auto& output_size_val = std::get<1>(param);
+    const auto& kernel_size_val = std::get<2>(param);
+    const auto& strides = std::get<3>(param);
+    const auto& dilations = std::get<4>(param);
+    const auto& pads_begin = std::get<5>(param);
+    const auto& pads_end = std::get<6>(param);
+    const auto& expected_output_shape = std::get<7>(param);
 
     const auto data = std::make_shared<Parameter>(element::i64, data_shape);
     const auto output_size = std::make_shared<op::v0::Constant>(element::i64, Shape{2}, output_size_val);
