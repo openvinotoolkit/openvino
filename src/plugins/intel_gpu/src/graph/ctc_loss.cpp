@@ -12,6 +12,15 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_loss)
 
+template<typename ShapeType>
+std::vector<layout> ctc_loss_inst::calc_output_layouts(ctc_loss_node const& /*node*/, const kernel_impl_params& impl_param) {
+    const auto& input_layout = impl_param.get_input_layout();
+    return { layout{ ov::PartialShape{input_layout.get_partial_shape()[0]}, input_layout.data_type, input_layout.format} };
+}
+
+template std::vector<layout> ctc_loss_inst::calc_output_layouts<ov::PartialShape>(ctc_loss_node const& node, const kernel_impl_params& impl_param);
+
+
 layout ctc_loss_inst::calc_output_layout(const ctc_loss_node& node, const kernel_impl_params& impl_param) {
     auto input_layout = impl_param.get_input_layout();
     std::vector<tensor::value_type> out_tensor = {input_layout.get_tensor().sizes().front(), 1, 1, 1};
