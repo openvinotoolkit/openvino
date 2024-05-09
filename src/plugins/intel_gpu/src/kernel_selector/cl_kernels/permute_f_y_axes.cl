@@ -72,9 +72,8 @@ KERNEL (permute_f_y_axes)(
     )
 {
     __local OUTPUT_TYPE transpose_buf[FEATURE_BLOCK_SIZE][FEATURE_BLOCK_SIZE][TILE_SIZE];
-
     const int bf = get_global_id(2);
-    const int f_idx = bf % INPUT0_FEATURE_NUM;
+    int f_idx = bf % INPUT0_FEATURE_NUM;
     const int b_idx = bf / INPUT0_FEATURE_NUM;
 
     int bf_local = get_local_id(2);
@@ -88,13 +87,17 @@ KERNEL (permute_f_y_axes)(
     for (int j = 0; j < FEATURE_BLOCK_SIZE; ++j) {
         __attribute__((opencl_unroll_hint(TILE_SIZE)))
         for (int i = 0; i < TILE_SIZE; ++i) {
-            const int x_idx = x_begin + i;
-            const int y_idx = y_begin + j;
+            int x_idx = x_begin + i;
+            int y_idx = y_begin + j;
             const uint input_offset = INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx) - get_sub_group_local_id();
             INPUT0_TYPE res = DT_INPUT_BLOCK_READ(input, input_offset);
     #if HAS_FUSED_OPS
+            f_idx = y_begin + j;
+            y_idx = bf % INPUT0_FEATURE_NUM;
             FUSED_OPS;
             transpose_buf[bf_local][j][i]  = FUSED_OPS_RESULT;
+            f_idx = bf % INPUT0_FEATURE_NUM;
+            y_idx = y_begin + j;
     #else
             transpose_buf[bf_local][j][i] = ACTIVATION(res, ACTIVATION_PARAMS);
     #endif
