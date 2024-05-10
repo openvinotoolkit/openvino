@@ -176,8 +176,6 @@ nav.bd-links li>a {
     justify-content: start;
     max-width: 65em;
     overflow-x: auto;
-    padding: 1rem;
-    width: 100%;
 }
 
 .nav.bd-links {
