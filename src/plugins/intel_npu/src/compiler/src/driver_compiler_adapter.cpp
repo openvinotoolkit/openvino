@@ -173,7 +173,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
         _logger.info("Using ZE_GRAPH_EXT_VERSION_1_2");
         apiAdapter =
             std::make_shared<LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>>(graphExtName, _driverHandle);
-    }q
+    }
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
