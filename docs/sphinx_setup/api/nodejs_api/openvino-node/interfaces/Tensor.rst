@@ -12,7 +12,7 @@ Interface Tensor
    }
 
 * **Defined in:**
-  `addon.ts:88 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L88>`__
+  `addon.ts:88 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L74>`__
 
 
 Properties
@@ -28,7 +28,7 @@ Properties
       data: SupportedTypedArray
 
    -  **Defined in:**
-      `addon.ts:89 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L89>`__
+      `addon.ts:89 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L75>`__
 
 
 Methods
@@ -46,7 +46,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:92 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L92>`__
+     `addon.ts:92 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L78>`__
 
 .. rubric:: getElementType
 
@@ -59,7 +59,7 @@ Methods
    * **Returns:** :doc:`element <../enums/element>`
 
    * **Defined in:**
-     `addon.ts:90 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L90>`__
+     `addon.ts:90 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L76>`__
 
 
 .. rubric:: getShape
@@ -73,7 +73,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:91 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L91>`__
+     `addon.ts:91 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L77>`__
 
 
 .. rubric:: getSize
@@ -87,5 +87,5 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:93 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L93>`__
+     `addon.ts:93 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L79>`__
 

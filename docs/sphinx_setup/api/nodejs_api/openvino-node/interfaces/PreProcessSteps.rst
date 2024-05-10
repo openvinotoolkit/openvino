@@ -9,7 +9,7 @@ Interface PreProcessSteps
    }
 
 * **Defined in:**
-  `addon.ts:136 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L136>`__
+  `addon.ts:136 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L122>`__
 
 
 Methods
@@ -31,5 +31,5 @@ Methods
    * **Returns:** :doc:`PreProcessSteps <PreProcessSteps>`
 
    * **Defined in:**
-     `addon.ts:137 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L137>`__
+     `addon.ts:137 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L123>`__
 

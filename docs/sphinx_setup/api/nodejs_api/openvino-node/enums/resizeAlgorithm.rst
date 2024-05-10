@@ -10,7 +10,7 @@ Enumeration resizeAlgorithm
       RESIZE_CUBIC: number
 
    -  **Defined in:**
-      `addon.ts:188 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L188>`__
+      `addon.ts:188 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L174>`__
 
 
 .. rubric:: RESIZE_LINEAR
@@ -22,7 +22,7 @@ Enumeration resizeAlgorithm
       RESIZE_LINEAR: number
 
    -  **Defined in:**
-      `addon.ts:189 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L189>`__
+      `addon.ts:189 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L175>`__
 
 
 .. rubric:: RESIZE_NEAREST
@@ -34,5 +34,5 @@ Enumeration resizeAlgorithm
       RESIZE_NEAREST: number
 
    -  **Defined in:**
-      `addon.ts:187 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L187>`__
+      `addon.ts:187 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L173>`__
 

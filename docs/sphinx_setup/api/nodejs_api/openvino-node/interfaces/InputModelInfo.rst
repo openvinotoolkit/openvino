@@ -8,7 +8,7 @@ Interface InputModelInfo
    }
 
 * **Defined in:**
-  `addon.ts:140 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L140>`__
+  `addon.ts:140 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L126>`__
 
 Methods
 #####################
@@ -28,5 +28,5 @@ Methods
    * **Returns:** :doc:`InputModelInfo <InputModelInfo>`
 
    * **Defined in:**
-     `addon.ts:141 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L141>`__
+     `addon.ts:141 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L127>`__
 

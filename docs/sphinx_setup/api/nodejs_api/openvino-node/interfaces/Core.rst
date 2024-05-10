@@ -20,7 +20,7 @@ Interface Core
 
 
 * **Defined in:**
-  `addon.ts:23 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L23>`__
+  `addon.ts:23 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L23>`__
 
 
 Methods
@@ -52,7 +52,7 @@ Methods
    * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>` \>
 
    * **Defined in:**
-     `addon.ts:24 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L24>`__
+     `addon.ts:24 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L24>`__
 
 
 .. rubric:: compileModelSync
@@ -80,7 +80,7 @@ Methods
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:29 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L29>`__
+     `addon.ts:29 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L29>`__
 
 
 .. rubric:: getAvailableDevices
@@ -94,7 +94,7 @@ Methods
    * **Returns:** string[]
 
    * **Defined in:**
-     `addon.ts:45 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L45>`__
+     `addon.ts:45 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L45>`__
 
 
 .. rubric:: getProperty
@@ -112,7 +112,7 @@ Methods
    * **Returns:**  string | number | boolean
 
    * **Defined in:**
-     `addon.ts:57 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L57>`__
+     `addon.ts:57 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L57>`__
 
 .. container:: m-4
 
@@ -128,7 +128,7 @@ Methods
    * **Returns:**  string | number | boolean
 
    * **Defined in:**
-     `addon.ts:58 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L58>`__
+     `addon.ts:58 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L58>`__
 
 
 .. rubric:: importModelSync
@@ -147,7 +147,7 @@ Methods
    * **Returns:** CompiledModel
 
    * **Defined in:**
-     `addon.ts:39 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L39>`__
+     `addon.ts:39 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L39>`__
 
 .. container:: m-4
 
@@ -172,7 +172,7 @@ Methods
       **Returns:** CompiledModel
 
    * **Defined in:**
-     `addon.ts:40 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L40>`__
+     `addon.ts:40 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L40>`__
 
 
 .. rubric:: readModel
@@ -195,7 +195,7 @@ Methods
    * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L34>`__
+     `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L34>`__
 
 .. container:: m-4
 
@@ -215,7 +215,7 @@ Methods
    * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:35 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L35>`__
+     `addon.ts:35 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L35>`__
 
 
 .. rubric:: readModelSync
@@ -238,7 +238,7 @@ Methods
    * **Returns:**  :doc:`Model <Model>`
 
    * **Defined in:**
-     `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L37>`__
+     `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L37>`__
 
 .. container:: m-4
 
@@ -258,7 +258,7 @@ Methods
    * **Returns:**  :doc:`Model <Model>`
 
    * **Defined in:**
-     `addon.ts:38 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L38>`__
+     `addon.ts:38 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L38>`__
 
 
 .. rubric:: setProperty
@@ -284,7 +284,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:52 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L52>`__
+     `addon.ts:52 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L52>`__
 
 .. container:: m-4
 
@@ -308,5 +308,5 @@ Methods
    * **Returns:**  string | number | boolean
 
    * **Defined in:**
-     `addon.ts:53 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L53>`__
+     `addon.ts:53 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L53>`__
 

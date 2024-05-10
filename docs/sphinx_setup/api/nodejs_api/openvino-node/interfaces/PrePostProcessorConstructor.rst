@@ -8,7 +8,7 @@ Interface PrePostProcessorConstructor
    }
 
 * **Defined in:**
-  `addon.ts:159 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L159>`__
+  `addon.ts:159 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L145>`__
 
 
 Constructors
@@ -30,5 +30,5 @@ Constructors
    * **Returns:** :doc:`PrePostProcessor <PrePostProcessor>`
 
    * **Defined in:**
-     `addon.ts:160 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L160>`__
+     `addon.ts:160 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L146>`__
 
