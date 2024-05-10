@@ -45,13 +45,22 @@ def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled
             name='rois', shape=rois_data.shape, dtype=rois_data.dtype)
         rois_num = paddle.static.data(
             name='rois_num', shape=rois_num_data.shape, dtype=rois_num_data.dtype)
-        out = ops.roi_align(input=x,
-                            rois=rois,
-                            output_size=(pooled_height, pooled_width),
-                            spatial_scale=spatial_scale,
-                            sampling_ratio=sampling_ratio,
-                            rois_num=rois_num,
-                            aligned=aligned)
+        if paddle.__version__ >= "2.6.0":
+            out = paddle.vision.ops.roi_align(x=x,
+                                              boxes=rois,
+                                              boxes_num=rois_num,
+                                              output_size=(pooled_height, pooled_width),
+                                              spatial_scale=spatial_scale,
+                                              sampling_ratio=sampling_ratio,
+                                              aligned=aligned)
+        else:
+            out = ops.roi_align(input=x,
+                                rois=rois,
+                                output_size=(pooled_height, pooled_width),
+                                spatial_scale=spatial_scale,
+                                sampling_ratio=sampling_ratio,
+                                rois_num=rois_num,
+                                aligned=aligned)
 
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -62,7 +71,7 @@ def roi_align(name: str, x_data, rois_data, rois_num_data, pooled_height, pooled
             feed={'x': x_data, 'rois': rois_data, 'rois_num': rois_num_data},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x', 'rois', 'rois_num'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[x, rois, rois_num], fetchlist=[out],inputs=[
                   x_data, rois_data, rois_num_data], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

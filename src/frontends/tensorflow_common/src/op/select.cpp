@@ -39,7 +39,7 @@ OutputVector translate_select_v2_op(const NodeContext& node) {
     // is true or the value of 'y' if false. There are valid condition input sizes:
     // 1. Either the same shape (in which case the select is elementwise), or
     // 2. Broadcastable shapes between 'condition', 'x' and 'y'.
-    default_op_checks(node, 3, {"SelectV2"});
+    default_op_checks(node, 3, {"SelectV2", "SELECT_V2"});
     // no preparation for inputs are needed
     // inputs are already NumPy broadcastable
     return translate_select_base_op(node, node.get_input(0), node.get_input(1), node.get_input(2));
@@ -54,7 +54,7 @@ OutputVector translate_select_op(const NodeContext& node) {
     // 1. Either the same shape (in which case the select is elementwise), or
     // 2. condition must be Rank 1 and match over the first dimension, or
     // 3. condition is scalar
-    default_op_checks(node, 3, {"Select"});
+    default_op_checks(node, 3, {"Select", "SELECT"});
     auto condition = node.get_input(0);
     auto x = node.get_input(1);
     auto y = node.get_input(2);

@@ -489,7 +489,6 @@ protected:
 }  // namespace test
 }  // namespace ov
 
-
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif

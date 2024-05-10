@@ -73,7 +73,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                                value.as<std::string>());
             }
         } else if (ov::hint::num_requests == key) {
-            auto tmp_val = value.as<std::string>();
+            const auto& tmp_val = value.as<std::string>();
             int tmp_i = std::stoi(tmp_val);
             if (tmp_i >= 0)
                 num_requests = tmp_i;
