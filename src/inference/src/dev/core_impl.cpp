@@ -841,7 +841,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    return get_plugin(parsed._deviceName).import_model(model, parsed._config);
+    auto plugin = get_plugin(parsed._deviceName);
+    auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto update_configs = parsed._config;
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+        update_configs[ov::internal::save_to_cache.name()] = true;
+    }
+    return plugin.import_model(model, update_configs);
 }
 
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStream,
@@ -850,7 +856,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
     auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
-    return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+    auto plugin = get_plugin(parsed._deviceName);
+    auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto update_configs = parsed._config;
+    if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
+        update_configs[ov::internal::save_to_cache.name()] = true;
+    }
+    return plugin.import_model(modelStream, context, update_configs);
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -1432,6 +1444,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             ov::AnyMap update_config = config;
             update_config[ov::loaded_from_cache.name()] = true;
+            update_config[ov::internal::save_to_cache.name()] = true;
             compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                      : plugin.import_model(networkStream, update_config);
         });

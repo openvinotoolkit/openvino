@@ -593,7 +593,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     std::function<std::string(const std::string&)> decrypt;
-    if (config.count(ov::loaded_from_cache.name()) && config.at(ov::loaded_from_cache.name()).as<bool>() == true) {
+    if (config.count(ov::internal::save_to_cache.name()) &&
+        config.at(ov::internal::save_to_cache.name()).as<bool>() == true) {
         if (config.count(ov::cache_decryption.name())) {
             decrypt = config.at(ov::cache_decryption.name()).as<std::function<std::string(const std::string&)>>();
         }

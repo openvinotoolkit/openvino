@@ -33,6 +33,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
+        } else if (ov::internal::save_to_cache == key) {
+            save_to_cache = value.as<bool>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
