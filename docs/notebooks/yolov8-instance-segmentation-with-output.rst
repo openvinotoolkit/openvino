@@ -723,7 +723,7 @@ point precision, using the ``ignored_scope`` parameter.
         ]
     )
     
-    # Detection model
+    # Segmentation model
     quantized_seg_model = nncf.quantize(
         seg_ov_model,
         quantization_dataset,

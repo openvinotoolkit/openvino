@@ -89,7 +89,7 @@ install required packages
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "diffusers" "transformers" "torch>=2.1" "pillow" "openvino>=2023.1.0" "gradio>=4.19" "datasets>=2.14.6" "huggingface-hub>=0.19.4" "nncf>=2.7.0" "peft==0.6.2"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  "diffusers" "transformers" "torch>=2.1" "pillow" "openvino>=2023.1.0" "gradio>=4.19" "datasets>=2.14.6" "huggingface-hub>=0.19.4" "nncf>=2.7.0" "peft==0.6.2" "opencv-python"
 
 Prepare DeciDiffusion models for OpenVINO format conversion
 -----------------------------------------------------------

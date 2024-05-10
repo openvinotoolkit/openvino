@@ -80,8 +80,8 @@ Turn the model to evaluation for switching some operations to inference
 mode.
 
 In this case, the creators of the model provide an API that enables
-converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
-we do not need to do these steps manually.
+converting the YOLOv8 model to OpenVINO IR. Therefore, we do not need to
+do these steps manually.
 
 Prerequisites
 ^^^^^^^^^^^^^

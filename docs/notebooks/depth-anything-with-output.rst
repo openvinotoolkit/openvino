@@ -75,501 +75,17 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'Depth-Anything'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 421, done.[K
-    remote: Counting objects:   0% (1/144)[K
-remote: Counting objects:   1% (2/144)[K
-remote: Counting objects:   2% (3/144)[K
-remote: Counting objects:   3% (5/144)[K
-remote: Counting objects:   4% (6/144)[K
-remote: Counting objects:   5% (8/144)[K
-remote: Counting objects:   6% (9/144)[K
-remote: Counting objects:   7% (11/144)[K
-remote: Counting objects:   8% (12/144)[K
-remote: Counting objects:   9% (13/144)[K
-remote: Counting objects:  10% (15/144)[K
-remote: Counting objects:  11% (16/144)[K
-remote: Counting objects:  12% (18/144)[K
-remote: Counting objects:  13% (19/144)[K
-remote: Counting objects:  14% (21/144)[K
-remote: Counting objects:  15% (22/144)[K
-remote: Counting objects:  16% (24/144)[K
-remote: Counting objects:  17% (25/144)[K
-remote: Counting objects:  18% (26/144)[K
-remote: Counting objects:  19% (28/144)[K
-remote: Counting objects:  20% (29/144)[K
-remote: Counting objects:  21% (31/144)[K
-remote: Counting objects:  22% (32/144)[K
-remote: Counting objects:  23% (34/144)[K
-remote: Counting objects:  24% (35/144)[K
-remote: Counting objects:  25% (36/144)[K
-remote: Counting objects:  26% (38/144)[K
-remote: Counting objects:  27% (39/144)[K
-remote: Counting objects:  28% (41/144)[K
-remote: Counting objects:  29% (42/144)[K
-remote: Counting objects:  30% (44/144)[K
-remote: Counting objects:  31% (45/144)[K
-remote: Counting objects:  32% (47/144)[K
-remote: Counting objects:  33% (48/144)[K
-remote: Counting objects:  34% (49/144)[K
-remote: Counting objects:  35% (51/144)[K
-remote: Counting objects:  36% (52/144)[K
-remote: Counting objects:  37% (54/144)[K
-remote: Counting objects:  38% (55/144)[K
-remote: Counting objects:  39% (57/144)[K
-remote: Counting objects:  40% (58/144)[K
-remote: Counting objects:  41% (60/144)[K
-remote: Counting objects:  42% (61/144)[K
-remote: Counting objects:  43% (62/144)[K
-remote: Counting objects:  44% (64/144)[K
-remote: Counting objects:  45% (65/144)[K
-remote: Counting objects:  46% (67/144)[K
-remote: Counting objects:  47% (68/144)[K
-remote: Counting objects:  48% (70/144)[K
-remote: Counting objects:  49% (71/144)[K
-remote: Counting objects:  50% (72/144)[K
-remote: Counting objects:  51% (74/144)[K
-remote: Counting objects:  52% (75/144)[K
-remote: Counting objects:  53% (77/144)[K
-remote: Counting objects:  54% (78/144)[K
-remote: Counting objects:  55% (80/144)[K
-remote: Counting objects:  56% (81/144)[K
-remote: Counting objects:  57% (83/144)[K
-remote: Counting objects:  58% (84/144)[K
-remote: Counting objects:  59% (85/144)[K
-remote: Counting objects:  60% (87/144)[K
-remote: Counting objects:  61% (88/144)[K
-remote: Counting objects:  62% (90/144)[K
-remote: Counting objects:  63% (91/144)[K
-remote: Counting objects:  64% (93/144)[K
-remote: Counting objects:  65% (94/144)[K
-remote: Counting objects:  66% (96/144)[K
-remote: Counting objects:  67% (97/144)[K
-remote: Counting objects:  68% (98/144)[K
-remote: Counting objects:  69% (100/144)[K
-remote: Counting objects:  70% (101/144)[K
-remote: Counting objects:  71% (103/144)[K
-remote: Counting objects:  72% (104/144)[K
-remote: Counting objects:  73% (106/144)[K
-remote: Counting objects:  74% (107/144)[K
-remote: Counting objects:  75% (108/144)[K
-remote: Counting objects:  76% (110/144)[K
-remote: Counting objects:  77% (111/144)[K
-remote: Counting objects:  78% (113/144)[K
-remote: Counting objects:  79% (114/144)[K
-remote: Counting objects:  80% (116/144)[K
-remote: Counting objects:  81% (117/144)[K
-remote: Counting objects:  82% (119/144)[K
-remote: Counting objects:  83% (120/144)[K
-remote: Counting objects:  84% (121/144)[K
-remote: Counting objects:  85% (123/144)[K
-remote: Counting objects:  86% (124/144)[K
-remote: Counting objects:  87% (126/144)[K
-remote: Counting objects:  88% (127/144)[K
-remote: Counting objects:  89% (129/144)[K
-remote: Counting objects:  90% (130/144)[K
-remote: Counting objects:  91% (132/144)[K
-remote: Counting objects:  92% (133/144)[K
-remote: Counting objects:  93% (134/144)[K
-remote: Counting objects:  94% (136/144)[K
-remote: Counting objects:  95% (137/144)[K
-remote: Counting objects:  96% (139/144)[K
-remote: Counting objects:  97% (140/144)[K
-remote: Counting objects:  98% (142/144)[K
-remote: Counting objects:  99% (143/144)[K
-remote: Counting objects: 100% (144/144)[K
-remote: Counting objects: 100% (144/144), done.[K
-    remote: Compressing objects:   0% (1/105)[K
-remote: Compressing objects:   1% (2/105)[K
-remote: Compressing objects:   2% (3/105)[K
-remote: Compressing objects:   3% (4/105)[K
-remote: Compressing objects:   4% (5/105)[K
-remote: Compressing objects:   5% (6/105)[K
-remote: Compressing objects:   6% (7/105)[K
-remote: Compressing objects:   7% (8/105)[K
-remote: Compressing objects:   8% (9/105)[K
-remote: Compressing objects:   9% (10/105)[K
-remote: Compressing objects:  10% (11/105)[K
-remote: Compressing objects:  11% (12/105)[K
-remote: Compressing objects:  12% (13/105)[K
-remote: Compressing objects:  13% (14/105)[K
-remote: Compressing objects:  14% (15/105)[K
-remote: Compressing objects:  15% (16/105)[K
-remote: Compressing objects:  16% (17/105)[K
-remote: Compressing objects:  17% (18/105)[K
-remote: Compressing objects:  18% (19/105)[K
-remote: Compressing objects:  19% (20/105)[K
-remote: Compressing objects:  20% (21/105)[K
-remote: Compressing objects:  21% (23/105)[K
-remote: Compressing objects:  22% (24/105)[K
-remote: Compressing objects:  23% (25/105)[K
-remote: Compressing objects:  24% (26/105)[K
-remote: Compressing objects:  25% (27/105)[K
-remote: Compressing objects:  26% (28/105)[K
-remote: Compressing objects:  27% (29/105)[K
-remote: Compressing objects:  28% (30/105)[K
-remote: Compressing objects:  29% (31/105)[K
-remote: Compressing objects:  30% (32/105)[K
-remote: Compressing objects:  31% (33/105)[K
-remote: Compressing objects:  32% (34/105)[K
-remote: Compressing objects:  33% (35/105)[K
-remote: Compressing objects:  34% (36/105)[K
-remote: Compressing objects:  35% (37/105)[K
-remote: Compressing objects:  36% (38/105)[K
-remote: Compressing objects:  37% (39/105)[K
-remote: Compressing objects:  38% (40/105)[K
-remote: Compressing objects:  39% (41/105)[K
-remote: Compressing objects:  40% (42/105)[K
-remote: Compressing objects:  41% (44/105)[K
-remote: Compressing objects:  42% (45/105)[K
-remote: Compressing objects:  43% (46/105)[K
-remote: Compressing objects:  44% (47/105)[K
-remote: Compressing objects:  45% (48/105)[K
-remote: Compressing objects:  46% (49/105)[K
-remote: Compressing objects:  47% (50/105)[K
-remote: Compressing objects:  48% (51/105)[K
-remote: Compressing objects:  49% (52/105)[K
-remote: Compressing objects:  50% (53/105)[K
-remote: Compressing objects:  51% (54/105)[K
-remote: Compressing objects:  52% (55/105)[K
-remote: Compressing objects:  53% (56/105)[K
-remote: Compressing objects:  54% (57/105)[K
-remote: Compressing objects:  55% (58/105)[K
-remote: Compressing objects:  56% (59/105)[K
-remote: Compressing objects:  57% (60/105)[K
-remote: Compressing objects:  58% (61/105)[K
-remote: Compressing objects:  59% (62/105)[K
-remote: Compressing objects:  60% (63/105)[K
-remote: Compressing objects:  61% (65/105)[K
-remote: Compressing objects:  62% (66/105)[K
-remote: Compressing objects:  63% (67/105)[K
-remote: Compressing objects:  64% (68/105)[K
-remote: Compressing objects:  65% (69/105)[K
-remote: Compressing objects:  66% (70/105)[K
-remote: Compressing objects:  67% (71/105)[K
-remote: Compressing objects:  68% (72/105)[K
-remote: Compressing objects:  69% (73/105)[K
-remote: Compressing objects:  70% (74/105)[K
-remote: Compressing objects:  71% (75/105)[K
-remote: Compressing objects:  72% (76/105)[K
-remote: Compressing objects:  73% (77/105)[K
-remote: Compressing objects:  74% (78/105)[K
-remote: Compressing objects:  75% (79/105)[K
-remote: Compressing objects:  76% (80/105)[K
-remote: Compressing objects:  77% (81/105)[K
-remote: Compressing objects:  78% (82/105)[K
-remote: Compressing objects:  79% (83/105)[K
-remote: Compressing objects:  80% (84/105)[K
-remote: Compressing objects:  81% (86/105)[K
-remote: Compressing objects:  82% (87/105)[K
-remote: Compressing objects:  83% (88/105)[K
-remote: Compressing objects:  84% (89/105)[K
-remote: Compressing objects:  85% (90/105)[K
-remote: Compressing objects:  86% (91/105)[K
-remote: Compressing objects:  87% (92/105)[K
-remote: Compressing objects:  88% (93/105)[K
-remote: Compressing objects:  89% (94/105)[K
-remote: Compressing objects:  90% (95/105)[K
-remote: Compressing objects:  91% (96/105)[K
-remote: Compressing objects:  92% (97/105)[K
-remote: Compressing objects:  93% (98/105)[K
-remote: Compressing objects:  94% (99/105)[K
-remote: Compressing objects:  95% (100/105)[K
-remote: Compressing objects:  96% (101/105)[K
-remote: Compressing objects:  97% (102/105)[K
-remote: Compressing objects:  98% (103/105)[K
-remote: Compressing objects:  99% (104/105)[K
-remote: Compressing objects: 100% (105/105)[K
-remote: Compressing objects: 100% (105/105), done.[K
-
-
-.. parsed-literal::
-
-    Receiving objects:   0% (1/421)
-
-.. parsed-literal::
-
-    Receiving objects:   1% (5/421), 10.76 MiB | 21.55 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   1% (8/421), 19.25 MiB | 19.12 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   2% (9/421), 19.25 MiB | 19.12 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   3% (13/421), 31.03 MiB | 20.47 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   4% (17/421), 31.03 MiB | 20.47 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   4% (19/421), 43.39 MiB | 21.41 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   5% (22/421), 56.34 MiB | 22.23 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   5% (25/421), 56.34 MiB | 22.23 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   6% (26/421), 56.34 MiB | 22.23 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   7% (30/421), 69.25 MiB | 22.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   8% (34/421), 69.25 MiB | 22.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:   8% (37/421), 82.28 MiB | 22.91 MiB/s
-Receiving objects:   9% (38/421), 82.28 MiB | 22.91 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  10% (43/421), 110.97 MiB | 24.17 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  11% (47/421), 110.97 MiB | 24.17 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  11% (49/421), 124.93 MiB | 24.86 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  12% (51/421), 124.93 MiB | 24.86 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  13% (55/421), 124.93 MiB | 24.86 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  14% (59/421), 139.53 MiB | 26.18 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  14% (60/421), 152.32 MiB | 26.35 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  15% (64/421), 167.60 MiB | 26.99 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  15% (66/421), 167.60 MiB | 26.99 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  16% (68/421), 183.43 MiB | 27.60 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  17% (72/421), 183.43 MiB | 27.60 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  18% (76/421), 183.43 MiB | 27.60 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  19% (80/421), 200.00 MiB | 28.39 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  20% (85/421), 200.00 MiB | 28.39 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  20% (88/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  21% (89/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  22% (93/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  23% (97/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  24% (102/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  25% (106/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  26% (110/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  27% (114/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  28% (118/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  29% (123/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  30% (127/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  31% (131/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  32% (135/421), 216.59 MiB | 29.40 MiB/s
-Receiving objects:  33% (139/421), 216.59 MiB | 29.40 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  34% (144/421), 233.69 MiB | 29.70 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  35% (148/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  36% (152/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  37% (156/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  38% (160/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  39% (165/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  40% (169/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  41% (173/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  42% (177/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  43% (182/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  44% (186/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  45% (190/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  46% (194/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  47% (198/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  48% (203/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  49% (207/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  50% (211/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  51% (215/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  52% (219/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  53% (224/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  54% (228/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  55% (232/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  56% (236/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  57% (240/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  58% (245/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  59% (249/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  60% (253/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  61% (257/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  62% (262/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  63% (266/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  64% (270/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  65% (274/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  66% (278/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  67% (283/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  68% (287/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  69% (291/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  70% (295/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  71% (299/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  72% (304/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  73% (308/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  74% (312/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  75% (316/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  76% (320/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  77% (325/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  78% (329/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  79% (333/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  80% (337/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  81% (342/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  82% (346/421), 233.69 MiB | 29.70 MiB/s
-remote: Total 421 (delta 101), reused 40 (delta 39), pack-reused 277[K
-    Receiving objects:  83% (350/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  84% (354/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  85% (358/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  86% (363/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  87% (367/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  88% (371/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  89% (375/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  90% (379/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  91% (384/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  92% (388/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  93% (392/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  94% (396/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  95% (400/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  96% (405/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  97% (409/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  98% (413/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects:  99% (417/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects: 100% (421/421), 233.69 MiB | 29.70 MiB/s
-Receiving objects: 100% (421/421), 237.89 MiB | 27.05 MiB/s, done.
-    Resolving deltas:   0% (0/144)
-Resolving deltas:   1% (2/144)
-Resolving deltas:   2% (3/144)
-Resolving deltas:   4% (6/144)
-Resolving deltas:   5% (8/144)
-Resolving deltas:   6% (10/144)
-Resolving deltas:   7% (11/144)
-Resolving deltas:   8% (12/144)
-Resolving deltas:   9% (14/144)
-Resolving deltas:  13% (19/144)
-Resolving deltas:  16% (24/144)
-Resolving deltas:  21% (31/144)
-Resolving deltas:  25% (36/144)
-Resolving deltas:  27% (39/144)
-Resolving deltas:  28% (41/144)
-Resolving deltas:  29% (42/144)
-Resolving deltas:  40% (58/144)
-Resolving deltas:  41% (60/144)
-Resolving deltas:  43% (63/144)
-Resolving deltas:  46% (67/144)
-Resolving deltas:  49% (71/144)
-Resolving deltas:  50% (72/144)
-Resolving deltas:  65% (94/144)
-Resolving deltas:  66% (96/144)
-Resolving deltas:  70% (102/144)
-Resolving deltas:  71% (103/144)
-Resolving deltas:  72% (104/144)
-Resolving deltas:  74% (107/144)
-Resolving deltas:  77% (111/144)
-Resolving deltas:  78% (113/144)
-Resolving deltas:  81% (118/144)
-Resolving deltas:  83% (120/144)
-Resolving deltas:  84% (121/144)
-Resolving deltas: 100% (144/144)
-Resolving deltas: 100% (144/144), done.
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
-
-
-.. parsed-literal::
-
+    remote: Counting objects: 100% (144/144), done.[K
+    remote: Compressing objects: 100% (105/105), done.[K
+    remote: Total 421 (delta 101), reused 43 (delta 39), pack-reused 277[K
+    Receiving objects: 100% (421/421), 237.89 MiB | 26.48 MiB/s, done.
+    Resolving deltas: 100% (144/144), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
+    Note: you may need to restart the kernel to use updated packages.
     WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -617,10 +133,6 @@ DepthAnything family.
 .. parsed-literal::
 
     xFormers not available
-
-
-.. parsed-literal::
-
     xFormers not available
 
 
@@ -761,17 +273,13 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H % patch_H == 0, f"Input image height {H} is not a multiple of patch height {patch_H}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert W % patch_W == 0, f"Input image width {W} is not a multiple of patch width: {patch_W}"
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch == N and w == h:
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
 
 
@@ -1063,7 +571,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.27 seconds. Total FPS (including video processing): 4.52.Inference FPS: 10.65 
+    Processed 60 frames in 13.33 seconds. Total FPS (including video processing): 4.50.Inference FPS: 10.52 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -1090,7 +598,7 @@ Run inference on video
 .. parsed-literal::
 
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -1227,14 +735,10 @@ quantization code below may take some time.
 
 .. parsed-literal::
 
-    2024-04-17 23:32:53.792726: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-17 23:32:53.826550: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-06 23:52:17.005825: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-06 23:52:17.039208: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-17 23:32:54.388126: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-05-06 23:52:17.604619: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1282,10 +786,6 @@ quantization code below may take some time.
 .. parsed-literal::
 
     INFO:nncf:36 ignored nodes were found by name in the NNCFGraph
-
-
-.. parsed-literal::
-
     INFO:nncf:48 ignored nodes were found by name in the NNCFGraph
 
 
@@ -1308,12 +808,6 @@ quantization code below may take some time.
     <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
     </pre>
 
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
 
 
 
@@ -1408,10 +902,10 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.69 seconds. Total FPS (including video processing): 4.73.Inference FPS: 12.74 
+    Processed 60 frames in 12.84 seconds. Total FPS (including video processing): 4.67.Inference FPS: 12.79 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -1450,8 +944,8 @@ Compare model file size
 .. parsed-literal::
 
     FP16 model size: 47.11 MB
-    INT8 model size: 24.27 MB
-    Model compression rate: 1.942
+    INT8 model size: 24.41 MB
+    Model compression rate: 1.930
 
 
 Compare inference time of the FP16 and INT8 models
@@ -1491,13 +985,9 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 
 .. parsed-literal::
 
-    FP16 Throughput: 10.76 FPS
-
-
-.. parsed-literal::
-
-    INT8 Throughput: 14.03 FPS
-    Speed-up: 1.30
+    FP16 Throughput: 10.69 FPS
+    INT8 Throughput: 14.04 FPS
+    Speed-up: 1.31
 
 
 Interactive demo

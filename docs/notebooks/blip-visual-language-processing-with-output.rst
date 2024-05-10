@@ -323,6 +323,10 @@ text and vision modalities and postprocessing of generation results.
 
 .. code:: ipython3
 
+    from pathlib import Path
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/utils.py")
     from utils import visualize_results
 
     fig = visualize_results(raw_image, answer, question)
@@ -380,7 +384,6 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
 
     # if openvino model does not exist, convert it to IR
     if not VISION_MODEL_OV.exists():
-
         # export pytorch model to ov.Model
         with torch.no_grad():
             ov_vision_model = ov.convert_model(vision_model, example_input=inputs["pixel_values"])
@@ -556,7 +559,7 @@ As discussed before, the model consists of several blocks which can be
 reused for building pipelines for different tasks. In the diagram below,
 you can see how image captioning works:
 
-|image01|
+|image6|
 
 The visual model accepts the image preprocessed by ``BlipProcessor`` as
 input and produces image embeddings, which are directly passed to the
@@ -570,12 +573,12 @@ tokenized by ``BlipProcessor`` are provided to the text encoder and then
 multimodal question embedding is passed to the text decoder for
 performing generation of answers.
 
-|image11|
+|image7|
 
 The next step is implementing both pipelines using OpenVINO models.
 
-.. |image01| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
-.. |image11| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
+.. |image6| image:: https://user-images.githubusercontent.com/29454499/221865836-a56da06e-196d-449c-a5dc-4136da6ab5d5.png
+.. |image7| image:: https://user-images.githubusercontent.com/29454499/221868167-d0081add-d9f3-4591-80e7-4753c88c1d0a.png
 
 .. code:: ipython3
 
@@ -642,6 +645,8 @@ initial token for decoder work.
 
 .. code:: ipython3
 
+    if not Path("./blip_model.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/blip_model.py")
     from blip_model import OVBlipModel
 
     ov_model = OVBlipModel(model.config, model.decoder_start_token_id, ov_vision_model, ov_text_encoder, text_decoder)
