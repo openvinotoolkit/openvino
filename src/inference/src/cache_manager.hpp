@@ -101,30 +101,23 @@ private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         std::string original_plocal = setlocale(LC_ALL, nullptr);
-        if (!original_plocal.empty() && original_plocal != "C") {
-            setlocale(LC_ALL, "C");
-        }
+        setlocale(LC_ALL, "C");
+
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
-        if (!original_plocal.empty() && original_plocal != "C") {
-            setlocale(LC_ALL, original_plocal.c_str());
-        }
+        setlocale(LC_ALL, original_plocal.c_str());
     }
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         std::string original_plocal = setlocale(LC_ALL, nullptr);
-        if (!original_plocal.empty() && original_plocal != "C") {
-            setlocale(LC_ALL, "C");
-        }
+        setlocale(LC_ALL, "C");
         auto blobFileName = getBlobFile(id);
         if (ov::util::file_exists(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
         }
-        if (!original_plocal.empty() && original_plocal != "C") {
-            setlocale(LC_ALL, original_plocal.c_str());
-        }
+        setlocale(LC_ALL, original_plocal.c_str());
     }
 
     void remove_cache_entry(const std::string& id) override {
