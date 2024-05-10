@@ -9,6 +9,8 @@
 
 namespace kernel_selector {
 
+static constexpr size_t sub_group_size = 16;
+
 ConvolutionKernel_bfyx_os_iyx_osv32::ConvolutionKernel_bfyx_os_iyx_osv32()
     : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv32") {
     // Generate the dispatch options to the auto-tuner.
@@ -45,7 +47,6 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv32::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDilation();
-    k.EnableGroupedConvolution();
     k.EnableDynamicShapesSupport();
     return k;
 }
@@ -59,54 +60,30 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv32::get_required_device_featu
     return k;
 }
 
-static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_block_width,
-                                                               size_t output_block_height,
-                                                               const uSize& filter_size,
-                                                               const uSize& stride,
-                                                               const uSize& dilation,
-                                                               size_t sg_size = 16,
-                                                               size_t read_chunk_size = 8,
-                                                               size_t min_read_size = 16) {
-    assert(output_block_width > 0 && output_block_height > 0);
-    assert(stride.x > 0 && stride.y > 0);
-    assert(filter_size.x > 0 && filter_size.y > 0);
-
-    // Number of elements in X dimension needed from input to compute output block without re-reading input.
-    size_t input_block_req_width = (output_block_width - 1) * stride.x + (filter_size.x - 1) * dilation.x + 1;
-    // Number of elements in Y dimension needed from input to compute output block without re-reading input.
-    size_t input_block_req_height = (output_block_height - 1) * stride.y + (filter_size.y - 1) * dilation.y + 1;
-
-    // Required number of elements in X dimension rounded to nearest >= read chunk size.
-    size_t input_block_read_width = std::max(RoundUp(input_block_req_width, read_chunk_size), min_read_size);
-    // Number of sub-group-sized vectors of unit type needed to store input block.
-    size_t input_block_array_size = CeilDiv(input_block_req_height * input_block_read_width, sg_size);
-
-    return std::make_pair(input_block_array_size, input_block_read_width);
-}
-
-static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_t& block_x, size_t& block_y, size_t sub_group_size) {
-    // how many elements we will compute in each dimension
-    size_t computed_x = Align(output_x, block_x);
-    size_t computed_y = Align(output_y, block_y);
-    // how many simds we need in each dimension
-    size_t simds_x = computed_x / block_x;
-    size_t simds_y = computed_y / block_y;
-    // how many unused values we have in each dimension
-    size_t unused_x = computed_x - output_x;
-    size_t unused_y = computed_y - output_y;
-
-    block_x -= unused_x / simds_x;
-    block_y -= unused_y / simds_y;
-
-    if (simds_x * simds_y >= sub_group_size) {
-        block_x = Align(block_x, 2);
-        block_y = Align(block_y, 2);
-    }
-}
-
 ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iyx_osv32::GetAutoTuneOptions(
     const Params& p,
     int autoTuneIndex) const {
+
+    auto shrink_blocks_to_output_size = [](size_t output_x, size_t output_y, size_t& block_x, size_t& block_y, size_t sub_group_size) {
+        // how many elements we will compute in each dimension
+        size_t computed_x = Align(output_x, block_x);
+        size_t computed_y = Align(output_y, block_y);
+        // how many simds we need in each dimension
+        size_t simds_x = computed_x / block_x;
+        size_t simds_y = computed_y / block_y;
+        // how many unused values we have in each dimension
+        size_t unused_x = computed_x - output_x;
+        size_t unused_y = computed_y - output_y;
+
+        block_x -= unused_x / simds_x;
+        block_y -= unused_y / simds_y;
+
+        if (simds_x * simds_y >= sub_group_size) {
+            block_x = Align(block_x, 2);
+            block_y = Align(block_y, 2);
+        }
+    };
+
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
@@ -114,8 +91,6 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     AutoTuneOption option = {0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
-
-    const auto& sub_group_size = GetSubGroupSize(cp);
 
     if (cp.stride.x == 1 && cp.stride.y == 1) {
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
@@ -152,8 +127,32 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefault(const convolution_params& cp,
                                                                                     int autoTuneIndex) const {
+    auto get_bfyx_req_input_block_dims = [](size_t output_block_width,
+                                            size_t output_block_height,
+                                            const uSize& filter_size,
+                                            const uSize& stride,
+                                            const uSize& dilation,
+                                            size_t sg_size,
+                                            size_t read_chunk_size,
+                                            size_t min_read_size) {
+        assert(output_block_width > 0 && output_block_height > 0);
+        assert(stride.x > 0 && stride.y > 0);
+        assert(filter_size.x > 0 && filter_size.y > 0);
+
+        // Number of elements in X dimension needed from input to compute output block without re-reading input.
+        size_t input_block_req_width = (output_block_width - 1) * stride.x + (filter_size.x - 1) * dilation.x + 1;
+        // Number of elements in Y dimension needed from input to compute output block without re-reading input.
+        size_t input_block_req_height = (output_block_height - 1) * stride.y + (filter_size.y - 1) * dilation.y + 1;
+
+        // Required number of elements in X dimension rounded to nearest >= read chunk size.
+        size_t input_block_read_width = std::max(RoundUp(input_block_req_width, read_chunk_size), min_read_size);
+        // Number of sub-group-sized vectors of unit type needed to store input block.
+        size_t input_block_array_size = CeilDiv(input_block_req_height * input_block_read_width, sg_size);
+
+        return std::make_pair(input_block_array_size, input_block_read_width);
+    };
+
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
-    const auto& sub_group_size = GetSubGroupSize(cp);
 
     const auto of_maps = cp.outputs[0].Feature().v;
     const auto of_maps_per_group = of_maps / cp.groups / 2;
@@ -194,6 +193,10 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
         return false;
     }
 
+    if (!IsSIMDSizeSupported(p.engineInfo, 16)) {
+        return false;
+    }
+
     // To prevent big sized filter which causes lots of CL build time.
     const size_t acceptable_filter_size = 1024;     // This acceptable size was decided by heuristics
     const auto& params = static_cast<const convolution_params&>(p);
@@ -207,13 +210,9 @@ bool ConvolutionKernel_bfyx_os_iyx_osv32::Validate(const Params& p) const {
 
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv32::GetJitConstants(const convolution_params& params,
                                                                   const DispatchData& dispatchData) const {
-    const convolution_params& cp = static_cast<const convolution_params&>(params);
-    const auto& sub_group_size = GetSubGroupSize(cp);
-
     const auto of_maps = params.outputs[0].Feature().v;
-    const auto of_maps_per_group = of_maps / params.groups;
-    const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
-    size_t leftovers = of_threads_per_batch - of_maps_per_group;
+    const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
+    size_t leftovers = of_threads_per_batch - of_maps;
 
     auto jit = Parent::GetJitConstantsWithLoopUnroll(params, dispatchData);
 
@@ -224,23 +223,17 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv32::GetJitConstants(const convolut
     }
 
     jit.AddConstant(MakeJitConstant("OSV_SIZE", 32));
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", dispatchData.cldnnStyle.blockHeight));
     jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", dispatchData.cldnnStyle.inputBlockArraySize));
     jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
-    jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
 
     if (leftovers) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", leftovers));
     }
 
     return jit;
-}
-
-WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv32::GetPreferredWeightsLayout(
-        const convolution_params &params) const {
-    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv32 : WeightsLayout::os_iyx_osv32;
 }
 
 KernelsData ConvolutionKernel_bfyx_os_iyx_osv32::GetKernelsData(const Params& params) const {

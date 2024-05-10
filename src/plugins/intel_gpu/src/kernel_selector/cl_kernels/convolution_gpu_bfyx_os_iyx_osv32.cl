@@ -38,7 +38,6 @@ gpu::make_jit_constant("OUTPUT_BLOCK_WIDTH",        _kernel_data.block_width));
 gpu::make_jit_constant("OUTPUT_BLOCK_HEIGHT",       _kernel_data.block_height));
 gpu::make_jit_constant("IN_BLOCK_ARRAY_SIZE",       _kernel_data.input_block_array_size));
 gpu::make_jit_constant("IN_BLOCK_WIDTH",            _kernel_data.input_block_width));
-gpu::make_jit_constant("PREFETCH",                  _kernel_data.prefetch));
 if (_kernel_data.leftovers)
     gpu::make_jit_constant("LEFTOVERS",             _kernel_data.leftovers));
 */
@@ -73,35 +72,21 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const uint or  = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT; // or = Output Row
     const uint fm  = get_global_id(2);                             // fm = Feature Map = od = Output Depth
     const uint lid = get_sub_group_local_id();
-
-#if GROUPED
-    uint batch_idx = fm / (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM);
-    uint feature_idx = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM) % FEATURES_THREADS_PER_BATCH);
-    uint fmg = feature_idx / SUB_GROUP_SIZE;
-    const uint g = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM)) / FEATURES_THREADS_PER_BATCH;
-    const uint feature_num = g * FILTER_OFM_NUM + feature_idx; // feature index for fused operations
-#else
     const uint batch_idx = (fm / SUB_GROUP_SIZE) % OUTPUT_BATCH_NUM;
     const uint fmg = (fm / SUB_GROUP_SIZE) / OUTPUT_BATCH_NUM;
     const uint feature_idx = fmg * OSV_SIZE + lid;
-    const uint g = 0;
-#endif
+
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     UNIT_TYPE2 out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
-    uint in_addr;
-    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE;
-
-#if GROUPED
-    weight_addr += g * FILTER_GROUPS_PITCH;
-#endif
 
     unroll_for (int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); ++i) {
         out[i] = UNIT_VAL_ZERO;
     }
 
-    uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-    in_addr = batch_idx * INPUT0_BATCH_PITCH;
-    in_addr += in_split_offset + INPUT0_OFFSET_WITH_PADDING + (or * STRIDE_SIZE_Y * INPUT0_Y_PITCH) + (oc * STRIDE_SIZE_X + lid) * INPUT0_X_PITCH;
+    uint in_addr = batch_idx * INPUT0_BATCH_PITCH + INPUT0_OFFSET_WITH_PADDING +
+                   (or * STRIDE_SIZE_Y * INPUT0_Y_PITCH) + (oc * STRIDE_SIZE_X + lid) * INPUT0_X_PITCH;
+
+    uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * OSV_SIZE;
 
     for (uint kd = 0; kd < FILTER_IFM_NUM; ++kd)
     {
@@ -182,15 +167,15 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
             #if BIAS_PER_OUTPUT
-                unsigned bias_index = feature_idx*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + or*OUTPUT_SIZE_X + oc;
+                unsigned bias_index = feature_idx * OUTPUT_SIZE_X * OUTPUT_SIZE_Y + or * OUTPUT_SIZE_X + oc;
+                out[r * OUTPUT_BLOCK_WIDTH + c].s0 += bias[bias_index];
+                bias_index += SUB_GROUP_SIZE * OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
+                out[r * OUTPUT_BLOCK_WIDTH + c].s1 += bias[bias_index];
             #else
                 unsigned bias_index = feature_idx;
+                UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(bias, bias_index);
+                out[r * OUTPUT_BLOCK_WIDTH + c] += bias_read;
             #endif
-            #if GROUPED
-                bias_index += g * FILTER_OFM_NUM;
-            #endif
-            UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(bias, bias_index);
-            out[r * OUTPUT_BLOCK_WIDTH + c] += bias_read;
         }
     }
 #endif
@@ -201,10 +186,9 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 
     for (uint fid = 0; fid < 2; ++fid) {
         if ((feature_idx + SUB_GROUP_SIZE * fid) < FILTER_OFM_NUM) {
-            uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
             uint out_addr = OUTPUT_OFFSET;
             out_addr += batch_idx * OUTPUT_BATCH_PITCH;
-            out_addr += out_split_offset + (feature_idx + SUB_GROUP_SIZE * fid) * OUTPUT_FEATURE_PITCH;
+            out_addr += (feature_idx + SUB_GROUP_SIZE * fid) * OUTPUT_FEATURE_PITCH;
             out_addr += or * OUTPUT_Y_PITCH + oc;
 
             for (uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
