@@ -219,7 +219,7 @@ void regclass_graph_Node(py::module m) {
              )");
     node.def("get_input_element_type",
              &ov::Node::get_input_element_type,
-             py::arg("index"), 
+             py::arg("index"),
              R"(
                 Returns the element type for input index
 
@@ -254,7 +254,7 @@ void regclass_graph_Node(py::module m) {
              py::arg("index"),
              py::arg("element_type"),
              py::arg("shape"),
-            R"(
+             R"(
                 Sets output's element type and shape.
 
                 :param index: Index of the output.
@@ -264,7 +264,7 @@ void regclass_graph_Node(py::module m) {
     node.def("set_output_size",
              &ov::Node::set_output_size,
              py::arg("size"),
-            R"(
+             R"(
                 Sets the number of outputs
 
                 :param size: number of outputs.
@@ -435,16 +435,20 @@ void regclass_graph_Node(py::module m) {
         self->visit_attributes(dict_deserializer);
     });
     node.def("validate", [](const std::shared_ptr<ov::Node>& self) {
-        Common::utils::deprecation_warning("validate", "2024.4", "Please use 'constructor_validate_and_infer_types' method instead.");
+        Common::utils::deprecation_warning("validate",
+                                           "2024.4",
+                                           "Please use 'constructor_validate_and_infer_types' method instead.");
         return self->constructor_validate_and_infer_types();
     });
     node.def("constructor_validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
         return self->constructor_validate_and_infer_types();
     });
-    node.def("validate_and_infer_types", [](const std::shared_ptr<ov::Node>& self) {
-        return self->validate_and_infer_types();
-    },
-     R"(
+    node.def(
+        "validate_and_infer_types",
+        [](const std::shared_ptr<ov::Node>& self) {
+            return self->validate_and_infer_types();
+        },
+        R"(
         Verifies that attributes and inputs are consistent and computes output shapes and element types.
         Must be implemented by concrete child classes so that it can be run any number of times.
         
