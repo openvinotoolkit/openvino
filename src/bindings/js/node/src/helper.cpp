@@ -8,7 +8,7 @@
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
-        {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64"};
+        {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64", "string"};
     return supported_element_types;
 }
 
@@ -189,16 +189,31 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
 }
 
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value& value, const std::vector<napi_types>& acceptable_types) {
-    if (!acceptableType(value, acceptable_types)) {
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::Any"));
-    }
+ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value) {
     if (value.IsString()) {
-        return value.ToString().Utf8Value();
+        return ov::Any(value.ToString().Utf8Value());
+    } else if (value.IsBigInt()) {
+        Napi::BigInt big_value = value.As<Napi::BigInt>();
+        bool is_lossless;
+        int64_t big_num = big_value.Int64Value(&is_lossless);
+
+        if (!is_lossless) {
+            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
+        }
+
+        return ov::Any(big_num);
     } else if (value.IsNumber()) {
-        return value.ToNumber().Int32Value();
+        Napi::Number num = value.ToNumber();
+
+        if (is_napi_value_int(env, value)) {
+            return ov::Any(num.Int32Value());
+        } else {
+            return ov::Any(num.DoubleValue());
+        }
+    } else if (value.IsBoolean()) {
+        return ov::Any(value.ToBoolean());
     } else {
-        OPENVINO_THROW(std::string("The conversion is not supported yet."));
+        OPENVINO_THROW("Cannot convert to ov::Any");
     }
 }
 
@@ -217,7 +232,7 @@ std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
 
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         const std::string& option = static_cast<Napi::Value>(keys[i]).ToString();
-        properties_to_cpp[option] = js_to_cpp<ov::Any>(config.Get(option), {napi_string});
+        properties_to_cpp[option] = js_to_cpp<ov::Any>(info.Env(), config.Get(option));
     }
 
     return properties_to_cpp;
@@ -525,34 +540,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     return info.Env().Undefined();
 }
 
-ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
-    if (value.IsString()) {
-        return ov::Any(value.ToString().Utf8Value());
-    } else if (value.IsBigInt()) {
-        Napi::BigInt big_value = value.As<Napi::BigInt>();
-        bool is_lossless;
-        int64_t big_num = big_value.Int64Value(&is_lossless);
-
-        if (!is_lossless) {
-            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
-        }
-
-        return ov::Any(big_num);
-    } else if (value.IsNumber()) {
-        Napi::Number num = value.ToNumber();
-
-        if (is_napi_value_int(env, value)) {
-            return ov::Any(num.Int32Value());
-        } else {
-            return ov::Any(num.DoubleValue());
-        }
-    } else if (value.IsBoolean()) {
-        return ov::Any(value.ToBoolean());
-    } else {
-        OPENVINO_THROW("Cannot convert to ov::Any");
-    }
-}
-
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
     return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
 }
@@ -568,7 +555,7 @@ ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         const auto& property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
 
-        ov::Any any_value = js_to_any(env, parameters.Get(property_name));
+        const auto& any_value = js_to_cpp<ov::Any>(env, parameters.Get(property_name));
 
         properties.insert(std::make_pair(property_name, any_value));
     }

@@ -50,16 +50,7 @@ install required dependencies
 
 .. parsed-literal::
 
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -78,6 +69,19 @@ Download model code from HuggingFace hub
         if not Path(file_for_downloading).exists():
             hf_hub_download(repo_id=repo_id, filename=file_for_downloading, local_dir=".")
 
+
+
+.. parsed-literal::
+
+    utilities.py:   0%|          | 0.00/980 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    example_input.jpg:   0%|          | 0.00/327k [00:00<?, ?B/s]
+
+
 Load PyTorch model
 ------------------
 
@@ -93,6 +97,13 @@ it may take some time.
     from transformers import AutoModelForImageSegmentation
     
     net = AutoModelForImageSegmentation.from_pretrained("briaai/RMBG-1.4", trust_remote_code=True)
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+      warnings.warn(
+
 
 Run PyTorch model inference
 ---------------------------
@@ -211,7 +222,7 @@ function or directly loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
