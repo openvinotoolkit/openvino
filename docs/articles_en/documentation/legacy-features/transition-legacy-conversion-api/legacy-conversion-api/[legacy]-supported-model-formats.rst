@@ -76,7 +76,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-pytorch>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
    .. tab-item:: TensorFlow
@@ -115,14 +115,14 @@ Here are code examples of how to use these methods with different model formats:
 
                  import openvino
                  from openvino.tools.mo import convert_model
-                 
+
                  core = openvino.Core()
                  ov_model = convert_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tensorflow-to-openvino-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -227,7 +227,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/119-tflite-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tflite-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -260,7 +260,7 @@ Here are code examples of how to use these methods with different model formats:
                  :force:
 
                  import openvino
-                 
+
                  core = openvino.Core()
                  compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
@@ -355,7 +355,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-onnx>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -486,7 +486,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-paddle>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/103-paddle-to-openvino-classification-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/paddle-to-openvino-classification-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` method:

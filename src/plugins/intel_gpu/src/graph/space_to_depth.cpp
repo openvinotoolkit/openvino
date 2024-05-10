@@ -25,7 +25,7 @@ std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives())
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
     auto output_format = input_layout.format;
 
@@ -55,7 +55,7 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
 
     auto output_type = input_layout.data_type;
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)

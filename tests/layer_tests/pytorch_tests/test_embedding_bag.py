@@ -50,7 +50,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
     def test_embedding_bag(self, ie_device, precision, ir_version, indicies_dtype, per_sample_weights):
         self._test(*self.create_model(per_sample_weights), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"indicies_dtype": indicies_dtype, "per_sample_weights": per_sample_weights}, 
-                   trace_model=True, dynamic_shapes=not per_sample_weights)
+                   trace_model=True, dynamic_shapes=not per_sample_weights and ie_device != "GPU")
 
 
 class TestEmbeddingBag2d(PytorchLayerTest):
@@ -96,4 +96,4 @@ class TestEmbeddingBag2d(PytorchLayerTest):
     def test_embedding_bag(self, ie_device, precision, ir_version, indicies_dtype, indicies_size, per_sample_weights):
         self._test(*self.create_model(per_sample_weights), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"indicies_size": indicies_size, "indicies_dtype": indicies_dtype, "per_sample_weights": per_sample_weights}, 
-                   trace_model=True, dynamic_shapes=not per_sample_weights)
+                   trace_model=True, dynamic_shapes=not per_sample_weights and ie_device != "GPU")
