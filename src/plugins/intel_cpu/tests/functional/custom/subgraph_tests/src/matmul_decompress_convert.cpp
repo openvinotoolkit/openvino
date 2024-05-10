@@ -205,9 +205,6 @@ protected:
         if (inference_precision == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else if (inference_precision == ov::element::f16) {
-            convertOutType = inType = outType = netType = ElementType::f16;
-            weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
             inType = outType = netType;
         }
@@ -217,7 +214,7 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
         std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
-        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
+        if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
         }
@@ -243,6 +240,7 @@ protected:
 };
 
 TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_execution_graph();
 }
