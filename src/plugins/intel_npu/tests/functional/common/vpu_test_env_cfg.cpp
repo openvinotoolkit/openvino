@@ -153,11 +153,6 @@ std::string getTestsPlatformFromEnvironmentOr(const std::string& instead) {
                    : instead;
 }
 
-std::string getTestsPlatformCompilerInPlugin() {
-    return getTestsPlatformFromEnvironmentOr(
-            getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)));
-}
-
 std::string getDeviceNameTestCase(const std::string& str) {
     ov::DeviceIDParser parser = ov::DeviceIDParser(str);
     return parser.get_device_name() + parser.get_device_id();

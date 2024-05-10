@@ -13,26 +13,13 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-        {{ov::hint::inference_precision.name(), ov::element::f32},
-         {ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::MLIR},
-         {ov::intel_npu::platform.name(), ov::test::utils::getTestsPlatformCompilerInPlugin()}}};
-
-const std::vector<ov::AnyMap> configsDriver = {
-        {{ov::hint::inference_precision.name(), ov::element::f32},
-         {ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}}};
+        {{ov::hint::inference_precision.name(), ov::element::f32}}};
 
 const std::vector<ov::AnyMap> heteroConfigs = {
         {{ov::hint::inference_precision.name(), ov::element::f32},
          {ov::device::priorities(ov::test::utils::DEVICE_NPU)},
          {ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                 {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::MLIR},
-                                  {ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin())}})}}};
-
-const std::vector<ov::AnyMap> heteroConfigsDriver = {
-        {{ov::hint::inference_precision.name(), ov::element::f32},
-         {ov::device::priorities(ov::test::utils::DEVICE_NPU)},
-         {ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                 {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}})}}};
+                                 {})}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVIterationChaining,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),

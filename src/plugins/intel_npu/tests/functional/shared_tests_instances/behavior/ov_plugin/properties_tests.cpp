@@ -44,10 +44,6 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
         {{ov::enable_profiling.name(), true}},
 };
 
-const std::vector<ov::AnyMap> driverCorrectPluginMutableProperties = {
-        {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::DRIVER}},
-};
-
 const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
         /// OV
         {{ov::enable_profiling.name(), false}},
@@ -120,12 +116,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
                                             ::testing::ValuesIn(CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTests>));
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVSetPropComplieModleGetPropTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCorrectPluginMutableProperties),
-                                            ::testing::ValuesIn(CorrectCompiledModelProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVSetPropComplieModleGetPropTests>));
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(IncorrectImmutableProperties +
@@ -150,12 +140,6 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests, OVCheckSetSupportedRWMetricsPropsTests,
         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                            ::testing::ValuesIn(getRWMandatoryPropertiesValues(CorrectPluginMutableProperties))),
-        (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests_Driver, OVCheckSetSupportedRWMetricsPropsTests,
-        ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                           ::testing::ValuesIn(getRWMandatoryPropertiesValues(driverCorrectPluginMutableProperties))),
         (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(

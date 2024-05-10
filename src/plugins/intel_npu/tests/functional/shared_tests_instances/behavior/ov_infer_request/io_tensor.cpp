@@ -14,81 +14,39 @@
 using namespace ov::test::behavior;
 
 namespace {
-const std::vector<ov::AnyMap> pluginCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR),
-         ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin())}};
+const std::vector<ov::AnyMap> configs = {{}};
 
-const std::vector<ov::AnyMap> pluginCompilerMultiConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR),
-         ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin()),
-         ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
+const std::vector<ov::AnyMap> multiConfigs = {
+        {ov::device::priorities(ov::test::utils::DEVICE_NPU),
+        ov::device::properties(ov::test::utils::DEVICE_NPU, {})}};
 
-const std::vector<ov::AnyMap> pluginCompilerAutoConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR),
-         ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin()),
-         ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
-
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
-
-const std::vector<ov::AnyMap> driverCompilerMultiConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-         ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
-
-const std::vector<ov::AnyMap> driverCompilerAutoConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-         ov::device::priorities(ov::test::utils::DEVICE_NPU)}};
+const std::vector<ov::AnyMap> autoConfigs = {
+        {ov::device::priorities(ov::test::utils::DEVICE_NPU),
+        ov::device::properties(ov::test::utils::DEVICE_NPU, {})}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(pluginCompilerMultiConfigs)),
+                                            ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(pluginCompilerMultiConfigs)),
+                                            ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_Driver, OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVInferRequestIOTensorTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_Driver, OVInferRequestIOTensorTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_Driver, OVInferRequestIOTensorTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
+                                            ::testing::ValuesIn(autoConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 const std::vector<ov::element::Type> prcs = {
@@ -99,92 +57,47 @@ const std::vector<ov::element::Type> prcs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(pluginCompilerMultiConfigs)),
+                                            ::testing::ValuesIn(multiConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(pluginCompilerAutoConfigs)),
+                                            ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTestNPU,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Mutli_BehaviorTests, OVInferRequestIOTensorSetPrecisionTestNPU,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(pluginCompilerMultiConfigs)),
+                                            ::testing::ValuesIn(multiConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTestNPU,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(pluginCompilerAutoConfigs)),
+                                            ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(pluginCompilerMultiConfigs)),
+                                            ::testing::ValuesIn(multiConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestCheckTensorPrecision,
                          ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(pluginCompilerAutoConfigs)),
+                                            ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
 
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTest,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(driverCompilerAutoConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTest>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Mutli_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_Driver, OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(driverCompilerAutoConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_Driver, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_Driver, OVInferRequestCheckTensorPrecision,
-                         ::testing::Combine(::testing::ValuesIn(prcs), ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(driverCompilerAutoConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestCheckTensorPrecision>);
 }  // namespace

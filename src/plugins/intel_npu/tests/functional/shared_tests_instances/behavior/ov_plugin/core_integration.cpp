@@ -55,15 +55,7 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
 // IE Class Common tests with <pluginName, deviceName params>
 //
 
-// MLIR compiler type config
-const std::vector<ov::AnyMap> mlirCompilerConfigs = {{
-        ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR),
-        ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin()),
-}};
-
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
+const std::vector<ov::AnyMap> configs = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVBasicPropertiesTestsP, OVBasicPropertiesTestsP,
                          ::testing::ValuesIn(plugins), OVClassBasicTestName::getTestCaseName);
@@ -77,11 +69,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassModelTestP, OVClassModelTest
                          OVClassNetworkTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP, OVClassNetworkTestPNPU,
-                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(mlirCompilerConfigs)),
-                         OVClassNetworkTestPNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassNetworkTestP_Driver, OVClassNetworkTestPNPU,
-                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(driverCompilerConfigs)),
+                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
                          OVClassNetworkTestPNPU::getTestCaseName);
 
 //
@@ -148,66 +136,6 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
          ov::device::properties(ov::test::utils::DEVICE_NPU,
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
 
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigsWithSecondaryProperties = {
-        {ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))}};
-
-const std::vector<ov::AnyMap> driverCompilerMultiConfigsWithSecondaryProperties = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))}};
-
-const std::vector<ov::AnyMap> driverCompilerAutoConfigsWithSecondaryProperties = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties("AUTO", ov::enable_profiling(false),
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties("AUTO", ov::enable_profiling(false),
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))},
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU),
-         ov::device::properties("AUTO", ov::enable_profiling(false),
-                                ov::device::priorities(ov::test::utils::DEVICE_NPU),
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_CPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)),
-         ov::device::properties(ov::test::utils::DEVICE_NPU,
-                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-                                ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER))}};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"), ::testing::ValuesIn(multiConfigs)),
@@ -237,22 +165,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrect
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_NPU_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest_Driver,
-                         OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
-                                            ::testing::ValuesIn(driverCompilerConfigsWithSecondaryProperties)));
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest_Driver,
-                         OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("MULTI"),
-                                            ::testing::ValuesIn(driverCompilerMultiConfigsWithSecondaryProperties)));
-
-INSTANTIATE_TEST_SUITE_P(smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest_Driver,
-                         OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("AUTO"),
-                                            ::testing::ValuesIn(driverCompilerAutoConfigsWithSecondaryProperties)));
-
 // IE Class load and check network with ov::device::properties
 // OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
@@ -261,11 +173,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheck
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassLoadNetworkTest, OVClassLoadNetworkTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(mlirCompilerConfigs)),
-                         OVClassLoadNetworkTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassLoadNetworkTest_Driver, OVClassLoadNetworkTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(driverCompilerConfigs)),
+                         ::testing::Combine(::testing::ValuesIn(devices), ::testing::ValuesIn(configs)),
                          OVClassLoadNetworkTestNPU::getTestCaseName);
 
 //
@@ -301,7 +209,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoad
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         auto model = ov::test::utils::make_conv_pool_relu();
         OV_ASSERT_NO_THROW(ie.compile_model(
-                model, target_device, {ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin())}));
+                model, target_device, {}));
     }
 
     OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
@@ -314,7 +222,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoad
     ASSERT_LE(a1, a2);
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsLoaded_Driver) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsLoaded) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     ov::Any p;
@@ -326,36 +234,10 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsL
         auto model = ov::test::utils::make_conv_pool_relu();
         OV_ASSERT_NO_THROW(
                 ie.compile_model(model, target_device,
-                                 ov::AnyMap{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                            ov::log::level(ov::log::Level::DEBUG)}));
+                                 ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
     }
 
     OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
-    uint64_t a2 = p.as<uint64_t>();
-
-    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2
-              << "}" << std::endl;
-
-    // after the network is loaded onto device, allocated memory value should increase
-    ASSERT_LE(a1, a2);
-}
-
-TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoadedNPU_Driver) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    ov::Core ie;
-    ov::Any p;
-
-    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
-    uint64_t a1 = p.as<uint64_t>();
-
-    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
-        auto model = ov::test::utils::make_conv_pool_relu();
-        ASSERT_NO_THROW(ie.compile_model(model, target_device,
-                                         ov::AnyMap{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                                    ov::log::level(ov::log::Level::DEBUG)}));
-    }
-
-    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t a2 = p.as<uint64_t>();
 
     std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2

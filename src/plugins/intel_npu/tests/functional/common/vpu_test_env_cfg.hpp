@@ -49,7 +49,6 @@ private:
 
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead);
 std::string getTestsPlatformFromEnvironmentOr(const std::string& instead);
-std::string getTestsPlatformCompilerInPlugin();
 
 std::string getDeviceNameTestCase(const std::string& str);
 std::string getDeviceName();

@@ -103,13 +103,7 @@ protected:
     ov::AnyMap configuration;
 };
 
-const std::vector<ov::AnyMap> configMLIR = {
-        {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)}},
-};
-
-const std::vector<ov::AnyMap> configDriver = {
-        {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}},
-};
+const std::vector<ov::AnyMap> configs = {{}};
 
 using QueryNetworkTestSuite1NPU = QueryNetworkTestNPU;
 
@@ -130,12 +124,7 @@ TEST_P(QueryNetworkTestSuite1NPU, TestQueryNetworkSupported) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, QueryNetworkTestSuite1NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configMLIR)),
-                         QueryNetworkTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest_Driver, QueryNetworkTestSuite1NPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configDriver)),
+                                            ::testing::ValuesIn(configs)),
                          QueryNetworkTestNPU::getTestCaseName);
 
 using QueryNetworkTestSuite2NPU = QueryNetworkTestNPU;
@@ -162,12 +151,7 @@ TEST_P(QueryNetworkTestSuite2NPU, DISABLED_TestQueryNetworkUnsupported) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, QueryNetworkTestSuite2NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configMLIR)),
-                         QueryNetworkTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest_Driver, QueryNetworkTestSuite2NPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configDriver)),
+                                            ::testing::ValuesIn(configs)),
                          QueryNetworkTestNPU::getTestCaseName);
 
 using QueryNetworkTestSuite3NPU = QueryNetworkTestNPU;
@@ -180,11 +164,6 @@ TEST_P(QueryNetworkTestSuite3NPU, TestQueryNetworkThrow) {
     const auto unsupportedModel = createModelWithUnknownNode();
     EXPECT_ANY_THROW(result = testQueryNetwork(unsupportedModel));
 }
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, QueryNetworkTestSuite3NPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configDriver)),
-                         QueryNetworkTestNPU::getTestCaseName);
 
 }  // namespace behavior
 }  // namespace test

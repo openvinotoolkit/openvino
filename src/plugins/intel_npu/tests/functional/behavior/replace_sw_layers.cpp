@@ -45,25 +45,14 @@ TEST_P(CompileWithDummy_NPU3720, CompilationForSpecificPlatform) {
     }
 }
 
-const std::vector<ov::AnyMap> pluginCompilerConfigs = {
+const std::vector<ov::AnyMap> configs = {
         {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
          {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")}}};
 // Must be successfully compiled with dummy-op-replacement=true
 
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
-         {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")},
-         ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
-
 INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTest_Dummy, CompileWithDummy_NPU3720,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(pluginCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          CompileWithDummy_NPU3720::getTestCaseName);
 
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_precommit_BehaviorTest_Dummy_Driver, CompileWithDummy_NPU3720,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         CompileWithDummy_NPU3720::getTestCaseName);
 }  // namespace

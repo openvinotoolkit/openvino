@@ -19,15 +19,7 @@ static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
            "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU) + "_";
 }
 
-// MLIR compiler type config
-const std::vector<ov::AnyMap> mlirCompilerConfigs = {{
-        ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR),
-        ov::intel_npu::platform(ov::test::utils::getTestsPlatformCompilerInPlugin()),
-}};
-
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
+const std::vector<ov::AnyMap> configs = {{}};
 
 const std::vector<std::string> device_names_and_priorities = {
         "MULTI:NPU",  // NPU via MULTI,
@@ -42,23 +34,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(mlirCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          OVHoldersTestNPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetworkNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(mlirCompilerConfigs)),
-                         OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
-
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVHoldersTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         OVHoldersTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_Driver, OVHoldersTestOnImportedNetworkNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
+                                            ::testing::ValuesIn(configs)),
                          OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTestWithConfig,

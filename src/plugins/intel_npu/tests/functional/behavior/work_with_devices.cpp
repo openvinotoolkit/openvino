@@ -12,18 +12,9 @@ const std::vector<ov::AnyMap> configs = {
         {{ov::log::level(ov::log::Level::DEBUG)}},
 };
 
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::log::level(ov::log::Level::DEBUG)}};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, TestCompiledModelNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          TestCompiledModelNPU::getTestCaseName);
 
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest_Driver, TestCompiledModelNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         TestCompiledModelNPU::getTestCaseName);
 }  // namespace

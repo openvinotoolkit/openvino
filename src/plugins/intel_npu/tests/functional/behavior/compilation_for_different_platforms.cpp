@@ -59,32 +59,13 @@ TEST_P(CompileForDifferentPlatformsTests, CompilationForSpecificPlatform) {
 }
 
 const std::vector<ov::AnyMap> configs = {
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3700)},
-         ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)},
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
-         ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)},
-        {{ov::device::id("3700")}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)},
-        {{ov::device::id("3720")}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)}
+        {{ov::device::id("3700")}},
+        {{ov::device::id("3720")}}
 };
-
-// Driver compiler type config
-const std::vector<ov::AnyMap> driverCompilerConfigs = {
-        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3700)},
-         ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
-        {{ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720)},
-         ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
-        {{ov::device::id("3700")}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
-        {{ov::device::id("3720")}, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, CompileForDifferentPlatformsTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          CompileForDifferentPlatformsTests::getTestCaseName);
 
-// Driver compiler type test suite
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest_Driver, CompileForDifferentPlatformsTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(driverCompilerConfigs)),
-                         CompileForDifferentPlatformsTests::getTestCaseName);
 }  // namespace
