@@ -22,13 +22,7 @@ class Col2ImStaticTestSuite : public ::testing::TestWithParam<std::tuple<Shape, 
                                                               Shape,                    // pads_end
                                                               Shape>> {};               // expected output shape
 
-class Col2ImStaticShapeInferenceTest
-    : public OpStaticShapeInferenceTest<op::v15::Col2Im> {
-protected:
-    void SetUp() override {
-        output_shapes.resize(1);
-    }
-};
+class Col2ImStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::v15::Col2Im> {};
 
 TEST_F(Col2ImStaticShapeInferenceTest, kernel_size_and_output_size_from_tensor_accessor) {
     const auto data = std::make_shared<Parameter>(element::i64, Shape{3, 12, 289});
