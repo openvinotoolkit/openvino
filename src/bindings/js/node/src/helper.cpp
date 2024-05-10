@@ -126,10 +126,8 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
 }
 
 template <>
-ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
-                                 const size_t idx,
-                                 const std::vector<napi_types>& acceptable_types) {
-    auto layout = js_to_cpp<std::string>(info, idx);
+ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& layout = js_to_cpp<std::string>(info, idx);
     return ov::Layout(layout);
 }
 

@@ -21,7 +21,7 @@ Napi::Function InputTensorInfo::get_class_constructor(Napi::Env env) {
 Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
+            const auto& layout = js_to_cpp<ov::Layout>(info, 0);
             _tensor_info->set_layout(layout);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());

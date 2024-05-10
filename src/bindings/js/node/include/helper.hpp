@@ -63,12 +63,10 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
 
 /**
  * @brief  A template specialization for TargetType ov::Layout
- * @param  acceptable_types ov::Layout can be created from a napi_string
+ * @param  acceptable_types ov::Layout has to be created from a napi_string
  */
 template <>
-ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
-                                 const size_t idx,
-                                 const std::vector<napi_types>& acceptable_types);
+ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::Shape */
 template <>
