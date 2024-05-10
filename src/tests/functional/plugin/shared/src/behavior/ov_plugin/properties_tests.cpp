@@ -83,11 +83,11 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::string::size_type pos = temp_device.find(":", 0);
     if (pos != std::string::npos) {
         target_device = temp_device.substr(0, pos);
-        for (auto& it : compileModelProperties) {
-            OPENVINO_ASSERT(it.first == ov::device::priorities.name(),
-                            "there is already ov::device::priorities() in compileModelProperties");
-        }
+        OPENVINO_ASSERT(compileModelProperties.find(ov::device::priorities.name()) != compileModelProperties.end(),
+                        "there is already ov::device::priorities() in compileModelProperties");
         compileModelProperties.insert(ov::device::priorities(temp_device.substr(++pos, std::string::npos)));
+    } else {
+        target_device = temp_device;
     }
 
     model = ov::test::utils::make_split_concat();
@@ -424,6 +424,7 @@ OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
 
 TEST_P(OVCheckSetIncorrectRWMetricsPropsTests, ChangeIncorrectProperties) {
     std::vector<ov::PropertyName> supported_properties;
+    std::cout << "-------------------- " << target_device << std::endl;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     for (const std::pair<ov::PropertyName, ov::Any>& property_item : properties) {
         auto supported = util::contains(supported_properties, property_item.first);
