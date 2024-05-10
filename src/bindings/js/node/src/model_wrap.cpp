@@ -163,18 +163,12 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
 
-    auto idx = info[0].As<Napi::Number>().Int32Value();
-    auto cm_outputs = _model->outputs();  // Output<Node>
-
-    if (idx >= 0 && idx < cm_outputs.size()) {
-        try {
-            return cpp_to_js<ov::Shape, Napi::Array>(info, cm_outputs[idx].get_shape());
-        } catch (const std::exception& e) {
-            reportError(info.Env(),e.what());
-            return info.Env().Undefined();
-        }
-    } else {
-        reportError(info.Env(), "Invalid output index.");
+    try {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        auto output = _model->output(idx);
+        return cpp_to_js<ov::Shape, Napi::Array>(info, output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
 }
