@@ -100,21 +100,21 @@ public:
 private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
-        auto original_plocal = setlocale(LC_NUMERIC, nullptr);
-        if (std::strcmp(original_plocal, "C") != 0) {
+        std::string original_plocal = setlocale(LC_ALL, nullptr);
+        if (!original_plocal.empty() && original_plocal != "C") {
             setlocale(LC_ALL, "C");
         }
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
-        if (std::strcmp(original_plocal, "C") != 0) {
-            setlocale(LC_ALL, original_plocal);
+        if (!original_plocal.empty() && original_plocal != "C") {
+            setlocale(LC_ALL, original_plocal.c_str());
         }
     }
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
-        auto original_plocal = setlocale(LC_NUMERIC, nullptr);
-        if (std::strcmp(original_plocal, "C") != 0) {
+        std::string original_plocal = setlocale(LC_ALL, nullptr);
+        if (!original_plocal.empty() && original_plocal != "C") {
             setlocale(LC_ALL, "C");
         }
         auto blobFileName = getBlobFile(id);
@@ -122,8 +122,8 @@ private:
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
         }
-        if (std::strcmp(original_plocal, "C") != 0) {
-            setlocale(LC_ALL, original_plocal);
+        if (!original_plocal.empty() && original_plocal != "C") {
+            setlocale(LC_ALL, original_plocal.c_str());
         }
     }
 
