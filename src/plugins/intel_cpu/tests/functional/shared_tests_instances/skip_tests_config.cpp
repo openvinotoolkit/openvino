@@ -415,12 +415,6 @@ std::vector<std::string> disabledTestPatterns() {
         // Skip fp16 tests for paltforms that don't support fp16 precision
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
-    //Issue: 140606
-    retVector.emplace_back(R"(.*nightly_Deconv_2D_Asymmetric_Padding_1x1/DeconvolutionLayerCPUTest.*)");
-    retVector.emplace_back(R"(.*smoke_ConvolutionBackpropData2D_OutputShapeDefined/ConvolutionBackpropDataLayerTest.*TS=\{\(1.3.9.12\)\}_OS.*K\(1.1\)_S\(1.1\)_PB\(0.0\)_PE\(0.0\).*)");
-    retVector.emplace_back(R"(.*smoke_GroupConvBackpropData_2d_OutputShapeDefined/GroupConvBackpropLayerTest.*TS=\{\(1.16.9.12\)\}_OS.*K\(1.1\)_S\(1.1\)_PB\(0.0\)_PE\(0.0\).*)");
-    retVector.emplace_back(R"(.*smoke_GroupConvBackpropData_3d_OutputShapeDefined/GroupConvBackpropLayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.16.10.10.10\)\}_OS=\(8.8.8\)_K\(1.1.1\)_S\(1.1.1\)_PB\(0.0.0\)_PE\(0.0.0\)_D=\(1.1.1\).*)");
-
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         // Skip fp16 tests for paltforms that don't support fp16 precision

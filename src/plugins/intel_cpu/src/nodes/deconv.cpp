@@ -217,25 +217,52 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
 
-    if (!withGroups) {
-        size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
-        auto weightDimsReversItr = weightDims.crbegin();
-        bool is1x1 = true;
-        for (size_t i = 0; i < spatialRank; ++i)
-            is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
-        asymmetricPaddingAnd1x1 = is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR;
-    }
-
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
+    bool isConstOutShape = false;
+    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))))
+        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
     if (externOutShape && isDynamicNode()) {
-        bool isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (isConstOutShape) {
-            lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
-        }
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
             OPENVINO_THROW(errorPrefix, "'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
+        }
+    }
+
+    size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+    auto weightDimsReversItr = weightDims.crbegin();
+    bool is1x1 = true;
+    for (size_t i = 0; i < spatialRank; ++i)
+        is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
+
+    auto isZero = [](std::ptrdiff_t i) { return i == 0; };
+    // 1x1 deconv has some test case failed. The cause is upstream ONEDNN unsupported brgemm implementation cases are
+    // enabled in forked ONEDNNN https://github.com/openvinotoolkit/oneDNN/blob/117e287000b48a34a7218fcaa274a91571141728/src/common/convolution.cpp#L138.
+    // Some test cases on 1x1 kernel failed on accuracy check, current WA is disabling brgemm deconv implementation for such cases.
+    // case1: Specify asymmetric padding explicitly
+    if (is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR) {
+        asymmetricPaddingAnd1x1 = true;
+    } else if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero)
+                    && std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero)
+                    && std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero)
+                    && isConstOutShape && !isDynamicNode()) {
+            // case2: Implicit asymmetric padding cases.
+
+        auto calPaddingEnd =  [](int64_t i, int64_t o,  int64_t s) -> int64_t {
+            // Accoriding to https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html,
+            // output[i] = (input[i] -1) * stride[i] - 2 x padding[i] + dilation[i] x (kernel_size[i] - 1) + output_padding[i] + 1.
+            // When kernel_size[i] = 1, output_padding = 0, output[i] = (input[i] -1) * stride[i]  - 2 x padding[i] + 1.
+            // implicit padding end =  2 x padding[i]  = (input[i] -1) * stride[i] + 1 - output[i]
+            return (i - 1) * s + 1 - o;};
+        auto inputDims = getInputShapeAtPort(0).getStaticDims();
+        for (size_t i = 0; i < spatialRank; i++) {
+            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
+            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+            if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
+                asymmetricPaddingAnd1x1 = true;
+                break;
+            }
         }
     }
     attr = std::make_shared<dnnl::primitive_attr>();

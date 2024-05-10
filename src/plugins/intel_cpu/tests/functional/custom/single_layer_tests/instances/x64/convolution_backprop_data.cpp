@@ -115,41 +115,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16,
                            ::testing::Values(cpu_bf16_plugin_config)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
-/* =============  CVS-140606============= */
-const std::vector<std::vector<size_t>> kernels_Asymmetric_Padding_1x1 = {{{1, 1}}};
-const std::vector<std::vector<size_t>> strides_Asymmetric_Padding_1x1 = {{{1, 1}}};
-const std::vector<std::vector<ptrdiff_t>> padBegins_Asymmetric_Padding_1x1 = {{0, 0}};
-const std::vector<std::vector<ptrdiff_t>> padEnds_Asymmetric_Padding_1x1 = {{1, 1}};
-const std::vector<std::vector<size_t>> dilations_Asymmetric_Padding_1x1 = {{1, 1}};
-const std::vector<size_t> numOutChannels_Asymmetric_Padding_1x1 = {16};
-
-const auto conv2DParams_Asymmetric_Padding_1x1 = ::testing::Combine(
-        ::testing::ValuesIn(kernels_Asymmetric_Padding_1x1),
-        ::testing::ValuesIn(strides_Asymmetric_Padding_1x1),
-        ::testing::ValuesIn(padBegins_Asymmetric_Padding_1x1),
-        ::testing::ValuesIn(padEnds_Asymmetric_Padding_1x1),
-        ::testing::ValuesIn(dilations_Asymmetric_Padding_1x1),
-        ::testing::ValuesIn(numOutChannels_Asymmetric_Padding_1x1),
-        ::testing::Values(ov::op::PadType::EXPLICIT),
-        ::testing::ValuesIn(emptyOutputPadding)
-);
-
-const std::vector<DeconvInputData> inputs_numOutChannels_Asymmetric_Padding_1x1 = {
-                        DeconvInputData{InputShape{{1, 3, 30, 30}, {{1, 3, 30, 30}}},
-                        ov::test::utils::InputLayerType::CONSTANT,
-                        {}}
-};
-
-INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Asymmetric_Padding_1x1, DeconvolutionLayerCPUTest,
-                        ::testing::Combine(
-                                conv2DParams_Asymmetric_Padding_1x1,
-                                ::testing::ValuesIn(inputs_numOutChannels_Asymmetric_Padding_1x1),
-                                ::testing::Values(ElementType::f32),
-                                ::testing::ValuesIn({emptyFusingSpec}),
-                                ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1_nspc_brgconv})),
-                                ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                        DeconvolutionLayerCPUTest::getTestCaseName);
-
 /* ============= Deconvolution 2D ============= */
 const std::vector<DeconvInputData> smoke_2D_inputs = {
         DeconvInputData{InputShape{{}, {{2, 67, 7, 7}}}, ov::test::utils::InputLayerType::CONSTANT, {}},
