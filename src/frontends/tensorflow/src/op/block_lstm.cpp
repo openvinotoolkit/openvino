@@ -52,12 +52,12 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     // outputs:
     // hs - [time_len, batch_size, hidden_size] shape
     // cs - [time_len, batch_size, hidden_size] shape
-
     auto hidden_size_value = hidden_size.get_length();
 
     // create a body graph with LSTMCell
     auto xi_param =
-        std::make_shared<v0::Parameter>(x_type, PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()});
+        std::make_shared<v0::Parameter>(x_type,
+                                        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     auto h_prev_param =
         std::make_shared<v0::Parameter>(x_type, ov::PartialShape{ov::Dimension::dynamic(), hidden_size_value});
     auto c_prev_param =
@@ -68,7 +68,7 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto b_param = std::make_shared<v0::Parameter>(x_type, ov::PartialShape{4 * hidden_size_value});
 
     // adjust xi since it comes after slicing and slicing axis needs to be squeezed
-    auto squeeze_axis = std::make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto squeeze_axis = std::make_shared<v0::Constant>(element::i32, Shape{1}, 0);
     auto xi = std::make_shared<v0::Squeeze>(xi_param, squeeze_axis);
 
     auto lstm_cell = std::make_shared<v0::LSTMCell>(xi,
@@ -78,6 +78,7 @@ void create_decomposed_block_lstm(const Output<Node>& x,
                                                     r_param,
                                                     b_param,
                                                     static_cast<size_t>(hidden_size_value));
+
     auto h = lstm_cell->output(0);
     auto c = lstm_cell->output(1);
 
@@ -86,9 +87,10 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto axis = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
     auto h_concat = std::make_shared<v0::Unsqueeze>(h, axis)->output(0);
     auto c_concat = std::make_shared<v0::Unsqueeze>(c, axis)->output(0);
+    auto body_condition = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
 
     ov::ParameterVector body_params({xi_param, h_prev_param, c_prev_param, w_param, r_param, b_param});
-    ov::OutputVector body_results({h, c, h_concat, c_concat});
+    ov::OutputVector body_results({body_condition, h, c, h_concat, c_concat});
     auto lstm_body = std::make_shared<ov::Model>(body_results, body_params);
 
     // create Loop node and put lstm body graph inside
@@ -96,18 +98,19 @@ void create_decomposed_block_lstm(const Output<Node>& x,
     auto execution_cond = std::make_shared<v0::Constant>(ov::element::boolean, ov::Shape{}, true);
     auto seq_len_max_shape = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
     auto new_seq_len_max = std::make_shared<v1::Reshape>(seq_len_max, seq_len_max_shape, false);
-    auto loop_node = std::make_shared<v5::Loop>(seq_len_max, execution_cond);
+    auto loop_node = std::make_shared<v5::Loop>(new_seq_len_max, execution_cond);
 
     loop_node->set_function(lstm_body);
+    loop_node->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     // set inputs for Loop
     // x input will be sliced for each time step
-    loop_node->set_sliced_input(xi_param, x, 0, 1, 1, -1, 1);
+    loop_node->set_sliced_input(xi_param, x, 0, 1, 1, -1, 0);
     // set back edges for cell and hidden states
     // since they are changing through timeline
     loop_node->set_merged_input(h_prev_param, h_init, h);
     loop_node->set_merged_input(c_prev_param, c_init, c);
-    // TODO need to set concatenation
+
     loop_node->set_invariant_input(w_param, w);
     loop_node->set_invariant_input(r_param, r);
     loop_node->set_invariant_input(b_param, b);
@@ -254,10 +257,9 @@ OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext
     auto WR_split_lens = std::make_shared<v0::Concat>(OutputVector{input_size, hidden_size_const}, 0);
     auto WR_split = std::make_shared<v1::VariadicSplit>(weights_normalize, WR_split_axis, WR_split_lens);
     // 7. unsqueeze weights and bias to have a dimension for a number of directions
-    auto num_direct_axis = std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
-    auto W = std::make_shared<v0::Unsqueeze>(WR_split->output(0), num_direct_axis);
-    auto R = std::make_shared<v0::Unsqueeze>(WR_split->output(1), num_direct_axis);
-    auto B = std::make_shared<v0::Unsqueeze>(bias_normalized, num_direct_axis);
+    auto W = WR_split->output(0);
+    auto R = WR_split->output(1);
+    auto B = bias_normalized;
 
     ov::Output<ov::Node> hs, cs;
     auto x_type = x.get_element_type();
