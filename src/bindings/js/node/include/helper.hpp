@@ -38,6 +38,9 @@ TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
 
+template <typename TargetType>
+TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
+
 template <>
 int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
                            const size_t idx,
@@ -98,7 +101,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
+ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
 template <>
@@ -177,8 +180,6 @@ napi_types napiType(const Napi::Value& val);
 bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
 
 Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
-
-ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value);
 
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
 

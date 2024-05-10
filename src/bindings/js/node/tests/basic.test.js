@@ -84,7 +84,7 @@ describe('Core.compileModelSync()', () => {
   it('compileModelSync(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModelSync(model, 'CPU', { 'PERFORMANCE_HINT': tput }),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 
@@ -131,7 +131,7 @@ describe('Core.compileModel()', () => {
   it('compileModel(model, device, config) throws when config value is not a string', () => {
     assert.throws(
       () => core.compileModel(model, 'CPU', { 'PERFORMANCE_HINT': tput }).then(),
-      /Cannot convert Napi::Value to ov::Any/
+      /Cannot convert to ov::Any/
     );
   });
 
