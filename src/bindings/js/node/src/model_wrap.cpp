@@ -140,6 +140,7 @@ Napi::Value ModelWrap::get_output_size(const Napi::CallbackInfo& info) {
     }
     const auto size = static_cast<double>(_model->get_output_size());
     return Napi::Number::New(env, size);
+}
 
 Napi::Value ModelWrap::set_friendly_name(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
