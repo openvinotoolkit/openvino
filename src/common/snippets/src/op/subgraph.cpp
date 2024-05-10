@@ -37,7 +37,7 @@
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
-#include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
@@ -422,12 +422,13 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = 1;
-    lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
-    linear_ir.set_loop_depth(loop_depth);
+    size_t loop_depth = linear_ir.get_config().m_loop_depth;
+    if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+        lowered::pass::OptimizeDomain(loop_depth).run(linear_ir);
+        linear_ir.set_loop_depth(loop_depth);
+    }
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
-    const int32_t buffer_allocation_rank = static_cast<int32_t>(linear_ir.get_config().m_loop_depth);
 
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
@@ -435,13 +436,13 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
-    pipeline.register_pass<lowered::pass::InsertBuffers>(buffer_allocation_rank);
+    pipeline.register_pass<lowered::pass::InsertBuffers>(static_cast<int32_t>(loop_depth));
     pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
     pipeline.register_pass<lowered::pass::ValidateShapes>();
-    pipeline.register_pass<lowered::pass::ValidateLoops>();
+    pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(lowering_result.buffer_scratchpad_size, linear_ir.get_config().m_are_buffers_optimized);

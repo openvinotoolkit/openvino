@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import sys
 import tempfile
@@ -59,8 +62,8 @@ if __name__ == '__main__':
         # Needed to run a step after for statistics
         with open(file=os.environ['GITHUB_ENV'],
                   mode='a') as fh:
-            fh.write('PIPELINE_RETRIGGERED=true')
-            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}')
+            fh.write('PIPELINE_RETRIGGERED=true\n')
+            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}\n')
 
         # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
         sys.exit(not status)

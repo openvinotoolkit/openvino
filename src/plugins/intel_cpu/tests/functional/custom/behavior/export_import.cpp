@@ -19,13 +19,12 @@ class ExportOptimalNumStreams : public ::testing::TestWithParam<PropertiesParams
 
 std::shared_ptr<ov::Model> MakeMatMulModel() {
     const ov::Shape input_shape = {1, 4096};
-    const ov::element::Type precision = ov::element::f32;
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_shape))};
-    auto matmul_const = ov::test::utils::deprecated::make_constant(precision, {4096, 1024}, std::vector<float>{}, true);
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(input_shape))};
+    auto matmul_const = ov::test::utils::make_constant(ov::element::f32, {4096, 1024});
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], matmul_const);
 
-    auto add_const = ov::test::utils::deprecated::make_constant(precision, {1, 1024}, std::vector<float>{}, true);
+    auto add_const = ov::test::utils::make_constant(ov::element::f32, {1, 1024});
     auto add = ov::test::utils::make_eltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 

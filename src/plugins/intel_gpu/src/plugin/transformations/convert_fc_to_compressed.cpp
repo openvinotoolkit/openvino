@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/reshape.hpp"
@@ -66,7 +67,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m});
     auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, bias_m});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(fully_connected_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));

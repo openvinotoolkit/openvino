@@ -12,7 +12,7 @@ def paddle_assign_value(name, test_x):
     main_program = paddle.static.Program()
     startup_program = paddle.static.Program()
     with paddle.static.program_guard(main_program, startup_program):
-        node_x = paddle.static.data(name='x', shape=test_x.shape, dtype=test_x.dtype if test_x.dtype != bool else np.int32)
+        node_x = paddle.static.data(name='x', shape=test_x.shape, dtype=test_x.dtype)
         node_x = paddle.cast(node_x, dtype=test_x.dtype)
         const_value = paddle.assign(test_x, output=None)
         result = paddle.cast(paddle.concat([node_x, const_value], 0), dtype=np.float32)
@@ -20,15 +20,13 @@ def paddle_assign_value(name, test_x):
         exe = paddle.static.Executor(cpu[0])
         # startup program will call initializer to initialize the parameters.
         exe.run(paddle.static.default_startup_program())
-        if test_x.dtype == bool:
-            test_x = test_x.astype(np.int32)
 
         outs = exe.run(
             feed={'x': test_x},
             fetch_list=[result]
         )
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[result], inputs=[test_x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[result], inputs=[test_x], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def compare():

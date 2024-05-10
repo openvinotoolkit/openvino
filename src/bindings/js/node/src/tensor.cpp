@@ -23,6 +23,9 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 
     try {
         const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+
+        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
+
         const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
         const auto& shape = ov::Shape(shape_vec);
 
@@ -47,7 +50,7 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_data>("data"),
+                       {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
                         InstanceMethod("getData", &TensorWrap::get_data),
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
@@ -75,6 +78,8 @@ Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto type = _tensor.get_element_type();
+
+    OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
     switch (type) {
     case ov::element::Type_t::i8: {
@@ -131,6 +136,23 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "Failed to return tensor data.");
         return info.Env().Null();
     }
+    }
+}
+
+void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
+    try {
+        if (!value.IsTypedArray()) {
+            OPENVINO_THROW("Passed argument must be a TypedArray.");
+        }
+        const auto buf = value.As<Napi::TypedArray>();
+
+        if (_tensor.get_byte_size() != buf.ByteLength()) {
+            OPENVINO_THROW("Passed array must have the same size as the Tensor!");
+        }
+        const auto napi_type = buf.TypedArrayType();
+        std::memcpy(_tensor.data(get_ov_type(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 

@@ -4,12 +4,30 @@
 
 #include "extract_image_patches_inst.h"
 
+#include "openvino/op/extractimagepatches.hpp"
+#include "extract_image_patches_shape_inference.hpp"
 #include "primitive_type_base.h"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(extract_image_patches)
+
+template<typename ShapeType>
+std::vector<layout> extract_image_patches_inst::calc_output_layouts(extract_image_patches_node const& /*node*/, const kernel_impl_params& impl_param) {
+    const auto& input_layout = impl_param.get_input_layout();
+    auto primitive = impl_param.typed_desc<extract_image_patches>();
+    ov::op::v3::ExtractImagePatches op;
+    op.set_sizes(primitive->sizes);
+    op.set_rates(primitive->rates);
+    op.set_strides(primitive->strides);
+    op.set_auto_pad(primitive->auto_pad);
+    auto out_shapes = ov::op::v3::shape_infer(&op, std::vector<ShapeType>{input_layout.get<ShapeType>()});
+    return { layout{ out_shapes[0], input_layout.data_type, input_layout.format} };
+}
+
+template std::vector<layout>
+extract_image_patches_inst::calc_output_layouts<ov::PartialShape>(extract_image_patches_node const& node, const kernel_impl_params& impl_param);
 
 layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<extract_image_patches>();
