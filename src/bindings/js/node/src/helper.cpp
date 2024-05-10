@@ -43,12 +43,8 @@ bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& accep
 }
 
 template <>
-std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
-                                   const size_t idx,
-                                   const std::vector<napi_types>& acceptable_types) {
+std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument") + std::to_string(idx));
     if (!elem.IsString()) {
         OPENVINO_THROW(std::string("Passed argument must be a string."));
     }
@@ -56,15 +52,9 @@ std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
 }
 
 template <>
-std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types) {
+std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument.") + std::to_string(idx));
-    if (!elem.IsArray() && !elem.IsTypedArray()) {
-        OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
-    } else if (elem.IsArray()) {
+    if (elem.IsArray()) {
         auto array = elem.As<Napi::Array>();
         size_t arrayLength = array.Length();
 
@@ -80,11 +70,11 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         }
         return nativeArray;
 
-    } else {
+    } else if (elem.IsTypedArray()) {
         Napi::TypedArray buf;
         napi_typedarray_type type = elem.As<Napi::TypedArray>().TypedArrayType();
         if ((type != napi_int32_array) && (type != napi_uint32_array)) {
-            OPENVINO_THROW(std::string("Passed argument must be a Int32Array."));
+            OPENVINO_THROW("Passed argument must be an Int32Array or a Uint32Array.");
         } else if (type == napi_uint32_array)
             buf = elem.As<Napi::Uint32Array>();
         else {
@@ -93,14 +83,14 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
         std::vector<size_t> vector(data_ptr, data_ptr + buf.ElementLength());
         return vector;
+    } else {
+        OPENVINO_THROW("Passed argument must be of type Array or TypedArray.");
     }
 }
 
 template <>
-std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx) {
     const auto elem = info[idx];
     if (!elem.IsArray()) {
         OPENVINO_THROW(std::string("Passed argument must be of type Array."));
@@ -141,7 +131,7 @@ template <>
 ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
                                  const size_t idx,
                                  const std::vector<napi_types>& acceptable_types) {
-    auto layout = js_to_cpp<std::string>(info, idx, acceptable_types);
+    auto layout = js_to_cpp<std::string>(info, idx);
     return ov::Layout(layout);
 }
 

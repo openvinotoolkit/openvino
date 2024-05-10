@@ -41,24 +41,21 @@ TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptab
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 
+template <typename TargetType>
+TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx);
+
 /** @brief  A template specialization for TargetType std::vector<size_t> */
 template <>
-std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types);
+std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType std::unordered_set<std::string> */
 template <>
-std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx);
 
 /** @brief  A template specialization for TargetType std::string */
 template <>
-std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
-                                   const size_t idx,
-                                   const std::vector<napi_types>& acceptable_types);
+std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::element::Type_T */
 template <>
