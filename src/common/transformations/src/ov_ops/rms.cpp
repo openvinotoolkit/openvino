@@ -29,7 +29,7 @@ void RMS::validate_and_infer_types() {
 std::shared_ptr<Node> RMS::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<RMS>(new_args.at(0),
-                                 new_args.at(1), m_epsilon);
+    new_args.at(1), m_epsilon);
 
 }
 
