@@ -132,6 +132,7 @@
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -300,6 +301,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
+
+        // Disable SDPA decomposition once additional transformations are added:
+        // 1) Input/Output Transpose fusion
+        // 2) Indirect inputs support
+        // 3) GQA related optimization (Broadcast fusion)
+        pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node>){
+            // Known limitations:
+            // - The head size of all Q, K, and V inputs should be the same static value
+            // - The head size should be divisible by 16
+            // - All inputs and outputs must have the same data type
+            // - The number of dimensions for each input is expected to be 4
+            // - SDPA impl could be slower on GPUs with IMMAD support in non-LLM scenarios,
+            //   because oneDNN can be used for those cases - SDPA requires DPAS support
+            return false;
+        });
 
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ov::pass::TransposeSinking>();

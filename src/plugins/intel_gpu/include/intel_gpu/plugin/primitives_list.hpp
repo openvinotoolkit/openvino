@@ -263,6 +263,7 @@ REGISTER_FACTORY(v12, ScatterElementsUpdate);
 
 // ------------------------------ Supported v13 ops ----------------------------- //
 REGISTER_FACTORY(v13, Multinomial);
+REGISTER_FACTORY(v13, ScaledDotProductAttention);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
