@@ -47,12 +47,21 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     }
 
     /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
-    float gops = (device_properties.coreClockRate / powf(1000, 3)) * device_properties.numSlices *
-                 device_properties.physicalEUSimdWidth;
-    device_gops[ov::element::f32] = 0;
-    device_gops[ov::element::u8] = gops;
-    device_gops[ov::element::i8] = gops;
-    device_gops[ov::element::f16] = 0.5f * gops;
+    /// cross-OS backwards compatibilty: only calculate gops if driver supports it (version>x)
+    uint32_t gops_support_drv_version = UINT32_MAX;
+#if defined(_WIN32) || defined(__CYGWIN__)
+    gops_support_drv_version = 2465;  /// Windows driver version which supports Gops calculations
+#else                                 // _WIN32 || __CYGWIN__
+    gops_support_drv_version = 1715354569;  /// Linux driver version which supports Gops calculations
+#endif                                // _WIN32 || __CYGWIN__
+    if (_initStructs->getDriverVersion() >= gops_support_drv_version) {
+        float gops = (device_properties.coreClockRate / powf(1000, 3)) * device_properties.numSlices *
+                     device_properties.physicalEUSimdWidth;
+        device_gops[ov::element::f32] = 0;
+        device_gops[ov::element::u8] = gops;
+        device_gops[ov::element::i8] = gops;
+        device_gops[ov::element::f16] = 0.5f * gops;
+    }
 
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;

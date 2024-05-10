@@ -48,7 +48,10 @@ private:
 
     ze_pci_ext_properties_t pci_properties = {};
 
-    std::map<ov::element::Type, float> device_gops = {};
+    std::map<ov::element::Type, float> device_gops = {{ov::element::f32, 0.f},
+                                                      {ov::element::f16, 0.f},
+                                                      {ov::element::u8, 0.f},
+                                                      {ov::element::i8, 0.f}};
 
     uint32_t _group_ordinal;
 
