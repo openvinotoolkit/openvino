@@ -148,7 +148,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
     if (!params.fused_ops.empty()) {
         const std::vector<std::string> original_output_order = {"b_idx", "f_idx", "y_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
-        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size};
+        const FusedOpsConfiguration conf_vec = {"_VEC", original_output_order, "res", params.inputs[0].GetDType(), vector_size, LoadType::LT_UNALIGNED, \
+                                                BoundaryCheck::ENABLED, IndexType::TENSOR_COORD, Tensor::DataChannelName::X};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vec}));
     }
     return jit;

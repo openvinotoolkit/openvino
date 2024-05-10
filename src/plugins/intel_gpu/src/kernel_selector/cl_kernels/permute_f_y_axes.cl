@@ -33,26 +33,22 @@ KERNEL (permute_f_y_axes)(
 
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
-        const int x_idx_base = x_start + j * VEC_SIZE;
-        
-#if HAS_FUSED_OPS
+        const int x_idx = x_start + j * VEC_SIZE;
         f_idx = get_global_id(1);
         y_idx = bf % INPUT0_FEATURE_NUM;
+#if HAS_FUSED_OPS
+        
         OUT_VEC_TYPE result;
-        for(int a=0;a<VEC_SIZE;a++)
-        {
-            INPUT0_TYPE res = input[INPUT0_GET_INDEX(b_idx, y_idx, f_idx, x_idx_base+a)];
-            const int x_idx = x_idx_base + a;
-            FUSED_OPS;
-            result[a] = FUSED_OPS_RESULT;
-        }
+        
+        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, y_idx, f_idx, x_idx)]);
+        FUSED_OPS_VEC;
+        result = FUSED_OPS_RESULT;
+        
 #else
-        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx_base)]);
+        IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, y_idx, f_idx, x_idx)]);
         OUT_VEC_TYPE result = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
-        f_idx = bf % INPUT0_FEATURE_NUM;
-        y_idx = get_global_id(1);
-        const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f_idx, x_idx_base);
+        const int output_idx = OUTPUT_GET_INDEX(b_idx,  f_idx, y_idx,x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);
     }
 }
