@@ -217,25 +217,41 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
 
-    if (!withGroups) {
-        size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
-        auto weightDimsReversItr = weightDims.crbegin();
-        bool is1x1 = true;
-        for (size_t i = 0; i < spatialRank; ++i)
-            is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
-        asymmetricPaddingAnd1x1 = is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR;
-    }
-
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
+    bool isConstOutShape = false;
+    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))))
+        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
     if (externOutShape && isDynamicNode()) {
-        bool isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (isConstOutShape) {
-            lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
-        }
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum || (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
             OPENVINO_THROW(errorPrefix, "'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
+        }
+    }
+
+    size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+    auto weightDimsReversItr = weightDims.crbegin();
+    bool is1x1 = true;
+    for (size_t i = 0; i < spatialRank; ++i)
+        is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
+
+    auto isZero = [](int i) { return i == 0; };
+    if (is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR) {
+        asymmetricPaddingAnd1x1 = true;
+    } else if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero)
+                    && std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero)
+                    && isConstOutShape && !isDynamicNode()) {
+        auto calPaddingEnd =  [](int64_t i, int64_t o,  int64_t s) -> int64_t {
+            return (i - 1) * s + 1 - o;};
+        auto inputDims = getInputShapeAtPort(0).getStaticDims();
+        for (size_t i = 0; i < spatialRank; i++) {
+            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
+            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+            if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
+                asymmetricPaddingAnd1x1 = true;
+                break;
+            }
         }
     }
     attr = std::make_shared<dnnl::primitive_attr>();
