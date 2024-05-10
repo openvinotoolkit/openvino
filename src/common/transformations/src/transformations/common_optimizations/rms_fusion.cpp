@@ -14,7 +14,6 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -95,12 +94,11 @@ RMSFusion::RMSFusion() {
         auto axes_val = axes_constant->cast_vector<int64_t>();
         // allow last dimension only
         if ((axes_val[0] != -1) &&
-            (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1))){
+            (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1))) {
             return false;
         }
 
         auto output_type = m.get_match_root()->get_output_element_type(0);
-
         auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
         rms->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), rms);
