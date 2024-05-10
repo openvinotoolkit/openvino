@@ -834,14 +834,9 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return ret;
     };
 
-    // If CPU is in candidate list, load dynamic model to CPU first
-    // For MULTI do not only load stateful model to CPU
-    // For AUTO CTPUT only load stateful model to CPU
+    // filter out the devices which support dynamic model
     if (model->is_dynamic())
         filter_device = support_dynamic_devices_info();
-
-    // If CPU is not in candidate list, continue to run selection logic regardless of whether the input model is a
-    // dynamic model or not
 
     for (auto& op : model->get_ops()) {
         if (std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) ||
@@ -872,6 +867,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return true;
     };
 
+    // filter out the devices which support stateful model
     for (auto it = filter_device.begin(); it != filter_device.end();) {
         if (!is_supported_stateful(it->device_name, it->config))
             filter_device.erase(it);
