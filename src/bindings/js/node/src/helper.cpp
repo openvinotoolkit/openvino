@@ -113,16 +113,14 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const
 }
 
 template <>
-ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types) {
+ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
+    OPENVINO_ASSERT(elem.IsString(), "Cannot convert Napi::Value to ov::element::Type_t");
+
     const std::string type = elem.ToString();
     const auto& types = get_supported_types();
     if (std::find(types.begin(), types.end(), type) == types.end())
-        OPENVINO_THROW(std::string("Cannot create ov::element::Type"));
+        OPENVINO_THROW("Cannot create ov::element::Type");
 
     return static_cast<ov::element::Type_t>(ov::element::Type(type));
 }

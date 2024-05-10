@@ -50,7 +50,7 @@ Napi::Value InputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
     try {
         OPENVINO_ASSERT(info.Length() == 1, "Error in setElementType(). Wrong number of parameters.");
 
-        auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
 
         OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 

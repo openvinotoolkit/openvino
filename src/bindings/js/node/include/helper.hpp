@@ -59,9 +59,7 @@ std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t 
 
 /** @brief  A template specialization for TargetType ov::element::Type_T */
 template <>
-ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types);
+ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info, const size_t idx);
 
 /**
  * @brief  A template specialization for TargetType ov::Layout
