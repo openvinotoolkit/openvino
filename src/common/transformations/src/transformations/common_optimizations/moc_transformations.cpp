@@ -91,6 +91,15 @@
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+
+static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
+    auto new_shape = ov::PartialShape::dynamic(shape.rank());
+    if (shape.rank().is_static())
+        for (size_t i = 0; i < shape.size(); ++i)
+            new_shape[i].set_symbol(shape[i].get_symbol());
+    return new_shape;
+}
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -101,7 +110,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     if (!m_use_shapes) {
         for (auto&& param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
-            param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+            param->set_partial_shape(prepare_dynamic_shape(param->get_partial_shape()));
         }
         // After setting dynamic ranks into Parameters, the initializing subgraph of ReadValue operation might
         // also have a dynamic rank. The shape consistency check between this subgraph and Variable might fail.
@@ -109,7 +118,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         for (const auto& variable : f->get_variables()) {
             const auto& var_info = variable->get_info();
             variable_shapes[variable.get()] = var_info.data_shape;
-            variable->update_data_shape(PartialShape::dynamic(var_info.data_shape.rank()));
+            variable->update_data_shape(prepare_dynamic_shape(var_info.data_shape));
         }
         f->validate_nodes_and_infer_types();
     }
@@ -267,6 +276,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, SymbolicOptimizations)
     manager.register_pass<ResolveNameCollisions>(true);
     manager.run_passes(f);
 
