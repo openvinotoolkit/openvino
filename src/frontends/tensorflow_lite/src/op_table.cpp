@@ -4,7 +4,6 @@
 
 #include "op_table.hpp"
 
-#include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
@@ -22,13 +21,13 @@ using namespace ov::frontend::tensorflow::op;
         return func(context);                                                       \
     }
 
-#define OP_CONVERT_TYPE_RENAME(func, name)                                                                         \
-    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {                                   \
-        auto decoder = make_shared<DecoderMap>(node.get_decoder(), std::map<std::string, ov::Any>{}, name, false); \
-        auto inputs = node.get_inputs();                                                                           \
-        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                                                  \
-        auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);                                    \
-        return get_indexed_outputs(func(context));                                                                 \
+#define OP_CONVERT_TYPE_RENAME(func, name)                                       \
+    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector { \
+        auto decoder = node.get_decoder();                                       \
+        auto inputs = node.get_inputs();                                         \
+        ov::frontend::tensorflow_lite::dequantize_inputs(inputs);                \
+        auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);  \
+        return get_indexed_outputs(func(context));                               \
     }
 
 namespace ov {
@@ -38,14 +37,14 @@ namespace op {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"ABS", translate_unary<opset8::Abs>},
-        {"ADD", translate_binary_op_with_activation<opset10::Add, tflite::AddOptions>},
+        {"ADD", translate_binary_op_with_activation<opset10::Add>},
         {"ADD_N", DEQUANTIZE_INPUTS(translate_add_n_op)},
-        {"ARG_MAX", DEQUANTIZE_INPUTS(arg_max)},
-        {"ARG_MIN", DEQUANTIZE_INPUTS(arg_min)},
+        {"ARG_MAX", DEQUANTIZE_INPUTS(translate_arg_max_op)},
+        {"ARG_MIN", DEQUANTIZE_INPUTS(translate_arg_min_op)},
         // ASSIGN_VARIABLE
         // ATAN2
         {"AVERAGE_POOL_2D", DEQUANTIZE_INPUTS(avg_pool_2d)},
-        {"BATCH_MATMUL", DEQUANTIZE_INPUTS(batch_matmul)},
+        {"BATCH_MATMUL", DEQUANTIZE_INPUTS(translate_batch_mat_mul_op)},
         {"BATCH_TO_SPACE_ND", OP_CONVERT_TYPE_RENAME(translate_batch_to_space_nd_op, "BatchToSpaceND")},
         // BIDIRECTIONAL_SEQUENCE_LSTM
         // BIDIRECTIONAL_SEQUENCE_RNN
@@ -54,7 +53,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // BUCKETIZE
         // CALL
         // CALL_ONCE
-        {"CAST", DEQUANTIZE_INPUTS(cast)},
+        {"CAST", DEQUANTIZE_INPUTS(translate_cast_op)},
         {"CEIL", translate_unary<opset8::Ceiling>},
         {"COMPLEX_ABS", DEQUANTIZE_INPUTS(complex_abs)},
         // CONCAT_EMBEDDINGS
@@ -67,10 +66,10 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CUSTOM
         // DELEGATE
         {"DENSIFY", translate_identity_op},
-        {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(depth_to_space)},
+        {"DEPTH_TO_SPACE", DEQUANTIZE_INPUTS(translate_depth_to_space_op)},
         {"DEPTHWISE_CONV_2D", DEQUANTIZE_INPUTS(depthwise_conv2d)},
         {"DEQUANTIZE", DEQUANTIZE_INPUTS(dequantize)},
-        {"DIV", translate_binary_op_with_activation<opset10::Divide, tflite::DivOptions>},
+        {"DIV", translate_binary_op_with_activation<opset10::Divide>},
         // DYNAMIC_UPDATE_SLICE
         {"ELU", DEQUANTIZE_INPUTS(translate_elu_op)},
         // EMBEDDING_LOOKUP
@@ -86,7 +85,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"FULLY_CONNECTED", DEQUANTIZE_INPUTS(fully_connected)},
         {"GATHER", DEQUANTIZE_INPUTS(gather)},
         {"GATHER_ND", DEQUANTIZE_INPUTS(translate_gather_nd_op)},
-        {"GELU", DEQUANTIZE_INPUTS(gelu)},
+        {"GELU", DEQUANTIZE_INPUTS(translate_gelu_op)},
         {"GREATER", translate_binary<opset8::Greater>},
         {"GREATER_EQUAL", translate_binary<opset8::GreaterEqual>},
         {"HARD_SWISH", translate_unary<opset8::HSwish>},
@@ -99,7 +98,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // IMAG
         {"L2_NORMALIZATION", DEQUANTIZE_INPUTS(l2_normalization)},
         // L2_POOL_2D
-        {"LEAKY_RELU", DEQUANTIZE_INPUTS(leaky_relu)},
+        {"LEAKY_RELU", DEQUANTIZE_INPUTS(translate_leaky_relu_op)},
         {"LESS", translate_binary<opset8::Less>},
         {"LESS_EQUAL", translate_binary<opset8::LessEqual>},
         // LOCAL_RESPONSE_NORMALIZATION
@@ -117,15 +116,15 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MAXIMUM", translate_binary<opset8::Maximum>},
         {"MEAN", translate_reduce_op<opset8::ReduceMean>},
         {"MINIMUM", translate_binary<opset8::Minimum>},
-        {"MIRROR_PAD", DEQUANTIZE_INPUTS(mirror_pad)},
-        {"MUL", translate_binary_op_with_activation<opset10::Multiply, tflite::MulOptions>},
+        {"MIRROR_PAD", DEQUANTIZE_INPUTS(translate_mirror_pad_op)},
+        {"MUL", translate_binary_op_with_activation<opset10::Multiply>},
         // MULTINOMIAL
         {"NEG", translate_unary<opset8::Negative>},
         // NON_MAX_SUPPRESSION_V4
         // NON_MAX_SUPPRESSION_V5
         {"NOT_EQUAL", translate_binary<opset8::NotEqual>},
-        {"ONE_HOT", DEQUANTIZE_INPUTS(one_hot)},
-        {"PACK", DEQUANTIZE_INPUTS(pack)},
+        {"ONE_HOT", DEQUANTIZE_INPUTS(translate_one_hot_op)},
+        {"PACK", DEQUANTIZE_INPUTS(translate_pack_op)},
         {"PAD", OP_CONVERT_TYPE_RENAME(translate_pad_op, "Pad")},
         {"PADV2", OP_CONVERT_TYPE_RENAME(translate_padv2_op, "PadV2")},
         {"POW", translate_binary<opset8::Power>},
@@ -133,7 +132,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"QUANTIZE", quantize},
         // RANDOM_STANDARD_NORMAL
         // RANDOM_UNIFORM
-        {"RANGE", DEQUANTIZE_INPUTS(range)},
+        {"RANGE", DEQUANTIZE_INPUTS(translate_range_op)},
         {"RANK", OP_CONVERT_TYPE_RENAME(translate_rank_op, "Rank")},
         // READ_VARIABLE
         // REAL
@@ -147,9 +146,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // RELU_N1_TO_1
         {"RELU6", DEQUANTIZE_INPUTS(translate_relu_6_op)},
         {"RESHAPE", DEQUANTIZE_INPUTS(reshape)},
-        {"RESIZE_BILINEAR", DEQUANTIZE_INPUTS(resize_bilinear)},
-        {"RESIZE_NEAREST_NEIGHBOR", DEQUANTIZE_INPUTS(resize_nearest_neightbor)},
-        {"REVERSE_SEQUENCE", DEQUANTIZE_INPUTS(reverse_sequence)},
+        {"RESIZE_BILINEAR", DEQUANTIZE_INPUTS(translate_interpolate_op)},
+        {"RESIZE_NEAREST_NEIGHBOR", DEQUANTIZE_INPUTS(translate_interpolate_op)},
+        {"REVERSE_SEQUENCE", DEQUANTIZE_INPUTS(translate_reverse_sequence_op)},
         {"REVERSE_V2", OP_CONVERT_TYPE_RENAME(translate_reverse_v2_op, "ReverseV2")},
         {"RFFT2D", DEQUANTIZE_INPUTS(rfft2d)},
         // RNN
@@ -159,23 +158,23 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SEGMENT_SUM", OP_CONVERT_TYPE_RENAME(translate_segment_sum_op, "SegmentSum")},
         {"SELECT", OP_CONVERT_TYPE_RENAME(translate_select_op, "Select")},
         {"SELECT_V2", OP_CONVERT_TYPE_RENAME(translate_select_v2_op, "SelectV2")},
-        {"SHAPE", shape},
+        {"SHAPE", translate_shape_op},
         {"SIGN", translate_unary<opset8::Sign>},
         {"SIN", translate_unary<opset8::Sin>},
         // SKIP_GRAM
         {"SLICE", OP_CONVERT_TYPE_RENAME(translate_slice_op, "Slice")},
         {"SOFTMAX", DEQUANTIZE_INPUTS(softmax)},
         {"SPACE_TO_BATCH_ND", OP_CONVERT_TYPE_RENAME(translate_space_to_batch_nd_op, "SpaceToBatchND")},
-        {"SPACE_TO_DEPTH", DEQUANTIZE_INPUTS(space_to_depth)},
+        {"SPACE_TO_DEPTH", DEQUANTIZE_INPUTS(translate_space_to_depth_op)},
         // SPARSE_TO_DENSE
-        {"SPLIT", DEQUANTIZE_INPUTS(split)},
+        {"SPLIT", DEQUANTIZE_INPUTS(translate_split_op)},
         {"SPLIT_V", DEQUANTIZE_INPUTS(translate_split_v_op)},
         {"SQRT", DEQUANTIZE_INPUTS(translate_sqrt_op)},
         {"SQUARE", DEQUANTIZE_INPUTS(translate_square_op)},
         {"SQUARED_DIFFERENCE", translate_binary<opset8::SquaredDifference>},
-        {"SQUEEZE", DEQUANTIZE_INPUTS(squeeze)},
-        {"STRIDED_SLICE", DEQUANTIZE_INPUTS(strided_slice)},
-        {"SUB", translate_binary_op_with_activation<opset10::Subtract, tflite::SubOptions>},
+        {"SQUEEZE", DEQUANTIZE_INPUTS(translate_squeeze_op)},
+        {"STRIDED_SLICE", DEQUANTIZE_INPUTS(translate_strided_slice_op)},
+        {"SUB", translate_binary_op_with_activation<opset10::Subtract>},
         {"SUM", translate_reduce_op<opset8::ReduceSum>},
         // SVDF
         {"TANH", translate_unary<opset8::Tanh>},
@@ -186,7 +185,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // UNIDIRECTIONAL_SEQUENCE_LSTM
         // UNIDIRECTIONAL_SEQUENCE_RNN
         {"UNIQUE", DEQUANTIZE_INPUTS(unique)},
-        {"UNPACK", DEQUANTIZE_INPUTS(unpack)},
+        {"UNPACK", DEQUANTIZE_INPUTS(translate_unpack_op)},
         // UNSORTED_SEGMENT_MAX
         // UNSORTED_SEGMENT_MIN
         // UNSORTED_SEGMENT_PROD

@@ -18,7 +18,8 @@ type elementTypeString =
   | 'i32'
   | 'i16'
   | 'f64'
-  | 'f32';
+  | 'f32'
+  | 'string';
 
 interface Core {
   compileModel(
@@ -182,6 +183,7 @@ declare enum element {
   i64,
   f32,
   f64,
+  string,
 }
 
 declare enum resizeAlgorithm {

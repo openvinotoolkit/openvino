@@ -280,6 +280,7 @@ private:
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
     void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
+    void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;
