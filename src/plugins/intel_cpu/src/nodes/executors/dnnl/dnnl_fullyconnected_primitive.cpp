@@ -111,7 +111,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                   const ov::element::Type weightsType) {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inputType, f32, bf16) &&
-           one_of(weightsType, u8, nf4, u4, i4);
+           one_of(weightsType, u8, i8, nf4, u4, i4);
 }
 
 bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const MemoryDescPtr srcDesc, const MemoryDescPtr weightsDesc,
