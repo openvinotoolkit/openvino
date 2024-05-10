@@ -276,6 +276,11 @@ void reorder_inst::update_output_memory() {
     if (_node != nullptr)
         build_deps();
 
+    // Do not update output memory when reorder is optimized out
+    // but input memory is not allocated yet because input is dynamic.
+    if (get_input_layout().is_dynamic())
+        return;
+
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());
     } else {
