@@ -76,7 +76,7 @@ RMSFusion::RMSFusion() {
         if (transformation_callback(node)) {
             return false;
         }
-        
+
         auto x_output = pattern_map.at(x);
 
         auto const_eps_node =
