@@ -29,15 +29,8 @@ const ov::element::Type_t& get_ov_type(napi_typedarray_type type);
  * @tparam TargetType destinated C++ data type
  * @param info Napi::CallbackInfo contains all arguments passed to a function or method
  * @param idx specifies index of a argument inside info.
- * @param acceptable_types specifies napi types from which TargetType can be created
  * @return specified argument converted to a TargetType.
  */
-template <typename TargetType>
-TargetType js_to_cpp(const Napi::CallbackInfo& info, const size_t idx, const std::vector<napi_types>& acceptable_types);
-
-template <typename TargetType>
-TargetType js_to_cpp(const Napi::Value&, const std::vector<napi_types>& acceptable_types);
-
 template <typename TargetType>
 TargetType js_to_cpp(const Napi::Env& env, const Napi::Value& value);
 
@@ -154,8 +147,6 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
 }
 
 napi_types napiType(const Napi::Value& val);
-
-bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
 
 Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
 

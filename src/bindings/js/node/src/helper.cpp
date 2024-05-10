@@ -36,17 +36,11 @@ napi_types napiType(const Napi::Value& val) {
         return val.Type();
 }
 
-bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable) {
-    return std::any_of(acceptable.begin(), acceptable.end(), [val](napi_types t) {
-        return napiType(val) == t;
-    });
-}
-
 template <>
 std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
     if (!elem.IsString()) {
-        OPENVINO_THROW(std::string("Passed argument must be a string."));
+        OPENVINO_THROW("Passed argument must be a string.");
     }
     return elem.ToString();
 }
