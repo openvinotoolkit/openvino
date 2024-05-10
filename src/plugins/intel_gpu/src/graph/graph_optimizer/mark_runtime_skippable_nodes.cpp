@@ -148,7 +148,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_output()
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)
+                || (impl_params->get_input_layout(0).data_padding != impl_params->get_output_layout().data_padding))
                 return;
 
             // TODO: For now, all reorders with dynamic shape are applied.

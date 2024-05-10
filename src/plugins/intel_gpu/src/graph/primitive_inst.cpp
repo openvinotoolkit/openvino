@@ -984,7 +984,12 @@ void primitive_inst::do_runtime_skip_reorder() {
                     GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
                 } else {
                     u->set_can_be_optimized(false);
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id() << " cannot be optimized" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                                                << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * input_layout  : "
+                                                << u->_impl_params->get_input_layout().to_short_string() << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * output_layout : "
+                                                << u->_impl_params->get_output_layout().to_short_string() << std::endl;
                 }
             }
         }
