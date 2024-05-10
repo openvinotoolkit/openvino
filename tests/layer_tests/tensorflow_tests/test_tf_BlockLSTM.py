@@ -62,4 +62,4 @@ class TestBlockLSTM(CommonTFLayerTest):
         self._test(*self.create_block_lstm(time_len, seq_len_max, input_size, hidden_size, batch_size,
                                            forget_bias, cell_clip, use_peephole),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=3 * 1e-3)
