@@ -40,12 +40,69 @@ protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_onednn>(*this);
     }
+    event::ptr execute_impl(const std::vector<event::ptr>& events ,
+                            typed_primitive_inst<fully_connected>& instance) override {
+        //instance.fill_placeholder();
+        auto event = parent::execute_impl(events, instance);
+        if (getenv("ENABLE_CCL")) {
+            auto& network = instance.get_network();
+            auto& stream = network.get_stream();
+            auto& engine = network.get_engine();
+            stream.finish();
+            auto& output_memory = instance.output_memory();
+            std::cout << output_memory.get_allocation_type() << std::endl;
+            auto output_host = engine.allocate_memory(output_memory.get_layout(), allocation_type::usm_host);
+            output_host->copy_from(stream, output_memory);
+            auto send_ptr = output_memory.buffer_ptr();
+            std::cout << output_memory.count() << std::endl;
+            std::cout << output_memory.get_layout().to_string() << std::endl;
+            std::cout << output_memory.size() << std::endl;
+            std::cout << "bell debug!!!!" << send_ptr << std::endl;
+            //auto prec = output.();
+            std::cout << "&&&&&&&&" << std::endl;
+            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.size());
+            std::cout << "&&&&&&&&" << std::endl;
+            output_memory.copy_from(stream, *output_host);
+        }
+        return event;
+    }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        std::unordered_map<int, dnnl::memory> args;
+        std::cout << "**********" << std::endl;
+        {
+            auto& stream = instance.get_network().get_stream();
+            stream.finish();
+            auto input = instance.get_input_rank_placeholder();
+            instance.fill_placeholder();
+            //auto input = instance.get_input_rank_placeholder();
+            std::cout << input->get_layout().to_short_string() << std::endl;
+            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
+            for (auto& iter : _pd.dnnl::primitive_desc_base::src_desc(0).get_dims())
+                std::cout << iter  << ",";
+            std::cout << std::endl;
+            // mapping input memory here
+            args.insert({DNNL_ARG_SRC, (*input).get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+        }
+
+        {
+            auto& output = instance.output_memory();
+            std::cout << output.get_layout().to_short_string() << std::endl;
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         {
             auto weights = instance.weights_memory();
+            std::cout << weights->get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }

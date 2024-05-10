@@ -21,6 +21,7 @@ public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog) {
             if (getenv("ENABLE_CCL")) {
+                std::cout << getenv("ENABLE_CCL") << std::endl;
                 w_rank = Messenger::getInstance().getRank();
                 w_size = Messenger::getInstance().getSize();
                 GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
@@ -60,8 +61,8 @@ public:
         params->w_size = w_size;
         return params;
     }
-    int w_rank = 0;
-    int w_size = 2;
+    int w_rank = -1;
+    int w_size = 1;
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;
@@ -92,6 +93,12 @@ public:
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
+    memory::ptr get_input_rank_placeholder() const { return input_placeholder; }
+    void create_input_memory_placeholder() override;
+    void fill_placeholder();
+
+private:
+    memory::ptr input_placeholder;
 };
 
 using fully_connected_inst = typed_primitive_inst<fully_connected>;

@@ -274,6 +274,8 @@ void primitive_inst::update_shape() {
         const auto original_weights_memory = dep_memory_ptr(weights_idx);
         if (_impl_params->input_layouts[1] != original_weights_memory->get_layout())
             _impl_params->input_layouts[1] = original_weights_memory->get_layout();
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update weight shape to "
+                               <<  _impl_params->input_layouts[1].to_short_string() << std::endl;
     }
 
     for (size_t i = 0; i < _deps.size(); i++) {
@@ -289,6 +291,8 @@ void primitive_inst::update_shape() {
                                                             new_layout.data_type,
                                                             new_layout.format,
                                                             new_layout.data_padding);
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update input shape to "
+                               <<  update_new_layout.to_short_string() << std::endl;
         }
         if (_impl_params->get_input_layout(i) != update_new_layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
@@ -558,7 +562,9 @@ event::ptr primitive_inst::realloc_if_needed() {
             user->update_shape_done_by_other = true;
 
             auto fc_impl_params = *user->_impl_params;
+            std::cout << "bell debug" << fc_impl_params.input_layouts[0].to_short_string() << std::endl;
             auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+            std::cout << "bdell debug after fake alignment" << fc_input_layout.to_short_string() << std::endl;
             if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
@@ -1295,6 +1301,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
+        // update shape is done by predecessor for FC layer
+        if (_node->is_type<fully_connected>()) {
+            create_input_memory_placeholder();
+        }
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -1857,7 +1867,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
+        (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type

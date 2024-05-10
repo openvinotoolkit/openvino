@@ -263,6 +263,63 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     return primitive_description.str();
 }
 
+void fully_connected_inst::create_input_memory_placeholder() {
+    auto size = _node->as<fully_connected>().w_size;
+    if (size != 1) {
+        auto fc_input_memory_ptr = input_memory_ptr(0);
+        auto fc_input_layout = fc_input_memory_ptr->get_layout();
+        auto fc_input_pshape = fc_input_layout.get_partial_shape().to_shape();
+        OPENVINO_ASSERT(fc_input_layout.is_static(), "cannot create TP memory holder for dynamic memory!");
+        auto dims = fc_input_layout.get_dims();
+        auto dim = fc_input_pshape.size() - 1;
+        fc_input_pshape[dim] /= size;
+        auto& engine = get_network().get_engine();
+        auto alloc_type = engine.get_preferred_memory_allocation_type();
+        auto update_fc_input_layout = layout(ov::PartialShape(fc_input_pshape),
+                                                            fc_input_layout.data_type,
+                                                            fc_input_layout.format,
+                                                            fc_input_layout.data_padding);
+        input_placeholder = engine.allocate_memory(update_fc_input_layout, alloc_type);
+        std::cout << "memory place holder allocated " << update_fc_input_layout.to_short_string() << std::endl;
+    } else {
+        input_placeholder = input_memory_ptr(0);
+    }
+}
+
+void fully_connected_inst::fill_placeholder() {
+    auto size = _node->as<fully_connected>().w_size;
+    auto rank = _node->as<fully_connected>().w_rank;
+    auto input = input_memory_ptr(0);
+    if (size != 1) {
+        auto original_layout = input->get_layout();
+        auto dims = original_layout.get_dims();
+        std::cout << original_layout.to_short_string() << std::endl;
+        auto dim = original_layout.get_partial_shape().to_shape().size() - 1;
+        auto element_size = ov::element::Type(original_layout.data_type).size();
+        auto& engine = get_network().get_engine();
+        auto input_host = engine.allocate_memory(original_layout, allocation_type::usm_host);
+        auto &stream = get_network().get_stream();
+        input->copy_to(stream, *input_host);
+        auto dest_host = engine.allocate_memory(input_placeholder->get_layout(), allocation_type::usm_host);
+        auto srcPtr = static_cast<uint8_t*>(input_host->buffer_ptr());
+        auto dstPtr = static_cast<uint8_t*>(dest_host->buffer_ptr());
+        auto mem_size = input->size(); // total bytes
+        auto channel_size = dims[dim] * element_size; // selected dim bytes
+        const int step = (mem_size / channel_size); // the steps need to copy.
+        const int stride = dims[dim] / size; // elements of half selected dim.
+        const auto copySize = stride * element_size; // bytes of half selected dim.
+        ov::parallel_for(step, [&](int i){
+            int dst_offset = i * copySize;
+            int src_offset = i * copySize* 2 + rank * copySize;
+            std::memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
+        });
+        // transfer back to device
+        input_placeholder->copy_from(stream, *dest_host);
+    } else {
+        input_placeholder = input;
+    }
+}
+
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) { }
 }  // namespace cldnn
