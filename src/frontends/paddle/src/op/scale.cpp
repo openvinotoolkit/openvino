@@ -24,11 +24,11 @@ NamedOutputs scale(const NodeContext& node) {
             scale = std::make_shared<opset6::Convert>(scale_tensor_node, dtype);
     } else {
         auto scale_val = node.get_attribute<float>("scale");
-        scale = ov::opset6::Constant::create(dtype, Shape{1}, {scale_val});
+        scale = ov::opset6::Constant::create(dtype, Shape{}, {scale_val});
     }
 
     auto bias_val = node.get_attribute<float>("bias");
-    bias = ov::opset6::Constant::create(dtype, Shape{1}, {bias_val});
+    bias = ov::opset6::Constant::create(dtype, Shape{}, {bias_val});
     auto bias_after_scale = node.get_attribute<bool>("bias_after_scale");
 
     std::shared_ptr<Node> result_node;
