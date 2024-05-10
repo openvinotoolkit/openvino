@@ -155,7 +155,7 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
                                                           {"new_axis_mask", {}},
                                                           {"shrink_axis_mask", {}},
                                                           {"ellipsis_mask", {}}});
-        auto slice_4 = makePattern<opset8::StridedSlice>({const_tab, {0}, seq_len, {1}, 0});
+        auto slice_4 = makePattern<opset8::Slice>({const_tab, {0}, seq_len, {1}, 0});
 
         auto slice_Slice2 = slice_3 | slice_4;
         auto index_Gather2 = makePattern<opset8::Gather>({slice_Slice2, gather_positions_2d, 0}, {{"batch_dims", 0}});
@@ -471,7 +471,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
                                                                                  {"new_axis_mask", {}},
                                                                                  {"shrink_axis_mask", {}},
                                                                                  {"ellipsis_mask", {}}});
-    auto slice_2 = makePattern<opset1::StridedSlice>({cos_sin_cache, {0}, seq_length, {1}, 0});
+    auto slice_2 = makePattern<opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, 0});
     auto slice_Slice_449 = slice_1 | slice_2;
     auto view_Reshape_460 =
         makePattern<opset1::Reshape>({slice_Slice_449, ListConstruct_379_Concat}, {{"special_zero", false}});
