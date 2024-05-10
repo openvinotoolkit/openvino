@@ -171,7 +171,9 @@ void AutoSchedule::init() {
                                                 : m_context->m_ov_core->get_property("", ov::cache_dir);
 
                     if (!m_context->m_is_set_startup_fallback && !cache_dir.empty()) {
-                        const auto properties = m_context->m_ov_core->create_compile_config(device, device_config);
+                        const auto properties =
+                            m_context->m_ov_core->create_compile_config(ov::DeviceIDParser(device).get_device_name(),
+                                                                        device_config);
                         auto blobId =
                             ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(m_context->m_model),
                                                          properties);
