@@ -19,6 +19,7 @@
 #include "executor_pa_common.hpp"
 #include "common.hpp"
 #include "softmax_kernel.hpp"
+#include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
 #include "utils/profiler.hpp"
 #include "attn_memcpy.hpp"
@@ -594,6 +595,89 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
     }
 }
 
+// N and K must be multiple of 16
+template<typename TDST, typename TSRC>
+void transpose_16Nx16K(TDST* dst, TSRC* src, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    for (size_t k = 0; k < K; k += 16) {
+        for (size_t n = 0; n < N; n += 16) {
+            transpose_16x16_kernel(dst + n, src + n * src_stride, dst_stride, src_stride);
+        }
+
+        dst += 16 * dst_stride;
+        src += 16;
+    }
+}
+
+#if defined(HAVE_AVX512F)
+static void transpose_16Nx16K(ov::bfloat16* dst, ov::bfloat16* src, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    // will treat as uint32_t transpose
+    auto s = reinterpret_cast<uint32_t*>(src);
+    auto d = reinterpret_cast<uint32_t*>(dst);
+    transpose_16Nx16K(d, s, N, K >> 1, dst_stride, src_stride >> 1);
+}
+#endif
+
+template<typename TDST>
+void transpose_16Nx16K(TDST* dst, uint8_t* src, size_t N, size_t K, size_t dst_stride, size_t src_stride) {
+    // TODO
+}
+
+// dequant f16/u8 to float
+template<typename T>
+static inline void dequant(T* dst, T* src, size_t K, size_t N) {
+    // never called
+}
+
+static inline void dequant(float* dst, ov::float16* src, size_t K, size_t N) {
+    cvt_copy(dst, src, K * N);
+}
+
+template<typename TDST>
+void dequant(TDST* dst, uint8_t* src, size_t K, size_t N) {
+    // TODO
+}
+
+#if defined(HAVE_AVX512F)
+// pack bf16/u8 to bf16
+static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    auto midx = _mm512_loadu_epi64(idx);
+    for (size_t i = 0; i < 16; i++) {
+        auto a = _mm512_loadu_epi16(src);               // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
+        auto b = _mm512_loadu_epi16(src + stride);      // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
+        a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
+        b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
+        auto B0 = _mm512_unpacklo_epi16(a, b);          // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
+        auto B1 = _mm512_unpackhi_epi16(a, b);          // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
+        _mm512_storeu_epi16(dst, B0);
+        _mm512_storeu_epi16(dst + 32, B1);
+        src += 2 * stride;
+        dst += 2 * stride;
+    }
+}
+
+static void pack_32Nx32K(ov::bfloat16* dst, ov::bfloat16* src, size_t N, size_t K, size_t stride) {
+    for (size_t n = 0; n < N; n += 32) {
+        for (size_t k = 0; k < K; k += 32) {
+            pack_32x32_kernel(dst + k * 2, src + k, stride);
+        }
+
+        dst += 32 * stride;
+        src += 32 * stride;
+    }
+}
+
+static void pack_32Nx32K(ov::bfloat16* dst, uint8_t* src, size_t N, size_t K, size_t stride) {
+    // TODO
+}
+#endif
+
+template<typename T>
+static void pack_32Nx32K(float* dst, T* src, size_t N, size_t K, size_t stride) {
+    // never called
+}
+
+
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct MHAHelper {
     // initialize once
@@ -668,9 +752,9 @@ struct MHAHelper {
                                                              _block_size,
                                                              _S,
                                                              _H * _S,
-                                                             _S,
+                                                             _block_size,
                                                              _weight.stride(2),
-                                                             true,
+                                                             false,
                                                              in_type);
                 _wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                              _S,
@@ -710,8 +794,8 @@ struct MHAHelper {
     }
 
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
-        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _qk_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
-        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _wv_gemm[_block_size - 1]->get_scratch_b_size() / sizeof(DATA_TYPE)});
+        _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
+        _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * _S});
     }
 
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
@@ -727,7 +811,8 @@ struct MHAHelper {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
-        constexpr bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hk * _h_each_group_len; h < (hk + 1) * _h_each_group_len; h++) {
             //PROFILE(_attn, "tn_qk");
@@ -795,12 +880,12 @@ struct MHAHelper {
 
             // reuse float buffer, need to use float to compute offset
             auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
-            float* fp32_out_ptr = is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
+            float* fp32_out_ptr = q_is_bf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _S);
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
                 DATA_TYPE* v_ptr;
-                if (is_bf16) {
+                if (q_is_bf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
@@ -821,7 +906,7 @@ struct MHAHelper {
                                                          _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 }
             }
-            if (is_bf16) {
+            if (q_is_bf16) {
                 attn_memcpy2d_kernel(_output.ptr<float>(ithr, 0, h, 0),
                                      output_emb.ptr<DATA_TYPE>(q_start, h * _S),
                                      ov::element::f32,
@@ -1027,7 +1112,8 @@ struct MHAMultiple {
                     const PlainTensor& context_lens) {
         auto B = query.m_dims[0];
         auto Hk = present_value.m_dims[1];
-        bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
 
         // buffer for transpose and repack
         _helper.init_reorder_buffers(B, block_tables.m_dims[1]);
@@ -1038,11 +1124,17 @@ struct MHAMultiple {
             auto block_number = block_tables.ptr<int32_t>(b)[kv_block];
             if (block_number < 0)
                 return;
-            auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, hk);
-            auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, hk);
-            _helper._qk_gemm[_helper._block_size - 1]->copy_buffer_b(k_ptr, _helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk));
-            if (is_bf16)
-                _helper._wv_gemm[_helper._block_size - 1]->copy_buffer_b(v_ptr, _helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk));
+            auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
+            auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+            transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk), k_ptr, _helper._block_size,
+                _helper._S, _helper._block_size, _helper._S);
+            if (q_is_bf16) {
+                pack_32Nx32K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk), v_ptr, _helper._block_size, _helper._S, _helper._S);
+            } else {
+                if (!q_cache_is_same) {
+                    dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk), v_ptr, _helper._block_size, _helper._S);
+                }
+            }
         });
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("brgemm_attn");
@@ -1263,7 +1355,8 @@ struct MHAMixed {
                          const PlainTensor& subsequence_lens) {
         auto Hk = present_value.m_dims[1];
 
-        bool is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_is_bf16 = precision_of<DATA_TYPE>::value == ov::element::bf16;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KVCACHE_TYPE>::value;
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
@@ -1280,11 +1373,19 @@ struct MHAMixed {
             auto block_number = block_tables.ptr<int32_t>(batch_in_query_last)[kv_block];
             if (block_number < 0)
                 return;
-            auto* k_ptr = present_key.ptr<DATA_TYPE>(block_number, hk);
-            auto* v_ptr = present_value.ptr<DATA_TYPE>(block_number, hk);
-            _helper._qk_gemm[_helper._block_size - 1]->copy_buffer_b(k_ptr, _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk));
-            if (is_bf16)
-                _helper._wv_gemm[_helper._block_size - 1]->copy_buffer_b(v_ptr, _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk));
+
+            auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
+            auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+            transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk), k_ptr, _helper._block_size,
+                _helper._S, _helper._block_size, _helper._S);
+            if (q_is_bf16) {
+                pack_32Nx32K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk), v_ptr, _helper._block_size, _helper._S, _helper._S);
+            } else {
+                // need to decompress
+                if (!q_cache_is_same) {
+                    dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk), v_ptr, _helper._block_size, _helper._S);
+                }
+            }
         });
 
         _attn = ov::intel_cpu::profilerManagerInstance.startProfile("mixed_attn");
@@ -1411,11 +1512,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         block_tables.reset(inputs[ID_BLOCK_TABLES]);
         scale_input = *inputs[ID_SCALE]->getDataAs<float>();
 
-        if (q_input.get_precision() == ov::element::bf16 && (block_size % 32 != 0))
-            OPENVINO_THROW("CPU: block size must be multiple of 32 when precision is bf16, current: " + std::to_string(block_size));
-        else if (block_size % 16 != 0)
-            OPENVINO_THROW("CPU: block size must be multiple of 16 when precision is f32, current: " + std::to_string(block_size));
-
         // q: [B, L1, H*S], kv: [B, L1, Hk*S]
         // k_cache: [NUM_BLOCKS, Hk, 32, S]
         // v_cache: [NUM_BLOCKS, Hk, 32, S]
@@ -1435,6 +1531,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         if (scale_input == 0.0f)
             scale_input = 1.0f / sqrt(S);
+
+        // TODO: enable block_size to be multiple of 32
+        OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
+        OPENVINO_ASSERT(S % 16 == 0, "CPU: head size must be multiple of 16, current: ", S);
 
         q_input.assert_dims({B, L1, H * S});
         output_emb.assert_dims({B, L1, H * S});
@@ -1493,11 +1593,15 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     std::shared_ptr<PagedAttentionExecutor> executor;
 
     if (data_type == ov::element::bf16) {
+#if defined(HAVE_AVX512F)
         if (kvcache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t>>();
         } else {
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16>>();
         }
+#else
+    OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
+#endif
     } else if (data_type == ov::element::f32) {
         if (kvcache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<float, uint8_t>>();
@@ -1507,7 +1611,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             executor = std::make_shared<AttentionExecutor<float, float>>();
         }
     } else {
-        OPENVINO_THROW("Unsupported precision: ", data_type);
+        OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
 
     return executor;

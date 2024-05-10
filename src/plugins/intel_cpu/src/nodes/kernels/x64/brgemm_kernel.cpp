@@ -47,7 +47,11 @@ BrgemmKernel::BrgemmKernel(size_t M,
         THROW_ERROR("brgemm bf16 kernel could only be used above avx512_bf16");
 
     bool isAMXSupported = is_bf16 && mayiuse(avx512_core_amx);
-    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
+    size_t vlen;
+    if (mayiuse(avx512_core))
+        vlen = cpu_isa_traits<avx512_core>::vlen;
+    else
+        vlen = cpu_isa_traits<cpu_isa_t::avx2>::vlen;
     // blocking N
     N_blk = is_bf16 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
@@ -136,9 +140,14 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    auto isa = use_amx                                     ? isa_undef
-               : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16
-                                                           : (is_int8 ? avx512_core_vnni : avx512_core);
+    cpu_isa_t isa;
+    if (mayiuse(avx512_core)) {
+        isa = use_amx ? isa_undef
+                : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16
+                                                            : (is_int8 ? avx512_core_vnni : avx512_core);
+    } else {
+        isa = cpu_isa_t::avx2;
+    }
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -334,7 +343,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
         for (size_t k = 0; k < 2; k++) {
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
-            if (brgemmCtx.K != 0 && brgemmCtx.N != 0) {
+            if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * inType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;
