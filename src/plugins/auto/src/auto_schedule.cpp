@@ -199,7 +199,8 @@ void AutoSchedule::init() {
                 std::pair<int, WorkerInferRequest*> worker;
                 std::list<Time> cpuhelp_all_start_times;
                 std::list<Time> cpuhelp_all_end_times;
-                std::chrono::duration<double, std::milli> first_infer_time = 0.0;
+                std::chrono::duration<double, std::milli> first_infer_time =
+                    std::chrono::duration<double, std::milli>(0.0);
                 while (m_idle_worker_requests["CPU_HELP"].try_pop(worker)) {
                     destroynum++;
                     INFO_RUN([&cpuhelp_all_start_times, &cpuhelp_all_end_times, &worker]() {
