@@ -179,7 +179,7 @@ void regclass_graph_Node(py::module m) {
 
                 :param index: Index of Input.
                 :type index: int
-                :return: Tensor of the input i
+                :return: Tensor of the input index
                 :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_element_type",
@@ -221,32 +221,32 @@ void regclass_graph_Node(py::module m) {
              &ov::Node::get_input_element_type,
              py::arg("index"), 
              R"(
-                Returns the element type for input i
+                Returns the element type for input index
 
                 :param index: Index of the input.
                 :type index: int
-                :return: Type of the input i
+                :return: Type of the input index
                 :rtype: openvino.runtime.Type
              )");
     node.def("get_input_partial_shape",
              &ov::Node::get_input_partial_shape,
              py::arg("index"),
              R"(
-                Returns the partial shape for input i
+                Returns the partial shape for input index
 
                 :param index: Index of the input.
                 :type index: int
-                :return: PartialShape of the input i
+                :return: PartialShape of the input index
                 :rtype: openvino.runtime.PartialShape
              )");
     node.def("get_input_shape",
              &ov::Node::get_input_shape,
              py::arg("index"),
              R"(
-                Returns the shape for input i
+                Returns the shape for input index
 
-                :param index: Index of the output.
-                :return: Shape of the output i
+                :param index: Index of the input.
+                :return: Shape of the input index
                 :rtype: openvino.runtime.Shape
              )");
     node.def("set_output_type",
@@ -255,7 +255,7 @@ void regclass_graph_Node(py::module m) {
              py::arg("element_type"),
              py::arg("shape"),
             R"(
-                Sets the number of outputs
+                Sets output's element type and shape.
 
                 :param index: Index of the output.
                 :param element_type: Element type of the output.
@@ -281,33 +281,32 @@ void regclass_graph_Node(py::module m) {
              &ov::Node::get_output_element_type,
              py::arg("index"),
              R"(
-                Returns the element type for output i
+                Returns the element type for output index
 
                 :param index: Index of the output.
                 :type index: int
-                :return: Type of the output i
+                :return: Type of the output index
                 :rtype: openvino.runtime.Type
              )");
     node.def("get_output_shape",
              &ov::Node::get_output_shape,
              py::arg("index"),
              R"(
-                Returns the shape for output i
-
+                Returns the shape for output index
 
                 :param index: Index of the output.
-                :return: Shape of the output i
+                :return: Shape of the output index
                 :rtype: openvino.runtime.Shape
              )");
     node.def("get_output_partial_shape",
              &ov::Node::get_output_partial_shape,
              py::arg("index"),
              R"(
-                Returns the partial shape for output i
+                Returns the partial shape for output index
 
                 :param index: Index of the output.
                 :type index: int
-                :return: PartialShape of the output i
+                :return: PartialShape of the output index
                 :rtype: openvino.runtime.PartialShape
              )");
     node.def("get_output_tensor",
@@ -315,11 +314,11 @@ void regclass_graph_Node(py::module m) {
              py::arg("index"),
              py::return_value_policy::reference_internal,
              R"(
-                Returns the tensor for output i
+                Returns the tensor for output index
 
                 :param index: Index of the output.
                 :type index: int
-                :return: Tensor of the output i
+                :return: Tensor of the output index
                 :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_type_name",
