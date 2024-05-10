@@ -136,10 +136,8 @@ ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
 }
 
 template <>
-ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types) {
-    auto shape = js_to_cpp<std::vector<size_t>>(info, idx, acceptable_types);
+ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& shape = js_to_cpp<std::vector<size_t>>(info, idx);
     return ov::Shape(shape);
 }
 

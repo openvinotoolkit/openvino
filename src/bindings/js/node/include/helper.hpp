@@ -74,9 +74,7 @@ ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
 
 /** @brief  A template specialization for TargetType ov::Shape */
 template <>
-ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types);
+ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::preprocess::ResizeAlgorithm */
 template <>

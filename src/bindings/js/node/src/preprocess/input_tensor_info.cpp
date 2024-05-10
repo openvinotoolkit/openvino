@@ -35,7 +35,7 @@ Napi::Value InputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
 Napi::Value InputTensorInfo::set_shape(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto shape = js_to_cpp<ov::Shape>(info, 0, {napi_int32_array, js_array});
+            const auto& shape = js_to_cpp<ov::Shape>(info, 0);
             _tensor_info->set_shape(shape);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
