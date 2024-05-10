@@ -113,6 +113,7 @@
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#include "transformations/cpu_opset/common/pass/convert_reduce_no_keep_dims.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
@@ -414,6 +415,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
+    CPU_REGISTER_PASS_COMMON(manager, ConvertReduceNoKeepDims);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
     CPU_REGISTER_PASS_ARM(manager, ConvertReduceMultiAxis);
