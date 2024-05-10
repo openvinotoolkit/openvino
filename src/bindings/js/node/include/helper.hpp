@@ -63,7 +63,7 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
 
 /**
  * @brief  A template specialization for TargetType ov::Layout
- * @param  acceptable_types ov::Layout has to be created from a napi_string
+ * ov::Layout has to be created from a napi_string
  */
 template <>
 ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info, const size_t idx);
@@ -81,12 +81,12 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const
 template <>
 ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value);
 
-/** @brief  A template specialization for TargetType std::map<std::string, ov::Any */
+/** @brief  A template specialization for TargetType std::map<std::string, ov::Any
+ * std::map<std::string, ov::Any> has to be created from napi_object
+ */
 template <>
-std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
+                                                                         const size_t idx);
 
 /**
  * @brief  Template function to convert C++ data types into Javascript data types

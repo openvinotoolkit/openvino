@@ -141,7 +141,6 @@ template <>
 ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
                                                                            const size_t idx) {
     const auto& elem = info[idx];
-
     OPENVINO_ASSERT(elem.IsString(), "Cannot convert Napi::Value to resizeAlgorithm");
 
     const std::string& algorithm = elem.ToString();
@@ -186,14 +185,11 @@ ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value) {
 }
 
 template <>
-std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
+                                                                         const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types)) {
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to std::map<std::string, ov::Any>"));
-    }
+    OPENVINO_ASSERT(elem.IsObject(), "Cannot convert Napi::Value to std::map<std::string, ov::Any>");
+
     std::map<std::string, ov::Any> properties_to_cpp;
     const auto& config = elem.ToObject();
     const auto& keys = config.GetPropertyNames();
