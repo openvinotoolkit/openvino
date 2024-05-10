@@ -138,14 +138,11 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx)
 }
 
 template <>
-ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx) {
     const auto& elem = info[idx];
 
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to resizeAlgorithm"));
+    OPENVINO_ASSERT(elem.IsString(), "Cannot convert Napi::Value to resizeAlgorithm");
 
     const std::string& algorithm = elem.ToString();
     if (algorithm == "RESIZE_CUBIC") {
@@ -155,7 +152,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
     } else if (algorithm == "RESIZE_LINEAR") {
         return ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR;
     } else {
-        OPENVINO_THROW(std::string("Not supported resizeAlgorithm."));
+        OPENVINO_THROW("Not supported resizeAlgorithm.");
     }
 }
 

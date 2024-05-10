@@ -74,10 +74,8 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx)
 
 /** @brief  A template specialization for TargetType ov::preprocess::ResizeAlgorithm */
 template <>
-ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types);
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>
