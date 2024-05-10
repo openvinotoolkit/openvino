@@ -79,18 +79,12 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     if (resetting_data_indexes.empty())
         return false;
 
-    const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
-
     // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
     //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
-    auto loop_entries = loop_info->get_entry_points();
-    auto loop_exits = loop_info->get_exit_points();
     auto new_is_incremented = loop_end->get_is_incremented();
     if (const auto loop_end_dynamic = ov::as_type_ptr<op::LoopEndDynamic>(loop_end_expr->get_node())) {
         for (auto idx_to_drop : resetting_data_indexes) {
             new_is_incremented[idx_to_drop] = false;
-            auto& loop_port = idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
-            loop_port.is_incremented = false;
         }
     } else if (const auto loop_end_static = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node())) {
         auto new_ptr_increments = loop_end_static->get_ptr_increments();
@@ -99,17 +93,23 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             new_ptr_increments[idx_to_drop] = 0;
             new_finalization_offsets[idx_to_drop] = 0;
             new_is_incremented[idx_to_drop] = false;
-            auto& loop_port = idx_to_drop < input_count ? loop_entries[idx_to_drop] : loop_exits[idx_to_drop - input_count];
-            loop_port.ptr_increment = 0;
-            loop_port.finalization_offset = 0;
-            loop_port.is_incremented = false;
         }
         loop_end_static->set_ptr_increments(new_ptr_increments);
         loop_end_static->set_finalization_offsets(new_finalization_offsets);
     }
     loop_end->set_is_incremented(new_is_incremented);
-    loop_info->set_entry_points(loop_entries);
-    loop_info->set_exit_points(loop_exits);
+
+    const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
+    size_t loop_port_idx = 0;
+    loop_info->iterate_through_infos([&resetting_data_indexes, &loop_port_idx](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& shifts) {
+        if (resetting_data_indexes.count(loop_port_idx)) {
+            shifts.ptr_increment = 0;
+            shifts.finalization_offset = 0;
+            loop_port.is_incremented = false;
+        }
+        ++loop_port_idx;
+    });
+
     return true;
 }
 

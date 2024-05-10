@@ -91,7 +91,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
+    if(OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_LESS_EQUAL 2.26)
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
