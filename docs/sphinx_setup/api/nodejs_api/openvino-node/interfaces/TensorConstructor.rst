@@ -8,7 +8,7 @@ Interface TensorConstructor
    }
 
 * **Defined in:**
-  `addon.ts:94 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L94>`__
+  `addon.ts:94 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L94>`__
 
 
 Constructors
@@ -36,5 +36,5 @@ Constructors
    * **Returns:**  :doc:`Tensor <Tensor>`
 
    * **Defined in:**
-     `addon.ts:95 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L95>`__
+     `addon.ts:95 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L95>`__
 

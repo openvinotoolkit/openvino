@@ -29,7 +29,9 @@ Property addon
    PreProcessSteps <./openvino-node/interfaces/PreProcessSteps>
    Tensor <./openvino-node/interfaces/Tensor>
    TensorConstructor <./openvino-node/interfaces/TensorConstructor>
-
+   Dimension <./openvino-node/types/Dimension>
+   elementTypeString <./openvino-node/types/elementTypeString>
+   SupportedTypedArray <./openvino-node/types/SupportedTypedArray>
 
 The **openvino-node** package exports ``addon`` which contains the following properties:
 
@@ -49,7 +51,7 @@ The **openvino-node** package exports ``addon`` which contains the following pro
    }
 
 * **Defined in:**
-  `addon.ts:192 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
+  `addon.ts:192 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L178>`__
 
 
 Properties
@@ -69,7 +71,7 @@ Properties
      - CoreConstructor: :doc:`CoreConstructor <./openvino-node/interfaces/CoreConstructor>`
 
    -  **Defined in:**
-      `addon.ts:193 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L193>`__
+      `addon.ts:193 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L179>`__
 
 
 .. rubric:: PartialShape
@@ -85,7 +87,7 @@ Properties
      - PartialShapeConstructor: :doc:`PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>`
 
    -  **Defined in:**
-      `addon.ts:195 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L195>`__
+      `addon.ts:195 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L181>`__
 
 .. rubric:: Tensor
 
@@ -100,7 +102,7 @@ Properties
      - TensorConstructor: :doc:`TensorConstructor <./openvino-node/interfaces/TensorConstructor>`
 
    -  **Defined in:**
-      `addon.ts:194 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L194>`__
+      `addon.ts:194 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L180>`__
 
 
 .. rubric:: element
@@ -116,7 +118,7 @@ Properties
      - element: typeof :doc:`element <./openvino-node/enums/element>`
 
    -  **Defined in:**
-      `addon.ts:201 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L201>`__
+      `addon.ts:201 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L187>`__
 
 
 .. rubric:: preprocess
@@ -136,5 +138,5 @@ Properties
      - resizeAlgorithm: typeof :doc:`resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>`
 
    -  **Defined in:**
-      `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L169>`__
+      `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L183>`__
 

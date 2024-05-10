@@ -13,7 +13,7 @@ Interface CompiledModel
    }
 
 * **Defined in:**
-  `addon.ts:65 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L65>`__
+  `addon.ts:65 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L65>`__
 
 
 Properties
@@ -29,7 +29,7 @@ Properties
       inputs: Output []
 
    -  **Defined in:**
-      `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L67>`__
+      `addon.ts:67 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L67>`__
 
 
 .. rubric:: outputs
@@ -41,7 +41,7 @@ Properties
       outputs: Output []
 
    -  **Defined in:**
-      `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L66>`__
+      `addon.ts:66 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L66>`__
 
 
 Methods
@@ -59,7 +59,7 @@ Methods
    * **Returns:** :doc:`InferRequest <InferRequest>`
 
    -  **Defined in:**
-      `addon.ts:84 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L84>`__
+      `addon.ts:84 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L70>`__
 
 
 .. rubric:: exportModelSync
@@ -73,7 +73,7 @@ Methods
    * **Returns:** Buffer
 
    -  **Defined in:**
-      `addon.ts:85 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L85>`__
+      `addon.ts:85 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L71>`__
 
 
 .. rubric:: input
@@ -96,7 +96,7 @@ Methods
    * **Returns:** :doc:`InferRequest <Output>`
 
    * **Defined in:**
-     `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L83>`__
+     `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L69>`__
 
 
 .. rubric:: output
@@ -118,5 +118,5 @@ Methods
    * **Returns:**  :doc:`Output <Output>`
 
    * **Defined in:**
-   `addon.ts:82 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L82>`__
+   `addon.ts:82 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L68>`__
 

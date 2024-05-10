@@ -8,7 +8,7 @@ Interface PartialShapeConstructor
    }
 
 * **Defined in:**
-  `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L169>`__
+  `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L155>`__
 
 
 Constructors
@@ -30,5 +30,5 @@ Constructors
    * **Returns:**  :doc:`PartialShape <PartialShape>`
 
    - **Defined in**
-     `addon.ts:170 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L170>`__
+     `addon.ts:170 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/1/src/bindings/js/node/lib/addon.ts#L156>`__
 
