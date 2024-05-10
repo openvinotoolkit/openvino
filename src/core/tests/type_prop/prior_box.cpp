@@ -213,7 +213,7 @@ TYPED_TEST_P(PriorBoxTest, preseve_partial_values_and_symbols_on_inputs) {
 
 TYPED_TEST_P(PriorBoxTest, preseve_partial_values_inf_bound) {
     auto out_size_shape = PartialShape{{1, 4}, {5, -1}};
-     set_shape_symbols(out_size_shape);
+    set_shape_symbols(out_size_shape);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
     const auto image_size = Constant::create(element::u64, Shape{2}, {300, 300});
