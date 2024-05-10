@@ -117,8 +117,7 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         option.blockHeight = 3;
     }
 
-    // if this is not 1x1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
-    // sizes
+    // if this is not 1x1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block sizes
     if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,47 +6,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Just-in-time macro definitions:
-// ---------------------------------------------------------------------------------------------------------------------
-
-// Required JIT constants:
-//  - INPUT                - [tensor] Input dimensions (batch, spatial and feature).
-//  - OUTPUT               - [tensor] Output dimensions (batch, spatial and feature).
-//  - STRIDE               - [tensor] Stride (only spatial). Factors that describe step size in X or Y dimension of
-//                           input position of application of convolution filter when next ouput value
-//                           (step 1 in in X or Y dimension of output) is computed.
-//  - INPUT0_OFFSET        - [tensor] Offset for the first element
-//                           initial offset input position of application of convolution filter and output position.
-//  - FP16_SUPPORTED       - [0/1] Value indicating whether device supports FP16 OpenCL extension (cl_khr_fp16).
-//  - FP16_UNIT_USED       - [0/1] Value indicating that current kernel should use FP16.
-//  - UNIT_TYPE            - Type of unit of input/output/weight/bias.
-//  - UNIT_VAL_ZERO        - Literal of current UNIT_TYPE that represents 0.
-//  - RELU                 - [0/1] Indicates that ReLU activation function should be used on output.
-//  - NEGATIVE_SLOPE       - [float] Factor for negative output values (required when ReLU is specified).
-//
-//  - SUB_GROUP_SIZE       - [int] Size of used subgroup (SIMD).
-//  - LEFTOVERS            - [int] Optional parameter, required only when number of ofm is not dividable by SUB_GROUP_SIZE
-//                           see comment for FEATURES_THREADS_PER_BATCH for more informations
-
-/*
-gpu::make_jit_constant("OUTPUT_LIMIT",              output_size),
-gpu::make_jit_constant("FILTER",                    filter_mem.argument().size),
-gpu::make_jit_constant("FILTER_ARRAY_NUM",          split),
-gpu::make_jit_constant("OUTPUT_BLOCK_WIDTH",        _kernel_data.block_width));
-gpu::make_jit_constant("OUTPUT_BLOCK_HEIGHT",       _kernel_data.block_height));
-gpu::make_jit_constant("IN_BLOCK_ARRAY_SIZE",       _kernel_data.input_block_array_size));
-gpu::make_jit_constant("IN_BLOCK_WIDTH",            _kernel_data.input_block_width));
-if (_kernel_data.leftovers)
-    gpu::make_jit_constant("LEFTOVERS",             _kernel_data.leftovers));
-*/
-
-// FEATURES_THREADS_PER_BATCH defines how many threads in z-dimension are processing single batch.
-// ideally, z-dimension of value n should indicate processing of n-th output feature. however, since
-// threads are stack in groups of SUB_GROUP_SIZE, when number of ofm is not dividable by SUB_GROUP_SIZE
-// there are dummy threads added in z-dimension in count of LEFTOVERS. We need to take them into consideration
-// while calculating batch's id (see lines 86-87). Values calculated by dummy threads are discarded at line 210.
 #ifdef LEFTOVERS
 #define FEATURES_THREADS_PER_BATCH (FILTER_OFM_NUM + LEFTOVERS)
 #else
@@ -55,7 +14,7 @@ if (_kernel_data.leftovers)
 
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
-KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
+KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
