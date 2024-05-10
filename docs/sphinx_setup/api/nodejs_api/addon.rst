@@ -29,9 +29,9 @@ Property addon
    PreProcessSteps <./openvino-node/interfaces/PreProcessSteps>
    Tensor <./openvino-node/interfaces/Tensor>
    TensorConstructor <./openvino-node/interfaces/TensorConstructor>
-   Dimension <./openvino-node/types/dimension>
-   elementTypeString <./openvino-node/types/elementtypestring>
-   SupportedTypedArray <./openvino-node/types/supportedtypedarray>
+   Dimension <./openvino-node/types/Dimension>
+   elementTypeString <./openvino-node/types/elementTypeString>
+   SupportedTypedArray <./openvino-node/types/SupportedTypedArray>
 
 The **openvino-node** package exports ``addon`` which contains the following properties:
 
