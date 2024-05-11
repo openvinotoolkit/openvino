@@ -217,9 +217,8 @@ jobs:
           popd
 
           pushd ${OPENVINO_REPO}/temp/tbb/lib/
-            mkdir tests && \
-            cp -r * tests && \
-            tar -rzvf ${BUILD_DIR}/openvino_tests.tar.gz
+            mkdir tests && cp lib* tests
+            tar -rzvf ${BUILD_DIR}/openvino_tests.tar.gz tests/
           popd
 
       #
