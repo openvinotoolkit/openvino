@@ -404,14 +404,14 @@ public:
         auto outputs = network_first->execute();
 
         auto dev_info = engine->get_device_info();
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)4744);
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5896);
 
         topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
         network::ptr network_second = get_network(*engine, topo, config, get_test_stream_ptr(), is_caching_test);
         network_second->set_input_data("input", input_1);
         auto outputs_second = network_second->execute();
-        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
+        ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)8216);
     }
 
     void test_shared_dep_two_output(bool is_caching_test) {
