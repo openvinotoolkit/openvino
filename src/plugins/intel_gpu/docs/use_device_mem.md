@@ -15,10 +15,13 @@ Currently, benchmark_app does not support to fill input data when use_device_mem
 ### How to build sample for use_device_mem (on Windows)
 The option depends on Intel OpenCL feature of USM memory. To use the option, you need to build sample with OpenCL enabled. Here's steps to build sample application with OpenCL.
 1. Setup env variable for compiler and OpenVINO release package
-1. samples\cpp\build> git clone https://github.com/KhronosGroup/OpenCL-Headers.git
-1. samples\cpp\build> git clone https://github.com/KhronosGroup/OpenCL-CLHPP.git
-1. samples\cpp\build> cmake -DCL2_HPP_INCLUDE_DIR=path\to\OpenCL-CLHPP\include\ -DOpenCL_INCLUDE_DIR=path\to\OpenCL-Headers\ -DOpenCL_LIBRARY="C:\Program Files (x86)\Common Files\Intel\Shared Libraries\lib\OpenCL.lib" ..
-1. samples\cpp\build> cmake --build . --config Release --parallel
+1. \> git clone https://github.com/microsoft/vcpkg
+1. \> cd vcpkg
+1. \> .\bootstrap-vcpkg.bat
+1. \> vcpkg search opencl
+1. \> vcpkg install opencl
+1. openvino_install\samples\cpp> cmake -DCMAKE_BUILD_TYPE=Release -B build -DCMAKE_TOOLCHAIN_FILE=path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+1. openvino_install\samples\cpp> cmake --build build --config Release --parallel
 
 ### How to build sample for use_device_mem (on Ubuntu)
 1. \# apt install opencl-c-headers opencl-clhpp-headers
