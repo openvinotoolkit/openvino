@@ -41,7 +41,7 @@ private:
     void gatherConcatPastkvForPagedAttn(const std::vector<MemoryPtr>& inputs);
     ov::element::Type getRuntimePrecision() const override;
 
-    std::shared_ptr<ov::Extensions::Cpu::XARCH::PagedAttentionExecutor> m_executor;
+    std::shared_ptr<ov::Extensions::Cpu::PagedAttentionExecutor> m_executor;
     template <typename T> struct AttentionExecutor;
     friend struct PagedAttentionKey;
 };

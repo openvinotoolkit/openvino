@@ -235,6 +235,17 @@ inline void transpose_16x16_kernel(float* dst, T* src, size_t dst_stride, size_t
     }
 }
 
+#else
+
+template<typename TSRC, typename TDST>
+inline void transpose_16x16_kernel(TDST* dst, TSRC* src, size_t dst_stride, size_t src_stride) {
+    for (size_t i = 0; i < 16; i++) {
+        for (size_t j = 0; j < 16; j++) {
+            dst[i * dst_stride + j] = static_cast<TDST>(src[i + j * src_stride]);
+        }
+    }
+}
+
 #endif
 
 }  // namespace XARCH

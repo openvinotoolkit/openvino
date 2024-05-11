@@ -210,7 +210,7 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/executor_pa.cpp
         API         src/nodes/kernels/scaled_attn/executor_pa.hpp
         NAME        make_pa_executor

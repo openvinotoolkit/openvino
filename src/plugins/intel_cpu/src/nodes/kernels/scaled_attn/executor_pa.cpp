@@ -32,6 +32,9 @@ namespace XARCH {
 using namespace ov;
 using namespace ov::intel_cpu;
 
+// currently depends on brgemm which only support x64
+#ifdef OPENVINO_ARCH_X86_64
+
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
 #define prefetch_bytes(bytes, sel, advance, src) {  \
@@ -790,7 +793,7 @@ struct MHAHelper {
     PlainTensor _output_bhl;
 
     MHAHelper() {
-        _weight.resize<float>({1ul, 1ul, 1ul, 1ul});
+        _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
     void init(size_t H, size_t S, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
@@ -1081,7 +1084,7 @@ struct MHAHelper {
         auto kv_len_in_blocks = block_tables.m_dims[1];
 
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
-        _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, 16ul))});
+        _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         pa_parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
@@ -1623,10 +1626,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 };
+#endif
 
 std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type kvcache_type) {
     std::shared_ptr<PagedAttentionExecutor> executor;
 
+#ifdef OPENVINO_ARCH_X86_64
     if (data_type == ov::element::bf16) {
 #if defined(HAVE_AVX512F)
         if (kvcache_type == ov::element::u8) {
@@ -1648,7 +1653,9 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
-
+#else
+    OPENVINO_THROW("make_pa_executor: only support x64 platform");
+#endif
     return executor;
 }
 

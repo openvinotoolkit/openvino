@@ -18,6 +18,25 @@ namespace Cpu {
 
 // this file will contain features that do not require multiple instantiation
 
+struct PagedAttentionExecutor {
+    // PagedAttention input index
+    static const size_t ID_Q = 0;
+    static const size_t ID_K = 1;
+    static const size_t ID_V = 2;
+    static const size_t ID_KCACHE = 3;
+    static const size_t ID_VCACHE = 4;
+    static const size_t ID_IS_PROMPT = 5;
+    static const size_t ID_SLOT_MAPPING = 6;
+    static const size_t ID_MAX_CONTEXT_LEN = 7;
+    static const size_t ID_CONTEXT_LENS = 8;
+    static const size_t ID_BLOCK_TABLES = 9;
+    static const size_t ID_SCALE = 10;
+    static const size_t ID_ALIBI_SLOPES = 11;
+    static const size_t ID_SLIDING_WINDOW = 12;
+    static const size_t ID_SUBSEQUENCE_LENS = 13;
+    virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const ov::intel_cpu::MemoryPtr output) = 0;
+};
+
 #ifdef OPENVINO_ARCH_X86_64
 
 // w = query * Key

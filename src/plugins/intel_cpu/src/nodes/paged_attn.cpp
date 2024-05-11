@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+using namespace ov::Extensions::Cpu;
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -123,13 +124,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
-    auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
 
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
     PagedAttentionKey key = {rtPrecision};
 
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
+        auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         return make_pa_executor(rtPrecision, kvCachePrecision);
 #else
         return nullptr;
