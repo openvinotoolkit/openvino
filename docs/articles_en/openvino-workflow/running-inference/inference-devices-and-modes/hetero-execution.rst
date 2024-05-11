@@ -29,17 +29,19 @@ Defining and Configuring the Hetero Device
 Following the OpenVINO™ naming convention, the Hetero execution plugin is assigned the label of ``"HETERO".`` It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
 
 
-+--------------------------------------------+---------------------------------------------------------+-----------------------------------------------------------+
-| Parameter Name & C++ property              | Property values                                         | Description                                               |
-+============================================+=========================================================+===========================================================+
-| | "MULTI_DEVICE_PRIORITIES"                | | HETERO: <device names>                                | | Lists the devices available for selection.              |
-| | ``ov::device::priorities``               | | comma-separated, no spaces                            | | The device sequence will be taken as priority           |
-| |                                          | |                                                       | | from high to low.                                       |
-+--------------------------------------------+---------------------------------------------------------+-----------------------------------------------------------+
-| | "MODEL_DISTRIBUTION_POLICY"              | | ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL  | | Model distribution policy for inference with            |
-| | ``ov::hint::model_distribution_policy``  | |                                                       | | multiple devices. Distribute model to multiple          |
-| |                                          | |                                                       | | devices during model compilation.                       |
-+--------------------------------------------+---------------------------------------------------------+-----------------------------------------------------------+
++--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
+| Parameter Name & C++ property              | Property values                                             | Description                                               |
++============================================+=============================================================+===========================================================+
+| | "MULTI_DEVICE_PRIORITIES"                | | ``HETERO: <device names>``                                | | Lists the devices available for selection.              |
+| | ``ov::device::priorities``               | |                                                           | | The device sequence will be taken as priority           |
+| |                                          | | comma-separated, no spaces                                | | from high to low.                                       |
++--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
+| |                                          | | ``empty``                                                 | | Model distribution policy for inference with            |
+| | "MODEL_DISTRIBUTION_POLICY"              | | ``ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL``  | | multiple devices. Distribute model to multiple          |
+| |                                          | |                                                           | | devices during model compilation.                       |
+| | ``ov::hint::model_distribution_policy``  | | HETERO only support PIPELINE_PARALLEL, The default value  | |                                                         |
+| |                                          | | is empty                                                  | |                                                         |
++--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
 
 Manual and Automatic modes for assigning affinities
 ###################################################
@@ -101,7 +103,7 @@ It does not take into account device peculiarities such as the inability to infe
 Pipeline parallelism
 ------------------------
 
-The pipeline parallelism is set via ``ov::hint::model_distribution_policy``, This mode is an efficient technique to infer large models on multiple GPUs or devices. The model is split into multiple stages, and each stage is assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode will assign operations to different devices as reasonably as possible, ensuring that different stages can be executed in sequence and minimizing the amount of data transfer between different devices.
+The pipeline parallelism is set via ``ov::hint::model_distribution_policy``, This mode is an efficient technique to infer large models on multiple devices. The model is split into multiple stages, and each stage is assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode assign operations to different devices as reasonably as possible, ensuring that different stages can be executed in sequence and minimizing the amount of data transfer between different devices.
 
 For large models which don’t fit on a single first priority device, model pipeline parallelism is employed where certain parts of the model are placed on different devices to ensure that the device has enough memory to infer these operations, and assign other operations to next priority device.
 
