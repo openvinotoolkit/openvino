@@ -108,6 +108,34 @@ void JitMatMulVecAMX::generate() {
 
 #endif
 
+void pa_parallel_nt_static(const size_t& threads, const std::function<void(size_t, size_t)>& func) {
+    parallel_nt_static(threads, func);
+}
+
+void pa_parallel_for2d(const size_t& D0, const size_t& D1, const std::function<void(size_t, size_t)>& func) {
+    parallel_for2d(D0, D1, func);
+}
+
+void pa_parallel_for2d_dynamic(const size_t& D0, const size_t& D1, const std::function<void(size_t, size_t)>& func) {
+    parallel_for2d_dynamic(D0, D1, func);
+}
+
+void pa_parallel_for3d(const size_t& D0, const size_t& D1, const size_t& D2, const std::function<void(size_t, size_t, size_t)>& func) {
+    parallel_for3d(D0, D1, D2, func);
+}
+
+void pa_parallel_for3d_dynamic(const size_t& D0, const size_t& D1, const size_t& D2, const std::function<void(size_t, size_t, size_t)>& func) {
+    parallel_for3d_dynamic(D0, D1, D2, func);
+}
+
+size_t pa_parallel_get_max_threads() {
+    return static_cast<size_t>(parallel_get_max_threads());
+}
+
+size_t pa_parallel_get_thread_num() {
+    return parallel_get_thread_num();
+}
+
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace ov
