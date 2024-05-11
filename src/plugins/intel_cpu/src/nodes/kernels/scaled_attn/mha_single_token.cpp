@@ -18,7 +18,6 @@
 #include "mha_single_token.hpp"
 #include "common.hpp"
 #include "softmax_kernel.hpp"
-#include "utils/profiler.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -638,25 +637,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
-    char buf[256];
-    size_t real_len = 0;
-    size_t aligned_len = 0;
-    for (size_t b = 0; b < B; b++) {
-        auto s = kv_len;
-        real_len += s;
-        aligned_len += (s + 15) / 16 * 16;
-    }
-    size_t access_size;
-    if (present_value.m_dt != ov::element::u8)
-        access_size = h_group_num * real_len * S * (32 * present_value.m_element_size);
-    else
-        access_size = h_group_num * real_len * (S + 8) * 32;
-    access_size += B * H * S * 2 * 32;    // query
-    access_size += aligned_len * H * 4 * 32; // buf_attn_w
-    // only consider k or v theoretical cost
-    snprintf(buf, sizeof(buf), "t1_BL%ld,%ld,MC%.2f,%.2f", B, real_len, access_size / 260000000.0f,
-        H * real_len * S * 32 / 16 * 2 / 60 / 1800000.0f);
-    PROFILE(_attn, buf);
 
 #if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     // avx2 will pre-compute the zero point and try to save the sub instruction in the dot_product,
@@ -718,7 +698,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             }
         }
     });
-    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_softmax");
+
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto cur_kv_len = kv_len;
         auto ncausal = auto_causal ? (cur_kv_len - q_len + pq + 1) : cur_kv_len;
@@ -741,7 +721,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             attn_mask_prec,
                             ov::element::f32);
     });
-    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
+
     // attn_w * V
     // Fast Path if there are enough works for each thread
     if (B >= static_cast<size_t>(nthr)) {
@@ -821,7 +801,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         }
     });
 
-    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto* temp = buf_attn_score.ptr<float>(0, b, pq, h);
         size_t temp_stride = buf_attn_score.stride(0);

@@ -24,7 +24,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include "utils/profiler.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -146,7 +145,6 @@ void PagedAttention::createPrimitive() {
 }
 
 void PagedAttention::execute(dnnl::stream strm) {
-    PROFILE(_attn, "pg_concat");
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     auto output = getDstMemoryAtPort(0);
@@ -156,7 +154,6 @@ void PagedAttention::execute(dnnl::stream strm) {
 
     gatherConcatPastkvForPagedAttn(inputs);
 
-    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("pg_exec");
     m_executor->execute(inputs, output);
 }
 
