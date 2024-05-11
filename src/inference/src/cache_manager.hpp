@@ -19,6 +19,25 @@
 namespace ov {
 
 /**
+ * @brief This class limit the local env to a spicial value in sub-scope
+ *
+ */
+class ScopedLocale {
+public:
+    ScopedLocale(int category, std::string newLocale) : m_Category(category) {
+        m_OldLocale = setlocale(category, nullptr);
+        setlocale(m_Category, newLocale.c_str());
+    }
+    ~ScopedLocale() {
+        setlocale(m_Category, m_OldLocale.c_str());
+    }
+
+private:
+    int m_Category;
+    std::string m_OldLocale;
+};
+
+/**
  * @brief This class represents private interface for Cache Manager
  *
  */
@@ -100,24 +119,20 @@ public:
 private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
-        std::string original_plocal = setlocale(LC_ALL, nullptr);
-        setlocale(LC_ALL, "C");
+        ScopedLocale plocal_C(LC_ALL, "C");
 
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
-        setlocale(LC_ALL, original_plocal.c_str());
     }
 
     void read_cache_entry(const std::string& id, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
-        std::string original_plocal = setlocale(LC_ALL, nullptr);
-        setlocale(LC_ALL, "C");
+        ScopedLocale plocal_C(LC_ALL, "C");
         auto blobFileName = getBlobFile(id);
         if (ov::util::file_exists(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
         }
-        setlocale(LC_ALL, original_plocal.c_str());
     }
 
     void remove_cache_entry(const std::string& id) override {
