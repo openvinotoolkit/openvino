@@ -6,7 +6,6 @@ import sys
 import numpy as np
 import paddle
 
-
 #print numpy array like C structure       
 def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
     shape = arr.shape
@@ -41,17 +40,14 @@ def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
     if verbose:
         print(print_array(arr, seperator_end))        
 
-def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:list, target_dir:str, use_static_api=False):
+def saveModel(name, exe, feed_vars:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
     # print("\n\n------------- %s -----------\n" % (name))
     for i, input in enumerate(inputs):
-        if use_static_api == True:
-            feedkey = feedkeys[i].name
-        else:
-            feedkey = feedkeys[i]
+        feedkey = feed_vars[i].name
         # print("INPUT %s :" % (feedkey), input.shape, input.dtype, "\n")
         # print_alike(input)
         np.save(os.path.join(model_dir, "input{}".format(i)), input)
@@ -64,12 +60,8 @@ def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:lis
         np.save(os.path.join(model_dir, "output{}".format(i)), output)
 
     # composited model + scattered model
-    if use_static_api == True:
-        model_name = os.path.join(model_dir, name)
-        paddle.static.io.save_inference_model(model_name, feedkeys, fetchlist, exe)
-    else:
-        paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
-        paddle.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe, model_filename=name+".pdmodel", params_filename=name+".pdiparams")
+    model_name = os.path.join(model_dir, name)
+    paddle.static.io.save_inference_model(model_name, feed_vars, fetchlist, exe)
 
 
 '''
@@ -112,7 +104,10 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list
     else:       
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
     
-    paddle.fluid.core.clear_executor_cache()
+    if paddle.__version__ < "2.6.0": 
+        paddle.fluid.core.clear_executor_cache()
+    else:
+        paddle.base.core.clear_executor_cache()
     return result
 
 

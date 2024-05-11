@@ -229,14 +229,8 @@ void CompiledModel::initialize_properties() {
         {ov::execution_devices.name(),
          {true,
           ov::PropertyMutability::RO,
-          [&](const Config& config) {
-              // This mainly concerns the device name displayed to the user
-              // e.g. "NPU.3720" or "NPU" if the platform is set to "AUTO_DETECT"
-              if (config.get<PLATFORM>() == ov::intel_npu::Platform::AUTO_DETECT) {
-                  return std::string("NPU");
-              }
-              OPENVINO_ASSERT(_device != nullptr, "GetMetric: the device is not initialized");
-              return std::string("NPU.") + _device->getName();
+          [&](const Config&) {
+              return std::string("NPU");
           }}},
         {ov::loaded_from_cache.name(),
          {true,

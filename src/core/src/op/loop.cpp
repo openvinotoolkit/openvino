@@ -169,8 +169,8 @@ void Loop::validate_and_infer_types() {
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
-            auto input_partial_shape = input(index).get_partial_shape();
-            auto input_type = input(index).get_element_type();
+            const auto& input_partial_shape = input(index).get_partial_shape();
+            const auto& input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
             body_parameter->set_element_type(input_type);

@@ -160,7 +160,15 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
             pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), _node.get_unique_id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+        return pool.get_memory(layout,
+                               _node.id(),
+                               _node.get_unique_id(),
+                               net_id,
+                               memory_dependencies,
+                               type,
+                               reusable_across_network,
+                               reset,
+                               _node.is_dynamic());
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -1509,14 +1517,14 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
     _mem_allocated = allocate_memory;
     if (!_mem_allocated && (node.is_dynamic() && _outputs_memory_count > 1)) {
-        auto avaiable_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
+        auto available_allocate_memory = [&](std::vector<cldnn::layout>& layouts) -> bool {
             for (auto& l : layouts) {
                 if (l.is_static())
                     return true;
             }
             return false;
         };
-        allocate_memory = _mem_allocated = avaiable_allocate_memory(_impl_params->output_layouts);
+        allocate_memory = _mem_allocated = available_allocate_memory(_impl_params->output_layouts);
     }
 
     if (allocate_memory) {
@@ -2034,7 +2042,7 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            if (fd.is_type<reorder>())
+            if (fd.is_type<reorder>() || fd.is_type<quantize>())
                 continue;
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
