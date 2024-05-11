@@ -153,9 +153,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefa
 
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    const auto of_maps = cp.outputs[0].Feature().v;
-    const auto of_maps_per_group = of_maps / cp.groups / 2;
-    const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
+    const auto of_maps = CeilDiv(cp.outputs[0].Feature().v, 2);
+    const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
