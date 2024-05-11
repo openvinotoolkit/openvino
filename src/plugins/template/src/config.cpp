@@ -85,7 +85,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             model_priority = value.as<ov::hint::Priority>();
         } else if (ov::internal::save_to_cache == key) {
             save_to_cache = value.as<bool>();
-        }else if (throwOnUnsupported) {
+        } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
     }
