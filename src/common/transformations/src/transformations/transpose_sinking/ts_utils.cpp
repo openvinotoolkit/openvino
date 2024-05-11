@@ -68,10 +68,20 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices,
-                                           bool static_transpose_input) {
+bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+    if (!transpose || !transpose_order)
+        return false;
+    const auto partial_shape_rank = transpose->get_input_partial_shape(0).rank();
+    const auto order = transpose_order->get_axis_vector_val();
+    return (partial_shape_rank.is_static() || order.empty());
+}
+
+TransposeInputsInfo GetFirstTransposeInput(
+    const NodePtr& node,
+    const std::vector<size_t>& indices,
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& if_transpose_sinkable) {
     auto indices_to_check = indices;
     if (indices.empty()) {
         indices_to_check.resize(node->get_input_size());
@@ -83,10 +93,8 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;
-        if (static_transpose_input && transpose_node->get_input_partial_shape(0).rank().is_dynamic())
-            continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (const_transpose_order && !constant_node)
+        if (!if_transpose_sinkable(transpose_node, constant_node))
             continue;
         {
             TransposeInputsInfo input_info;
