@@ -275,7 +275,7 @@ ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
         if (i % 2) {
             data[dst_idx] = (val & 0x0f);
         } else {
-            data[dst_idx] = data[dst_idx] | ((val & 0x0f) << 4);
+            data[dst_idx] = data[dst_idx] | (val & 0xf0);
         }
     }
 
@@ -428,7 +428,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                 inputInfo.second,
                                                 inputInfo.first,
                                                 filenames_used);
-    } else if (type == ov::element::i8) {
+    } else if (type == ov::element::i8 || (type == ov::element::i4)) {
         return create_tensor_from_numpy<int8_t>(files,
                                                 inputId,
                                                 batchSize,
@@ -456,7 +456,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                  inputInfo.second,
                                                  inputInfo.first,
                                                  filenames_used);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean) || (type == ov::element::u4)) {
         return create_tensor_from_numpy<uint8_t>(files,
                                                  inputId,
                                                  batchSize,
@@ -516,7 +516,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                  inputInfo.second,
                                                  inputInfo.first,
                                                  filenames_used);
-    } else if (type == ov::element::i8) {
+    } else if (type == ov::element::i8 || (type == ov::element::i4)) {
         return create_tensor_from_binary<int8_t>(files,
                                                  inputId,
                                                  batchSize,
@@ -544,7 +544,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                   inputInfo.second,
                                                   inputInfo.first,
                                                   filenames_used);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean) || (type == ov::element::u4)) {
         return create_tensor_from_binary<uint8_t>(files,
                                                   inputId,
                                                   batchSize,
