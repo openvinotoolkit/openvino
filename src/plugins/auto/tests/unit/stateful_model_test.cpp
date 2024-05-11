@@ -21,6 +21,7 @@ class StatefulModelSupportedTest : public tests::AutoTest, public ::testing::Tes
 public:
     std::shared_ptr<ov::Model> create_dynamic_output_model();
     std::shared_ptr<ov::Model> create_stateful_model();
+    std::shared_ptr<ov::Model> create_stateful_dynamic_model();
     static std::string getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj);
     void SetUp() override;
 
@@ -104,10 +105,38 @@ std::shared_ptr<ov::Model> StatefulModelSupportedTest::create_stateful_model() {
     return model;
 }
 
+std::shared_ptr<ov::Model> StatefulModelSupportedTest::create_stateful_dynamic_model() {
+    ov::PartialShape shape({ov::Dimension::dynamic(), 1});
+    ov::element::Type type(ov::element::Type_t::f32);
+    auto arg = std::make_shared<ov::op::v0::Parameter>(type, shape);
+    auto init_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+    // The ReadValue/Assign operations must be used in pairs in the model.
+    // For each such a pair, its own variable object must be created.
+    const std::string variable_name("variable0");
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{init_const->get_shape(), ov::element::f32, variable_name});
+    // Creating ov::Model
+    auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);
+    std::vector<std::shared_ptr<ov::Node>> args = {arg, read};
+    auto add = std::make_shared<ov::opset11::Add>(arg, read);
+    add->set_friendly_name("add_sum");
+    auto assign = std::make_shared<ov::opset11::Assign>(add, variable);
+    assign->set_friendly_name("save");
+    auto res = std::make_shared<ov::opset11::Result>(add);
+    res->set_friendly_name("res");
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
+
+    return model;
+}
+
 void StatefulModelSupportedTest::SetUp() {
     std::tie(devicesList, isDynamicModel, isStatefulModel, isDevSupportStatefulMap, isCumulative, expectedCalledTimes) =
         GetParam();
-    if (isDynamicModel) {
+    if (isDynamicModel && isStatefulModel) {
+        model = create_stateful_dynamic_model();
+    } else if (isDynamicModel) {
         model = create_dynamic_output_model();
     } else if (isStatefulModel) {
         model = create_stateful_model();
@@ -230,7 +259,6 @@ const std::vector<StatefulModelConfigParams> testConfigs = {
                               std::map<std::string, bool>{{"CPU", false}},
                               false,
                               std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-
     StatefulModelConfigParams{"GPU",
                               true,
                               false,
@@ -249,19 +277,78 @@ const std::vector<StatefulModelConfigParams> testConfigs = {
                               std::map<std::string, bool>{{"GPU", true}},
                               false,
                               std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-
+    StatefulModelConfigParams{"GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"GPU", true}},
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
+    StatefulModelConfigParams{"GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"GPU", true}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
+    StatefulModelConfigParams{"GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"GPU", false}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
     StatefulModelConfigParams{"CPU,GPU",
                               true,
                               true,
                               std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
                               true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 1}}},
+                              std::vector<std::pair<std::string, int>>{{"CPU", -1}, {"GPU", -1}}},
     StatefulModelConfigParams{"GPU,CPU",
                               true,
                               true,
                               std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}}},
+                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"CPU", -1}, {"GPU", -1}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
+    StatefulModelConfigParams{"CPU,GPU",
+                              true,
+                              true,
+                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
     StatefulModelConfigParams{"CPU,GPU",
                               true,
                               false,
