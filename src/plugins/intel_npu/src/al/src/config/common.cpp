@@ -22,7 +22,6 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<CACHE_DIR>();
     desc.add<LOADED_FROM_CACHE>();
     desc.add<BATCH_MODE>();
-    desc.add<SAVE_TO_CACHE>();
 }
 
 //

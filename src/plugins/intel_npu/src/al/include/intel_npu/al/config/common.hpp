@@ -213,20 +213,6 @@ struct LOADED_FROM_CACHE final : OptionBase<LOADED_FROM_CACHE, bool> {
 };
 
 //
-// SAVE_TO_CACHE
-//
-
-struct SAVE_TO_CACHE final : OptionBase<SAVE_TO_CACHE, bool> {
-    static std::string_view key() {
-        return ov::internal::save_to_cache.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-};
-
-//
 // CACHING PROPERTIES
 //
 

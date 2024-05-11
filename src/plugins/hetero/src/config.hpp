@@ -39,7 +39,6 @@ struct Configuration {
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
 
     ov::AnyMap device_properties;
-    bool save_to_cache = false;
 };
 }  // namespace hetero
 }  // namespace ov

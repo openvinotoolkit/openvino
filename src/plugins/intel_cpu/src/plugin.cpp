@@ -282,10 +282,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    if (!conf.saveToCache) {
-        conf.cacheEncrypt = {};
-        conf.cacheDecrypt = {};
-    } else if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
+    if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
         conf.cacheEncrypt = ov::util::codec_xor;
         conf.cacheDecrypt = ov::util::codec_xor;
     }
@@ -593,14 +590,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     std::function<std::string(const std::string&)> decrypt;
-    if (config.count(ov::internal::save_to_cache.name()) &&
-        config.at(ov::internal::save_to_cache.name()).as<bool>() == true) {
-        if (config.count(ov::cache_decryption.name())) {
-            decrypt = config.at(ov::cache_decryption.name()).as<std::function<std::string(const std::string&)>>();
-        }
-        if (!decrypt) {
-            decrypt = ov::util::codec_xor;
-        }
+    if (!decrypt) {
+        decrypt = ov::util::codec_xor;
     }
 
     ModelDeserializer deserializer(
