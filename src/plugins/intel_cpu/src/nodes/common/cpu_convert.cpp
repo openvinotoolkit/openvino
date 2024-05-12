@@ -582,7 +582,7 @@ static int8_t get_i4(const uint8_t& val, bool high) {
         if (val & 0x80) {
             return static_cast<int8_t>(((val >> 4) & 0x7) | 0xf8);
         } else {
-            return static_cast<int8_t>((val & 0xF) >> 4);
+            return static_cast<int8_t>(val >> 4);
         }
     }
     if (val & 0x8) {
@@ -594,10 +594,7 @@ static int8_t get_i4(const uint8_t& val, bool high) {
 }
 
 static int8_t get_u4(const uint8_t& val, bool high) {
-    if (high) {
-        return (val >> 4) & 0xF;
-    }
-    return val & 0xF;
+    return high ? (val >> 4) : (val & 0xF);
 }
 
 template <typename DT>
