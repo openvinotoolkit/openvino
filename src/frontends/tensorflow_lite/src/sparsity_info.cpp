@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "sparsity_info.hpp"
+#include "openvino/frontend/tensorflow_lite/sparsity_info.hpp"
 
 #include "schema_generated.h"
 

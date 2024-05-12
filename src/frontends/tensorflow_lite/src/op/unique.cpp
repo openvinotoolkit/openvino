@@ -14,11 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector unique(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
-    std::map<std::string, ov::Any> attrs{
-        {"out_idx", get_ov_type(decoder->get_attribute(&tflite::UniqueOptions::idx_out_type))},
-    };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_unique_op, "Unique");
+    return indexed_from_named(ov::frontend::tensorflow::op::translate_unique_op(node));
 }
 
 }  // namespace op

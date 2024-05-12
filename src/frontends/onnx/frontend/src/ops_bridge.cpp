@@ -116,6 +116,7 @@
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
 #include "op/mish.hpp"
+#include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
@@ -625,6 +626,7 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "MMCVRoIAlignRotated", 1, mmdeploy_roi_align_rotated);
 }
 
 #undef REGISTER_OPERATOR
