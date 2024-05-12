@@ -299,8 +299,7 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
-    if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
-        input_memory_ptr() == nullptr)
+    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
         return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};

@@ -68,7 +68,7 @@ std::shared_ptr<ov::Model> AddSoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> TransposeSoftmaxFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
-    const auto transpose0Const = ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()}, m_order);
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{m_order.size()}, m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(transpose2, m_axis);
     return std::make_shared<ov::Model>(ov::NodeVector{softMax}, ov::ParameterVector {transpose0Param}, "softmax_transpose");
@@ -76,11 +76,9 @@ std::shared_ptr<ov::Model> TransposeSoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
-    const auto transpose0Const = ov::test::utils::deprecated::make_constant(ov::element::i64, ov::Shape{m_order.size()},
-                                                               m_order);
+    const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{m_order.size()}, m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto mulConst = ov::test::utils::deprecated::make_constant(ov::element::f32, transpose2->get_shape(),
-                                                        std::vector<float>{}, true);
+    const auto mulConst = ov::test::utils::make_constant(ov::element::f32, transpose2->get_shape());
     const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose2, mulConst);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(mul, m_axis);
     const auto hswish = std::make_shared<ov::op::v4::HSwish>(softMax);

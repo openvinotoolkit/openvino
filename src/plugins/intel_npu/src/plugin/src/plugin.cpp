@@ -340,6 +340,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<MODEL_PRIORITY>();
           }}},
+        {ov::device::pci_info.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetPciInfo(get_specified_device_name(config));
+          }}},
         // OV Internals
         // =========
         {ov::internal::caching_properties.name(),
@@ -526,7 +532,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (!set_cache_dir.empty()) {
         const auto compilerType = localConfig.get<COMPILER_TYPE>();
         if (compilerType == ov::intel_npu::CompilerType::MLIR) {
-            _logger.error("Option 'CACHE_DIR' is not supported with MLIR compiler type");
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with MLIR compiler type");
         }
     }
 
@@ -550,7 +556,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == platform) {
+    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -560,7 +566,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == platform) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
@@ -571,28 +577,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    std::shared_ptr<const NetworkDescription> networkDescription;
     std::shared_ptr<ov::ICompiledModel> compiledModel;
-
-    ov::SoPtr<ICompiler> compiler;
-    try {
-        compiler = getCompiler(localConfig);
-        networkDescription = std::make_shared<const NetworkDescription>(compiler->compile(model, localConfig));
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what());
-    } catch (...) {
-        _logger.error("Unexpected exception");
-        OPENVINO_THROW("NPU ExecutableNetwork got unexpected exception from compiler");
-    }
 
     try {
         bool profiling = localConfig.get<PERF_COUNT>();
 
         compiledModel = std::make_shared<CompiledModel>(model,
                                                         shared_from_this(),
-                                                        networkDescription,
                                                         device,
-                                                        profiling ? std::optional(compiler) : std::nullopt,
+                                                        getCompiler(localConfig),
+                                                        profiling,
                                                         localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());

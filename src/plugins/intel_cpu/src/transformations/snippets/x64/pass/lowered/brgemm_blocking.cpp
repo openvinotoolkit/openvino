@@ -67,8 +67,8 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto& loop_ids = brgemm_expr->get_loop_ids();
         for (const auto& id : loop_ids) {
             const auto loop = loop_manager->get_loop_info(id);
-            if (std::any_of(loop->get_entry_points().begin(), loop->get_entry_points().end(), check_port) ||
-                std::any_of(loop->get_exit_points().begin(), loop->get_exit_points().end(), check_port)) {
+            if (std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
+                std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port)) {
                 return true;
             }
         }
@@ -169,7 +169,8 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
                 LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true, 1)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
             const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
-            loop_manager->get_loop_info(id)->register_handler<SpecificIterationHandlers::HandlerType::FIRST_ITER, SetBrgemmBeta>(0.f);
+            const auto& loop_info = loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id);
+            loop_info->register_pass_to_handler<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>(0.f);
         };
 
         if (block_size_k != k) {
