@@ -69,8 +69,7 @@ def compare_two_tensors(ov_res, fw_res, eps):
                 fw_res = np.array(utf8_decoded_elems, dtype=str).reshape(fw_res.shape)
         is_ok = np.array_equal(ov_res, fw_res)
     elif ov_res.dtype == bool:
-        abs_diff = np.absolute(ov_res ^ fw_res)
-        is_ok = (abs_diff < eps).all()
+        is_ok = np.array_equal(ov_res, fw_res)
     elif not np.allclose(ov_res, fw_res, atol=eps, rtol=eps, equal_nan=True):
         is_ok = False
         max_diff = np.abs(ov_res.astype(np.float32) - fw_res.astype(np.float32)).max()
