@@ -74,7 +74,8 @@ def compare_two_tensors(ov_res, fw_res, eps):
         is_ok = False
         max_diff = np.abs(ov_res.astype(np.float32) - fw_res.astype(np.float32)).max()
         print("Max diff is {}".format(max_diff))
-    else:
+
+    if is_ok:
         print("Accuracy validation successful!\n")
         print("absolute eps: {}, relative eps: {}".format(eps, eps))
     return is_ok
