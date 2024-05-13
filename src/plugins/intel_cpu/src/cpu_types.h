@@ -41,7 +41,6 @@ enum class Type {
     NonZero,
     Tile,
     ROIAlign,
-    ROIAlignRotated,
     ROIPooling,
     PSROIPooling,
     BatchToSpace,
