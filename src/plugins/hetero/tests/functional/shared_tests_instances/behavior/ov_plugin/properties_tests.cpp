@@ -3,6 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
+#include "behavior/compiled_model/properties.hpp"
 
 #include "openvino/runtime/properties.hpp"
 
@@ -46,4 +47,33 @@ const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
                          OVClassSetDevicePriorityConfigPropsTest,
                          ::testing::Combine(::testing::Values("HETERO"), ::testing::ValuesIn(multiConfigs)));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest,
+                         ::testing::Values("HETERO:GPU"));
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetIncorrectPropertyTest,
+                         OVClassCompiledModelGetIncorrectPropertyTest,
+                         ::testing::Values("HETERO:GPU"));
+
+auto gpuCorrectConfigsWithSecondaryProperties = []() {
+    return std::vector<ov::AnyMap>{
+        {ov::device::properties(ov::test::utils::DEVICE_GPU,
+                                ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
+                                ov::hint::inference_precision(ov::element::f32))},
+        {ov::device::properties(ov::test::utils::DEVICE_GPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                ov::hint::allow_auto_batching(false))},
+        {ov::device::properties(ov::test::utils::DEVICE_GPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                ov::hint::allow_auto_batching(false)),
+         ov::device::properties(ov::test::utils::DEVICE_CPU,
+                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                                ov::hint::allow_auto_batching(false))}};
+};
+
+INSTANTIATE_TEST_SUITE_P(nightly_HETERO_OVClassCompileModelWithCorrectSecondaryPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("HETERO:GPU"),
+                                            ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())));
 }  // namespace

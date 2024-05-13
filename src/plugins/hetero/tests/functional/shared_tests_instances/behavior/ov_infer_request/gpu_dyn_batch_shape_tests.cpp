@@ -112,8 +112,10 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     }
 }
 
-auto config = []() {
-    return ov::AnyMap{};
+
+
+auto hetero_config = []() {
+    return ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
 };
 
 const std::vector<InputShape> input_shapes = {
@@ -125,11 +127,11 @@ const std::vector<ov::element::Type> model_types = {
     ov::element::f32
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
+INSTANTIATE_TEST_SUITE_P(nightly_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
     ::testing::Combine(
         ::testing::Values(input_shapes),
         ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(config())),
+        ::testing::Values(ov::test::utils::DEVICE_HETERO),
+        ::testing::Values(hetero_config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 }  // namespace
