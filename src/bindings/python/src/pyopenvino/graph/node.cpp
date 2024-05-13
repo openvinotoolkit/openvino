@@ -226,7 +226,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the input.
                 :type index: int
                 :return: Type of the input index
-                :rtype: openvino.runtime.Type
+                :rtype: openvino.Type
              )");
     node.def("get_input_partial_shape",
              &ov::Node::get_input_partial_shape,
@@ -237,7 +237,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the input.
                 :type index: int
                 :return: PartialShape of the input index
-                :rtype: openvino.runtime.PartialShape
+                :rtype: openvino.PartialShape
              )");
     node.def("get_input_shape",
              &ov::Node::get_input_shape,
@@ -246,8 +246,9 @@ void regclass_graph_Node(py::module m) {
                 Returns the shape for input index
 
                 :param index: Index of the input.
+                :type index: int
                 :return: Shape of the input index
-                :rtype: openvino.runtime.Shape
+                :rtype: openvino.Shape
              )");
     node.def("set_output_type",
              &ov::Node::set_output_type,
@@ -258,8 +259,11 @@ void regclass_graph_Node(py::module m) {
                 Sets output's element type and shape.
 
                 :param index: Index of the output.
+                :type index: int
                 :param element_type: Element type of the output.
+                :type element_type: openvino.Type
                 :param shape: Shape of the output.
+                :type shape: openvino.PartialShape
              )");
     node.def("set_output_size",
              &ov::Node::set_output_size,
@@ -268,6 +272,7 @@ void regclass_graph_Node(py::module m) {
                 Sets the number of outputs
 
                 :param size: number of outputs.
+                :type size: int
              )");
     node.def("get_output_size",
              &ov::Node::get_output_size,
@@ -295,6 +300,7 @@ void regclass_graph_Node(py::module m) {
                 Returns the shape for output index
 
                 :param index: Index of the output.
+                :type index: int
                 :return: Shape of the output index
                 :rtype: openvino.runtime.Shape
              )");
