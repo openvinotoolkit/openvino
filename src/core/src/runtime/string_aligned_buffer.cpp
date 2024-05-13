@@ -58,7 +58,7 @@ void aux_get_header(const std::shared_ptr<ov::StringAlignedBuffer>& string_align
     size_t current_symbols_pos = 0;
 
     for (size_t ind = 0; ind < num_elements; ++ind) {
-        auto str = strings[ind];
+        const auto& str = strings[ind];
         current_symbols_pos += str.size();
         *pindices = int32_t(current_symbols_pos);
         ++pindices;
