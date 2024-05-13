@@ -54,7 +54,6 @@ NPU:
 
 HETERO:
   revalidate:
-    - GPU
     - HETERO
     - C_API
     - Python_API
