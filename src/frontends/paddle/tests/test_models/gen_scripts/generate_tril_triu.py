@@ -29,7 +29,7 @@ def triu(name: str, x, diagonal=0, dtype="float32"):
         saveModel(
             name,
             exe,
-            feedkeys=["x"],
+            feed_vars=[node_x],
             fetchlist=[triu_outs],
             inputs=[x],
             outputs=outs,
@@ -54,7 +54,7 @@ def tril(name: str, x, diagonal=0, dtype="float32"):
         saveModel(
             name,
             exe,
-            feedkeys=["x"],
+            feed_vars=[node_x],
             fetchlist=[tril_outs],
             inputs=[x],
             outputs=outs,
