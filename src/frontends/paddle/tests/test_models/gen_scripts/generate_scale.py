@@ -28,7 +28,7 @@ def paddle_scale(name : str, x, scale, bias, attrs : dict, data_type):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -57,9 +57,9 @@ def paddle_scale_tensor(name : str, x, scale, bias, attrs : dict, data_type):
             fetch_list=[out])
 
         if paddle.__version__ >= '2.5.1':
-            saveModel(name, exe, feedkeys=['x', 'scale'], fetchlist=[out], inputs=[x, np.array(scale).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(name, exe, feed_vars=[node_x, node_scale], fetchlist=[out], inputs=[x, np.array(scale).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
         else:
-            saveModel(name, exe, feedkeys=['x', 'scale'], fetchlist=[out], inputs=[x, np.array([scale]).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(name, exe, feed_vars=[node_x, node_scale], fetchlist=[out], inputs=[x, np.array([scale]).astype('float32')], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

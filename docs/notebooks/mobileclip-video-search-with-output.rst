@@ -62,147 +62,11 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'ml-mobileclip'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 45, done.[K
-    remote: Counting objects:   2% (1/45)[K
-remote: Counting objects:   4% (2/45)[K
-remote: Counting objects:   6% (3/45)[K
-remote: Counting objects:   8% (4/45)[K
-remote: Counting objects:  11% (5/45)[K
-remote: Counting objects:  13% (6/45)[K
-remote: Counting objects:  15% (7/45)[K
-remote: Counting objects:  17% (8/45)[K
-remote: Counting objects:  20% (9/45)[K
-remote: Counting objects:  22% (10/45)[K
-remote: Counting objects:  24% (11/45)[K
-remote: Counting objects:  26% (12/45)[K
-remote: Counting objects:  28% (13/45)[K
-remote: Counting objects:  31% (14/45)[K
-remote: Counting objects:  33% (15/45)[K
-remote: Counting objects:  35% (16/45)[K
-remote: Counting objects:  37% (17/45)[K
-remote: Counting objects:  40% (18/45)[K
-remote: Counting objects:  42% (19/45)[K
-remote: Counting objects:  44% (20/45)[K
-remote: Counting objects:  46% (21/45)[K
-remote: Counting objects:  48% (22/45)[K
-remote: Counting objects:  51% (23/45)[K
-remote: Counting objects:  53% (24/45)[K
-remote: Counting objects:  55% (25/45)[K
-remote: Counting objects:  57% (26/45)[K
-remote: Counting objects:  60% (27/45)[K
-remote: Counting objects:  62% (28/45)[K
-remote: Counting objects:  64% (29/45)[K
-remote: Counting objects:  66% (30/45)[K
-remote: Counting objects:  68% (31/45)[K
-remote: Counting objects:  71% (32/45)[K
-remote: Counting objects:  73% (33/45)[K
-remote: Counting objects:  75% (34/45)[K
-remote: Counting objects:  77% (35/45)[K
-remote: Counting objects:  80% (36/45)[K
-remote: Counting objects:  82% (37/45)[K
-remote: Counting objects:  84% (38/45)[K
-remote: Counting objects:  86% (39/45)[K
-remote: Counting objects:  88% (40/45)[K
-remote: Counting objects:  91% (41/45)[K
-remote: Counting objects:  93% (42/45)[K
-remote: Counting objects:  95% (43/45)[K
-remote: Counting objects:  97% (44/45)[K
-remote: Counting objects: 100% (45/45)[K
-remote: Counting objects: 100% (45/45), done.[K
-    remote: Compressing objects:   2% (1/36)[K
-remote: Compressing objects:   5% (2/36)[K
-remote: Compressing objects:   8% (3/36)[K
-remote: Compressing objects:  11% (4/36)[K
-remote: Compressing objects:  13% (5/36)[K
-remote: Compressing objects:  16% (6/36)[K
-remote: Compressing objects:  19% (7/36)[K
-remote: Compressing objects:  22% (8/36)[K
-remote: Compressing objects:  25% (9/36)[K
-remote: Compressing objects:  27% (10/36)[K
-remote: Compressing objects:  30% (11/36)[K
-remote: Compressing objects:  33% (12/36)[K
-remote: Compressing objects:  36% (13/36)[K
-remote: Compressing objects:  38% (14/36)[K
-remote: Compressing objects:  41% (15/36)[K
-remote: Compressing objects:  44% (16/36)[K
-remote: Compressing objects:  47% (17/36)[K
-remote: Compressing objects:  50% (18/36)[K
-remote: Compressing objects:  52% (19/36)[K
-remote: Compressing objects:  55% (20/36)[K
-remote: Compressing objects:  58% (21/36)[K
-remote: Compressing objects:  61% (22/36)[K
-remote: Compressing objects:  63% (23/36)[K
-remote: Compressing objects:  66% (24/36)[K
-remote: Compressing objects:  69% (25/36)[K
-remote: Compressing objects:  72% (26/36)[K
-remote: Compressing objects:  75% (27/36)[K
-remote: Compressing objects:  77% (28/36)[K
-remote: Compressing objects:  80% (29/36)[K
-remote: Compressing objects:  83% (30/36)[K
-remote: Compressing objects:  86% (31/36)[K
-remote: Compressing objects:  88% (32/36)[K
-remote: Compressing objects:  91% (33/36)[K
-remote: Compressing objects:  94% (34/36)[K
-remote: Compressing objects:  97% (35/36)[K
-remote: Compressing objects: 100% (36/36)[K
-remote: Compressing objects: 100% (36/36), done.[K
-    Unpacking objects:   2% (1/45)
-Unpacking objects:   4% (2/45)
-Unpacking objects:   6% (3/45)
-Unpacking objects:   8% (4/45)
-Unpacking objects:  11% (5/45)
-Unpacking objects:  13% (6/45)
-
-.. parsed-literal::
-
-    Unpacking objects:  15% (7/45)
-Unpacking objects:  17% (8/45)
-Unpacking objects:  20% (9/45)
-Unpacking objects:  22% (10/45)
-Unpacking objects:  24% (11/45)
-Unpacking objects:  26% (12/45)
-
-.. parsed-literal::
-
+    remote: Counting objects: 100% (45/45), done.[K
+    remote: Compressing objects: 100% (36/36), done.[K
     remote: Total 45 (delta 9), reused 44 (delta 8), pack-reused 0[K
-    Unpacking objects:  28% (13/45)
-Unpacking objects:  31% (14/45)
-Unpacking objects:  33% (15/45)
-Unpacking objects:  35% (16/45)
-Unpacking objects:  37% (17/45)
-Unpacking objects:  40% (18/45)
-Unpacking objects:  42% (19/45)
-Unpacking objects:  44% (20/45)
-Unpacking objects:  46% (21/45)
-Unpacking objects:  48% (22/45)
-Unpacking objects:  51% (23/45)
-Unpacking objects:  53% (24/45)
-Unpacking objects:  55% (25/45)
-Unpacking objects:  57% (26/45)
-Unpacking objects:  60% (27/45)
-Unpacking objects:  62% (28/45)
-Unpacking objects:  64% (29/45)
-Unpacking objects:  66% (30/45)
-Unpacking objects:  68% (31/45)
-Unpacking objects:  71% (32/45)
-Unpacking objects:  73% (33/45)
-Unpacking objects:  75% (34/45)
-Unpacking objects:  77% (35/45)
-Unpacking objects:  80% (36/45)
-Unpacking objects:  82% (37/45)
-Unpacking objects:  84% (38/45)
-Unpacking objects:  86% (39/45)
-Unpacking objects:  88% (40/45)
-Unpacking objects:  91% (41/45)
-Unpacking objects:  93% (42/45)
-Unpacking objects:  95% (43/45)
-Unpacking objects:  97% (44/45)
-Unpacking objects: 100% (45/45)
-Unpacking objects: 100% (45/45), 428.50 KiB | 3.04 MiB/s, done.
+    Unpacking objects: 100% (45/45), 428.50 KiB | 3.15 MiB/s, done.
 
 
 .. code:: ipython3
@@ -217,27 +81,10 @@ Unpacking objects: 100% (45/45), 428.50 KiB | 3.04 MiB/s, done.
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    
-
-.. parsed-literal::
-
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.0+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.0+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -591,8 +438,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.109 ms
-    Text encoding took 0.0108 ms
+    Image encoding took 0.0943 ms
+    Text encoding took 0.0107 ms
 
 
 
@@ -670,7 +517,7 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
 
 
@@ -762,8 +609,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0309 ms
-    Text encoding took 0.00586 ms
+    Image encoding took 0.0293 ms
+    Text encoding took 0.0058 ms
 
 
 
@@ -776,7 +623,10 @@ Interactive Demo
 
 
 In this part, you can try different supported by tutorial models in
-searching frames in the video by text query or image. Upload v
+searching frames in the video by text query or image. Upload video and
+provide text query or reference image for search and model will find the
+most relevant frames according to provided query. Please note, different
+models can require different optimal threshold for search.
 
 .. code:: ipython3
 
