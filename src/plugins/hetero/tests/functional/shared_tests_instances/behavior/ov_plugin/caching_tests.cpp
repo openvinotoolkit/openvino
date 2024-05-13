@@ -17,10 +17,6 @@ namespace {
             ov::element::f16,
             ov::element::i32,
             ov::element::i64,
-            ov::element::i8,
-            ov::element::u8,
-            ov::element::i16,
-            ov::element::u16,
     };
 
     static const std::vector<ov::element::Type> floatPrecisionsCPU = {
