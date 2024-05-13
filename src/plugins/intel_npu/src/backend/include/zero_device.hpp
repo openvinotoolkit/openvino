@@ -9,6 +9,7 @@
 
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/remote_tensor_type/remote_tensor_type.hpp"
 #include "npu.hpp"
 #include "zero_init.hpp"
 #include "zero_types.hpp"
@@ -36,6 +37,14 @@ public:
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
                                                          const Config& config) override;
+
+    ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
+                                                    const ov::element::Type& element_type,
+                                                    const ov::Shape& shape,
+                                                    const Config& config,
+                                                    RemoteTensorType tensor_type = RemoteTensorType::BINDED,
+                                                    RemoteMemoryType mem_type = RemoteMemoryType::L0_INTERNAL_BUF,
+                                                    void* mem = nullptr) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
