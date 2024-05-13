@@ -30,10 +30,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCallbackTests,
             ::testing::ValuesIn(configs())),
         OVInferRequestCallbackTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestCallbackTests,
-         ::testing::Combine(
-                 ::testing::Values(ov::test::utils::DEVICE_BATCH),
-                 ::testing::ValuesIn(autoBatchConfigs())),
-         OVInferRequestCallbackTests::getTestCaseName);
-
 }  // namespace

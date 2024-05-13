@@ -9,7 +9,8 @@ using namespace ov::test::behavior;
 namespace {
 
 const std::vector<ov::AnyMap> HeteroConfigs = {
-    {{ov::hint::inference_precision.name(), ov::element::f32}, {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}},
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,

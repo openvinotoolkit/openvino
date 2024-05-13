@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
 
 INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
                          OVGetMetricPropsTest,
-                         ::testing::Values("HETERO", "BATCH"));
+                         ::testing::Values("HETERO"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("GPU"));
 

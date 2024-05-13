@@ -20,13 +20,12 @@ using ov::test::behavior::OVCompiledModelIncorrectDevice;
 //
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest,
-                         ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU"));
+                         ::testing::Values("GPU", "HETERO:GPU"));
 
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GPU = {
     {"GPU", std::make_pair(ov::AnyMap{}, "GPU.0")},
-    {"GPU.0", std::make_pair(ov::AnyMap{}, "GPU.0")},
-    {"BATCH:GPU", std::make_pair(ov::AnyMap{}, "GPU.0")}};
+    {"GPU.0", std::make_pair(ov::AnyMap{}, "GPU.0")}};
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_EXEC_DEVICES,
@@ -38,7 +37,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetPropertyTest,
 //
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetIncorrectPropertyTest,
                          OVClassCompiledModelGetIncorrectPropertyTest,
-                         ::testing::Values("GPU", "HETERO:GPU", "BATCH:GPU"));
+                         ::testing::Values("GPU", "HETERO:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelGetConfigTest,
                          OVClassCompiledModelGetConfigTest,
@@ -100,10 +99,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_HETERO_OVClassCompileModelWithCorrectSecondaryPro
                          OVClassCompileModelWithCorrectPropertiesTest,
                          ::testing::Combine(::testing::Values("HETERO:GPU"),
                                             ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())));
-
-const std::vector<ov::AnyMap> batchCorrectConfigs = {{}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_Batch_OVClassCompileModelWithCorrectPropertiesAutoBatchingTest,
-                         OVClassCompileModelWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("BATCH:GPU"), ::testing::ValuesIn(batchCorrectConfigs)));
 }  // namespace

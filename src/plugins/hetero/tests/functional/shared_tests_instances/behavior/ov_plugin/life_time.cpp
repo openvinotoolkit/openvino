@@ -6,8 +6,8 @@
 
 using namespace ov::test::behavior;
 namespace {
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
-                             OVHoldersTest,
-                             ::testing::Values("HETERO:TEMPLATE"),
-                             OVHoldersTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
+                         OVHoldersTest,
+                         ::testing::Values("HETERO:TEMPLATE"),
+                         OVHoldersTest::getTestCaseName);
 }  // namespace
