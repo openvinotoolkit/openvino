@@ -86,7 +86,7 @@ size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
     auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
         for (const IODescriptor& descriptor : descriptors) {
             const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
-            const ov::PartialShape& shapeFromIRModel = descriptor.shapeFromCompiler;
+            const ov::PartialShape& shapeFromIRModel = descriptor.shapeFromIRModel;
 
             if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
                 *shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
