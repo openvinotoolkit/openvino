@@ -995,7 +995,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
 
-            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_node_suitable_for_onednn(*fused_node)) {
+            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic())
                     return;
