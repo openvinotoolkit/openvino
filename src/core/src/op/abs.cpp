@@ -4,8 +4,14 @@
 
 #include "openvino/op/abs.hpp"
 
+#include "bound_evaluate.hpp"
+#include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/reference/abs.hpp"
 
 namespace ov {
@@ -21,6 +27,38 @@ struct Evaluate : ov::element::NoAction<bool> {
         return true;
     }
 };
+
+static bool evaluate_bound(const ov::op::v0::Abs* op,
+                    const ov::descriptor::Tensor& tensor,
+                    TensorVector& output_values,
+                    bool is_lower) {
+    const auto &lv = tensor.get_lower_value(), &uv = tensor.get_upper_value();
+    if (!lv || !uv || !op->has_evaluate())
+        return false;
+    TensorVector lower_output{ov::Tensor(lv.get_element_type(), lv.get_shape())},
+        upper_output{ov::Tensor(uv.get_element_type(), uv.get_shape())};
+    if (!op->evaluate(lower_output, {lv}) || !op->evaluate(upper_output, {uv}))
+        return false;
+    if (is_lower)
+        return v1::Minimum().evaluate(output_values, {lower_output[0], upper_output[0]});
+    else
+        return v1::Maximum().evaluate(output_values, {lower_output[0], upper_output[0]});
+}
+
+static std::vector<bool> tensor_non_negative(const ov::descriptor::Tensor& tensor) {
+    const auto& lv = tensor.get_lower_value();
+    if (!lv)
+        return {};
+    auto l_const = std::make_shared<v0::Constant>(lv);
+    auto zero_const = std::make_shared<v0::Constant>(lv.get_element_type(), lv.get_shape(), 0);
+    OutputVector outputs(1);
+    if (!std::make_shared<v1::GreaterEqual>(l_const, zero_const)->constant_fold(outputs, {l_const, zero_const}))
+        return {};
+    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(outputs[0].get_node_shared_ptr()))
+        return constant->cast_vector<bool>();
+    return {};
+}
+
 }  // namespace abs
 
 namespace v0 {
@@ -68,6 +106,27 @@ bool Abs::has_evaluate() const {
     default:
         return false;
     }
+}
+
+bool Abs::evaluate_lower(TensorVector& output_values) const {
+    return ov::op::abs::evaluate_bound(this, get_input_tensor(0), output_values, true);
+}
+
+bool Abs::evaluate_upper(TensorVector& output_values) const {
+    return ov::op::abs::evaluate_bound(this, get_input_tensor(0), output_values, false);
+}
+
+bool Abs::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    const auto& non_negative = ov::op::abs::tensor_non_negative(get_input_tensor(0));
+    const auto& input_symbols = get_input_tensor(0).get_value_symbol();
+    if (non_negative.empty() || input_symbols.size() != non_negative.size())
+        return false;
+    output_symbols.resize(1);
+    output_symbols[0].resize(non_negative.size(), nullptr);
+    for (size_t i = 0; i < non_negative.size(); ++i)
+        if (non_negative[i])
+            output_symbols[0][i] = input_symbols[i];
+    return true;
 }
 }  // namespace v0
 }  // namespace op
