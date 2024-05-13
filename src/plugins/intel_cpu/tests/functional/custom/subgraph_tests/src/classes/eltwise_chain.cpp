@@ -121,11 +121,9 @@ void EltwiseChainTest::SetUp() {
 
         for (size_t i = 1; i < inputPrecisions.size(); i++) {
             std::vector<float> input1Data(ov::shape_size(targetStaticShapes[0][i]));
-            inputNodes2.push_back(ov::test::utils::deprecated::make_constant(
+            inputNodes2.push_back(ov::test::utils::make_constant(
                 conversion == ov::element::undefined ? static_cast<ov::element::Type>(inputPrecisions[i]) : conversion,
-                targetStaticShapes[0][i],
-                input1Data,
-                true));
+                targetStaticShapes[0][i]));
         }
     }
 

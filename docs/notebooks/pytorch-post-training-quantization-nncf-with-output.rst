@@ -65,20 +65,8 @@ Preparations
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -162,7 +150,7 @@ Settings
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/pytorch-post-training-quantization-nncf/model/resnet50_fp32.pth')
 
 
 
@@ -452,47 +440,15 @@ I. Evaluate the loaded model
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.261 (0.261)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.234 (0.238)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.267 (0.239)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.259 (0.239)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.237 (0.239)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.236 (0.240)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-
-
-.. parsed-literal::
-
-    Test: [60/79]	Time 0.248 (0.240)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.248 (0.242)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-
-
-.. parsed-literal::
-
-     * Acc@1 60.740 Acc@5 83.960 Total time: 18.845
+    Test: [ 0/79]	Time 0.249 (0.249)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.223 (0.231)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.224 (0.227)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.223 (0.232)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.225 (0.232)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.224 (0.231)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
+    Test: [60/79]	Time 0.214 (0.231)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
+    Test: [70/79]	Time 0.218 (0.230)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 17.917
     Test accuracy of FP32 model: 60.740
 
 
@@ -535,19 +491,15 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
 
 .. parsed-literal::
 
-    2024-04-18 00:28:06.641787: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:28:06.674064: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-07 00:57:16.172977: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-07 00:57:16.205211: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-05-07 00:57:16.762420: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    2024-04-18 00:28:07.202238: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
-    WARNING:nncf:NNCF provides best results with torch==2.1.2, while current torch version is 2.2.2+cpu. If you encounter issues, consider switching to torch==2.1.2
+    WARNING:nncf:NNCF provides best results with torch==2.2.*, while current torch version is 2.3.0+cpu. If you encounter issues, consider switching to torch==2.2.*
 
 
 
@@ -574,10 +526,6 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
 .. parsed-literal::
 
     INFO:nncf:Compiling and loading torch extension: quantized_functions_cpu...
-
-
-.. parsed-literal::
-
     INFO:nncf:Finished loading torch extension: quantized_functions_cpu
 
 
@@ -615,48 +563,16 @@ Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.449 (0.449)	Acc@1 80.47 (80.47)	Acc@5 91.41 (91.41)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.407 (0.411)	Acc@1 55.47 (66.62)	Acc@5 85.16 (87.29)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.402 (0.409)	Acc@1 68.75 (64.21)	Acc@5 85.16 (87.24)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.406 (0.408)	Acc@1 52.34 (62.25)	Acc@5 76.56 (85.23)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.405 (0.408)	Acc@1 66.41 (60.82)	Acc@5 89.84 (84.53)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.404 (0.407)	Acc@1 59.38 (60.83)	Acc@5 88.28 (84.42)
-
-
-.. parsed-literal::
-
-    Test: [60/79]	Time 0.407 (0.407)	Acc@1 64.06 (60.40)	Acc@5 85.16 (83.80)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.410 (0.408)	Acc@1 54.69 (60.24)	Acc@5 78.12 (83.26)
-
-
-.. parsed-literal::
-
-     * Acc@1 60.750 Acc@5 83.920 Total time: 31.931
-    Accuracy of initialized INT8 model: 60.750
+    Test: [ 0/79]	Time 0.419 (0.419)	Acc@1 80.47 (80.47)	Acc@5 91.41 (91.41)
+    Test: [10/79]	Time 0.397 (0.397)	Acc@1 53.12 (66.26)	Acc@5 87.50 (87.86)
+    Test: [20/79]	Time 0.394 (0.397)	Acc@1 68.75 (63.76)	Acc@5 85.94 (87.43)
+    Test: [30/79]	Time 0.397 (0.396)	Acc@1 50.78 (61.97)	Acc@5 74.22 (85.28)
+    Test: [40/79]	Time 0.396 (0.396)	Acc@1 68.75 (60.54)	Acc@5 89.06 (84.32)
+    Test: [50/79]	Time 0.395 (0.396)	Acc@1 59.38 (60.48)	Acc@5 87.50 (84.16)
+    Test: [60/79]	Time 0.413 (0.396)	Acc@1 65.62 (60.27)	Acc@5 85.16 (83.53)
+    Test: [70/79]	Time 0.393 (0.405)	Acc@1 53.91 (60.00)	Acc@5 79.69 (83.14)
+     * Acc@1 60.530 Acc@5 83.770 Total time: 31.659
+    Accuracy of initialized INT8 model: 60.530
 
 
 It should be noted that the inference time for the quantized PyTorch
@@ -705,20 +621,16 @@ For more information about model conversion, refer to this
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:337: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:337: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_low.item()
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:345: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:345: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       return self._level_high.item()
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1102: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
     
-    Mismatched elements: 25577 / 25600 (99.9%)
-    Greatest absolute difference: 0.43817615509033203 at index (86, 90) (up to 1e-05 allowed)
-    Greatest relative difference: 503.9381894589389 at index (118, 158) (up to 1e-05 allowed)
+    Mismatched elements: 25557 / 25600 (99.8%)
+    Greatest absolute difference: 0.21502065658569336 at index (75, 14) (up to 1e-05 allowed)
+    Greatest relative difference: 47.884264953188925 at index (81, 88) (up to 1e-05 allowed)
       _check_trace(
 
 
@@ -759,47 +671,15 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.191 (0.191)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.139 (0.144)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.140 (0.142)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.138 (0.141)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.139 (0.140)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.139 (0.140)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
-
-
-.. parsed-literal::
-
+    Test: [ 0/79]	Time 0.185 (0.185)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
+    Test: [10/79]	Time 0.138 (0.143)	Acc@1 56.25 (66.97)	Acc@5 86.72 (87.50)
+    Test: [20/79]	Time 0.138 (0.141)	Acc@1 67.97 (64.29)	Acc@5 85.16 (87.35)
+    Test: [30/79]	Time 0.139 (0.140)	Acc@1 53.12 (62.37)	Acc@5 77.34 (85.33)
+    Test: [40/79]	Time 0.140 (0.140)	Acc@1 67.19 (60.86)	Acc@5 90.62 (84.51)
+    Test: [50/79]	Time 0.141 (0.140)	Acc@1 60.16 (60.80)	Acc@5 88.28 (84.42)
     Test: [60/79]	Time 0.139 (0.140)	Acc@1 66.41 (60.46)	Acc@5 86.72 (83.79)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.138 (0.140)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
-
-
-.. parsed-literal::
-
-     * Acc@1 60.740 Acc@5 83.960 Total time: 10.922
+    Test: [70/79]	Time 0.136 (0.139)	Acc@1 52.34 (60.21)	Acc@5 80.47 (83.33)
+     * Acc@1 60.740 Acc@5 83.960 Total time: 10.900
     Accuracy of FP32 IR model: 60.740
 
 
@@ -812,48 +692,16 @@ Evaluate the FP32 and INT8 models.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.142 (0.142)	Acc@1 81.25 (81.25)	Acc@5 92.19 (92.19)
-
-
-.. parsed-literal::
-
-    Test: [10/79]	Time 0.078 (0.084)	Acc@1 55.47 (66.83)	Acc@5 86.72 (87.71)
-
-
-.. parsed-literal::
-
-    Test: [20/79]	Time 0.079 (0.081)	Acc@1 68.75 (64.10)	Acc@5 85.94 (87.46)
-
-
-.. parsed-literal::
-
-    Test: [30/79]	Time 0.079 (0.081)	Acc@1 52.34 (62.17)	Acc@5 76.56 (85.26)
-
-
-.. parsed-literal::
-
-    Test: [40/79]	Time 0.077 (0.080)	Acc@1 67.97 (60.65)	Acc@5 90.62 (84.49)
-
-
-.. parsed-literal::
-
-    Test: [50/79]	Time 0.077 (0.080)	Acc@1 60.16 (60.57)	Acc@5 88.28 (84.41)
-
-
-.. parsed-literal::
-
-    Test: [60/79]	Time 0.079 (0.080)	Acc@1 65.62 (60.23)	Acc@5 86.72 (83.80)
-
-
-.. parsed-literal::
-
-    Test: [70/79]	Time 0.078 (0.080)	Acc@1 51.56 (60.00)	Acc@5 79.69 (83.30)
-
-
-.. parsed-literal::
-
-     * Acc@1 60.540 Acc@5 83.910 Total time: 6.220
-    Accuracy of INT8 IR model: 60.540
+    Test: [ 0/79]	Time 0.143 (0.143)	Acc@1 80.47 (80.47)	Acc@5 91.41 (91.41)
+    Test: [10/79]	Time 0.077 (0.085)	Acc@1 53.91 (66.55)	Acc@5 86.72 (87.86)
+    Test: [20/79]	Time 0.078 (0.082)	Acc@1 68.75 (64.03)	Acc@5 85.94 (87.39)
+    Test: [30/79]	Time 0.077 (0.081)	Acc@1 50.00 (62.25)	Acc@5 74.22 (85.28)
+    Test: [40/79]	Time 0.078 (0.080)	Acc@1 68.75 (60.90)	Acc@5 89.06 (84.36)
+    Test: [50/79]	Time 0.077 (0.080)	Acc@1 60.94 (60.78)	Acc@5 87.50 (84.22)
+    Test: [60/79]	Time 0.077 (0.079)	Acc@1 66.41 (60.51)	Acc@5 85.94 (83.61)
+    Test: [70/79]	Time 0.078 (0.079)	Acc@1 52.34 (60.19)	Acc@5 79.69 (83.21)
+     * Acc@1 60.660 Acc@5 83.790 Total time: 6.202
+    Accuracy of INT8 IR model: 60.660
 
 
 IV. Compare performance of INT8 model and FP32 model in OpenVINO
@@ -918,29 +766,13 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (OpenVINO IR)
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   38.78 FPS
+    [ INFO ] Throughput:   38.47 FPS
     Benchmark INT8 model (OpenVINO IR)
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   155.69 FPS
+    [ INFO ] Throughput:   154.26 FPS
     Benchmark FP32 model (OpenVINO IR) synchronously
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   40.12 FPS
+    [ INFO ] Throughput:   39.64 FPS
     Benchmark INT8 model (OpenVINO IR) synchronously
-
-
-.. parsed-literal::
-
-    [ INFO ] Throughput:   138.38 FPS
+    [ INFO ] Throughput:   135.44 FPS
 
 
 Show device Information for reference:
