@@ -105,7 +105,7 @@ describe('Node.js Model.getOutputShape()', () => {
   it('should throw an error if the output index is out of range', () => {
     assert.throws(() => {
       model.getOutputShape(1);
-    }, /vector::_M_range_check: __n \(which is \d+\) >= this->size\(\) \(which is \d+\)/, 'Expected getOutputShape to throw an error when called with an invalid output index');
+    }, /^invalid vector subscript$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
   });
 
   it('should throw an error if the output index is not an integer', () => {
