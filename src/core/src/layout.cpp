@@ -448,7 +448,7 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
     res.m_left_size = dst_layout.m_left_size;
     int64_t dst_idx = 0;
     for (int64_t src_idx = 0; src_idx < src_layout.m_left_size; src_idx++) {
-        auto src_dim_name = src_layout.m_index_map.at(src_idx);
+        const auto& src_dim_name = src_layout.m_index_map.at(src_idx);
         if (dst_layout.has_name(src_dim_name)) {
             if (!rank_dynamic) {
                 res_dims[dst_idx] = src_shape[src_idx];
@@ -496,7 +496,7 @@ std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layou
     res.m_left_size = dst_layout.m_left_size;
     int64_t unset_idx = 0;
     for (auto i = 0; i < dst_layout.m_left_size; i++) {
-        auto dim_name = dst_layout.m_index_map.at(i);
+        const auto& dim_name = dst_layout.m_index_map.at(i);
         if (src_layout.has_name(dim_name)) {
             auto src_idx = src_layout.get_index_by_name(dim_name);
             res.m_names[dim_name] = src_idx + dims_cnt;

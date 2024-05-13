@@ -41,8 +41,8 @@ size_t ShuffleChannels::get_zero_based_axis() const {
 void ShuffleChannels::validate_and_infer_types() {
     OV_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, get_input_element_type(0), output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 std::shared_ptr<Node> ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const {
