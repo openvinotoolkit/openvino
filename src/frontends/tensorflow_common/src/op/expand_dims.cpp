@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_expand_dims_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"ExpandDims"});
+    default_op_checks(node, 2, {"ExpandDims", "EXPAND_DIMS"});
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
     auto unsqueeze = make_shared<v0::Unsqueeze>(input, axis);

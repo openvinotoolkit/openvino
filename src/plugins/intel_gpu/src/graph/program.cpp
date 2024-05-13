@@ -1421,9 +1421,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
-            if (conv.get_primitive()->deformable_mode)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
-
             if (!conv.is_dynamic()) {
                 // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
                 auto input_size = node->get_input_layout(0).get_tensor();
