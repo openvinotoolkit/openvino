@@ -137,7 +137,13 @@ fill_data(tensor->data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
+    // Disable skipping of the bf16 test cases.
+    const auto origin_sk = ov::test::utils::disable_tests_skipping;
+    ov::test::utils::disable_tests_skipping = true;
+
     run();
+
+    ov::test::utils::disable_tests_skipping = origin_sk;
 
     // TODO: intel_cpu::Plugin::get_property actually returns values from "engConfig", but the "orig_config" is used for transformations and inference.
     // ASSERT_EQ(core->get_property(targetDevice, ov::hint::execution_mode), m_mode);
