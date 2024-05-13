@@ -740,6 +740,7 @@ public:
             beam_table_shape = { BATCH_SIZE, K_SIZE, 1, 1 };
         else if (indirect_input1)
             beam_table_shape = { BATCH_SIZE, 1, 1, K_SIZE };
+        int64_t indirect_axis = 0;
 
         cldnn::layout input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
         cldnn::layout input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfyx};
@@ -761,7 +762,7 @@ public:
         topology.add(input_layout("input0", input0_layout),
                      input_layout("input1", input1_layout),
                      input_layout("beam_table", beam_table_layout),
-                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1)
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1, indirect_axis)
             );
 
         ExecutionConfig config = get_test_default_config(engine);
