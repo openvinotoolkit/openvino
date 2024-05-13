@@ -855,7 +855,6 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
     if (!need_reshape)
         return;
 
-    // const auto& variables = get_variables();
     std::unordered_map<op::util::Variable*, PartialShape> new_vars_shapes;
     std::unordered_map<op::util::Variable*, PartialShape> original_vars_shapes;
     for (const auto& variable : get_variables()) {
