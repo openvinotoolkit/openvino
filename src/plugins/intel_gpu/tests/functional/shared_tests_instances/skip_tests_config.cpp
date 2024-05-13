@@ -201,17 +201,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
-            // fill_data_randoom fix
-            // R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=.*_TS=.*3.6.8.*_LL=.*6.5.6.*_A=.*2.1.5.3.2.6.*3.3.3.3.3.3.*6.5.6.5.6.5.*_AL=\(4.3.5\)_BI=0_PCR=(1|0)_CMR=(1|0)_U=0_PF=f16_PI=(i64|i32)_.*)",
-            // R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=.*_TS=.*3.6.8.*_LL=.*6.5.6.*_A=.*2.1.5.3.2.6.*3.3.3.3.3.3.*6.5.6.5.6.5.*_AL=\(4.3.5\)_BI=0_PCR=(1|0)_CMR=1_U=1_PF=f16_PI=(i64|i32)_.*)",
-            // R"(.*smoke_DeformablePSROIPooling/DeformablePSROIPoolingLayerTest.Inference/IS=.*_TS=\{\((1.8.67.32|3.8.16.16)\)_\(10.5\)\}_out_dim=2_group_size=2_scale=0.5_bins_x=3_bins_y=3_trans_std=(0|0.01|0.5)_part_size=2_prec=f16_dev=GPU.*)",
-            // R"(.*smoke_DeformablePSROIPooling/DeformablePSROIPoolingLayerTest.Inference/IS=.*_TS=\{\((1.8.67.32|3.8.16.16)\)_\(10.5\)_\(10.2.2.2\)\}_out_dim=2_group_size=2_scale=0.5_bins_x=3_bins_y=3_trans_std=0_part_size=2_prec=f16_dev=GPU.*)",
-            // R"(.*smoke_DetectionOutput3In/DetectionOutputLayerTest.Inference/.*LOC=\((1|2).660\)_CONF=\((1|2).165\)_PRIOR=.*_decrId=1.*)",
-            // R"(.*smoke_GenerateProposalsLayerTest_(f32|f16)/GenerateProposalsLayerTest.GenerateProposalsLayerTests/im_info=\[\]_\(\[2,3\]\)_anchors=\[\]_\(\[2,6,3,4\]\)_deltas=\[\]_\(\[2,12,2,6\]\)_scores=\[\]_\(\[2,3,2,6\]\).*)",
-            // R"(.*smoke_MVN_4D/Mvn6LayerTest.Inference/IS=.*_TS=.*1.10.5.17.*_ModelType=f16_AxType=(i32|i64)_Ax=\(1.2.3\).*_EM=(inside|outside)_sqrt.*)",
-            // R"(.*smoke_GPUDetectionOutputDynamic3In2/DetectionOutputLayerGPUTest.Inference/.*_\(\[1,660\].\[1,1320\]\)_.*=\(50\)_codeType=caffe.PriorBoxParameter.CORNER_.*_clipAfterNms=1_clipBeforeNms=1_decrId=1_norm=(1|0)_inH=(1|10)_inW=(1|10)_OS=0.4.*)",
-            // R"(.*smoke_ROIPoolingGPU_bilinear/ROIPoolingLayerGPUTest.Inference/netPRC=f32_\[1..8.3..5.7..60.5..50\]_\[1..5.5\]_TS=.*3.4.50.50.*1.3.7.8.*8.5.59.5.*1.3.7.8.*1.5.*2.5.*1.5.*2.5.*PS=\(6.6\)_Scale=1_Bilinear__RandomProposal.*)",
-            // R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference.*IS=\(\[\?.\?.\?\]_\)_TS=\(\(1.2.16\)\)_input_precision=f16.*)",
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
             R"(.*smoke_RemoteTensor/OVRemoteTensorBatched_Test.NV12toBGR_buffer/(num_batch_4|num_batch_2).*)",

@@ -54,20 +54,18 @@ protected:
     }
 
     void TearDown() override {
-        if (compiledModel) {
-            auto runtime_function = compiledModel.get_runtime_model();
-            int nodes_found = 0;
-            for (const auto& n : runtime_function->get_ordered_ops()) {
-                auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-                if (layer_type == "Subgraph") {
-                    nodes_found++;
-                    auto output_layout = n->get_rt_info().at(ov::exec_model_info::OUTPUT_LAYOUTS).as<std::string>();
-                    // convolution maybe chooses 'nhwc' and the subgraph will follow it
-                    ASSERT_TRUE(output_layout == "aBcd8b" || output_layout == "aBcd16b" || output_layout == "acdb");
-                }
+        auto runtime_function = compiledModel.get_runtime_model();
+        int nodes_found = 0;
+        for (const auto& n : runtime_function->get_ordered_ops()) {
+            auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "Subgraph") {
+                nodes_found++;
+                auto output_layout = n->get_rt_info().at(ov::exec_model_info::OUTPUT_LAYOUTS).as<std::string>();
+                // convolution maybe chooses 'nhwc' and the subgraph will follow it
+                ASSERT_TRUE(output_layout == "aBcd8b" || output_layout == "aBcd16b" || output_layout == "acdb");
             }
-            ASSERT_GT(nodes_found, 0);
         }
+        ASSERT_GT(nodes_found, 0);
     }
 };
 
