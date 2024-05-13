@@ -4,7 +4,7 @@ With the OpenVINO™ 2022.3 release, you can download and use archive files to i
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.1/) only.
+> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/2022.3.2/) only.
 
 See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
@@ -58,19 +58,19 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64.zip --output openvino_2022.3.1.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.2/windows/w_openvino_toolkit_windows_2022.3.2.9279.e2c7e4d7b4d_x86_64.zip --output openvino_2022.3.2.zip
 
 
    .. note::
 
-      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2022.3.1.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct 
+      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2022.3.2.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct
       file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
 
 
@@ -80,9 +80,9 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
    .. code-block:: sh
 
-      tar -xf openvino_2022.3.1.zip
-      ren w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64 openvino_2022.3.1
-      move openvino_2022.3.1 "C:\Program Files (x86)\Intel"
+      tar -xf openvino_2022.3.2.zip
+      ren w_openvino_toolkit_windows_2022.3.2.9227.cf2c7da5689_x86_64 openvino_2022.3.2
+      move openvino_2022.3.2 "C:\Program Files (x86)\Intel"
 
 
 6. (Optional) Install *numpy* Python Library:
@@ -91,11 +91,11 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2022.3.1\python\python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2022.3.2\python\python.<x>`` folder:
 
    .. code-block:: sh
 
-      cd "C:\Program Files (x86)\Intel\openvino_2022.3.1"
+      cd "C:\Program Files (x86)\Intel\openvino_2022.3.2"
       python -m pip install -r .\python\python3.<x>\requirements.txt
 
 
@@ -205,14 +205,7 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
 
-<!---  
-   To learn more about converting models from specific frameworks, go to:
-   * :ref:`Convert Your Caffe Model <convert model caffe>`
-   * :ref:`Convert Your TensorFlow Model <convert model tf>`
-   * :ref:`Convert Your Apache MXNet Model <convert model mxnet>`
-   * :ref:`Convert Your Kaldi Model <convert model kaldi>`
-   * :ref:`Convert Your ONNX Model <convert model onnx>`
---->    
+
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
