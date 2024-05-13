@@ -391,6 +391,67 @@ std::set<std::vector<element::Type>> jit_exp_emitter::get_supported_precisions(c
     return {{element::f32}};
 }
 
+/// HARD_SWISH ///
+jit_hswish_emitter::jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+jit_hswish_emitter::jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                                 const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_hswish_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_hswish_emitter::get_aux_vecs_count() const { return 2; }
+
+size_t jit_hswish_emitter::get_aux_gprs_count() const { return 1; }
+
+void jit_hswish_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_hswish_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+    TReg aux0 = TReg(aux_vec_idxs[0]);
+    TReg aux1 = TReg(aux_vec_idxs[1]);
+
+    // result = (x * min(max(x + 3, 0), 6)) / 6
+    h->ld1r(aux0.s, table_val2("three"));
+    h->fadd(aux0.s, src.s, aux0.s);
+    h->ld1r(aux1.s, table_val2("zero"));
+    h->fmaxnm(aux0.s, aux0.s, aux1.s);
+    h->ld1r(aux1.s, table_val2("six"));
+    h->fminnm(aux0.s, aux0.s, aux1.s);
+    h->fmul(aux0.s, aux0.s, src.s);
+    h->ld1r(aux1.s, table_val2("one_sixth"));
+    h->fmul(dst.s, aux0.s, aux1.s);
+}
+
+void jit_hswish_emitter::register_table_entries() {
+    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("three", 0x40400000, true);
+    push_arg_entry_of("six", 0x40c00000, true);
+    push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.f/6.f), true);
+}
+
+std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// MUL_ADD ///
 jit_mul_add_emitter::jit_mul_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
