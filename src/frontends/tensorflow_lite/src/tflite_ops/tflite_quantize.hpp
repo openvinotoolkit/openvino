@@ -9,7 +9,7 @@
 
 #include "helper_ops/internal_operation.hpp"
 #include "openvino/frontend/decoder.hpp"
-#include "quantization_info.hpp"
+#include "openvino/frontend/tensorflow_lite/quantization_info.hpp"
 
 namespace ov {
 namespace frontend {
