@@ -681,3 +681,40 @@ def test_output_tuple_names():
     om = fe.convert(im)
     assert len(om.outputs[0].names) == 0 and len(
         om.outputs[1].names) == 0, "Output tuple names must be empty"
+
+
+def test_patched_16bit_model_converts():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+
+            self.branch1 = torch.nn.Sequential(
+                torch.nn.Linear(64, 32), torch.nn.ReLU()
+            )
+            self.branch2 = torch.nn.Sequential(
+                torch.nn.Linear(128, 64), torch.nn.ReLU()
+            )
+            self.buffer = torch.ones(32)
+
+        def forward(self, x1, x2):
+            out1 = self.branch1(x1)
+            out2 = self.branch2(x2)
+            return (out1 + self.buffer, out2)
+
+    model_fp16 = ModelWithLinear().half()
+    example = (torch.randn(32, 64), torch.randn(32, 128))
+
+    patch_model.__make_16bit_traceable(model_fp16)
+    # the approach with patching only works for node with no grad
+    with torch.no_grad():
+        converted_model = convert_model(model_fp16, example_input=example)
+    assert converted_model
+    model_bf16 = ModelWithLinear().bfloat16()
+    patch_model.__make_16bit_traceable(model_bf16)
+    # the approach with patching only works for node with no grad
+    with torch.no_grad():
+        converted_model = convert_model(model_bf16, example_input=example)
+    assert converted_model
