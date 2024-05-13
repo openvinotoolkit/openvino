@@ -376,11 +376,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
         ops_to_do.push(output_operation_place);
     }
 
-    // walk through all NextIteration nodes and put their producers into ops_to_do
-    // this is needed to avoid missed nodes in the body graph of TF1 While operation
     for (const auto& op_place : m_op_places) {
         auto op_decoder = op_place->get_decoder();
+        auto op_name = op_decoder->get_op_name();
         if (op_decoder->get_op_type() == "NextIteration") {
+            // walk through all NextIteration nodes and put their producers into ops_to_do
+            // this is needed to avoid missed nodes in the body graph of TF1 While operation
             std::string producer_name;
             std::string producer_output_port_name;
             size_t producer_output_port_idx;
@@ -390,6 +391,15 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                     "NextIteration is not found among operation places " +
                                         producer_name);
             ops_to_do.push(m_op_places_map.at(producer_name));
+        } else if (op_decoder->get_op_type() == "LookupTableImport" ||
+                   op_decoder->get_op_type() == "LookupTableImportV2") {
+            // all LookupTableImport nodes must be preserved in a graph for conversion because
+            // they can be terminating nodes and contain input values for HashTable initialization
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(op_name),
+                                    "[TensorFlow Frontend] internal error or inconsistent model: LookupTableImport "
+                                    "operation is not found among operation places " +
+                                        op_name);
+            ops_to_do.push(m_op_places_map.at(op_name));
         }
     }
 
