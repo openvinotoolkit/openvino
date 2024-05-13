@@ -270,7 +270,7 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                                                  std::unordered_map<Node*, HeightMap>& height_maps,
                                                  size_t& fake_node_ctr) {
     size_t arg_index = 0;
-    for (auto input_value : node->input_values()) {
+    for (const auto& input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
         if (ov::is_type<ov::op::v0::Constant>(arg) || ov::is_type<ov::op::v0::Parameter>(arg)) {
@@ -287,7 +287,7 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
                 m_node_modifiers(*arg, attributes);
             }
             m_ss << "    " << clone_name << "[";
-            for (auto attr : attributes) {
+            for (const auto& attr : attributes) {
                 m_ss << " " << attr << " ";
             }
             m_ss << "]\n";
@@ -611,7 +611,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? std::string("name: ") : "") + node->get_name();
     }
-    const auto type_info = node->get_type_info();
+    const auto& type_info = node->get_type_info();
     rc += "\\n" + (nvtmn ? std::string("type_name: ") : "") + std::string(type_info.version_id) +
           "::" + std::string(type_info.name);
 
@@ -655,7 +655,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
 
     static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
-        const auto rt = node->get_rt_info();
+        const auto& rt = node->get_rt_info();
         if (!rt.empty()) {
             rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
         }
