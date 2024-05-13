@@ -189,42 +189,43 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX2 ANY
+        ARCH ANY AVX2
                     src/nodes/proposal_imp.cpp
         API         src/nodes/proposal_imp.hpp
         NAME        proposal_exec
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH ANY AVX2 AVX512F
                     src/nodes/kernels/scaled_attn/softmax.cpp
         API         src/nodes/kernels/scaled_attn/softmax.hpp
         NAME        attn_softmax
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH ANY AVX2 AVX512F
                     src/nodes/kernels/scaled_attn/mha_single_token.cpp
         API         src/nodes/kernels/scaled_attn/mha_single_token.hpp
         NAME        mha_single_token
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        # keep this order in order to pick the non-optimized inline version
+        ARCH ANY AVX2 AVX512F
                     src/nodes/kernels/scaled_attn/executor_pa.cpp
         API         src/nodes/kernels/scaled_attn/executor_pa.hpp
         NAME        make_pa_executor
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH ANY AVX2 AVX512F
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 ANY
+        ARCH ANY AVX2 AVX512F
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
         NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8

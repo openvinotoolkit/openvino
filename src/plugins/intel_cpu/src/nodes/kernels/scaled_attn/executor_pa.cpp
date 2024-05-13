@@ -14,6 +14,7 @@
 #endif
 
 #include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/parallel.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
 #include "common.hpp"
@@ -712,54 +713,6 @@ static void pack_32Nx32K(float* dst, T* src, float* tmp, size_t N, size_t K, siz
     OPENVINO_THROW("pack_32Nx32K: should not be called.");
 }
 
-// cross compilation may generate different optimized code when using stl, but the linker may choose any one.
-// if an optimized one was selected but the hardware does not support, it will crash.
-// Workaround: rewrite them inside our namespace
-template<typename T>
-class simple_vector {
-public:
-    void resize(uint32_t size) {
-        if (size > _capacity_size) {
-            auto tmp = new T[size];
-            uint32_t i = 0;
-            for (; i < _size; i++)
-                tmp[i] = _ptr[i];
-            for (; i < size; i++)
-                tmp[i] = T();
-            delete[] _ptr;
-            _ptr = tmp;
-            _capacity_size = size;
-        }
-        _size = size;
-    }
-    T& operator[] (size_t i) {
-        return _ptr[i];
-    }
-    const T& operator[] (size_t i) const {
-        return _ptr[i];
-    }
-    ~simple_vector() {
-        delete[] _ptr;
-    }
-    bool empty() const {
-        return _size == 0;
-    }
-    T* data() {
-        return _ptr;
-    }
-    size_t size() const {
-        return _size;
-    }
-    void clear() {
-        _size = 0;
-    }
-
-private:
-    T* _ptr = nullptr;
-    uint32_t _capacity_size = 0;
-    uint32_t _size = 0;
-};
-
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
 struct MHAHelper {
     // initialize once
@@ -778,13 +731,13 @@ struct MHAHelper {
     PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
-    simple_vector<size_t> _wsp;
+    std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
 
-    simple_vector<std::shared_ptr<BrgemmKernel>> _qk_gemm;
-    simple_vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
+    std::vector<std::shared_ptr<BrgemmKernel>> _qk_gemm;
+    std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
-    simple_vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
+    std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
     // second token
     std::shared_ptr<JitMatMulVecAMX> _gemv;
     bool _fastpath_valid = false;
@@ -813,7 +766,7 @@ struct MHAHelper {
         _Hk = Hk;
         _h_each_group_len = h_each_group_len;
         _block_size = block_size;
-        _nthr = static_cast<size_t>(pa_parallel_get_max_threads());
+        _nthr = static_cast<size_t>(parallel_get_max_threads());
         _sliding_window = sliding_window;
         _d_scale = d_scale;
 
@@ -1086,7 +1039,7 @@ struct MHAHelper {
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
-        pa_parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pk_in_blocks, size_t hk) {
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             // kv_len must be valid
             auto pk = pk_in_blocks * _block_size;
@@ -1112,7 +1065,7 @@ struct MHAHelper {
             }
         });
 
-        pa_parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+        parallel_for3d_dynamic(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
@@ -1132,12 +1085,12 @@ struct MHAHelper {
         // attn_w * V
         _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, _H, _S});
         // m_attn_w {B, H, q_len, kv_len}
-        pa_parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
+        parallel_nt_static(_nthr, [&](const size_t ithr, const size_t nthr) {
             memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
         });
 
-        pa_parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
-            auto ithr = pa_parallel_get_thread_num();
+        parallel_for3d_dynamic(B, kv_len_in_blocks, _Hk, [&](size_t b, size_t pv_in_blocks, size_t hk) {
+            auto ithr = parallel_get_thread_num();
             auto context_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto pv = pv_in_blocks * _block_size;
             // kv_len must be valid
@@ -1156,7 +1109,7 @@ struct MHAHelper {
             }
         });
 
-        pa_parallel_for3d(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
+        parallel_for3d(B, _H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
             size_t temp_stride = _output_bhl.stride(0);
             auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * _S);
@@ -1187,11 +1140,11 @@ struct MHAMultiple {
         _helper.init_reorder_buffers(B, block_tables.m_dims[1]);
 
         // packed k, v
-        pa_parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t kv_block, size_t hk) {
+        parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t kv_block, size_t hk) {
             auto block_number = block_tables.ptr<int32_t>(b)[kv_block];
             if (block_number < 0)
                 return;
-            auto ithr = pa_parallel_get_thread_num();
+            auto ithr = parallel_get_thread_num();
             auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
             auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
             transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
@@ -1216,10 +1169,10 @@ struct MHAMultiple {
         // query breaks to [B, H, m_blocks, block_size, S], k cache is split to [B, H, m_blocks', S, block_size]
         // v cache may be [B, H, m_blocks', block_size, S] or [block_number, H, block_size, S]
         // outer loop will use B, H, m_blocks to walkthrough query
-        pa_parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t q_blk, size_t hk) {
+        parallel_for3d_dynamic(B, block_tables.m_dims[1], Hk, [&](size_t b, size_t q_blk, size_t hk) {
             if (block_tables.ptr<int32_t>(b)[q_blk] < 0)
                 return;
-            size_t ithr = pa_parallel_get_thread_num();
+            size_t ithr = parallel_get_thread_num();
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = cur_kv_len;
             _helper.exec_kernel_multiple(query.slice(0, b, b), present_value, output_emb.slice(0, b, b),
@@ -1246,8 +1199,8 @@ struct MHASingle {
                       const PlainTensor& context_lens) {
         auto B = query.m_dims[0];
         auto Hk = present_value.m_dims[1];
-        pa_parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
-            size_t ithr = pa_parallel_get_thread_num();
+        parallel_for2d_dynamic(B, Hk, [&](size_t b, size_t hk) {
+            size_t ithr = parallel_get_thread_num();
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
             auto q_len = 1ul;
             _helper.exec_kernel_one_bh(query.slice(0, b, b), present_key, present_value,
@@ -1268,7 +1221,7 @@ struct MHASingle {
                     size_t max_context_len,
                     const PlainTensor& context_lens) {
         auto B = query.size(0);
-        auto nthr = static_cast<size_t>(pa_parallel_get_max_threads());
+        auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (B >= nthr) {
             exec_loop_bh(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens);
@@ -1294,8 +1247,8 @@ struct MHAMixed {
     };
     struct WorkItems {
     private:
-        simple_vector<AttnWorkItem> attn_items;
-        simple_vector<ReorderWorkItem> reorder_items;
+        std::vector<AttnWorkItem> attn_items;
+        std::vector<ReorderWorkItem> reorder_items;
         int32_t max_kv_len_in_reorder;              // max kv len between first tokens
         int32_t max_batch_in_reorder;
         int32_t total_kv_len;
@@ -1310,29 +1263,6 @@ struct MHAMixed {
 
             int32_t start_batch_in_query = 0;
             auto seq_cout = static_cast<int32_t>(subsequence_lens.m_dims[0]);
-            // first pass: compute size
-            size_t attn_items_size = 0;
-            size_t reorder_items_size = 0;
-            for (int32_t i = 0; i < seq_cout; i++) {
-                auto q_len = subsequence_lens.ptr<int32_t>()[i];
-                auto batch_in_query_last = start_batch_in_query + q_len - 1;
-                auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
-                auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
-                if (q_len == 1) {
-                    attn_items_size++;
-                    start_batch_in_query++;
-                } else {
-                    attn_items_size += static_cast<int32_t>(div_up(q_len, block_size));
-                    reorder_items_size += kv_len_in_block;
-                    start_batch_in_query += q_len;
-                }
-            }
-            attn_items.resize(attn_items_size);
-            reorder_items.resize(reorder_items_size);
-
-            start_batch_in_query = 0;
-            attn_items_size = 0;
-            reorder_items_size = 0;
             for (int32_t i = 0; i < seq_cout; i++) {
                 auto q_len = subsequence_lens.ptr<int32_t>()[i];
                 // workitems for transpose, repack
@@ -1341,34 +1271,34 @@ struct MHAMixed {
                 auto kv_len = context_lens.ptr<int32_t>()[batch_in_query_last];
                 auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
                 if (q_len == 1) {
-                    attn_items[attn_items_size++] = AttnWorkItem{
+                    attn_items.emplace_back(AttnWorkItem{
                         0,                          // batch_in_reorder
                         start_batch_in_query,       // batch_in_query
                         1ull,                       // q_len
                         // kv_len in blocks, used in the sort function
                         kv_len_in_block - 1
-                    };
+                    });
                     start_batch_in_query++;
                 } else {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
-                        reorder_items[reorder_items_size++] = ReorderWorkItem{
+                        reorder_items.emplace_back(ReorderWorkItem{
                             batch_in_query_last,     // batch_in_query_last
                             max_batch_in_reorder,    // batch_in_reorder
                             block_id                 // kv_block_id
-                        };
+                        });
                     }
 
                     // workitems for attention
                     auto attn_sub_work_count = static_cast<int32_t>(div_up(q_len, block_size));
                     for (int32_t block_id = 0; block_id < attn_sub_work_count; block_id++) {
-                        attn_items[attn_items_size++] = AttnWorkItem{
+                        attn_items.emplace_back(AttnWorkItem{
                             max_batch_in_reorder,    // batch_in_reorder
                             start_batch_in_query,    // batch_in_query
                             q_len,                   // q_len
                             block_id                 // q_block_id
-                        };
+                        });
                     }
                     start_batch_in_query += q_len;
                     max_batch_in_reorder++;
@@ -1429,7 +1359,7 @@ struct MHAMixed {
         _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(), div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
 
         // packed k, v
-        pa_parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
+        parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
             const auto& item = _workitems.get_reorder_work_item(w);
             const auto batch_in_query_last = item.batch_in_query_last;
             const auto batch_in_reorder = item.batch_in_reorder;
@@ -1438,7 +1368,7 @@ struct MHAMixed {
             if (block_number < 0)
                 return;
 
-            auto ithr = pa_parallel_get_thread_num();
+            auto ithr = parallel_get_thread_num();
             auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
             auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
             transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
@@ -1461,11 +1391,11 @@ struct MHAMixed {
             }
         });
 
-        pa_parallel_for2d_dynamic(attn_work_count, Hk, [&](size_t w, size_t hk) {
+        parallel_for2d_dynamic(attn_work_count, Hk, [&](size_t w, size_t hk) {
             const auto& item = _workitems.get_attn_work_item(w);
             const auto batch_in_query = item.batch_in_query;
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = pa_parallel_get_thread_num();
+            size_t ithr = parallel_get_thread_num();
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[batch_in_query]);
@@ -1508,7 +1438,7 @@ struct MHAMixed {
                     const PlainTensor& subsequence_lens) {
         _workitems.reset(query, context_lens, subsequence_lens, _helper._block_size);
 
-        auto nthr = static_cast<size_t>(pa_parallel_get_max_threads());
+        auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (subsequence_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
             exec_loop_mixed(query, present_key, present_value, output_emb, block_tables, max_context_len, context_lens, subsequence_lens);

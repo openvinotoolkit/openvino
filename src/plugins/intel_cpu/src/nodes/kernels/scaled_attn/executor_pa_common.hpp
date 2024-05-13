@@ -102,17 +102,6 @@ public:
 
 #endif
 
-// parallel_xxx may occur multiple version in cross compilation and
-//  the compiler may randomly pick one version with optimized code such as avx512.
-// forward version without any architecture dependent option
-size_t pa_parallel_get_max_threads();
-size_t pa_parallel_get_thread_num();
-void pa_parallel_nt_static(const size_t& threads, const std::function<void(size_t, size_t)>& func);
-void pa_parallel_for2d(const size_t& D0, const size_t& D1, const std::function<void(size_t, size_t)>& func);
-void pa_parallel_for2d_dynamic(const size_t& D0, const size_t& D1, const std::function<void(size_t, size_t)>& func);
-void pa_parallel_for3d(const size_t& D0, const size_t& D1, const size_t& D2, const std::function<void(size_t, size_t, size_t)>& func);
-void pa_parallel_for3d_dynamic(const size_t& D0, const size_t& D1, const size_t& D2, const std::function<void(size_t, size_t, size_t)>& func);
-
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace ov
