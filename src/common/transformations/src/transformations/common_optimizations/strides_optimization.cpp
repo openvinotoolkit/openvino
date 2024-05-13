@@ -218,5 +218,5 @@ ov::pass::StridesOptimization::StridesOptimization() {
     using namespace ov::pass;
     ADD_MATCHER_FOR_THIS(ConvStridesPropagation);
     ADD_MATCHER_FOR_THIS(SupportedNodesStridesPropagation);
-    // ADD_MATCHER_FOR_THIS(UnsupportedNodesStridesPropagation);
+    ADD_MATCHER_FOR_THIS(UnsupportedNodesStridesPropagation);
 }
