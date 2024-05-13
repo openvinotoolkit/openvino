@@ -186,7 +186,6 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
