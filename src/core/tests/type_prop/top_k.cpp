@@ -325,7 +325,7 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval_w
         // dim{5} k{4,inf} -> {4,5}
         const auto op = this->make_op(data, k, 0, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{0, 5}, {2, 8}, {2, 100}}),
+                    AllOf(PartialShape({{4, 5}, {2, 8}, {2, 100}}),
                           ResultOf(get_shape_symbols, ElementsAre(nullptr, symbols[1], symbols[2]))));
     }
     {
