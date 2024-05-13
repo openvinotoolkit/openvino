@@ -48,11 +48,6 @@ To install the latest released version via pip manager run the following command
    pip install nncf
 
 
-.. note::
-
-   To install with specific frameworks, use the `pip install nncf[extras]` command, where extras is a list of possible extras, for example, `torch`, `tf`, `onnx`.
-
-
 To install the latest NNCF version from source, follow the instruction on `GitHub <https://github.com/openvinotoolkit/nncf#installation>`__.
 
 .. note::

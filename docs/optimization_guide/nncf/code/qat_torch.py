@@ -1,22 +1,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-#! [imports]
-import torch
-import nncf
-#! [imports]
-
-#! [nncf_dataset]
-def transform_fn(data_item):
-    images, _ = data_item
-    return images
-
-calibration_dataset = nncf.Dataset(train_loader, transform_fn) # train_loader is an instance of torch.utils.data.DataLoader
-#! [nncf_dataset]
-
 #! [quantize]
 model = TorchModel() # instance of torch.nn.Module
-quantized_model = nncf.quantize(model, calibration_dataset)
+quantized_model = nncf.quantize(model, ...)
 #! [quantize]
 
 #! [tune_model]
