@@ -744,7 +744,7 @@ void program::transfer_memory_to_device() {
                         rank_enabled = true;
                         GPU_DEBUG_TRACE_DETAIL << node->id() << ": re-rank weights from " << data_node_layout.to_short_string() << " to "
                             << rank_weights_layout.to_short_string() << std::endl;
-                        if (fc_node.id() == "fullyconnected:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul") {
+                        /*if (fc_node.id() == "fullyconnected:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul") {
                             std::ofstream file_stream("bell_original_weight_rank_" +
                                     std::to_string(fc_node.w_rank) + ".txt");
                             auto&& size = rank_weights_memory_host->get_layout().get_tensor();
@@ -763,7 +763,7 @@ void program::transfer_memory_to_device() {
                                 }
                             }
                             file_stream << buffer.str();
-                        }
+                        }*/
                     }
                 }
             }

@@ -69,7 +69,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         }
         stream.finish(); // extra finish for input copy, to be optimized
         instance.fill_placeholder();
-        std::ofstream file_stream("bell_fc_weight_iter" + std::to_string(infer_count) +
+        /*std::ofstream file_stream("bell_fc_weight_iter" + std::to_string(infer_count) +
                                 std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
         auto input_mem = instance.weights_memory();
         auto&& size = input_mem->get_layout().get_tensor();
@@ -87,7 +87,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
                 buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
             }
         }
-        file_stream << buffer.str();
+        file_stream << buffer.str();*/
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
@@ -139,7 +139,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
             std::cout << "bell debug!!!!" << send_ptr << std::endl;
             //auto prec = output.();
             std::cout << "&&&&&&&&" << std::endl;
-            std::ofstream file_stream("bell_fc_output_iter_" + std::to_string(infer_count) + "_rank_"
+            /*std::ofstream file_stream("bell_fc_output_iter_" + std::to_string(infer_count) + "_rank_"
                                     + std::to_string(instance.get_node().as<fully_connected>().w_rank) + ".txt");
             auto&& size = output_memory_ptr->get_layout().get_tensor();
 
@@ -156,8 +156,8 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
                     buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
                 }
             }
-            file_stream << buffer.str();
-            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->size());
+            file_stream << buffer.str();*/
+            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->count());
             std::cout << "&&&&&&&&" << std::endl;
             //output_memory.copy_from(stream, *output_host);
         } else {

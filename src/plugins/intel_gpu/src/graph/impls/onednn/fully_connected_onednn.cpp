@@ -47,12 +47,12 @@ protected:
         if (getenv("ENABLE_CCL")) {
             auto& network = instance.get_network();
             auto& stream = network.get_stream();
-            auto& engine = network.get_engine();
+            //auto& engine = network.get_engine();
             stream.finish();
             auto& output_memory = instance.output_memory();
             std::cout << output_memory.get_allocation_type() << std::endl;
-            auto output_host = engine.allocate_memory(output_memory.get_layout(), allocation_type::usm_host);
-            output_host->copy_from(stream, output_memory);
+            //auto output_host = engine.allocate_memory(output_memory.get_layout(), allocation_type::usm_host);
+            //output_host->copy_from(stream, output_memory);
             auto send_ptr = output_memory.buffer_ptr();
             std::cout << output_memory.count() << std::endl;
             std::cout << output_memory.get_layout().to_string() << std::endl;
@@ -60,9 +60,9 @@ protected:
             std::cout << "bell debug!!!!" << send_ptr << std::endl;
             //auto prec = output.();
             std::cout << "&&&&&&&&" << std::endl;
-            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.size());
+            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.count());
             std::cout << "&&&&&&&&" << std::endl;
-            output_memory.copy_from(stream, *output_host);
+            //output_memory.copy_from(stream, *output_host);
         }
         return event;
     }
