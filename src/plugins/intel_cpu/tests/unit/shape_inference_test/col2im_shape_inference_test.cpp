@@ -13,31 +13,31 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using testing::HasSubstr;
 
-class Col2ImStaticTestSuite : public ::testing::TestWithParam<std::tuple<Shape,         // data shape
+class Col2ImStaticTestSuite : public ::testing::TestWithParam<std::tuple<ov::Shape,      // data shape
                                                               std::vector<int32_t>,     // output_size values
                                                               std::vector<int32_t>,     // kernel_size values
                                                               Strides,                  // strides
                                                               Strides,                  // dilations
-                                                              Shape,                    // pads_begin
-                                                              Shape,                    // pads_end
-                                                              Shape>> {};               // expected output shape
+                                                              ov::Shape,                // pads_begin
+                                                              ov::Shape,                // pads_end
+                                                              ov::Shape>> {};           // expected output shape
 
 class Col2ImStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::v15::Col2Im> {};
 
 TEST_F(Col2ImStaticShapeInferenceTest, kernel_size_and_output_size_from_tensor_accessor) {
-    const auto data = std::make_shared<Parameter>(element::i64, Shape{3, 12, 289});
-    const auto output_size = std::make_shared<Parameter>(element::i64, Shape{2});
-    const auto kernel_size = std::make_shared<Parameter>(element::i64, Shape{2});
+    const auto data = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
+    const auto output_size = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
+    const auto kernel_size = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
     const auto strides = Strides{2, 2};
     const auto dilations = Strides{2, 2};
     const auto pads_begin = Shape{2, 2};
     const auto pads_end = Shape{2, 2};
     const auto op = make_op(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
 
-    int32_t output_size_val[] = {32, 32};
-    int32_t kernel_size_val[] = {2, 2};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{1, {element::i32, Shape{2}, output_size_val}},
-                                                           {2, {element::i32, Shape{2}, kernel_size_val}}};
+    int64_t output_size_val[] = {32, 32};
+    int64_t kernel_size_val[] = {2, 2};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{1, {element::i64, Shape{2}, output_size_val}},
+                                                           {2, {element::i64, Shape{2}, kernel_size_val}}};
 
     const auto input_shapes = ShapeVector{Shape{3, 12, 289}, Shape{2}, Shape{2}};
     auto shape_infer = make_shape_inference(op);

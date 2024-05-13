@@ -28,7 +28,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                            "input data must be an unbatched 2D or a batched 3D input. Got: ",
                            data_shape);
 
-    const auto is_two_elem_1d = [](const TShape shape) -> bool {
+    const auto is_two_elem_1d = [](const TShape& shape) -> bool {
         static const auto exp_shape = Shape{2};
         return shape.rank().is_dynamic() || shape.to_shape() == exp_shape;
     };
@@ -45,8 +45,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                is_two_elem_1d(kernel_shape),
-                               "kernel_size must be a 1D input of shape [2]. Got: ",
-                               kernel_shape);
+                               "kernel_size must be a 1D input of shape [2].");
     }
 
     if (data_shape.rank().is_static()) {
