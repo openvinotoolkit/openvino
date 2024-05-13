@@ -131,15 +131,68 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
             }
 
-            // Create new kernels batch when the limit is reached
-            // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
-                const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
-            }
+            auto get_base_kernel_name = [](std::string unique_kernel_name) -> std::string {
+                int matched = 0;
+                size_t pos = unique_kernel_name.length();
+                if (unique_kernel_name.substr(pos-4, 4).compare("__sa") == 0) {
+                    pos -= 4;
+                }
+                while (pos > 0) {
+                    pos -= 1;
+                    if (unique_kernel_name.at(pos) == '_') {
+                        matched += 1;
+                    }
+                    if (matched == 3) {
+                        break;
+                    }
+                }
+                return unique_kernel_name.substr(0, pos);
+            };
 
-            auto& current_batch = current_bucket.back();
+            auto get_target_batch = [&]() -> batch_program& {
+                if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
+                    const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+                    current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+                    return current_bucket.back();
+                } else {
+                    auto iter = current_bucket.rbegin();
+                    while (iter != current_bucket.rend()) {
+                        if (iter->kernels_counter < get_max_kernels_per_batch()) {
+                            iter++;
+                        } else {
+                            break;
+                        }
+                    }
+                    bool found_target = false;
+                    auto target_base_kernel_name = get_base_kernel_name(entry_point);
+                    std::cout << entry_point << " --> " << target_base_kernel_name << std::endl;
+                    while (iter != current_bucket.rbegin()) {
+                        iter--;
+                        bool found_same_base_kernel = false;
+                        for (auto& item : iter->entry_point_to_id) {
+                            if (get_base_kernel_name(item.first).compare(target_base_kernel_name) == 0) {
+                                found_same_base_kernel = true;
+                                break;
+                            }
+                        }
+                        if (found_same_base_kernel) {
+                            continue;
+                        } else {
+                            found_target = true;
+                            break; 
+                        }
+                    }
+                    if (found_target) {
+                        return *iter;
+                    } else {
+                        const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+                        current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+                        return current_bucket.back();
+                    }
+                }
+            };
+
+            auto& current_batch = get_target_batch();
             current_batch.dump_custom_program = dump_custom_program;
             current_batch.entry_point_to_id.emplace(entry_point, std::make_pair(code.params, kernel_part_idx));
 
