@@ -213,6 +213,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("mode"),
         R"(
             Adds padding preprocessing operation.
+
             :param pads_begin: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_begins: 1D tensor of type T_INT.
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
