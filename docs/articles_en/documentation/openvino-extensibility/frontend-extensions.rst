@@ -99,7 +99,7 @@ In this case, you can directly say that 'MyRelu' -> ``Relu`` mapping should be u
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_MyRelu]
 
@@ -348,7 +348,7 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
@@ -364,7 +364,7 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_ThresholdedReLU]
 
@@ -381,7 +381,7 @@ The next example shows how to use ``ConversionExtension`` to convert PyTorch
 to demonstrate how to use ``get_values_from_const_input`` function to fetch an attribute value from input:
 
 
-.. doxygensnippet:: docs/snippets/ov_extensions.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
    :language: python
    :fragment: [py_frontend_extension_aten_hardtanh]
 
