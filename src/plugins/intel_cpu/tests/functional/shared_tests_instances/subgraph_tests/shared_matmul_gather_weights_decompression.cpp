@@ -23,13 +23,6 @@ const std::vector<ElementType> weights_precisions = {ov::element::u8, ov::elemen
 const std::vector<ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<bool> decompression_subtract = {true, false};
 
-// ARM doesn't support compressed matmul weights: in this case weights are folded in float constant
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-const bool use_matmul_decompression_impl = false;
-#else
-const bool use_matmul_decompression_impl = true;
-#endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64
-
 INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression,
                          SharedMatmulAndGatherWeightsDecompression,
                          ::testing::Combine(::testing::Values(utils::DEVICE_CPU),
@@ -37,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression,
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::ValuesIn(decompression_subtract),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          SharedMatmulAndGatherWeightsDecompression::getTestCaseName);
 
 }  // namespace

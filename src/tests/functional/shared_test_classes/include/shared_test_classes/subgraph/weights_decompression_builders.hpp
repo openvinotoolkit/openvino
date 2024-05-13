@@ -57,22 +57,15 @@ enum class DecompressionSubtractType {
 
 std::ostream& operator<<(std::ostream& os, DecompressionSubtractType type);
 
-enum class DecompressionScalePrecisionType {
-    same_as_decompression_precision,
-    fp16_precision
-};
-
-std::ostream& operator<<(std::ostream& os, DecompressionScalePrecisionType type);
-
 std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const ov::Shape& weights_shape,
     const int group_size,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
     const ov::element::Type decompression_precision,
+    const ov::element::Type scale_precision,
     const bool transpose_weights,
     const DecompressionSubtractType decompression_subtract_type,
-    const DecompressionScalePrecisionType scale_precision_type,
     const bool reshape_on_decompression_constant);
 
 std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_shape,

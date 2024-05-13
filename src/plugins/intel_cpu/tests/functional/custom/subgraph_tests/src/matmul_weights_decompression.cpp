@@ -39,15 +39,15 @@ namespace test {
  *              Bias
  */
 using MatmulWeightsDecompressionParams = std::tuple<MatMulDecompressionShapeParams,
-                                                    ov::test::ElementType,            // weights precision
-                                                    ov::test::ElementType,            // decompression precision
-                                                    bool,                             // transpose on weights
-                                                    DecompressionSubtractType,        // decompression subtract type
-                                                    DecompressionScalePrecisionType,  // scale precision type
-                                                    bool,                             // reshape on decompression constants
-                                                    ov::AnyMap,                       // additional config
+                                                    ov::test::ElementType,      // weights precision
+                                                    ov::test::ElementType,      // decompression precision
+                                                    ov::test::ElementType,      // scale precision
+                                                    bool,                       // transpose on weights
+                                                    DecompressionSubtractType,  // decompression subtract type
+                                                    bool,                       // reshape on decompression constants
+                                                    ov::AnyMap,                 // additional config
                                                     fusingSpecificParams,
-                                                    bool>;                            // should use decompression implementation
+                                                    bool>;                      // should use decompression implementation
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
                                    virtual public SubgraphBaseTest,
@@ -57,9 +57,9 @@ public:
         MatMulDecompressionShapeParams shape_params;
         ov::test::ElementType weights_precision;
         ov::test::ElementType decompression_precision;
+        ov::test::ElementType scale_precision;
         bool transpose;
         DecompressionSubtractType decompression_subtract_type;
-        DecompressionScalePrecisionType scale_precision_type;
         bool reshape_on_decompression;
         ov::AnyMap additional_config;
         fusingSpecificParams fusing_params;
@@ -68,9 +68,9 @@ public:
         std::tie(shape_params,
                  weights_precision,
                  decompression_precision,
+                 scale_precision,
                  transpose,
                  decompression_subtract_type,
-                 scale_precision_type,
                  reshape_on_decompression,
                  additional_config,
                  fusing_params,
@@ -80,9 +80,9 @@ public:
         result << shape_params << "_";
         result << "weights_precision=" << weights_precision << "_";
         result << "decompression_precision=" << decompression_precision << "_";
+        result << "scale_precision=" << scale_precision << "_";
         result << "transpose_weights=" << transpose << "_";
         result << "decompression_subtract=" << decompression_subtract_type << "_";
-        result << "scale_precision_type=" << scale_precision_type << "_";
         result << "reshape_on_decompression=" << reshape_on_decompression << "_";
 
         result << "config=(";
@@ -102,9 +102,9 @@ protected:
                                             const ov::element::Type data_precision,
                                             const ov::element::Type weights_precision,
                                             const ov::element::Type decompression_precision,
+                                            const ov::element::Type scale_precision,
                                             const bool transpose_weights,
                                             const DecompressionSubtractType decompression_subtract_type,
-                                            const DecompressionScalePrecisionType scale_precision_type,
                                             const bool reshape_on_decompression) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
         const auto weights_subgraph = initMatMulDecompressionSubgraph(weights_shape,
@@ -112,9 +112,9 @@ protected:
                                                                       data_precision,
                                                                       weights_precision,
                                                                       decompression_precision,
+                                                                      scale_precision,
                                                                       transpose_weights,
                                                                       decompression_subtract_type,
-                                                                      scale_precision_type,
                                                                       reshape_on_decompression);
         auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
         return makeNgraphFunction(data_precision, params, matMul, "MatmulWeightsDecompression");
@@ -126,9 +126,9 @@ protected:
         MatMulDecompressionShapeParams shape_params;
         ov::test::ElementType weights_precision;
         ov::test::ElementType decompression_precision;
+        ov::test::ElementType scale_precision;
         bool transpose_weights;
         DecompressionSubtractType decompression_subtract_type;
-        DecompressionScalePrecisionType scale_precision_type;
         bool reshape_on_decompression;
         ov::AnyMap additional_config;
         fusingSpecificParams fusing_params;
@@ -137,9 +137,9 @@ protected:
         std::tie(shape_params,
                  weights_precision,
                  decompression_precision,
+                 scale_precision,
                  transpose_weights,
                  decompression_subtract_type,
-                 scale_precision_type,
                  reshape_on_decompression,
                  additional_config,
                  fusing_params,
@@ -166,9 +166,9 @@ protected:
                                 netType,
                                 weights_precision,
                                 decompression_precision,
+                                scale_precision,
                                 transpose_weights,
                                 decompression_subtract_type,
-                                scale_precision_type,
                                 reshape_on_decompression);
     }
 
@@ -235,26 +235,19 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_amx = {
 };
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
-// ARM doesn't support compressed matmul weights: in this case weights are folded in float constant
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-const bool use_matmul_decompression_impl = false;
-#else
-const bool use_matmul_decompression_impl = true;
-#endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64
-
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::ValuesIn(fusing_params),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
@@ -262,14 +255,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_amx),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_amx()),
                                             ::testing::ValuesIn(fusing_params),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases_basic = {
@@ -294,13 +287,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(decompression_subtract_type),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_f32_decompression_f16_scale = {
@@ -313,13 +306,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_f32_decompression_f16_sca
                          ::testing::Combine(::testing::ValuesIn(input_shapes_f32_decompression_f16_scale),
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::f16),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::Values(DecompressionSubtractType::full),
-                                            ::testing::Values(DecompressionScalePrecisionType::fp16_precision),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases_negative = {
@@ -331,9 +324,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_negative,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_negative),
                                             ::testing::Values(ov::element::u8),
                                             ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionSubtractType::empty),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::Values(emptyFusingSpec),
@@ -345,13 +338,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_amx,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_amx),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(decompression_subtract_type),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(filter_additional_config_amx()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_dyn_quant = {
@@ -378,13 +371,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_gro
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant),
                                             ::testing::ValuesIn(weights_precisions_dyn_quant),
                                             ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::undefined),
                                             ::testing::Values(true),
                                             ::testing::ValuesIn(decompression_subtract_type),
-                                            ::testing::Values(DecompressionScalePrecisionType::same_as_decompression_precision),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_dyn_quant()),
                                             ::testing::ValuesIn(fusing_params),
-                                            ::testing::Values(use_matmul_decompression_impl)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
 }  // namespace

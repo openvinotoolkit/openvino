@@ -389,6 +389,10 @@ std::vector<std::string> disabledTestPatterns() {
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
+    // Compressed weights are not supported
+    retVector.emplace_back(R"(smoke_MatMulCompressedWeights.*)");
+    retVector.emplace_back(R"(smoke_MatMulSharedCompressedWeights.*)");
+    retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");

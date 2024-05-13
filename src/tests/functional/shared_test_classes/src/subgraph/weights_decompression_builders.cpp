@@ -41,29 +41,15 @@ std::ostream& operator<<(std::ostream& os, DecompressionSubtractType type) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, DecompressionScalePrecisionType type) {
-        switch (type) {
-    case DecompressionScalePrecisionType::same_as_decompression_precision:
-        os << "same_as_decompression_precision";
-        break;
-    case DecompressionScalePrecisionType::fp16_precision:
-        os << "fp16_precision";
-        break;
-    default:
-        OPENVINO_THROW("Not supported DecompressionScalePrecisionType");
-    }
-    return os;
-}
-
 std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     const ov::Shape& weights_shape,
     const int group_size,
     const ov::element::Type data_precision,
     const ov::element::Type weights_precision,
     const ov::element::Type decompression_precision,
+    const ov::element::Type scale_precision,
     const bool transpose_weights,
     const DecompressionSubtractType decompression_subtract_type,
-    const DecompressionScalePrecisionType scale_precision_type,
     const bool reshape_on_decompression_constant) {
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
@@ -143,17 +129,15 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
         mul_parent = std::make_shared<ov::opset10::Subtract>(weights_convert, shift_convert);
     }
 
-    const auto scale_precision = scale_precision_type == DecompressionScalePrecisionType::fp16_precision
-                                     ? ov::element::f16
-                                     : decompression_precision;
-    auto scale_const_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(scale_precision,
+    const auto& scale_prc = scale_precision == ov::element::undefined ? decompression_precision : scale_precision;
+    auto scale_const_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(scale_prc,
                                                                                         scaleshift_const_shape,
                                                                                         0.001f,
                                                                                         0.01f,
                                                                                         1);
     std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
 
-    if (scale_precision != decompression_precision) {
+    if (scale_prc != decompression_precision) {
         const auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale_const, decompression_precision);
         ov::mark_as_decompression(scale_convert);
         scale_const = scale_convert;
