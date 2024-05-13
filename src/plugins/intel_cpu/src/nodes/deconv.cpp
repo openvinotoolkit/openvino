@@ -219,7 +219,6 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
-    bool isConstOutShape = false;
     if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))))
         lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
     if (externOutShape && isDynamicNode()) {
@@ -231,39 +230,18 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
 
     size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
     auto weightDimsReversItr = weightDims.crbegin();
-    bool is1x1 = true;
+    is1x1 = true;
     for (size_t i = 0; i < spatialRank; ++i)
         is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
-
-    auto isZero = [](std::ptrdiff_t i) { return i == 0; };
     // 1x1 deconv has some test case failed. The cause is upstream ONEDNN unsupported brgemm implementation cases are
     // enabled in forked ONEDNNN https://github.com/openvinotoolkit/oneDNN/blob/117e287000b48a34a7218fcaa274a91571141728/src/common/convolution.cpp#L138.
     // Some test cases on 1x1 kernel failed on accuracy check, current WA is disabling brgemm deconv implementation for such cases.
-    // case1: Specify asymmetric padding explicitly
     if (is1x1 && deconvAttrs.paddingL != deconvAttrs.paddingR) {
+        // case1: Specify asymmetric padding explicitly
         asymmetricPaddingAnd1x1 = true;
-    } else if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero)
-                    && std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero)
-                    && std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero)
-                    && isConstOutShape && !isDynamicNode()) {
-            // case2: Implicit asymmetric padding cases.
-
-        auto calPaddingEnd =  [](int64_t i, int64_t o,  int64_t s) -> int64_t {
-            // Accoriding to https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html,
-            // output[i] = (input[i] -1) * stride[i] - 2 x padding[i] + dilation[i] x (kernel_size[i] - 1) + output_padding[i] + 1.
-            // When kernel_size[i] = 1, output_padding = 0, output[i] = (input[i] -1) * stride[i]  - 2 x padding[i] + 1.
-            // implicit padding end =  2 x padding[i]  = (input[i] -1) * stride[i] + 1 - output[i]
-            return (i - 1) * s + 1 - o;};
-        auto inputDims = getInputShapeAtPort(0).getStaticDims();
-        for (size_t i = 0; i < spatialRank; i++) {
-            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
-            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
-            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
-            if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
-                asymmetricPaddingAnd1x1 = true;
-                break;
-            }
-        }
+    } else if (isConstOutShape && !isDynamicNode()) {
+        // case2: Implicit asymmetric padding cases.
+        asymmetricPaddingAnd1x1 = isImplicit1x1PaddingAsymmetric(getInputShapeAtPort(0).getStaticDims());
     }
     attr = std::make_shared<dnnl::primitive_attr>();
 }
@@ -802,6 +780,31 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
     return priorities_wo_brgemm;
 }
 
+bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) {
+    auto isZero = [](std::ptrdiff_t i) { return i == 0; };
+    size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+    if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero)
+                        && std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero)
+                        && std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero)
+                       ) {
+            auto calPaddingEnd =  [](int64_t i, int64_t o,  int64_t s) -> int64_t {
+                // Accoriding to https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html,
+                // output[i] = (input[i] -1) * stride[i] - 2 x padding[i] + dilation[i] x (kernel_size[i] - 1) + output_padding[i] + 1.
+                // When kernel_size[i] = 1, output_padding = 0, output[i] = (input[i] -1) * stride[i]  - 2 x padding[i] + 1.
+                // implicit padding end =  2 x padding[i]  = (input[i] -1) * stride[i] + 1 - output[i]
+                return (i - 1) * s + 1 - o;};
+            for (size_t i = 0; i < spatialRank; i++) {
+                int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
+                int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+                int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+                if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
+                    return true;
+                }
+            }
+    }
+    return false;
+}
+
 void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
@@ -881,7 +884,13 @@ void Deconvolution::prepareParams() {
                      selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
+    bool skipBrgemm  = false;
+
+    if (externOutShape && (!isConstOutShape || isDynamicNode())) {
+        // Check implicit asymmetric padding case for dynamic case and runtime output shape.
+        skipBrgemm = isImplicit1x1PaddingAsymmetric(getSrcMemoryAtPort(0)->getShape().getStaticDims());
+    }
+    auto builder = [&engine, &skipBrgemm](const DeconvKey& key) -> executorPtr {
         dnnl::primitive_desc desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
@@ -904,7 +913,8 @@ void Deconvolution::prepareParams() {
 
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
+            if (skipBrgemm && (impl_type & impl_desc_type::brgconv))
+                continue;
             if (impl_type == key.implType) {
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
                 execPtr = std::make_shared<DeconvDNNLExecutor>(prim_desc,

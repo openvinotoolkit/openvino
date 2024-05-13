@@ -69,6 +69,7 @@ private:
                                bool constWeight);
     };
 
+    bool isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims);
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;
@@ -105,6 +106,8 @@ private:
     void createDnnlCompatibleWeights();
     bool weightIsConst = false;
     bool asymmetricPaddingAnd1x1 = false;
+    bool is1x1 = false;
+    bool isConstOutShape = false;
 };
 
 }   // namespace node
