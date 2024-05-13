@@ -36,21 +36,22 @@ ov::intel_cpu::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
     auto x = makePattern(ov::Rank(4));
+    x->set_friendly_name("x");
+
     auto x_or_cos1 = makePattern(ov::Rank(4));
     auto x_or_cos2 = makePattern(ov::Rank(4));
     auto t_sin = makePattern(ov::Rank(4));
 
-    auto varsplit = pass::pattern::wrap_type<opset1::VariadicSplit>({x,
-                                                                     pass::pattern::any_input(),
-                                                                     pass::pattern::any_input()});
-    x->set_friendly_name("x");
-
     auto half_ndims = ov::gen_pattern::Symbol("half_ndims");
+
+    auto varsplit = makePattern<opset1::VariadicSplit>({x, 3, {half_ndims, ov::gen_pattern::Symbol("end")}});
+    varsplit->set_output_size(2);
+
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     // rotate half : [-x2, x1]
     auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
-    auto x2neg = makePattern<opset1::Multiply>({x2 | varsplit->output(0), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto x2neg = makePattern<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
     auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
     auto x_rotate_half = makePattern<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
@@ -121,14 +122,8 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto gather_positions = makePattern("i32[?,?,?,?]");
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
-        auto slice_1 = makePattern<opset1::StridedSlice>({const_tab, {0}, node_batch_size, {1}},
-                                                        {{"begin_mask", {0}},
-                                                         {"end_mask", {0}},
-                                                         {"new_axis_mask", {}},
-                                                         {"shrink_axis_mask", {}},
-                                                         {"ellipsis_mask", {}}});
-        auto slice_2 = makePattern<opset8::Slice>({const_tab, {0}, node_batch_size, {1}, 0});
-        return makePattern<opset6::GatherElements>({slice_1 | slice_2, gather_positions}, {{"axis", 2}});
+        auto slice = GenSlice2(const_tab, {0}, node_batch_size, {1}, 0);
+        return makePattern<opset6::GatherElements>({slice, gather_positions}, {{"axis", 2}});
     };
 
     auto seq_len = makePattern("i32[1]");
@@ -137,27 +132,12 @@ ov::intel_cpu::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto head_dims = ov::gen_pattern::Symbol("head_dims");
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
         auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
-        auto slice_1 = makePattern<opset1::StridedSlice>({const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}},
-                                                             {{"begin_mask", {1, 1, 0}},
-                                                              {"end_mask", {1, 1, 0}},
-                                                              {"new_axis_mask", {}},
-                                                              {"shrink_axis_mask", {}},
-                                                              {"ellipsis_mask", {}}});
-        auto slice_2 = makePattern<opset8::Slice>({const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, {0, 1, 2}});
-        auto slice_Slice = slice_1 | slice_2;
+        auto slice_Slice = GenSlice2(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
         auto squeeze = makePattern<opset1::Reshape>({slice_Slice, {-1, head_dims}});
         auto index_Gather = makePattern<opset8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         // another simplified pattern for gathering at position_ids
-        auto slice_3 = makePattern<opset1::StridedSlice>({const_tab, {0}, seq_len, {1}},
-                                                         {{"begin_mask", {0}},
-                                                          {"end_mask", {0}},
-                                                          {"new_axis_mask", {}},
-                                                          {"shrink_axis_mask", {}},
-                                                          {"ellipsis_mask", {}}});
-        auto slice_4 = makePattern<opset8::Slice>({const_tab, {0}, seq_len, {1}, 0});
-
-        auto slice_Slice2 = slice_3 | slice_4;
+        auto slice_Slice2 = GenSlice2(const_tab, {0}, seq_len, {1}, 0);
         auto index_Gather2 = makePattern<opset8::Gather>({slice_Slice2, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         auto unsqueeze = makePattern<opset1::Reshape>({index_Gather | index_Gather2, {1, 1, -1, head_dims}});
@@ -213,16 +193,16 @@ ov::intel_cpu::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = makePattern(ov::Rank(4));
-
-    auto varsplit = pass::pattern::wrap_type<opset1::VariadicSplit>({data,
-                                                                     pass::pattern::any_input(),
-                                                                     pass::pattern::any_input()});
     auto ndims = ov::gen_pattern::Symbol("ndims");
+
+    auto varsplit = makePattern<opset1::VariadicSplit>({data, 3, {ndims, ov::gen_pattern::Symbol("end")}});
+    varsplit->set_output_size(2);
+
     auto x = GenSlice(data, 0, ndims, 1, 3);
     auto y = GenSlice(data, ndims, int32_max, 1, 3);
     auto x_emb = makePattern<RoPENode>({x | varsplit->output(0), {}, {}}) |
             makePattern<RoPENode>({x | varsplit->output(0), {}, {}, {}});
-    auto result = makePattern<opset1::Concat>({x_emb, y | varsplit->output(0)}, {{"axis", -1}});
+    auto result = makePattern<opset1::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -319,9 +299,9 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     // view_Reshape : B,L,H,S
     auto slice_Slice_965 = GenSlice(view_Reshape, 0, ndims, 1, 3);
 
-    auto varsplit_view_Reshape = pass::pattern::wrap_type<opset1::VariadicSplit>({view_Reshape,
-                                                                                  pass::pattern::any_input(),
-                                                                                  pass::pattern::any_input()});
+    auto varsplit_view_Reshape = makePattern<opset1::VariadicSplit>({view_Reshape, 3, {ndims, ov::gen_pattern::Symbol("end")}});
+    varsplit_view_Reshape->set_output_size(2);
+
     auto gather_sin_cos = makePattern("f32");
 
     auto varsplit = makePattern<opset1::VariadicSplit>({gather_sin_cos, -1, {ndims / 2, -1}});
@@ -372,7 +352,7 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto rotary_emb = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     auto slice_Slice_971 = GenSlice(view_Reshape, ndims, int32_max, 1, 3);
-    auto cat_Concat_1211 = makePattern<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(0)}, {{"axis", -1}});
+    auto cat_Concat_1211 = makePattern<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)}, {{"axis", -1}});
     auto permute_Transpose_1213 = makePattern<opset1::Transpose>({cat_Concat_1211, {0, 2, 1, 3}});
 
     auto result = permute_Transpose_1213;
@@ -465,14 +445,7 @@ ov::intel_cpu::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto reshape_Reshape_453 =
         makePattern<opset1::Reshape>({slice_Slice_437, ListConstruct_452_Concat}, {{"special_zero", false}});
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
-    auto slice_1 = makePattern<opset1::StridedSlice>({cos_sin_cache, {0}, seq_length, {1}},
-                                                                                {{"begin_mask", {0}},
-                                                                                 {"end_mask", {0}},
-                                                                                 {"new_axis_mask", {}},
-                                                                                 {"shrink_axis_mask", {}},
-                                                                                 {"ellipsis_mask", {}}});
-    auto slice_2 = makePattern<opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, 0});
-    auto slice_Slice_449 = slice_1 | slice_2;
+    auto slice_Slice_449 = GenSlice2(cos_sin_cache, {0}, seq_length, {1}, 0);
     auto view_Reshape_460 =
         makePattern<opset1::Reshape>({slice_Slice_449, ListConstruct_379_Concat}, {{"special_zero", false}});
     auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
@@ -579,17 +552,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto neg_Multiply = makePattern<opset1::Multiply>({Gather_311651, {-1}}, {{"auto_broadcast", "numpy"}});
 
     auto ScatterUpdate_463814 = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, Gather_377635 | neg_Multiply, {0}});
-    auto slice_1 =
-            makePattern<opset1::StridedSlice>({rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}},
-                                              {{"begin_mask", {1, 0}},
-                                               {"end_mask", {1, 0}},
-                                               {"new_axis_mask", {}},
-                                               {"shrink_axis_mask", {}},
-                                               {"ellipsis_mask", {}}});
-
-    auto slice_2 =
-            makePattern<opset8::Slice>({rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, {0, 1}});
-    auto slice_Slice_446 = slice_1 | slice_2; //  tensor_array<f32[1,..4096,1,128]>
+    auto slice_Slice_446 = GenSlice2(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1); //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_552 =
         makePattern<opset1::Multiply>({slice_Slice_543, slice_Slice_446},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
@@ -629,15 +592,7 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         makePattern<opset1::Squeeze>({ListUnpack_586_Split->output(0), -2});  //  tensor_array<f32[?,?,32,64]>
     auto cat_Concat_593 = makePattern<opset1::Concat>({ListUnpack_586_Squeeze_0, ListUnpack_586_Squeeze},
                                                       {{"axis", -1}});  //  tensor_array<f32[?,?,32,128]>
-    auto slice_3 =
-            makePattern<opset1::StridedSlice>({rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}},
-                                              {{"begin_mask", {1, 0}},
-                                               {"end_mask", {1, 0}},
-                                               {"new_axis_mask", {}},
-                                               {"shrink_axis_mask", {}},
-                                               {"ellipsis_mask", {}}});
-    auto slice_4 = makePattern<opset8::Slice>({rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, {0, 1}});
-    auto slice_Slice_470 = slice_3 | slice_4; //  tensor_array<f32[1,..4096,1,128]>
+    auto slice_Slice_470 = GenSlice2(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1); //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_594 =
         makePattern<opset1::Multiply>({cat_Concat_593, slice_Slice_470},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
@@ -681,7 +636,6 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
                         pattern_map.at(ListUnpack_586_Squeeze_0).get_node_shared_ptr(),
                         pattern_map.at(ListUnpack_586_Squeeze).get_node_shared_ptr(),
                         pattern_map.at(cat_Concat_593).get_node_shared_ptr(),
-                        pattern_map.at(slice_Slice_470).get_node_shared_ptr(),
                         pattern_map.at(mul_Multiply_594).get_node_shared_ptr(),
                         pattern_map.at(add_Add_597).get_node_shared_ptr()},
                         new_node);
