@@ -211,7 +211,7 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
 std::string Config::toString() const {
     std::stringstream resultStream;
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
-        const auto key = it->first;
+        const auto& key = it->first;
 
         resultStream << key << "=\"" << it->second->toString() << "\"";
         if (std::next(it) != _impl.end()) {
