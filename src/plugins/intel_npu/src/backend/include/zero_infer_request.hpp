@@ -41,6 +41,25 @@ private:
 
     void check_network_precision(const ov::element::Type_t precision) override;
 
+    /**
+     * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by
+     * the model will also be deduced and returned.
+     * @details Batching can be handled by the plugin only if:
+     *  - The batch axis is the first axis.
+     *  - The batch size the compiler received takes the default value of 1.
+     *  - The batch size found in the IR model matches for all inputs/outputs and takes a value different than the
+     * default one.
+     *
+     * If any of the previous conditions is not fulfilled, the functon will return the default batch size, thus no
+     * custom algorithm will be applied inside the plugin in order to address batching.
+     *
+     * @param metadata Metadata containing the shape values as seen by both the compiler and IR model. These will
+     * ultimately be used for determining the batch size.
+     * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
+     * the plugin.
+     */
+    size_t getBatchSize(const NetworkMetadata& metadata);
+
     const std::shared_ptr<const IExecutor> _executorPtr;
     const ZeroExecutor* _executor;
     const Config _config;

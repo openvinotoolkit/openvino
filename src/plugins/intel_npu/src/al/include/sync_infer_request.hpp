@@ -143,7 +143,10 @@ protected:
      * tensor to this structure would be required in order to correctly answer the state queries.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      */
-    void allocate_tensor(const IODescriptor& descriptor, const bool isInput, const ov::Allocator& allocator = {});
+    void allocate_tensor(const IODescriptor& descriptor,
+                         const bool isInput,
+                         const ov::Allocator& allocator = {},
+                         const std::optional<std::size_t> batchSize = std::nullopt);
 
     std::vector<std::shared_ptr<ov::ITensor>> _inputTensors;
     std::vector<std::shared_ptr<ov::ITensor>> _outputTensors;

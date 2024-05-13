@@ -63,40 +63,23 @@ void checkLevelZeroAttributesMatch(const IODescriptor& ioDescriptor,
     }
 }
 
-/**
- * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by the
- * model will also be deduced and returned.
- * @details Batching can be handled by the plugin only if:
- *  - The batch axis is the first axis.
- *  - The batch size the compiler received takes the default value of 1.
- *  - The batch size found in the IR model matches for all inputs/outputs and takes a value different than the
- * default one.
- *
- * If any of the previous conditions is not fulfilled, the functon will return the default batch size, thus no custom
- * algorithm will be applied inside the plugin in order to address batching.
- *
- * @param metadata Metadata containing the shape values as seen by both the compiler and IR model. These will ultimately
- * be used for determining the batch size.
- * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside the
- * plugin.
- */
-size_t getBatchSize(const NetworkMetadata& metadata) {
-    Logger logger("getBatchSize", Logger::global().level());
+}  // namespace
 
+size_t ZeroInferRequest::getBatchSize(const NetworkMetadata& metadata) {
     const ov::PartialShape& firstOutputShape = metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
-        logger.info("Networks using dynamic shapes are not supported when batching is handled by the plugin");
+        _logger.info("Networks using dynamic shapes are not supported when batching is handled by the plugin");
         return DEFAULT_BATCH_SIZE;
     }
     if (firstOutputShape.rank().get_length() == 0) {
-        logger.info(
+        _logger.info(
             "Networks using rank 0 shapes for inputs/outputs are not supported when batching is handled by the plugin");
         return DEFAULT_BATCH_SIZE;
     }
 
     const size_t candidateBatchSize = firstOutputShape[0].get_length();
     if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
-        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return DEFAULT_BATCH_SIZE;
     }
 
@@ -110,7 +93,7 @@ size_t getBatchSize(const NetworkMetadata& metadata) {
                 return false;
             }
 
-            if (!descriptor.isStateInput && !descriptor.isShapeTensor) {
+            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
                 if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
                     *shapeFromIRModel.begin() != candidateBatchSize) {
                     return false;
@@ -123,14 +106,12 @@ size_t getBatchSize(const NetworkMetadata& metadata) {
 
     if (!checkDescriptorsUseCandidateBatchSize(metadata.inputs) ||
         !checkDescriptorsUseCandidateBatchSize(metadata.outputs)) {
-        logger.info("Batching on the plugin is not used, batching is handled by the compiler");
+        _logger.info("Batching on the plugin is not used, batching is handled by the compiler");
         return DEFAULT_BATCH_SIZE;
     }
 
     return candidateBatchSize;
 }
-
-}  // namespace
 
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
@@ -166,6 +147,13 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(backendPtr);
 
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batchSize = getBatchSize(_metadata);
+    }
+
+    const std::optional<std::size_t> batchSizeArgument =
+        _batchSize != DEFAULT_BATCH_SIZE ? std::optional(_batchSize) : std::nullopt;
+
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t inputIndex = 0;
@@ -180,7 +168,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         };
 
         // The I/O buffers already allocated using the Level Zero API are being reused here
-        allocate_tensor(inputDescriptor, IS_INPUT, inputAllocator);
+        allocate_tensor(inputDescriptor, IS_INPUT, inputAllocator, batchSizeArgument);
 
         ++inputIndex;
     }
@@ -188,13 +176,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     size_t outputIndex = 0;
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
         checkLevelZeroAttributesMatch(outputDescriptor, executorOutputDescriptors.at(outputIndex));
-        allocate_tensor(outputDescriptor, IS_OUTPUT, allocator);
+        allocate_tensor(outputDescriptor, IS_OUTPUT, allocator, batchSizeArgument);
 
         ++outputIndex;
-    }
-
-    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
-        _batchSize = getBatchSize(_metadata);
     }
 
     _logger.debug("ZeroInferRequest::ZeroInferRequest - constructing pipeline");

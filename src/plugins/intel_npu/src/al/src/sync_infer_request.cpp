@@ -11,6 +11,12 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+constexpr size_t BATCH_AXIS = 0;
+
+}
+
 namespace intel_npu {
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
@@ -216,18 +222,24 @@ void SyncInferRequest::check_tensors() const {
 
 void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
                                        const bool isInput,
-                                       const ov::Allocator& allocator) {
-    std::shared_ptr<ov::ITensor> tensor;
-
+                                       const ov::Allocator& allocator,
+                                       const std::optional<std::size_t> batchSize) {
     check_network_precision(descriptor.precision);
+
+    std::shared_ptr<ov::ITensor> tensor;
+    ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
+
+    if (batchSize.has_value()) {
+        allocatedTensorShape[BATCH_AXIS] = *batchSize;
+    }
 
     if (descriptor.isStateOutput) {
         OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value());
         tensor = _inputTensors.at(*descriptor.relatedDescriptorIndex);
     } else if (allocator) {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape(), allocator);
+        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape, allocator);
     } else {
-        tensor = ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.get_max_shape());
+        tensor = ov::make_tensor(descriptor.precision, allocatedTensorShape);
     }
 
     if (isInput) {
