@@ -78,6 +78,8 @@ TEMPLATE:
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
+    - AUTO
+    - C_API
     - Python_API
     - NVIDIA
   build:
