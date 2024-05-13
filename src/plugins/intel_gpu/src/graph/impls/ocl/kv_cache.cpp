@@ -243,7 +243,9 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     }
 
     static bt_kernel_params_t get_bt_update_kernel_params(const kernel_impl_params& impl_param, bool is_state_set = false) {
+        const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::beam_table_update_params>(impl_param, true);
+        auto indirect_axis = primitive->gather_axis;
 
         auto inputs_count = 2;
         auto bt_present_layout = impl_param.output_layouts[1];
@@ -260,6 +262,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.outputs[0] = convert_data_tensor(bt_present_layout);
         params.inputs.resize(inputs_count);
         params.is_state_set = is_state_set;
+        params.indirect_axis = indirect_axis;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, beam_table_past]]
         const auto& out_offsets_map = impl_param.out_port_to_shape_info_offset; // [kv_present, beam_table_present]

@@ -30,6 +30,7 @@ GPU Plugin contains the following components:
 * [Debug utils](./docs/gpu_debug_utils.md)
 * [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
+* [Run benchmark from device_mem](./docs/use_device_mem.md)
 
 ## Documentation on dynamic-shape
 This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2023.1)](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#dynamic-shapes).
