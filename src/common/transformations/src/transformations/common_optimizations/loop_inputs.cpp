@@ -3,15 +3,16 @@
 //
 
 #include "transformations/common_optimizations/loop_inputs.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+#include <unordered_map>
+
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/core/rt_info.hpp"
-
-#include "itt.hpp"
-#include <unordered_map>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
 using namespace ov::element;
@@ -21,7 +22,7 @@ namespace {
 std::shared_ptr<ov::op::v0::Parameter> get_parent_param(const std::shared_ptr<ov::op::v0::Result>& result) {
     return ov::as_type_ptr<ov::op::v0::Parameter>(result->input_values()[0].get_node_shared_ptr());
 }
-}
+}  // namespace
 
 ov::pass::LoopInputs::LoopInputs() {
     MATCHER_SCOPE(LoopInputs);
@@ -44,7 +45,8 @@ ov::pass::LoopInputs::LoopInputs() {
         new_loop->set_function(body_model);
 
         for (const auto& input_description : loop->get_input_descriptions()) {
-            if (const auto merged_input_desc = dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
+            if (const auto merged_input_desc =
+                    dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_description)) {
                 if (get_parent_param(body_results[merged_input_desc->m_body_value_index])) {
                     new_loop->set_invariant_input(body_params[merged_input_desc->m_body_parameter_index],
                                                   loop_input_values[merged_input_desc->m_input_index]);
@@ -53,10 +55,14 @@ ov::pass::LoopInputs::LoopInputs() {
                                                loop_input_values[merged_input_desc->m_input_index],
                                                body_params[merged_input_desc->m_body_value_index]);
                 }
-            } else if (const auto invariant_input_desc = dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(input_description)) {
+            } else if (const auto invariant_input_desc =
+                           dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(
+                               input_description)) {
                 new_loop->set_invariant_input(body_params[invariant_input_desc->m_body_parameter_index],
                                               loop_input_values[invariant_input_desc->m_input_index]);
-            } else if (const auto sliced_input_desc = dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(input_description)) {
+            } else if (const auto sliced_input_desc =
+                           dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::SliceInputDescription>(
+                               input_description)) {
                 new_loop->set_sliced_input(body_params[sliced_input_desc->m_body_parameter_index],
                                            loop_input_values[sliced_input_desc->m_input_index],
                                            sliced_input_desc->m_start,
@@ -73,7 +79,7 @@ ov::pass::LoopInputs::LoopInputs() {
             }
         }
 
-        std::unordered_map<size_t, ov::Output<ov::Node>> loop_inputs; // body_param->instance_id -> loop_input
+        std::unordered_map<size_t, ov::Output<ov::Node>> loop_inputs;  // body_param->instance_id -> loop_input
         for (const auto& input_description : loop->get_input_descriptions()) {
             loop_inputs.emplace(body_params[input_description->m_body_parameter_index]->get_instance_id(),
                                 loop_input_values[input_description->m_input_index]);
@@ -82,7 +88,8 @@ ov::pass::LoopInputs::LoopInputs() {
         ov::OutputVector new_loop_outputs;
         for (const auto& output_description : loop->get_output_descriptions()) {
             int64_t iteration = -1;
-            if (const auto body_output_desc = dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
+            if (const auto body_output_desc =
+                    dynamic_pointer_cast<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(output_description)) {
                 iteration = body_output_desc->m_iteration;
             }
             const auto& body_result = body_results[output_description->m_body_value_index];
