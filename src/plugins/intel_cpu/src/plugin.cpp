@@ -284,11 +284,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    if (conf.streamExecutorConfig.get_sub_stream_mode() ==
-        IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
-        int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
-        transformations.SetSubStreamNum(num_sub_streams);
-    }
+    // if (conf.streamExecutorConfig.get_sub_stream_mode() ==
+    //     IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET) {
+    //     int num_sub_streams = conf.streamExecutorConfig.get_sub_streams();
+    //     transformations.SetSubStreamNum(num_sub_streams);
+    // }
 
     transformations.PostLpt();
     transformations.Snippets();

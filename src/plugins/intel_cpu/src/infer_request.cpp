@@ -330,6 +330,15 @@ void SyncInferRequest::change_default_ptr() {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
+    auto requests = m_asyncRequest->getSubInferRequest();
+    if (requests.size() > 0) {
+        std::vector<ov::SoPtr<ov::IVariableState>> states;
+        for (auto request : requests) {
+            auto cur = request->query_state();
+            states.insert(states.end(), cur.begin(), cur.end());
+        }
+        return states;
+    }
     return {m_memory_states.begin(), m_memory_states.end()};
 }
 
@@ -638,17 +647,17 @@ void SyncInferRequest::sub_streams_infer() {
     // std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
 
     if (requests.size() > 0) {
-        for (const auto& input : inputs) {
-            auto tensor = m_asyncRequest->get_tensor(input);
-            input_tensors.insert({input, tensor});
-        }
         for (const auto& output : outputs) {
-            auto tensor = requests[0]->get_tensor(output);
-            m_asyncRequest->set_tensor(output, tensor);
+            auto main_tensor = get_tensor(output);
+            if (main_tensor->get_size() == 0) {
+                auto tensor = requests[0]->get_tensor(output);
+                set_tensor(output, tensor);
+            }
         }
         for (size_t i = 0; i < requests_num; i++) {
-            for (auto& input : input_tensors) {
-                requests[i]->set_tensor(input.first, input.second);
+            for (auto& input : inputs) {
+                auto tensor = m_asyncRequest->get_tensor(input);
+                requests[i]->set_tensor(input, tensor);
             }
 
             requests[i]->set_callback([i, requests, message](const std::exception_ptr& ptr) {
