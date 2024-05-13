@@ -79,14 +79,20 @@ inline uint FUNC(get_bt_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, u
 
 #if INDIRECT_INPUT0
 inline uint FUNC(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
+#if INDIRECT_AXIS == 0
     int b_index = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+#elif INDIRECT_AXIS == 1
+    int b_index = BEAM_TABLE_FEATURE_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+#else
+#   error gemm_tiled_opt.cl : Unsupported indirect axis for beam table
+#endif
     return FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
 
 #if INDIRECT_INPUT1
 inline uint FUNC(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x, __global BEAM_TABLE_TYPE* beam_table) {
-    int b_index = BEAM_TABLE_BATCH_NUM > 1 ? beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)] : b;
+    int b_index = beam_table[FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x)];
     return FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_index, f, w, z, y, x);
 }
 #endif
@@ -218,7 +224,13 @@ KERNEL(gemm_tiled_opt)(
     const uint b_raw_global_id = tile_n_offset + sglid;
 
 #if INDIRECT_INPUT0 || INDIRECT_INPUT1
+#if INDIRECT_AXIS == 0
     const char do_indirect_load = BEAM_TABLE_BATCH_NUM > 1;
+#elif INDIRECT_AXIS == 1
+    const char do_indirect_load = BEAM_TABLE_FEATURE_NUM > 1;
+#else
+#   error gemm_tiled_opt.cl : Unsupported indirect axis for beam table
+#endif
 #endif
 
 #if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
@@ -344,7 +356,6 @@ KERNEL(gemm_tiled_opt)(
             unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
                 uint b_load_offset = (k * TILE_K) + b_load_id;
                 uint b_idx = FUNC_CALL(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x, beam_table);
-                uint bt_idx = FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x);
                 b_tile[b_load_id] = b_raw_global_id >= N ? 0 : input1[b_idx];
             }
         #else
@@ -352,7 +363,6 @@ KERNEL(gemm_tiled_opt)(
                 unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
                     uint b_load_offset = k * TILE_K + b_load_id;
                     uint b_idx = FUNC_CALL(get_input1_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x + sglid + SIMD_WIDTH * b_elem, beam_table);
-                    uint bt_idx = FUNC_CALL(get_bt_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, b_load_offset, x + sglid + SIMD_WIDTH * b_elem);
                     b_tile[b_elem][b_load_id] = b_raw_global_id + SIMD_WIDTH * b_elem >= N ? 0 : input1[b_idx];
                 }
             }

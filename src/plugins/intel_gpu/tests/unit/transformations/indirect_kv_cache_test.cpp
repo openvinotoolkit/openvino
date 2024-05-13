@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, IndirectKVCache1) {
         auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, parameter, beam_idx, variable, 2, 0, ov::element::f32);
         auto gemm_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, -1});
-        auto gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_in, kv_cache->output(0), kv_cache->output(1), false, true,
+        auto gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_in, kv_cache->output(0), kv_cache->output(1), false, true, 0,
                                                                       in0_order, in1_order, out_order);
         auto result = std::make_shared<ov::op::v0::Result>(gemm);
 
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, IndirectKVCache2) {
         auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
         auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, parameter, beam_idx, variable, 2, 0, ov::element::f32);
         auto gemm_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, -1});
-        auto gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(kv_cache->output(0), gemm_in, kv_cache->output(1), true, false,
+        auto gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(kv_cache->output(0), gemm_in, kv_cache->output(1), true, false, 0,
                                                                       in0_order, in1_order, out_order);
         auto result = std::make_shared<ov::op::v0::Result>(gemm);
 
@@ -118,7 +118,17 @@ TEST_F(TransformationTestsF, IndirectKVCache3) {
         manager.register_pass<IndirectKVCache>();
     }
     {
-        model_ref = model->clone();
+        auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f32, "v0"});
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, 80});
+        auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+        auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, parameter, beam_idx, variable, 2, 1, ov::element::f32);
+        auto gemm_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, -1});
+        auto gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_in, kv_cache->output(0), kv_cache->output(1), false, true, 1,
+                                                                      in0_order, in1_order, out_order);
+        auto result = std::make_shared<ov::op::v0::Result>(gemm);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter, beam_idx, gemm_in});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
