@@ -1,24 +1,26 @@
 <?xml version="1.0"?>
-<report timestamp="06-05-2024 14:38:15">
+<report timestamp="09-05-2024 14:49:48">
 	<results>
 		<CPU>
-			<Add-1 implemented="true" passed="4" failed="1" skipped="0" crashed="0" hanged="0" passrate="80" relative_passed="0.78181818181818186" relative_all="1.4666666666666666" relative_passrate="53.305785123966949" />
-			<Broadcast-3 implemented="true" passed="4" failed="1" skipped="0" crashed="0" hanged="0" passrate="80" relative_passed="0.81212121212121213" relative_all="1.4969696969696968" relative_passrate="54.251012145748994" />
-			<Concat-1 implemented="true" passed="4" failed="2" skipped="0" crashed="0" hanged="0" passrate="66.6666641" relative_passed="0.81818181818181823" relative_all="2.187878787878788" relative_passrate="37.396121883656512" />
-			<Convolution-1 implemented="true" passed="3" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.75757575757575768" relative_all="0.75757575757575768" relative_passrate="100" />
-			<Divide-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.68484848484848482" relative_passrate="0" />
-			<GroupConvolution-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.68484848484848482" relative_passrate="0" />
-			<HSwish-4 implemented="true" passed="1" failed="1" skipped="0" crashed="0" hanged="0" passrate="50" relative_passed="0.054545454545454543" relative_all="0.73939393939393938" relative_passrate="7.3770491803278686" />
-			<HardSigmoid-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.64242424242424245" relative_all="0.64242424242424245" relative_passrate="100" />
-			<Interpolate-11 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.060606060606060608" relative_all="0.060606060606060608" relative_passrate="100" />
-			<Multiply-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.64242424242424245" relative_all="0.64242424242424245" relative_passrate="100" />
-			<Relu-1 implemented="true" passed="2" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.08484848484848484" relative_all="0.08484848484848484" relative_passrate="100" />
-			<Reshape-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.68484848484848482" relative_passrate="0" />
-			<ShapeOf-3 implemented="true" passed="13" failed="4" skipped="0" crashed="0" hanged="0" passrate="76.4705887" relative_passed="2.4424242424242428" relative_all="5.1818181818181825" relative_passrate="47.134502923976605" />
-			<Slice-8 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.054545454545454543" relative_all="0.054545454545454543" relative_passrate="100" />
-			<Squeeze-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.030303030303030304" relative_all="0.030303030303030304" relative_passrate="100" />
-			<Subtract-1 implemented="true" passed="3" failed="1" skipped="0" crashed="0" hanged="0" passrate="75" relative_passed="0.75757575757575768" relative_all="1.4424242424242422" relative_passrate="52.521008403361357" />
-			<VariadicSplit-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.68484848484848482" relative_passrate="0" />
+			<Add-1 implemented="true" passed="1" failed="20" skipped="0" crashed="0" hanged="0" passrate="4.76190472" relative_passed="0.26255380200860834" relative_all="8.7101865136298429" relative_passrate="3.0143304233239991" />
+			<Broadcast-3 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.043041606886657105" relative_passrate="0" />
+			<Convert-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.26255380200860834" relative_all="0.26255380200860834" relative_passrate="100" />
+			<Equal-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.043041606886657105" relative_passrate="0" />
+			<Gather-8 implemented="false" passed="0" failed="4" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.17216642754662842" relative_passrate="0" />
+			<Gelu-7 implemented="false" passed="0" failed="2" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="1.0344332855093257" relative_passrate="0" />
+			<MVN-6 implemented="false" passed="0" failed="5" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="2.1119081779053084" relative_passrate="0" />
+			<MatMul-1 implemented="true" passed="1" failed="9" skipped="0" crashed="0" hanged="0" passrate="10" relative_passed="0.0057388809182209472" relative_all="4.1865136298421808" relative_passrate="0.1370801919122687" />
+			<Multiply-1 implemented="true" passed="2" failed="5" skipped="0" crashed="0" hanged="0" passrate="28.5714283" relative_passed="0.26829268292682928" relative_all="2.3802008608321374" relative_passrate="11.271850512356844" />
+			<Range-4 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.043041606886657105" relative_passrate="0" />
+			<ReduceProd-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.26255380200860834" relative_all="0.26255380200860834" relative_passrate="100" />
+			<Reshape-1 implemented="false" passed="0" failed="4" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="2.0774748923959825" relative_passrate="0" />
+			<Select-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.043041606886657105" relative_passrate="0" />
+			<ShapeOf-3 implemented="true" passed="1" failed="1" skipped="0" crashed="0" hanged="0" passrate="50" relative_passed="0.26255380200860834" relative_all="0.30559540889526543" relative_passrate="85.91549295774648" />
+			<Squeeze-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.043041606886657105" relative_passrate="0" />
+			<StridedSlice-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.26255380200860834" relative_all="0.26255380200860834" relative_passrate="100" />
+			<Subtract-1 implemented="true" passed="1" failed="0" skipped="0" crashed="0" hanged="0" passrate="100" relative_passed="0.26255380200860834" relative_all="0.26255380200860834" relative_passrate="100" />
+			<Unsqueeze-1 implemented="true" passed="1" failed="1" skipped="0" crashed="0" hanged="0" passrate="50" relative_passed="0.0057388809182209472" relative_all="0.04878048780487805" relative_passrate="11.764705882352942" />
+			<VariadicSplit-1 implemented="false" passed="0" failed="1" skipped="0" crashed="0" hanged="0" passrate="0" relative_passed="0" relative_all="0.03443328550932568" relative_passrate="0" />
 		</CPU>
 	</results>
 	<ops_list>

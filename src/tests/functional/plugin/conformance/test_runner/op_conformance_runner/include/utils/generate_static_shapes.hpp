@@ -1,3 +1,5 @@
+// TODO: Remove if open source contributors will merge the generator
+
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //

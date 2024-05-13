@@ -52,42 +52,6 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
     return InputShape{param->get_partial_shape(), staticShapes};
 }
 
-// namespace Reshape {
-//     std::unordered_map<size_t, size_t> gen_prime_number(size_t n) {
-//         // {prime_number, cnt}
-//         std::unordered_map<size_t, size_t> prime_numbers = {{ 1, 1 }};
-//         for (size_t i = 2; i < n / 2; ++i) {
-//             while (n % i == 0) {
-//                 if (prime_numbers.count(i)) {
-//                     prime_numbers[i]++;
-//                 } else {
-//                     prime_numbers.insert({i, 1});
-//                 }
-//                 n /= i;
-//             }
-//         }
-//         return prime_numbers;
-//     }
-// } // namespace Reshape
-
-// InputShape generate(const std::shared_ptr<ov::op::v1::Reshape>& node,
-//                     size_t in_port_id) {
-//     if (in_port_id) {
-//         throw std::runtime_error("SMTH");
-//     }
-//     std::vector<ov::Shape> static_shapes;
-//     auto new_shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
-//     if (new_shape_const) {
-//         ov::Shape new_shape = new_shape_const->get_vector<size_t>();
-//         auto shape_size = ov::shape_size(new_shape);
-//         auto prime_numbers = Reshape::gen_prime_number(shape_size);
-//         auto b = 0;
-//     } else {
-//         auto new_node = std::dynamic_pointer_cast<ov::Node>(node);
-//         return generate(new_node, in_port_id);
-//     }
-// }
-
 template<typename T>
 InputShape generateShape(const std::shared_ptr<ov::Node>& node,
                          size_t in_port_id) {

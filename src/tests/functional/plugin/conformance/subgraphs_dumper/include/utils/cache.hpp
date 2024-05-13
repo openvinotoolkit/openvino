@@ -16,9 +16,9 @@ namespace util {
 const std::shared_ptr<ov::Core> core = std::make_shared<ov::Core>();
 
 static std::vector<std::regex> FROTEND_REGEXP = {
-// #ifdef ENABLE_OV_ONNX_FRONTEND
+#ifdef ENABLE_OV_ONNX_FRONTEND
     std::regex(R"(.*\.onnx)"),
-// #endif
+#endif
 #ifdef ENABLE_OV_PADDLE_FRONTEND
     std::regex(R"(.*\.pdmodel)"),
     std::regex(R"(.*__model__)"),
@@ -26,9 +26,9 @@ static std::vector<std::regex> FROTEND_REGEXP = {
 #ifdef ENABLE_OV_TF_FRONTEND
     std::regex(R"(.*\.pb)"),
 #endif
-// #ifdef ENABLE_OV_IR_FRONTEND
+#ifdef ENABLE_OV_IR_FRONTEND
     std::regex(R"(.*\.xml)"),
-// #endif
+#endif
 #ifdef ENABLE_OV_TF_LITE_FRONTEND
     std::regex(R"(.*\.tflite)"),
 #endif

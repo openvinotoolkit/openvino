@@ -84,7 +84,12 @@ if __name__ == "__main__":
             result_intersection.update({ir_name_orig: node_names_by_ir_orig[ir_name_orig].intersection(node_names_by_ir_ref[ir_name_ref])})
             result_orig_dif.update({ir_name_orig: node_names_by_ir_orig[ir_name_orig].difference(node_names_by_ir_ref[ir_name_ref])})
             result_ref_dif.update({ir_name_ref: node_names_by_ir_ref[ir_name_ref].difference(node_names_by_ir_orig[ir_name_orig])})
-    a = 0
+    for ir_name_orig in result_dict.keys():
+        ir_name_ref = result_dict[ir_name_orig]
+        print(f"Intersected IRs: {ir_name_orig} vs {ir_name_ref}")
+        print(f"Intersected functional operation names: {result_intersection[ir_name_orig]}")
+        print(f"Orig new operation names: {result_orig_dif[ir_name_orig]}")
+        print(f"Ref new operation names: {result_ref_dif[ir_name_ref]}")
 
 
 

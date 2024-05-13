@@ -185,20 +185,8 @@ FusedNamesExtractor::FusedNamesExtractor(const std::string& device) {
 
 std::vector<FusedNamesExtractor::ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
-    // auto transformed_ops = extract_transformed_nodes(model);
     std::vector<FusedNamesExtractor::ExtractedPattern> matched_patterns;
     const auto not_transformed_nodes = extract_not_trasformed_node_names(model);
-
-    // for (auto& subgraph : label_subgraphs(transformed_ops)) {
-    //     try {
-    //         auto extracted_pattern = ov::util::generate_model(subgraph.second, is_save_const);
-    //         matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
-    //     } catch(std::exception& e) {
-    //         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
-    //             std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
-    //         }
-    //     }
-    // }
     ov::NodeVector nodes;
     for (const auto& op : model->get_ordered_ops()) {
         auto op_name = op->get_friendly_name();
@@ -248,5 +236,21 @@ FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model) {
             // std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
         }
     }
+
     return matched_patterns;
+
+    // possible solution to extract transformed graphs
+    // problems: takes a lot of time + process ops with bodies
+    // auto transformed_ops = extract_transformed_nodes(model);
+    // for (auto& subgraph : label_subgraphs(transformed_ops)) {
+    //     try {
+    //         auto extracted_pattern = ov::util::generate_model(subgraph.second, is_save_const);
+    //         matched_patterns.push_back({ extracted_pattern.first, extracted_pattern.second, extractor_name });
+    //     } catch(std::exception& e) {
+    //         if (std::string(e.what()).find("Incorrect node number to create model") == std::string::npos) {
+    //             std::cout << "[ WARNING ] Impossible to generate network and add to GraphCache: " <<e.what() << std::endl;
+    //         }
+    //     }
+    // }
+    // return matched_patterns;
 }
