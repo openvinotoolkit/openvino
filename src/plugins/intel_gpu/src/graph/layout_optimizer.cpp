@@ -2038,7 +2038,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                           << " For index : " << idx << std::endl;
         }
         // Optimized out permute from permute-gemm pattern. i.e. permute -> gemm
-        if (node.is_type<gemm>()) {
+        if (node.is_type<gemm>() && node.get_preferred_impl_type() != impl_types::any) {
             // Only the formats below support permute opt out in gemm and permute pattern. For other formats, need to check the gemm performance.
             std::vector<format> gemm_in_foramt_white_list = {
                 format::bfyx,
