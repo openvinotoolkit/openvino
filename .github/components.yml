@@ -88,6 +88,7 @@ TEMPLATE:
 AUTO:
   revalidate:
     - AUTO
+    - C_API
     - Python_API
   build:
     - TEMPLATE
