@@ -174,6 +174,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         brgattr.max_bs = 1;
         brgattr.wary_tail_read = false;
         brgattr.hint_innermost_loop = brgemm_innermost_undef;
+        // if b_accumulate is true, it means we want c+=a*b. jit_brgemm_amx_uker_base_t::load_accumulators can support this using tileload(c) without postops
         brgattr.use_uker = true;
         brgattr.use_interleave_stores = true;
         brgattr.hint_prefetching = brgemm_kernel_prefetching_t::brgemm_prf1;

@@ -680,18 +680,38 @@ static void pack_32x32_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t strid
     }
 }
 
-static void pack_32Nx32K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32x16_kernel(ov::bfloat16* dst, ov::bfloat16* src, size_t stride) {
+    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    auto midx = _mm512_loadu_si512(idx);
+    for (size_t i = 0; i < 16; i++) {
+        auto x = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
+        auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + stride));      // [b1  b2  b3 b4]   total 256-bits
+        auto a = _mm512_castsi256_si512(x);
+        auto b = _mm512_castsi256_si512(y);
+        a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
+        b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
+        auto B0 = _mm512_unpacklo_epi16(a, b);
+        _mm512_storeu_si512(dst, B0);
+        src += 2 * stride;
+        dst += 2 * stride;
+    }
+}
+
+static void pack_32Nx16K(ov::bfloat16* dst, ov::bfloat16* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
     for (size_t n = 0; n < N; n += 32) {
-        for (size_t k = 0; k < K; k += 32) {
+        size_t k = 0;
+        for (; k + 32 <= K; k += 32) {
             pack_32x32_kernel(dst + k * 2, src + k, stride);
         }
+        if (k < K)
+            pack_32x16_kernel(dst + k * 2, src + k, stride);
 
         dst += 32 * stride;
         src += 32 * stride;
     }
 }
 
-static void pack_32Nx32K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, size_t N, size_t K, size_t stride) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -703,14 +723,14 @@ static void pack_32Nx32K(ov::bfloat16* dst, uint8_t* src, ov::bfloat16* tmp, siz
         s += stride + 2 * sizeof(float);
         t += stride;
     }
-    pack_32Nx32K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, stride);
+    pack_32Nx16K(dst, tmp, reinterpret_cast<ov::bfloat16*>(0), N, K, stride);
 }
 #endif
 
 template<typename T>
-static void pack_32Nx32K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t stride) {
+static void pack_32Nx16K(float* dst, T* src, float* tmp, size_t N, size_t K, size_t stride) {
     // never called
-    OPENVINO_THROW("pack_32Nx32K: should not be called.");
+    OPENVINO_THROW("pack_32Nx16K: should not be called.");
 }
 
 template <typename DATA_TYPE, typename KVCACHE_TYPE>
@@ -1147,19 +1167,23 @@ struct MHAMultiple {
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = present_key.ptr<KVCACHE_TYPE>(block_number, hk);
             auto* v_ptr = present_value.ptr<KVCACHE_TYPE>(block_number, hk);
+            // in AttentionExecutor::executor block_size must be multiple of 32 and head_size must be multiple of 16,
+            // transpose 16Nx16K/pack 32Nx16K should be enough
             transpose_16Nx16K(_helper._qk_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
                 k_ptr,
                 _helper._output.template ptr<DATA_TYPE>(ithr),
                 _helper._block_size,
                 _helper._S, _helper._block_size, _helper._S);
             if (q_is_bf16) {
-                pack_32Nx32K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
+                pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk),
                     v_ptr,
                     _helper._output.template ptr<DATA_TYPE>(ithr),
                     _helper._block_size,
                     _helper._S,
                     _helper._S);
             } else {
+                // if not bf16 and type of kvcache is not same with query, we need to decompress the kvcache.
+                // Currently dequant f16/u8 to f32
                 if (!q_cache_is_same) {
                     dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(b, kv_block, hk), v_ptr, _helper._block_size, _helper._S);
                 }
@@ -1377,7 +1401,7 @@ struct MHAMixed {
                 _helper._block_size,
                 _helper._S, _helper._block_size, _helper._S);
             if (q_is_bf16) {
-                pack_32Nx32K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                pack_32Nx16K(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                     v_ptr,
                     _helper._output.template ptr<DATA_TYPE>(ithr),
                     _helper._block_size,
