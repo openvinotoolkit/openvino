@@ -794,10 +794,10 @@ void jit_softsign_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
     TReg dst = TReg(out_vec_idxs[0]);
     TReg aux = TReg(aux_vec_idxs[0]);
     h->movi(aux.s, 1);
-    h->fdiv(dst.s, src.s, aux.s);
+    h->fdiv(dst.s, src.s, 1); 
     h->fadd(dst.s, dst.s, src.s);
-    h->fdiv(dst.s, dst.s, aux.s);
-    h->fsub(dst.s, aux.s, dst.s);
+    h->fdiv(dst.s, dst.s, 1); 
+    h->fsub(dst.s, 1, dst.s);  
     h->fmul(dst.s, dst.s, src.s);
 }
 
