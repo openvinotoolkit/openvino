@@ -791,6 +791,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
         OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
         OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
