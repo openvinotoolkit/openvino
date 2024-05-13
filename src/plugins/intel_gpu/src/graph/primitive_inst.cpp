@@ -1120,9 +1120,10 @@ void primitive_inst::do_runtime_skip_permute() {
     const auto& permute_order = desc->permute_order;
 
     // Check runtime shape
-    // Optimize when the largest value among the acutal dim values in case where the permute order
+    // Optimize when the largest value among the actual dim values in case where the permute order
     // is different from the shape index is equal to the multiplied value
-    int32_t size = 1;
+    // Set size to zero to pass the case that permute order is same with input order like [0, 1, 2, 3]
+    int32_t size = 0;
     int32_t max_value = 0;
     for (int32_t i = 0; i < static_cast<int32_t>(permute_order.size()); ++i) {
         int32_t order = static_cast<int32_t>(permute_order[i]);
@@ -1130,9 +1131,10 @@ void primitive_inst::do_runtime_skip_permute() {
         if (i != order) {
             if (dim > max_value)
                 max_value = dim;
-            size *= dim;
+            size = (size == 0) ? dim : (size * dim);
         }
     }
+
     // If the largest value and total size are different, can_be_optimized needs to be reset
     if (size != max_value) {
         GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because size(" << size << ") and max_value(" << max_value << ") are different" << std::endl;
