@@ -157,7 +157,7 @@ The following properties are supported:
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
 | `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
-| `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_LEVEL_NONE`/</br>`LOG_LEVEL_ERROR`/</br>`LOG_LEVEL_WARNING`/</br>`LOG_LEVEL_DEBUG`/</br>`LOG_LEVEL_TRACE` |  `_NONE` |
+| `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
 | `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | `N/A` | empty |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
 | `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3700`/</br> `3720` | empty |
