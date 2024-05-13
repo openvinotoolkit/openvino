@@ -112,28 +112,6 @@ namespace {
                                     ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
-    const std::vector<ov::AnyMap> autoConfigs = {
-        {ov::device::priorities(ov::test::utils::DEVICE_CPU)}
-    };
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase, CompileModelCacheTestBase,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
-                                    ::testing::ValuesIn(precisionsCPU),
-                                    ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                    ::testing::ValuesIn(autoConfigs)),
-                            CompileModelCacheTestBase::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_Hetero_CachingSupportCase_Float, CompileModelCacheTestBase,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
-                                    ::testing::ValuesIn(floatPrecisionsCPU),
-                                    ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(ov::test::utils::DEVICE_HETERO),
-                                    ::testing::ValuesIn(autoConfigs)),
-                            CompileModelCacheTestBase::getTestCaseName);
-
     const std::vector<ov::AnyMap> CpuConfigs = {
         {ov::num_streams(2)},
     };

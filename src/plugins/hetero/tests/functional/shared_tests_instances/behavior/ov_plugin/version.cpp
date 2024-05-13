@@ -8,9 +8,9 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          VersionTests,
-                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                         ::testing::Values(ov::test::utils::DEVICE_HETERO),
                          VersionTests::getTestCaseName);
 
 }  // namespace behavior

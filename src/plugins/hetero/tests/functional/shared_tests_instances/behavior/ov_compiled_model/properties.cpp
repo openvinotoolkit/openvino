@@ -20,6 +20,42 @@ const std::vector<ov::AnyMap> hetero_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::device::id("0")},
 };
 
+const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_GPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::device::priorities(ov::test::utils::DEVICE_CPU),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+INSTANTIATE_TEST_SUITE_P(nightly_HETERO_OVClassCompileModelWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("HETERO"),
+                                            ::testing::ValuesIn(heteroConfigsWithSecondaryProperties)));
+
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
@@ -34,6 +70,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest,
+                         ::testing::Values("HETERO:TEMPLATE"));
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
+                         OVClassCompiledModelGetIncorrectPropertyTest,
                          ::testing::Values("HETERO:TEMPLATE"));
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassHeteroCompiledModelGetMetricTest,

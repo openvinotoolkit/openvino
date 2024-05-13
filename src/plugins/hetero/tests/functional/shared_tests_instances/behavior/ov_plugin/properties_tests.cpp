@@ -30,4 +30,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(hetero_properties)),
                          OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
+                         OVGetMetricPropsTest,
+                         ::testing::Values("HETERO"));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_HeteroOVCheckGetSupportedROMetricsPropsTests,
+    OVCheckGetSupportedROMetricsPropsTests,
+    ::testing::Combine(::testing::Values("HETERO"),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
+                           {ov::device::full_name.name()}))),
+    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
+                         OVClassSetDevicePriorityConfigPropsTest,
+                         ::testing::Combine(::testing::Values("HETERO"),
+                                            ::testing::ValuesIn(multiConfigs)));
 }  // namespace
