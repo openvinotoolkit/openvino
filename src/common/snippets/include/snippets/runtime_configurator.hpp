@@ -34,6 +34,10 @@ public:
     const char* get_type_name() const {
         return get_type_info().name;
     }
+
+    size_t tensor_rank = 0;
+    std::vector<ov::snippets::VectorDims> io_data_offsets = {};
+    ov::snippets::VectorDims parallel_domain = {};
 };
 
 /**
@@ -54,24 +58,50 @@ public:
 
 protected:
     /**
-     * @brief Return `True` if config should be updated. Otherwise returns `False`
-     * @param linear_ir LinearIR
-     * @return boolean
-     */
-    virtual bool is_update_needed(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
-    /**
      * @brief Update RuntimeConfig based on LinearIR
      * @param linear_ir LinearIR
      */
-    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir) = 0;
+    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+
+    /**
+     * @brief Initializes input and data information of LinearIR:
+     *        descriptors (that contains shapes and layouts) and data_sizes
+     * @param linear_ir LinearIR
+     */
+    void init_data_info(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    /**
+     * @brief Initializes tensor rank of config
+     * @param linear_ir LinearIR
+     */
+    virtual void init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
     /**
      * @brief Update LinearIR parameters that depends on shape: LoopInfo in LoopManager
      * @param linear_ir LinearIR
      */
-    void update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    virtual void update_linear_ir_state(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    /**
+     * @brief Calculate data offsets of LinearIR and update these values in RuntimeConfig
+     */
+    virtual void update_data_offsets() const;
+    /**
+     * @brief Calculate parallel domain and update these values in CPURuntimeConfig
+     * @param linear_ir LinearIR
+     */
+    virtual void update_parallel_domain(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    /**
+     * @brief Update latest input shapes
+     */
+    void update_latest_shapes();
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
     lowered::pass::PassPipeline m_state_updater;
+
+    size_t m_io_num = 0;
+    size_t m_in_num = 0;
+    std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
+    std::vector<size_t> m_io_data_sizes = {};
+
+    std::vector<ov::snippets::VectorDims> m_latest_input_shapes = {};
 };
 
 } // namespace snippets

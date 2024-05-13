@@ -40,9 +40,6 @@ public:
 class DummyRuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
 public:
     DummyRuntimeConfigurator() : RuntimeConfigurator(std::make_shared<DummyRuntimeConfig>()) {}
-
-    bool is_update_needed(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override { return false; };
-    void update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override { return; }
 };
 
 class DummyTargetMachine : public ov::snippets::TargetMachine {
