@@ -93,7 +93,7 @@ bool SDPAKernelOpt::Validate(const Params& p) const {
 }
 
 JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t kernel_idx) const {
-    auto jit = MakeBaseParamsJitConstants(params);
+    auto jit = SDPAKernelBase::GetJitConstants(params);
 
     const auto softmax_acc_dt = params.inputs[0].GetDType();
     jit.Merge(MakeTypeJitConstants(softmax_acc_dt, "SOFTMAX_ACCUMULATOR"));
@@ -101,14 +101,10 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     const auto& config = params.conf;
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", config.head_size));
-    jit.AddConstant(MakeJitConstant("HEADS_NUM", config.heads_num));
-    jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", config.kv_heads_num));
+    // jit.AddConstant(MakeJitConstant("HEADS_NUM", config.heads_num));
+    // jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", config.kv_heads_num));
 
     jit.AddConstant(MakeJitConstant("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size()));
-
-    jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
-    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
 
     auto target_seq_len_block_size = kernel_idx == KernelsTypes::SINGLE_TOKEN ? 1 : get_target_seq_len_block_size();
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN_BLOCK_SIZE", target_seq_len_block_size));
@@ -123,23 +119,27 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
     CommonDispatchData dispatch_data;
 
     const auto& query_input = params.inputs[0];
-    const auto& key_input = params.inputs[1];
-    const auto& output = params.outputs[0];
 
     if (!query_input.is_dynamic()) {
-        const size_t source_seq_len = key_input.Y().v;
-        const size_t target_seq_len = output.Y().v;
+        TransposedDimensionAccessHelperBase dims_q(params.inputs[0], params.input0_order);
+        TransposedDimensionAccessHelperBase dims_k(params.inputs[1], params.input1_order);
+        TransposedDimensionAccessHelperBase output(params.outputs[0], params.output_order);
+
+        const size_t batch_size = output.b_dim().v;
+        const size_t heads_num = output.f_dim().v;
+        const size_t source_seq_len = dims_k.y_dim().v;
+        const size_t target_seq_len = dims_q.y_dim().v;
         const size_t head_size = static_cast<size_t>(params.conf.head_size);
         const size_t num_of_partitions = CeilDiv(source_seq_len, get_seq_len_partition_size());
         const size_t target_seq_len_block_size = kernel_idx == 1 ? get_target_seq_len_block_size() : 1;
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN || kernel_idx == KernelsTypes::MULTI_TOKENS) {
-            dispatch_data.gws = { output.Batch().v * output.Feature().v,
+            dispatch_data.gws = { batch_size * heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
                                   head_size * num_of_partitions };
             dispatch_data.lws = { 1, 1, head_size };
         } else if (kernel_idx == 2) {
-            dispatch_data.gws = { output.Batch().v * output.Feature().v,
+            dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,
                                   16 };
             dispatch_data.lws = { 1, 1, 16 };
@@ -238,12 +238,14 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         OPENVINO_ASSERT(kernel_data.kernels.size() == expected_kernels_num,
                         "[GPU] Invalid kernels size for update dispatch data func of SDPA kernel");
 
+        TransposedDimensionAccessHelperBase dims_q(prim_params.inputs[0], prim_params.input0_order);
+        TransposedDimensionAccessHelperBase dims_k(prim_params.inputs[1], prim_params.input1_order);
         auto& output = prim_params.outputs[0];
-        auto& key_input = prim_params.inputs[1];
 
-        auto seq_num = output.Y().v;
-        auto head_size = output.X().v;
-        auto source_seq_len = key_input.Y().v;
+        auto target_seq_len = dims_q.y_dim().v;
+        auto head_size = dims_q.x_dim().v;
+        auto source_seq_len = dims_k.y_dim().v;
+
         auto num_of_partitions = CeilDiv(source_seq_len, get_seq_len_partition_size());
 
         auto buf_dt_size = 4;
@@ -257,12 +259,12 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         auto dispatch_data1 = SetDefault(prim_params, 0);
         kernel_data.kernels[0].params.workGroups.global = dispatch_data1.gws;
         kernel_data.kernels[0].params.workGroups.local = dispatch_data1.lws;
-        kernel_data.kernels[0].skip_execution = seq_num > 1;
+        kernel_data.kernels[0].skip_execution = target_seq_len > 1;
 
         auto dispatch_data2 = SetDefault(prim_params, 1);
         kernel_data.kernels[1].params.workGroups.global = dispatch_data2.gws;
         kernel_data.kernels[1].params.workGroups.local = dispatch_data2.lws;
-        kernel_data.kernels[1].skip_execution = seq_num == 1;
+        kernel_data.kernels[1].skip_execution = target_seq_len == 1;
 
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;

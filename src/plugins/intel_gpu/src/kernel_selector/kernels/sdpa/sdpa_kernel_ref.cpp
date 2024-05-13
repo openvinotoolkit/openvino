@@ -8,6 +8,7 @@
 #include <vector>
 
 namespace kernel_selector {
+
 ParamsKey SDPAKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -29,14 +30,10 @@ ParamsKey SDPAKernelRef::GetSupportedKey() const {
 }
 
 JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
-    auto jit = MakeBaseParamsJitConstants(params);
+    auto jit = SDPAKernelBase::GetJitConstants(params);
 
     auto acc_dt = params.inputs[0].GetDType();
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
-
-    jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
-    jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-    jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
 
     return jit;
 }
@@ -75,7 +72,7 @@ KernelsData SDPAKernelRef::GetKernelsData(const Params& params) const {
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
     kd.internalBufferSizes.clear();
-    kd.internalBufferSizes.push_back(4);
+    kd.internalBufferSizes.push_back(prim_params.inputs[0].ElementSize());
     kd.internalBufferDataType = prim_params.inputs[0].GetDType();
 
     return { kd };
@@ -92,11 +89,13 @@ void SDPAKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
         auto& in_q = prim_params.inputs[0];
         auto& in_k = prim_params.inputs[1];
+        TransposedDimensionAccessHelperBase dims_q(in_q, prim_params.input0_order);
+        TransposedDimensionAccessHelperBase dims_k(in_k, prim_params.input1_order);
 
         auto elem_size = in_q.ElementSize();
-        auto batch_size = in_q.LogicalSize() / in_q.X().v / in_q.Y().v;
+        auto batch_size = in_q.LogicalSize() / dims_q.x_dim().v / dims_q.y_dim().v;
         kernel_data.internalBufferSizes.clear();
-        kernel_data.internalBufferSizes.push_back(batch_size * in_q.Y().v * in_k.Y().v * elem_size);
+        kernel_data.internalBufferSizes.push_back(batch_size * dims_q.y_dim().v * dims_k.y_dim().v * elem_size);
 
         kernel_data.internalBufferDataType = in_q.GetDType();
     };

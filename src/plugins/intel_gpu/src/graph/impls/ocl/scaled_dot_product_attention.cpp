@@ -44,6 +44,12 @@ struct scaled_dot_product_attention_impl : typed_primitive_impl_ocl<scaled_dot_p
 
         params.conf = get_sdpa_configuration(impl_param);
 
+        const auto& prim = impl_param.typed_desc<scaled_dot_product_attention>();
+        params.input0_order = prim->input_q_transpose_order;
+        params.input1_order = prim->input_k_transpose_order;
+        params.input2_order = prim->input_v_transpose_order;
+        params.output_order = prim->output_transpose_order;
+
         params.set_dynamic_shape_offsets();
 
         return params;

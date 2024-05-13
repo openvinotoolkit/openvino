@@ -18,9 +18,79 @@
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
 
+inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT0_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
+#else
+#if INPUT0_DIMS == 4
+    return INPUT0_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT0_DIMS == 6
+    return INPUT0_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 0 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input0_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT0_DIMS_ORDER
+    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT0_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
+inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT1_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, y, x);
+#else
+#if INPUT1_DIMS == 4
+    return INPUT1_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT1_DIMS == 5
+    return INPUT1_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT1_DIMS == 6
+    return INPUT1_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 1 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT1_DIMS_ORDER
+    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
+inline uint FUNC(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT2_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
+#else
+#if INPUT2_DIMS == 4
+    return INPUT2_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT2_DIMS == 5
+    return INPUT2_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT2_DIMS == 6
+    return INPUT2_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 1 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT2_DIMS_ORDER
+    return FUNC_CALL(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT2_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
 #define VALUE_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT2_TYPE, 1, ptr, offset)
-#define SOURCE_SEQ_LEN INPUT1_SIZE_Y
-#define TARGET_SEQ_LEN INPUT0_SIZE_Y
 #define SUBGROUPS_PER_WG (HEAD_SIZE / SUBGROUP_SIZE)
 
 #ifdef SDPA_STAGE_0
@@ -44,8 +114,8 @@ KERNEL(sdpa_opt)(
 )
 {
     const uint batch_idx = get_global_id(0);
-    const uint b0_idx = batch_idx / INPUT0_FEATURE_NUM; /* BATCH dim */
-    const uint b1_idx = batch_idx % INPUT0_FEATURE_NUM; /* HEADS_NUM dim */
+    const uint b0_idx = batch_idx / NUM_HEADS; /* BATCH dim */
+    const uint b1_idx = batch_idx % NUM_HEADS; /* HEADS_NUM dim */
 
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
     const uint target_seq_idx = (uint)get_global_id(1) * TARGET_SEQ_LEN_BLOCK_SIZE;
@@ -92,7 +162,7 @@ KERNEL(sdpa_opt)(
 #endif
             {
                 // Query input loading to SLM
-                #define QUERY_STEP SUBGROUP_SIZE * SUBGROUPS_PER_WG
+                #define QUERY_STEP_LOCAL SUBGROUP_SIZE * SUBGROUPS_PER_WG
                 uint query_local_offset = sgid * SUBGROUP_SIZE + sglid;
 
 #if TARGET_SEQ_LEN_BLOCK_SIZE > 1
@@ -100,15 +170,22 @@ KERNEL(sdpa_opt)(
 #else
                 const uint seq_idx_end = 1;
 #endif
+#ifdef INPUT0_DIMS_ORDER
+                uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, target_seq_idx, (sgid * SUBGROUP_SIZE));
+                uint query_offset_next_seq = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, target_seq_idx + 1, (sgid * SUBGROUP_SIZE));
+                const uint query_pitch = query_offset_next_seq - query_offset;
+#else
                 uint query_offset = INPUT0_GET_INDEX(b0_idx, b1_idx, target_seq_idx, (sgid * SUBGROUP_SIZE));
+                const uint query_pitch = QUERY_STEP_LOCAL;
+#endif
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     #define QUERY_BLOCK_SIZE 1
 
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, QUERY_BLOCK_SIZE, query_input, query_offset);
 
                     query_local[query_local_offset] = val;
-                    query_local_offset += QUERY_STEP;
-                    query_offset += QUERY_STEP;
+                    query_local_offset += QUERY_STEP_LOCAL;
+                    query_offset += query_pitch;
                 }
                 #undef QUERY_BLOCK_SIZE
                 #undef QUERY_STEP
@@ -120,7 +197,11 @@ KERNEL(sdpa_opt)(
             // Each SG performs element-wise multiplications of Q[HEAD_SIZE]xK[HEAD_SIZE] values
             // HEAD_SIZE / SUBGROUPS_PER_WG times in the loop and saves the result to the qk_local SLM buffer
             for (uint seq_len = sgid; seq_len < partition_seq_len; seq_len += (HEAD_SIZE / SUBGROUP_SIZE)) {
+#ifdef INPUT1_DIMS_ORDER
+                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, 0);
+#else
                 uint key_offset = INPUT1_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, 0);
+#endif
 
                 INPUT0_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {INPUT0_VAL_ZERO};
 
@@ -339,10 +420,10 @@ KERNEL(sdpa_opt)(
                 // Use single WI in the WG, since all the WIs have the same value
                 if (num_of_partitions > 1 && head_size_idx == 0) {
                     for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
-                        const uint exp_sums_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
-                                                    b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
-                                                    (seq_idx + target_seq_idx) * (num_of_partitions) +
-                                                    partition_idx;
+                        const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
+                                                     b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
+                                                     (seq_idx + target_seq_idx) * (num_of_partitions) +
+                                                     partition_idx;
                         exp_sums[exp_sums_offset] = exp_sum[seq_idx];
 
                         const uint max_logits_offset = exp_sums_offset;
@@ -357,8 +438,20 @@ KERNEL(sdpa_opt)(
         // Gemm2 calculation
         OUTPUT_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {OUTPUT_VAL_ZERO};
 
+#ifdef INPUT2_DIMS_ORDER
+        uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
+        uint value_offset_next_seq = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 1, 0);
+        const uint value_pitch = value_offset_next_seq - value_offset;
+#else
+        const uint value_pitch = HEAD_SIZE;
+#endif
+
         for (uint seq_len = 0; seq_len < partition_seq_len / SUBGROUP_SIZE; seq_len++) {
+#ifdef INPUT2_DIMS_ORDER
+            uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+#else
             uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
+#endif
 
             OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -371,13 +464,17 @@ KERNEL(sdpa_opt)(
                     acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
                 }
 
-                value_offset += HEAD_SIZE;
+                value_offset += value_pitch;
             }
         }
 
         const uint seq_len_leftover_start = (partition_seq_len / SUBGROUP_SIZE) * SUBGROUP_SIZE;
         for (uint seq_len = seq_len_leftover_start; seq_len < partition_seq_len; seq_len++) {
+#ifdef INPUT2_DIMS_ORDER
+            const uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len, head_size_idx);
+#else
             const uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + seq_len, head_size_idx);
+#endif
 
             OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -401,7 +498,7 @@ KERNEL(sdpa_opt)(
 #endif
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                 // Data layout of tmp_output buf: [batch, heads_num, q_len, partition_idx, head_size]
-                const uint tmp_out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
+                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             b1_idx * (TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             (target_seq_idx + seq_idx) * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) +
@@ -459,8 +556,8 @@ KERNEL(sdpa_opt_finalization_stage)(
     const __global OUTPUT_TYPE* tmp_out,
     const uint num_of_partitions) {
     const uint batch_idx = get_global_id(0);
-    const uint b0_idx = batch_idx / INPUT0_FEATURE_NUM;
-    const uint b1_idx = batch_idx % INPUT0_FEATURE_NUM;
+    const uint b0_idx = batch_idx / NUM_HEADS;
+    const uint b1_idx = batch_idx % NUM_HEADS;
     const uint target_seq_idx = get_global_id(1);
     const uint sglid = get_sub_group_local_id();
 
@@ -474,7 +571,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         const uint iters_num = CEIL_DIV(num_of_partitions, SUBGROUP_SIZE);
         for (uint i = 0; i < iters_num; i++) {
             const uint partition_idx = i * SUBGROUP_SIZE + sglid;
-            const uint exp_sums_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
+            const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                          b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
                                          target_seq_idx * (num_of_partitions) +
                                          partition_idx;
@@ -503,7 +600,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         for (uint head_size_idx = 0; head_size_idx < HEAD_SIZE / SUBGROUP_SIZE; head_size_idx++) {
             SOFTMAX_ACCUMULATOR_TYPE acc = 0.0f;
             for (uint partition_idx = 0; partition_idx < num_of_partitions; partition_idx++) {
-                const uint tmp_out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
+                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             b1_idx * (TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             target_seq_idx * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) +
@@ -513,7 +610,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                     TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_idx / SUBGROUP_SIZE], partition_idx % SUBGROUP_SIZE)) /
                     TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);
             }
-            const uint out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * HEAD_SIZE) +
+            const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * HEAD_SIZE) +
                                     b1_idx * (TARGET_SEQ_LEN * HEAD_SIZE) +
                                     target_seq_idx * (HEAD_SIZE) +
                                     (head_size_idx * SUBGROUP_SIZE + sglid);
@@ -530,7 +627,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         const uint iters_num = CEIL_DIV(num_of_partitions, SUBGROUP_SIZE);
         for (uint i = 0; i < iters_num; i++) {
             const uint partition_idx = i * SUBGROUP_SIZE + sglid;
-            const uint exp_sums_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
+            const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                          b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
                                          target_seq_idx * (num_of_partitions) +
                                          partition_idx;
@@ -559,7 +656,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         for (uint head_size_idx = 0; head_size_idx < HEAD_SIZE / SUBGROUP_SIZE; head_size_idx++) {
             SOFTMAX_ACCUMULATOR_TYPE acc = 0.0f;
             for (uint partition_idx = 0; partition_idx < num_of_partitions; partition_idx++) {
-                const uint tmp_out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
+                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             b1_idx * (TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             target_seq_idx * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) +
@@ -569,7 +666,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                     TO_SOFTMAX_ACCUMULATOR_TYPE(sub_group_broadcast(exp_sum[partition_idx / SUBGROUP_SIZE], partition_idx % SUBGROUP_SIZE)) /
                     TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);
             }
-            const uint out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * HEAD_SIZE) +
+            const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * HEAD_SIZE) +
                                     b1_idx * (TARGET_SEQ_LEN * HEAD_SIZE) +
                                     target_seq_idx * (HEAD_SIZE) +
                                     (head_size_idx * SUBGROUP_SIZE + sglid);
@@ -584,7 +681,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         const uint iters_num = CEIL_DIV(num_of_partitions, SUBGROUP_SIZE);
         for (uint i = 0; i < iters_num; i++) {
             const uint partition_idx = i * SUBGROUP_SIZE + sglid;
-            const uint max_logit_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
+            const uint max_logit_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                           b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
                                           target_seq_idx * (num_of_partitions) +
                                           partition_idx;
@@ -600,7 +697,7 @@ KERNEL(sdpa_opt_finalization_stage)(
         // Calculate global sum
         for (uint i = 0; i < iters_num; i++) {
             const uint partition_idx = i * SUBGROUP_SIZE + sglid;
-            const uint exp_sums_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
+            const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                          b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
                                          target_seq_idx * (num_of_partitions) +
                                          partition_idx;
@@ -616,13 +713,13 @@ KERNEL(sdpa_opt_finalization_stage)(
         for (uint head_size_idx = 0; head_size_idx < HEAD_SIZE / SUBGROUP_SIZE; head_size_idx++) {
             SOFTMAX_ACCUMULATOR_TYPE acc = 0.0f;
             for (uint partition_idx = 0; partition_idx < num_of_partitions; partition_idx++) {
-                const uint tmp_out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
+                const uint tmp_out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             b1_idx * (TARGET_SEQ_LEN * num_of_partitions * HEAD_SIZE) +
                                             target_seq_idx * (num_of_partitions * HEAD_SIZE) +
                                             partition_idx * (HEAD_SIZE) +
                                             (head_size_idx * SUBGROUP_SIZE + sglid);
 
-                const uint exp_sums_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * num_of_partitions) +
+                const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                             b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
                                             target_seq_idx * (num_of_partitions) +
                                             partition_idx;
@@ -634,7 +731,7 @@ KERNEL(sdpa_opt_finalization_stage)(
                 acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * new_exp_sum / TO_SOFTMAX_ACCUMULATOR_TYPE(global_sum);
             }
 
-            const uint out_offset = b0_idx * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * HEAD_SIZE) +
+            const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * HEAD_SIZE) +
                                     b1_idx * (TARGET_SEQ_LEN * HEAD_SIZE) +
                                     target_seq_idx * (HEAD_SIZE) +
                                     (head_size_idx * SUBGROUP_SIZE + sglid);

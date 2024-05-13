@@ -15,9 +15,78 @@
 // 1) The order of scale application (which can be controlled using the APPLY_SCALE_TO_QUERY macro)
 // 2) The type of SoftMax accumulator
 
-#define SOURCE_SEQ_LEN INPUT1_SIZE_Y
-#define TARGET_SEQ_LEN INPUT0_SIZE_Y
-#define HEAD_SIZE INPUT0_SIZE_X
+inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT0_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
+#else
+#if INPUT0_DIMS == 4
+    return INPUT0_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT0_DIMS == 6
+    return INPUT0_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 0 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input0_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT0_DIMS_ORDER
+    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT0_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
+inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT1_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, y, x);
+#else
+#if INPUT1_DIMS == 4
+    return INPUT1_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT1_DIMS == 5
+    return INPUT1_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT1_DIMS == 6
+    return INPUT1_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 1 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input1_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT1_DIMS_ORDER
+    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT1_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
+inline uint FUNC(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if INPUT2_SIMPLE
+    return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, y, x);
+#else
+#if INPUT2_DIMS == 4
+    return INPUT2_GET_INDEX_SAFE(b, f, y, x);
+#elif INPUT2_DIMS == 5
+    return INPUT2_GET_INDEX_SAFE(b, f, z, y, x);
+#elif INPUT2_DIMS == 6
+    return INPUT2_GET_INDEX_SAFE(b, f, w, z, y, x);
+#else
+#   error sdpa_ref.cl : Unsupported input 1 format
+#endif
+#endif
+}
+
+inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#ifdef INPUT2_DIMS_ORDER
+    return FUNC_CALL(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR INPUT2_DIMS_ORDER);
+#else
+    return FUNC_CALL(get_input2_index_nt)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+#endif
+}
+
 #define APPLY_SCALE_TO_QUERY 1
 
 KERNEL(sdpa_ref)(
@@ -36,8 +105,8 @@ KERNEL(sdpa_ref)(
 )
 {
     const uint batch_idx = get_global_id(0);
-    const uint b0 = batch_idx / INPUT0_FEATURE_NUM; /* BATCH dim */
-    const uint b1 = batch_idx % INPUT0_FEATURE_NUM; /* HEADS_NUM dim */
+    const uint b0 = batch_idx / NUM_HEADS; /* BATCH dim */
+    const uint b1 = batch_idx % NUM_HEADS; /* HEADS_NUM dim */
     const uint target_seq_idx = get_global_id(1);
     const uint head_size_idx = get_global_id(2);
 
@@ -53,8 +122,8 @@ KERNEL(sdpa_ref)(
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             OUTPUT_TYPE acc = 0;
             for (uint h = 0; h < HEAD_SIZE /* head_size */; h++) {
-                uint query_offset = INPUT0_GET_INDEX(b0, b1, target_seq_idx, h);
-                uint key_offset = INPUT1_GET_INDEX(b0, b1, s, h);
+                uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, target_seq_idx, h);
+                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, h);
 
 #if APPLY_SCALE_TO_QUERY
                 INPUT0_TYPE q_val = query_input[query_offset] * scale_val;
@@ -69,7 +138,7 @@ KERNEL(sdpa_ref)(
             acc *= scale_val;
 #endif
 
-            uint tmp_buf_offset = b0 * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
+            uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
             tmp_buf[tmp_buf_offset] = acc;
@@ -77,7 +146,7 @@ KERNEL(sdpa_ref)(
 
         ACCUMULATOR_TYPE qk_max = ACCUMULATOR_VAL_MIN;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-            uint tmp_buf_offset = b0 * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
+            uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 #if IS_CAUSAL
@@ -97,7 +166,7 @@ KERNEL(sdpa_ref)(
 
         ACCUMULATOR_TYPE exp_sum = ACCUMULATOR_VAL_ZERO;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-            uint tmp_buf_offset = b0 * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
+            uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
@@ -110,7 +179,7 @@ KERNEL(sdpa_ref)(
 
         const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-            uint tmp_buf_offset = b0 * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
+            uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
@@ -124,10 +193,10 @@ KERNEL(sdpa_ref)(
 
     OUTPUT_TYPE acc = 0;
     for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-        uint tmp_buf_offset = b0 * (INPUT0_FEATURE_NUM * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
+        uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               target_seq_idx * (SOURCE_SEQ_LEN) + s;
-        uint value_offset = INPUT2_GET_INDEX(b0, b1, s, head_size_idx);
+        uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, s, head_size_idx);
 
         acc += tmp_buf[tmp_buf_offset] * value_input[value_offset];
     }

@@ -60,7 +60,7 @@
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/rms_fusion.hpp"
 #include "plugin/transformations/swiglu_fusion.hpp"
-#include "plugin/transformations/transpose_matmul_fusion.hpp"
+#include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -753,8 +753,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::RMSFusion>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        manager.register_pass<ov::intel_gpu::TransposeFusion>();
+        if (device_info.supports_immad) {
+            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulMatcher>();
+            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulTransposeMatcher>();
+        }
+
         if (!device_info.supports_immad) {
-            manager.register_pass<ov::intel_gpu::TransposeMatMulFusion>();
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
         }
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
