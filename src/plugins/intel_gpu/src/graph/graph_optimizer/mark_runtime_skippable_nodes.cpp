@@ -145,7 +145,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
         });
         program_helpers::do_for_types<reorder>(*node, [](reorder_node& node){
             auto impl_params = node.get_kernel_impl_params();
-            if (node.is_output()
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
                 || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)
@@ -155,7 +156,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             // TODO: For now, all reorders with dynamic shape are applied.
             //       A more detailed pattern will need to be applied later
             if (node.is_dynamic()) {
-                if (node.get_users().size() != 1)
+                if (!node.is_output() && node.get_users().size() != 1)
                     return;
 
                 // If the user is concatenation with 1 user, priority should be given to in place concat optimization at runtime

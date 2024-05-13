@@ -21,22 +21,16 @@ using namespace ::tests;
 namespace skip_reorder_tests {
 TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     auto& engine = get_test_engine();
-
     auto weight_mem = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
     std::vector<float> weight_data(weight_mem->get_layout().count());
     std::iota(weight_data.begin(), weight_data.end(), 1.0f);
     set_values(weight_mem, weight_data);
 
-    auto input_dynamic_layout = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
-    auto input_static_layout = layout{{10, 32}, data_types::f32, format::bfyx};
-    auto input2_static_layout = layout{{10, 2}, data_types::f32, format::bfyx};
-
-    topology topology(input_layout("input1", input_dynamic_layout),
-                      input_layout("input2", input_dynamic_layout),
+    auto input_l = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", input_l),
                       data("weight", weight_mem),
-                      fully_connected("fc", input_info("input1"), {"weight"}, "", data_types::f32),
-                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32), /*output padding*/
-                      eltwise("mul", { input_info("reorder"), input_info("input2")}, eltwise_mode::prod));
+                      fully_connected("fc", input_info("input"), {"weight"}, "", data_types::f32),
+                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -45,18 +39,12 @@ TEST(remove_redundant_reorder, skip_reorder_at_runtime) {
     auto reorder_inst = network.get_primitive("reorder");
     ASSERT_EQ(reorder_inst->can_be_optimized(), true);
 
-    auto input1_mem = engine.allocate_memory(input_static_layout);
-    std::vector<float> input1_data(input1_mem->get_layout().count());
-    std::iota(input1_data.begin(), input1_data.end(), 0.5f);
-    set_values(input1_mem, input1_data);
+    auto input_mem = engine.allocate_memory({{10, 32}, data_types::f32, format::bfyx});
+    std::vector<float> input_data(input_mem->get_layout().count());
+    std::iota(input_data.begin(), input_data.end(), 0.5f);
+    set_values(input_mem, input_data);
 
-    auto input2_mem = engine.allocate_memory(input2_static_layout);
-    std::vector<float> input2_data(input2_mem->get_layout().count());
-    std::iota(input2_data.begin(), input2_data.end(), 1.f);
-    set_values(input2_mem, input2_data);
-
-    network.set_input_data("input1", input1_mem);
-    network.set_input_data("input2", input2_mem);
+    network.set_input_data("input", input_mem);
     network.execute();
     ASSERT_EQ(reorder_inst->can_be_optimized(), true);
     ASSERT_EQ(network.get_output_memory("reorder")->buffer_ptr(), network.get_primitive("fc")->output_memory_ptr()->buffer_ptr());
