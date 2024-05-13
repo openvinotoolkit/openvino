@@ -16,21 +16,11 @@ const std::vector<ov::AnyMap> inproperties = {
     {ov::num_streams(-100)},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
-    {ov::num_streams(-100)},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU,
                                                               ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(inproperties)),
-                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVClassCompiledModelPropertiesIncorrectTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_inproperties)),
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 #if (defined(__APPLE__) || defined(_WIN32))
@@ -80,12 +70,6 @@ const std::vector<ov::AnyMap> hetero_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_CPU), ov::num_streams(ov::streams::AUTO)},
 };
 
-const std::vector<ov::AnyMap> auto_batch_properties = {
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)")},
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(1)},
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(10)},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
@@ -96,12 +80,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
                          OVClassCompiledModelPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_HETERO),
                                             ::testing::ValuesIn(hetero_properties)),
-                         OVClassCompiledModelPropertiesTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
-                         OVClassCompiledModelPropertiesTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_BATCH),
-                                            ::testing::ValuesIn(auto_batch_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice, OVCompiledModelIncorrectDevice, ::testing::Values("CPU"));

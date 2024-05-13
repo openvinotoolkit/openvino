@@ -10,10 +10,10 @@ namespace {
             ::testing::Values(ov::test::utils::DEVICE_CPU),
             OVHoldersTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests, OVHoldersTest,
-            ::testing::Values(//ov::test::utils::DEVICE_BATCH,
-                                "HETERO:CPU"),
-            OVHoldersTest::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
+                             OVHoldersTest,
+                             ::testing::Values("HETERO:CPU"),
+                             OVHoldersTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVHoldersTestOnImportedNetwork,
             ::testing::Values(ov::test::utils::DEVICE_CPU),
