@@ -13,13 +13,19 @@
 //   |  RandomUniform  | supports execution in f32/f16/bf16 on x86 and ARM
 //    -----------------
 //            |
-//       ----------
-//      |  Result  |
-//       ----------
+//       -----------
+//      |  Convert  |
+//       -----------
+//            | f32
+//       -----------
+//      |  Eltwise  |
+//       -----------
+//            |
+//       -----------
+//      |   Result  |
+//       -----------
 
 #include "custom/subgraph_tests/include/undefined_et.hpp"
-
-// using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
@@ -66,8 +72,10 @@ void UndefinedEtSubgraphTest::SetUp() {
     param_2->set_friendly_name("maxval");
 
     auto rnd_unfm = std::make_shared<op::v8::RandomUniform>(param_0, param_1, param_2, m_data_et);
+    auto cvt_f32 = std::make_shared<op::v0::Convert>(rnd_unfm, element::f32);
+    auto logical_not = std::make_shared<op::v1::LogicalNot>(cvt_f32);
 
-    function = std::make_shared<ov::Model>(OutputVector{rnd_unfm->output(0)}, ParameterVector{param_0, param_1, param_2}, "UndefinedET");
+    function = std::make_shared<ov::Model>(OutputVector{logical_not->output(0)}, ParameterVector{param_0, param_1, param_2}, "UndefinedET");
 }
 
 template<typename TD, typename TS>
@@ -136,17 +144,24 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
     // ASSERT_EQ(core->get_property(targetDevice, ov::hint::inference_precision), element::undefined);
 
     size_t rnd_unfm_counter = 0lu;
+    size_t logical_not_counter = 0lu;
     for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
         auto rt_info = node->get_rt_info();
         auto it = rt_info.find(exec_model_info::LAYER_TYPE);
         ASSERT_NE(rt_info.end(), it);
+        auto op_name = it->second.as<std::string>();
 
-        if (it->second.as<std::string>() == "RandomUniform") {
+        if (op_name == "RandomUniform") {
             ASSERT_EQ(node->get_output_element_type(0), m_data_et);
             rnd_unfm_counter++;
         }
+        if (op_name == "Eltwise") {
+            ASSERT_EQ(node->get_output_element_type(0), element::f32);
+            logical_not_counter++;
+        }
     }
     ASSERT_EQ(rnd_unfm_counter, 1lu);
+    ASSERT_EQ(logical_not_counter, 1lu);
 };
 
 }  // namespace test
