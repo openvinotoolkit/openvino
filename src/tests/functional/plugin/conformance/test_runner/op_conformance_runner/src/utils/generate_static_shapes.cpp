@@ -88,8 +88,8 @@ InputShape generate(const std::shared_ptr<ov::op::v1::Convolution>& node,
 }
 
 InputShape generate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& node,
-                   size_t in_port_id) {
-     std::map<size_t, size_t> restrict_dims;
+                    size_t in_port_id) {
+    std::map<size_t, size_t> restrict_dims;
     for (size_t port = 0; port < node->get_input_size(); ++port) {
         if (port != in_port_id) {
             auto kernel_ptr = node->get_input_node_shared_ptr(port);
