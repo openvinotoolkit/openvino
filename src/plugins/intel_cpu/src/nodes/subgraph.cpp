@@ -549,13 +549,6 @@ uint8_t Subgraph::get_broadcasting_mask(const std::vector<VectorDims>& input_sha
     return mask;
 }
 
-bool Subgraph::need_blocked_shape_infer() const {
-    const auto& inConfs = getSelectedPrimitiveDescriptor()->getConfig().inConfs;
-    return std::any_of(inConfs.cbegin(), inConfs.cend(), [](const PortConfig& conf) {
-        return !conf.getMemDesc()->as<BlockedMemoryDesc>()->hasLayoutType(LayoutType::ncsp);
-    });
-}
-
 void Subgraph::lower() {
     snippets::op::Subgraph::BlockedShapeVector in_blocked_shapes;
     std::vector<ov::element::Type> input_precisions, output_precisions;
@@ -568,26 +561,21 @@ void Subgraph::lower() {
 
     // TODO: Snippets don't support backend-provided blocking, so we need to reshape body
     //       using blocked shapes first. This can be removed after [121670]
-    if (need_blocked_shape_infer()) {
-        std::vector<snippets::VectorDimsRef> in_shapes;
-        for (const auto& s : in_blocked_shapes)
-            in_shapes.emplace_back(s.first);
-        subgraph->shape_infer(in_shapes);
-    }
+    std::vector<snippets::VectorDimsRef> in_shapes;
+    for (const auto& s : in_blocked_shapes)
+        in_shapes.emplace_back(s.first);
+    subgraph->shape_infer(in_shapes);
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
     // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
 #ifdef SNIPPETS_LIBXSMM_TPP
-    const auto& lir = subgraph->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
-                                                          std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
-    lir->set_loop_depth(std::min(2ul, lir->get_master_shape().size()));
-#else
-    subgraph->convert_body_to_linear_ir(static_cast<size_t>(parallel_get_max_threads()), 256,
-                                        std::make_shared<snippets::CPUShapeInferSnippetsFactory>());
+    subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
 #endif
 
     const auto control_flow_settings = get_control_flow_passes();
-    subgraph->lower(control_flow_settings.first, control_flow_settings.second);
+    subgraph->lowering_transformations(static_cast<size_t>(parallel_get_max_threads()), 256,
+                                       std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
+                                       control_flow_settings.first, control_flow_settings.second);
 }
 
 void Subgraph::prepareParams() {

@@ -62,8 +62,6 @@ private:
     void init_precisions(std::vector<ov::element::Type>& input_types, std::vector<ov::element::Type>& output_types) const;
     void lower();
 
-    bool need_blocked_shape_infer() const;
-
     static uint64_t get_body_hash(const std::shared_ptr<snippets::op::Subgraph>& snippet);
 
     uint8_t get_broadcasting_mask(const std::vector<VectorDims>& input_shapes) const;
