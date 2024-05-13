@@ -18,7 +18,7 @@ if(THREADING STREQUAL "OMP")
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
                 SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
@@ -101,7 +101,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.2.4-lin.tgz"
@@ -132,7 +132,7 @@ function(ov_download_tbb)
                 ENVIRONMENT "TBBROOT"
                 SHA256 "09fe7f5e7be589aa34ccd20fdfd7cad9e0afa89d1e74ecdb008a75d0af71d6e1"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+    elseif(LINUX AND AARCH64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-20231012.tgz"
@@ -158,6 +158,7 @@ function(ov_download_tbb)
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/TBB" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
         # oneTBB release package version less than 2021.6.0
+        # or TBB from oneAPI package
         update_deps_cache(TBB_DIR "${TBBROOT}/lib/cmake/tbb" "Path to TBB cmake folder")
     elseif(EXISTS "${TBBROOT}/lib64/cmake/TBB/TBBConfig.cmake")
         # 64-bits oneTBB case
@@ -202,7 +203,7 @@ function(ov_download_tbbbind_2_5)
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
                 SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
                 USE_NEW_LOCATION TRUE)
-    elseif(LINUX AND X86_64)
+    elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v4.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"

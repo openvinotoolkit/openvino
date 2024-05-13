@@ -100,8 +100,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          # ref: 'master'
-          ref: 3eeb2326e0d974f61a83f8e67d37e918ccfa1edd
+          ref: 'master'
 
       #
       # Print system info
@@ -224,9 +223,8 @@ jobs:
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
-            -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
+            -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
@@ -798,7 +796,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, GPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

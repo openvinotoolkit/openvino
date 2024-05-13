@@ -34,7 +34,7 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     // Adjust output format for optimizing out of transpose related to acdb format.
@@ -53,7 +53,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ShapeType input_shape = input_layout.get<ShapeType>();
