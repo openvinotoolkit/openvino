@@ -319,11 +319,10 @@ protected:
         }
 
         ov::Core core;
-        core.set_property(ov::cache_dir(cache_dir));
-        ov::AnyMap f32_precision_property = {{ov::hint::inference_precision.name(), ov::element::f32.to_string()}};
+        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f32), ov::cache_dir(cache_dir)};
 
         auto getOutputBlob = [&]() {
-            auto compiled_model = core.compile_model(model, "CPU", f32_precision_property);
+            auto compiled_model = core.compile_model(model, "CPU", properties);
             auto req = compiled_model.create_infer_request();
             for (const auto& input : inputs) {
                 req.set_tensor(input.first, input.second);

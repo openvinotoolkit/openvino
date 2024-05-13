@@ -24,17 +24,17 @@ namespace ov {
  */
 class ScopedLocale {
 public:
-    ScopedLocale(int category, std::string newLocale) : m_Category(category) {
-        m_OldLocale = setlocale(category, nullptr);
-        setlocale(m_Category, newLocale.c_str());
+    ScopedLocale(int category, std::string newLocale) : m_category(category) {
+        m_oldLocale = setlocale(category, nullptr);
+        setlocale(m_category, newLocale.c_str());
     }
     ~ScopedLocale() {
-        setlocale(m_Category, m_OldLocale.c_str());
+        setlocale(m_category, m_oldLocale.c_str());
     }
 
 private:
-    int m_Category;
-    std::string m_OldLocale;
+    int m_category;
+    std::string m_oldLocale;
 };
 
 /**
