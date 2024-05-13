@@ -58,6 +58,7 @@ struct DeconvKey {
     ov::CoordinateDiff paddingR;
 
     bool constWeight;
+    bool isImplicit1x1PaddingAsymmetric;
 
     dnnl::primitive_attr attr;
     impl_desc_type implType;
@@ -84,6 +85,7 @@ size_t DeconvKey::hash() const {
     seed = get_vector_hash(seed, paddingR);
 
     seed = hash_combine(seed, constWeight);
+    seed = hash_combine(seed, isImplicit1x1PaddingAsymmetric);
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, implType);
@@ -113,6 +115,7 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
     retVal = retVal && paddingR == rhs.paddingR;
 
     retVal = retVal && constWeight == rhs.constWeight;
+    retVal = retVal && isImplicit1x1PaddingAsymmetric == rhs.isImplicit1x1PaddingAsymmetric;
 
     retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
     return retVal;
@@ -870,7 +873,11 @@ void Deconvolution::prepareParams() {
             OPENVINO_THROW("Bias memory  memory didn't allocate.");
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
-
+    bool is1x1PaddingAsymmetric  = false;
+    if (externOutShape && (!isConstOutShape || isDynamicNode())) {
+        // Check implicit asymmetric padding case for dynamic case and runtime output shape.
+        is1x1PaddingAsymmetric = isImplicit1x1PaddingAsymmetric(getSrcMemoryAtPort(0)->getShape().getStaticDims());
+    }
     DeconvKey key = {inMemoryDesc,
                      wghDesc,
                      biasDesc,
@@ -880,17 +887,13 @@ void Deconvolution::prepareParams() {
                      deconvAttrs.paddingL,
                      deconvAttrs.paddingR,
                      weightIsConst,
+                     is1x1PaddingAsymmetric,
                      *pAttrLocal,
                      selected_pd->getImplementationType()};
 
     auto engine = getEngine();
-    bool skipBrgemm  = false;
 
-    if (externOutShape && (!isConstOutShape || isDynamicNode())) {
-        // Check implicit asymmetric padding case for dynamic case and runtime output shape.
-        skipBrgemm = isImplicit1x1PaddingAsymmetric(getSrcMemoryAtPort(0)->getShape().getStaticDims());
-    }
-    auto builder = [&engine, &skipBrgemm](const DeconvKey& key) -> executorPtr {
+    auto builder = [&engine](const DeconvKey& key) -> executorPtr {
         dnnl::primitive_desc desc;
         convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
@@ -913,7 +916,8 @@ void Deconvolution::prepareParams() {
 
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (skipBrgemm && (impl_type & impl_desc_type::brgconv))
+            //Skip the brgemm implemenation for asymmetric padding case because of the accuracy issue.
+            if (key.isImplicit1x1PaddingAsymmetric && (impl_type & impl_desc_type::brgconv))
                 continue;
             if (impl_type == key.implType) {
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
