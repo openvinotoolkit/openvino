@@ -274,9 +274,9 @@ ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
         uint8_t val = static_cast<uint8_t>(distribution(gen));
         size_t dst_idx = i / 2;
         if (i % 2) {
-            data[dst_idx] = (val & 0x0f);
+            data[dst_idx] = (data[dst_idx] & 0x0f) | (val << 4);
         } else {
-            data[dst_idx] = data[dst_idx] | (val & 0xf0);
+            data[dst_idx] = (data[dst_idx] & 0xf0) | (val & 0x0f);
         }
     }
 
@@ -429,7 +429,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                 inputInfo.second,
                                                 inputInfo.first,
                                                 filenames_used);
-    } else if (type == ov::element::i8 || (type == ov::element::i4)) {
+    } else if (type == ov::element::i8) {
         return create_tensor_from_numpy<int8_t>(files,
                                                 inputId,
                                                 batchSize,
@@ -457,7 +457,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                                                  inputInfo.second,
                                                  inputInfo.first,
                                                  filenames_used);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean) || (type == ov::element::u4)) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
         return create_tensor_from_numpy<uint8_t>(files,
                                                  inputId,
                                                  batchSize,
