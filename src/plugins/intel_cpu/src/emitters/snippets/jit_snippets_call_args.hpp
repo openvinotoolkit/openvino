@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstddef>
 #include "dnnl_types.h"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_cpu {
