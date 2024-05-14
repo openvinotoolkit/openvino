@@ -80,5 +80,5 @@ For more details, see the corresponding :doc:`documentation <../../running-infer
 Examples
 ####################
 
-* `Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2>`__
-* `Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16>`__
+* `Quantization-aware Training of Resnet18 PyTorch Model <https://github.com/openvinotoolkit/nncf/tree/develop/examples/quantization_aware_training/torch/resnet18>`__
+* `Quantization-aware Training of STFPM PyTorch Model <https://github.com/openvinotoolkit/nncf/tree/develop/examples/quantization_aware_training/torch/anomalib>`__
