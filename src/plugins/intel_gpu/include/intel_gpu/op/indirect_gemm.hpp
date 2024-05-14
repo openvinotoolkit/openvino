@@ -24,6 +24,7 @@ public:
                  const ov::Output<Node>& I,
                  bool indirect_a,
                  bool indirect_b,
+                 int64_t indirect_axis,
                  const std::vector<int64_t>& order_a,
                  const std::vector<int64_t>& order_b,
                  const std::vector<int64_t>& order_c,
@@ -38,12 +39,14 @@ public:
 
     bool get_indirect_a() const { return m_indirect_a; }
     bool get_indirect_b() const { return m_indirect_b; }
+    int64_t get_indirect_axis() const { return m_indirect_axis; }
 
     using ov::intel_gpu::op::Gemm::default_order;
 
 protected:
     bool m_indirect_a = false;
     bool m_indirect_b = false;
+    int64_t m_indirect_axis = 0;
 };
 
 }   // namespace op
