@@ -12,6 +12,22 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
     return std::max(lower, std::min(n, upper));
 }
 
+void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>& restrict_dims) {
+    std::vector<ov::Shape>& staticShapes = input_shape.second;
+    for (const auto& pair : restrict_dims) {
+        uint64_t dimMax = std::numeric_limits<char>::max();
+        uint64_t dimMin = pair.second;
+        auto& dim0 = staticShapes[0][pair.first];
+        auto& dim1 = staticShapes[1][pair.first];
+        auto& dim2 = staticShapes[2][pair.first];
+        if (dim0 != dim2) {
+            dim0 = clip(dim0, dimMin, dimMax);
+            dim1 = clip(dim1, dimMin, dimMax);
+            dim2 = clip(dim2, dimMin, dimMax);
+        }
+    }
+}
+
 ov::Shape generate_mid_shape(const ov::PartialShape& partial_shape) {
     ov::Shape midShape;
     for (const auto s : partial_shape) {
@@ -50,6 +66,44 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
         }
     }
     return InputShape{param->get_partial_shape(), staticShapes};
+}
+
+InputShape generate(const std::shared_ptr<ov::op::v1::Convolution>& node,
+                    size_t in_port_id) {
+    std::map<size_t, size_t> restrict_dims;
+    for (size_t port = 0; port < node->get_input_size(); ++port) {
+        if (port != in_port_id) {
+            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
+            for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
+                restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});
+            }
+            break;
+        }
+    }
+
+    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), in_port_id);
+    clip_restrict_dims(input_shape, restrict_dims);
+    return input_shape;
+}
+
+InputShape generate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& node,
+                    size_t in_port_id) {
+    std::map<size_t, size_t> restrict_dims;
+    for (size_t port = 0; port < node->get_input_size(); ++port) {
+        if (port != in_port_id) {
+            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
+            for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
+                restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});
+            }
+            break;
+        }
+    }
+
+    InputShape input_shape = generate(std::dynamic_pointer_cast<ov::Node>(node), in_port_id);
+    clip_restrict_dims(input_shape, restrict_dims);
+    return input_shape;
 }
 
 template<typename T>

@@ -12,12 +12,14 @@
 
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
+
 #include "op_conformance_utils/utils/dynamism.hpp"
 #include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "conformance.hpp"
 
 #include "utils/models.hpp"
 #include "utils/types.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 #include "read_ir_test/read_ir.hpp"
 #include "utils/generate_static_shapes.hpp"
