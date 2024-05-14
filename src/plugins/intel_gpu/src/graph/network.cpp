@@ -647,7 +647,8 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         // Add cand inst to the chain when cand's output is not allocated yet.
-        if (!cand->outputs_allocated() || eng.is_the_same_buffer(mem_orig, mem_cand)) {
+        if (!p_inst->outputs_allocated()
+            || eng.is_the_same_buffer(mem_orig, mem_cand)) {
             auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
@@ -659,8 +660,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             } else {
                 const auto& mem_dep = dep.first->output_memory();
                 // Add dep inst to the chain when dep's output is not allocated yet.
-                if (!dep.first->outputs_allocated()
-                    || (dep.first->outputs_allocated() && !p_inst->outputs_allocated())
+                if (!p_inst->outputs_allocated()
                     || eng.is_the_same_buffer(mem_orig, mem_dep)) {
                     auto nc_dep = const_cast<primitive_inst*>(dep.first);
                     chain.push_back(nc_dep);

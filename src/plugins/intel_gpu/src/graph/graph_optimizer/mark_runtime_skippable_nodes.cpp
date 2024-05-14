@@ -159,8 +159,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 if (!node.is_output() && node.get_users().size() != 1)
                     return;
 
-                // If the user is concatenation with 1 user, priority should be given to in place concat optimization at runtime
-                if (node.have_user_with_type<concatenation>())
+                // If the user is concatenation with 1 user and the concat is optimized, priority should be given to in place concat optimization at runtime
+                if (node.have_user_with_type<concatenation>() && node.get_users().front()->can_be_optimized())
                     return;
 
                 node.can_be_optimized(true);
