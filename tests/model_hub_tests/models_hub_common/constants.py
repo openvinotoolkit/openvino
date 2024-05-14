@@ -26,7 +26,7 @@ os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['HF_HUB_CACHE'] = hf_cache_dir
 
 no_clean_cache_dir = False
-pt_hfhub_cache_dir = os.path.join(tempfile.gettempdir(), "pf_hfhub_models")
+hf_hub_cache_dir = tempfile.gettempdir()
 if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
     no_clean_cache_dir = True
     os.environ['PT_HFHUB_CACHE_DIR'] = pt_hfhub_cache_dir
