@@ -188,6 +188,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     decomp->set_name("ov::pass::CommonDecompositions");
 
     if (getenv("REPLACE")) {
+        REGISTER_PASS(manager, ConstantFolding)
         manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition.svg");
 
         auto decomp_tmp = manager.register_pass<GraphRewrite>();

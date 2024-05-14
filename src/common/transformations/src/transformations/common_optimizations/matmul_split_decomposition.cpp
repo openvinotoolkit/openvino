@@ -46,18 +46,13 @@
 using namespace ov::op;
 using namespace ov;
 
-void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, NodeVector& new_weights,
-                                                   const Output<Node>& bias, NodeVector& new_bias) {
+void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, OutputVector& new_weights,
+                                                   const Output<Node>& bias, OutputVector& new_bias) {
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
     const auto& bias_shape = bias.get_partial_shape();
     int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
-
-    if (!as_type_ptr<ov::op::v0::Constant>(weights.get_node_shared_ptr()) ||
-        !as_type_ptr<ov::op::v0::Constant>(bias.get_node_shared_ptr())) {
-        return;
-    }
 
     if (weights_rank != 2 || bias_rank != 3) {
         return;
@@ -68,9 +63,10 @@ void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, 
 
     // Constantfold new weights
     for (auto& out : split->outputs()) {
-        if (auto constant = ov::util::get_constant_from_source(out)) {
-            new_weights.emplace_back(constant);
-        }
+        if (auto constant = ov::util::get_constant_from_source(out)) {  // TODO: why Convert cannot be constfolded?
+            new_weights.emplace_back(constant->shared_from_this());
+        } else
+            new_weights.emplace_back(out);
     }
 
     auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {2}));
@@ -79,8 +75,9 @@ void pass::MatmulSplitDecomposition::split_weights(const Output<Node>& weights, 
     // Constantfold new bias
     for (auto& out : split2->outputs()) {
         if (auto constant = ov::util::get_constant_from_source(out)) {
-            new_bias.emplace_back(constant);
-        }
+            new_bias.emplace_back(constant->shared_from_this());
+        } else
+            new_bias.emplace_back(out);
     }
 }
 
@@ -97,8 +94,7 @@ pass::MatmulSplitDecomposition::MatmulSplitDecomposition() {
     };
 
     auto input_pattern = any_input();
-    auto weights_pattern = wrap_type<opset1::Constant>();
-    auto matmul_pattern = wrap_type<opset1::MatMul>({input_pattern, weights_pattern});
+    auto matmul_pattern = wrap_type<opset1::MatMul>({input_pattern, any_input()});  // TODO: input2 rank 2
 
     auto bias_pattern = wrap_type<opset1::Constant>();
     auto add_pattern = wrap_type<opset1::Add>({matmul_pattern, bias_pattern});
@@ -118,46 +114,46 @@ pass::MatmulSplitDecomposition::MatmulSplitDecomposition() {
         std::cout << "==================2============="<< transpose->get_friendly_name() << "\n\n";
 
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
-        const auto& weights = pattern_map.at(weights_pattern);
+        auto weights = matmul->input_value(1);
         auto add = pattern_map.at(add_pattern).get_node_shared_ptr();
         const auto& bias = pattern_map.at(bias_pattern);
 
         const auto& reshape = pattern_map.at(reshape_pattern);
         auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
-        // there should be 3 gathers to split transpose
+        // there should be only 3 gathers to split transpose
         auto children = transpose->get_output_target_inputs(0);
         NodeVector gathers;
         gathers.resize(3);
         std::cout << "==================3=============\n\n";
         for (auto& child : children) {
             auto gather = child.get_node()->shared_from_this();
-            if (ov::is_type<ov::op::util::GatherBase>(gather)) {
-                std::cout << "==================3.1=============\n\n";
-                const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
-                const auto& axis_val = axis_node->cast_vector<int32_t>();
-                if (axis_val.size() != 1) return false;
-                std::cout << "==================3.2=============\n\n";
-                if (axis_val[0] != 0) return false;
+            if (ov::is_type<ov::op::util::GatherBase>(gather)) return false;
 
-                std::cout << "==================3.3=============\n\n";
-                const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
-                const auto& indices_val = indices_node->cast_vector<int32_t>();
-                if (indices_val.size() != 1) return false;
-                std::cout << "==================3.4=============" << indices_val[0] << "\n\n";
-                if (indices_val[0] < 0 || indices_val[0] >= 3) return false;
+            std::cout << "==================3.1=============\n\n";
+            const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
+            const auto& axis_val = axis_node->cast_vector<int32_t>();
+            if (axis_val.size() != 1) return false;
+            std::cout << "==================3.2=============\n\n";
+            if (axis_val[0] != 0) return false;
 
-                std::cout << "==================3.4=============\n\n";
-                
-                gathers[indices_val[0]] = gather;
-            }
+            std::cout << "==================3.3=============\n\n";
+            const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
+            const auto& indices_val = indices_node->cast_vector<int32_t>();
+            if (indices_val.size() != 1) return false;
+            std::cout << "==================3.4=============" << indices_val[0] << "\n\n";
+            if (indices_val[0] < 0 || indices_val[0] >= 3) return false;
+
+            std::cout << "==================3.4=============\n\n";
+            
+            gathers[indices_val[0]] = gather;
         }
         std::cout << "==================4=============\n\n";
         if (std::any_of(gathers.begin(), gathers.end(), [](const std::shared_ptr<Node> node_ptr) {
                         return !node_ptr || !is_type<ov::op::util::GatherBase>(node_ptr);
                     })) return false;
 
-        NodeVector new_weights, new_bias;
+        OutputVector new_weights, new_bias;
         split_weights(weights, new_weights, bias, new_bias);
         if (new_weights.size() != 3 || new_bias.size() != 3)
             return false;
