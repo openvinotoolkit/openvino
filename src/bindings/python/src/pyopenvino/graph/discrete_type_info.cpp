@@ -14,7 +14,7 @@
 
 namespace py = pybind11;
 
-// DiscreteTypeInfo doesn't own provided memory. Wrapper allows to avois leaks.
+// DiscreteTypeInfo doesn't own provided memory. Wrapper allows to avoid leaks.
 class DiscreteTypeInfoWrapper : public ov::DiscreteTypeInfo {
 private:
     std::string name_str;
