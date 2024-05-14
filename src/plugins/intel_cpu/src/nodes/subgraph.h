@@ -124,12 +124,11 @@ public:
                         const std::vector<ptrdiff_t>& start_offset_out);
     virtual ~SubgraphJitExecutor() = default;
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
-
 protected:
-    // Evaluates generated snippet using parallel backend
-    virtual void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
-    virtual void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    void parallel_for6d(const std::function<void(jit_snippets_call_args&)>& initializer,
+                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+    void parallel_forNd(const std::function<void(jit_snippets_call_args&)>& initializer,
+                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
 
     virtual void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config);
 
@@ -144,6 +143,9 @@ protected:
     size_t m_buffer_scratchpad_size = 0;
 
     const size_t rank6D = 6;
+
+    // Count of threads for parallel_nt
+    int m_nthreads = 0;
 
     std::vector<ptrdiff_t> m_start_offset_in = {};
     std::vector<ptrdiff_t> m_start_offset_out = {};
@@ -163,13 +165,12 @@ public:
                               const std::vector<ptrdiff_t>& start_offset_out,
                               const std::shared_ptr<CPURuntimeConfig>& config);
 
+    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
 protected:
     typedef void (*kernel)(const void*, const void*);
 
-    void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
-    void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
-
-    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs);
+    inline void init_call_args(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs);
 };
 
 // Specialized dynamic executor based on shape agnostic kernel for the specific input shapes
@@ -181,6 +182,8 @@ public:
                                           const std::vector<ptrdiff_t>& start_offset_out,
                                           const std::shared_ptr<CPURuntimeConfig>& config);
 
+    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
 protected:
     typedef void (*dynamic_kernel)(const void *);
 
@@ -190,9 +193,6 @@ protected:
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
                             const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const;
     void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config) override;
-    // Evaluates generated snippet using parallel backend
-    void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
-    void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
     std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
