@@ -42,27 +42,23 @@ protected:
     }
     event::ptr execute_impl(const std::vector<event::ptr>& events ,
                             typed_primitive_inst<fully_connected>& instance) override {
-        //instance.fill_placeholder();
+        auto& stream = instance.get_network().get_stream();
+        stream.finish();
+        instance.fill_placeholder();
         auto event = parent::execute_impl(events, instance);
         if (getenv("ENABLE_CCL")) {
             auto& network = instance.get_network();
             auto& stream = network.get_stream();
-            //auto& engine = network.get_engine();
             stream.finish();
             auto& output_memory = instance.output_memory();
             std::cout << output_memory.get_allocation_type() << std::endl;
-            //auto output_host = engine.allocate_memory(output_memory.get_layout(), allocation_type::usm_host);
-            //output_host->copy_from(stream, output_memory);
             auto send_ptr = output_memory.buffer_ptr();
-            std::cout << output_memory.count() << std::endl;
-            std::cout << output_memory.get_layout().to_string() << std::endl;
-            std::cout << output_memory.size() << std::endl;
-            std::cout << "bell debug!!!!" << send_ptr << std::endl;
-            //auto prec = output.();
-            std::cout << "&&&&&&&&" << std::endl;
-            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.count());
-            std::cout << "&&&&&&&&" << std::endl;
-            //output_memory.copy_from(stream, *output_host);
+            if (output_memory.get_layout().data_type == ov::element::f16)
+                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory.count());
+            else if (output_memory.get_layout().data_type == ov::element::f32)
+                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory.count());
+            else
+                OPENVINO_THROW("not expected!");
         }
         return event;
     }
@@ -71,18 +67,15 @@ protected:
         std::unordered_map<int, dnnl::memory> args;
         std::cout << "**********" << std::endl;
         {
-            auto& stream = instance.get_network().get_stream();
-            stream.finish();
-            auto input = instance.get_input_rank_placeholder();
-            instance.fill_placeholder();
+            auto& input = instance.get_input_rank_placeholder_mem();
             //auto input = instance.get_input_rank_placeholder();
-            std::cout << input->get_layout().to_short_string() << std::endl;
+            std::cout << input.get_layout().to_short_string() << std::endl;
             auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             for (auto& iter : _pd.dnnl::primitive_desc_base::src_desc(0).get_dims())
                 std::cout << iter  << ",";
             std::cout << std::endl;
             // mapping input memory here
-            args.insert({DNNL_ARG_SRC, (*input).get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+            args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {

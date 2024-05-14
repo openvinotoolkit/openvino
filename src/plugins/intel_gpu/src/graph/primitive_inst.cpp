@@ -1302,9 +1302,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     std::vector<event::ptr> dependencies;
     if (is_dynamic() && !has_inner_networks()) {
         // update shape is done by predecessor for FC layer
-        if (_node->is_type<fully_connected>()) {
-            create_input_memory_placeholder();
-        }
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
@@ -1404,6 +1401,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
+        if (_node->is_type<fully_connected>()) {
+            create_input_memory_placeholder();
+            GPU_DEBUG_TRACE_DETAIL << "bell debugline created new input memory place holder!!!! " << id() << std::endl;
+        }
         set_arguments();
     }
     on_execute();

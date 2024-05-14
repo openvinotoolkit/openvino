@@ -94,6 +94,7 @@ public:
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
     memory::ptr get_input_rank_placeholder() const { return input_placeholder; }
+    memory& get_input_rank_placeholder_mem() const { return *input_placeholder; }
     void create_input_memory_placeholder() override;
     void fill_placeholder();
 

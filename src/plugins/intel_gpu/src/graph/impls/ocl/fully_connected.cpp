@@ -157,40 +157,14 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
                 }
             }
             file_stream << buffer.str();*/
-            Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->count());
+            if (output_memory_ptr->get_layout().data_type == ov::element::f16)
+                Messenger::getInstance().helperAllreducef16(send_ptr, send_ptr, output_memory_ptr->count());
+            else if (output_memory_ptr->get_layout().data_type == ov::element::f32)
+                Messenger::getInstance().helperAllreduce(send_ptr, send_ptr, output_memory_ptr->count());
+            else
+                OPENVINO_THROW("not expected!");
             std::cout << "&&&&&&&&" << std::endl;
             //output_memory.copy_from(stream, *output_host);
-        } else {
-            std::cout << "bell debug only map output buffer for reference" << std::endl;
-            stream.finish(); // can be replaced with need_completion_event?
-            auto output_memory_ptr = instance.output_memory_ptr();
-            //auto actual_mem = output_memory.get_engine()->reinterpret_buffer(output_memory, output_memory.get_layout());
-            //mem_lock<char, mem_lock_type::read_write> lock(actual_mem, stream);
-            auto send_ptr = output_memory_ptr->buffer_ptr();
-            std::cout << output_memory_ptr->get_allocation_type() << std::endl;
-            std::cout << output_memory_ptr->count() << std::endl;
-            std::cout << output_memory_ptr->get_layout().to_string() << std::endl;
-            std::cout << output_memory_ptr->size() << std::endl;
-            std::cout << "bell debug!!!!" << send_ptr << std::endl;
-            //auto prec = output.();
-            std::cout << "&&&&&&&&" << std::endl;
-            std::ofstream file_stream("bell_fc_output_iter" + std::to_string(infer_count) + ".txt");
-            auto&& size = output_memory_ptr->get_layout().get_tensor();
-
-            file_stream << "shape: " << size.to_string() << " ";
-            file_stream << "(count: " << size.count()
-                            << ", original format: " << cldnn::fmt_to_str(output_memory_ptr->get_layout().format) << ")" << std::endl;
-
-            mem_lock<ov::float16, mem_lock_type::read> lock(instance.output_memory_ptr(), stream);
-            auto mem_ptr = lock.data();
-            std::stringstream buffer;
-
-            {
-                for (size_t i = 0; i < lock.size(); ++i) {
-                    buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[i]) << std::endl;
-                }
-            }
-            file_stream << buffer.str();
         }
         return aggregate_events(all_events, stream, group_events);
     }
@@ -216,7 +190,6 @@ protected:
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        std::cout << "check how many times get_kernel_params are called!!!" << std::endl;
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
