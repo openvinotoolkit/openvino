@@ -894,11 +894,6 @@ static bool is_node_for_onednn(convolution_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
-    auto input_layout = node.get_input_layout(0);
-    auto output_layout = node.get_output_layout(0);
-    if (input_layout.is_dynamic() || output_layout.is_dynamic())
-        return false;
-
     return true;
 }
 
@@ -906,9 +901,6 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout(0);
-
-    if (input_layout.is_dynamic() || output_layout.is_dynamic())
-        return false;
 
     bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 
@@ -1692,6 +1684,11 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
+        }
+
+        if (node.is_type<convolution>()) {
+            if (!is_node_for_onednn(node.as<convolution>()))
+                impl_candidate = impl_types::ocl;
         }
 
         if (node.is_type<deconvolution>()) {
