@@ -33,11 +33,8 @@ ConvolutionKernel_bfyx_os_iyx_osv32::ConvolutionKernel_bfyx_os_iyx_osv32()
 ParamsKey ConvolutionKernel_bfyx_os_iyx_osv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
-    k.EnableInputWeightsType(WeightsType::F32);
     k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
