@@ -12,6 +12,12 @@ FILE(GLOB tests "*-fuzzer.cc")
 add_subdirectory(../../../thirdparty/cnpy ${CMAKE_CURRENT_BINARY_DIR}/cnpy)
 add_subdirectory(../../../thirdparty/zlib ${CMAKE_CURRENT_BINARY_DIR}/zlib)
 
+get_target_property(ov_runtime_type openvino::runtime TYPE)
+if(OV_LIBASAN_FILEPATH)
+    message(STATUS "For tests pre-load asan library used for OpenVINO build:")
+    message(STATUS "    LD_PRELOAD=${OV_LIBASAN_FILEPATH} [fuzzer-executable]")
+endif()
+
 foreach(test_source ${tests})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_fuzzer(${test_name} ${test_source})
