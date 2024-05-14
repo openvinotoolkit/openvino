@@ -44,8 +44,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed1) {
                                                                                       input1,
                                                                                       axis_const,
                                                                                       0,
-                                                                                      scale_const,
-                                                                                      ov::element::f32);
+                                                                                      scale_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1});
     }
@@ -77,8 +76,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed2) {
                                                                                       axis_const,
                                                                                       0,
                                                                                       scale_const,
-                                                                                      zp_const,
-                                                                                      ov::element::f32);
+                                                                                      zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1});
     }
@@ -112,8 +110,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed3) {
                                                                                       axis_const,
                                                                                       0,
                                                                                       scale_const,
-                                                                                      zp_const,
-                                                                                      ov::element::f32);
+                                                                                      zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1});
     }
@@ -147,8 +144,7 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed4) {
                                                                                       axis_const,
                                                                                       0,
                                                                                       scale_const,
-                                                                                      zp_const,
-                                                                                      ov::element::f32);
+                                                                                      zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1});
     }

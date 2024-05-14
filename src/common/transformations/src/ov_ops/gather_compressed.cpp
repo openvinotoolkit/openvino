@@ -15,12 +15,11 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& axis,
                                    const int64_t batch_dims,
                                    const ov::Output<Node>& decompression_scale,
-                                   const ov::Output<Node>& decompression_zero_point,
-                                   const ov::element::Type output_type)
-    : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type) {
+                                   const ov::Output<Node>& decompression_zero_point)
+    : ov::op::v8::Gather({data, indices, axis, batch_dims}) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
+    m_output_type = decompression_scale.get_element_type();
     validate_and_infer_types();
 }
 
@@ -28,11 +27,10 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& indices,
                                    const ov::Output<Node>& axis,
                                    const int64_t batch_dims,
-                                   const ov::Output<Node>& decompression_scale,
-                                   const ov::element::Type output_type)
-    : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type) {
+                                   const ov::Output<Node>& decompression_scale)
+    : ov::op::v8::Gather({data, indices, axis, batch_dims}) {
     set_argument(3, decompression_scale);
+    m_output_type = decompression_scale.get_element_type();
     validate_and_infer_types();
 }
 
@@ -44,16 +42,14 @@ std::shared_ptr<ov::Node> GatherCompressed::clone_with_new_inputs(const ov::Outp
                                                   new_args.at(1),
                                                   new_args.at(2),
                                                   m_batch_dims,
-                                                  new_args.at(3),
-                                                  m_output_type);
+                                                  new_args.at(3));
     else if (new_args.size() == 5)
         return std::make_shared<GatherCompressed>(new_args.at(0),
                                                   new_args.at(1),
                                                   new_args.at(2),
                                                   m_batch_dims,
                                                   new_args.at(3),
-                                                  new_args.at(4),
-                                                  m_output_type);
+                                                  new_args.at(4));
     else
         OPENVINO_THROW("Unexpected inputs count for GatherCompressed op: ", new_args.size());
 }
@@ -71,8 +67,8 @@ void GatherCompressed::validate_and_infer_types() {
                                                                         get_input_partial_shape(1),
                                                                         get_input_partial_shape(2)});
 
-    auto output_type = get_input_element_type(3);
-    set_output_type(0, output_type, out_shapes[0]);
+    m_output_type = get_input_element_type(3);
+    set_output_type(0, m_output_type, out_shapes[0]);
 }
 
 bool GatherCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
