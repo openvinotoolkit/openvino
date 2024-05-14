@@ -401,8 +401,8 @@ bool StringMemory::StringMemoryMngr::resize(size_t size) {
         if (size > PTRDIFF_MAX) {
             OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
         }
-        int64_t new_size = static_cast<int64_t>(size); // WA for warning alloc-size-larger-than
-        auto ptr = new OvString[new_size];
+        auto ptr_size = static_cast<ptrdiff_t>(size); // WA for warning alloc-size-larger-than
+        auto ptr = new OvString[ptr_size];
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
