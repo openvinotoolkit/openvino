@@ -565,6 +565,41 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d_with_mask) {
+    auto model = convert_model("org.openvinotoolkit/deformable_conv_2d_with_mask.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // data
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // deformations
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
+
+    // mask
+    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
+                                1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f,
+                                2.5f, 2.6f, 2.7f, 2.8f, 2.9f, 3.0f, 3.1f, 3.2f, 3.3f, 3.4f, 3.5f, 3.6f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {14.7299995f,
+                                          7.3200006f,
+                                          15.0600004f,
+                                          31.1000004f,
+                                          28.9899998f,
+                                          20.5800018f,
+                                          32.6200027f,
+                                          6.6400003f,
+                                          1.4399999f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_generate_proposals) {
     auto model = convert_model("org.openvinotoolkit/generate_proposals.onnx");
 

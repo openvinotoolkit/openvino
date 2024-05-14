@@ -82,7 +82,6 @@ TEMPLATE:
     - GPU
     - HETERO
     - AUTO_BATCH
-    - TEMPLATE
     - AUTO
     - C_API
     - Python_API
@@ -116,6 +115,7 @@ IR_FE:
 ONNX_FE:
   revalidate:
     - MO
+    - ONNX_RT
   build:
     - CPU
     - Python_API
