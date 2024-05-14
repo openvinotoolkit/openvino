@@ -21,10 +21,7 @@ Consider an ``input`` tensor containing batches of image blocks of shape ``(N, C
 * ``C * Product(kernel_size)`` is the number of elements within a block (each block contains ``Product(kernel_size)`` vectors containing values from each channel ``C``),
 * ``L`` is the total number of blocks calculated as follows:
 
-.. math::
-
-    L = \prod_{d=1}^{2} \lfloor \frac{({\text{{output\_size}}[d] + \text{{pads\_begin}}[d] + \text{{pads\_end}}[d] - \text{{dilation}}[d] \times (\text{{kernel\_size}}[d] - 1) - 1}}{{\text{{stride}}[d]}}) + 1\rfloor
-
+L = product from d=1 to 2 of floor((output_size[d] + pads_begin[d] + pads_end[d] - dilation[d] * (kernel_size[d] - 1) - 1) / stride[d] + 1)
 
 where ``d`` is over all spatial dimensions.
 
