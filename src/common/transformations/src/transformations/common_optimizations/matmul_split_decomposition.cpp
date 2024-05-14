@@ -128,25 +128,25 @@ pass::MatmulSplitDecomposition::MatmulSplitDecomposition() {
         std::cout << "==================3=============\n\n";
         for (auto& child : children) {
             auto gather = child.get_node()->shared_from_this();
-            if (ov::is_type<ov::op::util::GatherBase>(gather)) return false;
+            if (ov::is_type<ov::op::util::GatherBase>(gather)) {
+                std::cout << "==================3.1=============\n\n";
+                const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
+                const auto& axis_val = axis_node->cast_vector<int32_t>();
+                if (axis_val.size() != 1) return false;
+                std::cout << "==================3.2=============\n\n";
+                if (axis_val[0] != 0) return false;
 
-            std::cout << "==================3.1=============\n\n";
-            const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
-            const auto& axis_val = axis_node->cast_vector<int32_t>();
-            if (axis_val.size() != 1) return false;
-            std::cout << "==================3.2=============\n\n";
-            if (axis_val[0] != 0) return false;
+                std::cout << "==================3.3=============\n\n";
+                const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
+                const auto& indices_val = indices_node->cast_vector<int32_t>();
+                if (indices_val.size() != 1) return false;
+                std::cout << "==================3.4=============" << indices_val[0] << "\n\n";
+                if (indices_val[0] < 0 || indices_val[0] >= 3) return false;
 
-            std::cout << "==================3.3=============\n\n";
-            const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
-            const auto& indices_val = indices_node->cast_vector<int32_t>();
-            if (indices_val.size() != 1) return false;
-            std::cout << "==================3.4=============" << indices_val[0] << "\n\n";
-            if (indices_val[0] < 0 || indices_val[0] >= 3) return false;
-
-            std::cout << "==================3.4=============\n\n";
-            
-            gathers[indices_val[0]] = gather;
+                std::cout << "==================3.4=============\n\n";
+                
+                gathers[indices_val[0]] = gather;
+            }
         }
         std::cout << "==================4=============\n\n";
         if (std::any_of(gathers.begin(), gathers.end(), [](const std::shared_ptr<Node> node_ptr) {
