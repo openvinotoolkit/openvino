@@ -314,6 +314,41 @@ void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, 
     validate();
 }
 
+void UnifiedLoopInfo::update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports, bool is_input) {
+    if (!actual_ports.empty())
+        remove_loop_ports(actual_ports, is_input);
+    if (!target_ports.empty())
+        add_loop_ports(target_ports, is_input);
+    validate();
+}
+
+void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input) {
+    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
+    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
+    for (size_t i = 0; i < ports.size(); i++) {
+        auto port_it = find_loop_port(ports[i]);
+        // if not in loop ports, skip
+        if (port_it == loop_ports.end())
+            continue;
+
+        loop_ports.erase(port_it);
+        auto dist = std::distance(loop_ports.begin(), port_it);
+        loop_ports_desc.erase(loop_ports_desc.begin() + dist);
+    }
+}
+
+void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input) {
+    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
+    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
+    for (size_t i = 0; i < ports.size(); i++) {
+        // if already in loop ports, skip
+        if (find_loop_port(ports[i]) != loop_ports.end())
+            continue;
+        loop_ports.push_back(ports[i]);
+        loop_ports_desc.push_back(LoopPortDesc());
+    }
+}
+
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
                                    const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                    std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,

@@ -213,29 +213,6 @@ public:
      */
     void update_loop_ports(const ExpressionPtr& expr);
     /**
-     * @brief Insert Loop ports for one Loop.
-     *        The method inserts ports at end of loop ports. It does not respect ports order, so sort_loop_ports is recommended where necessary.
-     * @param loop_id the target Loop ID
-     * @param target_ports vector of the ports need insert
-     * @param is_entry True if these ports are input and insert to loop entry points, otherwise - output and insert to exit point
-     */
-    void insert_loop_ports(size_t loop_id, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
-    /**
-     * @brief Delete Loop ports for one Loop.
-     *        The method delete ports directly. It does not respect ports order, so sort_loop_ports is recommended where necessary.
-     * @param loop_id the target Loop ID
-     * @param target_ports vector of the ports need delete
-     * @param is_entry True if these ports are input and delete from loop entry points, otherwise - output and delete from exit point
-     */
-    void delete_loop_ports(size_t loop_id, const std::vector<ExpressionPort>& target_ports, bool is_entry = true);
-    /**
-     * @brief Check if a expression port is in Loop Ports.
-     * @param loop_ports the Loop Ports
-     * @param target_port the Expression Port
-     * @return True if Expression Port is in Loop Ports, otherwise return false.
-     */
-    bool is_loop_port(const std::vector<LoopPort>& loop_ports, const ExpressionPort& target_port);
-    /**
      * @brief Sort Unified Loop Ports by expression locations in Linear IR
      * @param loop_begin_pos the first expression iterator of the Loop
      * @param loop_end_pos the next iterator after the last expression
@@ -299,6 +276,12 @@ public:
      */
     bool reorder_identifiers(const std::map<size_t, size_t>& loop_id_map);
 
+    /**
+     * @brief Remove LoopInfo from the map
+     * @param index the target index of Loop
+     */
+    void remove_loop_info(size_t index);
+
 private:
     /**
      * @brief Add new Loop Info to the map
@@ -306,11 +289,6 @@ private:
      * @return the loop ID
      */
     size_t add_loop_info(const LoopInfoPtr& loop);
-    /**
-     * @brief Remove LoopInfo from the map
-     * @param index the target index of Loop
-     */
-    void remove_loop_info(size_t index);
     /**
      * @brief Find expression ports in bounds that are connected to consumers or parent that aren't in these bounds
      * @param loop_begin_pos the first expression iterator of the Loop

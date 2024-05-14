@@ -26,300 +26,189 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir) {
         expr->set_loop_ids(loop_ids);
     };
 
+    auto get_stride_after_move_outer = [](const LoopPort& loop_port) {
+        const auto& expr_port = loop_port.expr_port;
+        const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
+        const auto& shape = expr_port->get_descriptor_ptr()->get_shape();
+
+        size_t shape_dim_idx = 0;
+        if (expr_port->get_type() == ExpressionPort::Input) {
+            shape_dim_idx = utils::get_input_dim_idx(layout, loop_port.dim_idx);
+        } else if (expr_port->get_type() == ExpressionPort::Output) {
+            shape_dim_idx = utils::get_output_dim_idx(layout, loop_port.dim_idx);
+        } else {
+            OPENVINO_THROW("Unsupported expression port type!");
+        }
+        shape_dim_idx--;  // dim_idx of outer loop
+        int64_t stride = 1;
+        for (size_t i = shape_dim_idx + 1; i < shape.size(); ++i) {
+            if (utils::is_dynamic_value(shape[i])) {
+                return utils::get_dynamic_value<int64_t>();
+            }
+            stride *= static_cast<int64_t>(shape[i]);
+        }
+        return stride;
+    };
+
     // move invariant expr to top(outside) of current loop
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+        const auto& next_expr_it = std::next(expr_it);
+        if (next_expr_it == linear_ir.end())
+            break;
+        const auto& next_expr = *next_expr_it;
         const auto& expr = *expr_it;
-
-        // if there is scalar need to be moved(which has 0 input), move scalar with its consumer, as scalar is before consumer due to MoveScalarToConsumer
-        size_t input_num = expr->get_input_count();
-        if (input_num <= 0) {
-            continue;
-        }
-        const auto& current_expr_loops = expr->get_loop_ids();
-        const auto current_loop_depth = current_expr_loops.size();
-        // move from inner loop to outer loop
-        if (current_loop_depth != 2) {
-            continue;
-        }
-
-        size_t outter_loop_id = current_expr_loops[0];
-        size_t inner_loop_id = current_expr_loops[1];
-        const auto& inner_loop_info = loop_manager->get_loop_info(inner_loop_id);
-
-        bool extract_applicable = true;
-        const auto& entry_points = inner_loop_info->get_entry_points();
-        for (size_t i = 0; i < input_num; ++i) {
-            // last dimension should be 1
-            if (expr->get_input_port_descriptor(i)->get_shape().back() != 1) {
-                extract_applicable = false;
-                break;
-            }
-            // expr input ports should be loop entry port or scalar(move together), otherwise have inner dependency that prevent move to outter.
-            const auto& parent = expr->get_input_port_connector(i)->get_source().get_expr();
-            bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
-                parent->get_output_port_connector(0)->get_consumers().size() == 1;
-            if (!loop_manager->is_loop_port(entry_points, expr->get_input_port(i)) && !parent_scalar_with_single_consumer) {
-                extract_applicable = false;
-                break;
-            }
-        }
-
-        if (extract_applicable) {
-            // move scalar parent first
-            const auto& inner_loop_bound = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
-            auto inner_loop_begin = inner_loop_bound.first;
-            auto inner_loop_end = inner_loop_bound.second;
-            for (size_t i = 0; i < input_num; ++i) {
-                auto parent = expr->get_input_port_connector(i)->get_source().get_expr();
-                if (ov::is_type<snippets::op::Scalar>(parent->get_node())) {
-                    // update parent scalar loop id
-                    remove_last_loop_id(parent);
-                    // find iterator for parent scalar
-                    auto backward_it = std::prev(expr_it);
-                    while (*backward_it != parent) {
-                        backward_it = std::prev(backward_it);
-                    }
-                    // move if it is not first
-                    if (*backward_it != *inner_loop_begin) {
-                        linear_ir.move(backward_it, inner_loop_begin);
-                    } else {
-                        inner_loop_begin++;  // keep expr order, scalar is before consumer
-                    }
-                    // scalar has zero input port, not in loop port, no need update loop info. output is consumed by consumer.
-                    // loop_manager->update_loop_ports(parent);
-                }
-            }
-            // update expr loop id
-            remove_last_loop_id(expr);
-            // move if it is not the first
-            if (*expr_it != *inner_loop_begin) {
-                auto expr_current = expr_it;
-                expr_it = std::prev(expr_it);  // save expr_it before move
-                linear_ir.move(expr_current, inner_loop_begin);
-            } else {
-                inner_loop_begin++;
-            }
-
-            // update inner loopInfo
-            // delete if expr input port is a loop entry point
-            auto entry_points = inner_loop_info->get_entry_points();
-            for (size_t i = 0; i < expr->get_input_count(); ++i) {
-                const auto in_port = expr->get_input_port(i);
-                if (loop_manager->is_loop_port(entry_points, in_port)) {
-                    std::vector<ExpressionPort> ports = {in_port};
-                    loop_manager->delete_loop_ports(inner_loop_id, ports, true);
-                }
-            }
-            // delete if expr output port is a loop exit point
-            // if consumers of output port is in inner loop, insert consumer to inner loop entry ports
-            const auto& exit_points = inner_loop_info->get_exit_points();
-            std::vector<ExpressionPort> insert_entry_ports;
-            for (size_t i = 0; i < expr->get_output_count(); ++i) {
-                const auto& out_port = expr->get_output_port(i);
-                if (loop_manager->is_loop_port(exit_points, out_port)) {
-                    // this is to delete expr out port from exit points directly if it's a loop exit point
-                    std::vector<ExpressionPort> ports = {out_port};
-                    loop_manager->delete_loop_ports(inner_loop_id, ports, false);
-                } else {
-                    const auto& consumers = expr->get_output_port_connector(i)->get_consumers();
-                    for (const auto& consumer : consumers) {
-                        const auto& consumer_expr = consumer.get_expr();
-                        if (std::find(inner_loop_begin, inner_loop_end, consumer_expr) != inner_loop_end) {
-                            insert_entry_ports.push_back(consumer);
-                        }
-                    }
-                    loop_manager->insert_loop_ports(inner_loop_id, insert_entry_ports, true);
-                }
-            }
-            // need sort after insert and delete loop point. There are possibility that all exprs are moved to outter loop
-            if (!inner_loop_info->get_exit_points().empty() && !inner_loop_info->get_entry_points().empty()) {
-                loop_manager->sort_loop_ports(inner_loop_begin, inner_loop_end, inner_loop_id);
-            }
-
-            // update outter loopInfo
-            loop_manager->update_loop_ports(expr);
-            // add expr input port to outter entry points if it is a outter loop io point
-            const auto& outter_loop_bound = loop_manager->get_loop_bounds(linear_ir, outter_loop_id);
-            std::vector<ExpressionPort> in_ports;
-            for (size_t i = 0; i < expr->get_input_count(); ++i) {
-                const auto& in_port = expr->get_input_port(i);
-                const auto& parent_expr = in_port.get_connected_ports().begin()->get_expr();
-                if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
-                    std::find(outter_loop_bound.first, outter_loop_bound.second, parent_expr) == outter_loop_bound.second) {
-                    in_ports.push_back(in_port);
-                }
-            }
-            loop_manager->insert_loop_ports(outter_loop_id, in_ports, true);
-            // add expr out port to outter entry points if it is a outter loop io point
-            std::vector<ExpressionPort> out_ports;
-            for (size_t i = 0; i < expr->get_output_count(); ++i) {
-                const auto& out_port = expr->get_output_port(i);
-                const auto& consumer_ports = out_port.get_connected_ports();
-                for (const auto& consumer : consumer_ports) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    if (std::find(outter_loop_bound.first, outter_loop_bound.second, consumer_expr) == outter_loop_bound.second) {
-                        out_ports.push_back(out_port);
-                        break;
-                    }
-                }
-            }
-            loop_manager->insert_loop_ports(outter_loop_id, out_ports, false);
-            // sort
-            auto outter_loop_bound_sort = loop_manager->get_loop_bounds(linear_ir, outter_loop_id);
-            loop_manager->sort_loop_ports(outter_loop_bound_sort.first, outter_loop_bound_sort.second, outter_loop_id);
-
-            modified = true;
-        }
-    }
-
-    // move invariant expr to bottom(outside) of current loop
-    for (auto expr_it = linear_ir.rbegin(); expr_it != linear_ir.rend(); expr_it++) {
-        const auto& expr = *expr_it;
-        const auto& current_expr_loops = expr->get_loop_ids();
-        const auto current_loop_depth = current_expr_loops.size();
-        // move from inner loop to outter loop
-        if (current_loop_depth != 2) {
-            continue;
-        }
-
-        size_t outter_loop_id = current_expr_loops[0];
-        size_t inner_loop_id = current_expr_loops[1];
-        const auto& inner_loop_info = loop_manager->get_loop_info(inner_loop_id);
-
-        bool extract_applicable = true;
-        // if there is scalar need to be moved(which has 0 input), move scalar with its consumer, as scalar is before consumer due to MoveScalarToConsumer
-        size_t input_num = expr->get_input_count();
-        if (input_num <= 0) {
-            continue;
-        }
-        for (size_t i = 0; i < input_num; ++i) {
-            // last dimension should be 1
-            if (expr->get_input_port_descriptor(i)->get_shape().back() != 1) {
-                extract_applicable = false;
-                break;
-            }
-        }
-        if (extract_applicable) {
-            const auto& exit_points = inner_loop_info->get_exit_points();
-            size_t output_num = expr->get_output_count();
-            for (size_t i = 0; i < output_num; ++i) {
-                // expr output port should be loop exit point, and not shared,
-                // otherwise output port may be a input(dependency) of other inner expr that prevent move to outter.
-                if (!(loop_manager->is_loop_port(exit_points, expr->get_output_port(i)) && expr->get_output_port_connector(i)->get_consumers().size() == 1)) {
-                    extract_applicable = false;
+        if (next_expr->get_loop_ids().size() < expr->get_loop_ids().size()) {
+            // expr is the last expr of inner loop
+            const auto& loop_ids = expr->get_loop_ids();
+            const auto& inner_loop_id = loop_ids.back();
+            bool extracte_complete = false;  // true means all extractable exprs are extracted for this loop
+            std::vector<std::shared_ptr<Expression>> extracted_exprs;
+            while (!extracte_complete) {
+                const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
+                const auto& inner_loop_input_ports = inner_loop_info->get_input_ports();
+                if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
+                    loop_manager->remove_loop_info(inner_loop_id);
                     break;
                 }
-            }
-        }
+                bool extract_applicable = true;
+                for (size_t i = 0; i < inner_loop_input_ports.size(); i++) {  // iter loop ports
+                    const auto& port_expr = inner_loop_input_ports[i].expr_port->get_expr();
+                    if (std::find(extracted_exprs.cbegin(), extracted_exprs.cend(), port_expr) != extracted_exprs.cend())
+                        continue;
+                    const auto& expr_input_ports = port_expr->get_input_ports();
+                    extract_applicable = true;
+                    if (expr_input_ports.size() == 0)
+                        extract_applicable = false;
+                    for (size_t i = 0; i < expr_input_ports.size(); ++i) {  // iter expr ports
+                        const auto& parent = port_expr->get_input_port_connector(i)->get_source().get_expr();
+                        bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
+                            parent->get_output_port_connector(0)->get_consumers().size() == 1;
 
-        if (extract_applicable) {
-            const auto& inner_loop_bound = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
-            auto inner_loop_begin = inner_loop_bound.first;
-            auto inner_loop_end = inner_loop_bound.second;
-            // update expr loop id
-            remove_last_loop_id(expr);
-            // move expr if it is not the last
-            if (*expr_it != *(inner_loop_end--)) {
-                auto forward_it = std::prev(expr_it.base());
-                expr_it = std::prev(expr_it);               // save expr_it before move
-                linear_ir.move(forward_it, inner_loop_end); // move expr before inner_loop_bound.second(next iterator of the last exit loop port)
-            }
-            // Now inner_loop_end should always expr_it(expr_it is out of inner loop).
-            // This resert is needed to keep expr order(parent scalar should insert before expr_it)
-            inner_loop_end--;
-
-            // move parent scalar
-            for (size_t i = 0; i < input_num; ++i) {
-                auto parent = expr->get_input_port_connector(i)->get_source().get_expr();
-                if (ov::is_type<snippets::op::Scalar>(parent->get_node())) {
-                    remove_last_loop_id(parent);
-                    // find iterator for parent scalar
-                    auto scalar_it = std::next(expr_it);
-                    while (*scalar_it != parent) {
-                        scalar_it = std::next(scalar_it);
+                        const auto& loop_port = inner_loop_info->find_loop_port(expr_input_ports[i]);
+                        if (loop_port == inner_loop_input_ports.end() && !parent_scalar_with_single_consumer) {
+                            // expr input port is not a loop input port
+                            extract_applicable = false;
+                            break;
+                        }
+                        if (loop_port != inner_loop_input_ports.end()) {
+                            if (get_stride_after_move_outer(*loop_port) != 1) {
+                                // after move to outside, stride is not 1, then should not move.
+                                extract_applicable = false;
+                                break;
+                            }
+                        }
                     }
-                    auto forward_scalar_it = std::prev(scalar_it.base());
-                    if (*forward_scalar_it != *(inner_loop_end--)) {
-                        linear_ir.move(forward_scalar_it, inner_loop_end);
+                    if (extract_applicable) {
+                        // extract
+                        extracted_exprs.push_back(port_expr);
+                        LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
+                        std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+                        for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
+                            auto parent = port_expr->get_input_port_connector(i)->get_source().get_expr();
+                            if (ov::is_type<snippets::op::Scalar>(parent->get_node())) {
+                                // update parent scalar loop id
+                                remove_last_loop_id(parent);
+                                // find iterator for parent scalar
+                                auto parent_scalar_iter = std::find(inner_loop_begin_pos, inner_loop_end_pos, parent);
+                                // move if it is not first
+                                if (*parent_scalar_iter != *inner_loop_begin_pos) {
+                                    linear_ir.move(parent_scalar_iter, inner_loop_begin_pos);
+                                } else {
+                                    inner_loop_begin_pos++;  // keep expr order, scalar is before consumer
+                                }
+                            }
+                        }
+                        // update expr loop id
+                        remove_last_loop_id(port_expr);
+                        // move if it is not the first
+                        if (port_expr != *inner_loop_begin_pos) {
+                            auto port_expr_iter = std::find(inner_loop_begin_pos, inner_loop_end_pos, port_expr);
+                            linear_ir.move(port_expr_iter, inner_loop_begin_pos);
+                        } else {
+                            inner_loop_begin_pos++;
+                        }
+
+                        // delete expr input ports from loop input points, add expr output ports' consumers if consumed in inner loop to loop input ports.
+                        std::vector<ExpressionPort> new_loop_input_ports;
+                        for (size_t i = 0; i < port_expr->get_output_count(); i++) {
+                            const auto& consumers = port_expr->get_output_port_connector(i)->get_consumers();
+                            for (const auto& consumer : consumers) {
+                                const auto& loop_ids = consumer.get_expr()->get_loop_ids();
+                                if (std::find(loop_ids.cbegin(), loop_ids.cend(), inner_loop_id) != loop_ids.cend()) {
+                                    new_loop_input_ports.push_back(consumer);
+                                }
+                            }
+                        }
+                        inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports, true);
+                        // delete expr out ports from loop out ports directly if it's in loop output ports
+                        const auto& loop_out_ports = inner_loop_info->get_output_ports();
+                        std::vector<ExpressionPort> exp_out_ports;
+                        for (size_t i = 0; i < port_expr->get_output_count(); ++i) {
+                            const auto& out_port = port_expr->get_output_port(i);
+                            if (inner_loop_info->find_loop_port(out_port) != loop_out_ports.end()) {
+                                exp_out_ports.push_back(out_port);
+                            }
+                        }
+                        if (!exp_out_ports.empty()) {
+                            std::vector<ExpressionPort> new_ports;
+                            inner_loop_info->update_loop_ports(exp_out_ports, new_ports, false);
+                        }
+                        // need sort after update loop ports. There are possibility that all exprs are moved to outter loop.
+                        if (!inner_loop_info->get_input_ports().empty() && !inner_loop_info->get_output_ports().empty()) {
+                            loop_manager->sort_loop_ports(inner_loop_begin_pos, inner_loop_end_pos, inner_loop_id);
+                        }
+
+                        // update outer loopInfo
+                        const auto& outer_loop_ids = port_expr->get_loop_ids();
+                        if (outer_loop_ids.size() > 0) {
+                            const auto& outer_loop_id = outer_loop_ids.back();
+                            const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(outer_loop_id);
+
+                            loop_manager->update_loop_ports(port_expr);
+                            // add expr input port to outer loop input ports if it's a outer loop io port
+                            std::vector<ExpressionPort> add_in_ports;
+                            for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
+                                const auto& in_port = port_expr->get_input_port(i);
+                                const auto& parent_expr = in_port.get_connected_ports().begin()->get_expr();
+                                const auto& parent_expr_loop_ids = parent_expr->get_loop_ids();
+                                if (std::find(parent_expr_loop_ids.cbegin(), parent_expr_loop_ids.cend(), outer_loop_id) == parent_expr_loop_ids.cend()) {
+                                    // parent expr is not in outer loop
+                                    add_in_ports.push_back(in_port);
+                                }
+                            }
+                            std::vector<ExpressionPort> removed_ports;
+                            outer_loop_info->update_loop_ports(removed_ports, add_in_ports, true);
+                            // add expr out port to outer loop out port if it's a outer loop io port
+                            std::vector<ExpressionPort> add_out_ports;
+                            for (size_t i = 0; i < port_expr->get_output_count(); ++i) {
+                                const auto& out_port = port_expr->get_output_port(i);
+                                const auto& consumer_ports = out_port.get_connected_ports();
+                                for (const auto& consumer : consumer_ports) {
+                                    const auto& consumer_expr = consumer.get_expr();
+                                    const auto& loop_ids = consumer_expr->get_loop_ids();
+                                    if (std::find(loop_ids.cbegin(), loop_ids.cend(), outer_loop_id) == loop_ids.cend()) {
+                                        add_out_ports.push_back(out_port);
+                                    }
+                                }
+                            }
+                            outer_loop_info->update_loop_ports(removed_ports, add_out_ports, false);
+
+                            // sort
+                            LinearIR::constExprIt outer_loop_begin_pos, outer_loop_end_pos;
+                            std::tie(outer_loop_begin_pos, outer_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, outer_loop_id);
+                            loop_manager->sort_loop_ports(outer_loop_begin_pos, outer_loop_end_pos, outer_loop_id);
+                        }
+
+                        break; // refreshed loop_input_ports, go while() to start again.
                     }
-                    inner_loop_end--;
-                    loop_manager->update_loop_ports(parent);
                 }
+                // no more extractable expr in this loop.
+                if (!extract_applicable)
+                    extracte_complete = true;
             }
-
-            // update inner loop info
-            // delete if expr input port is loop entry point
-            auto entry_points = inner_loop_info->get_entry_points();
-            for (size_t i = 0; i < expr->get_input_count(); ++i) {
-                const auto in_port = expr->get_input_port(i);
-                if (loop_manager->is_loop_port(entry_points, in_port)) {
-                    std::vector<ExpressionPort> ports = {in_port};
-                    loop_manager->delete_loop_ports(inner_loop_id, ports, true);
-                }
-            }
-            // delete if expr output port is loop exit point
-            auto exit_points = inner_loop_info->get_exit_points();
-            for (size_t i = 0; i < expr->get_output_count(); ++i) {
-                const auto out_port = expr->get_output_port(i);
-                if (loop_manager->is_loop_port(exit_points, out_port)) {
-                    std::vector<ExpressionPort> ports = {out_port};
-                    loop_manager->delete_loop_ports(inner_loop_id, ports, false);
-                }
-            }
-            // insert expr source(not scalar, and parent is in inner loop) to loop exit point
-            std::vector<ExpressionPort> insert_exit_ports;
-            for (size_t i = 0; i < expr->get_input_count(); ++i) {
-                auto source = expr->get_input_port_connector(i)->get_source();
-                auto parent = source.get_expr();
-                if (!ov::is_type<snippets::op::Scalar>(parent->get_node())) {
-                    if (std::find(inner_loop_begin, inner_loop_end, parent) != inner_loop_end) {
-                        insert_exit_ports.push_back(source);
-                    }
-                }
-            }
-            if (!insert_exit_ports.empty())
-                loop_manager->insert_loop_ports(inner_loop_id, insert_exit_ports, false);
-
-            // need sort after insert and delete loop point. There are possibility that all exprs are moved to outter loop
-            if (!inner_loop_info->get_exit_points().empty() && !inner_loop_info->get_entry_points().empty()) {
-                loop_manager->sort_loop_ports(inner_loop_begin, inner_loop_end, inner_loop_id);
-            }
-
-            // update outter loop info.
-            loop_manager->update_loop_ports(expr);
-            // add expr input port to outter entry points if it is a outter loop io point
-            const auto& outter_loop_bound = loop_manager->get_loop_bounds(linear_ir, outter_loop_id);
-            std::vector<ExpressionPort> in_ports;
-            for (size_t i = 0; i < expr->get_input_count(); ++i) {
-                const auto in_port = expr->get_input_port(i);
-                const auto parent_expr = in_port.get_connected_ports().begin()->get_expr();
-                if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
-                    std::find(outter_loop_bound.first, outter_loop_bound.second, parent_expr) == outter_loop_bound.second) {
-                    in_ports.push_back(in_port);
-                }
-            }
-            loop_manager->insert_loop_ports(outter_loop_id, in_ports, true);
-            // add expr out port to outter exit points if it is a outter loop io point
-            std::vector<ExpressionPort> out_ports;
-            for (size_t i = 0; i < expr->get_output_count(); ++i) {
-                const auto out_port = expr->get_output_port(i);
-                const auto consumer_ports = out_port.get_connected_ports();
-                for (const auto& consumer : consumer_ports) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    if (std::find(outter_loop_bound.first, outter_loop_bound.second, consumer_expr) == outter_loop_bound.second) {
-                        out_ports.push_back(out_port);
-                        break;
-                    }
-                }
-            }
-            loop_manager->insert_loop_ports(outter_loop_id, out_ports, false);
-            // sort
-            auto outter_loop_bound_sort = loop_manager->get_loop_bounds(linear_ir, outter_loop_id);
-            loop_manager->sort_loop_ports(outter_loop_bound_sort.first, outter_loop_bound_sort.second, outter_loop_id);
-
-            modified = true;
         }
     }
+
     return modified;
 }
 

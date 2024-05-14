@@ -157,6 +157,14 @@ public:
         return get_type_info().name;
     }
 
+    /**
+     * @brief Find LoopPort in input and output ports
+     * @param loop_port target port
+     * @return iterator of the corresponding collection
+     */
+    template<typename T>
+    std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
+
 protected:
     /**
      * @brief Helper to clone Loop ports using `ExpressionMap`
@@ -165,13 +173,6 @@ protected:
      * @return vector with new cloned loop ports
      */
     static std::vector<LoopPort> clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports);
-    /**
-     * @brief Find LoopPort in input and output ports
-     * @param loop_port target port
-     * @return iterator of the corresponding collection
-     */
-    template<typename T>
-    std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;
@@ -323,6 +324,27 @@ public:
      * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
      */
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
+
+    /**
+     * @brief Remove the current LoopPort that contains ExpressionPort.
+     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
+     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
+     * @param ports need to be removed
+     */
+    void update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports, bool is_input);
+    /**
+     * @brief Remove the current LoopPort that contains ExpressionPort.
+     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
+     *        This function remove directly without respect ports order, caller is responsible for the order by sort.
+     * @param ports need to be removed
+     */
+    void remove_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
+    /**
+     * @brief Add ports to the current LoopPort.
+     *        This function add in back of current LoopPort without respect ports order, caller is responsible for the order by sort.
+     * @param ports need to be added
+     */
+    void add_loop_ports(const std::vector<ExpressionPort>& ports, bool is_input);
 
     /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them

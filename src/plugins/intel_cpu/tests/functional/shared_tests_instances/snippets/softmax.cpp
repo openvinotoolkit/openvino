@@ -45,14 +45,14 @@ const std::vector<InputShape> inputShape = {
     {{-1, -1, 128, -1}, {{1, 3, 128, 128}, {1, 3, 128, 129}, {1, 3, 128, 130}, {1, 3, 128, 1}, {1, 3, 128, 16}, {1, 3, 128, 1}}},
 };
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Softmax, Softmax,
-//                      ::testing::Combine(
-//                              ::testing::ValuesIn(inputShape),
-//                              ::testing::Values(-1),
-//                              ::testing::Values(1),
-//                              ::testing::Values(1),
-//                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                      Softmax::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Softmax, Softmax,
+                     ::testing::Combine(
+                             ::testing::ValuesIn(inputShape),
+                             ::testing::Values(-1),
+                             ::testing::Values(1),
+                             ::testing::Values(1),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                     Softmax::getTestCaseName);
 
 const std::vector<std::pair<InputShape, InputShape>> inputShapesPair = {
     {{{}, {{1, 5, 16, 35}}}, {{}, {{1, 5, 16, 35}}}},
@@ -76,14 +76,14 @@ const std::vector<std::pair<InputShape, InputShape>> inputShapesPair = {
      {{-1, -1, 5, -1}, {{1, 1, 5, 35}, {1, 1, 5, 32}, {1, 5, 5, 18}, {1, 2, 5, 35}}}},
 };
 
-// INSTANTIATE_TEST_SUITE_P(smoke_Snippets_AddSoftmax, AddSoftmax,
-//                      ::testing::Combine(
-//                              ::testing::ValuesIn(inputShapesPair),
-//                              ::testing::Values(-1),
-//                              ::testing::Values(1),
-//                              ::testing::Values(1),
-//                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                      AddSoftmax::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_AddSoftmax, AddSoftmax,
+                     ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesPair),
+                             ::testing::Values(-1),
+                             ::testing::Values(1),
+                             ::testing::Values(1),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                     AddSoftmax::getTestCaseName);
 
 } // namespace
 } // namespace snippets
