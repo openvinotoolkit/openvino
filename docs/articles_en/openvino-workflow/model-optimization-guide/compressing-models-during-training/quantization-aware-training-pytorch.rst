@@ -6,7 +6,7 @@ PyTorch:
 
 
 1. Apply Post Training Quantization to the model
-####################################
+##################################################
 
 Quantize the model using the :doc:`Post-Training Quantization <../quantizing-models-post-training/basic-quantization-flow>` method.
 
@@ -22,6 +22,7 @@ Quantize the model using the :doc:`Post-Training Quantization <../quantizing-mod
 
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5.
+Quantized models carry out all computation in floating point precision during the fine-tuning by modeling quantization errors in both the forward and backward passes.
 
 .. tab:: PyTorch
 
@@ -81,7 +82,8 @@ Deploying quantized model
 The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are
 required in this case. For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
-Example
+Examples
 ####################
 
-* `Quantizing PyTorch model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__
+* `Post-Training Quantization of MobileNet v2 PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/mobilenet_v2>`__
+* `Post-Training Quantization of SSD PyTorch Model <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/torch/ssd300_vgg16>`__
