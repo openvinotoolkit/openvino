@@ -301,9 +301,11 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         LOG_INFO_TAG("Device: [%s]: Compile model took %lf ms", device.c_str(), compiled_time);
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
+        LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     } catch (const std::exception& e) {
         context.m_err_message += device + ":" + e.what();
+        LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     }
     if (context.m_is_load_success || cur_dev_is_cpu) {
