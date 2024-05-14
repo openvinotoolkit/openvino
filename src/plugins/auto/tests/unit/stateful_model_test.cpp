@@ -9,12 +9,13 @@
 #include "openvino/opsets/opset11.hpp"
 
 using StatefulModelConfigParams =
-    std::tuple<std::string,                              // device candidate list
-               bool,                                     // is dynamic model
-               bool,                                     // is stateful model
-               std::map<std::string, bool>,              // device and the flag if device supports stateful
-               bool,                                     // is cumulative mode
-               std::vector<std::pair<std::string, int>>  // expected compiling model times on each device
+    std::tuple<std::string,                               // device candidate list
+               bool,                                      // is dynamic model
+               bool,                                      // is stateful model
+               bool,                                      // is cumulative mode
+               bool,                                      // is actual device compiled model successfully
+               std::vector<std::pair<std::string, int>>,  // expected compiling model times on each device
+               std::string                                // expected execution devices list
                >;
 
 class StatefulModelSupportedTest : public tests::AutoTest, public ::testing::TestWithParam<StatefulModelConfigParams> {
@@ -26,35 +27,40 @@ public:
     void SetUp() override;
 
 protected:
+    std::string devicesList;
     bool isDynamicModel;
     bool isStatefulModel;
-    std::map<std::string, bool> isDevSupportStatefulMap;
-    std::vector<std::pair<std::string, int>> expectedCalledTimes;
+    bool isActualSuccessful;
     bool isCumulative;
-    std::string devicesList;
+    std::vector<std::pair<std::string, int>> expectedCalledTimes;
+    std::string expectedExecuteDev;
 };
 
 std::string StatefulModelSupportedTest::getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj) {
     bool isDynamicModel;
     bool isStatefulModel;
-    std::map<std::string, bool> isDevSupportStatefulMap;
-    std::vector<std::pair<std::string, int>> expectedCalledTimes;
+    bool isActualSuccessful;
     bool isCumulative;
+    std::vector<std::pair<std::string, int>> expectedCalledTimes;
     std::string devicesList;
-
-    std::tie(devicesList, isDynamicModel, isStatefulModel, isDevSupportStatefulMap, isCumulative, expectedCalledTimes) =
-        obj.param;
+    std::string expectedExecuteDev;
+    std::tie(devicesList,
+             isDynamicModel,
+             isStatefulModel,
+             isCumulative,
+             isActualSuccessful,
+             expectedCalledTimes,
+             expectedExecuteDev) = obj.param;
     std::ostringstream result;
     result << "_devicesList_" << devicesList;
     result << "_isDynamic_" << isDynamicModel;
     result << "_isStatefulModel_" << isStatefulModel;
-    for (auto& item : isDevSupportStatefulMap) {
-        result << "_" << item.first << "_" << item.second;
-    }
     result << "_isCumulative_" << isCumulative;
+    result << "_isActualCompileSuccessful" << isActualSuccessful;
     for (auto& item : expectedCalledTimes) {
         result << "_calling_on_" << item.first << "_expected_times_" << item.second;
     }
+    result << "_expectedExecuteDevice_" << expectedExecuteDev;
     auto string = result.str();
     return string;
 }
@@ -132,8 +138,13 @@ std::shared_ptr<ov::Model> StatefulModelSupportedTest::create_stateful_dynamic_m
 }
 
 void StatefulModelSupportedTest::SetUp() {
-    std::tie(devicesList, isDynamicModel, isStatefulModel, isDevSupportStatefulMap, isCumulative, expectedCalledTimes) =
-        GetParam();
+    std::tie(devicesList,
+             isDynamicModel,
+             isStatefulModel,
+             isCumulative,
+             isActualSuccessful,
+             expectedCalledTimes,
+             expectedExecuteDev) = GetParam();
     if (isDynamicModel && isStatefulModel) {
         model = create_stateful_dynamic_model();
     } else if (isDynamicModel) {
@@ -142,44 +153,34 @@ void StatefulModelSupportedTest::SetUp() {
         model = create_stateful_model();
     }
 
-    std::map<std::string, ov::SupportedOpsMap> devicesSupportedLayers;
-    for (auto& item : isDevSupportStatefulMap) {
-        ov::SupportedOpsMap res;
-        auto deviceName = item.first;
-        auto isSupportStateful = item.second;
-        std::unordered_set<std::string> device_supported_layers;
-        for (auto& op : model->get_ops()) {
-            if (!std::dynamic_pointer_cast<ov::op::util::AssignBase>(op) &&
-                !std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op)) {
-                res[op->get_friendly_name()] = deviceName;
-                continue;
-            }
-            if (isSupportStateful) {
-                res[op->get_friendly_name()] = deviceName;
-            }
-        }
-        devicesSupportedLayers[deviceName] = res;
-    }
-
-    for (auto& item : devicesSupportedLayers) {
-        ON_CALL(*core,
-                query_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                            ::testing::Matcher<const std::string&>(StrEq(item.first)),
-                            _))
-            .WillByDefault(Return(item.second));
-    }
-
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                           (_)))
-        .WillByDefault(Return(mockExeNetwork));
+        .WillByDefault(InvokeWithoutArgs([this]() {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(200));  // make sure GPU finishes compilation model first.
+            return mockExeNetwork;
+        }));
 
-    ON_CALL(*core,
-            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
-                          (_)))
-        .WillByDefault(Return(mockExeNetworkActual));
+    if (isActualSuccessful) {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                              (_)))
+            .WillByDefault(InvokeWithoutArgs([this]() {
+                return mockExeNetworkActual;
+            }));
+    } else {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_GPU)),
+                              _))
+            .WillByDefault(InvokeWithoutArgs([this]() {
+                OPENVINO_THROW("");
+                return mockExeNetworkActual;
+            }));
+    }
     if (isCumulative)
         plugin->set_device_name("MULTI");
     else
@@ -200,6 +201,12 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
                                       ::testing::Matcher<const std::string&>(StrEq(deviceName)),
                                       ::testing::Matcher<const ov::AnyMap&>(_)))
                 .Times(times);
+        } else if (times == -2) {
+            EXPECT_CALL(*core,
+                        compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                      ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                                      ::testing::Matcher<const ov::AnyMap&>(_)))
+                .Times(AtLeast(1));
         }
     }
     int expectedTimes = expectedCalledTimes.begin()->second;
@@ -215,286 +222,169 @@ TEST_P(StatefulModelSupportedTest, CanFilterOutCorrectTargetDeviceWithStatefulMo
             return devices;
         });
 
-    config.insert(ov::intel_auto::enable_runtime_fallback(false));
     if (isCumulative) {
         config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
+    std::shared_ptr<ov::ICompiledModel> exeNetwork;
     if (expectedTimes < 0) {
         ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
     } else {
-        ASSERT_NO_THROW(plugin->compile_model(model, config));
+        ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+        EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(), expectedExecuteDev);
     }
 }
 
 const std::vector<StatefulModelConfigParams> testConfigs = {
     // test cases for dynamic model
     StatefulModelConfigParams{
-        "CPU",                                                  // device candidate list is CPU
-        true,                                                   // model is dynamic model
-        true,                                                   // model is stateful model
-        std::map<std::string, bool>{{"CPU", true}},             // device CPU supports stateful model
-        true,                                                   // performance mode is cumulative mode
-        std::vector<std::pair<std::string, int>>{{"CPU", 1}}},  // expected compiling model count is 1 on device CPU
+        "CPU",                                                 // device candidate list
+        false,                                                 // is dynamic model
+        false,                                                 // is stateful model
+        false,                                                 // is cumulative mode
+        false,                                                 // is actual device compiled model successfully
+        std::vector<std::pair<std::string, int>>{{"CPU", 1}},  // expected compiling model times on each device
+        "CPU"},                                                // expected compiling model times on each device
     StatefulModelConfigParams{"CPU",
                               true,
                               false,
-                              std::map<std::string, bool>{{"CPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              false,
-                              std::map<std::string, bool>{{"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              false,
-                              std::map<std::string, bool>{{"GPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              false,
-                              std::map<std::string, bool>{{"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"GPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", -1}, {"GPU", -1}}},
-    StatefulModelConfigParams{"GPU,CPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", -1}, {"GPU", -1}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              true,
-                              false,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 1}}},
-    StatefulModelConfigParams{"GPU,CPU",
-                              true,
-                              false,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
                               false,
                               false,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 1}}},
-    StatefulModelConfigParams{"GPU,CPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}}},
-    StatefulModelConfigParams{"GPU,CPU",
-                              false,
-                              false,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}}},
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}},
+                              "CPU"},
     StatefulModelConfigParams{"CPU",
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
+                              false,
                               true,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}},
+                              "CPU"},
     StatefulModelConfigParams{"CPU",
+                              true,
+                              true,
+                              true,
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"CPU", 1}},
+                              "CPU"},
+    StatefulModelConfigParams{"GPU",
+                              false,
+                              false,
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
-    StatefulModelConfigParams{"CPU",
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}},
+                              "GPU"},
+    StatefulModelConfigParams{"GPU",
+                              true,
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}}},
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}},
+                              "GPU"},
     StatefulModelConfigParams{"GPU",
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
-                              true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
+                              false,
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", -1}},
+                              ""},
     StatefulModelConfigParams{"GPU",
-                              false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"GPU",
-                              false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
                               false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"CPU", 1}, {"GPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
-                              false,
-                              true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
-                              false,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
+                              std::vector<std::pair<std::string, int>>{{"GPU", -1}},
+                              ""},
 
-    StatefulModelConfigParams{"CPU,GPU",
+    StatefulModelConfigParams{"GPU,CPU",
+                              false,
+                              false,
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", false}},
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "GPU"},
+    StatefulModelConfigParams{"GPU,CPU",
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 0}, {"CPU", 1}}},
-    StatefulModelConfigParams{"CPU,GPU",
+                              false,
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", true}},
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "GPU"},
+    StatefulModelConfigParams{
+        "GPU,CPU",
+        false,
+        false,
+        false,
+        false,
+        std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", -2}},  // -2 means at least 1 times for CPU
+        "CPU"},
+    StatefulModelConfigParams{
+        "GPU,CPU",
+        true,
+        false,
+        false,
+        false,
+        std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", -2}},  // -2 means at least 1 times for CPU
+        "CPU"},
+
+    StatefulModelConfigParams{"GPU,CPU",
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}}},
-    StatefulModelConfigParams{"CPU,GPU",
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", true}, {"GPU", true}},
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}}},
-    StatefulModelConfigParams{"CPU,GPU",
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "GPU CPU"},
+    StatefulModelConfigParams{"GPU,CPU",
+                              false,
                               false,
                               true,
-                              std::map<std::string, bool>{{"CPU", false}, {"GPU", false}},
                               true,
-                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}}},
-};
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "GPU CPU"},
+
+    StatefulModelConfigParams{"GPU,CPU",
+                              true,
+                              false,
+                              true,
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "CPU"},
+    StatefulModelConfigParams{"GPU,CPU",
+                              false,
+                              false,
+                              true,
+                              false,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 1}},
+                              "CPU"},
+    // AUTO with stateful model
+    StatefulModelConfigParams{"GPU,CPU",
+                              false,
+                              true,
+                              false,
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}},
+                              "GPU"},
+    StatefulModelConfigParams{"GPU,CPU",
+                              true,
+                              true,
+                              false,
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", 1}, {"CPU", 0}},
+                              "GPU"},
+
+    // MULTI with stateful model
+    StatefulModelConfigParams{"GPU,CPU",
+                              false,
+                              true,
+                              true,
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}},
+                              ""},
+    StatefulModelConfigParams{"GPU,CPU",
+                              true,
+                              true,
+                              true,
+                              true,
+                              std::vector<std::pair<std::string, int>>{{"GPU", -1}, {"CPU", -1}},
+                              ""}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          StatefulModelSupportedTest,

@@ -852,29 +852,6 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
     // disable CPU_HELP and runtime fallback if model is stateful
     disable_startup_runtime_fallback();
 
-    auto is_supported_stateful = [&](const std::string& device_name, const ov::AnyMap& config) {
-        auto query_config = config;
-        // remove core property from config, to be checked further if can do this elegantly
-        const auto& cache_property = query_config.find(ov::cache_dir.name());
-        if (cache_property != query_config.end()) {
-            query_config.erase(cache_property);
-        }
-        auto device_qm = get_core()->query_model(model, device_name, query_config);
-        for (auto&& node_name : stateful_node_names) {
-            if (device_qm.find(node_name) == device_qm.end())
-                return false;
-        }
-        return true;
-    };
-
-    // filter out the devices which support stateful model
-    for (auto it = filter_device.begin(); it != filter_device.end();) {
-        if (!is_supported_stateful(it->device_name, it->config))
-            filter_device.erase(it);
-        else
-            ++it;
-    }
-
     bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
                                                            ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
     if (isCumulative) {
