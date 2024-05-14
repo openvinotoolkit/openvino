@@ -36,6 +36,7 @@ public:
     uint32_t GetDriverVersion() const;
     uint32_t GetDriverExtVersion() const;
     ov::device::PCIInfo GetPciInfo(const std::string& specifiedDeviceName) const;
+    std::map<ov::element::Type, float> GetGops(const std::string& specifiedDeviceName) const;
 
     std::vector<ov::PropertyName> GetCachingProperties() const;
     std::vector<ov::PropertyName> GetInternalSupportedProperties() const;
