@@ -54,7 +54,6 @@ NPU:
 
 HETERO:
   revalidate:
-    - C_API
     - Python_API
   build:
     - TEMPLATE
