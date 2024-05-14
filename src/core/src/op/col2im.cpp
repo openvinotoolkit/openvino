@@ -8,7 +8,10 @@
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+<<<<<<< HEAD
 #include "openvino/reference/col2im.hpp"
+=======
+>>>>>>> 239b57869fca7310193d62ad4962673fbe0e4767
 
 namespace ov {
 namespace op {

@@ -15,7 +15,6 @@ from openvino.runtime import Core, Type, PartialShape
 import openvino.properties.hint as hints
 import torch
 from packaging import version
-import openvino.torch
 import pytest
 
 def skip_if_export(param, reason="Unsupported on torch.export"):
