@@ -19,9 +19,9 @@ precommit_runtime_heat_duration = os.environ.get('PRECOMMIT_RUNTIME_HEAT_DURATIO
 nigtly_runtime_heat_duration = os.environ.get('NIGHTLY_RUNTIME_HEAT_DURATION', '5')
 
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
-                                  os.path.join(tempfile.gettempdir(), "tfhub_models"))
-tf_hfhub_cache_dir = os.environ.get('TF_HFHUB_CACHE_DIR',
-                                    os.path.join(tempfile.gettempdir(), "tf_hfhub_models"))
+                                  os.path.join(tempfile.gettempdir(), "tfhub_modules"))
+hf_cache_dir = os.environ.get('HF_HUB_CACHE',
+                              os.path.join(tempfile.gettempdir(), "hugging_face"))
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['TF_HFHUB_CACHE_DIR'] = tf_hfhub_cache_dir
 
