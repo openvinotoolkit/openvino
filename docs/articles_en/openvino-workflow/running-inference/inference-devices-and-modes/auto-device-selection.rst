@@ -314,8 +314,8 @@ asynchronous inference pipeline. For information on asynchronous inference, see 
 The following notebooks provide examples of how to set up an asynchronous pipeline:
 
 * :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
-* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/115-async-api-with-output.html>`__
-* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/106-auto-device-with-output.html>`__
+* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/async-api-with-output.html>`__
+* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/auto-device-with-output.html>`__
 
 LATENCY
 --------------------
