@@ -221,14 +221,29 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        if (property.first == "CACHE_ENCRYPTION" || property.first == "CACHE_DECRYPTION") {
+        if (property.first == ov::cache_crypto_callback.name()) {
             auto property_value = property.second;
-            std::function<std::string(const std::string&)> func =
+            std::function<std::string(const std::string&)> encrypt_func =
                 [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                return property_value(in_str).cast<std::string>();
+                if (py::isinstance<py::list>(property_value)) {
+                    auto _list = property_value.cast<py::list>();
+                    return _list[0](in_str).cast<std::string>();
+                }
             };
-            properties_to_cpp[property.first] = func;
+
+            std::function<std::string(const std::string&)> decrypt_func =
+                [property_value](const std::string& in_str) -> std::string {
+                // Acquire GIL, execute Python function
+                py::gil_scoped_acquire acquire;
+                if (py::isinstance<py::list>(property_value)) {
+                    auto _list = property_value.cast<py::list>();
+                    return _list[1](in_str).cast<std::string>();
+                }
+            };
+            std::vector<std::function<std::string(const std::string&)>> crypto_callback{encrypt_func, decrypt_func};
+            properties_to_cpp[property.first] = crypto_callback;
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

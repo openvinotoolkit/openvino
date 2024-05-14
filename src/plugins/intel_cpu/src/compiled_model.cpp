@@ -300,10 +300,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
-    } else if (name == ov::cache_encryption) {
-        return decltype(ov::cache_encryption)::value_type(config.cacheEncrypt);
-    } else if (name == ov::cache_decryption) {
-        return decltype(ov::cache_decryption)::value_type(config.cacheDecrypt);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

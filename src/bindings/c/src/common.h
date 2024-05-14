@@ -31,22 +31,32 @@
         return ov_status_e::UNKNOW_EXCEPTION;              \
     }
 
-#define GET_PROPERTY_FROM_ARGS_LIST                                                                   \
-    std::string property_key = va_arg(args_ptr, char*);                                               \
-    if (property_key == ov::cache_encryption.name() || property_key == ov::cache_decryption.name()) { \
-        crypto_func _value = va_arg(args_ptr, crypto_func);                                           \
-        std::function<std::string(const std::string&)> value = [_value](const std::string& in) {      \
-            size_t out_size = 0;                                                                      \
-            char* out = _value(in.c_str(), in.length(), &out_size);                                   \
-            std::string out_str;                                                                      \
-            out_str.assign(out, out_size);                                                            \
-            return out_str;                                                                           \
-        };                                                                                            \
-        property[property_key] = value;                                                               \
-    } else {                                                                                          \
-        std::string _value = va_arg(args_ptr, char*);                                                 \
-        ov::Any value = _value;                                                                       \
-        property[property_key] = value;                                                               \
+#define GET_PROPERTY_FROM_ARGS_LIST                                                                                \
+    std::string property_key = va_arg(args_ptr, char*);                                                            \
+    if (property_key == ov::cache_crypto_callback.name()) {                                                        \
+        ov_struct_crypto_callback* _value = va_arg(args_ptr, ov_struct_crypto_callback*);                          \
+        auto encrypt_func = _value->encrypt_func;                                                                  \
+        auto decrypt_func = _value->decrypt_func;                                                                  \
+        std::function<std::string(const std::string&)> encrypt_value = [encrypt_func](const std::string& in) {     \
+            size_t out_size = 0;                                                                                   \
+            char* out = encrypt_func(in.c_str(), in.length(), &out_size);                                          \
+            std::string out_str;                                                                                   \
+            out_str.assign(out, out_size);                                                                         \
+            return out_str;                                                                                        \
+        };                                                                                                         \
+        std::function<std::string(const std::string&)> decrypt_value = [decrypt_func](const std::string& in) {     \
+            size_t out_size = 0;                                                                                   \
+            char* out = decrypt_func(in.c_str(), in.length(), &out_size);                                          \
+            std::string out_str;                                                                                   \
+            out_str.assign(out, out_size);                                                                         \
+            return out_str;                                                                                        \
+        };                                                                                                         \
+        std::vector<std::function<std::string(const std::string&)>> crypto_callback{encrypt_value, decrypt_value}; \
+        property[property_key] = crypto_callback;                                                                  \
+    } else {                                                                                                       \
+        std::string _value = va_arg(args_ptr, char*);                                                              \
+        ov::Any value = _value;                                                                                    \
+        property[property_key] = value;                                                                            \
     }
 
 /**

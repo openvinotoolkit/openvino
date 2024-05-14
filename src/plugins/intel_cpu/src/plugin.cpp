@@ -590,8 +590,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     std::function<std::string(const std::string&)> decrypt;
-    if (config.count(ov::cache_decryption.name())) {
-        decrypt = config.at(ov::cache_decryption.name()).as<std::function<std::string(const std::string&)>>();
+    if (config.count(ov::cache_crypto_callback.name())) {
+        auto crypto_callback = config.at(ov::cache_crypto_callback.name())
+                                   .as<std::vector<std::function<std::string(const std::string&)>>>();
+        decrypt = crypto_callback[1];
     }
 
     if (!decrypt) {

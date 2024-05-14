@@ -192,6 +192,10 @@ typedef enum {
 } ov_element_type_e;
 
 typedef char* (*crypto_func)(const char*, const size_t, size_t*);
+typedef struct {
+    crypto_func encrypt_func;
+    crypto_func decrypt_func;
+} ov_struct_crypto_callback;
 
 /**
  * @brief Print the error info.

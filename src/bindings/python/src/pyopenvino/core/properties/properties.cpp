@@ -29,8 +29,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
     wrap_property_RW(m_properties, ov::cache_mode, "cache_mode");
-    wrap_property_RW(m_properties, ov::cache_encryption, "cache_encryption");
-    wrap_property_RW(m_properties, ov::cache_decryption, "cache_decryption");
     wrap_property_RW(m_properties, ov::auto_batch_timeout, "auto_batch_timeout");
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");
     wrap_property_RW(m_properties, ov::inference_num_threads, "inference_num_threads");
@@ -51,6 +49,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
     wrap_property_RO(m_properties, ov::execution_devices, "execution_devices");
     wrap_property_RO(m_properties, ov::loaded_from_cache, "loaded_from_cache");
+
+    wrap_property_WO(m_properties, ov::cache_crypto_callback, "cache_crypto_callback");
 
     // Submodule hint
     py::module m_hint =

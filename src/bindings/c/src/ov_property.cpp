@@ -20,8 +20,6 @@ const char* ov_property_key_max_batch_size = "MAX_BATCH_SIZE";
 // Read-write property key
 const char* ov_property_key_cache_dir = "CACHE_DIR";
 const char* ov_property_key_cache_mode = "CACHE_MODE";
-const char* ov_property_key_cache_encryption = "CACHE_ENCRYPTION";
-const char* ov_property_key_cache_decryption = "CACHE_DECRYPTION";
 const char* ov_property_key_num_streams = "NUM_STREAMS";
 const char* ov_property_key_affinity = "AFFINITY";
 const char* ov_property_key_inference_num_threads = "INFERENCE_NUM_THREADS";
@@ -39,3 +37,6 @@ const char* ov_property_key_hint_execution_mode = "EXECUTION_MODE_HINT";
 const char* ov_property_key_force_tbb_terminate = "FORCE_TBB_TERMINATE";
 const char* ov_property_key_enable_mmap = "ENABLE_MMAP";
 const char* ov_property_key_auto_batch_timeout = "AUTO_BATCH_TIMEOUT";
+
+// Write-only property key
+const char* ov_property_key_cache_crypto_callback = "CACHE_CRYPTO_CALLBACK";
