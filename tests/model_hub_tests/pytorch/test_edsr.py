@@ -6,7 +6,7 @@ import os
 import pytest
 import random
 import torch
-from models_hub_common.constants import pt_hfhub_cache_dir
+from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 from torch_utils import TestTorchConvertModel
