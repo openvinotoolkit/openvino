@@ -425,7 +425,7 @@ class TestTransformersModel(TestTorchConvertModel):
 
     def teardown_method(self):
         # remove all downloaded files from cache
-        cleanup_dir(pt_hfhub_cache_dir)
+        cleanup_dir(hf_hub_cache_dir)
         # restore after gptq patching
         if self.cuda_available is not None:
             unpatch_gptq(self.cuda_available, self.gptq_postinit)
