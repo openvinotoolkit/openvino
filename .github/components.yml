@@ -54,7 +54,6 @@ NPU:
 
 HETERO:
   revalidate:
-    - HETERO
     - C_API
     - Python_API
   build:
@@ -64,7 +63,6 @@ HETERO:
 AUTO_BATCH:
   revalidate:
     - GPU
-    - AUTO_BATCH
     - C_API
     - Python_API
   build:
@@ -86,7 +84,6 @@ TEMPLATE:
 
 AUTO:
   revalidate:
-    - AUTO
     - C_API
     - Python_API
   build:
