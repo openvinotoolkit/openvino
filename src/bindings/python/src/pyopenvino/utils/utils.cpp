@@ -243,7 +243,6 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                 }
                 auto _list = property_value.cast<py::list>();
                 return _list[1](in_str).cast<std::string>();
-
             };
             std::vector<std::function<std::string(const std::string&)>> crypto_callback{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = crypto_callback;
