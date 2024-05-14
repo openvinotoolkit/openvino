@@ -22,7 +22,8 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-
+    
+// https://github.com/tensorflow/tensorflow/blob/84d053187cb80d975ef2b9684d4b61981bca0c41/tensorflow/core/kernels/linalg/matrix_diag_op.cc#L151
 OutputVector translate_matrix_diag_v3_op(const NodeContext& node) {
     default_op_checks(node, 1, {"MatrixDiagV3"});
     // The translation of MatrixDiag to OpenVINO opset relies on padding of input tensor with zeros,

@@ -6,14 +6,20 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class TestMatrixDiag(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
+        logger.info(inputs_info)
         assert 'diagonal:0' in inputs_info
         diagonal_shape = inputs_info['diagonal:0']
         inputs_data = {}
         inputs_data['diagonal:0'] = np.random.randint(-50, 50, diagonal_shape).astype(self.diagonal_type)
 
+        logger.info(inputs_data)
         return inputs_data
 
     def create_matrix_diag_net(self, diagonal_shape, diagonal_type):
@@ -22,6 +28,7 @@ class TestMatrixDiag(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             diagonal = tf.compat.v1.placeholder(diagonal_type, diagonal_shape, 'diagonal')
+            logger.info(diagonal)
             tf.raw_ops.MatrixDiag(diagonal=diagonal)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -39,6 +46,9 @@ class TestMatrixDiag(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_matrix_diag_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        logger.info(params)
+        if ie_device == 'GPU':
+            pytest.skip("GPU does not support Inverse operation")
         self._test(*self.create_matrix_diag_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
