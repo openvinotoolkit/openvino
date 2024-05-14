@@ -19,7 +19,6 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
     : ov::op::v8::Gather({data, indices, axis, batch_dims}) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
-    m_output_type = decompression_scale.get_element_type();
     validate_and_infer_types();
 }
 
@@ -30,7 +29,6 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& decompression_scale)
     : ov::op::v8::Gather({data, indices, axis, batch_dims}) {
     set_argument(3, decompression_scale);
-    m_output_type = decompression_scale.get_element_type();
     validate_and_infer_types();
 }
 
@@ -66,14 +64,9 @@ void GatherCompressed::validate_and_infer_types() {
                                           std::vector<ov::PartialShape>{get_input_partial_shape(0),
                                                                         get_input_partial_shape(1),
                                                                         get_input_partial_shape(2)});
-
-    m_output_type = get_input_element_type(3);
-    set_output_type(0, m_output_type, out_shapes[0]);
-}
-
-bool GatherCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    // GatherCompressed = gahter + dequantization, the output precision is the same with the scale.
+    auto output_type = get_input_element_type(3);
+    set_output_type(0, output_type, out_shapes[0]);
 }
 
 }  // namespace internal
