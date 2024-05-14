@@ -31,19 +31,6 @@ Quantized models carry out all computation in floating point precision during th
       :fragment: [tune_model]
 
 
-
-3. Export quantized model
-####################################
-
-When fine-tuning finishes, the quantized model can be exported to the ONNX format for further inference.
-
-.. tab:: PyTorch
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-      :language: python
-      :fragment: [export]
-
-
 .. note::
    The precision of weights gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation.
    You can expect the model footprint reduction only for that format.
@@ -52,7 +39,7 @@ When fine-tuning finishes, the quantized model can be exported to the ONNX forma
 These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
-4. (Optional) Save checkpoint
+3. (Optional) Save checkpoint
 ####################################
 
 To save model checkpoint use the following API:
@@ -64,7 +51,7 @@ To save model checkpoint use the following API:
       :fragment: [save_checkpoint]
 
 
-5. (Optional) Restore from checkpoint
+4. (Optional) Restore from checkpoint
 ################################################
 
 To restore the model from checkpoint you should use the following API:
@@ -79,8 +66,16 @@ To restore the model from checkpoint you should use the following API:
 Deploying quantized model
 #########################
 
-The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are
-required in this case. For more details, see the corresponding :doc:`documentation <../../running-inference>`.
+The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
+No extra steps or options are required.
+
+.. tab:: PyTorch
+
+   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_torch.py
+      :language: python
+      :fragment:  [inference]
+
+For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
 Examples
 ####################

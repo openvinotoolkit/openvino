@@ -77,19 +77,6 @@ the fine-tuning that will inform optimization methods to do some adjustments to 
       :fragment: [distributed]
 
 
-6. Export quantized model
-####################################
-
-When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in
-the case of PyTorch and frozen graph - for TensorFlow 2.
-
-.. tab:: TensorFlow 2
-
-   .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-      :language: python
-      :fragment: [export]
-
-
 .. note::
    The precision of weights gets INT8 only after the step of model conversion to OpenVINO Intermediate Representation.
    You can expect the model footprint reduction only for that format.
@@ -98,7 +85,7 @@ the case of PyTorch and frozen graph - for TensorFlow 2.
 These were the basic steps to applying the QAT method from the NNCF. However, it is required in some cases to save/load model
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
-7. (Optional) Save checkpoint
+6. (Optional) Save checkpoint
 ####################################
 
 To save model checkpoint use the following API:
@@ -110,7 +97,7 @@ To save model checkpoint use the following API:
       :fragment: [save_checkpoint]
 
 
-8. (Optional) Restore from checkpoint
+7. (Optional) Restore from checkpoint
 ################################################
 
 To restore the model from checkpoint you should use the following API:
@@ -127,8 +114,16 @@ For more details on saving/loading checkpoints in the NNCF, see the following `d
 Deploying quantized model
 #########################
 
-The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are
-required in this case. For more details, see the corresponding :doc:`documentation <../../running-inference>`.
+The model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
+No extra steps or options are required.
+
+.. tab:: TensorFlow
+
+   .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
+      :language: python
+      :fragment:  [inference]
+
+For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
 Examples
 ####################
