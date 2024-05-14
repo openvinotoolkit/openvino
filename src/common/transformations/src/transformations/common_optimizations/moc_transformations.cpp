@@ -94,6 +94,7 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
     auto new_shape = ov::PartialShape::dynamic(shape.rank());

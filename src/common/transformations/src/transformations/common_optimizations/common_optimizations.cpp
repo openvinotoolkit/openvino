@@ -118,6 +118,8 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
+#include <openvino/pass/visualize_tree.hpp>
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
@@ -184,6 +186,18 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, EyeDecomposition)
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
+
+    if (getenv("REPLACE")) {
+        manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition.svg");
+
+        auto decomp_tmp = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(decomp_tmp, MatmulSplitDecomposition)
+        decomp_tmp->set_name("ov::pass::MatmulSplitDecomposition");
+
+        manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition.svg");
+    }
+
+    REGISTER_PASS(manager, ConstantFolding)
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
