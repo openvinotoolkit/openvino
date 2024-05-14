@@ -148,25 +148,6 @@ TEST_F(TypePropCol2ImTest, kernel_size_and_output_size_from_shapeof) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 32, 32}));
 }
 
-TEST_F(TypePropCol2ImTest, kernel_size_and_output_size_from_shapeof) {
-    const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 324});
-    const auto output_size = std::make_shared<ShapeOf>(std::make_shared<Parameter>(element::i64, Shape{32, 32}));
-    const auto kernel_size = std::make_shared<ShapeOf>(std::make_shared<Parameter>(element::i64, Shape{2, 2}));
-    const auto strides = Strides{2, 2};
-    const auto dilations = Strides{2, 2};
-    const auto pads_begin = Shape{3, 3};
-    const auto pads_end = Shape{3, 3};
-
-    const auto op =
-        std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size, strides, dilations, pads_begin, pads_end);
-    op->validate_and_infer_types();
-
-    EXPECT_EQ(op->get_output_size(), 1);
-    EXPECT_EQ(op->get_input_size(), 3);
-    EXPECT_EQ(op->get_output_element_type(0), element::i64);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 32, 32}));
-}
-
 TEST_F(TypePropCol2ImTest, incorrect_L) {
     const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 325});
     const auto output_size =
