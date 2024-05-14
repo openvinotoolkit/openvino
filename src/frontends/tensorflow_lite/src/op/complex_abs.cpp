@@ -14,7 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector complex_abs(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = get_decoder(node);
+    auto decoder = node.get_decoder();
     auto abs = make_shared<ov::frontend::tensorflow_lite::ComplexAbs>(node.get_input(0), decoder);
     abs->set_friendly_name(decoder->get_op_name());
     return abs->outputs();

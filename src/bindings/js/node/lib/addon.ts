@@ -18,7 +18,8 @@ type elementTypeString =
   | 'i32'
   | 'i16'
   | 'f64'
-  | 'f32';
+  | 'f32'
+  | 'string';
 
 interface Core {
   compileModel(
@@ -38,7 +39,7 @@ interface Core {
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
   importModelSync(modelStream: Buffer, device: string): CompiledModel;
   importModelSync(
-    modelStream: Buffer, 
+    modelStream: Buffer,
     device: string,
     props: { [key: string]: string | number | boolean }
   ): CompiledModel;
@@ -72,6 +73,7 @@ interface Model {
   input(nameOrId?: string | number): Output;
   getName(): string;
   isDynamic(): boolean;
+  getOutputSize(): number;
   setFriendlyName(name: string): void;
   getFriendlyName(): string;
 }
@@ -86,7 +88,7 @@ interface CompiledModel {
 }
 
 interface Tensor {
-  data: number[];
+  data: SupportedTypedArray;
   getElementType(): element;
   getShape(): number[];
   getData(): number[];
@@ -181,6 +183,7 @@ declare enum element {
   i64,
   f32,
   f64,
+  string,
 }
 
 declare enum resizeAlgorithm {
