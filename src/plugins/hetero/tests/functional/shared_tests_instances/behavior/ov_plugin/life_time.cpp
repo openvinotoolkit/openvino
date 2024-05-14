@@ -12,7 +12,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VirtualPlugin_BehaviorTests,
                          OVHoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_VirtualPlugin_BehaviorTests,
-                             OVHoldersTest,
-                             ::testing::Values("HETERO:GPU"),
-                             OVHoldersTest::getTestCaseName);
+                         OVHoldersTest,
+                         ::testing::Values("HETERO:GPU"),
+                         OVHoldersTest::getTestCaseName);
 }  // namespace
