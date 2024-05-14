@@ -12,6 +12,16 @@
 #define FEATURES_THREADS_PER_BATCH (FILTER_OFM_NUM)
 #endif
 
+#if FILTER_OFM_NUM <= 16
+    #define NUM_CALC_UNIT_SIZE 1
+    #define CALC_UNIT_TYPE UNIT_TYPE
+    #define CALC_UNIT_BLOCK_READ UNIT_BLOCK_READ
+#else
+    #define NUM_CALC_UNIT_SIZE 2
+    #define CALC_UNIT_TYPE UNIT_TYPE2
+    #define CALC_UNIT_BLOCK_READ UNIT_BLOCK_READ2
+#endif
+
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
@@ -36,7 +46,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
     const uint feature_idx = fmg * OSV_SIZE + lid;
 
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
-    UNIT_TYPE2 out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
+    CALC_UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
 
     unroll_for (int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); ++i) {
         out[i] = UNIT_VAL_ZERO;
@@ -102,7 +112,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
 
         unroll_for (uint kr = 0; kr < FILTER_SIZE_Y; ++kr) {
             unroll_for (uint kc = 0; kc < FILTER_SIZE_X; ++kc) {
-                UNIT_TYPE2 w = UNIT_BLOCK_READ2(weights, weight_addr);
+                CALC_UNIT_TYPE w = CALC_UNIT_BLOCK_READ(weights, weight_addr);
                 unroll_for (uint br=0; br<OUTPUT_BLOCK_HEIGHT; ++br) {
                     uint y_pos = br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y;
                     unroll_for (uint bc=0; bc<OUTPUT_BLOCK_WIDTH; ++bc) {
@@ -123,16 +133,20 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
     }
 
 #if BIAS_TERM
-    for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
-        for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
+    for (uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
+        for (uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
             #if BIAS_PER_OUTPUT
                 unsigned bias_index = feature_idx * OUTPUT_SIZE_X * OUTPUT_SIZE_Y + or * OUTPUT_SIZE_X + oc;
-                out[r * OUTPUT_BLOCK_WIDTH + c].s0 += bias[bias_index];
-                bias_index += SUB_GROUP_SIZE * OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
-                out[r * OUTPUT_BLOCK_WIDTH + c].s1 += bias[bias_index];
+                #if NUM_CALC_UNIT_SIZE == 1
+                    out[r * OUTPUT_BLOCK_WIDTH + c] += bias[bias_index];
+                #else
+                    out[r * OUTPUT_BLOCK_WIDTH + c].s0 += bias[bias_index];
+                    bias_index += SUB_GROUP_SIZE * OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
+                    out[r * OUTPUT_BLOCK_WIDTH + c].s1 += bias[bias_index];
+                #endif
             #else
-                unsigned bias_index = feature_idx;
-                UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(bias, bias_index);
+                unsigned bias_index = feature_idx - lid;
+                CALC_UNIT_TYPE bias_read = CALC_UNIT_BLOCK_READ(bias, (feature_idx - lid));
                 out[r * OUTPUT_BLOCK_WIDTH + c] += bias_read;
             #endif
         }
@@ -143,7 +157,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
 // output phase
 //--------------------------------------------------------------------
 
-    for (uint fid = 0; fid < 2; ++fid) {
+    for (uint fid = 0; fid < NUM_CALC_UNIT_SIZE; ++fid) {
         if ((feature_idx + SUB_GROUP_SIZE * fid) < FILTER_OFM_NUM) {
             uint out_addr = OUTPUT_OFFSET;
             out_addr += batch_idx * OUTPUT_BATCH_PITCH;
@@ -155,7 +169,11 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv32)(
                 {
                     for (uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
                         if (oc + c < OUTPUT_SIZE_X) {
-                            UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c][fid];
+                            #if NUM_CALC_UNIT_SIZE == 1
+                                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c];
+                            #else
+                                UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c][fid];
+                            #endif
                             #if HAS_FUSED_OPS
                                 uint feature_num = feature_idx + SUB_GROUP_SIZE * fid;
                                 FUSED_OPS;
