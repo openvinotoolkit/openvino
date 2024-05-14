@@ -13,7 +13,7 @@
 namespace ov {
 namespace intel_cpu {
 
-#define SNIPPETS_MAX_SNIPPETS_DIMS 12
+#define SNIPPETS_MAX_DATA_PTR_COUNT 12
 
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
@@ -32,8 +32,8 @@ struct jit_snippets_call_args {
 
     void register_loops(const std::vector<loop_args_t>& loops);
 
-    const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
-    void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    const void *src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
+    void *dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
     void *buffer_scratchpad_ptr = nullptr;
 
     // Note: Ideally loop_args must be private, since we manage this pointer manually.

@@ -38,7 +38,7 @@ bool UpdateLoopInfo::run(LinearIR& linear_ir) {
 
     const auto& loop_map = linear_ir.get_loop_manager()->get_map();
     for (const auto& p : loop_map) {
-        const auto& expanded_loop_info = std::dynamic_pointer_cast<ExpandedLoopInfo>(p.second);
+        const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(p.second);
         OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
         if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info) {
             current_unified_loop_info = expanded_loop_info->get_unified_loop_info();

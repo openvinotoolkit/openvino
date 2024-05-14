@@ -131,7 +131,7 @@ ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
 }
 
 size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
-    const auto layout = port.get_descriptor_ptr()->get_layout();
+    const auto& layout = port.get_descriptor_ptr()->get_layout();
     if (port.get_type() == lowered::ExpressionPort::Type::Input)
         return utils::get_input_dim_idx(layout, dim_idx);
     else if (port.get_type() == lowered::ExpressionPort::Type::Output)

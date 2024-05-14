@@ -405,24 +405,24 @@ public:
     const std::vector<int64_t>& get_data_sizes() const;
 
     /**
-     * @brief Updated `m_ptr_increments` using copy values from `new_values`.
+     * @brief Update `m_ptr_increments` using copy values from `new_values`.
      *        The count of new values must be equal to the count of current increments.
      * @param new_values vector of new pointer increments
      */
     void update_ptr_increments(const std::vector<int64_t>& new_values);
     /**
-     * @brief Updated `m_ptr_increments` setting `new_value` to all current values.
+     * @brief Update `m_ptr_increments` setting `new_value` to all current values.
      * @param new_value new value of all pointer increments
      */
     void update_ptr_increments(int64_t new_value);
     /**
-     * @brief Updated `m_finalization_offsets` using copy values from `new_values`.
+     * @brief Update `m_finalization_offsets` using copy values from `new_values`.
      *        The count of new values must be equal to the count of current offsets.
      * @param new_values vector of new finalization offsets
      */
     void update_finalization_offsets(const std::vector<int64_t>& new_values);
     /**
-     * @brief Updated `m_finalization_offsets` setting `new_value` to all current values.
+     * @brief Update `m_finalization_offsets` setting `new_value` to all current values.
      * @param new_value new value of all finalization offsets
      */
     void update_finalization_offsets(int64_t new_value);

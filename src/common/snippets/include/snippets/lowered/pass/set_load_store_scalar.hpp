@@ -15,6 +15,7 @@ namespace pass {
 /**
  * @interface SetLoadStoreScalar
  * @brief The pass set scalar count to Load and Store if processing dimension is equal to 1.
+ *        Note: works on static shapes
  * @ingroup snippets
  */
 class SetLoadStoreScalar : public RangedPass {

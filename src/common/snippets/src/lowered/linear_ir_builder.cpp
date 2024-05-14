@@ -105,10 +105,10 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
         expression_map[expr.get()] = new_expr;
     }
 
-    // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
     for (auto result_it = result.cbegin(), original_it = begin; result_it != result.cend(); ++result_it, ++original_it) {
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
+        // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
         OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
                         result_expr->get_input_count() == original_expr->get_input_count() &&
                         result_expr->get_output_count() == original_expr->get_output_count(),
