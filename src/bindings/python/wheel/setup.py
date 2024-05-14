@@ -22,8 +22,8 @@ from setuptools.command.install import install
 from setuptools.command.build import build
 from setuptools.errors import SetupError
 
-
-WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
+WHEEL_PACKAGE_DIR = os.path.join("openvino")
+WHEEL_LIBS_INSTALL_DIR = os.path.join(WHEEL_PACKAGE_DIR, "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -162,6 +162,15 @@ LIB_INSTALL_CFG = {
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
+    }
+}
+
+DATA_INSTALL_CFG = {
+    "core_dev": {
+        "name": "core_dev",
+        "prefix": f"{BUILD_BASE}/libs.dev",
+        "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
     },
 }
 
@@ -196,7 +205,7 @@ PY_INSTALL_CFG = {
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "benchmark_app",
-    },
+    }
 }
 
 
@@ -289,6 +298,9 @@ class CustomBuild(build):
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
 
+        # build and install additional files into temporary directories
+        self.cmake_build_and_install(DATA_INSTALL_CFG)
+
         # install clibs into a temporary directory (site-packages)
         if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
@@ -315,7 +327,9 @@ class PrepareLibs(build_clib):
         # remove symlink to avoid copying it, set RPATH
         self.post_install(LIB_INSTALL_CFG)
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
-        self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
+        self.copy_package_libs(get_install_dirs_list(LIB_INSTALL_CFG))
+
+        self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
 
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
@@ -391,7 +405,7 @@ class PrepareLibs(build_clib):
             os.rename(real_name, symlink)
             self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
 
-    def copy_package_data(self, src_dirs):
+    def copy_package_libs(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
@@ -425,6 +439,14 @@ class PrepareLibs(build_clib):
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
+
+    def copy_package_data(self, src_dirs):
+        """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
+        os.makedirs(WHEEL_PACKAGE_DIR, exist_ok=True)
+
+        for src_dir in src_dirs:
+            src, dst = Path(src_dir), Path(WHEEL_PACKAGE_DIR)
+            shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
 def copy_file(src, dst, verbose=False, dry_run=False):
