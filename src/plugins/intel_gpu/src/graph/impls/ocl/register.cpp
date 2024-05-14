@@ -20,8 +20,6 @@ void register_implementations() {
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
     REGISTER_OCL(deconvolution);
-    REGISTER_OCL(deformable_conv);
-    REGISTER_OCL(deformable_interp);
     REGISTER_OCL(depth_to_space);
     REGISTER_OCL(detection_output);
     REGISTER_OCL(dft);
