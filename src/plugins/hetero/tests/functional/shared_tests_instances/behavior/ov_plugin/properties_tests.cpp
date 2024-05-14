@@ -3,8 +3,8 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "behavior/compiled_model/properties.hpp"
 
+#include "behavior/compiled_model/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using namespace ov::test::behavior;
