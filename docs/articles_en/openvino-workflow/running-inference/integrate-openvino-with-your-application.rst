@@ -405,14 +405,14 @@ For details on additional CMake build options, refer to the `CMake page <https:/
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/CMakeLists.txt
+       .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
           :fragment: [cmake:integration_example_cpp]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/CMakeLists.txt
+       .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
           :fragment: [cmake:integration_example_c]
 
