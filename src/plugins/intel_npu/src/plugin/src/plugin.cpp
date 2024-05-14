@@ -5,6 +5,7 @@
 #include "plugin.hpp"
 
 #include <fstream>
+#include <sstream>
 
 #include "compiled_model.hpp"
 #include "compiler.hpp"
@@ -13,9 +14,12 @@
 #include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "npu_private_properties.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace intel_npu;
 
@@ -491,6 +495,48 @@ Plugin::Plugin()
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
     }
+
+    const auto cip = createCompiler(ov::intel_npu::CompilerType::MLIR, _logger);
+    const auto device = _backends->getDevice();
+    if (device != nullptr) {
+        const auto platform = device->getName();
+        if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
+            std::map<std::string, std::string> platformConfig{{std::string(ov::intel_npu::platform.name()), platform}};
+
+            const Config config = merge_configs(_globalConfig, platformConfig);
+
+            const Version cipElfVersion = cip->getELFVersion(config);
+            const Version cipMIVersion = cip->getStaticMIVersion(config);
+            const Version driverElfVersion = device->getELFVersion();
+            const Version driverMIVersion = device->getStaticMIVersion();
+
+            if (!driverElfVersion.isCompatible(cipElfVersion)) {
+                _logger.info("Driver ELF Version: %d.%d.%d is incompatible with Plugin ELF Version: %d.%d.%d, "
+                             "will default to Driver Compiler",
+                             driverElfVersion.major,
+                             driverElfVersion.minor,
+                             driverElfVersion.patch,
+                             cipElfVersion.major,
+                             cipElfVersion.minor,
+                             cipElfVersion.patch);
+                std::stringstream strStream;
+                strStream << ov::intel_npu::CompilerType::DRIVER;
+                _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
+            } else if (!driverMIVersion.isCompatible(cipMIVersion)) {
+                _logger.info("Driver MI Version: %d.%d.%d is incompatible with Plugin MI Version: %d.%d.%d, "
+                             "will default to Driver Compiler",
+                             driverMIVersion.major,
+                             driverMIVersion.minor,
+                             driverMIVersion.patch,
+                             cipMIVersion.major,
+                             cipMIVersion.minor,
+                             cipMIVersion.patch);
+                std::stringstream strStream;
+                strStream << ov::intel_npu::CompilerType::DRIVER;
+                _globalConfig.update({{std::string(ov::intel_npu::compiler_type.name()), strStream.str()}});
+            }
+        }
+    }
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -562,7 +608,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<STEPPING>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -572,7 +619,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr &&
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {

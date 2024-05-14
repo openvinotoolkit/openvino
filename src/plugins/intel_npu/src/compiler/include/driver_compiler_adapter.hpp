@@ -21,6 +21,10 @@ class LevelZeroCompilerAdapter final : public ICompiler {
 public:
     LevelZeroCompilerAdapter();
 
+    Version getELFVersion(const Config& config) const final;
+
+    Version getStaticMIVersion(const Config& config) const final;
+
     uint32_t getSupportedOpsetVersion() const override final;
 
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,

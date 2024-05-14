@@ -59,6 +59,8 @@ public:
         const std::shared_ptr<const NetworkDescription>& networkDescription,
         const Config& config) = 0;
 
+    virtual Version getELFVersion() const = 0;
+    virtual Version getStaticMIVersion() const = 0;
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
     virtual Uuid getUuid() const;

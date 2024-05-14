@@ -12,7 +12,7 @@
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
  */
-using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_5_t;
+using ze_graph_dditable_ext_last_t = ze_graph_dditable_ext_1_6_t;
 
 /**
  * @brief Table of Graph Extension functions pointers and function wrappers
@@ -72,6 +72,9 @@ public:
 
         // version 1.5
         // wrappers replace pointers
+
+        // version 1.6
+        pfnDeviceGetGraphProperties2 = _impl->pfnDeviceGetGraphProperties2;
     }
     ~ze_graph_dditable_ext_decorator() = default;
 
@@ -124,6 +127,9 @@ public:
         throwWhenUnsupported("pfnQueryContextMemory", ZE_GRAPH_EXT_VERSION_1_5);
         return _impl->pfnQueryContextMemory(hContext, type, query);
     }
+
+    // version 1.6
+    ze_pfnDeviceGetGraphProperties_ext_2_t pfnDeviceGetGraphProperties2;
 };
 
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;

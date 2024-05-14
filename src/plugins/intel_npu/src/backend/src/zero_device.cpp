@@ -9,6 +9,7 @@
 #include "intel_npu/al/itt.hpp"
 #include "zero_executor.hpp"
 #include "zero_infer_request.hpp"
+#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -84,6 +85,10 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
 
     // Find the corresponding command queue group.
     _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
+
+    zeroUtils::throwOnFail(
+        "pfnDeviceGetGraphProperties2",
+        _graph_ddi_table_ext->pfnDeviceGetGraphProperties2(_initStructs->getDevice(), &graph_properties));
 }
 
 std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
@@ -91,6 +96,16 @@ std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
     const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
     return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
+}
+
+Version ZeroDevice::getELFVersion() const {
+    return {graph_properties.elfVersion.major, graph_properties.elfVersion.minor, graph_properties.elfVersion.patch};
+}
+
+Version ZeroDevice::getStaticMIVersion() const {
+    return {graph_properties.runtimeVersion.major,
+            graph_properties.runtimeVersion.minor,
+            graph_properties.runtimeVersion.patch};
 }
 
 std::string ZeroDevice::getName() const {
