@@ -64,7 +64,7 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
                           "The element type of the input tensor must be a floating-point.");
 
     const auto& input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    const auto& output_shapes = shape_infer(this, input_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_type, output_shapes[0]);
 }
 
