@@ -31,7 +31,6 @@ public:
 #endif
 private:
     dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
-    char palette[64] = {};
     bool is_with_amx {false};
     bool is_with_comp {false};
     float beta {0};
@@ -39,8 +38,12 @@ private:
     dnnl_dim_t M {0}, N {0}, K {0}, LDA {0}, LDB {0}, LDC {0};
 };
 
+struct BrgemmCompiledKernel {
+    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> compiled_kernel = nullptr;
+    char palette[64] = {};
+};
 
-class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, dnnl::impl::cpu::x64::brgemm_kernel_t> {
+class BrgemmKernelExecutor : public CPUKernelExecutor<BrgemmKernelConfig, BrgemmCompiledKernel> {
 public:
     struct call_args {
         const void* A = nullptr;
@@ -62,7 +65,7 @@ public:
     std::string config_to_string() const;
 #endif
 protected:
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
 };
 }   // namespace intel_cpu
 }   // namespace ov
