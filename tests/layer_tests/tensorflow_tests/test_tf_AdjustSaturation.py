@@ -15,7 +15,8 @@ class TestAdjustSaturation(CommonTFLayerTest):
         images_shape = inputs_info['images:0']
         inputs_data = {}
         inputs_data['images:0'] = np.random.rand(*images_shape).astype(self.input_type)
-        inputs_data['contrast_factor:0'] = np.random.rand()
+        # inputs_data['scale:0'] = np.random.rand()
+        inputs_data['scale:0'] = 1.0
         return inputs_data
 
     def create_adjust_saturation_net(self, input_shape, input_type):
@@ -24,17 +25,19 @@ class TestAdjustSaturation(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             images = tf.compat.v1.placeholder(input_type, input_shape, 'images')
-            contrast_factor = tf.compat.v1.placeholder(input_type, [], 'contrast_factor')
-            tf.raw_ops.AdjustSaturation(images=images, contrast_factor=contrast_factor)
+            scale = tf.compat.v1.placeholder(input_type, [], 'scale')
+            tf.raw_ops.AdjustSaturation(images=images, scale=scale)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
         return tf_net, None
 
+    # Each input is a tensor of at least 3 dimensions. 
+    # The last dimension is interpreted as channels, and must be three.
     test_data_basic = [
         dict(input_shape=[10, 20, 3], input_type=np.float32),
-        dict(input_shape=[5, 25, 15, 2], input_type=np.float32),
-        dict(input_shape=[3, 4, 8, 10, 4], input_type=np.float32),
+        dict(input_shape=[5, 25, 15, 3], input_type=np.float32),
+        dict(input_shape=[3, 4, 8, 10, 3], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)

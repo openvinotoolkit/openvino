@@ -22,25 +22,12 @@ namespace op {
 OutputVector translate_adjust_saturation_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustSaturation"});
     auto images = node.get_input(0);
-    auto contrast_factor = node.get_input(1);
+    auto scale = node.get_input(1);
     auto node_name = node.get_name();
 
-    // compute mean per channel for each image
-    // it will reduce spatial dimensions of images in a format [batch, height, width, channel]
-    auto reduce_axes = make_shared<v0::Constant>(element::i32, Shape{2}, vector<int32_t>{-3, -2});
-    auto means = make_shared<v1::ReduceMean>(images, reduce_axes, true);
-
-    // cast contrast_factor since its type can be different
-    contrast_factor = make_shared<v1::ConvertLike>(contrast_factor, images);
-
-    // adjust contrast by a formula: (images - means) * contrast_factor + means
-    auto adjust_contrast = make_shared<v1::Subtract>(images, means)->output(0);
-    adjust_contrast = make_shared<v1::Multiply>(adjust_contrast, contrast_factor);
-    adjust_contrast = make_shared<v1::Add>(adjust_contrast, means);
-
-    set_node_name(node_name, adjust_contrast.get_node_shared_ptr());
-
-    return {adjust_contrast};
+    auto adjust_saturation = make_shared<v1::Multiply>(images, scale)->output(0);
+    set_node_name(node_name, adjust_saturation.get_node_shared_ptr());
+    return {adjust_saturation};
 }
 
 }  // namespace op
