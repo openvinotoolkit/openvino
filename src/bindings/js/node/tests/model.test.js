@@ -95,22 +95,20 @@ describe('Node.js getFriendlyName() / setFriendlyName()', () => {
   });
 });
 
-describe('Node.js Model.getOutputShape()', () => {
-  it('should return the shape of the output tensor', () => {
-    const outputShape = model.getOutputShape(0);
-    assert.ok(Array.isArray(outputShape), 'getOutputShape() should return an array');
-    assert.strictEqual(outputShape.length, 2, 'Expected output shape to have 2 dimensions');
+describe('Model.getOutputSize()', () => {
+
+  it('should return a number indicating number of outputs for the model', () => {
+    const result = model.getOutputSize();
+    assert.strictEqual(typeof result, 'number', 'getOutputSize() should return a number');
   });
 
-  it('should throw an error if the output index is out of range', () => {
+  it('should not accept any arguments', () => {
     assert.throws(() => {
-      model.getOutputShape(1);
-    }, /^invalid vector subscript$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
+      model.getOutputSize('unexpected argument');
+    }, /^Error: getOutputSize\(\) does not accept any arguments\.$/, 'Expected getOutputSize to throw an error when called with arguments');
   });
 
-  it('should throw an error if the output index is not an integer', () => {
-    assert.throws(() => {
-      model.getOutputShape('unexpected argument');
-    }, /^Error: Invalid argument. Expected a single number.$/, 'Expected getOutputShape to throw an error when called with an invalid output index');
+  it('should return 1 for the default model', () => {
+    assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
 });
