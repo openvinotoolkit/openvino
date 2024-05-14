@@ -213,7 +213,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
             // If we have fused on outputs we should verify possible fusions on inputs again because of new input ports
             bool need_fusion_checks = true;
             while (need_fusion_checks) {
-                const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
+                auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
                 LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
                 std::tie(current_loop_begin_pos, current_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, current_loop_id);
 
@@ -254,6 +254,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                                                 current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
+                        current_loop_info = loop_manager->get_loop_info(current_loop_id);
                     }
                 }
 
@@ -300,6 +301,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                                                     current_loop_begin_pos, current_loop_end_pos)) {
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);
+                            current_loop_info = loop_manager->get_loop_info(current_loop_id);
                             // Need to check for possible fusion again because of new input expressions for Loop
                             break;
                         }
