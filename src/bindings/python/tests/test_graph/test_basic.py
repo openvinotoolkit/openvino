@@ -392,8 +392,8 @@ def test_node_output():
 
 def test_node_input_values():
     shapes = [Shape([3]), Shape([3])]
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([3, 2, 1])
+    data1 = np.array([1, 2, 3], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
 
     node = ops.add(data1, data2)
 
