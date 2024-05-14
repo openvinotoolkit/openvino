@@ -23,7 +23,7 @@ tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
 hf_cache_dir = os.environ.get('HF_HUB_CACHE',
                               os.path.join(tempfile.gettempdir(), "hugging_face"))
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
-os.environ['TF_HFHUB_CACHE_DIR'] = tf_hfhub_cache_dir
+os.environ['HF_HUB_CACHE'] = hf_cache_dir
 
 no_clean_cache_dir = False
 pt_hfhub_cache_dir = os.path.join(tempfile.gettempdir(), "pf_hfhub_models")
