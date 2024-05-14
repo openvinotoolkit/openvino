@@ -627,7 +627,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatrixDiagPartV2                                        | NO                            |                               |
 | MatrixDiagPartV3                                        | NO                            |                               |
 | MatrixDiagV2                                            | NO                            |                               |
-| MatrixDiagV3                                            | NO                            |                               |
+| MatrixDiagV3                                            | YES                            |                               |
 | MatrixExponential                                       | NO                            |                               |
 | MatrixInverse                                           | YES                           |                               |
 | MatrixLogarithm                                         | NO                            |                               |
