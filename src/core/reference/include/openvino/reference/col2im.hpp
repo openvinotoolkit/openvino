@@ -13,7 +13,6 @@
 
 namespace ov {
 namespace reference {
-
 template <typename T, typename T_idx>
 void col2im(const T* data,
             const Shape& data_shape,
