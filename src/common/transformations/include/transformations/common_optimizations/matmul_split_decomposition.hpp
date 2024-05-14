@@ -60,6 +60,6 @@ class ov::pass::MatmulSplitDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatmulSplitDecomposition", "0");
     MatmulSplitDecomposition();
-    void split_weights(const Output<Node>& weights, NodeVector& new_weights,
-                       const Output<Node>& bias, NodeVector& new_bias);
+    void split_weights(const Output<Node>& weights, OutputVector& new_weights,
+                       const Output<Node>& bias, OutputVector& new_bias);
 };
