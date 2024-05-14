@@ -6,7 +6,7 @@ import os
 import pytest
 import torch
 from huggingface_hub import model_info
-from models_hub_common.constants import pt_hfhub_cache_dir
+from models_hub_common.constants import hf_hub_cache_dir
 from models_hub_common.utils import cleanup_dir
 import transformers
 from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, AutoFeatureExtractor, AutoModelForTextToWaveform, \
