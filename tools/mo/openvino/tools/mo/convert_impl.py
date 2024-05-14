@@ -818,7 +818,7 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args, python_api_us
         show_mo_convert_help()
         return None, None
     ovc_message = get_ovc_message()
-    if get_ovc_message() is not None:
+    if ovc_message is not None:
         print(ovc_message)
     simplified_mo_version = VersionChecker().get_mo_simplified_version()
     telemetry = init_mo_telemetry()
