@@ -40,12 +40,23 @@ void MessageManage::infer_wait() {
     _inferCondVar.wait(lock);
 }
 
+void MessageManage::reduce_wait(int cur_rank, int streams_num){
+    std::unique_lock<std::mutex> lock(_reduceMutex);
+    while (_reduceQueue[cur_rank] < streams_num) {
+        // std::cout << "reduce_wait_" << cur_rank << " " << _reduceQueue[cur_rank] << " end\n";
+        _reduceCondVar.wait(lock);
+    }
+    _reduceQueue[cur_rank] = 0;
+}
+
 void MessageManage::server_wait(int streams_num) {
     if (!_serverThread.joinable()) {
         _readQueue.assign(streams_num, std::vector<MessageInfo>());
+        _reduceQueue.assign(streams_num, 0);
         MsgType msg_type;
         _serverThread = std::thread([&, streams_num]() {
             int count = 0;
+            int reduce_count = 0;
             while (!_isServerStopped) {
                 std::vector<MessageInfo> msgQueue;
                 {
@@ -89,6 +100,17 @@ void MessageManage::server_wait(int streams_num) {
                         if (count == streams_num) {
                             _inferCondVar.notify_one();
                             count = 0;
+                        }
+                    } else if (msg_type == REDUCE) {  // REDUCE
+                        reduce_count++;
+                        // std::cout << "server_wait REDUCE: " << reduce_count << "/" << streams_num << "\n";
+                        if (reduce_count == streams_num) {
+                            {
+                                std::lock_guard<std::mutex> lock(_reduceMutex);
+                                _reduceQueue.assign(streams_num, reduce_count);
+                            }
+                            _reduceCondVar.notify_all();
+                            reduce_count = 0;
                         }
                     }
                 }

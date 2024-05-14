@@ -25,7 +25,7 @@
 namespace ov {
 
 namespace threading {
-enum MsgType { TP, START_INFER, CALL_BACK };
+enum MsgType { TP, START_INFER, CALL_BACK, REDUCE };
 
 struct MessageInfo {
     MsgType msg_type;
@@ -42,6 +42,8 @@ public:
 
     void infer_wait();
 
+    void reduce_wait(int cur_rank, int streams_num);
+
     void server_wait(int streams_num);
 
     ~MessageManage();
@@ -50,12 +52,15 @@ private:
     bool _isServerStopped = false;
     std::vector<MessageInfo> _messageQueue;
     std::vector<std::vector<MessageInfo>> _readQueue;
+    std::vector<int> _reduceQueue;
     std::mutex _msgMutex;
     std::mutex _readMutex;
     std::mutex _inferMutex;
+    std::mutex _reduceMutex;
     std::condition_variable _msgCondVar;
     std::condition_variable _readCondVar;
     std::condition_variable _inferCondVar;
+    std::condition_variable _reduceCondVar;
 };
 
 OPENVINO_RUNTIME_API std::shared_ptr<MessageManage> message_manager();
