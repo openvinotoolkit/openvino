@@ -40,6 +40,8 @@ private:
 
 struct BrgemmCompiledKernel {
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> compiled_kernel = nullptr;
+    // Note: Palette is treated as a part of a kernel because it is initialized during the kernel compilation stage.
+    //       Each kernel need to store the pallet it was compiled with.
     char palette[64] = {};
 };
 
