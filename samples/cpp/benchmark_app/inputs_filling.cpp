@@ -210,25 +210,26 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         OPENVINO_ASSERT(binaryFile, "Cannot open ", files[inputIndex]);
 
         auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
+        auto inputByteSize = inputSize * inputInfo.type.bitwidth() / 8u;
 
         std::string extension = get_extension(files[inputIndex]);
         if (extension == "bin") {
             auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
             binaryFile.seekg(0, std::ios_base::beg);
             OPENVINO_ASSERT(binaryFile.good(), "Can not read ", files[inputIndex]);
-            OPENVINO_ASSERT(fileSize == inputSize,
+            OPENVINO_ASSERT(fileSize == inputByteSize,
                             "File ",
                             files[inputIndex],
                             " contains ",
                             fileSize,
                             " bytes, but the model expects ",
-                            inputSize);
+                            inputByteSize);
         } else {
             OPENVINO_THROW("Unsupported binary file type: " + extension);
         }
 
         if (inputInfo.layout != "CN") {
-            binaryFile.read(&data[b * inputSize], inputSize);
+            binaryFile.read(&data[b * inputByteSize], inputByteSize);
         } else {
             for (size_t i = 0; i < inputInfo.channels(); i++) {
                 binaryFile.read(&data[(i * binaryBatchSize + b) * sizeof(T)], sizeof(T));
