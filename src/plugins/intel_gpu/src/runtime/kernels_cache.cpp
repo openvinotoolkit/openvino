@@ -142,7 +142,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     if (unique_kernel_name.at(pos) == '_') {
                         matched += 1;
                     }
-                    if (matched == 3) {
+                    if (matched == 2) {
                         break;
                     }
                 }
@@ -165,7 +165,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     }
                     bool found_target = false;
                     auto target_base_kernel_name = get_base_kernel_name(entry_point);
-                    std::cout << entry_point << " --> " << target_base_kernel_name << std::endl;
+
                     while (iter != current_bucket.rbegin()) {
                         iter--;
                         bool found_same_base_kernel = false;
