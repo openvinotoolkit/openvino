@@ -185,7 +185,7 @@ void CompiledModel::configure_stream_executors() {
             ov::threading::IStreamsExecutor::Config{"NPUPlugin executor"});
     }
 
-    set_task_executor(task_executor);
+    set_task_executor(std::move(task_executor));
     const auto executorId = _networkPtr->metadata.name + "_NPUResultExecutor";
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
