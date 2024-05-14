@@ -92,6 +92,7 @@ std::shared_ptr<Node> ROIAlignRotated::clone_with_new_inputs(const OutputVector&
 }
 
 bool ROIAlignRotated::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v14_ROIAlignRotated_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 3);
 
@@ -100,7 +101,7 @@ bool ROIAlignRotated::evaluate(TensorVector& outputs, const TensorVector& inputs
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(bf16, f16, f32, f64),
+                                      OV_PP_ET_LIST(f32, f64),
                                       helpers::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],

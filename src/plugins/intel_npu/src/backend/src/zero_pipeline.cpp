@@ -154,7 +154,7 @@ public:
         : _config(config),
           _command_queue{command_queue},
           _event_pool{device_handle, context, batch_size ? static_cast<uint32_t>(batch_size) : 1, _config},
-          _npu_profiling(npu_profiling) {
+          _npu_profiling(std::move(npu_profiling)) {
         const ZeroExecutor* executor = static_cast<const ZeroExecutor*>(executorPtr.get());
 
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend,
