@@ -57,34 +57,26 @@ namespace node {
 namespace {
 
 struct SubgraphKey {
-protected:
     SubgraphKey() = default;
-    SubgraphKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_) : attrs(attrs_) {}
+    SubgraphKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_, const std::vector<VectorDims>& in_shapes_)
+        : attrs(attrs_), in_shapes(in_shapes_) {}
     virtual ~SubgraphKey() = default;
 
     size_t hash() const;
+    bool operator==(const SubgraphKey& rhs) const;
 
-public:
     std::shared_ptr<Subgraph::SubgraphAttrs> attrs = nullptr;
-};
-
-struct SubgraphSpecializedKey : public SubgraphKey {
-    SubgraphSpecializedKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_, const std::vector<VectorDims>& in_shapes_)
-        : SubgraphKey(attrs_), in_shapes(in_shapes_) {}
-
-    size_t hash() const;
-    bool operator==(const SubgraphSpecializedKey& rhs) const;
-
     std::vector<VectorDims> in_shapes = {};
 };
 
-struct SubgraphShapeAgnosticKey : public SubgraphKey {
-    SubgraphShapeAgnosticKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_, uint8_t mask_)
-        : SubgraphKey(attrs_), mask(mask_) {}
+struct SubgraphCodeGeneratorKey {
+    SubgraphCodeGeneratorKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_, uint8_t mask_)
+        : attrs(attrs_), mask(mask_) {}
 
     size_t hash() const;
-    bool operator==(const SubgraphShapeAgnosticKey& rhs) const;
+    bool operator==(const SubgraphCodeGeneratorKey& rhs) const;
 
+    std::shared_ptr<Subgraph::SubgraphAttrs> attrs = nullptr;
     uint8_t mask = 0;
 };
 
@@ -99,11 +91,10 @@ struct SubgraphShapeInferResultKey {
     uint64_t body_hash = 0;
 };
 
-size_t SubgraphKey::hash() const {
+size_t get_attr_hash(size_t seed, const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs) {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
-    size_t seed = 0;
     for (const auto& order : attrs->inMemOrders)
         seed = get_vector_hash(seed, order);
     for (const auto& prec : attrs->inMemPrecs)
@@ -115,26 +106,26 @@ size_t SubgraphKey::hash() const {
         seed = hash_combine(seed, prec.hash());
 
     seed = hash_combine(seed, attrs->bodyHash);
-
     return seed;
 }
 
-size_t SubgraphSpecializedKey::hash() const {
+
+size_t SubgraphKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
-    size_t seed = SubgraphKey::hash();
+    size_t seed = get_attr_hash(0, attrs);
     for (const auto& shape : in_shapes)
         seed = get_vector_hash(seed, shape);
 
     return seed;
 }
 
-size_t SubgraphShapeAgnosticKey::hash() const {
+size_t SubgraphCodeGeneratorKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
 
-    size_t seed = SubgraphKey::hash();
+    size_t seed = get_attr_hash(0, attrs);
     seed = hash_combine(seed, mask);
 
     return seed;
@@ -171,24 +162,12 @@ bool operator==(const Subgraph::SubgraphAttrs& lhs, const Subgraph::SubgraphAttr
     return true;
 }
 
-bool operator!=(const Subgraph::SubgraphAttrs& lhs, const Subgraph::SubgraphAttrs& rhs) {
-    return !(lhs == rhs);
+bool SubgraphKey::operator==(const SubgraphKey& rhs) const {
+    return *attrs == *rhs.attrs && in_shapes == rhs.in_shapes;
 }
 
-bool SubgraphSpecializedKey::operator==(const SubgraphSpecializedKey& rhs) const {
-    if (*attrs != *rhs.attrs)
-        return false;
-    if (in_shapes != rhs.in_shapes)
-        return false;
-    return true;
-}
-
-bool SubgraphShapeAgnosticKey::operator==(const SubgraphShapeAgnosticKey& rhs) const {
-    if (*attrs != *rhs.attrs)
-        return false;
-    if (mask != rhs.mask)
-        return false;
-    return true;
+bool SubgraphCodeGeneratorKey::operator==(const SubgraphCodeGeneratorKey& rhs) const {
+    return *attrs == *rhs.attrs && mask == rhs.mask;
 }
 
 bool SubgraphShapeInferResultKey::operator==(const SubgraphShapeInferResultKey& rhs) const {
@@ -385,9 +364,8 @@ void Subgraph::createPrimitive() {
         input_num = config.inConfs.size();
         output_num = config.outConfs.size();
 
-        in_shapes.resize(input_num);
-
         init_memory_ptrs();
+        init_plugin_blocked_shapes();
         init_attrs();
         init_start_offsets();
         lower();
@@ -458,6 +436,12 @@ void Subgraph::init_precisions(std::vector<ov::element::Type>& input_types, std:
         input_types.push_back(p);
     for (const auto& p : snippetAttrs->outMemPrecs)
         output_types.push_back(p);
+}
+
+void Subgraph::init_plugin_blocked_shapes() const {
+    in_shapes.resize(input_num);
+    for (size_t i = 0; i < srcMemPtrs.size(); i++)
+        in_shapes[i] = srcMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 }
 
 Subgraph::DataFlowPasses Subgraph::get_data_flow_passes() const {
@@ -566,13 +550,13 @@ void Subgraph::lower() {
         in_shapes.emplace_back(s.first);
     subgraph->shape_infer(in_shapes);
 
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
 #ifdef SNIPPETS_LIBXSMM_TPP
     subgraph->set_tile_rank(std::min(2ul, subgraph->infer_master_shape().size()));
 #endif
 
     const auto control_flow_settings = get_control_flow_passes();
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
+    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain optimization.
     subgraph->lowering_transformations(static_cast<size_t>(parallel_get_max_threads()), 256,
                                        std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                        control_flow_settings.first, control_flow_settings.second);
@@ -581,24 +565,21 @@ void Subgraph::lower() {
 void Subgraph::prepareParams() {
     const auto cache = context->getParamsCache();
 
-    auto builder = [this, cache](const SubgraphSpecializedKey& key) -> std::shared_ptr<SubgraphExecutor> {
+    auto builder = [this, cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphExecutor> {
+        const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(snippetAttrs->snippet->update_runtime_config());
+        // Firstly, find the schedule in the cache
+        const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(snippetAttrs, get_broadcasting_mask(in_shapes)),
+                                                        [&cpu_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
+                                                            return std::make_shared<SubgraphCodeGenerator>(key.attrs, cpu_config);
+                                                        });
         if (is_dynamic) {
-            auto shape_agnostic_builder = [](const SubgraphShapeAgnosticKey& key) -> std::shared_ptr<SubgraphExecutor> {
-                return std::make_shared<SubgraphJitShapeAgnosticExecutor>(key.attrs);
-            };
-
-            const auto shape_agnostic_key = SubgraphShapeAgnosticKey(snippetAttrs, get_broadcasting_mask(in_shapes));
-            const auto shape_agnostic_result = cache->getOrCreate(shape_agnostic_key, shape_agnostic_builder);
-            const auto& shape_agnostic_exec_ptr = std::dynamic_pointer_cast<SubgraphJitShapeAgnosticExecutor>(shape_agnostic_result.first);
-            OPENVINO_ASSERT(shape_agnostic_exec_ptr != nullptr, "ShapeAgnosticExecutor is not created for node ", getName(), ".");
-
-            return std::make_shared<SubgraphJitDynamicSpecializedExecutor>(key.attrs, start_offset_in, start_offset_out, shape_agnostic_exec_ptr);
+            return std::make_shared<SubgraphJitDynamicSpecializedExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, cpu_config);
         } else {
-            return std::make_shared<SubgraphJitStaticExecutor>(key.attrs, start_offset_in, start_offset_out);
+            return std::make_shared<SubgraphJitStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, cpu_config);
         }
     };
 
-    const auto result = cache->getOrCreate(SubgraphSpecializedKey(snippetAttrs, in_shapes), builder);
+    const auto result = cache->getOrCreate(SubgraphKey(snippetAttrs, in_shapes), builder);
     execPtr = result.first;
     OPENVINO_ASSERT(execPtr != nullptr, "Executor is not created for node ", getName(), ".");
 }
@@ -654,31 +635,40 @@ void Subgraph::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-Subgraph::SubgraphJitExecutor::SubgraphJitExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs)
-    : SubgraphExecutor() {
+Subgraph::SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                                                       const std::shared_ptr<CPURuntimeConfig>& config) {
+    OPENVINO_ASSERT(snippet_attrs, "Subgraph attributes are empty!");
+    OPENVINO_ASSERT(config, "Runtime Config is empty!");
+
+    jit_snippets_compile_args jcp;
+    jcp.master_shape = config->parallel_domain;
+    jcp.data_offsets = config->io_data_offsets;
+    schedule = std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate_from_linear_ir(reinterpret_cast<const void*>(&jcp)));
+}
+
+Subgraph::SubgraphJitExecutor::SubgraphJitExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                                                   const std::shared_ptr<SubgraphCodeGenerator>& snippet,
+                                                   const std::vector<ptrdiff_t>& start_offset_in,
+                                                   const std::vector<ptrdiff_t>& start_offset_out)
+    : SubgraphExecutor(), m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out) {
+    OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
     enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
 #endif
 }
 
-void Subgraph::SubgraphJitExecutor::generate(const std::shared_ptr<SubgraphAttrs>& snippet_attrs, const std::shared_ptr<CPURuntimeConfig>& cpu_config) {
-    jit_snippets_compile_args jcp;
-    jcp.master_shape = cpu_config->parallel_domain;
-    jcp.data_offsets = cpu_config->io_data_offsets;
-    schedule = std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate_from_linear_ir(reinterpret_cast<const void*>(&jcp)));
-}
-
 void Subgraph::SubgraphJitExecutor::init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config) {
+    OPENVINO_ASSERT(cpu_config, "Runtime Config is empty!");
     // Buffer size should be in CPURtunimeConfig too
-    buffer_scratchpad_size = schedule->lowering_result.buffer_scratchpad_size;
-    buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
-    parallel_exec_domain = cpu_config->parallel_domain;
-    harness_work_amount = std::accumulate(parallel_exec_domain.cbegin(), parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
+    m_buffer_scratchpad_size = m_schedule->lowering_result.buffer_scratchpad_size;
+    m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
+    m_parallel_exec_domain = cpu_config->parallel_domain;
+    m_harness_work_amount = std::accumulate(m_parallel_exec_domain.cbegin(), m_parallel_exec_domain.cend(), size_t(1), std::multiplies<size_t>());
 }
 
 void Subgraph::SubgraphJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    if (parallel_exec_domain.size() == rank6D) {
+    if (m_parallel_exec_domain.size() == rank6D) {
         schedule_6d(inMemPtrs, outMemPtrs);
     } else {
         schedule_nt(inMemPtrs, outMemPtrs);
@@ -703,32 +693,32 @@ void Subgraph::SubgraphJitExecutor::segfault_detector() {
 #endif
 
 Subgraph::SubgraphJitStaticExecutor::SubgraphJitStaticExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                                                               const std::shared_ptr<SubgraphCodeGenerator>& snippet,
                                                                const std::vector<ptrdiff_t>& start_offset_in,
-                                                               const std::vector<ptrdiff_t>& start_offset_out)
-    : SubgraphJitExecutor(snippet_attrs), start_offset_in(start_offset_in), start_offset_out(start_offset_out) {
-    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(snippet_attrs->snippet->update_runtime_config());
-    generate(snippet_attrs, cpu_config);
-    init_runtime_params(cpu_config);
+                                                               const std::vector<ptrdiff_t>& start_offset_out,
+                                                               const std::shared_ptr<CPURuntimeConfig>& config)
+    : SubgraphJitExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
+    init_runtime_params(config);
 }
 
 inline void Subgraph::SubgraphJitStaticExecutor::update_ptrs(jit_snippets_call_args& call_args,
                                                              const std::vector<MemoryPtr>& srcMemPtrs,
                                                              const std::vector<MemoryPtr>& dstMemPtrs) {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + m_start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
 
-    if (buffer_scratchpad_size > 0) {
+    if (m_buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =
-                reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
+                reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
     }
 }
 
 void Subgraph::SubgraphJitStaticExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& callable = schedule->get_callable<kernel>();
-    const auto& dom = parallel_exec_domain;
+    const auto& callable = m_schedule->get_callable<kernel>();
+    const auto& dom = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
@@ -744,8 +734,8 @@ void Subgraph::SubgraphJitStaticExecutor::schedule_6d(const std::vector<MemoryPt
 }
 
 void Subgraph::SubgraphJitStaticExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& callable = schedule->get_callable<kernel>();
-    const auto& work_size = parallel_exec_domain;
+    const auto& callable = m_schedule->get_callable<kernel>();
+    const auto& work_size = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
@@ -756,7 +746,7 @@ void Subgraph::SubgraphJitStaticExecutor::schedule_nt(const std::vector<MemoryPt
         update_ptrs(call_args, inMemPtrs, outMemPtrs);
 
         size_t start = 0, end = 0;
-        splitter(harness_work_amount, nthr, ithr, start, end);
+        splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes(work_size.size() - 1, 0);
         for (size_t iwork = start; iwork < end; ++iwork) {
@@ -771,30 +761,13 @@ void Subgraph::SubgraphJitStaticExecutor::schedule_nt(const std::vector<MemoryPt
     });
 }
 
-Subgraph::SubgraphJitShapeAgnosticExecutor::SubgraphJitShapeAgnosticExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs)
-    : SubgraphJitExecutor(snippet_attrs) {
-    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(snippet_attrs->snippet->update_runtime_config());
-    generate(snippet_attrs, cpu_config);
-}
-
-void Subgraph::SubgraphJitShapeAgnosticExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    OPENVINO_THROW("SubgraphJitShapeAgnosticExecutor doesn't support execution");
-}
-
-void Subgraph::SubgraphJitShapeAgnosticExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    OPENVINO_THROW("SubgraphJitShapeAgnosticExecutor doesn't support execution");
-}
-
 Subgraph::SubgraphJitDynamicSpecializedExecutor::SubgraphJitDynamicSpecializedExecutor(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
+                                                                                       const std::shared_ptr<SubgraphCodeGenerator>& snippet,
                                                                                        const std::vector<ptrdiff_t>& start_offset_in,
                                                                                        const std::vector<ptrdiff_t>& start_offset_out,
-                                                                                       const std::shared_ptr<SubgraphJitShapeAgnosticExecutor>& agnostic)
-    : SubgraphJitExecutor(snippet_attrs), start_offset_in(start_offset_in), start_offset_out(start_offset_out) {
-    // copy code
-    schedule = agnostic->schedule;
-
-    const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(snippet_attrs->snippet->update_runtime_config());
-    init_runtime_params(cpu_config);
+                                                                                       const std::shared_ptr<CPURuntimeConfig>& config)
+    : SubgraphJitExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out) {
+    init_runtime_params(config);
 }
 
 void Subgraph::SubgraphJitDynamicSpecializedExecutor::init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& cpu_config) {
@@ -814,16 +787,16 @@ inline void Subgraph::SubgraphJitDynamicSpecializedExecutor::init_original_ptrs(
     dst_ptrs.resize(out_num, nullptr);
 
     for (size_t i = 0; i < in_num; i++)
-        src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+        src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + m_start_offset_in[i];
     for (size_t i = 0; i < out_num; i++)
-        dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+        dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
 }
 
 inline void Subgraph::SubgraphJitDynamicSpecializedExecutor::init_call_args(jit_snippets_call_args& call_args) {
     call_args.register_loops(loop_args);
 
-    if (buffer_scratchpad_size > 0) {
-        call_args.buffer_scratchpad_ptr = reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
+    if (m_buffer_scratchpad_size > 0) {
+        call_args.buffer_scratchpad_ptr = reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
     }
 }
 
@@ -848,7 +821,7 @@ inline void Subgraph::SubgraphJitDynamicSpecializedExecutor::update_ptrs(jit_sni
 }
 
 void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = parallel_exec_domain;
+    const auto& dom = m_parallel_exec_domain;
 
     OPENVINO_ASSERT(dom.size() == rank6D, "Incorrect parallel execution domain rank!");
     OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
@@ -864,7 +837,7 @@ void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_6d(const std::vec
 
     // Use parallel_nt instead of parallel_for5d to create thread-local `jit_snippets_call_args` entity
     // with inited buffer scratchpad ptr and loop args only once.
-    const auto& callable = schedule->get_callable<dynamic_kernel>();
+    const auto& callable = m_schedule->get_callable<dynamic_kernel>();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         init_call_args(call_args);
@@ -875,7 +848,7 @@ void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_6d(const std::vec
             callable(&call_args);
         };
 
-        const size_t work_amount = harness_work_amount;
+        const size_t work_amount = m_harness_work_amount;
         if (work_amount == 0)
             return;
 
@@ -892,7 +865,7 @@ void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_6d(const std::vec
 }
 
 void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& dom = parallel_exec_domain;
+    const auto& dom = m_parallel_exec_domain;
 
     OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
     OPENVINO_ASSERT(data_offsets.front().size() == dom.size(), "Data offsets with invalid ranks detected");
@@ -905,13 +878,13 @@ void Subgraph::SubgraphJitDynamicSpecializedExecutor::schedule_nt(const std::vec
     segfault_detector();
 #endif
 
-    const auto& callable = schedule->get_callable<dynamic_kernel>();
+    const auto& callable = m_schedule->get_callable<dynamic_kernel>();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         call_args.register_loops(loop_args);
 
         size_t start = 0, end = 0;
-        splitter(harness_work_amount, nthr, ithr, start, end);
+        splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes(dom.size() - 1, 0);
         for (size_t iwork = start; iwork < end; ++iwork) {
