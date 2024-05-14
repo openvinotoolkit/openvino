@@ -78,6 +78,7 @@
 #include "nodes/reverse_sequence.h"
 #include "nodes/rnn.h"
 #include "nodes/roi_align.h"
+#include "nodes/roi_align_rotated.h"
 #include "nodes/roi_pooling.h"
 #include "nodes/roll.h"
 #include "nodes/rope.h"
@@ -193,6 +194,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
     INTEL_CPU_NODE(ROIPooling, Type::ROIPooling);
     INTEL_CPU_NODE(ROIAlign, Type::ROIAlign);
+    INTEL_CPU_NODE(ROIAlignRotated, Type::ROIAlignRotated);
     INTEL_CPU_NODE(TopK, Type::TopK);
     INTEL_CPU_NODE(Proposal, Type::Proposal);
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
