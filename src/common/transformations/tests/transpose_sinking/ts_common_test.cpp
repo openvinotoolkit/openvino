@@ -1636,24 +1636,6 @@ auto test_backward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
                          TSTestFixture,
                          test_backward_reshape_unsqueeze());
-
-TEST_F(TransformationTestsF, TSDataMovementForwardNoSink) {
-    auto X = std::make_shared<Parameter>(ov::element::f32, PartialShape::dynamic());
-
-    auto ng_order0 = std::make_shared<Constant>(ov::element::i64, ov::Shape{4}, ov::Shape{3, 2, 1, 0});
-    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
-
-    auto seq_lengths = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, ov::Shape{0});
-    auto main = std::make_shared<ReverseSequence>(transpose0, seq_lengths);
-
-    auto result = std::make_shared<Result>(main);
-
-    model = std::make_shared<ov::Model>(result, ov::ParameterVector{X});
-    model_ref = model->clone();
-
-    manager.register_pass<TSDataMovementForward>();
-}
-
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

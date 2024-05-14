@@ -74,7 +74,9 @@ bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>&
         return false;
     const auto partial_shape_rank = transpose->get_input_partial_shape(0).rank();
     const auto order = transpose_order->get_axis_vector_val();
-    return (partial_shape_rank.is_static() || order.empty());
+    if (partial_shape_rank.is_dynamic() && order.empty())
+        return false;
+    return true;
 }
 
 TransposeInputsInfo GetFirstTransposeInput(
