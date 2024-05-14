@@ -145,9 +145,8 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
 
     ov::test::utils::disable_tests_skipping = origin_sk;
 
-    // TODO: intel_cpu::Plugin::get_property actually returns values from "engConfig", but the "orig_config" is used for transformations and inference.
-    // ASSERT_EQ(core->get_property(targetDevice, ov::hint::execution_mode), m_mode);
-    // ASSERT_EQ(core->get_property(targetDevice, ov::hint::inference_precision), element::undefined);
+    ASSERT_EQ(compiledModel.get_property(ov::hint::execution_mode), m_mode);
+    ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::undefined);
 
     size_t rnd_unfm_counter = 0lu;
     size_t logical_not_counter = 0lu;
