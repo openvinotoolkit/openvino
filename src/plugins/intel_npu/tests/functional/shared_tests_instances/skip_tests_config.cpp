@@ -528,8 +528,18 @@ std::vector<std::string> disabledTestPatterns() {
                                    ".*DriverCompilerAdapterInputsOutputsTestNPU.CheckInOutputs.*",
                                    ".*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*"});
 
+        _skipRegistry.addPatterns(devices.has3700() || !backendName.isZero(),
+                "Batching on plugin is not supported on 3700 platform or other backends besides Level Zero backend", {
+                ".*BatchingRunTests.*"
+        });
+
 #ifdef WIN32
 #elif defined(__linux__)
+        // [Tracking number: E#103391]
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(),
+                "IfTest segfaults npuFuncTest on Ubuntu", {
+                ".*smoke_IfTest.*"
+        });
 
         _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(),
                 "Tests fail with: ZE_RESULT_ERROR_DEVICE_LOST, code 0x70000001", {
