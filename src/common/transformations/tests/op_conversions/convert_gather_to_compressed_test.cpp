@@ -40,11 +40,8 @@ TEST_F(TransformationTestsF, ConvertGatherToCompressed1) {
         auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {1});
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1});
-        auto gather_compressed = std::make_shared<ov::op::internal::GatherCompressed>(weights_const,
-                                                                                      input1,
-                                                                                      axis_const,
-                                                                                      0,
-                                                                                      scale_const);
+        auto gather_compressed =
+            std::make_shared<ov::op::internal::GatherCompressed>(weights_const, input1, axis_const, 0, scale_const);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{gather_compressed}, ov::ParameterVector{input1});
     }
