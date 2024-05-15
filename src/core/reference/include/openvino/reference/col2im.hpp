@@ -20,7 +20,7 @@ void col2im(const T* data,
             const Strides& dilations,
             const Shape& pads_begin,
             const Shape& pads_end) {
-    // fill output with zeros to account for missing dilated values
+    // fill output with zeros to account for values missing due to dilation and stride
     const auto kernel_product = kernel_size[0] * kernel_size[1];
     const bool is_batched = data_shape.size() == 3;
     const T_idx C_idx = is_batched ? 1 : 0;
