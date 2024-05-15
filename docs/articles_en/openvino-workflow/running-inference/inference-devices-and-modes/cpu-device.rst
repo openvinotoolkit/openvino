@@ -101,6 +101,11 @@ On platforms that natively support half-precision calculations (``bfloat16`` or 
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
 
+.. important::
+
+   The ``bf16`` floating-point precision appears to have some limitations that impact the
+   inference accuracy in LLM models. For more details, refer to this :ref:`article <limitation-of-the-bf16-inference-precision>`.
+
 Using the half-precision provides the following performance benefits:
 
 - ``bfloat16`` and ``float16`` data types enable Intel® Advanced Matrix Extension (AMX) on 4+ generation Intel® Xeon® Scalable Processors, resulting in significantly faster computations on the corresponding hardware compared to AVX512 or AVX2 instructions in many deep learning operation implementations.
@@ -415,7 +420,7 @@ User can use the following properties to limit available CPU resource for model 
 In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
 
 ==================================================== ================================
- Use Case                                             Default Setting of CPU Pinning 
+ Use Case                                             Default Setting of CPU Pinning
 ==================================================== ================================
  All use cases with Windows OS                        False
  Stream contains both Pcore and Ecore with Linux OS   False
