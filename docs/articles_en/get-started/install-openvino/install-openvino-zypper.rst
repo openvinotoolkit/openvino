@@ -61,9 +61,9 @@ Step 1: Update the repository
 
 2. To list available OpenVINO packages, use the following command:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   zypper se openvino
+      zypper se openvino
 
 Step 2: Install OpenVINO Runtime Using the ZYPPER Package Manager
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
