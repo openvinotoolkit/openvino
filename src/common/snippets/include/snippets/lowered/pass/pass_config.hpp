@@ -51,10 +51,6 @@ public:
     friend bool operator==(const PassConfig& lhs, const PassConfig& rhs);
     friend bool operator!=(const PassConfig& lhs, const PassConfig& rhs);
 
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string LIRPath;
-#endif
-
 private:
     std::unordered_set<DiscreteTypeInfo> m_disabled;
     std::unordered_set<DiscreteTypeInfo> m_enabled;

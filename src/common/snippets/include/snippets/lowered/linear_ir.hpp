@@ -10,6 +10,10 @@
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "snippets/debug_caps.hpp"
+#endif
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -35,6 +39,7 @@ public:
     size_t m_loop_depth = 1;
 #ifdef SNIPPETS_DEBUG_CAPS
     PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+    DebugCapsConfig debug_config;
 #endif
     // Some Subgraphs doesn't support domain optimization due to operations' semantics
     bool m_enable_domain_optimization = false;
