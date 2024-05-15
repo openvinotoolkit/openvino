@@ -43,8 +43,8 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
             // This is the case for Brgemm K-blocking loops, for example.
             const auto loop_info = loop_mngr->get_loop_info(orig_loop);
             const auto& border_points = port.get_type() == ExpressionPort::Type::Input ?
-                                                           loop_info->get_entry_points() :
-                                                           loop_info->get_exit_points();
+                                                           loop_info->get_input_ports() :
+                                                           loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
             if (found == border_points.end() || found->is_incremented)
                 return false;
