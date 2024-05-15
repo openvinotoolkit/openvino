@@ -142,19 +142,12 @@ KERNEL (permute_f_y_axes)(
         const int j_vec = j * VEC_SIZE;
         int y_idx = y_begin + j_vec;
 #if HAS_FUSED_OPS
-        
-        for (int k = 0; k < VEC_SIZE; ++k) {
-            y_idx = y_begin + j_vec + k;
-            f_idx = bf % INPUT0_FEATURE_NUM;
-            OUTPUT_TYPE res = input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)];
-            f_idx = y_begin + j_vec + k;
-            y_idx = bf % INPUT0_FEATURE_NUM;
-            FUSED_OPS;
-            OUTPUT_TYPE result = FUSED_OPS_RESULT;
-            transpose_buf[j_vec + k][bf_local] = result;
-        }
-        f_idx = bf % INPUT0_FEATURE_NUM;
         y_idx = y_begin + j_vec;
+        f_idx = bf % INPUT0_FEATURE_NUM;
+        OUT_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
+        for (int k = 0; k < VEC_SIZE; ++k) {
+            transpose_buf[j_vec + k][bf_local] = res[k];
+        }
 #else
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
         for (int k = 0; k < VEC_SIZE; ++k) {
@@ -162,7 +155,18 @@ KERNEL (permute_f_y_axes)(
         }
 #endif
     }
-
+#if HAS_FUSED_OPS
+    for (int j = 0; j < J_TIMES; ++j) {
+        const int j_vec = j * VEC_SIZE;
+        OUT_VEC_TYPE res = READ_VEC(0, &transpose_buf[bf_local][j_vec]);
+        f_idx = y_begin + bf_local;
+        int y_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
+        FUSED_OPS_VEC;
+        OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
+        const int output_idx = OUTPUT_GET_INDEX(b_idx, f_idx, y_idx, x_idx);
+        WRITE_VEC(result, 0 , &output[output_idx]);
+    }
+#else
     __attribute__((opencl_unroll_hint(J_TIMES)))
     for (int j = 0; j < J_TIMES; ++j) {
         const int j_vec = j * VEC_SIZE;
@@ -171,7 +175,7 @@ KERNEL (permute_f_y_axes)(
         const int output_idx = OUTPUT_GET_INDEX(b_idx, y_idx, f, x_idx);
         WRITE_VEC(READ_VEC(0, &transpose_buf[bf_local][j_vec]), 0, &output[output_idx]);
     }
-
+#endif
 
 #else
     __attribute__((opencl_unroll_hint(TILE_SIZE)))
