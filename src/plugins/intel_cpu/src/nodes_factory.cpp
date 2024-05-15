@@ -61,6 +61,7 @@
 #include "nodes/normalize.h"
 #include "nodes/one_hot.h"
 #include "nodes/pad.h"
+#include "nodes/paged_attn.h"
 #include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
@@ -207,6 +208,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(Snippet, Type::Subgraph);
 #endif
 }

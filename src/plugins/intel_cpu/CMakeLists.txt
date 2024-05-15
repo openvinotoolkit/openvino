@@ -216,6 +216,13 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/executor_pa.cpp
+        API         src/nodes/kernels/scaled_attn/executor_pa.hpp
+        NAME        make_pa_executor
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
