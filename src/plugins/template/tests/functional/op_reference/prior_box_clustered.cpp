@@ -19,21 +19,18 @@ struct PriorBoxClusteredParams {
     PriorBoxClusteredParams(const std::vector<float>& widths,
                             const std::vector<float>& heights,
                             const bool clip,
-                            const ov::Shape& layerShapeShape,
-                            const ov::Shape& imageShapeShape,
                             const ov::element::Type& iType,
                             const std::vector<IT>& layerShapeValues,
                             const std::vector<IT>& imageShapeValues,
+                            const Shape& output_shape,
                             const std::vector<float>& oValues,
                             const std::vector<float>& variances = {},
                             const std::string& testcaseName = "")
-        : layerShapeShape(layerShapeShape),
-          imageShapeShape(imageShapeShape),
-          inType(iType),
+        : inType(iType),
           outType(ov::element::Type_t::f32),
-          layerShapeData(CreateTensor(iType, layerShapeValues)),
-          imageShapeData(CreateTensor(iType, imageShapeValues)),
-          refData(CreateTensor(outType, oValues)),
+          layerShapeData(CreateTensor(Shape{2}, iType, layerShapeValues)),
+          imageShapeData(CreateTensor(Shape{2}, iType, imageShapeValues)),
+          refData(CreateTensor(output_shape, outType, oValues)),
           testcaseName(testcaseName) {
         attrs.widths = widths;
         attrs.heights = heights;
@@ -43,8 +40,6 @@ struct PriorBoxClusteredParams {
     }
 
     ov::op::v0::PriorBoxClustered::Attributes attrs;
-    ov::Shape layerShapeShape;
-    ov::Shape imageShapeShape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor layerShapeData;
@@ -57,16 +52,14 @@ class ReferencePriorBoxClusteredLayerTest : public testing::TestWithParam<PriorB
                                             public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxClusteredParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
-        result << "layerShapeShape=" << param.layerShapeShape << "_";
-        result << "imageShapeShape=" << param.imageShapeShape << "_";
         result << "variancesSize=" << param.attrs.variances.size() << "_";
         result << "iType=" << param.inType << "_";
         result << "oType=" << param.outType;
@@ -77,10 +70,8 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const PriorBoxClusteredParams& params) {
-        auto LS =
-            std::make_shared<op::v0::Constant>(params.inType, params.layerShapeShape, params.layerShapeData.data());
-        auto IS =
-            std::make_shared<op::v0::Constant>(params.inType, params.imageShapeShape, params.imageShapeData.data());
+        auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
+        auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
         const auto PriorBoxClustered = std::make_shared<op::v0::PriorBoxClustered>(LS, IS, params.attrs);
         return std::make_shared<ov::Model>(NodeVector{PriorBoxClustered}, ParameterVector{});
     }
@@ -99,11 +90,10 @@ std::vector<PriorBoxClusteredParams> generatePriorBoxClusteredFloatParams() {
             {3.0f},
             {3.0f},
             true,
-            {2},
-            {2},
             IN_ET,
             std::vector<T>{2, 2},
             std::vector<T>{10, 10},
+            Shape{2, 16},
             std::vector<float>{0,    0,        0.15f, 0.15f,    0.34999f, 0,        0.64999f, 0.15f,
                                0,    0.34999f, 0.15f, 0.64999f, 0.34999f, 0.34999f, 0.64999f, 0.64999f,
                                0.1f, 0.1f,     0.1f,  0.1f,     0.1f,     0.1f,     0.1f,     0.1f,
@@ -112,11 +102,10 @@ std::vector<PriorBoxClusteredParams> generatePriorBoxClusteredFloatParams() {
             {3.0f},
             {3.0f},
             true,
-            {2},
-            {2},
             IN_ET,
             std::vector<T>{2, 2},
             std::vector<T>{10, 10},
+            Shape{2, 16},
             std::vector<float>{0,    0,        0.15f, 0.15f,    0.34999f, 0,        0.64999f, 0.15f,
                                0,    0.34999f, 0.15f, 0.64999f, 0.34999f, 0.34999f, 0.64999f, 0.64999f,
                                0.1f, 0.2f,     0.3f,  0.4f,     0.1f,     0.2f,     0.3f,     0.4f,

@@ -63,7 +63,8 @@ enum InnerBodyType {
 };
 
 public:
-    InnerBodyGenerator() { }
+    InnerBodyGenerator()  = default;
+    virtual ~InnerBodyGenerator() = default;
 
     virtual std::shared_ptr<ov::Model> get_function() { return _func; }
     virtual std::shared_ptr<ov::op::v0::Parameter> get_input() { return _param; }
@@ -609,6 +610,7 @@ protected:
 };
 
 TEST_P(StaticConditionLayerGPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 }
 

@@ -195,6 +195,8 @@ class TestFillDiagonal(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
+        if ie_device == "GPU":
+            pytest.xfail(reason="fill_diagonal is not supported on GPU")
         self._test(*self.create_model(shape, wrap), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
                        'value': value, 
@@ -486,6 +488,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_zeros_ones(self, op_type, shape, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})
@@ -495,6 +498,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("with_names", [True, False])
     @pytest.mark.nightly
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_zeros_ones_with_dtype(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, dtype=dtype, with_dtype=True, with_names=with_names), ie_device,
@@ -514,6 +518,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["aten::zeros_like", "aten::ones_like"])
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.nightly
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_zeros_ones_like_with_dtype(self, op_type, shape, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, dtype=dtype, with_dtype=True), ie_device, precision,

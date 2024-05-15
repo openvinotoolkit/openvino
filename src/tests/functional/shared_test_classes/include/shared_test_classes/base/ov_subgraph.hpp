@@ -39,11 +39,14 @@ protected:
     virtual void compile_model();
     virtual void infer();
     virtual void validate();
-    virtual void configure_model();;
+    virtual void configure_model();
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
 
+    void compare_models_param_res(const std::shared_ptr<ov::Model>& f, const std::shared_ptr<ov::Model>& f_ref);
+    void compare_nodes(const std::shared_ptr<ov::Node>& node1, const std::shared_ptr<ov::Node>& node2, std::ostream& err_log);
     void update_ref_model();
-    void match_parameters();
+    void match_parameters(const ov::ParameterVector& params, const ov::ParameterVector& ref_params);
+    void init_thresholds();
     void init_input_shapes(const std::vector<InputShape>& shapes);
     void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
 
@@ -62,7 +65,9 @@ protected:
     std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs;
     std::vector<ov::PartialShape> inputDynamicShapes;
     std::vector<std::vector<ov::Shape>> targetStaticShapes;
-    ElementType inType = ov::element::undefined, outType = ov::element::undefined;
+    ElementType inType = ov::element::undefined,
+                outType = ov::element::undefined,
+                inference_precision = ov::element::undefined;
 
     ov::CompiledModel compiledModel;
     ov::InferRequest inferRequest;
@@ -73,8 +78,12 @@ protected:
 
     std::function<void(const std::exception& exp)> callback_exception = nullptr;
 
-    constexpr static const double disable_threshold = std::numeric_limits<double>::max();
-    double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
+    constexpr static const double disable_threshold = -1;
+    constexpr static const double disable_tensor_metrics = 1.f;
+    double abs_threshold = disable_threshold,
+           rel_threshold = disable_threshold,
+           topk_threshold = disable_tensor_metrics,
+           mvn_threshold = disable_tensor_metrics;
 
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;

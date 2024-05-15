@@ -25,8 +25,8 @@ OutputVector translate_roll(const NodeContext& context) {
     bool on_flattened = context.input_is_none(2);
     if (!on_flattened) {
         axes = context.get_input(2);
-        const auto shifts_pshape = shifts.get_partial_shape();
-        const auto axes_pshape = axes.get_partial_shape();
+        const auto& shifts_pshape = shifts.get_partial_shape();
+        const auto& axes_pshape = axes.get_partial_shape();
         on_flattened = !axes_pshape.compatible(shifts_pshape);
     }
     if (on_flattened) {

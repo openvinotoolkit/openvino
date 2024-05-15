@@ -548,39 +548,39 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
 
     class aten_add_t_t(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_int(torch.nn.Module):
         def forward(self, x: int, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_float(torch.nn.Module):
         def forward(self, x: float, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_float(torch.nn.Module):
         def forward(self, x: int, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_int(torch.nn.Module):
         def forward(self, x: float, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_t_int(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: int):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_int_t(torch.nn.Module):
         def forward(self, x: int, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_t_float(torch.nn.Module):
         def forward(self, x: torch.Tensor, y: float):
-            return torch.add(x, y)
+            return x + y
 
     class aten_add_float_t(torch.nn.Module):
         def forward(self, x: float, y: torch.Tensor):
-            return torch.add(x, y)
+            return x + y
 
     l_t = "t"
     r_t = "t"
@@ -633,10 +633,8 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
         pt_out_shape = pt_out.size()
     pt_out_type = pt_to_ov_type_map.get(str(pt_out_type))
     ov_out_type = om.get_output_element_type(0)
-    if pt_out_type == Type.i64 and ov_out_type == Type.i32 and "int" in [l_t, r_t]:
-        pytest.xfail(
-            "Pytorch int-like scalar in OV is converted to i32 instead of i64, mismatch is expected.")
     assert pt_out_type == ov_out_type
+    print(f"{pt_out_type} == {ov_out_type}")
     assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)
 
 

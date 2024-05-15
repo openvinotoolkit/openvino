@@ -109,10 +109,10 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {
     auto deltas_shape = PartialShape{{1, 12}, {1, 500}};
     auto scores_shape = PartialShape{{1, 3}, {10, 90}};
     auto im_info_shape = PartialShape{1, {1, 4}};
-    set_shape_labels(rois_shape, 10);
-    set_shape_labels(deltas_shape, 20);
-    set_shape_labels(scores_shape, 30);
-    set_shape_labels(im_info_shape, 40);
+    set_shape_symbols(rois_shape);
+    set_shape_symbols(deltas_shape);
+    set_shape_symbols(scores_shape);
+    set_shape_symbols(im_info_shape);
 
     const auto rois = std::make_shared<Parameter>(element::f16, rois_shape);
     const auto deltas = std::make_shared<Parameter>(element::f16, deltas_shape);
@@ -128,13 +128,13 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, interval_shapes) {
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Classes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Scores shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_inputs_dynamic_rank) {
@@ -152,13 +152,13 @@ TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, all_inputs_dynamic_ra
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Classes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Scores shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronDetectionOutputV6Test, input_not_floating_point) {
@@ -450,11 +450,11 @@ TEST_P(ExperimentalDetectronDetectionOutputV6Test, static_rank_shape_inference) 
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("Boxes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25, 4}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Classes shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label)))),
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("Scores shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({25}), ResultOf(get_shape_labels, Each(ov::no_label))))));
+                                     AllOf(PartialShape({25}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }

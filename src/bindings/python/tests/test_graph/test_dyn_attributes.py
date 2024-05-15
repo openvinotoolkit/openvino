@@ -7,7 +7,7 @@ import openvino.runtime.opset8 as ov
 import pytest
 
 
-@pytest.fixture()
+@pytest.fixture
 def proposal_node():
     attributes = {
         "base_size": np.uint16(1),
@@ -27,12 +27,14 @@ def proposal_node():
     return ov.proposal(class_probs, bbox_deltas, image_shape, attributes)
 
 
-def test_dynamic_attributes_softmax():
+@pytest.mark.parametrize("op_name", ["softmax", "dynamic_softmax", "123456"])
+def test_dynamic_attributes_softmax(op_name):
     axis = 2
     data = ov.parameter([1, 2, 3, 4], np.float32, "data_in")
-    node = ov.softmax(data, axis)
+    node = ov.softmax(data, axis, name=op_name)
 
     assert node.get_axis() == axis
+    assert node.get_friendly_name() == op_name
     node.set_axis(3)
     assert node.get_axis() == 3
 

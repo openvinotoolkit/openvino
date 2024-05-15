@@ -17,6 +17,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
@@ -48,7 +49,7 @@ IndirectKVCache::IndirectKVCache() {
     auto gather_input = wrap_type<ov::intel_gpu::op::ReadValue>();
     auto axis_const = wrap_type<ov::op::v0::Constant>(
         ov::op::util::constant_predicate<int64_t>([](const std::vector<int64_t>& value) -> bool {
-            return value.size() == 1 && value[0] == 0;
+            return value.size() == 1 && (value[0] == 0 || value[0] == 1);
         }));
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, axis_const});
     auto kv_cache = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input()});
@@ -56,7 +57,7 @@ IndirectKVCache::IndirectKVCache() {
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});
     auto matmul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_0, matmul_1});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -67,6 +68,7 @@ IndirectKVCache::IndirectKVCache() {
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node = pattern_map.at(gather_input).get_node_shared_ptr();
         auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
+        auto gather_axis = gather_node->get_axis();
         ov::replace_node(gather_node, gather_input_node);
 
         auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
@@ -74,7 +76,7 @@ IndirectKVCache::IndirectKVCache() {
                                                                beam_idx_node,
                                                                kv_cache_node->get_variable(),
                                                                kv_cache_node->get_concat_axis(),
-                                                               gather_node->get_axis(),
+                                                               gather_axis,
                                                                kv_cache_node->get_output_element_type(0));
 
         indirect_kv_cache->set_friendly_name(kv_cache_node->get_friendly_name());
@@ -85,15 +87,16 @@ IndirectKVCache::IndirectKVCache() {
         auto matmul_kv_cache_index = kv_cache_users.begin()->get_index();
 
         auto gemm_node = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
-        auto order_in0 = gemm_node->get_input0_order();
-        auto order_in1 = gemm_node->get_input1_order();
-        auto order_out = gemm_node->get_output_order();
+        auto order_in0 = gemm_node->get_input0_transpose_order();
+        auto order_in1 = gemm_node->get_input1_transpose_order();
+        auto order_out = gemm_node->get_output_transpose_order();
 
         auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
                                                                                gemm_node->get_input_node_shared_ptr(1),
                                                                                indirect_kv_cache->output(1), // beam table
                                                                                matmul_kv_cache_index == 0,
                                                                                matmul_kv_cache_index == 1,
+                                                                               gather_axis,
                                                                                order_in0,
                                                                                order_in1,
                                                                                order_out);

@@ -1337,6 +1337,14 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v13::FakeConve
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, scale, shift}, "FakeConvert");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::RMSNorm>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 8, 6});
+    const auto axes = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int64_t>{-1});
+    const auto rms = std::make_shared<ov::op::v14::RMSNorm>(data, axes, 1e-5);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(rms)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "RMSNorm");
+}
+
 std::shared_ptr<ov::Model> generateArithmeticReductionKeepDims(const std::shared_ptr<ov::op::Op> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3, 3});
     const auto axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
@@ -1426,6 +1434,8 @@ std::shared_ptr<ov::Model> generateScatterNDBase(const std::shared_ptr<ov::op::O
     std::shared_ptr<ov::Node> scatterNode;
     if (ov::is_type<ov::op::v3::ScatterNDUpdate>(node)) {
         scatterNode = std::make_shared<ov::op::v3::ScatterNDUpdate>(data, indices, updates);
+    } else if (ov::is_type<ov::op::v15::ScatterNDUpdate>(node)) {
+        scatterNode = std::make_shared<ov::op::v15::ScatterNDUpdate>(data, indices, updates, ov::op::v15::ScatterNDUpdate::Reduction::SUM);
     } else {
         return nullptr;
     }
@@ -2114,6 +2124,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset12_tbl.hpp"
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
+#include "openvino/opsets/opset15_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

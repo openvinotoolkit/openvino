@@ -10,6 +10,12 @@ import tensorflow as tf
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
+def run_in_jenkins():
+    if "JENKINS_URL" in os.environ and len(os.environ["JENKINS_URL"]):
+        return True
+    return False
+
+
 def mix_array_with_value(input_array, value):
     input_shape = input_array.shape
     mask = np.random.randint(0, 2, input_shape).astype(bool)

@@ -125,7 +125,7 @@ bool Slice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const auto starts = ov::get_tensor_data_as<int64_t>(inputs[1]);
     const auto steps = ov::get_tensor_data_as<int64_t>(inputs[3]);
-    const auto axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
+    const auto& axes = slice_no_axes(this) ? default_axes(starts.size()) : ov::get_tensor_data_as<int64_t>(inputs[4]);
 
     reference::slice(static_cast<const char*>(inputs[0].data()),
                      inputs[0].get_shape(),
@@ -146,8 +146,8 @@ bool Slice::evaluate_upper(ov::TensorVector& output_values) const {
     return slice_bound_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Slice::evaluate_label(TensorLabelVector& output_labels) const {
-    return slice_bound_check(this) && ov::util::default_label_evaluator(this, output_labels);
+bool Slice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return slice_bound_check(this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v8
 }  // namespace op

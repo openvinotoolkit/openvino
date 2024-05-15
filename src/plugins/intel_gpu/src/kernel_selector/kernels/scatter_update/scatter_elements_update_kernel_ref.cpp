@@ -14,11 +14,11 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
     const size_t input_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
         case ScatterUpdateAxis::X:
-            return input_size - 1;
+            return (size_t)(input_size - 1);
         case ScatterUpdateAxis::Y:
-            return input_size - 2;
+            return (size_t)(input_size - 2);
         case ScatterUpdateAxis::Z:
-            return input_size - 3;
+            return (size_t)(input_size - 3);
         case ScatterUpdateAxis::W:
             return 2;
         case ScatterUpdateAxis::FEATURE:
@@ -131,7 +131,7 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
 JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_elements_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", static_cast<size_t>(GetScatterElementsUpdateChannelIndex(params))));
 
     if (params.mode != ScatterUpdateReduction::NONE) {
         jit.AddConstant(MakeJitConstant("REDUCE_MODE", static_cast<int>(params.mode)));

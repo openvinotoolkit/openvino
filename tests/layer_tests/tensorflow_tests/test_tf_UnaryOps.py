@@ -154,10 +154,10 @@ class TestUnaryOps(CommonTFLayerTest):
                                          'Erf',
                                          'BitwiseNot'
                                          ])
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                 use_legacy_frontend):
-        if not use_legacy_frontend and op_type in ['BitwiseNot']:
+        if use_legacy_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
@@ -169,7 +169,7 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
-    @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_legacy_frontend):
         """
@@ -182,7 +182,7 @@ class TestUnaryOps(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
-    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
+    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit),
                  dict(shape=[8, 10, 12]),
                  dict(shape=[6, 8, 10, 12]),
                  dict(shape=[4, 6, 8, 10, 12])]
@@ -222,7 +222,7 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 122716')
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                       use_legacy_frontend):
-        if not use_legacy_frontend and op_type in ['BitwiseNot']:
+        if use_legacy_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
@@ -235,7 +235,7 @@ class TestUnaryOps(CommonTFLayerTest):
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
+    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11

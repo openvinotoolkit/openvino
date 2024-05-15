@@ -12,6 +12,19 @@ using namespace reference_tests;
 using namespace ov;
 
 namespace {
+size_t get_k(const size_t num_images,
+             const size_t num_prior_boxes,
+             const size_t num_classes,
+             const int top_k,
+             const std::vector<int>& keep_top_k) {
+    if (keep_top_k[0] > 0)
+        return num_images * keep_top_k[0];
+    else if (keep_top_k[0] == -1 && top_k > 0)
+        return num_images * top_k * num_classes;
+    else
+        return num_images * num_prior_boxes * num_classes;
+}
+
 struct DetectionOutputParams {
     template <class IT>
     DetectionOutputParams(const int num_classes,
@@ -43,7 +56,6 @@ struct DetectionOutputParams {
           locData(CreateTensor(iType, locValues)),
           confData(CreateTensor(iType, confValues)),
           priorBoxesData(CreateTensor(iType, priorBoxesValues)),
-          refData(CreateTensor(iType, oValues)),
           testcaseName(test_name) {
         attrs.num_classes = num_classes;
         attrs_v8.background_label_id = attrs.background_label_id = background_label_id;
@@ -70,6 +82,10 @@ struct DetectionOutputParams {
         priorBoxesShape = ov::Shape{is_priors_patch_size_1 ? 1UL : num_images,
                                     attrs.variance_encoded_in_target ? 1UL : 2UL,
                                     num_prior_boxes * prior_box_size};
+
+        const auto k = get_k(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
+        const auto output_shape = Shape{1, 1, k, 7};
+        refData = CreateTensor(output_shape, iType, oValues);
     }
 
     template <class IT>
@@ -104,7 +120,6 @@ struct DetectionOutputParams {
           locData(CreateTensor(iType, locValues)),
           confData(CreateTensor(iType, confValues)),
           priorBoxesData(CreateTensor(iType, priorBoxesValues)),
-          refData(CreateTensor(iType, oValues)),
           auxLocData(CreateTensor(iType, auxLocValues)),
           auxConfData(CreateTensor(iType, auxConfValues)),
           testcaseName(test_name) {
@@ -135,6 +150,10 @@ struct DetectionOutputParams {
                                     num_prior_boxes * prior_box_size};
         auxLocShape = locShape;
         auxConfShape = confShape;
+
+        const auto k = get_k(num_images, num_prior_boxes, num_classes, top_k, keep_top_k);
+        const auto output_shape = Shape{1, 1, k, 7};
+        refData = CreateTensor(output_shape, iType, oValues);
     }
 
     ov::op::v0::DetectionOutput::Attributes attrs;
@@ -158,7 +177,7 @@ class ReferenceDetectionOutputLayerTest : public testing::TestWithParam<Detectio
                                           public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0))
             inputData = {params.locData, params.confData, params.priorBoxesData, params.auxConfData, params.auxLocData};
@@ -167,7 +186,7 @@ public:
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "locShape=" << param.locShape << "_";
         result << "confShape=" << param.confShape << "_";
@@ -205,7 +224,7 @@ class ReferenceDetectionOutputV8LayerTest : public testing::TestWithParam<Detect
                                             public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         if ((params.auxLocShape.size() != 0) && (params.auxConfShape.size() != 0))
             inputData = {params.locData, params.confData, params.priorBoxesData, params.auxConfData, params.auxLocData};
@@ -214,7 +233,7 @@ public:
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "locShape=" << param.locShape << "_";
         result << "confShape=" << param.confShape << "_";

@@ -36,10 +36,6 @@ OutputVector translate_lookup_table_find_op(const NodeContext& node) {
         node,
         table_handle,
         "[TensorFlow Frontend] internal error: LookupTableFind operation expects table_handle by the first input");
-    TENSORFLOW_OP_VALIDATION(
-        node,
-        table_handle->is_initialized(),
-        "[TensorFlow Frontend] internal error: LookupTableFind operation expects initialized table_handle");
     auto keys = node.get_input(1);
     auto default_value = node.get_input(2);
 

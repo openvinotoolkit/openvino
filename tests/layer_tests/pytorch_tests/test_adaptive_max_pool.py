@@ -48,11 +48,12 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
+        if ie_device == "GPU" and len(input_shape) < 5:
+            pytest.xfail(reason="Unsupported shape for adaptive pool on GPU")
         self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
@@ -94,7 +95,6 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -142,7 +142,6 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')

@@ -94,6 +94,16 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(numGroups),
         ::testing::Values(ov::op::PadType::VALID)
 );
+const auto groupConv2DParams_AutoPadSameUpper = ::testing::Combine(
+        ::testing::Values(std::vector<size_t >({1, 5})),
+        ::testing::ValuesIn(strides),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+        ::testing::ValuesIn(dilations),
+        ::testing::Values(80),
+        ::testing::Values(80),
+        ::testing::Values(ov::op::PadType::SAME_UPPER)
+);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
                         ::testing::Combine(
@@ -110,6 +120,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolution
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                         std::vector<std::vector<ov::Shape>>({{{1, 16, 30, 30}}}))),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        GroupConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_AutoPadSameUpper, GroupConvolutionLayerTest,
+                        ::testing::Combine(
+                                groupConv2DParams_AutoPadSameUpper,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
+                                        std::vector<std::vector<ov::Shape>>({{{1, 80, 1, 1008}}}))),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 

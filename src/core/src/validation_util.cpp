@@ -10,14 +10,14 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
-#include "sequnce_generator.hpp"
+#include "sequence_generator.hpp"
 
 namespace {
 const auto normalize_axis_to = [](const int64_t& tensor_rank) {
@@ -284,8 +284,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
         auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
                                ->cast_vector<int64_t>();
         OPENVINO_ASSERT(lower_bound.size() == upper_bound.size());
-        const TensorLabel& labels = output.get_tensor().get_value_label();
-        OPENVINO_ASSERT(labels.empty() || lower_bound.size() == labels.size());
+        const TensorSymbol& symbols = output.get_tensor().get_value_symbol();
+        OPENVINO_ASSERT(symbols.empty() || lower_bound.size() == symbols.size());
 
         std::vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
@@ -298,8 +298,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
                     low = std::numeric_limits<std::int64_t>::max();
             }
             resulting_pshape[i] = {low, up};
-            if (!labels.empty() && labels[i])
-                DimensionTracker::set_label(resulting_pshape[i], labels[i]);
+            if (!symbols.empty())
+                resulting_pshape[i].set_symbol(symbols[i]);
         }
         pshape = ov::PartialShape(resulting_pshape);
         shape_defined = true;
@@ -307,8 +307,8 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
     return shape_defined;
 }
 
-bool default_label_evaluator(const ov::Node* node, TensorLabelVector& output_labels) {
-    return default_label_evaluator(node, {0}, output_labels);
+bool default_symbol_evaluator(const ov::Node* node, TensorSymbolVector& output_symbols) {
+    return default_symbol_evaluator(node, {0}, output_symbols);
 }
 
 void generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
@@ -321,8 +321,8 @@ bool is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t si
            std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
 }
 
-bool has_no_labels(const ov::TensorLabel& labels) {
-    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+bool has_no_symbols(const ov::TensorSymbol& symbols) {
+    return std::all_of(symbols.cbegin(), symbols.cend(), cmp::Equal<std::shared_ptr<ov::Symbol>>(nullptr));
 }
 
 std::vector<size_t> normalize_axes(const std::string& node_description,
