@@ -18,6 +18,7 @@
 #include "shape_inference/custom/scaled_attn.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
+#include "utils/precision_support.h"
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -410,7 +411,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
     void prepare_brgemm_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key, bool has_out_transpose) {
         auto in_type = precision_of<T>::value;
-        auto qkv_dt = in_type == ov::element::f32 ? dt::f32 : dt::bf16;
+        auto qkv_dt = DnnlExtensionUtils::ElementTypeToDataType(in_type);
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -511,13 +512,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
-        bool is_bf16 = precision_of<T>::value == ov::element::bf16;
+        bool is_xf16 = precision_of<T>::value == ov::element::bf16 || precision_of<T>::value == ov::element::f16;
         // packed k, v
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
             qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<T>({b, h, 0}));
-            if (is_bf16)
+            if (is_xf16)
                 wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<T>({b, h, 0}));
         });
 
@@ -597,12 +598,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             }
             T* w_ptr = &weight.at<T>({b, h, m_start, 0});
             float* fp32_out_ptr;
-            if (is_bf16) {
+            if (is_xf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
             } else {
                 fp32_out_ptr = has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size}) : &output_emb.at<float>({b, h, m_start, 0});
             }
-            T* v_ptr = is_bf16 ? &wv_scratch_b.at<T>({b, h / h_each_group_len, 0})
+            T* v_ptr = is_xf16 ? &wv_scratch_b.at<T>({b, h / h_each_group_len, 0})
                                : &present_value.at<T>({b, h / h_each_group_len, 0, 0});
             wv_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      w_ptr,
@@ -610,12 +611,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      fp32_out_ptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      wv_scratch_a ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
-            if (is_bf16) {
+            if (is_xf16) {
                 if (has_out_transpose) {
                     attn_memcpy2d_kernel(&fp32_out.at<float>({b, m_start, h, 0}),
                                          &output_emb.at<T>({b, m_start, h * head_size}),
                                          ov::element::f32,
-                                         ov::element::bf16,
+                                         precision_of<T>::value,
                                          fp32_out.stride(1),
                                          output_emb.stride(1),
                                          head_size,
@@ -624,7 +625,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     attn_memcpy2d_kernel(&fp32_out.at<float>({b, h, m_start, 0}),
                                          &output_emb.at<T>({b, h, m_start, 0}),
                                          ov::element::f32,
-                                         ov::element::bf16,
+                                         precision_of<T>::value,
                                          0,
                                          0,
                                          m_cnt * head_size,
@@ -1289,6 +1290,17 @@ void ScaledDotProductAttention::createPrimitive() {
         if (rtPrecision == ov::element::bf16) {
 #ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
+#endif
+        } else if (rtPrecision == ov::element::f16) {
+#ifdef OPENVINO_ARCH_X86_64
+            // TODO: amx_fp16
+            if (with_cpu_x86_avx512_core_fp16()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
+            }
+#else
+            executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
 #endif
         } else {
 #ifdef OV_CPU_WITH_MLAS
@@ -1956,6 +1968,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
+    } else if (rtPrecision == ov::element::f16 && hasHardwareSupport(ov::element::f16)) {
+        rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;
     }

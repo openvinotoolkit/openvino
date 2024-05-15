@@ -1480,6 +1480,44 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                 past_v_scale_zp,
                                                                 head_sum);
         }
+    } else if (query.get_precision() == ov::element::f16) {
+        if (present_key.get_precision() == ov::element::u8) {
+            mha_single_token_kernel<ov::float16, uint8_t>(query,
+                                                          present_key,
+                                                          present_value,
+                                                          alibi_mask,
+                                                          attention_mask,
+                                                          beams,
+                                                          max_context_len,
+                                                          context_lens,
+                                                          output_emb,
+                                                          buf_attn_w,
+                                                          buf_attn_score,
+                                                          has_out_transpose,
+                                                          auto_causal,
+                                                          d_scale,
+                                                          past_k_scale_zp,
+                                                          past_v_scale_zp,
+                                                          head_sum);
+        } else {
+            mha_single_token_kernel<ov::float16, ov::float16>(query,
+                                                              present_key,
+                                                              present_value,
+                                                              alibi_mask,
+                                                              attention_mask,
+                                                              beams,
+                                                              max_context_len,
+                                                              context_lens,
+                                                              output_emb,
+                                                              buf_attn_w,
+                                                              buf_attn_score,
+                                                              has_out_transpose,
+                                                              auto_causal,
+                                                              d_scale,
+                                                              past_k_scale_zp,
+                                                              past_v_scale_zp,
+                                                              head_sum);
+        }
     } else if (query.get_precision() == ov::element::f32) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<float, uint8_t>(query,
@@ -1519,22 +1557,22 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                         head_sum);
         } else {
             mha_single_token_kernel<float, float>(query,
-                                                present_key,
-                                                present_value,
-                                                alibi_mask,
-                                                attention_mask,
-                                                beams,
-                                                max_context_len,
-                                                context_lens,
-                                                output_emb,
-                                                buf_attn_w,
-                                                buf_attn_score,
-                                                has_out_transpose,
-                                                auto_causal,
-                                                d_scale,
-                                                past_k_scale_zp,
-                                                past_v_scale_zp,
-                                                head_sum);
+                                                  present_key,
+                                                  present_value,
+                                                  alibi_mask,
+                                                  attention_mask,
+                                                  beams,
+                                                  max_context_len,
+                                                  context_lens,
+                                                  output_emb,
+                                                  buf_attn_w,
+                                                  buf_attn_score,
+                                                  has_out_transpose,
+                                                  auto_causal,
+                                                  d_scale,
+                                                  past_k_scale_zp,
+                                                  past_v_scale_zp,
+                                                  head_sum);
         }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());
