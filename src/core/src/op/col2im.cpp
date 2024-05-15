@@ -104,15 +104,15 @@ struct Evaluate : element::NoAction<bool> {
 
 bool Col2Im::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v15_Col2Im_evaluate);
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
+    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this), make_tensor_accessor(inputs)).front().to_shape();
 
-    outputs[0].set_shape(output_shape.get_shape());
+    outputs.front().set_shape(output_shape);
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(v15_Col2Im_evaluate,
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
                                       col2im::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],
@@ -129,8 +129,10 @@ bool Col2Im::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 bool Col2Im::has_evaluate() const {
     OV_OP_SCOPE(v1_Col2Im_has_evaluate);
     switch (get_input_element_type(0)) {
+    case element::i8:
     case element::i32:
     case element::i64:
+    case element::u8:
     case element::u32:
     case element::u64:
     case element::f16:
