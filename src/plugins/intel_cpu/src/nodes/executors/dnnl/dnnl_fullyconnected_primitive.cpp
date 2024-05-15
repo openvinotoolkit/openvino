@@ -51,6 +51,7 @@ size_t DnnlFCPrimitive::Key::hash() const {
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, sparseWeights);
     seed = hash_combine(seed, transposedWeights);
+    seed = hash_combine(seed, isLLM);
 
     return seed;
 }
@@ -72,7 +73,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
     }
 
     result = result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights &&
-             transposedWeights == rhs.transposedWeights;
+             transposedWeights == rhs.transposedWeights && isLLM == rhs.isLLM;
 
     return result;
 }
@@ -94,6 +95,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
         shapeAgnosticData->primAttrs.attr,
         attrs.sparseWeights,
         attrs.weightsNonTransposed,
+        shapeAgnosticData->isLLM,
     };
 
     auto builder = [&context](const Key& dnnlKey) {
@@ -210,6 +212,19 @@ static dnnl::memory::desc normalizeDescriptor(const dnnl::memory::desc& desc) {
     return desc;
 }
 
+static bool useF16CImpl(const dnnl::memory::desc& inputDesc, const dnnl::memory::desc& weightDesc, bool isLLM) {
+    // accessing FP16 weights using VCVTPH2PS/VCVTPH2PSX can only speed-up serious memory-bounded FC
+    // FC in LLM workloads with shape [batch-size, sequence-length, IC], F16C can only speed-up
+    // when effective batch-size (batch-size * sequence-length) is small, in LLM workloads, non-first-tokens
+    // has shape [batch-size, 1, IC] which potentially benefit the most from F16C when batch-size is small.
+    // to avoid increasing memory-footprint, we would sacrifice some performance (<10%) in first-token
+    // due to much larger effective batch-size of first-token.
+    return isLLM &&
+           inputDesc.get_data_type() == dnnl::memory::data_type::f32 &&
+           weightDesc.get_data_type() == dnnl::memory::data_type::f16 &&
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+}
+
 static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& inputDesc,
                                                                             const dnnl::memory::desc& weightDesc,
                                                                             const dnnl::memory::desc& biasDesc,
@@ -217,14 +232,15 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
                                                                             const dnnl::primitive_attr& attr,
                                                                             const dnnl::engine& engine,
                                                                             const bool useSparseWeights,
-                                                                            const bool useWeightsDecompression) {
+                                                                            const bool useWeightsDecompression,
+                                                                            const bool isLLM) {
     const auto normalizedInputDesc = normalizeDescriptor(inputDesc);
     const auto normalizedOutputDesc = normalizeDescriptor(outputDesc);
 
     const auto indt = normalizedInputDesc.get_data_type();
     auto wdt = indt;
 
-    if (useWeightsDecompression) {
+    if (useWeightsDecompression || useF16CImpl(inputDesc, weightDesc, isLLM)) {
         wdt = weightDesc.get_data_type();
     } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
         wdt = memory::data_type::s8;
@@ -251,7 +267,8 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::engine& engine,
                                           const std::vector<impl_desc_type>& implPriorities,
                                           const bool useSparseWeights,
-                                          const bool useWeightsDecompression) {
+                                          const bool useWeightsDecompression,
+                                          const bool isLLM) {
     auto prim_desc = createDescriptorInternal(inputDesc,
                                               weightDesc,
                                               biasDesc,
@@ -259,7 +276,8 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                               attr,
                                               engine,
                                               useSparseWeights,
-                                              useWeightsDecompression);
+                                              useWeightsDecompression,
+                                              isLLM);
     OPENVINO_ASSERT(prim_desc, "Failed to create inner_product primitive descriptor");
     auto first_desc = dnnl::inner_product_forward::primitive_desc(prim_desc.get());
 
@@ -323,7 +341,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
 
     if (!cacheWeights)
-        return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+        return std::make_shared<DnnlShapeAgnosticData>(postOpData, attrs.isLLM);
 
     if (srcDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();
@@ -349,7 +367,8 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                               context->getEngine(),
                                               context->getImplPriorities(),
                                               useSparseWeights,
-                                              useWeightsDecompression);
+                                              useWeightsDecompression,
+                                              attrs.isLLM);
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
@@ -362,7 +381,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                       memory.at(ARG_WEI),
                                       context);
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    return std::make_shared<DnnlShapeAgnosticData>(postOpData, attrs.isLLM);
 }
 
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc primDesc) {
@@ -387,7 +406,8 @@ DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                      engine,
                                      implPriorities,
                                      key.sparseWeights,
-                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()))),
+                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()),
+                                     key.isLLM)),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
       m_weiDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.weights_desc())),

@@ -15,7 +15,11 @@ struct DnnlShapeAgnosticData {
     DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs)
         : primAttrs(std::move(primAttrs)) {}
 
+    DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs, bool isLLM)
+        : primAttrs(std::move(primAttrs)), isLLM(isLLM) {}
+
     DnnlPrimitiveAttrs primAttrs;
+    bool isLLM = false;
 };
 
 using DnnlShapeAgnosticDataPtr = std::shared_ptr<DnnlShapeAgnosticData>;

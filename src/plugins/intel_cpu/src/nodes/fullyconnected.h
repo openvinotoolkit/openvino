@@ -62,6 +62,10 @@ public:
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
+    void hintLLMWorkload() {
+        attrs.isLLM = true;
+    }
+
 protected:
     void toNumaNodeImpl(int numaID) override;
 

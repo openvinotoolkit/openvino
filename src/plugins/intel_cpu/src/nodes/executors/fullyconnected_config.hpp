@@ -26,6 +26,9 @@ struct FCAttrs {
     MemoryCPtr decompressionSubtractPtr;
     MemoryCPtr decompressionMultiplyPtr;
     uint64_t dynamicQuantizationGroupSize;
+
+    // workload hint for FC to choose best kernels
+    bool isLLM = false;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

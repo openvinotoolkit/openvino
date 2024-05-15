@@ -26,6 +26,7 @@ class DnnlFCPrimitive {
         dnnl::primitive_attr attr;
         bool sparseWeights;
         bool transposedWeights;
+        bool isLLM;
 
         size_t hash() const;
         bool operator==(const Key& rhs) const;
