@@ -764,6 +764,8 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                     getLatestBuildError());
 
     auto networkMeta = getNetworkMeta(graphHandle);
+    networkMeta.name = model->get_friendly_name();
+    
     result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
