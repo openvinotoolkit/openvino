@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace testing;

@@ -3,6 +3,7 @@
 //
 
 #include "ov_ops/rotary_positional_embeddings.hpp"
+
 #include "itt.hpp"
 
 namespace ov {
@@ -32,19 +33,12 @@ void RoPE::validate_and_infer_types() {
     auto input_pshape = get_input_partial_shape(0);
     auto input_slice_size = m_config.slice_stop - m_config.slice_start;
 
-    if (m_config.is_qwen) {
+    if (m_config.is_qwen || m_config.is_chatglm) {
         // Qwen specific RoPE
         // input  [batch_size, cur_length, (hidden_states_q + hidden_states_k + hidden_states_v)]
         // output [batch_size, cur_length, head_cnt, head_size]
-        set_output_type(
-            0,
-            get_input_element_type(0),
-            {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
-        return;
-    }
 
-    if (m_config.is_chatglm) {
-        // chatGLM specific RoPE
+        // ChatGLM specific RoPE
         // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
         // output [length, batch_size, head_cnt, hidden_states_k]
         set_output_type(

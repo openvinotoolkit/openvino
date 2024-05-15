@@ -25,22 +25,18 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
     const auto& config = op->get_config();
 
     if (config.input_trans0213) {
-        auto& input_pshape = op->get_input_partial_shape(0);
-        std::vector<uint16_t> transposeOrder(input_pshape.size());
-        std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
-        std::swap(*(transposeOrder.begin() + 1), *(transposeOrder.begin() + 2));
+        size_t input_rank = op->get_input_partial_shape(0).size();
+        std::vector<uint16_t> transpose_order(input_rank);
+        std::iota(transpose_order.begin(), transpose_order.end(), 0);
+        std::swap(*(transpose_order.begin() + 1), *(transpose_order.begin() + 2));
 
-        auto permuteName = op->get_friendly_name() + "_trans0213";
-        auto permutePrim = cldnn::permute(permuteName,
+        auto permute_name = op->get_friendly_name() + "_trans0213";
+        auto permutePrim = cldnn::permute(permute_name,
                                           cldnn::input_info(inputs[0].pid),
-                                          transposeOrder);
+                                          transpose_order);
         p.add_primitive(*op, permutePrim);
-        inputs[0] = cldnn::input_info(permuteName);
+        inputs[0] = cldnn::input_info(permute_name);
     }
-
-    // if (config.is_interleaved) {
-        // add transpose afer RoPE
-    // }
 
     auto rope = cldnn::rope(layer_type_name_ID(op),
                             inputs,

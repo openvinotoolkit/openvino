@@ -12,14 +12,13 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "transformations/utils/utils.hpp"
-#include "transformations/utils/gen_pattern.hpp"
-
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 
@@ -89,11 +88,11 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(x2neg).get_node_shared_ptr(),
-                                pattern_map.at(x_rotate_half).get_node_shared_ptr(),
-                                pattern_map.at(mul_cos).get_node_shared_ptr(),
-                                pattern_map.at(mul_sin).get_node_shared_ptr(),
-                                pattern_map.at(result).get_node_shared_ptr()},
-                                new_node);
+                               pattern_map.at(x_rotate_half).get_node_shared_ptr(),
+                               pattern_map.at(mul_cos).get_node_shared_ptr(),
+                               pattern_map.at(mul_sin).get_node_shared_ptr(),
+                               pattern_map.at(result).get_node_shared_ptr()},
+                              new_node);
 
         ov::replace_node(old_node, new_node);
 
@@ -233,9 +232,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         // remove slice & concat
         rope_node->set_argument(0, pattern_map.at(data));
         rope_node->set_friendly_name(root->get_friendly_name());
-        ov::copy_runtime_info({rope_node,
-                        pattern_map.at(result).get_node_shared_ptr()},
-                        rope_node);
+        ov::copy_runtime_info({rope_node, pattern_map.at(result).get_node_shared_ptr()}, rope_node);
         ov::replace_node(root, rope_node);
 
         rope_node->validate_and_infer_types();
@@ -427,8 +424,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     // x*cos [B,L,H,ndims]
     auto mul_cos =
         makePattern<opset1::Multiply>({slice_Slice_965, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin =
-        makePattern<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = makePattern<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin},
+                                                 {{"auto_broadcast", "numpy"}});
 
     // *cos + *sin
     auto rotary_emb = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
@@ -464,18 +461,18 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(varsplit).get_node_shared_ptr(),
-                                pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
-                                pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
-                                pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
-                                pattern_map.at(Unsqueeze_65524).get_node_shared_ptr(),
-                                pattern_map.at(Unsqueeze_65525).get_node_shared_ptr(),
-                                pattern_map.at(stack_1182).get_node_shared_ptr(),
-                                pattern_map.at(mul_cos).get_node_shared_ptr(),
-                                pattern_map.at(mul_sin).get_node_shared_ptr(),
-                                pattern_map.at(rotary_emb).get_node_shared_ptr(),
-                                pattern_map.at(cat_Concat_1211).get_node_shared_ptr(),
-                                pattern_map.at(permute_Transpose_1213).get_node_shared_ptr()},
-                                new_node);
+                               pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
+                               pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
+                               pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
+                               pattern_map.at(Unsqueeze_65524).get_node_shared_ptr(),
+                               pattern_map.at(Unsqueeze_65525).get_node_shared_ptr(),
+                               pattern_map.at(stack_1182).get_node_shared_ptr(),
+                               pattern_map.at(mul_cos).get_node_shared_ptr(),
+                               pattern_map.at(mul_sin).get_node_shared_ptr(),
+                               pattern_map.at(rotary_emb).get_node_shared_ptr(),
+                               pattern_map.at(cat_Concat_1211).get_node_shared_ptr(),
+                               pattern_map.at(permute_Transpose_1213).get_node_shared_ptr()},
+                              new_node);
         ov::replace_node(old_node, new_node);
         // shapeof may be moved up from transpose to add,
         // After RoPE fusion, shapeof must be moved to the data input of RoPE otherwise extra subgraph exists
@@ -613,9 +610,9 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(flatten_Reshape_501).get_node_shared_ptr(),
-                        pattern_map.at(slice_Slice_443).get_node_shared_ptr(),
-                        pattern_map.at(cat_Concat_505).get_node_shared_ptr()},
-                        new_node);
+                               pattern_map.at(slice_Slice_443).get_node_shared_ptr(),
+                               pattern_map.at(cat_Concat_505).get_node_shared_ptr()},
+                              new_node);
         ov::replace_node(old_node, new_node);
         return true;
     };
@@ -755,13 +752,13 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(Multiply_567527).get_node_shared_ptr(),
-                        pattern_map.at(ListUnpack_586_Squeeze_0).get_node_shared_ptr(),
-                        pattern_map.at(ListUnpack_586_Squeeze).get_node_shared_ptr(),
-                        pattern_map.at(cat_Concat_593).get_node_shared_ptr(),
-                        pattern_map.at(slice_Slice_470).get_node_shared_ptr(),
-                        pattern_map.at(mul_Multiply_594).get_node_shared_ptr(),
-                        pattern_map.at(add_Add_597).get_node_shared_ptr()},
-                        new_node);
+                               pattern_map.at(ListUnpack_586_Squeeze_0).get_node_shared_ptr(),
+                               pattern_map.at(ListUnpack_586_Squeeze).get_node_shared_ptr(),
+                               pattern_map.at(cat_Concat_593).get_node_shared_ptr(),
+                               pattern_map.at(slice_Slice_470).get_node_shared_ptr(),
+                               pattern_map.at(mul_Multiply_594).get_node_shared_ptr(),
+                               pattern_map.at(add_Add_597).get_node_shared_ptr()},
+                              new_node);
         ov::replace_node(old_node, new_node);
         return true;
     };
@@ -824,7 +821,10 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
         auto global_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(m_inv_freq);
-        if (memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size()) != 0)
+
+        auto cmp_error =
+            memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size());
+        if (cmp_error != 0)
             return false;
         // check all inputs are the same as the one to be shared.
         for (size_t i = 0; i < inputs.size(); i++) {

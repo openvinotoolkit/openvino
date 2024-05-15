@@ -189,6 +189,7 @@ protected:
 };
 
 TEST_F(RoPEGPUTestLlama2, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
@@ -336,6 +337,7 @@ protected:
 };
 
 TEST_F(RoPEGPUTestChatGLM, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
@@ -469,6 +471,7 @@ protected:
 };
 
 TEST_F(RoPEGPUTestQwen7b, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
@@ -608,6 +611,7 @@ protected:
 };
 
 TEST_P(RoPEGPUTestGPTJ, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     std::shared_ptr<const ov::Model> function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);

@@ -819,12 +819,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+
         manager.run_passes(func);
     }
-    // ov::pass::Serialize("serialized_ir/openvino_model.xml", "openvino_model.bin").run_on_model(func);
-    // {
-    //     pass::VisualizeTree("image.svg").run_on_model(func);
-    // }
 }
 }  // namespace intel_gpu
 }  // namespace ov

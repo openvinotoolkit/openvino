@@ -43,7 +43,9 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    dispatchData.gws = {input.Batch().v, input.Feature().v * (params.head_size - params.rotary_ndims), Align(params.head_cnt * (params.rotary_ndims / 2), 64)};
+    dispatchData.gws = {input.Batch().v,
+                        input.Feature().v * (params.head_size - params.rotary_ndims),
+                        Align(params.head_cnt * (params.rotary_ndims / 2), 64)};
     dispatchData.lws = {1, 1, 64};
 
     return dispatchData;
@@ -87,7 +89,7 @@ KernelsData RoPEKernelBase::GetCommonKernelsData(const Params& params) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     2, // TODO: Change num of inputs
+                     orgParams.num_of_inputs,
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.outputs[0].is_dynamic());

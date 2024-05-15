@@ -21,7 +21,7 @@ public:
     RoPE() = default;
 
     struct Config {
-        size_t slice_start = 0;        // slice inner-most dimensions of input
+        size_t slice_start = 0;  // slice inner-most dimensions of input
         size_t slice_stop = 0;
         bool input_trans0213 = false;  // transpose input dim 1&2
         bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
@@ -39,9 +39,9 @@ public:
     const Config& get_config() const;
     void set_config(const Config& config);
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
 private:
     Config m_config{};

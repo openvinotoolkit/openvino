@@ -30,17 +30,15 @@ std::vector<layout> rope_inst::calc_output_layouts(rope_node const& node, kernel
 
     ShapeType output_shape = input_pshape;
 
-    if (desc->config.is_qwen) {
+    if (desc->config.is_qwen || desc->config.is_chatglm) {
         // Qwen specific RoPE
         // input  [batch_size, cur_length, (hidden_states_q + hidden_states_k + hidden_states_v)]
         // output [batch_size, cur_length, head_cnt, head_size]
-        output_shape = {input_pshape[0], input_pshape[1], ov::Dimension(desc->config.head_cnt), ov::Dimension(desc->config.head_size)};
-    } else if (desc->config.is_chatglm) {
+
         // chatGLM specific RoPE
         // input  [length, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
         // output [length, batch_size, head_cnt, hidden_states_k]
         output_shape = {input_pshape[0], input_pshape[1], ov::Dimension(desc->config.head_cnt), ov::Dimension(desc->config.head_size)};
-        // mb last dim another <---------------------------------------------------------------------------------------------------------------
     } else {
         auto input_slice_size = desc->config.slice_stop - desc->config.slice_start;
         if (input_slice_size > 0) {
@@ -66,8 +64,16 @@ std::string rope_inst::to_string(rope_node const& node) {
     std::stringstream primitive_description;
 
     json_composite rope_info;
-    //rope_info.add("", );
-
+    rope_info.add("gather_position_arg_id", desc->config.gather_position_arg_id);
+    rope_info.add("head_cnt", desc->config.head_cnt);
+    rope_info.add("head_size", desc->config.head_size);
+    rope_info.add("input_trans0213", desc->config.input_trans0213);
+    rope_info.add("is_chatglm", desc->config.is_chatglm);
+    rope_info.add("is_interleaved", desc->config.is_interleaved);
+    rope_info.add("is_qwen", desc->config.is_qwen);
+    rope_info.add("rotary_ndims", desc->config.rotary_ndims);
+    rope_info.add("slice_start", desc->config.slice_start);
+    rope_info.add("slice_stop", desc->config.slice_stop);
     node_info->add("rope info", rope_info);
     node_info->dump(primitive_description);
 
