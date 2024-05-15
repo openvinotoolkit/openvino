@@ -278,7 +278,7 @@ void reorder_inst::update_output_memory() {
 
     // Do not update output memory when reorder is optimized out
     // but input memory is not allocated yet because input is dynamic.
-    if (get_input_layout().is_dynamic())
+    if (!input_memory_ptr())
         return;
 
     if (requires_reinterpret()) {

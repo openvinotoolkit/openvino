@@ -153,8 +153,6 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || (impl_params->get_input_layout(0).data_padding != impl_params->get_output_layout().data_padding))
                 return;
 
-            // TODO: For now, all reorders with dynamic shape are applied.
-            //       A more detailed pattern will need to be applied later
             if (node.is_dynamic()) {
                 if (!node.is_output() && node.get_users().size() != 1)
                     return;

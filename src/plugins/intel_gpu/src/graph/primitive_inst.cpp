@@ -950,16 +950,18 @@ void primitive_inst::do_runtime_skip_reorder() {
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<reorder>()) {
             if (u->get_node().can_be_optimized() && u->get_node().is_runtime_skippable()) {
-                if (is_input() && u->is_output())
-                    continue;
                 auto out_port_idx = u->get_node().get_dependency_with_port(0).second;
                 // If current node's output_node is not dynamic, the memory is already allocated at build time
                 auto alloc_type = allocation_type::unknown;
                 if (!get_node().is_dynamic_output_layout(out_port_idx) && static_cast<int64_t>(_outputs.size()) > out_port_idx) {
                     alloc_type = _outputs[out_port_idx]->get_allocation_type();
                 }
-                if (alloc_type == allocation_type::usm_device && u->is_output())
+                if (alloc_type == allocation_type::usm_device && u->is_output()) {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                                                << " cannot be optimized for that " << u->id() << " is reorder and output node" << std::endl;
                     continue;
+                }
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
                 u->update_shape();
                 u->update_shape_done_by_other = true;
