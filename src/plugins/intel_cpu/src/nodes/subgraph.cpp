@@ -71,13 +71,13 @@ struct SubgraphKey {
 
 struct SubgraphCodeGeneratorKey {
     SubgraphCodeGeneratorKey(const std::shared_ptr<Subgraph::SubgraphAttrs>& attrs_, uint8_t mask_)
-        : attrs(attrs_), mask(mask_) {}
+        : attrs(attrs_), broadcasting_mask(mask_) {}
 
     size_t hash() const;
     bool operator==(const SubgraphCodeGeneratorKey& rhs) const;
 
     std::shared_ptr<Subgraph::SubgraphAttrs> attrs = nullptr;
-    uint8_t mask = 0;
+    uint8_t broadcasting_mask = 0;
 };
 
 struct SubgraphShapeInferResultKey {
@@ -126,7 +126,7 @@ size_t SubgraphCodeGeneratorKey::hash() const {
     using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = get_attr_hash(0, attrs);
-    seed = hash_combine(seed, mask);
+    seed = hash_combine(seed, broadcasting_mask);
 
     return seed;
 }
@@ -167,7 +167,7 @@ bool SubgraphKey::operator==(const SubgraphKey& rhs) const {
 }
 
 bool SubgraphCodeGeneratorKey::operator==(const SubgraphCodeGeneratorKey& rhs) const {
-    return *attrs == *rhs.attrs && mask == rhs.mask;
+    return *attrs == *rhs.attrs && broadcasting_mask == rhs.broadcasting_mask;
 }
 
 bool SubgraphShapeInferResultKey::operator==(const SubgraphShapeInferResultKey& rhs) const {

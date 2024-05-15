@@ -14,7 +14,6 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_c
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 
     // Init LinearIR StateUpdater: some passes to update LoopInfo, BufferInfo etc
-    m_state_updater = lowered::pass::PassPipeline();
     m_state_updater.register_pass<lowered::pass::UpdateLoopInfo>();
 }
 

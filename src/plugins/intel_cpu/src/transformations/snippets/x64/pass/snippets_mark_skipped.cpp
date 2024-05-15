@@ -200,7 +200,7 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node> &node) {
 }
 // From Reduce::canFuse() corner case. CanFuseSimpleOperation is covered by Misc
 inline bool isSuitableReduceParent(const std::shared_ptr<const Node> &node) {
-return ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) && isSuitableMiscParent(node);
+    return ov::is_type<ov::op::util::ArithmeticReductionKeepDims>(node) && isSuitableMiscParent(node);
 }
 // Subtract as ZeroPoints for Convolution
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node> &node) {

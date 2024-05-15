@@ -136,11 +136,6 @@ public:
                                    const std::vector<ov::element::Type>& output_precisions = {},
                                    const std::vector<snippets::pass::Manager::PositionedPassBase>& = {}) const;
 
-    void control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
-
-    void pre_generation_transformations() const;
-
     std::shared_ptr<lowered::LinearIR>
     convert_body_to_linear_ir(size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
                               const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
@@ -163,10 +158,11 @@ public:
                                 const void* compile_params = nullptr);
 
 private:
-    void control_flow_transformations(lowered::LinearIR& linear_ir,
-                                      LoweringResult& lowering_result,
-                                      const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
-                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {}) const;
+    void control_flow_transformations(const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config = std::make_shared<lowered::pass::PassConfig>(),
+                                      const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {});
+
+    void pre_generation_transformations() const;
+
     void init_shape_infer_linear_ir();
     void init_config();
     // Count of Subgraph virtual ports:
