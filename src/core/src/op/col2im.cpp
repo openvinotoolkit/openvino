@@ -43,19 +43,13 @@ void Col2Im::validate_and_infer_types() {
 
     const auto& data_element_type = get_input_element_type(0);
     const auto& output_size_element_type = get_input_element_type(1);
-    const bool is_valid_output_size_type =
-        output_size_element_type == element::i32 || output_size_element_type == element::i64;
-    NODE_VALIDATION_CHECK(this,
-                          is_valid_output_size_type,
-                          "The element type of the output_size tensor must be i32 or i64 type. Got: ",
-                          output_size_element_type);
-
     const auto& kernel_size_element_type = get_input_element_type(2);
-    const bool is_valid_kernel_size_type =
-        kernel_size_element_type == element::i32 || kernel_size_element_type == element::i64;
+    const bool is_valid_index_type = (output_size_element_type == element::i32 || output_size_element_type == element::i64) && output_size_element_type == kernel_size_element_type;
     NODE_VALIDATION_CHECK(this,
-                          is_valid_kernel_size_type,
-                          "The element type of the kernel_size tensor must be i32 or i64 type. Got: ",
+                          is_valid_index_type,
+                          "The element types of the output_size and kernel_size tensors must match and be of i32 or i64 type. Got: ",
+                          output_size_element_type,
+                          " and ",
                           kernel_size_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
@@ -88,40 +82,49 @@ struct Evaluate : element::NoAction<bool> {
                              const Strides& dilations,
                              const Shape& pads_begin,
                              const Shape& pads_end) {
-        reference::col2im(in.data<const T>(),
+        using namespace ov::element;
+        return IF_TYPE_OF(col2im_eval_by_idx_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvalByIdxType,
+                          output_size.get_element_type(),
+                          in.data<const T>(),
                           in_shape,
-                          output_size.data<const T>(),
-                          kernel_size.data<const T>(),
+                          output_size,
+                          kernel_size,
                           out.data<T>(),
                           strides,
                           dilations,
                           pads_begin,
                           pads_end);
-        return true;
     }
+
+private:
+    struct EvalByIdxType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
+        static result_type visit(const T* in,
+                                 const Shape& in_shape,
+                                 const Tensor& output_size,
+                                 const Tensor& kernel_size,
+                                 T* out,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const Shape& pads_begin,
+                                 const Shape& pads_end) {
+            reference::col2im(in,
+                              in_shape,
+                              output_size.data<const I>(),
+                              kernel_size.data<const I>(),
+                              out,
+                              strides,
+                              dilations,
+                              pads_begin,
+                              pads_end);
+            return true;
+        }
+    };
 };
-//    template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
-//    static result_type visit(const Tensor& in,
-//                             const Shape& in_shape,
-//                             const Tensor& output_size,
-//                             const Tensor& kernel_size,
-//                             Tensor& out,
-//                             const Strides& strides,
-//                             const Strides& dilations,
-//                             const Shape& pads_begin,
-//                             const Shape& pads_end) {
-//        reference::col2im(in.data<const T>(),
-//                          in_shape,
-//                          output_size.data<const T>(),
-//                          kernel_size.data<const T>(),
-//                          out.data<T>(),
-//                          strides,
-//                          dilations,
-//                          pads_begin,
-//                          pads_end);
-//        return true;
-//    }
-//};
 }  // namespace col2im
 
 bool Col2Im::evaluate(TensorVector& outputs, const TensorVector& inputs) const {

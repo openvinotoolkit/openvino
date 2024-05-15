@@ -241,17 +241,17 @@ std::vector<Col2ImParams> generateCol2ImV15CombinedParams() {
     using ov::element::Type_t;
     const std::vector<std::vector<Col2ImParams>> col2ImTypeParams{
         generateCol2ImParams<Type_t::i32, Type_t::i32>(),
-        generateCol2ImParams<Type_t::i64, Type_t::i32>(),   // :(
+        generateCol2ImParams<Type_t::i64, Type_t::i32>(),
         generateCol2ImParams<Type_t::u32, Type_t::i32>(),
-        generateCol2ImParams<Type_t::u64, Type_t::i32>(),   // :(
-        generateCol2ImParams<Type_t::f16, Type_t::i32>(),   // :(
-        generateCol2ImParams<Type_t::f32, Type_t::i32>(),   // :(
-        generateCol2ImParams<Type_t::i32, Type_t::i64>(),   // :(
+        generateCol2ImParams<Type_t::u64, Type_t::i32>(),
+        generateCol2ImParams<Type_t::f16, Type_t::i32>(),
+        generateCol2ImParams<Type_t::f32, Type_t::i32>(),
+        generateCol2ImParams<Type_t::i32, Type_t::i64>(),
         generateCol2ImParams<Type_t::i64, Type_t::i64>(),
-        generateCol2ImParams<Type_t::u32, Type_t::i64>(),   // :(
+        generateCol2ImParams<Type_t::u32, Type_t::i64>(),
         generateCol2ImParams<Type_t::u64, Type_t::i64>(),
-        generateCol2ImParams<Type_t::f16, Type_t::i64>(),   // :(
-        generateCol2ImParams<Type_t::f32, Type_t::i64>(),   // :(
+        generateCol2ImParams<Type_t::f16, Type_t::i64>(),
+        generateCol2ImParams<Type_t::f32, Type_t::i64>(),
     };
 
     std::vector<Col2ImParams> combinedParams;
