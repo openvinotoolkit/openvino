@@ -40,33 +40,33 @@ available devices and read model objects:
     .. tab-item:: Python
        :sync: py
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [import]
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part1]
 
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [include]
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part1]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [include]
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part1]
 
@@ -89,42 +89,42 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
           .. tab-item:: IR
              :sync: ir
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
              :sync: onnx
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
              :sync: paddlepaddle
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
              :sync: tensorflow
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
              :sync: tensorflow_lite
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
              :sync: openvinomodel
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+             .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_6]
 
@@ -136,42 +136,42 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
           .. tab-item:: IR
              :sync: ir
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
              :sync: onnx
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
              :sync: paddlepaddle
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
              :sync: tensorflow
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
              :sync: tensorflow_lite
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
              :sync: openvinomodel
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+             .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_6]
 
@@ -183,42 +183,42 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
           .. tab-item:: IR
              :sync: ir
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
              :sync: onnx
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
              :sync: paddlepaddle
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
              :sync: tensorflow
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
              :sync: tensorflow_lite
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
              :sync: openvinomodel
 
-             .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+             .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_6]
 
@@ -242,21 +242,21 @@ Create an infer request using the following code (see
     .. tab-item:: Python
        :sync: py
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part3]
 
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part3]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part3]
 
@@ -271,21 +271,21 @@ You can use external memory to create ``ov::Tensor`` and use the ``ov::InferRequ
     .. tab-item:: Python
        :sync: py
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part4]
 
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part4]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part4]
 
@@ -301,21 +301,21 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
     .. tab-item:: Python
        :sync: py
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part5]
 
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part5]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part5]
 
@@ -333,21 +333,21 @@ Go over the output tensors and process the inference results.
     .. tab-item:: Python
        :sync: py
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.py
+       .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part6]
 
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part6]
 
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part6]
 
@@ -363,7 +363,7 @@ To avoid memory leak, applications developed with C API need to release the allo
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part8]
 
@@ -381,7 +381,7 @@ Create Structure for project:
     .. tab-item:: C++
        :sync: cpp
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.cpp
+       .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part7]
           :force:
@@ -389,7 +389,7 @@ Create Structure for project:
     .. tab-item:: C
        :sync: c
 
-       .. doxygensnippet:: docs/articles_en/assets/snippets/main_src.c
+       .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part7]
           :force:
