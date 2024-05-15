@@ -39,31 +39,6 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& 
         }
         portType = SyncInferRequest::FoundPort::Type::OUTPUT;
     }
-
-    for (const IODescriptor& inputDescriptor : _metadata.inputs) {
-        if (inputDescriptor.isStateInput) {
-            _prefixedInputNames.push_back(READVALUE_PREFIX + inputDescriptor.nameFromCompiler);
-        } else if (inputDescriptor.isShapeTensor) {
-            _prefixedInputNames.push_back(SHAPE_TENSOR_PREFIX + inputDescriptor.nameFromCompiler);
-        } else {
-            _prefixedInputNames.push_back(inputDescriptor.nameFromCompiler);
-        }
-    }
-
-    for (const IODescriptor& outputDescriptor : _metadata.outputs) {
-        if (outputDescriptor.isStateOutput) {
-            _prefixedOutputNames.push_back(ASSIGN_PREFIX + outputDescriptor.nameFromCompiler);
-        } else if (outputDescriptor.isShapeTensor) {
-            _prefixedOutputNames.push_back(SHAPE_TENSOR_PREFIX + outputDescriptor.nameFromCompiler);
-        } else {
-            _prefixedOutputNames.push_back(outputDescriptor.nameFromCompiler);
-        }
-
-        // Map the node names to the legacy ones used by the I/O tensors in order to allow an easier access to the
-        // tensors' contents
-        _nodeFriendlyNameToNameFromCompiler[outputDescriptor.nodeFriendlyName] = outputDescriptor.nameFromCompiler;
-        _nameFromCompilerToNodeFriendlyName[outputDescriptor.nameFromCompiler] = outputDescriptor.nodeFriendlyName;
-    }
 }
 
 SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
@@ -248,16 +223,10 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
 
         if (descriptor.isStateInput) {
             _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
-        } else if (descriptor.isShapeTensor) {
-            _shapesInputTensors.push_back(tensor);
         }
     } else {
         _outputTensors.push_back(tensor);
         _copyOutputTensors.push_back(tensor);
-
-        if (descriptor.isShapeTensor) {
-            _shapesOutputTensors.push_back(tensor);
-        }
     }
 }
 }  // namespace intel_npu

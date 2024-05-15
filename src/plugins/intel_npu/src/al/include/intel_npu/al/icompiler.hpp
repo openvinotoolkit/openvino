@@ -37,7 +37,7 @@ struct IODescriptor {
      */
     std::string nameFromCompiler;
 
-    ov::element::Type_t precision;
+    ov::element::Type precision;
 
     ov::PartialShape shapeFromCompiler;
 
@@ -110,7 +110,7 @@ struct NetworkMetadata final {
     std::vector<IODescriptor> outputs;
     std::vector<IODescriptor> profilingOutputs;
 
-    int numStreams = 1;
+    size_t numStreams = 1;
 
     std::optional<size_t> findByName(const std::vector<IODescriptor>& descriptors, const std::string_view targetName) {
         for (size_t descriptorIndex = 0; descriptorIndex < descriptors.size(); ++descriptorIndex) {

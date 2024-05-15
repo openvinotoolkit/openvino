@@ -150,8 +150,6 @@ protected:
 
     std::vector<std::shared_ptr<ov::ITensor>> _inputTensors;
     std::vector<std::shared_ptr<ov::ITensor>> _outputTensors;
-    std::vector<std::shared_ptr<ov::ITensor>> _shapesInputTensors;
-    std::vector<std::shared_ptr<ov::ITensor>> _shapesOutputTensors;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
@@ -165,13 +163,6 @@ protected:
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
 
     NetworkMetadata _metadata;
-
-    // Stored in order to avoid additional processing when launching inferences
-    std::vector<std::string> _prefixedInputNames;
-    std::vector<std::string> _prefixedOutputNames;
-
-    std::unordered_map<std::string, std::string> _nodeFriendlyNameToNameFromCompiler;
-    std::unordered_map<std::string, std::string> _nameFromCompilerToNodeFriendlyName;
 
     mutable std::unordered_map<size_t, FoundPort> _cachedPorts;
     mutable std::mutex _cacheMutex;
