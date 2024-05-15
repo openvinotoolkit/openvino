@@ -8,8 +8,7 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/greater_eq.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/reference/abs.hpp"
@@ -29,9 +28,9 @@ struct Evaluate : ov::element::NoAction<bool> {
 };
 
 static bool evaluate_bound(const ov::op::v0::Abs* op,
-                    const ov::descriptor::Tensor& tensor,
-                    TensorVector& output_values,
-                    bool is_lower) {
+                           const ov::descriptor::Tensor& tensor,
+                           TensorVector& output_values,
+                           bool is_lower) {
     const auto &lv = tensor.get_lower_value(), &uv = tensor.get_upper_value();
     if (!lv || !uv || !op->has_evaluate())
         return false;
@@ -44,21 +43,6 @@ static bool evaluate_bound(const ov::op::v0::Abs* op,
     else
         return v1::Maximum().evaluate(output_values, {lower_output[0], upper_output[0]});
 }
-
-static std::vector<bool> tensor_non_negative(const ov::descriptor::Tensor& tensor) {
-    const auto& lv = tensor.get_lower_value();
-    if (!lv)
-        return {};
-    auto l_const = std::make_shared<v0::Constant>(lv);
-    auto zero_const = std::make_shared<v0::Constant>(lv.get_element_type(), lv.get_shape(), 0);
-    OutputVector outputs(1);
-    if (!std::make_shared<v1::GreaterEqual>(l_const, zero_const)->constant_fold(outputs, {l_const, zero_const}))
-        return {};
-    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(outputs[0].get_node_shared_ptr()))
-        return constant->cast_vector<bool>();
-    return {};
-}
-
 }  // namespace abs
 
 namespace v0 {
@@ -117,7 +101,7 @@ bool Abs::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool Abs::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    const auto& non_negative = ov::op::abs::tensor_non_negative(get_input_tensor(0));
+    const auto& non_negative = ov::util::to_vector<bool>(ov::util::ge(get_input_tensor(0).get_lower_value(), 0));
     const auto& input_symbols = get_input_tensor(0).get_value_symbol();
     if (non_negative.empty() || input_symbols.size() != non_negative.size())
         return false;
