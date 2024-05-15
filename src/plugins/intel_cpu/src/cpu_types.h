@@ -118,6 +118,7 @@ enum class Type {
     Unique,
     Ngram,
     ScaledDotProductAttention,
+    PagedAttention,
     RoPE,
     CausalMaskPreprocess,
 };
