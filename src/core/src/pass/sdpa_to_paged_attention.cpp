@@ -38,7 +38,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     };
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    auto cur_seq_len = std::make_shared<v1::Gather>(std::make_shared<v3::ShapeOf>(model->input("input_ids")),
+    auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(model->input("input_ids")),
                                                     v0::Constant::create(element::i64, Shape{}, {1}),
                                                     v0::Constant::create(element::i64, Shape{}, {0}));
     auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len);
