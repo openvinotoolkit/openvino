@@ -58,7 +58,6 @@ Step 1: Update the repository
 
       sudo zypper refresh
 
-   You will see the available list of packages.
 
 To list available OpenVINO packages, use the following command:
 
